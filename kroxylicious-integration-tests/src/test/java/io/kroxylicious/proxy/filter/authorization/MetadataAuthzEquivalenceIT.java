@@ -89,7 +89,6 @@ public class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
 
     @BeforeAll
     void beforeAll() throws IOException {
-        // TODO need to add Carol who has Cluster.CREATE
         rulesFile = Files.createTempFile(MetadataAuthzEquivalenceIT.class.getName(), ".aclRules");
         Files.writeString(rulesFile, """
                 from io.kroxylicious.filter.authorization import TopicResource as Topic;
@@ -270,7 +269,6 @@ public class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
                 unproxiedCluster.getBootstrapServers(),
                 topicIdInUnproxiedCluster,
                 PASSWORDS);
-        // TODO assertions about side effects (topics created, or not)
 
         if (topics == null || !topics.isEmpty()) {
             // When topics are requested, we expect alice and bob to be able to see them
@@ -311,7 +309,6 @@ public class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
 
             assertThat(clobberMap(proxiedResponsesByUser))
                     .isEqualTo(clobberMap(unproxiedResponsesByUser));
-            // TODO assertions about side effects (topics created, or not)
         }
     }
 }

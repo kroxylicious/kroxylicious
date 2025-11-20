@@ -57,6 +57,6 @@ public final class ReferenceCluster implements BaseClusterFixture {
 
     @Override
     public void close() {
-
+        // this impl has nothing to close
     }
 }

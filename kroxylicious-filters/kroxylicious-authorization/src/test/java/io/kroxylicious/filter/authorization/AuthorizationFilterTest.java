@@ -40,7 +40,7 @@ import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class AuthorizationFilterTest {
+class AuthorizationFilterTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 
@@ -62,7 +62,7 @@ public class AuthorizationFilterTest {
 
     @ParameterizedTest
     @MethodSource
-    public void authorization(ScenarioDefinition definition) {
+    void authorization(ScenarioDefinition definition) {
         SimpleAuthorizer authorizer = new SimpleAuthorizer(definition.given().authorizerRules());
         AuthorizationFilter authorizationFilter = new AuthorizationFilter(authorizer);
         ApiKeys apiKeys = definition.metadata().apiKeys();

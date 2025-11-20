@@ -91,7 +91,7 @@ public class AbstractAuthzEquivalenceIT extends BaseIT {
         if (topics.isArray()) {
             var sortedTopics = topics.valueStream().sorted(
                     Comparator.comparing(itemNode -> itemNode.get(sortProperty).textValue(),
-                            Comparator.nullsFirst((String x, String y) -> x.compareTo(y))))
+                            Comparator.nullsFirst(Comparator.naturalOrder())))
                     .toList();
             root.putArray(arrayProperty).addAll(sortedTopics);
             return (ArrayNode) root.get(arrayProperty);
@@ -143,10 +143,7 @@ public class AbstractAuthzEquivalenceIT extends BaseIT {
                 try {
                     return res.topicId(topicName).get();
                 }
-                catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                catch (ExecutionException e) {
+                catch (InterruptedException | ExecutionException e) {
                     throw new RuntimeException(e);
                 }
             }));
@@ -279,10 +276,9 @@ public class AbstractAuthzEquivalenceIT extends BaseIT {
                 .withConfig("authorizer", AclAuthorizerService.class.getName(),
                         "authorizerConfig", Map.of("aclFile", fixture.rulesFile().toFile().getAbsolutePath()))
                 .build();
-        var config = proxy(fixture.proxiedCluster())
+        return proxy(fixture.proxiedCluster())
                 .addToFilterDefinitions(saslTermination, authorization)
                 .addToDefaultFilters(saslTermination.name(), authorization.name());
-        return config;
     }
 
     protected <Q extends ApiMessage, P extends ApiMessage> Map<String, P> responsesByUser(Map<String, String> passwords,
@@ -307,28 +303,11 @@ public class AbstractAuthzEquivalenceIT extends BaseIT {
     }
 
     protected <Q extends ApiMessage, P extends ApiMessage> void testApiEqivalence(Fixture fixture, Equivalence<Q, P> scenario) {
-        short apiVersion = scenario.apiVersion();
-
         var unproxiedResponsesByUser = responsesByUser(
                 fixture.passwords(),
                 scenario,
                 fixture.unproxiedCluster().getBootstrapServers(),
                 fixture.topicIdsInUnproxiedCluster());
-        // assertions about responses
-        // if (topics == null || !topics.isEmpty()) {
-        // // Sanity test what we expect the Kafka reponse to look like
-        // JsonPointer namePtr = JsonPointer.compile("/topics/0/name");
-        // JsonPointer errorPtr;
-        // if (toCreateTopicName.equals(unproxiedResponsesByUser.get(ALICE).at(namePtr).textValue())) {
-        // errorPtr = JsonPointer.compile("/topics/0/errorCode");
-        // }
-        // else {
-        // errorPtr = JsonPointer.compile("/topics/1/errorCode");
-        // }
-        // assertErrorCodeAtPointer(ALICE, unproxiedResponsesByUser.get(ALICE), errorPtr, Errors.NONE);
-        // assertErrorCodeAtPointer(BOB, unproxiedResponsesByUser.get(BOB), errorPtr, Errors.NONE);
-        // assertErrorCodeAtPointer(EVE, unproxiedResponsesByUser.get(EVE), errorPtr, Errors.TOPIC_AUTHORIZATION_FAILED);
-        // }
 
         // scenario.assertUnproxiedResponses(unproxiedResponsesByUser);
         // assertions about side effects

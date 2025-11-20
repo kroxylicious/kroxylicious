@@ -37,17 +37,17 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * A protocol filter that applies the access rules embodied in an {@link Authorization}
- * to the entities (e.g. topics and consumer groups) within the Kafka protocol.
+ * <p>A protocol filter that applies the access rules embodied in an {@link Authorization}
+ * to the entities (e.g. topics and consumer groups) within the Kafka protocol.</p>
  *
- * This class actually only implements a common mechanism, delegating the actual enforcement to {@link ApiEnforcement}
- * instances on a per-API key basis.
+ * <p>This class actually only implements a common mechanism, delegating the actual enforcement to {@link ApiEnforcement}
+ * instances on a per-API key basis.</p>
  */
 public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthorizationFilter.class);
 
-    static Map<ApiKeys, ApiEnforcement> apiEnforcement = new EnumMap<>(ApiKeys.class);
+    static Map<ApiKeys, ApiEnforcement<?, ?>> apiEnforcement = new EnumMap<>(ApiKeys.class);
 
     static {
         // This filter "fails closed", rejecting all (apikey, apiversions)-combinations which is doesn't understand
@@ -130,11 +130,11 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     }
 
     <C extends InflightState<?>> C peekInflightState(int correlationId, Class<C> cClass) {
-        InflightState<?> inflightState = this.inflightState.get(correlationId);
-        if (inflightState == null) {
+        InflightState<?> result = this.inflightState.get(correlationId);
+        if (result == null) {
             throw new IllegalStateException("No inflightState");
         }
-        return cClass.cast(inflightState);
+        return cClass.cast(result);
     }
 
     @Nullable
@@ -204,11 +204,19 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
         var enforcement = apiEnforcement.get(apiKey);
         if (enforcement != null) {
-            return enforcement.onRequest(header, request, context, this);
+            return enforceRequest(header, request, context, enforcement);
         }
         else {
             return context.forwardRequest(header, request);
         }
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private CompletionStage<RequestFilterResult> enforceRequest(RequestHeaderData header,
+                                                                ApiMessage request,
+                                                                FilterContext context,
+                                                                ApiEnforcement<?, ?> enforcement) {
+        return ((ApiEnforcement) enforcement).onRequest(header, request, context, this);
     }
 
     @Override
@@ -219,11 +227,19 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
         var enforcement = apiEnforcement.get(apiKey);
         if (enforcement != null) {
-            return enforcement.onResponse(header, response, context, this);
+            return enforceResponse(header, response, context, enforcement);
         }
         else {
             return context.forwardResponse(header, response);
         }
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private CompletionStage<ResponseFilterResult> enforceResponse(ResponseHeaderData header,
+                                                                  ApiMessage response,
+                                                                  FilterContext context,
+                                                                  ApiEnforcement<?, ?> enforcement) {
+        return ((ApiEnforcement) enforcement).onResponse(header, response, context, this);
     }
 
     private CompletionStage<ResponseFilterResult> checkCompat(ResponseHeaderData header,
