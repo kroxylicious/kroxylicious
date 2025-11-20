@@ -111,6 +111,26 @@ class FilterIT {
     public static final String TOPIC_NAME_PREFIXER_FILTER_NAME = "topicNamePrefixer";
 
     @Test
+    void filtersCanLookUpEmptyTopicNames(KafkaCluster cluster) {
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, ("").getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            // checking that the request/response flows through despite requesting an empty topic id list
+            assertThat(response).isNotNull();
+        }
+    }
+
+    @Test
     void filtersCanLookUpTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) {
         Uuid topic1Id = topic1.topicId().orElseThrow();
         Uuid topic2Id = topic2.topicId().orElseThrow();
