@@ -1,0 +1,67 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "SYNC_GROUP"
+  apiVersion: 3
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "SYNC_GROUP"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 14
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-397"
+        generationId: 620
+        memberId: "random-string-896"
+        groupInstanceId: "random-string-330"
+        assignments:
+          - memberId: "random-string-867"
+            assignment: !!binary |-
+              t9bWU+E=
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1004
+        errorCode: 512
+        assignment: !!binary |-
+          jhQd4Eo=
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 14
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-397"
+    generationId: 620
+    memberId: "random-string-896"
+    groupInstanceId: "random-string-330"
+    assignments:
+      - memberId: "random-string-867"
+        assignment: !!binary |-
+          t9bWU+E=
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1004
+    errorCode: 512
+    assignment: !!binary |-
+      jhQd4Eo=
