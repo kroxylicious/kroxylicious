@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -36,7 +37,12 @@ public class AuthzFailsClosedIT extends AuthzIT {
                 otherwise deny;
                 """);
 
-        assertThatThrownBy(() -> kroxyliciousTester(proxyConfig(kafkaClusterNoAuthz, Map.of(), rulesFile)))
+        ConfigurationBuilder builder = proxyConfig(kafkaClusterNoAuthz, Map.of(), rulesFile);
+        assertThatThrownBy(() -> {
+            try (var ignored = kroxyliciousTester(builder)) {
+                return; // stupid conflicting code warnings
+            }
+        })
                 .isInstanceOf(PluginConfigurationException.class).hasMessageMatching(
                         "Exception initializing filter factory authz with config AuthorizationConfig.*?: "
                                 + "io.kroxylicious.authorizer.provider.acl.AclAuthorizerService "
@@ -69,15 +75,12 @@ public class AuthzFailsClosedIT extends AuthzIT {
                     return DynamicContainer.dynamicContainer(apiKey.toString(), apiVersions.map(apiVersion -> {
                         return DynamicTest.dynamicTest("v" + apiVersion, () -> {
 
-                            var unsupportedVersion = new UnsupportedApiVersion(apiKey, apiVersion);
+                            var unsupportedVersion = new UnsupportedApiVersion<>(apiKey, apiVersion);
                             verifyUnsupportedVersion(proxiedCluster, unsupportedVersion);
                         });
                     }));
                 });
-        return dynamicNodeStream.onClose(() -> {
-            // clients.values().forEach(KafkaClient::close);
-            proxiedCluster.close();
-        });
+        return dynamicNodeStream.onClose(proxiedCluster::close);
     }
 
 }

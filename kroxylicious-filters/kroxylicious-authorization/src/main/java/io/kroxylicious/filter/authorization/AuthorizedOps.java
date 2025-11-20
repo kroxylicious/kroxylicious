@@ -9,7 +9,10 @@ package io.kroxylicious.filter.authorization;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Decision;
 
-public class AuthorizedOps {
+class AuthorizedOps {
+
+    private AuthorizedOps() {
+    }
 
     public static int topicAuthorizedOps(AuthorizeResult authorize, int upstreamAuthorizedOps, String topicName) {
         int enforcedAuthorizedOps = 0;

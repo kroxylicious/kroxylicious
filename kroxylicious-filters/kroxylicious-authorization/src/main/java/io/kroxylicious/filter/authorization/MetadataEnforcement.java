@@ -211,7 +211,6 @@ public class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, Met
                                 toRemove.add(responseTopic);
                             }
                             else {
-                                // TODO in this case do we return the topic Id if the client didn't already know it?
                                 responseTopic.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
                                 responseTopic.partitions().clear();
                                 responseTopic.setIsInternal(false);

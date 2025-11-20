@@ -13,7 +13,6 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.config.SaslConfigs;
 
-import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -28,7 +27,6 @@ public final class ProxiedCluster implements BaseClusterFixture {
     private final Path rulesFile;
     private final KroxyliciousTester tester;
     private final KafkaCluster backingCluster;
-    private final Configuration proxyConfig;
 
     ProxiedCluster(KafkaCluster cluster,
                    Map<String, Uuid> topicIds,
@@ -38,7 +36,7 @@ public final class ProxiedCluster implements BaseClusterFixture {
         this.rulesFile = rulesFile;
 
         ConfigurationBuilder builder = AuthzIT.proxyConfig(cluster, AuthzIT.PASSWORDS, rulesFile);
-        this.proxyConfig = builder.build();
+        builder.build();
         this.tester = kroxyliciousTester(builder);
     }
 

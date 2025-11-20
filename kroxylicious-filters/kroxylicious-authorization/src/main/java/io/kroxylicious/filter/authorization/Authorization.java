@@ -28,16 +28,16 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @Plugin(configType = AuthorizationConfig.class)
 public class Authorization implements FilterFactory<AuthorizationConfig, Authorizer> {
 
-    private @Nullable AuthorizerService authorizerService = null;
+    private @Nullable AuthorizerService<?> authorizerService = null;
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public Authorizer initialize(FilterFactoryContext context,
                                  AuthorizationConfig authorizationConfig)
             throws PluginConfigurationException {
         var configuration = Plugins.requireConfig(this, authorizationConfig);
         this.authorizerService = context.pluginInstance(AuthorizerService.class, configuration.authorizer());
-        authorizerService.initialize(configuration.authorizerConfig());
+        ((AuthorizerService) authorizerService).initialize(configuration.authorizerConfig());
 
         Authorizer authorizer = authorizerService.build();
         authorizer.supportedResourceTypes().ifPresent(usedTypes -> {
@@ -54,11 +54,13 @@ public class Authorization implements FilterFactory<AuthorizationConfig, Authori
     }
 
     @Override
+    @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     public Filter createFilter(FilterFactoryContext context, @NonNull Authorizer authorizer) {
         return new AuthorizationFilter(authorizer);
     }
 
     @Override
+    @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     public void close(@NonNull Authorizer authorizer) {
         if (authorizerService != null) {
             authorizerService.close();

@@ -394,18 +394,14 @@ public class AuthzIT extends BaseIT {
                     .toCompletionStage().toCompletableFuture().join();
         }
         res.all().toCompletionStage().toCompletableFuture().join();
-        Map<String, Uuid> result = topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> {
+        return topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> {
             try {
                 return res.topicId(topicName).get();
             }
-            catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            catch (ExecutionException e) {
+            catch (InterruptedException | ExecutionException e) {
                 throw new RuntimeException(e);
             }
         }));
-        return result;
     }
 
     protected static void ensureInternalTopicsExist(
@@ -442,22 +438,6 @@ public class AuthzIT extends BaseIT {
 
                 consumer.subscribe(List.of(tmpName));
                 consumer.enforceRebalance();
-                // var latch = new CountDownLatch(1);
-                // consumer.subscribe(List.of(tmpName), new ConsumerRebalanceListener() {
-                // @Override
-                // public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
-                //
-                // }
-                //
-                // @Override
-                // public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
-                // if (partitions.contains(topicPartition)) {
-                // latch.countDown();
-                // }
-                // }
-                // });
-                // //latch.await();
-                // consumer.seek(topicPartition, 0L);
                 var polled = consumer.poll(Duration.ofMillis(100));
 
                 LOG.debug("polled records: {}", polled.records(topicPartition));
@@ -466,7 +446,6 @@ public class AuthzIT extends BaseIT {
 
             admin.deleteTopics(TopicCollection.ofTopicNames(List.of(tmpName)))
                     .all().toCompletionStage().toCompletableFuture().join();
-            // System.err.println(admin.describeClassicGroups(List.of(tmpName)).all().toCompletionStage().toCompletableFuture().join());
         }
     }
 
