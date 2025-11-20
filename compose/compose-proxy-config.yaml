@@ -31,23 +31,4 @@ virtualClusters:
     logNetwork: false
     logFrames: false
 filterDefinitions:
-  - name: encrypt
-    type: RecordEncryption
-    config:
-      kms: AzureKeyVaultKmsService
-      kmsConfig:
-        keyVaultName: default
-        keyVaultHost: lowkey-vault
-        keyVaultPort: 8443
-        tls:
-          trust:
-            insecure: true
-        managedIdentityCredentials:
-          targetResource: default
-          identityServiceEndpoint: http://lowkey-vault:8080
-
-      selector: TemplateKekSelector
-      selectorConfig:
-        template: "KEK-$(topicName)"
 defaultFilters:
-  - encrypt
