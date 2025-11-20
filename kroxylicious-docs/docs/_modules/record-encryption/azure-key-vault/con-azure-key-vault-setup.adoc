@@ -64,6 +64,8 @@ DEFAULT_DOMAIN=$(az rest --method get --url https://graph.microsoft.com/v1.0/dom
 USER_PRINCIPAL_NAME="${USER_NAME}@${DEFAULT_DOMAIN}"
 INITIAL_PASSWORD=$(tr -dc 'A-Za-z0-9!?%=' < /dev/urandom | head -c 16)
 
+ROLE="Key Vault Crypto Officer" # <3>
+
 # Create user
 az ad user create \
   --display-name "${USER_NAME}" \
@@ -73,7 +75,7 @@ az ad user create \
 
 # Create RBAC role assignment
 az role assignment create \
-  --role "Key Vault Crypto Officer" \ # <3>
+  --role "${ROLE}" \
   --assignee ${USER_PRINCIPAL_NAME} \
   --scope "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP_NAME}/providers/Microsoft.KeyVault/vaults/${KEY_VAULT_NAME}" # <4>
 
