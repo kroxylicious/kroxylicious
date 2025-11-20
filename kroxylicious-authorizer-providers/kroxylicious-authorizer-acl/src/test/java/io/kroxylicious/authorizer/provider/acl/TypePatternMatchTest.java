@@ -29,7 +29,8 @@ class TypePatternMatchTest {
         assertThat(m.matchingOperations(FakeTopicResource.class, "absent")).isNull();
         assertThat(m.matchingOperations(FakeTopicResource.class, "ba")).isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER));
         assertThat(m.matchingOperations(FakeTopicResource.class, "baz")).isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER));
-        assertThat(m.matchingOperations(FakeTopicResource.class, "bazz")).isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER, FakeTopicResource.DESCRIBE));
+        assertThat(m.matchingOperations(FakeTopicResource.class, "bazz"))
+                .isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER, FakeTopicResource.DESCRIBE));
 
         assertThat(m.matchingOperations(FakeClusterResource.class, "absent")).isNull();
         assertThat(m.matchingOperations(FakeClusterResource.class, "fo")).isEqualTo(Set.of(FakeClusterResource.CONNECT));
