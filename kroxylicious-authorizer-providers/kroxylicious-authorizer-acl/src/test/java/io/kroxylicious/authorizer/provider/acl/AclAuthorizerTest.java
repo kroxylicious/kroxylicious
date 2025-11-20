@@ -322,7 +322,6 @@ class AclAuthorizerTest {
                     .onResourceWithNameEqualTo(bobOnly);
         }
 
-
         String aliceAndBobWriteOnlyCarolReadOnly = "your";
         for (var p2 : Set.of(bob, alice)) {
             String principalName = p2.name();

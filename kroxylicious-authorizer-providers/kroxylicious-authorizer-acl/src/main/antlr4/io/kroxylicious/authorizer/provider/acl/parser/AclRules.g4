@@ -5,7 +5,7 @@
  */
 grammar AclRules;
 
-rule: versionStmt
+rule:
     importStmt*
     denyRule*
     allowRule*
@@ -13,13 +13,9 @@ rule: versionStmt
     <EOF>
     ;
 
-versionStmt: VERSION INT SEMI
-    ;
-
 // We include all the lexer keywords, in addition to the lexer IDENT token, into this grammar rule
 // so that those keywords can be used in identifiers in the grammar
-ident : VERSION
-    | FROM | IMPORT | AS
+ident : FROM | IMPORT | AS
     | ALLOW | DENY  | TO
     | WITH | NAME | IN | LIKE | MATCHING
     | OTHERWISE
@@ -98,7 +94,6 @@ STAR: '*';
 EQ: '=';
 LBRA: '{';
 RBRA: '}';
-VERSION: 'version';
 DENY: 'deny';
 ALLOW: 'allow';
 OTHERWISE: 'otherwise';
@@ -119,4 +114,3 @@ LINE_COMMENT: '//' .*? '\r'? '\n' -> skip;
 COMMENT: '/*' .*? '*/' -> skip;
 WS: [ \t\r\n]+ -> skip;
 IDENT: [A-Za-z][A-Za-z0-9_]*;
-INT: [1-9][0-9]*;

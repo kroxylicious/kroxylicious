@@ -53,9 +53,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class AclAuthorizer implements Authorizer {
 
     record ResourceGrants(
-                           @Nullable TypeNameMap<ResourceType<?>, EnumSet<? extends ResourceType<?>>> nameMatches,
-                           @Nullable TypePatternMatch patternMatches) {
-    }
+                          @Nullable TypeNameMap<ResourceType<?>, EnumSet<? extends ResourceType<?>>> nameMatches,
+                          @Nullable TypePatternMatch patternMatches) {}
 
     private final TypeNameMap<Principal, ResourceGrants> denyPerPrincipal = new TypeNameMap<>();
 

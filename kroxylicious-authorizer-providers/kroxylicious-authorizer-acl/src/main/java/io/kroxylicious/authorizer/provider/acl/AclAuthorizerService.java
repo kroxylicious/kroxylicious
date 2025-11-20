@@ -252,14 +252,6 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
 
         @Override
-        public void enterVersionStmt(AclRulesParser.VersionStmtContext ctx) {
-            var version = Integer.parseInt(ctx.INT().getText());
-            if (version != 1) {
-                reportError(ctx.start, "Unsupported version: Only version 1 is supported.");
-            }
-        }
-
-        @Override
         public void enterImportStmt(AclRulesParser.ImportStmtContext ctx) {
             var packageName = ctx.packageName().qualIdent().ident().stream()
                     .map(RuleContext::getText)
