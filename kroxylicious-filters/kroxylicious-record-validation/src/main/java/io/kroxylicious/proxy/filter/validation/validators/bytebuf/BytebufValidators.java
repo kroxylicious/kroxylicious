@@ -54,8 +54,8 @@ public class BytebufValidators {
      * get validator that validates if a non-null/non-empty buffer contains data that matches a JSONSchema registered in the Schema Registry
      * @return validator
      */
-    public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long globalId) {
-        return new JsonSchemaBytebufValidator(schemaResolverConfig, globalId);
+    public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId) {
+        return new JsonSchemaBytebufValidator(schemaResolverConfig, contentId);
     }
 
     /**

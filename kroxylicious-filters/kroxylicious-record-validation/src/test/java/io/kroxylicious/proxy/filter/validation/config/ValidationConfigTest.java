@@ -114,7 +114,7 @@ class ValidationConfigTest {
                     syntacticallyCorrectJson:
                         validateObjectKeysUnique: true
                     schemaValidationConfig:
-                        apicurioGlobalId: 1
+                        apicurioContentId: 1
                         apicurioRegistryUrl: http://localhost:8080
                     allowNulls: false
                     allowEmpty: true

@@ -5,12 +5,10 @@
  */
 package io.kroxylicious.proxy.filter.validation;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
@@ -40,10 +38,13 @@ import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Ports;
 
-import io.apicurio.registry.rest.client.RegistryClientFactory;
-import io.apicurio.registry.serde.SerdeConfig;
+import io.apicurio.registry.client.RegistryClientFactory;
+import io.apicurio.registry.client.RegistryClientOptions;
+import io.apicurio.registry.rest.client.models.CreateArtifact;
+import io.apicurio.registry.rest.client.models.VersionMetaData;
+import io.apicurio.registry.serde.config.KafkaSerdeConfig;
+import io.apicurio.registry.serde.config.SerdeConfig;
 import io.apicurio.registry.serde.jsonschema.JsonSchemaSerde;
-import io.apicurio.rest.client.util.IoUtil;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -95,44 +96,58 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
             {"firstName":"json1","lastName":"json2","age":-3}""";
     private static final String APICURIO_REGISTRY_HOST = "http://localhost";
     private static final Integer APICURIO_REGISTRY_PORT = 8081;
-    private static final String APICURIO_REGISTRY_URL = APICURIO_REGISTRY_HOST + ":" + APICURIO_REGISTRY_PORT;
-    private static final String FIRST_ARTIFACT_ID = UUID.randomUUID().toString();
-    private static final String SECOND_ARTIFACT_ID = UUID.randomUUID().toString();
+    private static final String APICURIO_REGISTRY_API = "/apis/registry/v3";
+    private static final String APICURIO_REGISTRY_URL = APICURIO_REGISTRY_HOST + ":" + APICURIO_REGISTRY_PORT + APICURIO_REGISTRY_API;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     public static final PersonBean PERSON_BEAN = new PersonBean("john", "smith", 23);
-    public static long firstGlobalId;
-    public static long secondGlobalId;
 
+    public static String firstArtifactId;
+
+    public static int firstContentId;
+    public static int secondContentId;
     private static GenericContainer registryContainer;
 
     @BeforeAll
-    public static void init() throws IOException {
+    public static void init() {
         // An Apicurio Registry instance is required for this test to work, so we start one using a Generic Container
-        DockerImageName dockerImageName = DockerImageName.parse("quay.io/apicurio/apicurio-registry-mem:2.6.13.Final");
+        DockerImageName dockerImageName = DockerImageName.parse("quay.io/apicurio/apicurio-registry:3.0.7");
 
         Consumer<CreateContainerCmd> cmd = e -> e.withPortBindings(
                 new PortBinding(Ports.Binding.bindPort(APICURIO_REGISTRY_PORT), new ExposedPort(APICURIO_REGISTRY_PORT)));
 
         registryContainer = new GenericContainer<>(dockerImageName)
                 .withEnv(Map.of(
-                        "QUARKUS_HTTP_PORT", String.valueOf(APICURIO_REGISTRY_PORT),
-                        "REGISTRY_APIS_V2_DATE_FORMAT", "yyyy-MM-dd'T'HH:mm:ss'Z'"))
+                        "QUARKUS_HTTP_PORT", String.valueOf(APICURIO_REGISTRY_PORT)))
                 .withExposedPorts(APICURIO_REGISTRY_PORT)
                 .withCreateContainerCmdModifier(cmd);
 
         registryContainer.start();
         registryContainer.waitingFor(Wait.forLogMessage(".*Installed features:*", 1));
 
-        // Preparation: In this test class, a schema already registered in Apicurio Registry with globalId one is expected, so we register it upfront.
-        try (var client = RegistryClientFactory.create(APICURIO_REGISTRY_URL)) {
-            firstGlobalId = client.createArtifact(null, FIRST_ARTIFACT_ID, IoUtil.toStream(JSON_SCHEMA_TOPIC_1)).getGlobalId();
-            secondGlobalId = client.createArtifact(null, SECOND_ARTIFACT_ID, IoUtil.toStream(JSON_SCHEMA_TOPIC_1)).getGlobalId();
-        }
+        RegistryClientOptions.create(APICURIO_REGISTRY_URL);
+
+        // Preparation: In this test class, schemas are registered in Apicurio Registry v3 and their contentIds are stored for validation.
+        var client = RegistryClientFactory.create(RegistryClientOptions.create(APICURIO_REGISTRY_URL));
+
+        CreateArtifact createArtifact = new CreateArtifact();
+        createArtifact.setArtifactType("JSON");
+        io.apicurio.registry.rest.client.models.CreateVersion createVersion = new io.apicurio.registry.rest.client.models.CreateVersion();
+        io.apicurio.registry.rest.client.models.VersionContent versionContent = new io.apicurio.registry.rest.client.models.VersionContent();
+        versionContent.setContent(JSON_SCHEMA_TOPIC_1);
+        versionContent.setContentType("application/json");
+        createVersion.setContent(versionContent);
+        createArtifact.setFirstVersion(createVersion);
+
+        VersionMetaData firstArtifact = client.groups().byGroupId("default").artifacts().post(createArtifact).getVersion();
+        VersionMetaData secondArtifact = client.groups().byGroupId("default").artifacts().post(createArtifact).getVersion();
+        firstArtifactId = firstArtifact.getArtifactId();
+        firstContentId = firstArtifact.getContentId().intValue();
+        secondContentId = secondArtifact.getContentId().intValue();
     }
 
     @Test
     void shouldAcceptValidJsonInProduceRequest(KafkaCluster cluster, Topic topic) throws Exception {
-        var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", firstGlobalId);
+        var config = createContentIdRecordValidationConfig(cluster, topic, "valueRule", firstContentId);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -147,7 +162,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     @Test
     void invalidAgeProduceRejectedUsingTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) throws Exception {
         // Topic 2 has schema validation, invalid data cannot be sent.
-        var config = createGlobalIdRecordValidationConfig(cluster, topic2, "valueRule", firstGlobalId);
+        var config = createContentIdRecordValidationConfig(cluster, topic2, "valueRule", firstContentId);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -168,7 +183,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void nonExistentSchema(KafkaCluster cluster, Topic topic) {
-        var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", 3L);
+        var config = createContentIdRecordValidationConfig(cluster, topic, "valueRule", 3);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -182,11 +197,11 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
     void clientSideUsesValueSchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) throws Exception {
-        var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", firstGlobalId);
+        var config = createContentIdRecordValidationConfig(cluster, topic, "valueRule", firstContentId);
 
         var keySerde = new Serdes.StringSerde();
         var producerValueSerde = createJsonSchemaProducerSerde(schemaIdInHeader, false);
-        var consumerValueSerde = createJsonSchemaConsumerSerde(false);
+        var consumerValueSerde = createJsonSchemaConsumerSerde(schemaIdInHeader, false);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(keySerde, producerValueSerde, Map.of());
@@ -205,11 +220,11 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
     void clientSideUsesKeySchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) throws Exception {
-        var config = createGlobalIdRecordValidationConfig(cluster, topic, "keyRule", firstGlobalId);
+        var config = createContentIdRecordValidationConfig(cluster, topic, "keyRule", firstContentId);
 
         boolean isKey = true;
         var producerKeySerde = createJsonSchemaProducerSerde(schemaIdInHeader, isKey);
-        var consumerKeySerde = createJsonSchemaConsumerSerde(isKey);
+        var consumerKeySerde = createJsonSchemaConsumerSerde(schemaIdInHeader, isKey);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(producerKeySerde, new Serdes.StringSerde(), Map.of());
@@ -228,7 +243,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
     void detectsClientProducingWithWrongValueSchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
-        var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", secondGlobalId);
+        var config = createContentIdRecordValidationConfig(cluster, topic, "valueRule", secondContentId);
 
         var keySerde = new Serdes.StringSerde();
         var valueSerde = createJsonSchemaProducerSerde(schemaIdInHeader, false);
@@ -243,7 +258,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
     void detectsClientProducingWithWrongKeySchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
-        var config = createGlobalIdRecordValidationConfig(cluster, topic, "keyRule", secondGlobalId);
+        var config = createContentIdRecordValidationConfig(cluster, topic, "keyRule", secondContentId);
 
         var valueSerde = new Serdes.StringSerde();
         var keySerde = createJsonSchemaProducerSerde(schemaIdInHeader, true);
@@ -263,9 +278,17 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                 .containsExactly(expected);
     }
 
-    private static @NonNull JsonSchemaSerde<Object> createJsonSchemaConsumerSerde(boolean isKey) {
+    /** Helper methods to create Serdes with JsonSchemaSerde configured for Apicurio Registry v3.
+     * These methods are configured to use v3 wire format (Confluent-compatible 4-byte content IDs).
+     * The default IdHandler (Default4ByteIdHandler) is used for 4-byte content IDs in the wire format.
+     * ContentId strategy is used as the default for Apicurio Registry v3.
+     **/
+    private static @NonNull JsonSchemaSerde<Object> createJsonSchemaConsumerSerde(boolean schemaIdInHeader, boolean isKey) {
         var consumerKeySerde = new JsonSchemaSerde<>();
         consumerKeySerde.configure(Map.of(
+                SerdeConfig.EXPLICIT_ARTIFACT_ID, firstArtifactId,
+                SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
+                KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader,
                 SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL), isKey);
         return consumerKeySerde;
     }
@@ -274,16 +297,17 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         var producerKeySerde = new JsonSchemaSerde<PersonBean>();
         producerKeySerde.configure(Map.of(
                 SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
-                SerdeConfig.EXPLICIT_ARTIFACT_ID, FIRST_ARTIFACT_ID,
-                SerdeConfig.ENABLE_HEADERS, schemaIdInHeader), isKey);
+                SerdeConfig.EXPLICIT_ARTIFACT_ID, firstArtifactId,
+                SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
+                KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader), isKey);
         return producerKeySerde;
     }
 
-    private static ConfigurationBuilder createGlobalIdRecordValidationConfig(KafkaCluster cluster, Topic topic, String ruleType, long globalId) {
+    private static ConfigurationBuilder createContentIdRecordValidationConfig(KafkaCluster cluster, Topic topic, String ruleType, int contentId) {
         String className = RecordValidation.class.getName();
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
                 List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
-                        Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", globalId)))))
+                        Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioContentId", contentId)))))
                 .build();
         return proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)
