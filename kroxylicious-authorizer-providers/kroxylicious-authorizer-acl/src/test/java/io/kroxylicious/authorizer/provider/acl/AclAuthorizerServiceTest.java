@@ -50,42 +50,38 @@ class AclAuthorizerServiceTest {
         return List.of(
                 Arguments.argumentSet("Missing final 'otherwise deny'",
                         """
-                                from io.kroxylicious.proxy.authentication import User as User;
                                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
                                 //otherwise deny;
                                 """,
-                        "7:0: extraneous input '<EOF>' expecting {'allow', 'otherwise'}."),
+                        "6:0: extraneous input '<EOF>' expecting {'allow', 'otherwise'}."),
                 Arguments.argumentSet("Bad keyword",
                         """
-                                from io.kroxylicious.proxy.authentication import User as User;
                                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 frobnicate User with name = "Alice" to READ Topic with name = "foo";
 
                                 otherwise deny;""",
-                        "4:0: extraneous input 'frobnicate' expecting {'deny', 'allow', 'otherwise', 'from'}."),
+                        "3:0: extraneous input 'frobnicate' expecting {'deny', 'allow', 'otherwise', 'from'}."),
                 Arguments.argumentSet("Allow before deny",
                         """
-                                from io.kroxylicious.proxy.authentication import User as User;
                                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
                                 deny User with name = "Eve" to READ Topic with name = "foo";
 
                                 otherwise deny;""",
-                        "5:0: extraneous input 'deny' expecting {'allow', 'otherwise'}."),
+                        "4:0: extraneous input 'deny' expecting {'allow', 'otherwise'}."),
                 Arguments.argumentSet("Using matching with principal",
                         """
-                                from io.kroxylicious.proxy.authentication import User as User;
                                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name matching /Ali(ce)?/ to READ Topic with name = "foo";
 
                                 otherwise deny;""",
-                        "4:21: mismatched input 'matching' expecting {'*', '=', 'in', 'like'}."));
+                        "3:21: mismatched input 'matching' expecting {'*', '=', 'in', 'like'}."));
     }
 
     @ParameterizedTest
@@ -101,13 +97,12 @@ class AclAuthorizerServiceTest {
         return List.of(
                 Arguments.argumentSet("Missing import",
                         """
-                                //from io.kroxylicious.proxy.authentication import User as User;
-                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+                                //from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
                                 otherwise deny;""",
-                        "4:6: Principal class with name 'User' has not been imported."),
+                        "3:39: ResourceType class with name 'Topic' has not been imported."),
                 Arguments.argumentSet("Colliding import (same from)",
                         """
                                 from io.kroxylicious.authorizer.provider.acl import User as Collide, FakeTopicResource as Collide;
@@ -144,25 +139,23 @@ class AclAuthorizerServiceTest {
                 Arguments.argumentSet(
                         "Invalid like",
                         """
-                                from io.kroxylicious.proxy.authentication import User as User;
                                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name like "Foo*Bar";
 
                                 otherwise deny;""",
                         """
-                                4:60: Wildcard '*' only supported as last character in 'like'."""),
+                                3:60: Wildcard '*' only supported as last character in 'like'."""),
                 Arguments.argumentSet(
                         "Invalid regex",
                         """
-                                from io.kroxylicious.proxy.authentication import User as User;
                                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name matching /**/;
 
                                 otherwise deny;""",
                         """
-                                4:64: Regex provided for 'matching' operation is not valid: error parsing regexp: missing argument to repetition operator: `*`."""));
+                                3:64: Regex provided for 'matching' operation is not valid: error parsing regexp: missing argument to repetition operator: `*`."""));
     }
 
     @ParameterizedTest
@@ -175,15 +168,23 @@ class AclAuthorizerServiceTest {
         assertThat(((InvalidRulesFileException) exasserrt.actual()).errors()).contains(expectedError);
     }
 
-    @Test
-    void testPrincipalEqResourceEq() {
-        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
-                from io.kroxylicious.proxy.authentication import User as User;
+    static List<Arguments> testPrincipalEqResourceEq() {
+        var rules = """
                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to READ Topic with name = "foo";
 
-                otherwise deny;"""));
+                otherwise deny;""";
+        return List.of(
+                Arguments.argumentSet("with implicit import of User", rules),
+                Arguments.argumentSet("with explicit `import User as`", "from io.kroxylicious.proxy.authentication import User as User;\n" + rules),
+                Arguments.argumentSet("with explicit `import User`", "from io.kroxylicious.proxy.authentication import User;\n" + rules));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void testPrincipalEqResourceEq(String rules) {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString(rules));
         assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo"))
                 .isEqualTo(Decision.ALLOW);
         assertThat(decision(authz, new User("Alice"), FakeTopicResource.WRITE, "foo"))

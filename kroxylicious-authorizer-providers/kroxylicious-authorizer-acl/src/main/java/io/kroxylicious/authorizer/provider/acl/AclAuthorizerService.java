@@ -161,6 +161,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         private final List<String> errorMessages;
         private int numErrors;
         private boolean allOps;
+        Map<String, String> localToQualifiedByDefault;
         Map<String, String> localToQualified = new HashMap<>();
         private @Nullable AclAuthorizer.SubjectSelectorBuilder subjectBuilder;
         private @Nullable AclAuthorizer.PrincipalSelectorBuilder principalBuilder;
@@ -172,6 +173,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             this.authorizerBuilder = authorizerBuilder;
             this.maxErrorsToReport = maxErrorsToReport;
             this.errorMessages = new ArrayList<>(maxErrorsToReport);
+            this.localToQualifiedByDefault = Map.of("User", "io.kroxylicious.proxy.authentication.User");
         }
 
         @Override
@@ -299,6 +301,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             // look it up in the imports
             String localClassName = ident;
             var qualifiedClassName = this.localToQualified.get(localClassName);
+            if (qualifiedClassName == null) {
+                qualifiedClassName = this.localToQualifiedByDefault.get(localClassName);
+            }
             if (qualifiedClassName == null) {
                 reportError(identToken,
                         "%s class with name '%s' has not been imported.".formatted(desc, localClassName));
