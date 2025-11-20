@@ -19,6 +19,13 @@ import java.util.Set;
  */
 public interface ResourceType<S extends Enum<S> & ResourceType<S>> {
 
+    /**
+     * Returns a set of operations that are implied by this operation.
+     * This must return the complete transitive closure of all such implied operations.
+     * In other words, if logically speaking {@code A} implies {@code B}, and {@code B} implies {@code C} then
+     * programmatically speaking {@code A.implies()} must contain both {@code B} <em>and {@code C}</em>.
+     * @return The operations that are implied by this operation.
+     */
     default Set<S> implies() {
         // TODO This is actually really tricky to model in a way that works for different Authorizer implementations
         // Allowing operations to express implication makes in-process authorization evaluations easier

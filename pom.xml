@@ -171,6 +171,12 @@
             </dependency>
 
             <dependency>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-runtime</artifactId>
+                <version>4.13.1</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.github.ben-manes.caffeine</groupId>
                 <artifactId>caffeine</artifactId>
                 <version>${caffeine.version}</version>
@@ -507,6 +513,7 @@
         <module>kroxylicious-operator-dist</module>
         <module>kroxylicious-docs</module>
         <module>kroxylicious-authorizer-api</module>
+        <module>kroxylicious-authorizer-providers</module>
     </modules>
 
 
@@ -580,6 +587,7 @@
                         </licenseSets>
                         <mapping>
                             <bicep>DOUBLESLASH_STYLE</bicep>
+                            <g4>JAVADOC_STYLE</g4>
                         </mapping>
                     </configuration>
                 </plugin>
