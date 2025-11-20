@@ -69,36 +69,36 @@ public class AclAuthorizer implements Authorizer {
     public static class PrincipalSelectorBuilder {
         private final Builder builder;
         private final Class<? extends Principal> principalClass;
-        private final boolean allow;
+        private final boolean isAllowRule;
 
         public PrincipalSelectorBuilder(Builder builder,
-                                        boolean allow,
+                                        boolean isAllowRule,
                                         Class<? extends Principal> principalClass) {
             this.builder = builder;
-            this.allow = allow;
+            this.isAllowRule = isAllowRule;
             this.principalClass = principalClass;
         }
 
         public OperationsBuilder withNameEqualTo(String principalName) {
             return new OperationsBuilder(builder,
-                    allow,
+                    isAllowRule,
                     Set.of(new ResourceMatcherNameEquals<>(principalClass, principalName)));
         }
 
         public OperationsBuilder withNameIn(Set<String> principalNames) {
             return new OperationsBuilder(builder,
-                    allow,
+                    isAllowRule,
                     principalNames.stream()
                             .map(principalName -> (OrderedKey<Principal>) new ResourceMatcherNameEquals<>(principalClass, principalName))
                             .collect(Collectors.toSet()));
         }
 
         public OperationsBuilder withNameStartingWith(String principalNamePrefix) {
-            return new OperationsBuilder(builder, allow, Set.of(new ResourceMatcherNameStarts<>(principalClass, principalNamePrefix)));
+            return new OperationsBuilder(builder, isAllowRule, Set.of(new ResourceMatcherNameStarts<>(principalClass, principalNamePrefix)));
         }
 
         public OperationsBuilder withAnyName() {
-            return new OperationsBuilder(builder, allow, Set.of(new ResourceMatcherAnyOfType<>(principalClass)));
+            return new OperationsBuilder(builder, isAllowRule, Set.of(new ResourceMatcherAnyOfType<>(principalClass)));
         }
     }
 
@@ -124,15 +124,15 @@ public class AclAuthorizer implements Authorizer {
         private final Set<? extends OrderedKey<Principal>> principalMatchers;
         private final Class<O> operationsClass;
         private final Set<O> operations;
-        private final boolean allow;
+        private final boolean isAllowRule;
 
         public ResourceBuilder(Builder builder,
-                               boolean allow,
+                               boolean isAllowRule,
                                Set<? extends OrderedKey<Principal>> principalMatchers,
                                Class<O> operationsClass,
                                Set<O> operations) {
             this.builder = Objects.requireNonNull(builder);
-            this.allow = allow;
+            this.isAllowRule = isAllowRule;
             this.principalMatchers = Objects.requireNonNull(principalMatchers);
             this.operationsClass = Objects.requireNonNull(operationsClass);
             this.operations = Objects.requireNonNull(operations);
@@ -140,7 +140,7 @@ public class AclAuthorizer implements Authorizer {
 
         public Builder onResourceWithNameEqualTo(String resourceName) {
             for (var principalMatcher : principalMatchers) {
-                builder.aclAuthorizer.internalAllowOrDeny(allow,
+                builder.aclAuthorizer.internalAllowOrDeny(isAllowRule,
                         principalMatcher,
                         new ResourceMatcherNameEquals<>(operationsClass, resourceName),
                         operations);
@@ -151,7 +151,7 @@ public class AclAuthorizer implements Authorizer {
         public Builder onResourcesWithNameIn(Set<String> resourceNames) {
             for (var principalMatcher : principalMatchers) {
                 for (String resourceName : resourceNames) {
-                    builder.aclAuthorizer.internalAllowOrDeny(allow,
+                    builder.aclAuthorizer.internalAllowOrDeny(isAllowRule,
                             principalMatcher,
                             new ResourceMatcherNameEquals<>(operationsClass, resourceName),
                             operations);
@@ -162,7 +162,7 @@ public class AclAuthorizer implements Authorizer {
 
         public Builder onResourcesWithNameStartingWith(String resourceNamePrefix) {
             for (var principalMatcher : principalMatchers) {
-                builder.aclAuthorizer.internalAllowOrDeny(allow,
+                builder.aclAuthorizer.internalAllowOrDeny(isAllowRule,
                         principalMatcher,
                         new ResourceMatcherNameStarts<>(operationsClass, resourceNamePrefix),
                         operations);
@@ -172,7 +172,7 @@ public class AclAuthorizer implements Authorizer {
 
         public Builder onResourcesWithNameMatching(String resourceNameRegex) {
             for (var principalMatcher : principalMatchers) {
-                builder.aclAuthorizer.internalAllowOrDeny(allow,
+                builder.aclAuthorizer.internalAllowOrDeny(isAllowRule,
                         principalMatcher,
                         new ResourceMatcherNameMatches<>(operationsClass, Pattern.compile(resourceNameRegex)),
                         operations);
@@ -182,7 +182,7 @@ public class AclAuthorizer implements Authorizer {
 
         public Builder onAllResources() {
             for (var principalMatcher : principalMatchers) {
-                builder.aclAuthorizer.internalAllowOrDeny(allow,
+                builder.aclAuthorizer.internalAllowOrDeny(isAllowRule,
                         principalMatcher,
                         new ResourceMatcherAnyOfType<>(operationsClass),
                         operations);
@@ -194,20 +194,20 @@ public class AclAuthorizer implements Authorizer {
     public static class OperationsBuilder {
 
         private final Builder builder;
-        private final boolean allow;
+        private final boolean isAllowRule;
         private final Set<? extends OrderedKey<Principal>> principalMatchers;
 
         private OperationsBuilder(Builder builder,
-                                  boolean allow,
+                                  boolean isAllowRule,
                                   Set<OrderedKey<Principal>> principalMatchers) {
             this.builder = builder;
-            this.allow = allow;
+            this.isAllowRule = isAllowRule;
             this.principalMatchers = Objects.requireNonNull(principalMatchers);
         }
 
         <O extends Enum<O> & ResourceType<O>> ResourceBuilder<O> allOperations(Class<O> cls) {
             return new ResourceBuilder<>(builder,
-                    allow,
+                    isAllowRule,
                     this.principalMatchers,
                     cls,
                     EnumSet.allOf(cls));
@@ -217,7 +217,7 @@ public class AclAuthorizer implements Authorizer {
         public <O extends Enum<O> & ResourceType<O>> ResourceBuilder<O> operations(Set<O> operations) {
             EnumSet<O> os = EnumSet.copyOf(operations);
             return new ResourceBuilder<>(builder,
-                    allow,
+                    isAllowRule,
                     this.principalMatchers,
                     (Class) operations.iterator().next().getClass(),
                     os);
@@ -241,12 +241,12 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    private <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(boolean allow,
+    private <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(boolean isAllowRule,
                                                                            OrderedKey<Principal> principalMatcher,
                                                                            Key<O> resourceMatcher,
                                                                            Set<O> operations) {
         usedResourceTypes.add(resourceMatcher.type());
-        internalAllowOrDeny(allow ? allowPerPrincipal : denyPerPrincipal,
+        internalAllowOrDeny(isAllowRule ? allowPerPrincipal : denyPerPrincipal,
                 principalMatcher,
                 resourceMatcher,
                 operations);

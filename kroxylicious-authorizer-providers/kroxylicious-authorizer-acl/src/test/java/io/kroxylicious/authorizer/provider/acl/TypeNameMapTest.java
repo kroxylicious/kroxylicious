@@ -68,4 +68,28 @@ class TypeNameMapTest {
                 .isNull();
     }
 
+    @Test
+    void testPutWithAny_SearchWithAny() {
+        var map = new TypeNameMap<String, Integer>();
+        map.addApply(new ResourceMatcherAnyOfType<>(String.class), val -> 2);
+        assertThat(map.matchingOperations(new ResourceMatcherAnyOfType<>(String.class)))
+                .isEqualTo(2);
+    }
+
+    @Test
+    void testPutWithAny_SearchWithEq() {
+        var map = new TypeNameMap<String, Integer>();
+        map.addApply(new ResourceMatcherAnyOfType<>(String.class), val -> 2);
+        assertThat(map.matchingOperations(new ResourceMatcherNameEquals<>(String.class, "foo")))
+                .isNull();
+    }
+
+    @Test
+    void testPutWithAny_SearchWithStarts() {
+        var map = new TypeNameMap<String, Integer>();
+        map.addApply(new ResourceMatcherAnyOfType<>(String.class), val -> 2);
+        assertThat(map.matchingOperations(new ResourceMatcherNameStarts<>(String.class, "foo")))
+                .isNull();
+    }
+
 }
