@@ -6,7 +6,6 @@
 
 package io.kroxylicious.authorizer.provider.acl;
 
-interface Key<T> {
+sealed interface Key<T> permits OrderedKey, ResourceMatcherNameMatches {
     Class<? extends T> type();
-
 }

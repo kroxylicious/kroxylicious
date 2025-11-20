@@ -18,10 +18,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 class TypePatternMatch {
 
-    public static final Pattern LOWER_BOUND = Pattern.compile("");
-    TreeMap<ResourceMatcherNameMatches<?>, EnumSet<?>> map = new TreeMap<>();
+    private static final Pattern LOWER_BOUND = Pattern.compile("");
+    private final TreeMap<ResourceMatcherNameMatches<?>, EnumSet<?>> map = new TreeMap<>();
 
-    public <O extends Enum<O> & ResourceType<O>> void compute(ResourceMatcherNameMatches<?> key, Set<O> operation) {
+    public <O extends Enum<O> & ResourceType<O>> void add(ResourceMatcherNameMatches<?> key, Set<O> operation) {
         map.compute(key, (key1, value) -> {
             if (value == null) {
                 return EnumSet.copyOf(operation);
@@ -31,7 +31,7 @@ class TypePatternMatch {
         });
     }
 
-    public @Nullable <T extends Enum<T> & ResourceType<T>> Set<T> lookup(Class<T> c, String name) {
+    public @Nullable <T extends Enum<T> & ResourceType<T>> Set<T> matchingOperations(Class<T> c, String name) {
         EnumSet<T> result = null;
         var submap = map.tailMap(new ResourceMatcherNameMatches<>(c, LOWER_BOUND));
         for (var entry : submap.entrySet()) {

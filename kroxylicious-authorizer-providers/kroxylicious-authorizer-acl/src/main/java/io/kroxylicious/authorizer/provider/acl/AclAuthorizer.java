@@ -264,7 +264,7 @@ public class AclAuthorizer implements Authorizer {
         for (var op : es) {
             es.addAll(op.implies());
         }
-        ResourceGrants compute = allowPerPrincipal.compute(principalMatcher,
+        ResourceGrants compute = allowPerPrincipal.addApply(principalMatcher,
                 g -> {
                     if (g == null) {
                         return new ResourceGrants(resourceMatcher instanceof ResourceMatcherNameMatches ? null : new TypeNameMap<>(),
@@ -280,11 +280,11 @@ public class AclAuthorizer implements Authorizer {
                 });
 
         if (resourceMatcher instanceof ResourceMatcherNameMatches resourceNameMatch) {
-            Objects.requireNonNull(compute.patternMatches()).compute(resourceNameMatch,
+            Objects.requireNonNull(compute.patternMatches()).add(resourceNameMatch,
                     es);
         }
         else if (resourceMatcher instanceof OrderedKey orderedKey) {
-            Objects.requireNonNull(compute.nameMatches()).compute(orderedKey,
+            Objects.requireNonNull(compute.nameMatches()).addApply(orderedKey,
                     v -> {
                         if (v == null) {
                             return es;
@@ -305,21 +305,21 @@ public class AclAuthorizer implements Authorizer {
         for (var p : subject.principals()) {
 
             Decision foundDecision;
-            var grant = allowPerPrincipal.lookup(new ResourceMatcherNameEquals<>(p.getClass(), p.name()));
+            var grant = allowPerPrincipal.matchingOperations(new ResourceMatcherNameEquals<>(p.getClass(), p.name()));
             if (grant != null) {
                 foundDecision = getDecision(action, grant, whenFound);
                 if (foundDecision != null) {
                     return foundDecision;
                 }
             }
-            grant = allowPerPrincipal.lookup(new ResourceMatcherAnyOfType<>(p.getClass()));
+            grant = allowPerPrincipal.matchingOperations(new ResourceMatcherAnyOfType<>(p.getClass()));
             if (grant != null) {
                 foundDecision = getDecision(action, grant, whenFound);
                 if (foundDecision != null) {
                     return foundDecision;
                 }
             }
-            grant = allowPerPrincipal.lookup(new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
+            grant = allowPerPrincipal.matchingOperations(new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
             if (grant != null) {
                 foundDecision = getDecision(action, grant, whenFound);
                 if (foundDecision != null) {
@@ -338,16 +338,16 @@ public class AclAuthorizer implements Authorizer {
         var typeNameMap = grants.nameMatches();
         ResourceType<?> resourceType = action.operation();
         if (typeNameMap != null) {
-            operations = typeNameMap.lookup(new ResourceMatcherNameEquals<>(action.resourceTypeClass(),
+            operations = typeNameMap.matchingOperations(new ResourceMatcherNameEquals<>(action.resourceTypeClass(),
                     action.resourceName()));
             if (isFound(operations, resourceType)) {
                 return whenFound;
             }
-            operations = typeNameMap.lookup(new ResourceMatcherAnyOfType<>(action.resourceTypeClass()));
+            operations = typeNameMap.matchingOperations(new ResourceMatcherAnyOfType<>(action.resourceTypeClass()));
             if (isFound(operations, resourceType)) {
                 return whenFound;
             }
-            operations = typeNameMap.lookup(new ResourceMatcherNameStarts<>(action.resourceTypeClass(),
+            operations = typeNameMap.matchingOperations(new ResourceMatcherNameStarts<>(action.resourceTypeClass(),
                     action.resourceName()));
             if (isFound(operations, resourceType)) {
                 return whenFound;
@@ -355,7 +355,7 @@ public class AclAuthorizer implements Authorizer {
         }
         var patternMatch = grants.patternMatches();
         if (patternMatch != null) {
-            operations = patternMatch.lookup((Class) action.resourceTypeClass(), action.resourceName());
+            operations = patternMatch.matchingOperations((Class) action.resourceTypeClass(), action.resourceName());
             if (isFound(operations, resourceType)) {
                 return whenFound;
             }

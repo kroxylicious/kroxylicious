@@ -21,19 +21,19 @@ class TypePatternMatchTest {
     @Test
     void match() {
         var m = new TypePatternMatch();
-        m.compute(new ResourceMatcherNameMatches<>(FakeTopicResource.class, Pattern.compile("baz*")), Set.of(FakeTopicResource.CREATE));
-        m.compute(new ResourceMatcherNameMatches<>(FakeTopicResource.class, Pattern.compile("baz*")), Set.of(FakeTopicResource.ALTER));
-        m.compute(new ResourceMatcherNameMatches<>(FakeClusterResource.class, Pattern.compile("foo*")), Set.of(FakeClusterResource.CONNECT));
+        m.add(new ResourceMatcherNameMatches<>(FakeTopicResource.class, Pattern.compile("baz*")), Set.of(FakeTopicResource.CREATE));
+        m.add(new ResourceMatcherNameMatches<>(FakeTopicResource.class, Pattern.compile("baz*")), Set.of(FakeTopicResource.ALTER));
+        m.add(new ResourceMatcherNameMatches<>(FakeClusterResource.class, Pattern.compile("foo*")), Set.of(FakeClusterResource.CONNECT));
 
-        assertThat(m.lookup(FakeTopicResource.class, "absent")).isNull();
-        assertThat(m.lookup(FakeTopicResource.class, "ba")).isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER));
-        assertThat(m.lookup(FakeTopicResource.class, "baz")).isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER));
-        assertThat(m.lookup(FakeTopicResource.class, "bazz")).isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER));
+        assertThat(m.matchingOperations(FakeTopicResource.class, "absent")).isNull();
+        assertThat(m.matchingOperations(FakeTopicResource.class, "ba")).isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER));
+        assertThat(m.matchingOperations(FakeTopicResource.class, "baz")).isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER));
+        assertThat(m.matchingOperations(FakeTopicResource.class, "bazz")).isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER));
 
-        assertThat(m.lookup(FakeClusterResource.class, "absent")).isNull();
-        assertThat(m.lookup(FakeClusterResource.class, "fo")).isEqualTo(Set.of(FakeClusterResource.CONNECT));
-        assertThat(m.lookup(FakeClusterResource.class, "foo")).isEqualTo(Set.of(FakeClusterResource.CONNECT));
-        assertThat(m.lookup(FakeClusterResource.class, "fooo")).isEqualTo(Set.of(FakeClusterResource.CONNECT));
+        assertThat(m.matchingOperations(FakeClusterResource.class, "absent")).isNull();
+        assertThat(m.matchingOperations(FakeClusterResource.class, "fo")).isEqualTo(Set.of(FakeClusterResource.CONNECT));
+        assertThat(m.matchingOperations(FakeClusterResource.class, "foo")).isEqualTo(Set.of(FakeClusterResource.CONNECT));
+        assertThat(m.matchingOperations(FakeClusterResource.class, "fooo")).isEqualTo(Set.of(FakeClusterResource.CONNECT));
     }
 
 }

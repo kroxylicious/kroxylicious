@@ -6,8 +6,13 @@
 
 package io.kroxylicious.authorizer.provider.acl;
 
-interface OrderedKey<T> extends Key<T>, Comparable<OrderedKey<T>> {
+import edu.umd.cs.findbugs.annotations.Nullable;
 
+sealed interface OrderedKey<T>
+        extends Key<T>, Comparable<OrderedKey<T>>
+        permits ResourceMatcherNameEquals, ResourceMatcherNameStarts, ResourceMatcherAnyOfType {
+
+    @Nullable
     String operand();
 
     @Override

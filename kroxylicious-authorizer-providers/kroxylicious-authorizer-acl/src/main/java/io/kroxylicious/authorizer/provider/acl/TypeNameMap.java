@@ -22,12 +22,12 @@ class TypeNameMap<T, V> {
                 '}';
     }
 
-    public V compute(OrderedKey<T> key, UnaryOperator<V> value) {
+    public V addApply(OrderedKey<T> key, UnaryOperator<V> value) {
         return map.compute(key,
                 (k, v) -> value.apply(v));
     }
 
-    public @Nullable V lookup(OrderedKey<T> lookupable) {
+    public @Nullable V matchingOperations(OrderedKey<T> lookupable) {
 
         if (lookupable instanceof ResourceMatcherNameEquals || lookupable instanceof ResourceMatcherAnyOfType<T>) {
             return map.get(lookupable);
