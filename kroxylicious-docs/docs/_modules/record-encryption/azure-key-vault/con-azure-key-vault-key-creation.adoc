@@ -32,7 +32,7 @@ If using the Azure CLI, creating a key can be accomplished with a command like t
 KEY_VAULT_NAME="kroxylicious-key-vault"
 KEY_NAME="KEK_<name>"
 KEY_TYPE="oct" # <1>
-az keyvault key create --vault-name ${VAULT_NAME} --name ${KEY_NAME} --kty ${KEY_TYPE} --ops wrapKey unwrapKey # <2>
+az keyvault key create --vault-name ${KEY_VAULT_NAME} --name ${KEY_NAME} --kty ${KEY_TYPE} --ops wrapKey unwrapKey # <2>
 ----
 <1> If using a key type other than `oct`, change this value.
 <2> The `wrapKey` and `unwrapKey` operations must be enabled.
