@@ -354,36 +354,36 @@ class AclAuthorizerTest {
 
         Authorizer a = builder.build();
 
-        assertThat(getDecision(a, anon, FakeClusterResource.CONNECT, "")).isEqualTo(Decision.DENY);
+        assertThat(decision(a, anon, FakeClusterResource.CONNECT, "")).isEqualTo(Decision.DENY);
         for (var s : List.of(alices, bobs, carols, dans, eves)) {
-            assertThat(getDecision(a, s, FakeClusterResource.CONNECT, "")).as("Expected %s to be ALLOWed", s).isEqualTo(Decision.ALLOW);
+            assertThat(decision(a, s, FakeClusterResource.CONNECT, "")).as("Expected %s to be ALLOWed", s).isEqualTo(Decision.ALLOW);
         }
 
-        assertThat(getDecision(a, alices, FakeTopicResource.READ, bobOnly)).isEqualTo(Decision.DENY);
-        assertThat(getDecision(a, alices, FakeTopicResource.WRITE, bobOnly)).isEqualTo(Decision.DENY);
-        assertThat(getDecision(a, alices, FakeTopicResource.READ, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.DENY);
-        assertThat(getDecision(a, alices, FakeTopicResource.WRITE, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.ALLOW);
-        assertThat(getDecision(a, alices, FakeTopicResource.READ, adminsOnly)).isEqualTo(Decision.ALLOW);
-        assertThat(getDecision(a, alices, FakeTopicResource.WRITE, adminsOnly)).isEqualTo(Decision.ALLOW);
+        assertThat(decision(a, alices, FakeTopicResource.READ, bobOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, alices, FakeTopicResource.WRITE, bobOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, alices, FakeTopicResource.READ, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, alices, FakeTopicResource.WRITE, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.ALLOW);
+        assertThat(decision(a, alices, FakeTopicResource.READ, adminsOnly)).isEqualTo(Decision.ALLOW);
+        assertThat(decision(a, alices, FakeTopicResource.WRITE, adminsOnly)).isEqualTo(Decision.ALLOW);
 
-        assertThat(getDecision(a, bobs, FakeTopicResource.READ, bobOnly)).isEqualTo(Decision.ALLOW);
-        assertThat(getDecision(a, bobs, FakeTopicResource.WRITE, bobOnly)).isEqualTo(Decision.ALLOW);
-        assertThat(getDecision(a, bobs, FakeTopicResource.READ, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.DENY);
-        assertThat(getDecision(a, bobs, FakeTopicResource.WRITE, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.ALLOW);
-        assertThat(getDecision(a, bobs, FakeTopicResource.READ, adminsOnly)).isEqualTo(Decision.DENY);
-        assertThat(getDecision(a, bobs, FakeTopicResource.WRITE, adminsOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, bobs, FakeTopicResource.READ, bobOnly)).isEqualTo(Decision.ALLOW);
+        assertThat(decision(a, bobs, FakeTopicResource.WRITE, bobOnly)).isEqualTo(Decision.ALLOW);
+        assertThat(decision(a, bobs, FakeTopicResource.READ, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, bobs, FakeTopicResource.WRITE, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.ALLOW);
+        assertThat(decision(a, bobs, FakeTopicResource.READ, adminsOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, bobs, FakeTopicResource.WRITE, adminsOnly)).isEqualTo(Decision.DENY);
 
-        assertThat(getDecision(a, carols, FakeTopicResource.READ, bobOnly)).isEqualTo(Decision.DENY);
-        assertThat(getDecision(a, carols, FakeTopicResource.WRITE, bobOnly)).isEqualTo(Decision.DENY);
-        assertThat(getDecision(a, carols, FakeTopicResource.READ, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.ALLOW);
-        assertThat(getDecision(a, carols, FakeTopicResource.WRITE, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.DENY);
-        assertThat(getDecision(a, carols, FakeTopicResource.READ, adminsOnly)).isEqualTo(Decision.DENY);
-        assertThat(getDecision(a, carols, FakeTopicResource.WRITE, adminsOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, carols, FakeTopicResource.READ, bobOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, carols, FakeTopicResource.WRITE, bobOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, carols, FakeTopicResource.READ, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.ALLOW);
+        assertThat(decision(a, carols, FakeTopicResource.WRITE, aliceAndBobWriteOnlyCarolReadOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, carols, FakeTopicResource.READ, adminsOnly)).isEqualTo(Decision.DENY);
+        assertThat(decision(a, carols, FakeTopicResource.WRITE, adminsOnly)).isEqualTo(Decision.DENY);
 
     }
 
     @NonNull
-    private static Decision getDecision(Authorizer authorizer, Subject subject, ResourceType<?> resourceType, String resourceName) {
+    private static Decision decision(Authorizer authorizer, Subject subject, ResourceType<?> resourceType, String resourceName) {
         CompletionStage<AuthorizeResult> authorize = authorizer.authorize(subject, List.of(new Action(resourceType, resourceName)));
         assertThat(authorize).isCompleted();
         return assertThat(authorize).succeedsWithin(Duration.ZERO).actual().decision(resourceType, resourceName);

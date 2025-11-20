@@ -307,21 +307,21 @@ public class AclAuthorizer implements Authorizer {
             Decision foundDecision;
             var grant = allowPerPrincipal.matchingOperations(new ResourceMatcherNameEquals<>(p.getClass(), p.name()));
             if (grant != null) {
-                foundDecision = getDecision(action, grant, whenFound);
+                foundDecision = decision(action, grant, whenFound);
                 if (foundDecision != null) {
                     return foundDecision;
                 }
             }
             grant = allowPerPrincipal.matchingOperations(new ResourceMatcherAnyOfType<>(p.getClass()));
             if (grant != null) {
-                foundDecision = getDecision(action, grant, whenFound);
+                foundDecision = decision(action, grant, whenFound);
                 if (foundDecision != null) {
                     return foundDecision;
                 }
             }
             grant = allowPerPrincipal.matchingOperations(new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
             if (grant != null) {
-                foundDecision = getDecision(action, grant, whenFound);
+                foundDecision = decision(action, grant, whenFound);
                 if (foundDecision != null) {
                     return foundDecision;
                 }
@@ -331,9 +331,9 @@ public class AclAuthorizer implements Authorizer {
     }
 
     @Nullable
-    private static Decision getDecision(Action action,
-                                        ResourceGrants grants,
-                                        Decision whenFound) {
+    private static Decision decision(Action action,
+                                     ResourceGrants grants,
+                                     Decision whenFound) {
         Set<? extends ResourceType<?>> operations;
         var typeNameMap = grants.nameMatches();
         ResourceType<?> resourceType = action.operation();
