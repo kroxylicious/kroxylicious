@@ -22,10 +22,8 @@ public interface ResourceType<S extends Enum<S> & ResourceType<S>> {
     /**
      * Returns a set of operations that are implied by this operation.
      * This must return the complete transitive closure of all such implied operations.
-     * In other words, it's not allowed for
-     * {@code OP_A.implies()} to contain {@code OP_B} and {@code OP_B.implies()} to contain {@code OP_C}
-     * if {@code OP_A.implies()} does not contain {@code OP_C}.
-     * Instead {@code OP_A.implies()} would have to contain both {@code OP_B} and {@code OP_C}.
+     * In other words, if logically speaking {@code A} implies {@code B}, and {@code B} implies {@code C} then
+     * programmatically speaking {@code A.implies()} must contain both {@code B} <em>and {@code C}</em>.
      * @return The operations that are implied by this operation.
      */
     default Set<S> implies() {
