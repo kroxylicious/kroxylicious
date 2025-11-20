@@ -18,22 +18,22 @@ GREEN='\033[0;32m'
 NOCOLOR='\033[0m'
 
 FIND_COMMAND="find"
-GFIND_COMMAND=
-set +e
-GFIND_COMMAND=$(resolveCommand gfind)
-set -e
-if [ "$OS" = 'Darwin' ] && [ -n "${GFIND_COMMAND:-}" ] ; then
-  FIND_COMMAND=${GFIND_COMMAND}
-  ENABLE_REGEX="-regextype posix-extended"
-elif [ "$OS" = 'Darwin' ] ; then
-  # for BSD find
-  ENABLE_REGEX="-E"
+if [ "$OS" = 'Darwin' ] ; then
+  GFIND_COMMAND=
+  GFIND_COMMAND=$(resolveCommand gfind)
+  if  [ -n "${GFIND_COMMAND:-}" ]; then
+    FIND_COMMAND=${GFIND_COMMAND}
+    ENABLE_REGEX="-regextype posix-extended"
+  else
+    # for BSD find
+    ENABLE_REGEX="-E"
+  fi
 else
   # for gnu find
   ENABLE_REGEX="-regextype posix-extended"
 fi
 
-COMMITS=( "$@" )
+GIT_REFS=( "$@" )
 SHORT_COMMITS=( )
 
 #Cross platform temp directory creation based on https://unix.stackexchange.com/a/84980
@@ -69,7 +69,9 @@ buildImage() {
 runPerfTest() {
   local COMMIT_ID=$1
   export KIBANA_OUTPUT_DIR=${RESULTS_DIR}/${COMMIT_ID}
+  export PROFILING_OUTPUT_DIRECTORY=${RESULTS_DIR}/${COMMIT_ID}/profile
   mkdir -p "${KIBANA_OUTPUT_DIR}"
+  mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
   export KROXYLICIOUS_IMAGE="${REGISTRY_DESTINATION}:g_${COMMIT_ID}"
   echo -e "Running tests using ${GREEN}${KROXYLICIOUS_IMAGE}${NOCOLOR}"
   "${PERF_TESTS_DIR}/perf-tests.sh"
@@ -84,19 +86,19 @@ mergeResults() {
    echo -e "generating ${GREEN}${TEST_NAME}${NOCOLOR}"
    JQ_COMMAND=".[0]"
    idx=0
-   for COMMIT in "${SHORT_COMMITS[@]}"; do
+   for REF in "${SHORT_COMMITS[@]}"; do
      if [ ${idx} -ne 0 ]; then
        JQ_COMMAND+=" * .[$((idx++))]"
      else
        ((idx++))
      fi
      jq -cn \
-      --arg commit "${COMMIT}" \
+      --arg commit "${REF}" \
       --arg key "${TEST_NAME}" \
-      --slurpfile producer_results "${RESULTS_DIR}/${COMMIT}/${TEST_NAME}/producer.json" \
-      --slurpfile consumer_results "${RESULTS_DIR}/${COMMIT}/${TEST_NAME}/consumer.json" \
+      --slurpfile producer_results "${RESULTS_DIR}/${REF}/${TEST_NAME}/producer.json" \
+      --slurpfile consumer_results "${RESULTS_DIR}/${REF}/${TEST_NAME}/consumer.json" \
       '{producer: {($key): {($commit): $producer_results}}, consumer: {($key): {($commit): $consumer_results}}}' \
-     > "${JSON_TEMP_DIR}/${TEST_NAME}-${COMMIT}.json"
+     > "${JSON_TEMP_DIR}/${TEST_NAME}-${REF}.json"
    done
 
    jq  -c -s "${JQ_COMMAND}" "${JSON_TEMP_DIR}/${TEST_NAME}"-*.json > "${RESULTS_DIR}/${TEST_NAME}-all.json"
@@ -105,8 +107,8 @@ mergeResults() {
 
 cloneRepo
 
-for COMMIT in "${COMMITS[@]}"; do
-    checkoutCommit "${COMMIT}"
+for REF in "${GIT_REFS[@]}"; do
+    checkoutCommit "${REF}"
 
     SHORT_COMMIT=$(git rev-parse --short HEAD)
     SHORT_COMMITS+=("${SHORT_COMMIT}")
