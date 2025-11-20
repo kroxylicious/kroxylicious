@@ -63,7 +63,15 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.SASL_HANDSHAKE, new Passthrough<>(0, 1));
         apiEnforcement.put(ApiKeys.SASL_AUTHENTICATE, new Passthrough<>(0, 2));
 
+        apiEnforcement.put(ApiKeys.PRODUCE, new ProduceEnforcement());
         apiEnforcement.put(ApiKeys.METADATA, new MetadataEnforcement());
+
+        apiEnforcement.put(ApiKeys.FIND_COORDINATOR, new Passthrough<>(0, 6));
+
+        apiEnforcement.put(ApiKeys.INIT_PRODUCER_ID, new Passthrough<>(0, 6));
+
+        apiEnforcement.put(ApiKeys.ADD_OFFSETS_TO_TXN, new Passthrough<>(0, 4));
+        apiEnforcement.put(ApiKeys.END_TXN, new Passthrough<>(0, 5));
     }
 
     @VisibleForTesting
