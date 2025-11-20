@@ -335,6 +335,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                 this.operationsBuilder = this.principalBuilder.withNameEqualTo(unquoteString(ctx.STRING()));
                 this.principalBuilder = null;
             }
+            // The only place where NameEq occurs in the grammar is in userNamePred or resourceNamePred
+            // so for a valid rule file one of the above _will_ match.
+            // However, we can't throw in an else because this code also executes on invalid rules files
         }
 
         @Override
@@ -350,6 +353,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                 this.operationsBuilder = this.principalBuilder.withNameIn(names);
                 this.principalBuilder = null;
             }
+            // The only place where NameIn occurs in the grammar is in userNamePred or resourceNamePred
+            // so for a valid rule file one of the above _will_ match.
+            // However, we can't throw in an else because this code also executes on invalid rules files
         }
 
         @Override
@@ -379,6 +385,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                 }
                 this.principalBuilder = null;
             }
+            // The only place where NameLike occurs in the grammar is in userNamePred or resourceNamePred
+            // so for a valid rule file one of the above _will_ match.
+            // However, we can't throw in an else because this code also executes on invalid rules files
         }
 
         @Override
@@ -413,6 +422,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                 this.operationsBuilder = this.principalBuilder.withAnyName();
                 this.principalBuilder = null;
             }
+            // The only place where NameAny occurs in the grammar is in userNamePred or resourceNamePred
+            // so for a valid rule file one of the above _will_ match.
+            // However, we can't throw in an else because this code also executes on invalid rules files
         }
 
         @Override
