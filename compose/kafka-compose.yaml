@@ -63,10 +63,14 @@ services:
     image: 'quay.io/kroxylicious/proxy:0.18.0-SNAPSHOT'
     container_name: kroxylicious
     command: --config /opt/kroxylicious/config/proxy-config.yaml
+    environment:
+      JAVA_ENABLE_DEBUG: true
+      JAVA_DEBUG_SUSPEND: false
     networks:
       - kroxylicious_network
     ports:
       - "9292-9296:9292-9296"
+      - "5005:5005"
     configs:
       - source: proxy-config
         target: /opt/kroxylicious/config/proxy-config.yaml
@@ -78,5 +82,3 @@ networks:
 configs:
   proxy-config:
     file: compose-proxy-config.yaml
-
-

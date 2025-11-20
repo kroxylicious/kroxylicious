@@ -187,6 +187,94 @@
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>unpack-netty-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>netty-transport-native-epoll,netty-transport-native-unix-common,netty-transport-native-io_uring,netty-transport-native-kqueue</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/netty</outputDirectory>
+                                    <!-- derived form snappy's resource-config.json -->
+                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
+                                    <fileMappers>
+                                        <org.codehaus.plexus.components.io.filemappers.FlattenFileMapper/>
+                                    </fileMappers>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-snappy-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>snappy-java</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/snappy</outputDirectory>
+                                    <!-- derived form snappy's resource-config.json -->
+                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
+                                    <!-- when built into the container paths are cases sensitive and the container build variables for arch and platform  are lower case-->
+                                    <fileMappers>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>AIX</pattern>
+                                            <replacement>aix</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>FreeBSD</pattern>
+                                            <replacement>freebsd</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>Linux</pattern>
+                                            <replacement>linux</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>Mac</pattern>
+                                            <replacement>darwin</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>SunOS</pattern>
+                                            <replacement>sunos</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>Windows</pattern>
+                                            <replacement>windows</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                    </fileMappers>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-zstd-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>zstd-jni</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/zstd-jni</outputDirectory>
+                                    <!-- derived form snappy's resource-config.json -->
+                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-lz4-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>lz4-java</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/lz4-java</outputDirectory>
+                                    <!-- derived form snappy's resource-config.json -->
+                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-assembly-plugin</artifactId>
                         <configuration>
                             <descriptors>
