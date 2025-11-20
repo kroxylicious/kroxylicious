@@ -1,0 +1,109 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FETCH"
+  apiVersion: 7
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FETCH"
+      expectedRequestVersion: 7
+      expectedRequestHeader:
+        requestApiKey: 1
+        requestApiVersion: 7
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 735
+        maxWaitMs: 291
+        minBytes: 880
+        maxBytes: 623
+        isolationLevel: 50
+        sessionId: 792
+        sessionEpoch: 503
+        topics:
+          - topic: "my-topic"
+            partitions:
+              - partition: 805
+                fetchOffset: 729
+                logStartOffset: 461
+                partitionMaxBytes: 804
+        forgottenTopicsData:
+          - topic: "my-topic"
+            partitions:
+              - 419
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 637
+        errorCode: 933
+        sessionId: 573
+        responses:
+          - topic: "my-topic"
+            partitions:
+              - partitionIndex: 94
+                errorCode: 759
+                highWatermark: 922
+                lastStableOffset: 265
+                logStartOffset: 664
+                abortedTransactions:
+                  - producerId: 12
+                    firstOffset: 766
+                records: !!binary ""
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 1
+    requestApiVersion: 7
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    replicaId: 735
+    maxWaitMs: 291
+    minBytes: 880
+    maxBytes: 623
+    isolationLevel: 50
+    sessionId: 792
+    sessionEpoch: 503
+    topics:
+      - topic: "my-topic"
+        partitions:
+          - partition: 805
+            fetchOffset: 729
+            logStartOffset: 461
+            partitionMaxBytes: 804
+    forgottenTopicsData:
+      - topic: "my-topic"
+        partitions:
+          - 419
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 637
+    errorCode: 933
+    sessionId: 573
+    responses:
+      - topic: "my-topic"
+        partitions:
+          - partitionIndex: 94
+            errorCode: 759
+            highWatermark: 922
+            lastStableOffset: 265
+            logStartOffset: 664
+            abortedTransactions:
+              - producerId: 12
+                firstOffset: 766
+            records: !!binary ""

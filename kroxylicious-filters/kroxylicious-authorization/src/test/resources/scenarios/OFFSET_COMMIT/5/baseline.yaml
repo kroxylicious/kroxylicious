@@ -1,0 +1,73 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_COMMIT"
+  apiVersion: 5
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_COMMIT"
+      expectedRequestVersion: 5
+      expectedRequestHeader:
+        requestApiKey: 8
+        requestApiVersion: 5
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-783"
+        generationIdOrMemberEpoch: 832
+        memberId: "random-string-672"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 118
+                committedOffset: 628
+                committedMetadata: "random-string-763"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 647
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 313
+                errorCode: 547
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 8
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-783"
+    generationIdOrMemberEpoch: 832
+    memberId: "random-string-672"
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 118
+            committedOffset: 628
+            committedMetadata: "random-string-763"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 647
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 313
+            errorCode: 547

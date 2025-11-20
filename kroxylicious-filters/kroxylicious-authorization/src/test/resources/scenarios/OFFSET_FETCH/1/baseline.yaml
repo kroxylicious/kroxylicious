@@ -1,0 +1,67 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_FETCH"
+  apiVersion: 1
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_FETCH"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 9
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-721"
+        topics:
+          - name: "my-topic"
+            partitionIndexes:
+              - 180
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 193
+                committedOffset: 836
+                metadata: "random-string-135"
+                errorCode: 283
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 9
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-721"
+    topics:
+      - name: "my-topic"
+        partitionIndexes:
+          - 180
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 193
+            committedOffset: 836
+            metadata: "random-string-135"
+            errorCode: 283
