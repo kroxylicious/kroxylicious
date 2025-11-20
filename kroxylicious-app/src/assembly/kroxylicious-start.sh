@@ -13,7 +13,7 @@ script_dir() {
   dir=$(dirname "$0")
   local full_dir
   full_dir=$(cd "${dir}" && pwd)
-  echo ${full_dir}
+  echo "${full_dir}"
 }
 
 # Disable warnings about `local` variables
@@ -59,7 +59,7 @@ if [ "${KROXYLICIOUS_LOGGING_OPTIONS+set}" != set ]; then
   KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=$(script_dir)/../config/log4j2.yaml -Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector"
 fi
 
-NATIVE_LIB_BASE_DIR=${NATIVE_LIB_BASE_DIR:-"/opt/kroxylicious/libs/native/"}
+NATIVE_LIB_BASE_DIR=${NATIVE_LIB_BASE_DIR:-$(script_dir)/../libs/native/}
 NETTY_NATIVE_LIB=$(native_library_path netty)
 LZ4_NATIVE_LIB=$(native_library_path lz4-java/net/jpountz/util)
 SNAPPY_NATIVE_LIB=$(native_library_path snappy/org/xerial/snappy/native)
