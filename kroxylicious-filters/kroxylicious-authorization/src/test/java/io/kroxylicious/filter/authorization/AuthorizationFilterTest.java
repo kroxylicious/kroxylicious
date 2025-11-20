@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.authorization;
 
 import java.time.Duration;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -22,6 +23,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderDataJsonConverter;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -38,6 +40,12 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static java.util.EnumSet.complementOf;
+import static java.util.EnumSet.copyOf;
+import static java.util.EnumSet.noneOf;
+import static java.util.EnumSet.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AuthorizationFilterTest {
@@ -131,5 +139,51 @@ class AuthorizationFilterTest {
         catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Test
+    void shouldSupportApis() {
+        EnumSet<ApiKeys> allVersionsSupported = of(ApiKeys.API_VERSIONS, ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_AUTHENTICATE, ApiKeys.METADATA);
+        EnumSet<ApiKeys> someVersionsSupported = noneOf(ApiKeys.class);
+        EnumSet<ApiKeys> noVersionsSupported = complementOf(unionOf(allVersionsSupported, someVersionsSupported));
+        for (ApiKeys apiKey : allVersionsSupported) {
+
+            assertThat(AuthorizationFilter.isApiSupported(apiKey))
+                    .as(apiKey + " is supported")
+                    .isTrue();
+
+            for (short apiVersion : apiKey.allVersions()) {
+                assertThat(AuthorizationFilter.isApiVersionSupported(apiKey, apiVersion)).isTrue();
+            }
+
+            assertThat(AuthorizationFilter.minSupportedApiVersion(apiKey))
+                    .isEqualTo(apiKey.oldestVersion());
+
+            assertThat(AuthorizationFilter.maxSupportedApiVersion(apiKey))
+                    .isEqualTo(apiKey.latestVersion());
+        }
+
+        for (ApiKeys apiKey : noVersionsSupported) {
+            assertThat(AuthorizationFilter.isApiSupported(apiKey))
+                    .as(apiKey + " is not supported")
+                    .isFalse();
+
+            for (short apiVersion : apiKey.allVersions()) {
+                assertThat(AuthorizationFilter.isApiVersionSupported(apiKey, apiVersion)).isFalse();
+            }
+
+            assertThat(AuthorizationFilter.minSupportedApiVersion(apiKey))
+                    .isEqualTo((short) -1);
+
+            assertThat(AuthorizationFilter.maxSupportedApiVersion(apiKey))
+                    .isEqualTo((short) -1);
+        }
+    }
+
+    @NonNull
+    private static EnumSet<ApiKeys> unionOf(EnumSet<ApiKeys> allVersionsSupported, EnumSet<ApiKeys> someVersionsSupported) {
+        var t = copyOf(allVersionsSupported);
+        t.addAll(someVersionsSupported);
+        return t;
     }
 }
