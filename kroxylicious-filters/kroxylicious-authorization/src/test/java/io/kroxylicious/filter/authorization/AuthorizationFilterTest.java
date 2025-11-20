@@ -44,7 +44,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static java.util.EnumSet.complementOf;
 import static java.util.EnumSet.copyOf;
-import static java.util.EnumSet.noneOf;
 import static java.util.EnumSet.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -143,8 +142,15 @@ class AuthorizationFilterTest {
 
     @Test
     void shouldSupportApis() {
-        EnumSet<ApiKeys> allVersionsSupported = of(ApiKeys.API_VERSIONS, ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_AUTHENTICATE, ApiKeys.METADATA);
-        EnumSet<ApiKeys> someVersionsSupported = noneOf(ApiKeys.class);
+        EnumSet<ApiKeys> allVersionsSupported = of(ApiKeys.API_VERSIONS,
+                ApiKeys.SASL_HANDSHAKE,
+                ApiKeys.SASL_AUTHENTICATE,
+                ApiKeys.METADATA,
+                ApiKeys.FIND_COORDINATOR,
+                ApiKeys.INIT_PRODUCER_ID,
+                ApiKeys.ADD_OFFSETS_TO_TXN,
+                ApiKeys.END_TXN);
+        EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.PRODUCE);
         EnumSet<ApiKeys> noVersionsSupported = complementOf(unionOf(allVersionsSupported, someVersionsSupported));
         for (ApiKeys apiKey : allVersionsSupported) {
 
@@ -153,7 +159,9 @@ class AuthorizationFilterTest {
                     .isTrue();
 
             for (short apiVersion : apiKey.allVersions()) {
-                assertThat(AuthorizationFilter.isApiVersionSupported(apiKey, apiVersion)).isTrue();
+                assertThat(AuthorizationFilter.isApiVersionSupported(apiKey, apiVersion))
+                        .as(apiKey + " is supported @v" + apiVersion)
+                        .isTrue();
             }
 
             assertThat(AuthorizationFilter.minSupportedApiVersion(apiKey))
@@ -169,7 +177,9 @@ class AuthorizationFilterTest {
                     .isFalse();
 
             for (short apiVersion : apiKey.allVersions()) {
-                assertThat(AuthorizationFilter.isApiVersionSupported(apiKey, apiVersion)).isFalse();
+                assertThat(AuthorizationFilter.isApiVersionSupported(apiKey, apiVersion))
+                        .as(apiKey + " is not supported @v" + apiVersion)
+                        .isFalse();
             }
 
             assertThat(AuthorizationFilter.minSupportedApiVersion(apiKey))

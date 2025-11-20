@@ -1,0 +1,85 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "PRODUCE"
+  apiVersion: 8
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "PRODUCE"
+      expectedRequestVersion: 8
+      expectedRequestHeader:
+        requestApiKey: 0
+        requestApiVersion: 8
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "random-string-197"
+        acks: 1
+        timeoutMs: 614
+        topicData:
+          - name: "my-topic"
+            partitionData:
+              - index: 6
+                records: !!binary ""
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        responses:
+          - name: "my-topic"
+            partitionResponses:
+              - index: 367
+                errorCode: 846
+                baseOffset: 238
+                logAppendTimeMs: 108
+                logStartOffset: 597
+                recordErrors:
+                  - batchIndex: 511
+                    batchIndexErrorMessage: "random-string-679"
+                errorMessage: "random-string-4"
+        throttleTimeMs: 597
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "WRITE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 0
+    requestApiVersion: 8
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-197"
+    acks: 1
+    timeoutMs: 614
+    topicData:
+      - name: "my-topic"
+        partitionData:
+          - index: 6
+            records: !!binary ""
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    responses:
+      - name: "my-topic"
+        partitionResponses:
+          - index: 367
+            errorCode: 846
+            baseOffset: 238
+            logAppendTimeMs: 108
+            logStartOffset: 597
+            recordErrors:
+              - batchIndex: 511
+                batchIndexErrorMessage: "random-string-679"
+            errorMessage: "random-string-4"
+    throttleTimeMs: 597
