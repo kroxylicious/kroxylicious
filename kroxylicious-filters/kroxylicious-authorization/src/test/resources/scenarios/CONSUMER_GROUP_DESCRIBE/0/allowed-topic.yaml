@@ -1,0 +1,113 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "CONSUMER_GROUP_DESCRIBE"
+  apiVersion: 0
+  scenario: "topic partitions for allowed topics passed through"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CONSUMER_GROUP_DESCRIBE"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 69
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        groupIds:
+          - "random-string-814"
+        includeAuthorizedOperations: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 828
+        groups:
+          - errorCode: 222
+            errorMessage: "random-string-996"
+            groupId: "random-string-68"
+            groupState: "random-string-386"
+            groupEpoch: 391
+            assignmentEpoch: 657
+            assignorName: "random-string-555"
+            members:
+              - memberId: "random-string-572"
+                instanceId: "random-string-1021"
+                rackId: "random-string-784"
+                memberEpoch: 817
+                clientId: "random-string-749"
+                clientHost: "random-string-439"
+                subscribedTopicNames:
+                  - "my-topic"
+                subscribedTopicRegex: "random-string-610"
+                assignment:
+                  topicPartitions:
+                    - topicId: "ygLaKp2HRZSQegABwCoNmA"
+                      topicName: "my-topic"
+                      partitions:
+                        - 201
+                targetAssignment:
+                  topicPartitions:
+                    - topicId: "ygLaKp2HRZSQegABwCoNmA"
+                      topicName: "my-topic"
+                      partitions:
+                        - 201
+            authorizedOperations: 940
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: { }
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 69
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    groupIds:
+      - "random-string-814"
+    includeAuthorizedOperations: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 828
+    groups:
+      - errorCode: 222
+        errorMessage: "random-string-996"
+        groupId: "random-string-68"
+        groupState: "random-string-386"
+        groupEpoch: 391
+        assignmentEpoch: 657
+        assignorName: "random-string-555"
+        members:
+          - memberId: "random-string-572"
+            instanceId: "random-string-1021"
+            rackId: "random-string-784"
+            memberEpoch: 817
+            clientId: "random-string-749"
+            clientHost: "random-string-439"
+            subscribedTopicNames:
+              - "my-topic"
+            subscribedTopicRegex: "random-string-610"
+            assignment:
+              topicPartitions:
+                - topicId: "ygLaKp2HRZSQegABwCoNmA"
+                  topicName: "my-topic"
+                  partitions:
+                    - 201
+            targetAssignment:
+              topicPartitions:
+                - topicId: "ygLaKp2HRZSQegABwCoNmA"
+                  topicName: "my-topic"
+                  partitions:
+                    - 201
+        authorizedOperations: 940

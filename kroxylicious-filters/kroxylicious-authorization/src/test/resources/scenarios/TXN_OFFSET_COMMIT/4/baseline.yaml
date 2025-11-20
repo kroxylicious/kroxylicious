@@ -1,0 +1,83 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "TXN_OFFSET_COMMIT"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "TXN_OFFSET_COMMIT"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 28
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "random-string-171"
+        groupId: "random-string-748"
+        producerId: 913
+        producerEpoch: 776
+        generationId: 556
+        memberId: "random-string-1003"
+        groupInstanceId: "random-string-746"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 841
+                committedOffset: 41
+                committedLeaderEpoch: 688
+                committedMetadata: "random-string-936"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 686
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 658
+                errorCode: 891
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 28
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-171"
+    groupId: "random-string-748"
+    producerId: 913
+    producerEpoch: 776
+    generationId: 556
+    memberId: "random-string-1003"
+    groupInstanceId: "random-string-746"
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 841
+            committedOffset: 41
+            committedLeaderEpoch: 688
+            committedMetadata: "random-string-936"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 686
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 658
+            errorCode: 891

@@ -1,0 +1,89 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FETCH"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FETCH"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 1
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 329
+        maxWaitMs: 541
+        minBytes: 678
+        maxBytes: 587
+        isolationLevel: 125
+        topics:
+          - topic: "my-topic"
+            partitions:
+              - partition: 102
+                fetchOffset: 401
+                partitionMaxBytes: 768
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 676
+        responses:
+          - topic: "my-topic"
+            partitions:
+              - partitionIndex: 548
+                errorCode: 990
+                highWatermark: 619
+                lastStableOffset: 700
+                abortedTransactions:
+                  - producerId: 920
+                    firstOffset: 979
+                records: !!binary ""
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 1
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    replicaId: 329
+    maxWaitMs: 541
+    minBytes: 678
+    maxBytes: 587
+    isolationLevel: 125
+    topics:
+      - topic: "my-topic"
+        partitions:
+          - partition: 102
+            fetchOffset: 401
+            partitionMaxBytes: 768
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 676
+    responses:
+      - topic: "my-topic"
+        partitions:
+          - partitionIndex: 548
+            errorCode: 990
+            highWatermark: 619
+            lastStableOffset: 700
+            abortedTransactions:
+              - producerId: 920
+                firstOffset: 979
+            records: !!binary ""
