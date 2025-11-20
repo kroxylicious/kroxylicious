@@ -287,9 +287,9 @@ class AclAuthorizerServiceTest {
             assertThat(decision(authz, new ServiceAccount(allowedPrincipal), FakeClusterResource.CONNECT, "foo"))
                     .as("Mismatching resource type")
                     .isEqualTo(Decision.DENY);
-             assertThat(decision(authz, new RolePrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
-                     .as("Mismatching principal type")
-                     .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new RolePrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .as("Mismatching principal type")
+                    .isEqualTo(Decision.DENY);
         }
     }
 
@@ -340,9 +340,9 @@ class AclAuthorizerServiceTest {
             assertThat(decision(authz, new ServiceAccount(allowedPrincipal), FakeClusterResource.CONNECT, "foo"))
                     .as("Mismatching resource type")
                     .isEqualTo(Decision.DENY);
-             assertThat(decision(authz, new RolePrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
-                     .as("Mismatching principal type")
-                     .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new RolePrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .as("Mismatching principal type")
+                    .isEqualTo(Decision.DENY);
         }
     }
 
