@@ -91,4 +91,6 @@ echo "Now log in at ${PORTAL_URL}  with user name ${USER_PRINCIPAL_NAME} and pas
 The filter must authenticate to Azure Key Vault in order to perform envelope encryption operations, such as generating and decrypting DEKs.
 
 include::proc-azure-key-vault-setup-microsoft-identity-platform-oauth2.adoc[leveloffset=+1]
+ifdef::include-azure-key-vault-service-config-microsoft-entra-managed-identity[]
 include::proc-azure-key-vault-setup-microsoft-entra-managed-identity.adoc[leveloffset=+1]
+endif::[]

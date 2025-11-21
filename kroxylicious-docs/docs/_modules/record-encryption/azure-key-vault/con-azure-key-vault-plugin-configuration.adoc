@@ -12,9 +12,12 @@ For Azure Key Vault the configuration for authenticating with Microsoft Identity
 
 include::snip-azure-key-vault-service-config-microsoft-identity-platform-oauth2.adoc[leveloffset=+1]
 
+ifdef::include-azure-key-vault-service-config-microsoft-entra-managed-identity[]
+
 Alternatively, the configuration for authenticating with Managed Identities for Azure resources looks like this:
 
 include::snip-azure-key-vault-service-config-microsoft-entra-managed-identity.adoc[leveloffset=+1]
+endif::[]
 
 include::../../../_snippets/snip-tls-client-keystore.adoc[]
 
