@@ -8,7 +8,7 @@
 = Creating Azure Key Vault keys
 
 [role="_abstract"]
-As a user with the *Key Vault Crypto Officer* role (or otherwise sufficient {microsoft-learn}/azure/key-vault/general/rbac-guide?tabs=azure-cli#azure-built-in-roles-for-key-vault-data-plane-operations[RBAC] or {microsoft-learn}/azure/key-vault/general/rbac-access-policy[legacy] permissions to manage keys in Azure Key Vault), use either the {microsoft-learn}/cli/azure/keyvault/key?view=azure-cli-latest#az-keyvault-key-create[Azure CLI] or {microsoft-learn}/powershell/module/az.keyvault/add-azkeyvaultkey[Azure PowerShell] to create a *key* with *wrapKey* and *unwrapKey* operations enabled.
+As a user with the *Key Vault Crypto Officer* role (or otherwise sufficient {microsoft-learn}/azure/key-vault/general/rbac-guide?tabs=azure-cli#azure-built-in-roles-for-key-vault-data-plane-operations[RBAC] permissions to manage keys in Azure Key Vault), use either the {microsoft-learn}/cli/azure/keyvault/key?view=azure-cli-latest#az-keyvault-key-create[Azure CLI] or {microsoft-learn}/powershell/module/az.keyvault/add-azkeyvaultkey[Azure PowerShell] to create a *key* with *wrapKey* and *unwrapKey* operations enabled.
 
 == Establish the naming convention for keys within key vault hierarchy
 

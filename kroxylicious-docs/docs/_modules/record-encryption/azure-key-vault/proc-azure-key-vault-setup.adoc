@@ -44,7 +44,7 @@ az keyvault create --name ${KEY_VAULT_NAME} --resource-group ${RESOURCE_GROUP_NA
 
 == Create a key management user
 
-To use the filter, a user such as the Key Vault Owner —or any user with the *Key Vault Crypto Officer* RBAC role or equivalent access policy (legacy) permissions on the key vault— must create the encryption keys within the key vault, which
+To use the filter, a user such as the Key Vault Owner —or any user with the *Key Vault Crypto Officer* RBAC role or equivalent permissions on the key vault— must create the encryption keys within the key vault, which
 are used by the xref:con-record-encryption-overview-{context}[envelope encryption] process.
 
 Once a key vault is created, the only user able to manage the vault is the user that created it (the Key Vault Owner). Access to key vaults is managed using {microsoft-learn}/azure/key-vault/general/rbac-guide?tabs=azure-cli#azure-built-in-roles-for-key-vault-data-plane-operations[RBAC roles] (with some exceptions, see the {microsoft-learn}/azure/key-vault/general/rbac-access-policy[Microsoft documentation] for details), which can be conferred by a user with a minimum of either {microsoft-learn}/azure/role-based-access-control/built-in-roles/privileged#role-based-access-control-administrator[Role Based Access Control Administrator] role or {microsoft-learn}/azure/role-based-access-control/built-in-roles/privileged#user-access-administrator[User Access Administrator] role.
