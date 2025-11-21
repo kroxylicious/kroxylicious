@@ -32,10 +32,10 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-import io.kroxylicious.filters.FourInterfaceFilter0;
-import io.kroxylicious.filters.FourInterfaceFilter1;
-import io.kroxylicious.filters.FourInterfaceFilter2;
-import io.kroxylicious.filters.FourInterfaceFilter3;
+import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter0;
+import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter1;
+import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter2;
+import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter3;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;

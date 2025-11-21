@@ -830,6 +830,7 @@
                         <threshold>Low</threshold>
                         <xmlOutput>true</xmlOutput>
                         <includeFilterFile>etc/spotbugs-include.xml</includeFilterFile>
+                        <excludeFilterFile>etc/spotbugs-exclude.xml</excludeFilterFile>
                     </configuration>
                     <executions>
                         <execution>
