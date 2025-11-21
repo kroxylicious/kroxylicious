@@ -11,7 +11,7 @@ ${pad}// process any entity fields defined at this level
     <#list fields as field>
         <#if field.entityType == 'GROUP_ID' || field.entityType == 'TRANSACTIONAL_ID' || field.entityType == 'TOPIC_NAME'>
             <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
-${pad}if (shouldMap("${field.entityType}") && inVersion(header.requestApiVersion(), ${specName?trim}_VERSIONS)) {
+${pad}if (shouldMap("${field.entityType}") && inVersion(header.requestApiVersion(), Set.of(<#list messageSpec.validVersions.intersect(field.versions) as version> (short) ${version}<#sep>, </#list>))) {
             <#if field.type == 'string'>
 ${pad}    ${dataVar}.${setter}(map(aid, ${dataVar}.${getter}()));
             <#elseif field.type == '[]string'>
