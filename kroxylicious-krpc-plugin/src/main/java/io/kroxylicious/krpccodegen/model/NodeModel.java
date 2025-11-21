@@ -24,9 +24,10 @@ public class NodeModel implements TemplateHashModel {
     @Override
     public TemplateModel get(String key) throws TemplateModelException {
         return switch (key) {
-            case "hasAtLeastOneEntityField" -> wrapper.wrap(node.hasAtLeastOneEntityField());
+            // case "hasAtLeastOneEntityField" -> wrapper.wrap(node.hasAtLeastOneEntityField());
             case "orderedVersions" -> wrapper.wrap(node.orderedVersions());
-            case "entities" -> wrapper.wrap(node.entities());
+            case "field" -> wrapper.wrap(node.field());
+            case "containers" -> wrapper.wrap(node.containers());
             default -> throw new TemplateModelException(node.getClass().getSimpleName() + " doesn't have property " + key);
         };
     }

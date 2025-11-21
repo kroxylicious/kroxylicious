@@ -8,9 +8,10 @@ package io.kroxylicious.krpccodegen.schema;
 
 import java.util.List;
 
-public record Node(List<FieldSpec> entities, List<Node> containers, List<Short> orderedVersions) {
+public record Node(FieldSpec field, List<Node> containers, List<Short> orderedVersions) {
     public boolean hasAtLeastOneEntityField() {
-        return !(entities.isEmpty() && containers.isEmpty());
+        throw new UnsupportedOperationException();
+        // return !(entities.isEmpty() && containers.isEmpty());
     }
 
 }

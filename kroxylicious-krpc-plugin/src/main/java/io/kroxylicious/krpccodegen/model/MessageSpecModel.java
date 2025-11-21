@@ -38,6 +38,8 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
             case "listeners" -> wrapper.wrap(spec.listeners());
             case "dataClassName" -> wrapper.wrap(spec.dataClassName());
             case "entityFields" -> wrapper.wrap(spec.entityFields());
+            case "hasAtLeastOneEntityField" -> wrapper.wrap(spec.hasAtLeastOneEntityField());
+            case "entityFieldIntersectedVersions" -> wrapper.wrap(spec.entityFieldIntersectedVersions());
             default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property " + key);
         };
     }

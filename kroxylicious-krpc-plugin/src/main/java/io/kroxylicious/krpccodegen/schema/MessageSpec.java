@@ -5,21 +5,30 @@
  */
 package io.kroxylicious.krpccodegen.schema;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.util.StdConverter;
+
+@JsonDeserialize(converter = MessageSpec.MessageSpecAugmenter.class)
 
 public final class MessageSpec {
-    private static final EnumSet<EntityType> SUPPORTED_ENTITY_TYPES = EnumSet.of(EntityType.TOPIC_NAME, EntityType.GROUP_ID, EntityType.TRANSACTIONAL_ID);
+    private static final EnumSet<EntityType> ENTITY_FIELDS = EnumSet.of(EntityType.TOPIC_NAME, EntityType.GROUP_ID, EntityType.TRANSACTIONAL_ID);
     private final StructSpec struct;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -105,6 +114,7 @@ public final class MessageSpec {
     }
 
     @JsonProperty("fields")
+    @JsonManagedReference
     public List<FieldSpec> fields() {
         return struct.fields();
     }
@@ -159,21 +169,43 @@ public final class MessageSpec {
         };
     }
 
-    public Node entityFields() {
-        List<FieldSpec> entityFields = fields().stream()
-                .filter(f -> SUPPORTED_ENTITY_TYPES.contains(f.entityType()))
+    public List<Node> entityFields() {
+        return buildNode(fields(), validVersions());
+    }
+
+    private List<Node> buildNode(List<FieldSpec> fields, Versions apiVersions) {
+        var entityFields = fields.stream()
+                .filter(f -> ENTITY_FIELDS.contains(f.entityType()))
                 .toList();
-        var versions = entityFields.stream()
-                .map(FieldSpec::versions)
-                .map(fsv -> validVersions().intersect(fsv))
+
+        var containers = fields.stream()
+                .filter(fs -> fs.type().isArray())
+                .filter(Predicate.not(entityFields::contains))
+                .toList();
+
+        var versions = getIntersectedVersions(apiVersions, entityFields);
+
+        var list = new ArrayList<Node>();
+
+        list.addAll(entityFields.stream()
+                .map(f -> new Node(f, List.of(), getIntersectedVersions(apiVersions, List.of(f)).stream().toList()))
+                .toList());
+        list.addAll(containers.stream()
+                .map(f -> new Node(f, buildNode(f.fields(), validVersions()), getIntersectedVersions(apiVersions, List.of(f)).stream().toList()))
+                .toList());
+
+        return list;
+    }
+
+    private static TreeSet<Short> getIntersectedVersions(Versions apiVersions, List<FieldSpec> entityFields) {
+        return entityFields.stream().map(FieldSpec::versions)
+                .map(apiVersions::intersect)
                 .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
                 .distinct()
                 .sorted()
                 .boxed()
                 .map(Integer::shortValue)
-                .toList();
-
-        return new Node(entityFields, List.of(), versions);
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     @Override
@@ -187,5 +219,48 @@ public final class MessageSpec {
                 ", listeners=" + listeners +
                 ", latestVersionUnstable=" + latestVersionUnstable +
                 '}';
+    }
+
+    public boolean hasAtLeastOneEntityField() {
+        return hasAtLeastOneEntityField(fields());
+    }
+
+    private boolean hasAtLeastOneEntityField(List<FieldSpec> fields) {
+        var found = fields.stream().anyMatch(f -> ENTITY_FIELDS.contains(f.entityType()));
+        if (found) {
+            return true;
+        }
+        return fields.stream().anyMatch(f -> hasAtLeastOneEntityField(f.fields()));
+    }
+
+    public List<Short> entityFieldIntersectedVersions() {
+        return entityFieldIntersectedVersions(fields()).stream().toList();
+    }
+
+    private Set<Short> entityFieldIntersectedVersions(List<FieldSpec> fields) {
+        var versions = fields.stream()
+                .filter(f -> ENTITY_FIELDS.contains(f.entityType()))
+                .map(f -> validVersions().intersect(f.versions()))
+                .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
+                .distinct()
+                .sorted()
+                .boxed()
+                .map(Integer::shortValue)
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        versions.addAll(fields.stream()
+                .flatMap(f -> entityFieldIntersectedVersions(f.fields()).stream())
+                .collect(Collectors.toSet()));
+
+        return versions;
+    }
+
+    public static class MessageSpecAugmenter extends StdConverter<MessageSpec, MessageSpec> {
+
+        @Override
+        public MessageSpec convert(MessageSpec value) {
+            // value.fields().forEach(f -> f.setMessageSpec(value));
+            return value;
+        }
     }
 }
