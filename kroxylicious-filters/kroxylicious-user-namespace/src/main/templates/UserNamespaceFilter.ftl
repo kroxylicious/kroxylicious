@@ -5,6 +5,32 @@
     Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 
 -->
+<#macro namespaceFields messageSpec dataVar fields indent>
+    <#local pad = ""?left_pad(4*indent)/>
+${pad}// process any entity fields defined at this level
+    <#list fields as field>
+        <#if field.entityType == 'GROUP_ID' || field.entityType == 'TRANSACTIONAL_ID' || field.entityType == 'TOPIC_NAME'>
+            <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
+${pad}if (shouldMap("${field.entityType}") && inVersion(header.requestApiVersion(), ${specName?trim}_VERSIONS)) {
+            <#if field.type == 'string'>
+${pad}    ${dataVar}.${setter}(map(aid, ${dataVar}.${getter}()));
+            <#elseif field.type == '[]string'>
+${pad}    ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(aid, orig)).toList());
+            </#if>
+${pad}}
+        </#if>
+    </#list>
+${pad}// recursively process any sub fields
+    <#list fields as field>
+        <#if field.type.isArray && field.fields?size != 0 >
+            <#local collection="${field.name?uncap_first}" />
+            <#local subvar=collection[0..<collection?length-1] />
+${pad}${dataVar}.${collection}().forEach(${subvar} -> {
+            <@namespaceFields messageSpec subvar field.fields indent + 1 />
+${pad}});
+        </#if>
+    </#list>
+</#macro>
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements. See the NOTICE file distributed with
@@ -127,99 +153,19 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                     }
                     LOGGER.atDebug().addArgument(findCoordinatorRequestData).log("find coordinator request: {}");
                 }
-<#--                case OFFSET_COMMIT -> {-->
-<#--                    OffsetCommitRequestData offsetCommitRequestData = (OffsetCommitRequestData) request;-->
-<#--                    offsetCommitRequestData.setGroupId(aid + "-" + offsetCommitRequestData.groupId());-->
-<#--                    System.out.println(offsetCommitRequestData);-->
-<#--                }-->
-<#--                case CONSUMER_GROUP_DESCRIBE -> {-->
-<#--                    ConsumerGroupDescribeRequestData consumerGroupDescribeRequestData = (ConsumerGroupDescribeRequestData) request;-->
-<#--                    consumerGroupDescribeRequestData.setGroupIds(consumerGroupDescribeRequestData.groupIds().stream().map(g -> aid + "-" + g).toList());-->
-<#--                    System.out.println(consumerGroupDescribeRequestData);-->
-<#--                }-->
-<#--                case DESCRIBE_GROUPS -> {-->
-<#--                    DescribeGroupsRequestData describeGroupsRequestData = (DescribeGroupsRequestData) request;-->
-<#--                    describeGroupsRequestData.setGroups(describeGroupsRequestData.groups().stream().map(g -> aid + "-" + g).toList());-->
-<#--                    System.out.println(request);-->
-<#--                }-->
             }
-
-            <#macro dumpFoo messageSpec fields>
-                <#assign specName>
-                    <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
-                </#assign>
-                <#-- entity fields of this node -->
-              <#assign dataClass="${messageSpec.name}Data" dataVar="${messageSpec.name?uncap_first}Data"/>
-                    var ${dataVar} = (${dataClass}) request;
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(aid)
-                            .addArgument(${dataVar})
-                            .log("{} for {}: received ${specName?trim}: {}");
-              <#-- process any entity fields -->
-              <#list fields as field>
-                  <#if field.entityType == 'GROUP_ID' || field.entityType == 'TRANSACTIONAL_ID' || field.entityType == 'TOPIC_NAME'>
-                     <#assign getter="${field.name?uncap_first}" setter="set${field.name}" />
-                    // ${messageSpec.name} ${field.name} ${field.type} ${field.entityType} ${field.type.isArray?string('true', 'false')}
-                    if (shouldMap("${field.entityType}") && inVersion(header.requestApiVersion(), ${specName?trim}_VERSIONS)) {
-                         <#if field.type == 'string'>
-                        ${dataVar}.${setter}(map(aid, ${dataVar}.${getter}()));
-                         <#elseif field.type == '[]string'>
-                        ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(aid, orig)).toList());
-                         </#if>
-                    }
-                  </#if>
-               </#list>
-               <#-- recursively process any sub fields -->
-               <#list fields as field>
-                   <#if field.type.isArray && field.fields?size != 0 >
-                    // subfields
-                    ${dataVar}.${field.name?uncap_first}().forEach(r -> { });
-
-                   </#if>
-               </#list>
-
-<#--                                  <#list entityFields.entities as entity>-->
-<#--                    LOGGER.atDebug()-->
-<#--                            .addArgument(context.sessionId())-->
-<#--                            .addArgument(aid)-->
-<#--                            .addArgument(${dataVar})-->
-<#--                            .log("{} for {}: received ${specName?trim}: {}");-->
-<#--               <#assign getter="${entity.name?uncap_first}" setter="set${entity.name}" />-->
-<#--                   // ${messageSpec.name} ${entity.name} ${entity.type} ${entity.entityType} ${entity.type.isArray?string('true', 'false')}-->
-<#--                    if (shouldMap("${entity.entityType}") && inVersion(header.requestApiVersion(), ${specName?trim}_VERSIONS)) {-->
-<#--                   <#if entity.type == 'string'>-->
-<#--                        ${dataVar}.${setter}(map(aid, ${dataVar}.${getter}()));-->
-<#--                   <#elseif entity.type == '[]string'>-->
-<#--                        ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(aid, orig)).toList());-->
-<#--                   </#if>-->
-<#--                        LOGGER.atDebug()-->
-<#--                                .addArgument(context.sessionId())-->
-<#--                                .addArgument(aid)-->
-<#--                                .addArgument(${dataVar})-->
-<#--                                .log("{} for {}: result ${specName?trim}: {}");-->
-<#--                    }-->
-<#--              </#list>-->
-
-<#--              <#list entityFields.containers as container>-->
-<#--                   // container-->
-<#--                  <#list container.entities as entity>-->
-<#--                  // ${entity.name} ${entity.type} ${container.name}-->
-<#--                     ${dataVar}.${entity.name}().forEach(e -> {-->
-
-<#--                  });-->
-<#--&lt;#&ndash;                      @dumpFoo messageSpec entity&ndash;&gt;-->
-<#--                 </#list>-->
-<#--              </#list>-->
-
-            </#macro>
 
 
             switch (apiKey) {
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'request' && messageSpec.hasAtLeastOneEntityField>
                 case ${retrieveApiKey(messageSpec)} -> {
-                  <@dumpFoo messageSpec messageSpec.fields />
+                    <#assign specName>
+                      <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
+                    </#assign>
+                    <#assign dataClass="${messageSpec.name}Data" dataVar="${messageSpec.name?uncap_first}Data"/>
+                    var ${dataVar} = (${dataClass}) request;
+                    <@namespaceFields messageSpec dataVar messageSpec.fields 5/>
                 }
     </#if>
 </#list>
