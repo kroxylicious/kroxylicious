@@ -68,14 +68,15 @@ public class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, Produ
             }
 
             var topicProduceResponses = deniedTopicWrites.stream()
-                    .map(topicProduceData ->
-                    new ProduceResponseData.TopicProduceResponse()
+                    .map(topicProduceData -> new ProduceResponseData.TopicProduceResponse()
                             .setName(topicProduceData.name())
-                    .setPartitionResponses(topicProduceData.partitionData().stream().map(partitionProduceData -> new ProduceResponseData.PartitionProduceResponse()
-                            .setIndex(partitionProduceData.index())
-                            .setErrorMessage(Errors.TOPIC_AUTHORIZATION_FAILED.message())
-                            .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
-                            .toList())).toList();
+                            .setPartitionResponses(topicProduceData.partitionData().stream()
+                                    .map(partitionProduceData -> new ProduceResponseData.PartitionProduceResponse()
+                                            .setIndex(partitionProduceData.index())
+                                            .setErrorMessage(Errors.TOPIC_AUTHORIZATION_FAILED.message())
+                                            .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
+                                    .toList()))
+                    .toList();
 
             if (requiresResponse) {
                 authorizationFilter.pushInflightState(header, (ProduceResponseData response) -> {
