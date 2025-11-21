@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.krpccodegen.schema;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -15,7 +14,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -167,45 +165,6 @@ public final class MessageSpec {
                     struct.name() + "Data";
             default -> struct.name();
         };
-    }
-
-    public List<Node> entityFields() {
-        return buildNode(fields(), validVersions());
-    }
-
-    private List<Node> buildNode(List<FieldSpec> fields, Versions apiVersions) {
-        var entityFields = fields.stream()
-                .filter(f -> ENTITY_FIELDS.contains(f.entityType()))
-                .toList();
-
-        var containers = fields.stream()
-                .filter(fs -> fs.type().isArray())
-                .filter(Predicate.not(entityFields::contains))
-                .toList();
-
-        var versions = getIntersectedVersions(apiVersions, entityFields);
-
-        var list = new ArrayList<Node>();
-
-        list.addAll(entityFields.stream()
-                .map(f -> new Node(f, List.of(), getIntersectedVersions(apiVersions, List.of(f)).stream().toList()))
-                .toList());
-        list.addAll(containers.stream()
-                .map(f -> new Node(f, buildNode(f.fields(), validVersions()), getIntersectedVersions(apiVersions, List.of(f)).stream().toList()))
-                .toList());
-
-        return list;
-    }
-
-    private static TreeSet<Short> getIntersectedVersions(Versions apiVersions, List<FieldSpec> entityFields) {
-        return entityFields.stream().map(FieldSpec::versions)
-                .map(apiVersions::intersect)
-                .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
-                .distinct()
-                .sorted()
-                .boxed()
-                .map(Integer::shortValue)
-                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     @Override

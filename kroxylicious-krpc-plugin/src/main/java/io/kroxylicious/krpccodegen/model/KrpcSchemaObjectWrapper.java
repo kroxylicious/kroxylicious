@@ -8,7 +8,6 @@ package io.kroxylicious.krpccodegen.model;
 import io.kroxylicious.krpccodegen.schema.FieldSpec;
 import io.kroxylicious.krpccodegen.schema.FieldType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
-import io.kroxylicious.krpccodegen.schema.Node;
 import io.kroxylicious.krpccodegen.schema.StructSpec;
 import io.kroxylicious.krpccodegen.schema.Versions;
 
@@ -50,9 +49,6 @@ public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
         }
         else if (obj instanceof Versions v) {
             return new VersionsModel(this, v);
-        }
-        else if (obj instanceof Node n) {
-            return new NodeModel(this, n);
         }
         return super.wrap(obj);
     }

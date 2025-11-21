@@ -18,6 +18,7 @@ class MessageSpecTest {
 
     private MessageSpec groupIdMessageSpec;
     private MessageSpec nestedGroupIdMessageSpec;
+    private MessageSpec groupIdArrayMessageSpec;
     private MessageSpec topicNameMessageSpec;
     private MessageSpec nestedTopicNameMessageSpec;
 
@@ -38,6 +39,22 @@ class MessageSpecTest {
                     ]
                 }
                 """, MessageSpec.class);
+
+        groupIdArrayMessageSpec = mapper.readValue("""
+                {
+                  "apiKey": 15,
+                  "type": "request",
+                  "listeners": ["broker"],
+                  "name": "SampleRequest",
+                  "validVersions": "0-1",
+                  "flexibleVersions": "0+",
+                  "fields": [
+                    { "name": "Groups", "type": "[]string", "versions": "0+", "entityType": "groupId",
+                      "about": "The names of the groups to describe." }
+                  ]
+                }
+                """, MessageSpec.class);
+
         nestedGroupIdMessageSpec = mapper.readValue("""
                 {
                    "apiKey": 69,
@@ -98,6 +115,7 @@ class MessageSpecTest {
         // Then
         assertThat(atLeastOneEntityField).isTrue();
     }
+
     @Test
     void shouldDetectNestedEntityField() {
         // Given
@@ -150,6 +168,24 @@ class MessageSpecTest {
     }
 
     @Test
+    void shouldExtractGroupIDArray() {
+        // Given
+
+        // When
+        var fields = groupIdArrayMessageSpec.fields();
+
+        // Then
+        assertThat(fields)
+                .singleElement()
+                .satisfies(fieldSpec -> {
+                    assertThat(fieldSpec.name()).isEqualTo("Groups");
+                    assertThat(fieldSpec.parent()).isNull();
+                    assertThat(fieldSpec.entityType()).isEqualTo(EntityType.GROUP_ID);
+                    assertThat(fieldSpec.type()).isInstanceOf(FieldType.ArrayType.class);
+                });
+    }
+
+    @Test
     void shouldExtractNestedGroupID() {
         // Given
 
@@ -176,39 +212,50 @@ class MessageSpecTest {
                             });
                 });
     }
-//
-//    @Test
-//    void shouldExtractTopicName() {
-//        // Given
-//
-//        // When
-//        Node actualNode = topicNameMessageSpec.entityFields();
-//
-//        // Then
-//        assertThat(actualNode.hasAtLeastOneEntityField()).isTrue();
-//        assertThat(actualNode.entities())
-//                .singleElement(InstanceOfAssertFactories.type(FieldSpec.class))
-//                .satisfies(fieldSpec -> {
-//                    assertThat(fieldSpec.entityType()).isEqualTo(EntityType.TOPIC_NAME);
-//                    assertThat(fieldSpec.type()).isInstanceOf(FieldType.StringFieldType.class);
-//                });
-//    }
-//
-//    @Test
-//    @Disabled("need to decide how we are dealing with nesting")
-//    void shouldExtractNestedTopicName() {
-//        // Given
-//
-//        // When
-//        Node actualNode = nestedTopicNameMessageSpec.entityFields();
-//
-//        // Then
-//        assertThat(actualNode.hasAtLeastOneEntityField()).isTrue();
-//        assertThat(actualNode.entities())
-//                .singleElement(InstanceOfAssertFactories.type(FieldSpec.class))
-//                .satisfies(fieldSpec -> {
-//                    assertThat(fieldSpec.entityType()).isEqualTo(EntityType.TOPIC_NAME);
-//                    assertThat(fieldSpec.type()).isInstanceOf(FieldType.StringFieldType.class);
-//                });
-//    }
+
+    @Test
+    void shouldExtractTopicName() {
+        // Given
+
+        // When
+        var fields = topicNameMessageSpec.fields();
+
+        // Then
+        assertThat(fields)
+                .singleElement()
+                .satisfies(fieldSpec -> {
+                    assertThat(fieldSpec.name()).isEqualTo("Name");
+                    assertThat(fieldSpec.parent()).isNull();
+                    assertThat(fieldSpec.entityType()).isEqualTo(EntityType.TOPIC_NAME);
+                    assertThat(fieldSpec.type()).isInstanceOf(FieldType.StringFieldType.class);
+                });
+    }
+
+    @Test
+    void shouldExtractNestedTopicName() {
+        // Given
+
+        // When
+        var fields = nestedTopicNameMessageSpec.fields();
+
+        // Then
+        assertThat(fields)
+                .singleElement()
+                .satisfies(topLevelArrayField -> {
+                    assertThat(topLevelArrayField.name()).isEqualTo("Topics");
+                    assertThat(topLevelArrayField.parent()).isNull();
+                    assertThat(topLevelArrayField.entityType()).isEqualTo(EntityType.UNKNOWN);
+                    assertThat(topLevelArrayField.type()).isInstanceOf(FieldType.ArrayType.class);
+                    assertThat(topLevelArrayField.fields())
+                            .singleElement()
+                            .satisfies(groupIdField -> {
+                                assertThat(groupIdField.name()).isEqualTo("Name");
+                                assertThat(groupIdField.parent()).isEqualTo(topLevelArrayField);
+                                assertThat(groupIdField.entityType()).isEqualTo(EntityType.TOPIC_NAME);
+                                assertThat(groupIdField.type()).isInstanceOf(FieldType.StringFieldType.class);
+                                assertThat(groupIdField.fields()).isEmpty();
+
+                            });
+                });
+    }
 }
