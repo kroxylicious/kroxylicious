@@ -2,7 +2,7 @@
 
 // file included in the following:
 //
-// con-azure-key-vault-setup.adoc
+// proc-azure-key-vault-setup.adoc
 
 [id='proc-azure-key-vault-setup-microsoft-entra-managed-identity-{context}']
 = Authenticating with Managed Identities for Azure resources
