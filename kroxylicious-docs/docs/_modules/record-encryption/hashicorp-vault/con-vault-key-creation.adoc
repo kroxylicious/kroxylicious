@@ -17,5 +17,5 @@ If using the Vault CLI, the command will look like:
 
 [source, shell]
 ----
-vault write -f transit/keys/KEK_trades type=aes256-gcm96 auto_rotate_period=90d
+vault write -f transit/keys/KEK-trades type=aes256-gcm96 auto_rotate_period=90d
 ----
