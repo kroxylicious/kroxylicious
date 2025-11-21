@@ -1,0 +1,93 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "CONSUMER_GROUP_HEARTBEAT"
+  apiVersion: 1
+  scenario: "allowed topic is forwarded"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CONSUMER_GROUP_HEARTBEAT"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 68
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        groupId: "random-string-864"
+        memberId: "random-string-376"
+        memberEpoch: 826
+        instanceId: "random-string-490"
+        rackId: "random-string-654"
+        rebalanceTimeoutMs: 707
+        subscribedTopicNames:
+          - "my-topic"
+        subscribedTopicRegex: "random-string-512"
+        serverAssignor: "random-string-543"
+        topicPartitions:
+          - topicId: "uaPs8J6nTBWuEmm8fLgGiA"
+            partitions:
+              - 485
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 848
+        errorCode: 852
+        errorMessage: "random-string-652"
+        memberId: "random-string-916"
+        memberEpoch: 654
+        heartbeatIntervalMs: 871
+        assignment:
+          topicPartitions:
+            - topicId: "uaPs8J6nTBWuEmm8fLgGiA"
+              partitions:
+                - 524
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 68
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    groupId: "random-string-864"
+    memberId: "random-string-376"
+    memberEpoch: 826
+    instanceId: "random-string-490"
+    rackId: "random-string-654"
+    rebalanceTimeoutMs: 707
+    subscribedTopicNames:
+      - "my-topic"
+    subscribedTopicRegex: "random-string-512"
+    serverAssignor: "random-string-543"
+    topicPartitions:
+      - topicId: "uaPs8J6nTBWuEmm8fLgGiA"
+        partitions:
+          - 485
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 848
+    errorCode: 852
+    errorMessage: "random-string-652"
+    memberId: "random-string-916"
+    memberEpoch: 654
+    heartbeatIntervalMs: 871
+    assignment:
+      topicPartitions:
+        - topicId: "uaPs8J6nTBWuEmm8fLgGiA"
+          partitions:
+            - 524

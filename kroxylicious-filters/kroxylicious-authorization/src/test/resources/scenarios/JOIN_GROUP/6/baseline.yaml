@@ -1,0 +1,85 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "JOIN_GROUP"
+  apiVersion: 6
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "JOIN_GROUP"
+      expectedRequestVersion: 6
+      expectedRequestHeader:
+        requestApiKey: 11
+        requestApiVersion: 6
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-904"
+        sessionTimeoutMs: 509
+        rebalanceTimeoutMs: 177
+        memberId: "random-string-682"
+        groupInstanceId: "random-string-477"
+        protocolType: "random-string-909"
+        protocols:
+          - name: "random-string-890"
+            metadata: !!binary |-
+              7gonQMQ=
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 308
+        errorCode: 283
+        generationId: 388
+        protocolName: "random-string-643"
+        leader: "random-string-51"
+        memberId: "random-string-939"
+        members:
+          - memberId: "random-string-186"
+            groupInstanceId: "random-string-802"
+            metadata: !!binary |-
+              v8UkeQ8=
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 11
+    requestApiVersion: 6
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-904"
+    sessionTimeoutMs: 509
+    rebalanceTimeoutMs: 177
+    memberId: "random-string-682"
+    groupInstanceId: "random-string-477"
+    protocolType: "random-string-909"
+    protocols:
+      - name: "random-string-890"
+        metadata: !!binary |-
+          7gonQMQ=
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 308
+    errorCode: 283
+    generationId: 388
+    protocolName: "random-string-643"
+    leader: "random-string-51"
+    memberId: "random-string-939"
+    members:
+      - memberId: "random-string-186"
+        groupInstanceId: "random-string-802"
+        metadata: !!binary |-
+          v8UkeQ8=

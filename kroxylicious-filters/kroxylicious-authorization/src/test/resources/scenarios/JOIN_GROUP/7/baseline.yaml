@@ -1,0 +1,87 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "JOIN_GROUP"
+  apiVersion: 7
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "JOIN_GROUP"
+      expectedRequestVersion: 7
+      expectedRequestHeader:
+        requestApiKey: 11
+        requestApiVersion: 7
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-752"
+        sessionTimeoutMs: 753
+        rebalanceTimeoutMs: 984
+        memberId: "random-string-10"
+        groupInstanceId: "random-string-434"
+        protocolType: "random-string-109"
+        protocols:
+          - name: "random-string-857"
+            metadata: !!binary |-
+              9GZLx1A=
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 24
+        errorCode: 986
+        generationId: 773
+        protocolType: "random-string-536"
+        protocolName: "random-string-557"
+        leader: "random-string-638"
+        memberId: "random-string-1015"
+        members:
+          - memberId: "random-string-225"
+            groupInstanceId: "random-string-220"
+            metadata: !!binary |-
+              zC7IcwI=
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 11
+    requestApiVersion: 7
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-752"
+    sessionTimeoutMs: 753
+    rebalanceTimeoutMs: 984
+    memberId: "random-string-10"
+    groupInstanceId: "random-string-434"
+    protocolType: "random-string-109"
+    protocols:
+      - name: "random-string-857"
+        metadata: !!binary |-
+          9GZLx1A=
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 24
+    errorCode: 986
+    generationId: 773
+    protocolType: "random-string-536"
+    protocolName: "random-string-557"
+    leader: "random-string-638"
+    memberId: "random-string-1015"
+    members:
+      - memberId: "random-string-225"
+        groupInstanceId: "random-string-220"
+        metadata: !!binary |-
+          zC7IcwI=

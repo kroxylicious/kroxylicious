@@ -1,0 +1,83 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "TXN_OFFSET_COMMIT"
+  apiVersion: 3
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "TXN_OFFSET_COMMIT"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 28
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "random-string-442"
+        groupId: "random-string-911"
+        producerId: 667
+        producerEpoch: 91
+        generationId: 981
+        memberId: "random-string-168"
+        groupInstanceId: "random-string-114"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 1006
+                committedOffset: 773
+                committedLeaderEpoch: 231
+                committedMetadata: "random-string-610"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 117
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 909
+                errorCode: 985
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 28
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-442"
+    groupId: "random-string-911"
+    producerId: 667
+    producerEpoch: 91
+    generationId: 981
+    memberId: "random-string-168"
+    groupInstanceId: "random-string-114"
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 1006
+            committedOffset: 773
+            committedLeaderEpoch: 231
+            committedMetadata: "random-string-610"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 117
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 909
+            errorCode: 985

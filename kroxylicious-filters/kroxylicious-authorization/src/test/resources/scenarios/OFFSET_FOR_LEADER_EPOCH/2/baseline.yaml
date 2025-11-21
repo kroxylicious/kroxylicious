@@ -1,0 +1,71 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_FOR_LEADER_EPOCH"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_FOR_LEADER_EPOCH"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 23
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - topic: "my-topic"
+            partitions:
+              - partition: 70
+                currentLeaderEpoch: 1003
+                leaderEpoch: 206
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 737
+        topics:
+          - topic: "my-topic"
+            partitions:
+              - errorCode: 630
+                partition: 338
+                leaderEpoch: 631
+                endOffset: 230
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 23
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - topic: "my-topic"
+        partitions:
+          - partition: 70
+            currentLeaderEpoch: 1003
+            leaderEpoch: 206
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 737
+    topics:
+      - topic: "my-topic"
+        partitions:
+          - errorCode: 630
+            partition: 338
+            leaderEpoch: 631
+            endOffset: 230
