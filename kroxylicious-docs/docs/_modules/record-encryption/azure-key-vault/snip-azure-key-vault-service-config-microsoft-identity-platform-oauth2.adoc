@@ -7,28 +7,28 @@
 .Configuration for authenticating with Microsoft Identity Platform via OAuth 2.0
 [source, yaml]
 ----
-kms: AzureKeyVault                                            # <1>
+kms: AzureKeyVault
 kmsConfig:
-  keyVaultName: my-key-vault                                  # <2>
-  keyVaultHost: vault.azure.net                               # <3>
+  keyVaultName: my-key-vault
+  keyVaultHost: vault.azure.net
   tls:
     # ... client trust configuration for Azure Key Vault
   oauth2ClientCredentials:
-    oauthEndpoint: https://login.microsoftonline.com          # <4>
-    tenantId: "00000000-0000-0000-0000-000000000000"          # <5>
+    oauthEndpoint: https://login.microsoftonline.com
+    tenantId: "00000000-0000-0000-0000-000000000000"
     clientId:
-      passwordFile: /path/to/id                               # <6>
+      passwordFile: /path/to/id
     clientSecret:
-      passwordFile: /path/to/secret                           # <7>
+      passwordFile: /path/to/secret
     scope: https://vault.azure.net/.default                   # <8>
     tls:
       # ... client trust configuration for Microsoft Identity Platform OAuth2
 ----
-<1> Specifies the name of the KMS provider. Use `AzureKeyVault`.
-<2> The name of the key vault the filter will use.
-<3> The host of the key vault, without key vault name.
-<4> The endpoint URL used for the {microsoft-learn}/entra/identity-platform/v2-oauth2-client-creds-grant-flow[OAuth 2.0 credentials flow]
-<5> The 32 character identifier for the {microsoft-learn}/azure/azure-portal/get-subscription-tenant-id#find-your-microsoft-entra-tenant[Microsoft Entra tenant] your OAuth credentials were created under.
-<6> A file containing the OAuth client ID
-<7> A file containing the OAuth client secret
-<8> App ID URI of the target resource that the proxy is authenticating to (i.e. your Azure Key Vault URI).
+* `kms` specifies the name of the KMS provider. Use `AzureKeyVault`.
+* `keyVaultName` is the name of the key vault the filter uses.
+* `keyVaultHost` is the key vault host name, without the key vault name prefix.
+* `oauthEndpoint` is the URL used for the OAuth 2.0 Client Credentials flow.
+* `tenantId` is the 32-character identifier for the Microsoft Entra tenant where the OAuth credentials were created.
+* `clientId.passwordFile` specifies the file that contains the OAuth client ID.
+* `clientSecret.passwordFile` specifies the file that contains the OAuth client secret.
+scope is the App ID URI of the target resource that the proxy authenticates to (your Azure Key Vault URI).

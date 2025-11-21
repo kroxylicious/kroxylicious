@@ -7,16 +7,16 @@
 .Configuration for authenticating with Managed Identities for Azure resources
 [source, yaml]
 ----
-kms: AzureKeyVault                                            # <1>
+kms: AzureKeyVault
 kmsConfig:
-  keyVaultName: my-key-vault                                  # <2>
-  keyVaultHost: vault.azure.net                               # <3>
+  keyVaultName: my-key-vault
+  keyVaultHost: vault.azure.net
   tls:
     # ... client trust configuration for Azure Key Vault
   managedIdentityCredentials:
-    targetResource: https://vault.azure.net/                  # <4>
+    targetResource: https://vault.azure.net/
 ----
-<1> Specifies the name of the KMS provider. Use `AzureKeyVault`.
-<2> The name of the key vault the filter will use.
-<3> The host of the key vault, without key vault name.
-<4> App ID URI of the target resource that the proxy is authenticating to (i.e. your Azure Key Vault URI).
+* `kms` specifies the name of the KMS provider. Use AzureKeyVault.
+* `keyVaultName` is the name of the key vault the filter uses.
+* `keyVaultHost` is the key vault host name, without the key vault name prefix.
+* `targetResource` is the App ID URI of the resource that the proxy authenticates to (your Azure Key Vault URI).
