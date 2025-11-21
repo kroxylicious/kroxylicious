@@ -86,7 +86,7 @@ import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_COMMIT;
 
 
 /**
-* Decodes Kafka Readable into an ApiMessage
+* User nampespace filter.
 * <p>Note: this class is automatically generated from a template</p>
 */
 public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
@@ -166,6 +166,11 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                     <#assign dataClass="${messageSpec.name}Data" dataVar="${messageSpec.name?uncap_first}Data"/>
                     var ${dataVar} = (${dataClass}) request;
                     <@namespaceFields messageSpec dataVar messageSpec.fields 5/>
+                    LOGGER.atDebug()
+                            .addArgument(context.sessionId())
+                            .addArgument(aid)
+                            .addArgument(${dataVar})
+                            .log("{} for {}: result ${specName?trim}: {}");
                 }
     </#if>
 </#list>
