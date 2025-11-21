@@ -64,7 +64,8 @@ import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.JoinGroupResponseData;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
-import org.apache.kafka.common.message.OffsetFetchResponseData;import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.OffsetFetchResponseData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -82,7 +83,8 @@ import static org.apache.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_DESCRIBE;
 import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_GROUPS;
 import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
 import static org.apache.kafka.common.protocol.ApiKeys.JOIN_GROUP;
-import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_COMMIT;import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_FETCH;
+import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_COMMIT;
+import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_FETCH;
 
 
 /**
