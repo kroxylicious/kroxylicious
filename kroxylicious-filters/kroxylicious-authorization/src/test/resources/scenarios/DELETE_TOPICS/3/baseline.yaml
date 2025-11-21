@@ -1,0 +1,57 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DELETE_TOPICS"
+  apiVersion: 3
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DELETE_TOPICS"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 20
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topicNames:
+          - "my-topic"
+        timeoutMs: 210
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 490
+        responses:
+          - name: "my-topic"
+            errorCode: 240
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DELETE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 20
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topicNames:
+      - "my-topic"
+    timeoutMs: 210
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 490
+    responses:
+      - name: "my-topic"
+        errorCode: 240
