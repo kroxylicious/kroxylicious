@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
+import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
@@ -32,6 +33,7 @@ import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -73,6 +75,26 @@ class UserNamespaceFilterIT {
     void describeGroupMaintainsGroupIsolation(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
             @SaslMechanism.Principal(user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
 
+        checkGroupIsolationMaintained(cluster, topic, true);
+    }
+
+    /**
+     * Group isolation - list groups.
+     * <br/>
+     * Alice and Bob both consumer from the same topic using distinct own group names.
+     * Test uses listGroups to ensure that Alice only sees her group and Bob only sees his.
+     * @param cluster broker
+     * @param topic topic
+     */
+    @Test
+    @Disabled
+    void listGroupMaintainsGroupIsolation(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
+            @SaslMechanism.Principal(user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
+
+        checkGroupIsolationMaintained(cluster, topic, false);
+    }
+
+    private void checkGroupIsolationMaintained(KafkaCluster cluster, Topic topic, boolean useDescribe) {
         var configBuilder = buildConfig(cluster);
 
         var aliceConfig = buildClientConfig("alice", "pwd");
@@ -83,8 +105,15 @@ class UserNamespaceFilterIT {
             runConsumerInOrderToCreateGroup(tester, "AliceGroup", topic, ConsumerStyle.ASSIGN, aliceConfig);
             runConsumerInOrderToCreateGroup(tester, "BobGroup", topic, ConsumerStyle.ASSIGN, bobConfig);
 
-            verifyConsumerGroupsWithDescribe(aliceAdmin, Set.of("AliceGroup"), Set.of("BobGroup", "idontexist"));
-            verifyConsumerGroupsWithDescribe(bobAdmin, Set.of("BobGroup"), Set.of("AliceGroup", "idontexist"));
+            if (useDescribe) {
+                verifyConsumerGroupsWithDescribe(aliceAdmin, Set.of("AliceGroup"), Set.of("BobGroup", "idontexist"));
+                verifyConsumerGroupsWithDescribe(bobAdmin, Set.of("BobGroup"), Set.of("AliceGroup", "idontexist"));
+            }
+            else {
+                verifyConsumerGroupsWithList(aliceAdmin, Set.of("AliceGroup"));
+                verifyConsumerGroupsWithList(bobAdmin, Set.of("BobGroup"));
+
+            }
         }
     }
 
@@ -188,6 +217,14 @@ class UserNamespaceFilterIT {
                     .havingRootCause()
                     .isInstanceOf(GroupIdNotFoundException.class);
         });
+    }
+
+    private void verifyConsumerGroupsWithList(Admin admin, Set<String> expected) {
+        assertThat(admin.listGroups().all())
+                .succeedsWithin(Duration.ofSeconds(5))
+                .asInstanceOf(InstanceOfAssertFactories.collection(GroupListing.class))
+                .extracting(GroupListing::groupId)
+                .containsExactlyInAnyOrderElementsOf(expected);
     }
 
     private static Map<String, Object> buildClientConfig(String username, String password) {
