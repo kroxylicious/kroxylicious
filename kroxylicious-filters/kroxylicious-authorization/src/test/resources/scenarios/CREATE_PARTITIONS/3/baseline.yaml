@@ -1,0 +1,69 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "CREATE_PARTITIONS"
+  apiVersion: 3
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CREATE_PARTITIONS"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 37
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - name: "my-topic"
+            count: 650
+            assignments:
+              - brokerIds:
+                  - 964
+        timeoutMs: 69
+        validateOnly: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 552
+        results:
+          - name: "my-topic"
+            errorCode: 19
+            errorMessage: "random-string-778"
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "ALTER"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 37
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - name: "my-topic"
+        count: 650
+        assignments:
+          - brokerIds:
+              - 964
+    timeoutMs: 69
+    validateOnly: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 552
+    results:
+      - name: "my-topic"
+        errorCode: 19
+        errorMessage: "random-string-778"
