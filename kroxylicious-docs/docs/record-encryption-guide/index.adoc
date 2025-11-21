@@ -23,7 +23,7 @@ To use the filter, follow these steps:
 The filter integrates with a Key Management Service (KMS), which is responsible for the safe storage of sensitive key material.
 Kroxylicious supports the following KMS providers:
 
-* HashiCorp Vault
+* HashiCorp Vault (On-premise, HashiCorp Cloud Platform Vault and Enterprise are supported. Free tier HCP Vault Secrets is not).
 * AWS Key Management Service.
 ifdef::include-fortanix-dsm-kms[]
 * Fortanix DSM
