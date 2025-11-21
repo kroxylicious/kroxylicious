@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -18,7 +19,6 @@ import java.util.stream.Collectors;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
-import org.apache.kafka.clients.consumer.CloseOptions;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
@@ -102,16 +102,21 @@ class UserNamespaceFilterIT {
         var aliceConfig = buildClientConfig("alice", "pwd",
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
-                        ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false));
-        var bobConfig = buildClientConfig("bob", "pwd", Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME, ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+                        ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false,
+                        ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, UUID.randomUUID().toString()));
+        var bobConfig = buildClientConfig("bob", "pwd",
+                Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                        ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, UUID.randomUUID().toString()));
 
-        try (var tester = kroxyliciousTester(configBuilder);
-                var producer = tester.producer(aliceConfig)) {
+        try (var tester = kroxyliciousTester(configBuilder)) {
 
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
-                    .succeedsWithin(Duration.ofSeconds(5));
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "k2", "v2")))
-                    .succeedsWithin(Duration.ofSeconds(5));
+            try (var producer = tester.producer(aliceConfig)) {
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k2", "v2")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
 
             try (var aliceConsumer = tester.consumer(aliceConfig)) {
                 aliceConsumer.subscribe(List.of(topic.name()));
@@ -120,9 +125,8 @@ class UserNamespaceFilterIT {
                 assertThat(aliceRecs).hasSize(2);
 
                 var first = aliceRecs.records(topic.name()).iterator().next();
-                // commit the first record
-                aliceConsumer.commitSync(Map.of(new TopicPartition(topic.name(), first.partition()), new OffsetAndMetadata(first.offset())));
-                aliceConsumer.close(CloseOptions.groupMembershipOperation(CloseOptions.GroupMembershipOperation.REMAIN_IN_GROUP));
+                // commit the first record leaving the second one to consume later
+                aliceConsumer.commitSync(Map.of(new TopicPartition(topic.name(), first.partition()), new OffsetAndMetadata(first.offset() + 1)));
             }
 
             try (var bobConsumer = tester.consumer(bobConfig)) {
@@ -130,20 +134,20 @@ class UserNamespaceFilterIT {
                 var bobRecs = bobConsumer.poll(Duration.ofSeconds(5));
 
                 assertThat(bobRecs)
-                        .withFailMessage("Bob group should be independent of Alice's so he should be able to consume two records")
+                        .withFailMessage("Bob's group should be independent of Alice's. He should be able to consume two records")
                         .hasSize(2);
             }
 
             try (var aliceRound2Consumer = tester.consumer(aliceConfig)) {
                 aliceRound2Consumer.subscribe(List.of(topic.name()));
-                var aliceRecs = aliceRound2Consumer.poll(Duration.ofSeconds(5));
+                var aliceRecs = aliceRound2Consumer.poll(Duration.ofSeconds(10));
 
                 assertThat(aliceRecs)
                         .singleElement()
+                        .withFailMessage("Alice should be able to restart consuming from where she left off")
                         .extracting(ConsumerRecord::key)
                         .isEqualTo("k2");
             }
-
         }
     }
 

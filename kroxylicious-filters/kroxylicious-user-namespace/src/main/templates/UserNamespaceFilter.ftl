@@ -64,7 +64,7 @@ import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.JoinGroupResponseData;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.OffsetFetchResponseData;import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -82,7 +82,7 @@ import static org.apache.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_DESCRIBE;
 import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_GROUPS;
 import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
 import static org.apache.kafka.common.protocol.ApiKeys.JOIN_GROUP;
-import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_COMMIT;
+import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_COMMIT;import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_FETCH;
 
 
 /**
@@ -93,7 +93,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
     private final UserNamespace.Config config;
 
-    private static final Set<ApiKeys> responseKeys = Set.of(FIND_COORDINATOR, OFFSET_COMMIT, CONSUMER_GROUP_DESCRIBE, DESCRIBE_GROUPS, JOIN_GROUP);
+    private static final Set<ApiKeys> responseKeys = Set.of(FIND_COORDINATOR, OFFSET_COMMIT, CONSUMER_GROUP_DESCRIBE, DESCRIBE_GROUPS, JOIN_GROUP, OFFSET_FETCH);
     private static final Logger LOGGER = LoggerFactory.getLogger(UserNamespaceFilter.class);
 
     <#list messageSpecs as messageSpec>
@@ -148,10 +148,11 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
             switch (apiKey) {
                 case FIND_COORDINATOR -> {
                     FindCoordinatorRequestData findCoordinatorRequestData = (FindCoordinatorRequestData) request;
-                    if (config.resourceTypes().contains(UserNamespace.ResourceType.GROUP_ID) &&  findCoordinatorRequestData.keyType() == 0 /* CHECK ME */) {
-                        findCoordinatorRequestData.setCoordinatorKeys(findCoordinatorRequestData.coordinatorKeys().stream().map(k -> aid + "-" + k).toList());
-                    }
                     LOGGER.atDebug().addArgument(findCoordinatorRequestData).log("find coordinator request: {}");
+                    if (config.resourceTypes().contains(UserNamespace.ResourceType.GROUP_ID) &&  findCoordinatorRequestData.keyType() == 0 /* CHECK ME */) {
+                        findCoordinatorRequestData.setCoordinatorKeys(findCoordinatorRequestData.coordinatorKeys().stream().map(k -> map(aid, k)).toList());
+                    }
+                    LOGGER.atDebug().addArgument(findCoordinatorRequestData).log("find coordinator request result: {}");
                 }
             }
 
@@ -165,12 +166,17 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                     </#assign>
                     <#assign dataClass="${messageSpec.name}Data" dataVar="${messageSpec.name?uncap_first}Data"/>
                     var ${dataVar} = (${dataClass}) request;
+                    LOGGER.atDebug()
+                            .addArgument(context.sessionId())
+                            .addArgument(aid)
+                            .addArgument(${dataVar})
+                            .log("{} for {}: request ${specName?trim}: {}");
                     <@namespaceFields messageSpec dataVar messageSpec.fields 5/>
                     LOGGER.atDebug()
                             .addArgument(context.sessionId())
                             .addArgument(aid)
                             .addArgument(${dataVar})
-                            .log("{} for {}: result ${specName?trim}: {}");
+                            .log("{} for {}: request result ${specName?trim}: {}");
                 }
     </#if>
 </#list>
@@ -190,8 +196,22 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
     }
 
     private static String map(String authId, String originalName) {
+        if (originalName.isEmpty()) {
+            return originalName;
+        }
         return authId + "-" + originalName;
     }
+
+    private static String unmap(String authId, String mappedName) {
+        if (mappedName.isEmpty()) {
+            return mappedName;
+        }
+        if (!mappedName.startsWith(authId + "-")) {
+           throw new IllegalStateException("Mapped name does not have expected prefix: " + mappedName);
+        }
+        return mappedName.substring(authId.length() + 1);
+    }
+
 
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
                                                             ResponseHeaderData header,
@@ -203,12 +223,12 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                 case FIND_COORDINATOR -> {
                     FindCoordinatorResponseData findCoordinatorResponseData = (FindCoordinatorResponseData) response;
                     findCoordinatorResponseData.coordinators().forEach(
-                            coordinator -> coordinator.setKey(coordinator.key().substring(aid.length() + 1)));
+                            coordinator -> coordinator.setKey(unmap(aid, coordinator.key())));
                     LOGGER.atDebug()
                             .addArgument(context.sessionId())
                             .addArgument(authzId.get())
                             .addArgument(findCoordinatorResponseData)
-                            .log("{} for {}: find coordinator response: {}");
+                            .log("{} for {}: find coordinator response result: {}");
                 }
                 case OFFSET_COMMIT -> {
                     OffsetCommitResponseData offsetCommitResponseData = (OffsetCommitResponseData) response;
@@ -216,12 +236,12 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                             .addArgument(context.sessionId())
                             .addArgument(authzId.get())
                             .addArgument(response)
-                            .log("{} for {}: offset commit response: {}");
+                            .log("{} for {}: offset commit response result: {}");
                 }
                 case CONSUMER_GROUP_DESCRIBE -> {
                     ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData = (ConsumerGroupDescribeResponseData) response;
                     consumerGroupDescribeResponseData.groups().forEach(group -> {
-                        group.setGroupId(group.groupId().substring(aid.length() + 1));
+                        group.setGroupId(unmap(aid, group.groupId()));
                     });
                     LOGGER.atDebug()
                             .addArgument(context.sessionId())
@@ -230,11 +250,19 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                 }
                 case DESCRIBE_GROUPS -> {
                     DescribeGroupsResponseData describeGroupsResponseData = (DescribeGroupsResponseData) response;
-                    describeGroupsResponseData.groups().forEach(g -> g.setGroupId(g.groupId().substring(aid.length() + 1)));
+                    describeGroupsResponseData.groups().forEach(g -> g.setGroupId(unmap(aid, g.groupId())));
                     LOGGER.atDebug()
                             .addArgument(context.sessionId())
                             .addArgument(authzId.get())
                             .addArgument(response).log("{} for {}: describe group response: {}");
+                }
+                case OFFSET_FETCH -> {
+                    OffsetFetchResponseData offsetFetchResponseData = (OffsetFetchResponseData) response;
+                    offsetFetchResponseData.groups().forEach(g -> g.setGroupId(unmap(aid, g.groupId())));
+                    LOGGER.atDebug()
+                            .addArgument(context.sessionId())
+                            .addArgument(authzId.get())
+                            .addArgument(response).log("{} for {}: offset fetch response: {}");
                 }
                 case JOIN_GROUP -> {
                     JoinGroupResponseData joinGroupResponseData = (JoinGroupResponseData) response;
