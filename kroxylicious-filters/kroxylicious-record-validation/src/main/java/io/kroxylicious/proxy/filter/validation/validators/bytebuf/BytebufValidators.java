@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.jose4j.jwa.AlgorithmConstraints;
+import org.jose4j.jwk.JsonWebKeySet;
+
 /**
  * Static factory methods for creating/getting {@link BytebufValidator} instances
  */
@@ -56,6 +59,15 @@ public class BytebufValidators {
      */
     public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long globalId) {
         return new JsonSchemaBytebufValidator(schemaResolverConfig, globalId);
+    }
+
+    /**
+     * get validator that validates if a record contains a valid JWS (JSON Web Signature) Signature
+     * @return validator
+     */
+    public static BytebufValidator jwsSignatureValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints, String jwsHeaderName,
+                                                         boolean isContentDetached) {
+        return new JwsSignatureBytebufValidator(jsonWebKeySet, algorithmConstraints, jwsHeaderName, isContentDetached);
     }
 
     /**
