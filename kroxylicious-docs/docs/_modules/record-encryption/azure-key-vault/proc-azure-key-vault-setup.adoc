@@ -8,31 +8,37 @@
 = Setting up Azure resources
 
 [role="_abstract"]
-To begin, you will need an Azure subscription that includes Azure Key Vault and an Azure user with sufficient permissions to create and manage users, resource groups, roles, and resources.
 
-== Create a resource group
+.Prerequisites
 
+* An Azure subscription that includes Azure Key Vault
+* An Azure user with sufficient permissions to create and manage users, resource groups, roles, and resources
+
+.Procedure
+
+. Create a resource group
++
 Before a key vault can be created, you must first create a resource group into which your key vault will be deployed.
-
++
 If you are deploying Kroxylicious into multiple different environments (for example, into your "development", "test", and "production" environments), you should have separate resource groups (and separate key vaults) for each environment.
-
++
 NOTE: Resource groups are tied to the region they were created with. While resources (such as key vaults) within a resource group can be deployed to any region, Microsoft recommends that they should be located in the same region as the resource group. Keep this in mind when choosing a region for your resource groups.
-
++
 If using the Azure CLI, you can create a resource group with a command like this:
-
++
 [source,shell]
 ----
 az group create --name "my-resource-group" --location "eastus"
 ----
 
-== Create a key vault
-
+. Create a key vault
++
 There are a few different methods to create key vault resources in Azure, this guide describes how to do this in the Azure CLI. The Microsoft Azure documentation has further instructions on how to create key vaults via the Azure portal, Azure CLI, and Azure PowerShell.
-
++
 NOTE: Microsoft's best practice guide for Azure Key Vault recommends having one key vault per application, per environment, per region. For example, if you have Kroxylicious deployed in your `development`, `test`, and `production` environments, and each of those environments is deployed across two different regions, you would create six key vaults for Kroxylicious — one for each Kroxylicious deployment in each environment in each region.
-
++
 You can create a key vault with the Azure CLI using a command like this:
-
++
 [source,shell]
 ----
 KEY_VAULT_NAME="kroxylicious-key-vault"
@@ -42,15 +48,15 @@ az keyvault create --name ${KEY_VAULT_NAME} --resource-group ${RESOURCE_GROUP_NA
 * Key vault names must be unique.
 * `RESOURCE_GROUP_NAME` should match the name of the resource group created in the previous section.
 
-== Create a key management user
-
+. Create a key management user
++
 To use the filter, a user such as the Key Vault Owner —or any user with the *Key Vault Crypto Officer* RBAC role or equivalent permissions on the key vault— must create the encryption keys within the key vault, which
 are used by the xref:con-record-encryption-overview-{context}[envelope encryption] process.
-
++
 Once a key vault is created, the only user able to manage the vault is the user that created it (the Key Vault Owner). Access to key vaults is managed using RBAC roles (with some exceptions, see the Microsoft documentation for details), which can be conferred by a user with a minimum of either Role Based Access Control Administrator role or User Access Administrator role.
-
++
 The following Azure CLI commands demonstrate creating a user in Microsoft Entra ID and granting key management RBAC privileges. This example illustrates using the domain `example.com` but you should use your own domain (e.g. a `*.onmicrosoft.com` domain) for this. You can also substitute the value in the `USER_NAME` field (`kroxylicious-user`) for a different username if preferred.
-
++
 [source,shell]
 ----
 KEY_VAULT_NAME="kroxylicious-key-vault"
@@ -84,9 +90,9 @@ echo "Now log in at ${PORTAL_URL}  with user name ${USER_PRINCIPAL_NAME} and pas
 * The Key Vault Crypto Officer role allows the user to perform any action on the keys within the key vault identified in the `--scope`, except manage permissions.
 * The scope in the role assignment command is the full scope hierarchy of your key vault. For more information on this format see the Microsoft docs.
 
-== Establish an authentication mechanism for the filter
-
-The filter must authenticate to Azure Key Vault in order to perform envelope encryption operations, such as generating and decrypting DEKs.
+. Establish an authentication mechanism for the filter
++
+The filter must authenticate to Azure Key Vault in order to perform envelope encryption operations, such as generating and decrypting DEKs. See the following procedure(s) for details of the authentication methods available.
 
 include::proc-azure-key-vault-setup-microsoft-identity-platform-oauth2.adoc[leveloffset=+1]
 ifdef::include-azure-key-vault-service-config-microsoft-entra-managed-identity[]
