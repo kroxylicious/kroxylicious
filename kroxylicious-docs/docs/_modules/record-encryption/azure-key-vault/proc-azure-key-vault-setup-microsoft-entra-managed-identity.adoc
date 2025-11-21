@@ -49,8 +49,13 @@ az role assignment create --assignee ${SYSTEM_ASSIGNED_ID} --role "Key Vault Cry
 * Set `RESOURCE_GROUP` to the name of the resource group that contains your key vault. This may differ from the resource group that hosts Kroxylicious.
 +
 These commands assign the built-in Key Vault Crypto Service Encryption User role to the Managed Identity, using the target Key Vault as the scope. Replace `HOST_RESOURCE_NAME`, `KEY_VAULT_NAME`, and `RESOURCE_GROUP` with your actual values.
+
+. (Optional) If you do not use the built-in RBAC roles, assign the following permissions to the managed identity instead:
+* `Microsoft.KeyVault/vaults/keys/read`
+* `Microsoft.KeyVault/vaults/keys/wrap/action`
+* `Microsoft.KeyVault/vaults/keys/unwrap/action`
 +
-NOTE: If you aren't using the built-in RBAC roles, you will need to manually assign the following privileges to the managed identity: `Microsoft.KeyVault/vaults/keys/read`, `Microsoft.KeyVault/vaults/keys/wrap/action`, and `Microsoft.KeyVault/vaults/keys/unwrap/action`. If using Managed HSM, the identity also requires `Microsoft.KeyVault/managedhsms/rng/action`.
+If you are using Managed HSM, also assign `Microsoft.KeyVault/managedhsms/rng/action`.
 
 . Confirm the role has been successfully assigned:
 +

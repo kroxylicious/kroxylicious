@@ -43,14 +43,13 @@ az role assignment create --assignee ${PRINCIPAL_ID} --role "Key Vault Crypto Se
 * Set `RESOURCE_GROUP` to the resource group where your key vault is deployed.
 +
 These commands assign the built-in Key Vault Crypto Service Encryption User role to the Service Principal, scoped to the target Key Vault. Replace `KEY_VAULT_NAME` and `RESOURCE_GROUP` with your actual values.
+
+. (Optional) If you do not use the built-in RBAC roles, assign the following permissions to the managed identity instead:
+* `Microsoft.KeyVault/vaults/keys/read`
+* `Microsoft.KeyVault/vaults/keys/wrap/action`
+* `Microsoft.KeyVault/vaults/keys/unwrap/action`
 +
-. (Optional) If you do not use the built-in RBAC roles, assign the following permissions to the Service Principal instead:
-+
-Microsoft.KeyVault/vaults/keys/read
-Microsoft.KeyVault/vaults/keys/wrap/action
-Microsoft.KeyVault/vaults/keys/unwrap/action
-+
-If you are using Managed HSM, also assign Microsoft.KeyVault/managedhsms/rng/action
+If you are using Managed HSM, also assign `Microsoft.KeyVault/managedhsms/rng/action`.
 
 . Verify that the Service Principal has the correct role assignment and scope:
 +
