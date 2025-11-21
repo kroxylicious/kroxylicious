@@ -175,8 +175,6 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
     </#if>
 </#list>
             }
-
-
         });
         return context.forwardRequest(header, request);
 
@@ -266,49 +264,4 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
         return context.forwardResponse(header, response);
     }
-
-
-    /**
-    * Decodes Kafka request Readable into an ApiMessage
-    * @param apiKey the api key of the message
-    * @param apiVersion the api version of the message
-    * @param accessor the accessor for the message bytes
-    * @return the ApiMessage
-    * @throws IllegalArgumentException if an unhandled ApiKey is encountered
-    */
-    /*
-    static ApiMessage decodeRequest(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
-        return switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(messageSpec)} ->
-                    new ${messageSpec.name}Data(accessor, apiVersion);
-    </#if>
-</#list>
-            default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);
-        };
-    }
-    */
-
-    /**
-    * Decodes Kafka response Readable into an ApiMessage
-    * @param apiKey the api key of the message
-    * @param apiVersion the api version of the message
-    * @param accessor the accessor for the message bytes
-    * @return the ApiMessage
-    * @throws IllegalArgumentException if an unhandled ApiKey is encountered
-    */
-    /*
-    static ApiMessage decodeResponse(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
-        return switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'response'>
-        case ${retrieveApiKey(messageSpec)} -> new ${messageSpec.name}Data(accessor, apiVersion);
-    </#if>
-</#list>
-            default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);
-        };
-    }
-    */
-
 }
