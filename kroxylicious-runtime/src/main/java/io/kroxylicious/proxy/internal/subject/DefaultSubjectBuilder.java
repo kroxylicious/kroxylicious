@@ -15,12 +15,26 @@ import java.util.stream.Collectors;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 
-public class DefaultSubjectBuilder implements SaslSubjectBuilder {
+public class DefaultSubjectBuilder implements TransportSubjectBuilder, SaslSubjectBuilder {
     private final List<PrincipalAdder> adders;
 
     public DefaultSubjectBuilder(List<PrincipalAdder> adders) {
         this.adders = adders;
+    }
+
+    @Override
+    public CompletionStage<Subject> buildTransportSubject(TransportSubjectBuilder.Context context) {
+        try {
+            Set<Principal> collect = adders.stream()
+                    .flatMap(adder -> adder.createPrincipals(context))
+                    .collect(Collectors.toSet());
+            return CompletableFuture.completedStage(new Subject(collect));
+        }
+        catch (Exception e) {
+            return CompletableFuture.failedStage(e);
+        }
     }
 
     @Override

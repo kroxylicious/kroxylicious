@@ -31,7 +31,8 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                              @JsonProperty(required = true) List<VirtualClusterGateway> gateways,
                              boolean logNetwork,
                              boolean logFrames,
-                             @Nullable List<String> filters) {
+                             @Nullable List<String> filters,
+                             @Nullable TransportSubjectBuilderConfig subjectBuilder) {
 
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
 
@@ -51,6 +52,15 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
             throw new IllegalConfigurationException("one or more gateways were null for virtual cluster '" + name + "'");
         }
         validateNoDuplicatedGatewayNames(gateways);
+    }
+
+    public VirtualCluster(@JsonProperty(required = true) String name,
+                          @JsonProperty(required = true) TargetCluster targetCluster,
+                          @JsonProperty(required = true) List<VirtualClusterGateway> gateways,
+                          boolean logNetwork,
+                          boolean logFrames,
+                          @Nullable List<String> filters) {
+        this(name, targetCluster, gateways, logNetwork, logFrames, filters, null);
     }
 
     boolean isDnsLabel(String name) {
