@@ -16,5 +16,5 @@ To prepare {microsoft-learn}/azure/key-vault/general/overview[Azure Key Vault] f
 
 You'll need a privileged Azure user that is capable of creating users and resources to perform the set-up.
 
-include::../_modules/record-encryption/azure-key-vault/con-azure-key-vault-setup.adoc[leveloffset=+1]
+include::../_modules/record-encryption/azure-key-vault/proc-azure-key-vault-setup.adoc[leveloffset=+1]
 include::../_modules/record-encryption/azure-key-vault/con-azure-key-vault-key-creation.adoc[leveloffset=+1]

@@ -1,10 +1,10 @@
-:_mod-docs-content-type: CONCEPT
+:_mod-docs-content-type: PROCEDURE
 
 // file included in the following:
 //
 // assembly-azure-key-vault.adoc
 
-[id='con-azure-key-vault-setup-{context}']
+[id='proc-azure-key-vault-setup-{context}']
 = Setting up Azure resources
 
 [role="_abstract"]
