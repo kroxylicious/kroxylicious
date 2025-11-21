@@ -29,7 +29,7 @@ spec:
         passwordFile: ${secret:encryption-filter:vault-token}
     selector: TemplateKekSelector
     selectorConfig:
-      template: "KEK_$(topicName)"
+      template: "KEK-$(topicName)"
     unresolvedKeyPolicy: PASSTHROUGH_UNENCRYPTED
     experimental:
       encryptionDekRefreshAfterWriteSeconds: 3600

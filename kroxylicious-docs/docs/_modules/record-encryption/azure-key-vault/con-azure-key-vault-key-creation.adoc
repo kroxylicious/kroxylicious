@@ -14,8 +14,6 @@ As a user with the *Key Vault Crypto Officer* role (or otherwise sufficient RBAC
 
 Establish a naming convention for keys to keep the filter’s keys separate from those used by other systems.
 
-NOTE: The filter key name prefix `KEK_` is used widely across the Kroxylicious project, including here in the documentation, as well as in the quickstarts, developer guides, examples, and scripts. However, *Azure Key Vault does not permit underscore characters in key names*, so Azure Key Vault users will have to adjust this naming scheme as required.
-
 == Supported Key Types
 
 NOTE: The key types available to you in Azure Key Vault will depend on your Azure Key Vault service tier. See the _About keys_ page in the Azure Key Vault docs for more details.

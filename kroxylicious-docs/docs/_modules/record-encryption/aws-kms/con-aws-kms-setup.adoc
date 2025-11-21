@@ -11,7 +11,7 @@
 The filter references KEKs within AWS via an {aws}/kms/latest/developerguide/alias-about.html[AWS key alias].
 
 Establish a naming convention for key aliases to keep the filter’s keys separate from those used by other systems.
-Here, we use a prefix of KEK_ for filter aliases.
+Here, we use a prefix of KEK- for filter aliases.
 Adjust the instructions if a different naming convention is used.
 
 == Role of the administrator
@@ -67,7 +67,7 @@ cat > /tmp/policy << EOF
 			],
 			"Condition": {
 				"ForAnyValue:StringLike": {
-					"kms:ResourceAliases": "alias/KEK_*"
+					"kms:ResourceAliases": "alias/KEK-*"
 				}
 			}
 		}

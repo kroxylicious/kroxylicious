@@ -35,9 +35,9 @@ kms: <kms_service_name> # <1>
 kmsConfig:
   <kms_specific_config> # <2>
   # ...
-selector: <KEK_selector_service_name> # <3>
+selector: <KEK-selector_service_name> # <3>
 selectorConfig:
-  template: "KEK_$(topicName)" # <4>
+  template: "KEK-$(topicName)" # <4>
 unresolvedKeyPolicy: PASSTHROUGH_UNENCRYPTED # <5>
 experimental:
   encryptionDekRefreshAfterWriteSeconds: 3600 # <6>
@@ -47,8 +47,8 @@ experimental:
 <1> The KMS service name.
 <2> Configuration specific to the KMS provider.
 <3> The Key Encryption Key (KEK) selector to use. The `$(topicName)` is a literal understood by the proxy.
-For example, if using the `TemplateKekSelector` with the template `KEK_$(topicName)`, create a key for every topic that
-is to be encrypted with the key name matching the topic name, prefixed by the string `KEK_`.
+For example, if using the `TemplateKekSelector` with the template `KEK-$(topicName)`, create a key for every topic that
+is to be encrypted with the key name matching the topic name, prefixed by the string `KEK-`.
 <4> The template for deriving the KEK, based on a specific topic name.
 <5> Optional policy governing the behaviour when the KMS does not contain a key. The default is `PASSTHROUGH_UNENCRYPTED` which
 causes the record to be forwarded, unencrypted, to the target cluster. Users can alternatively specify `REJECT` which
