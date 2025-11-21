@@ -1,0 +1,69 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "ALTER_CONFIGS"
+  apiVersion: 0
+  scenario: "allowed topic is forwarded"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "ALTER_CONFIGS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 33
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        resources:
+          - resourceType: 2
+            resourceName: "my-topic"
+            configs:
+              - name: "random-string-974"
+                value: "random-string-216"
+        validateOnly: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 263
+        responses:
+          - errorCode: 401
+            errorMessage: "random-string-499"
+            resourceType: 2
+            resourceName: "my-topic"
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "ALTER_CONFIGS"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 33
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    resources:
+      - resourceType: 2
+        resourceName: "my-topic"
+        configs:
+          - name: "random-string-974"
+            value: "random-string-216"
+    validateOnly: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 263
+    responses:
+      - errorCode: 401
+        errorMessage: "random-string-499"
+        resourceType: 2
+        resourceName: "my-topic"
