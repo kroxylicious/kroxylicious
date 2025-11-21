@@ -108,6 +108,7 @@
 // (note: we control optional inclusion with ifdefs/ifndefs directives, so the value of the attribute is irrelevant)
 :include-fortanix-dsm-kms: 1
 :include-aws-kms-service-config-identity-ec2-metadata: 1
+:include-azure-key-vault-service-config-microsoft-entra-managed-identity: 1
 :include-platform-bare-metal: 1
 :include-platform-kubernetes: 1
 // We're not ready to enable OLM yet
