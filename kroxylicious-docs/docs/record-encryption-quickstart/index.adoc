@@ -187,7 +187,7 @@ You need to update the example to find keys in your chosen KMS.
 ====
 [source,terminal,kms="localstack"]
 ----
-$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"AwsKmsService","kmsConfig":{"longTermCredentials":{"accessKeyId":{"password":"unused"},"secretAccessKey": {"password":"unused"}},"endpointUrl":"http://localstack.kms.svc.cluster.local:4566/", "region" : "us-east-1"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK_$(topicName)"}}}}' --type merge
+$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"AwsKmsService","kmsConfig":{"longTermCredentials":{"accessKeyId":{"password":"unused"},"secretAccessKey": {"password":"unused"}},"endpointUrl":"http://localstack.kms.svc.cluster.local:4566/", "region" : "us-east-1"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK-$(topicName)"}}}}' --type merge
 ----
 ====
 
@@ -196,7 +196,7 @@ $ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --pa
 ====
 [source,terminal,kms="vault"]
 ----
-$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"VaultKmsService","kmsConfig":{"vaultToken":{"password":"myroottoken"},"vaultTransitEngineUrl":"http://vault.kms.svc.cluster.local:8200/v1/transit"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK_$(topicName)"}}}}' --type merge
+$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"VaultKmsService","kmsConfig":{"vaultToken":{"password":"myroottoken"},"vaultTransitEngineUrl":"http://vault.kms.svc.cluster.local:8200/v1/transit"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK-$(topicName)"}}}}' --type merge
 ----
 ====
 
@@ -227,8 +227,8 @@ $ PROXIED_CLUSTER_BOOTSTRAP_SERVER=$(kubectl get -n my-proxy virtualkafkacluster
 Record Encryption needs an encryption key to use when encrypting the records produced to the topic.
 Let's create an encryption key in our KMS now.
 
-The filter is configured to expect a key to exist in the KMS with the name `KEK_<topic name>`.
-We are going to be using a topic called `trades` so we will create a key that can be referred to using the name `KEK_trades`.
+The filter is configured to expect a key to exist in the KMS with the name `KEK-<topic name>`.
+We are going to be using a topic called `trades` so we will create a key that can be referred to using the name `KEK-trades`.
 
 .AWS LocalStack
 [%collapsible]
@@ -239,7 +239,7 @@ With LocalStack, you need to create a key and an alias to that key.
 [source,terminal,kms="localstack"]
 ----
 $ KEY_ID=$(kubectl -n kms exec deployments/localstack --  awslocal kms create-key --query KeyMetadata.KeyId --output text)
-$ kubectl -n kms exec deployments/localstack -- awslocal kms create-alias --alias-name alias/KEK_trades --target-key-id ${KEY_ID}
+$ kubectl -n kms exec deployments/localstack -- awslocal kms create-alias --alias-name alias/KEK-trades --target-key-id ${KEY_ID}
 ----
 ====
 
@@ -248,7 +248,7 @@ $ kubectl -n kms exec deployments/localstack -- awslocal kms create-alias --alia
 ====
 [source,terminal,kms="vault"]
 ----
-$ kubectl exec -n kms statefulsets/vault -- vault write -f transit/keys/KEK_trades
+$ kubectl exec -n kms statefulsets/vault -- vault write -f transit/keys/KEK-trades
 ----
 ====
 

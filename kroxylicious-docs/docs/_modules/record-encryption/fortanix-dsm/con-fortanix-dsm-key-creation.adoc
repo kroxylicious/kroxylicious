@@ -25,7 +25,7 @@ Create a key and associate it with the group:
 
 [source, shell]
 ----
-KEY_NAME="KEK_<name>"
+KEY_NAME="KEK-<name>"
 sdkms-cli  --api-endpoint https://<region>.smartkey.io create-key --obj-type AES --key-size 256 --group-id ${GROUP_ID} --name ${KEY_NAME} --key-ops ENCRYPT,DECRYPT,APPMANAGEABLE
 ----
 
