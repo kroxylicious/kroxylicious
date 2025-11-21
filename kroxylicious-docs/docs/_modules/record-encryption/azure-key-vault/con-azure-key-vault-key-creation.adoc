@@ -8,7 +8,7 @@
 = Creating Azure Key Vault keys
 
 [role="_abstract"]
-As a user with the *Key Vault Crypto Officer* role (or otherwise sufficient {microsoft-learn}/azure/key-vault/general/rbac-guide?tabs=azure-cli#azure-built-in-roles-for-key-vault-data-plane-operations[RBAC] permissions to manage keys in Azure Key Vault), use either the {microsoft-learn}/cli/azure/keyvault/key?view=azure-cli-latest#az-keyvault-key-create[Azure CLI] or {microsoft-learn}/powershell/module/az.keyvault/add-azkeyvaultkey[Azure PowerShell] to create a *key* with *wrapKey* and *unwrapKey* operations enabled.
+As a user with the *Key Vault Crypto Officer* role (or otherwise sufficient RBAC permissions to manage keys in Azure Key Vault), use either the Azure CLI or Azure PowerShell to create a *key* with *wrapKey* and *unwrapKey* operations enabled.
 
 == Establish the naming convention for keys within key vault hierarchy
 
@@ -18,30 +18,28 @@ NOTE: The filter key name prefix `KEK_` is used widely across the Kroxylicious p
 
 == Supported Key Types
 
-NOTE: The key types available to you in Azure Key Vault will depend on your Azure Key Vault service tier. See the {microsoft-learn}/azure/key-vault/keys/about-keys[_About keys_ page in the Azure Key Vault docs] for more details.
+NOTE: The key types available to you in Azure Key Vault will depend on your Azure Key Vault service tier. See the _About keys_ page in the Azure Key Vault docs for more details.
 
-The filter accepts the following {microsoft-learn}/rest/api/keyvault/keys/create-key/create-key?view=rest-keyvault-keys-2025-07-01&tabs=HTTP#jsonwebkeytype[key types] and their associated {microsoft-learn}/rest/api/keyvault/keys/wrap-key/wrap-key?view=rest-keyvault-keys-2025-07-01&tabs=HTTP#jsonwebkeyencryptionalgorithm[wrapping algorithms]:
+The filter accepts the following key types and their associated wrapping algorithms:
 
-* *Symmetric Keys (`oct` or `oct-HSM`):* Uses the quantum-resistant `A256GCM` (256-bit AES GCM) wrapping algorithm, which {microsoft-learn}/azure/key-vault/keys/about-keys-details#symmetric-key-algorithms-managed-hsm-only[requires a Managed HSM subscription].
-* *Asymmetric Keys (`RSA` or `RSA-HSM`):* Uses the `RSA-OAEP-256` (RSAES-OAEP with SHA-256 hash and MGF1/SHA-256 mask) wrapping algorithm, which is not quantum-resistant. This wrapping algorithm {microsoft-learn}/azure/key-vault/keys/about-keys-details#wrapkeyunwrapkey-encryptdecrypt[does not require a Managed HSM subscription to use] (however, `RSA-HSM` is not available without a premium Azure Key Vault subscription).
+* *Symmetric Keys (`oct` or `oct-HSM`):* Uses the quantum-resistant `A256GCM` (256-bit AES GCM) wrapping algorithm, which requires a Managed HSM subscription.
+* *Asymmetric Keys (`RSA` or `RSA-HSM`):* Uses the `RSA-OAEP-256` (RSAES-OAEP with SHA-256 hash and MGF1/SHA-256 mask) wrapping algorithm, which is not quantum-resistant. This wrapping algorithm does not require a Managed HSM subscription to use (however, `RSA-HSM` is not available without a premium Azure Key Vault subscription).
 
 If you use the Azure CLI, you can create a key with a command similar to the following:
 
 [source,shell]
 ----
 KEY_VAULT_NAME="kroxylicious-key-vault"
-KEY_NAME="KEK_<name>"
-KEY_TYPE="oct"
+KEY_NAME="KEK-<name>"
+KEY_TYPE="rsa"
 az keyvault key create --vault-name ${KEY_VAULT_NAME} --name ${KEY_NAME} --kty ${KEY_TYPE} --ops wrapKey unwrapKey
 ----
-* Change `KEY_TYPE` if you want to use a key type other than oct.
+* Change `KEY_TYPE` if you want to use a key type other than RSA.
 * The `wrapKey` and `unwrapKey` operations must be enabled.
 
 When the key is created, it is recommended to use a key rotation policy.
 
-NOTE: Key autorotation (such as automatic rotation of keys according to a policy) has an additional cost per scheduled key rotation in Azure Key Vault. Details can be found on the {azure}/pricing/details/key-vault/[Azure Key Vault pricing page].
-
-To configure a key rotation policy with the Azure CLI, save your policy to a JSON file. An example JSON file can be found in the {microsoft-learn}/cli/azure/keyvault/key/rotation-policy?view=azure-cli-latest#az-keyvault-key-rotation-policy-update[Azure CLI docs].
+To configure a key rotation policy with the Azure CLI, save your policy to a JSON file. An example JSON file can be found in the Azure CLI docs.
 
 When you've prepared your policy, apply it with a command like this:
 
