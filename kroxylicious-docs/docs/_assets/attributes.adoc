@@ -93,10 +93,6 @@
 // AWS links
 :aws:  https://docs.aws.amazon.com/
 
-// Azure links
-:microsoft-learn: https://learn.microsoft.com/en-us
-:azure: https://azure.microsoft.com/en-us
-
 // Apicurio links
 :apicurio-docs: https://www.apicur.io/registry/docs/apicurio-registry/{ApicurioVersion}/
 

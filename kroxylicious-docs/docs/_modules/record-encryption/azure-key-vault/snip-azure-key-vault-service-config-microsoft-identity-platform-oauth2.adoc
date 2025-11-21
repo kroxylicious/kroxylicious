@@ -20,7 +20,7 @@ kmsConfig:
       passwordFile: /path/to/id
     clientSecret:
       passwordFile: /path/to/secret
-    scope: https://vault.azure.net/.default                   # <8>
+    scope: https://vault.azure.net/.default
     tls:
       # ... client trust configuration for Microsoft Identity Platform OAuth2
 ----
@@ -31,4 +31,4 @@ kmsConfig:
 * `tenantId` is the 32-character identifier for the Microsoft Entra tenant where the OAuth credentials were created.
 * `clientId.passwordFile` specifies the file that contains the OAuth client ID.
 * `clientSecret.passwordFile` specifies the file that contains the OAuth client secret.
-scope is the App ID URI of the target resource that the proxy authenticates to (your Azure Key Vault URI).
+* `scope` is the App ID URI of the target resource that the proxy authenticates to (your Azure Key Vault URI).
