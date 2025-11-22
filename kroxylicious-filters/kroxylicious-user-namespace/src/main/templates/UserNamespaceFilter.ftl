@@ -23,9 +23,9 @@ ${pad}}
 ${pad}// recursively process any sub fields
     <#list fields as field>
         <#if field.type.isArray && field.fields?size != 0 >
-            <#local collection="${field.name?uncap_first}" />
-            <#local subvar=collection[0..<collection?length-1] />
-${pad}${dataVar}.${collection}().forEach(${subvar} -> {
+            <#local getter="${field.name?uncap_first}()" />
+            <#local subvar=field.type?remove_beginning("[]")?uncap_first />
+${pad}${dataVar}.${getter}.forEach(${subvar} -> {
             <@mapRequestFields messageSpec subvar field.fields indent + 1 />
 ${pad}});
         </#if>
@@ -49,9 +49,9 @@ ${pad}}
 ${pad}// recursively process any sub fields
     <#list fields as field>
         <#if field.type.isArray && field.fields?size != 0 >
-            <#local collection="${field.name?uncap_first}" />
-            <#local subvar=collection[0..<collection?length-1] />
-${pad}${dataVar}.${collection}().forEach(${subvar} -> {
+            <#local getter="${field.name?uncap_first}()" />
+            <#local subvar=field.type?remove_beginning("[]")?uncap_first />
+${pad}${dataVar}.${getter}.forEach(${subvar} -> {
             <@mapAndFilterResponseFields messageSpec subvar field.fields indent + 1 />
 ${pad}});
         </#if>
@@ -311,47 +311,6 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 </#list>
             }
         });
-        return context.forwardRequest(header, request);
-
-
-<#--            switch (apiKey) {-->
-<#--                case OFFSET_COMMIT -> {-->
-<#--                    OffsetCommitResponseData offsetCommitResponseData = (OffsetCommitResponseData) response;-->
-<#--                    LOGGER.atDebug()-->
-<#--                            .addArgument(context.sessionId())-->
-<#--                            .addArgument(authzId.get())-->
-<#--                            .addArgument(response)-->
-<#--                            .log("{} for {}: offset commit response result: {}");-->
-<#--                }-->
-<#--                case CONSUMER_GROUP_DESCRIBE -> {-->
-<#--                    ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData = (ConsumerGroupDescribeResponseData) response;-->
-<#--                    consumerGroupDescribeResponseData.groups().forEach(group -> {-->
-<#--                        group.setGroupId(unmap(aid, group.groupId()));-->
-<#--                    });-->
-<#--                    LOGGER.atDebug()-->
-<#--                            .addArgument(context.sessionId())-->
-<#--                            .addArgument(authzId.get())-->
-<#--                            .addArgument(response).log("{} for {}: consumer group describe response: {}");-->
-<#--                }-->
-<#--                case DESCRIBE_GROUPS -> {-->
-<#--                    DescribeGroupsResponseData describeGroupsResponseData = (DescribeGroupsResponseData) response;-->
-<#--                    describeGroupsResponseData.groups().forEach(g -> g.setGroupId(unmap(aid, g.groupId())));-->
-<#--                    LOGGER.atDebug()-->
-<#--                            .addArgument(context.sessionId())-->
-<#--                            .addArgument(authzId.get())-->
-<#--                            .addArgument(response).log("{} for {}: describe group response: {}");-->
-<#--                }-->
-<#--                case OFFSET_FETCH -> {-->
-<#--                    OffsetFetchResponseData offsetFetchResponseData = (OffsetFetchResponseData) response;-->
-<#--                    offsetFetchResponseData.groups().forEach(g -> g.setGroupId(unmap(aid, g.groupId())));-->
-<#--                    LOGGER.atDebug()-->
-<#--                            .addArgument(context.sessionId())-->
-<#--                            .addArgument(authzId.get())-->
-<#--                            .addArgument(response).log("{} for {}: offset fetch response: {}");-->
-<#--                }-->
-<#--            }-->
-<#--        });-->
-
-<#--        return context.forwardResponse(header, response);-->
+        return context.forwardResponse(header, response);
     }
 }
