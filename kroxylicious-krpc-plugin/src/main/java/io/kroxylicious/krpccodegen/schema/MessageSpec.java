@@ -6,14 +6,27 @@
 package io.kroxylicious.krpccodegen.schema;
 
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.util.StdConverter;
+
+@JsonDeserialize(converter = MessageSpec.MessageSpecAugmenter.class)
 
 public final class MessageSpec {
+    private static final EnumSet<EntityType> ENTITY_FIELDS = EnumSet.of(EntityType.TOPIC_NAME, EntityType.GROUP_ID, EntityType.TRANSACTIONAL_ID);
     private final StructSpec struct;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -99,8 +112,14 @@ public final class MessageSpec {
     }
 
     @JsonProperty("fields")
+    @JsonManagedReference
     public List<FieldSpec> fields() {
         return struct.fields();
+    }
+
+    // @VisibleForTesting
+    public Map<String, FieldSpec> fieldsByName() {
+        return struct.fields().stream().collect(Collectors.toMap(FieldSpec::name, Function.identity()));
     }
 
     @JsonProperty("apiKey")
@@ -146,5 +165,61 @@ public final class MessageSpec {
                     struct.name() + "Data";
             default -> struct.name();
         };
+    }
+
+    @Override
+    public String toString() {
+        return "MessageSpec{" +
+                "struct=" + struct +
+                ", apiKey=" + apiKey +
+                ", type=" + type +
+                ", commonStructs=" + commonStructs +
+                ", flexibleVersions=" + flexibleVersions +
+                ", listeners=" + listeners +
+                ", latestVersionUnstable=" + latestVersionUnstable +
+                '}';
+    }
+
+    public boolean hasAtLeastOneEntityField() {
+        return hasAtLeastOneEntityField(fields());
+    }
+
+    private boolean hasAtLeastOneEntityField(List<FieldSpec> fields) {
+        var found = fields.stream().anyMatch(f -> ENTITY_FIELDS.contains(f.entityType()));
+        if (found) {
+            return true;
+        }
+        return fields.stream().anyMatch(f -> hasAtLeastOneEntityField(f.fields()));
+    }
+
+    public List<Short> entityFieldIntersectedVersions() {
+        return entityFieldIntersectedVersions(fields()).stream().toList();
+    }
+
+    private Set<Short> entityFieldIntersectedVersions(List<FieldSpec> fields) {
+        var versions = fields.stream()
+                .filter(f -> ENTITY_FIELDS.contains(f.entityType()))
+                .map(f -> validVersions().intersect(f.versions()))
+                .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
+                .distinct()
+                .sorted()
+                .boxed()
+                .map(Integer::shortValue)
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        versions.addAll(fields.stream()
+                .flatMap(f -> entityFieldIntersectedVersions(f.fields()).stream())
+                .collect(Collectors.toSet()));
+
+        return versions;
+    }
+
+    public static class MessageSpecAugmenter extends StdConverter<MessageSpec, MessageSpec> {
+
+        @Override
+        public MessageSpec convert(MessageSpec value) {
+            // value.fields().forEach(f -> f.setMessageSpec(value));
+            return value;
+        }
     }
 }

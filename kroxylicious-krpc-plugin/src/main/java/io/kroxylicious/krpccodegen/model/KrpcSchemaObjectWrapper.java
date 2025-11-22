@@ -32,23 +32,23 @@ public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
 
     @Override
     public TemplateModel wrap(Object obj) throws TemplateModelException {
-        if (obj instanceof TemplateModel) {
-            return (TemplateModel) obj;
+        if (obj instanceof TemplateModel tm) {
+            return tm;
         }
-        else if (obj instanceof MessageSpec) {
-            return new MessageSpecModel(this, (MessageSpec) obj);
+        else if (obj instanceof MessageSpec ms) {
+            return new MessageSpecModel(this, ms);
         }
-        else if (obj instanceof FieldSpec) {
-            return new FieldSpecModel(this, (FieldSpec) obj);
+        else if (obj instanceof FieldSpec fs) {
+            return new FieldSpecModel(this, fs);
         }
-        else if (obj instanceof FieldType) {
-            return new FieldTypeModel(this, (FieldType) obj);
+        else if (obj instanceof FieldType ft) {
+            return new FieldTypeModel(this, ft);
         }
-        else if (obj instanceof StructSpec) {
-            return new StructSpecModel(this, (StructSpec) obj);
+        else if (obj instanceof StructSpec ss) {
+            return new StructSpecModel(this, ss);
         }
-        else if (obj instanceof Versions) {
-            return new VersionsModel(this, (Versions) obj);
+        else if (obj instanceof Versions v) {
+            return new VersionsModel(this, v);
         }
         return super.wrap(obj);
     }
