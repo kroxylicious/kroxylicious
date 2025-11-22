@@ -1,0 +1,93 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_CONFIGS"
+  apiVersion: 3
+  scenario: "other resources are forwarded"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_CONFIGS"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 32
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        resources:
+          - resourceType: 3
+            resourceName: "my-group"
+            configurationKeys:
+              - "random-string-250"
+        includeSynonyms: false
+        includeDocumentation: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 580
+        results:
+          - errorCode: 924
+            errorMessage: "random-string-144"
+            resourceType: 3
+            resourceName: "my-group"
+            configs:
+              - name: "random-string-161"
+                value: "random-string-329"
+                readOnly: false
+                configSource: 34
+                isSensitive: false
+                synonyms:
+                  - name: "random-string-398"
+                    value: "random-string-514"
+                    source: 117
+                configType: 61
+                documentation: "random-string-127"
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE_CONFIGS"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 32
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    resources:
+      - resourceType: 3
+        resourceName: "my-group"
+        configurationKeys:
+          - "random-string-250"
+    includeSynonyms: false
+    includeDocumentation: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 580
+    results:
+      - errorCode: 924
+        errorMessage: "random-string-144"
+        resourceType: 3
+        resourceName: "my-group"
+        configs:
+          - name: "random-string-161"
+            value: "random-string-329"
+            readOnly: false
+            configSource: 34
+            isSensitive: false
+            synonyms:
+              - name: "random-string-398"
+                value: "random-string-514"
+                source: 117
+            configType: 61
+            documentation: "random-string-127"

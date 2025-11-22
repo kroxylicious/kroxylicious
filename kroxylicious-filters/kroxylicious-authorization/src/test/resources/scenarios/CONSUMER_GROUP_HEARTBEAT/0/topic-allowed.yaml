@@ -1,0 +1,91 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "CONSUMER_GROUP_HEARTBEAT"
+  apiVersion: 0
+  scenario: "allowed topic is forwarded"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CONSUMER_GROUP_HEARTBEAT"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 68
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        groupId: "random-string-704"
+        memberId: "random-string-896"
+        memberEpoch: 926
+        instanceId: "random-string-667"
+        rackId: "random-string-929"
+        rebalanceTimeoutMs: 654
+        subscribedTopicNames:
+          - "my-topic"
+        serverAssignor: "random-string-403"
+        topicPartitions:
+          - topicId: "CMRxch-QTDC1n6dzHhc6TA"
+            partitions:
+              - 133
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 785
+        errorCode: 402
+        errorMessage: "random-string-955"
+        memberId: "random-string-508"
+        memberEpoch: 574
+        heartbeatIntervalMs: 516
+        assignment:
+          topicPartitions:
+            - topicId: "CMRxch-QTDC1n6dzHhc6TA"
+              partitions:
+                - 942
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 68
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    groupId: "random-string-704"
+    memberId: "random-string-896"
+    memberEpoch: 926
+    instanceId: "random-string-667"
+    rackId: "random-string-929"
+    rebalanceTimeoutMs: 654
+    subscribedTopicNames:
+      - "my-topic"
+    serverAssignor: "random-string-403"
+    topicPartitions:
+      - topicId: "CMRxch-QTDC1n6dzHhc6TA"
+        partitions:
+          - 133
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 785
+    errorCode: 402
+    errorMessage: "random-string-955"
+    memberId: "random-string-508"
+    memberEpoch: 574
+    heartbeatIntervalMs: 516
+    assignment:
+      topicPartitions:
+        - topicId: "CMRxch-QTDC1n6dzHhc6TA"
+          partitions:
+            - 942

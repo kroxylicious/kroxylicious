@@ -7,9 +7,9 @@ package io.kroxylicious.test.codec;
 
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.ProduceRequest;
 
 import io.kroxylicious.test.client.SequencedResponse;
 
@@ -57,7 +57,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
      */
     @Override
     public boolean hasResponse() {
-        return !(body instanceof ProduceRequest pr && pr.acks() == 0);
+        return !(body instanceof ProduceRequestData pr && pr.acks() == 0);
     }
 
     @Override

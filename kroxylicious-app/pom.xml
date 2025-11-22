@@ -386,6 +386,16 @@
                     <artifactId>kroxylicious-sasl-inspection</artifactId>
                     <scope>runtime</scope>
                 </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-authorization</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-authorizer-acl</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
             </dependencies>
         </profile>
     </profiles>

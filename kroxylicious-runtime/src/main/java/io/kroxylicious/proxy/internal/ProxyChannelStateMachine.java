@@ -483,6 +483,7 @@ public class ProxyChannelStateMachine {
                                 KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
         frontendHandler.inClientActive();
+
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
     }
