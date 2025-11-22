@@ -5,7 +5,7 @@
     Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 
 -->
-<#macro namespaceFields messageSpec dataVar fields indent>
+<#macro mapRequestFields messageSpec dataVar fields indent>
     <#local pad = ""?left_pad(4*indent)/>
 ${pad}// process any entity fields defined at this level
     <#list fields as field>
@@ -26,7 +26,33 @@ ${pad}// recursively process any sub fields
             <#local collection="${field.name?uncap_first}" />
             <#local subvar=collection[0..<collection?length-1] />
 ${pad}${dataVar}.${collection}().forEach(${subvar} -> {
-            <@namespaceFields messageSpec subvar field.fields indent + 1 />
+            <@mapRequestFields messageSpec subvar field.fields indent + 1 />
+${pad}});
+        </#if>
+    </#list>
+</#macro>
+<#macro mapAndFilterResponseFields messageSpec dataVar fields indent>
+    <#local pad = ""?left_pad(4*indent)/>
+${pad}// process any entity fields defined at this level
+    <#list fields as field>
+        <#if field.entityType == 'GROUP_ID' || field.entityType == 'TRANSACTIONAL_ID' || field.entityType == 'TOPIC_NAME'>
+            <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
+${pad}if (shouldMap("${field.entityType}") && inVersion(apiVersion, Set.of(<#list messageSpec.validVersions.intersect(field.versions) as version> (short) ${version}<#sep>, </#list>))) {
+            <#if field.type == 'string'>
+${pad}    ${dataVar}.${setter}(unmap(aid, ${dataVar}.${getter}()));
+            <#elseif field.type == '[]string'>
+${pad}    ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> unmap(aid, orig)).toList());
+            </#if>
+${pad}}
+        </#if>
+    </#list>
+${pad}// recursively process any sub fields
+    <#list fields as field>
+        <#if field.type.isArray && field.fields?size != 0 >
+            <#local collection="${field.name?uncap_first}" />
+            <#local subvar=collection[0..<collection?length-1] />
+${pad}${dataVar}.${collection}().forEach(${subvar} -> {
+            <@mapAndFilterResponseFields messageSpec subvar field.fields indent + 1 />
 ${pad}});
         </#if>
     </#list>
@@ -49,22 +75,21 @@ ${pad}});
  */
 package ${outputPackage};
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 <#list messageSpecs as messageSpec>
-<#if messageSpec.type?lower_case == 'request' && messageSpec.hasAtLeastOneEntityField>
+    <#if messageSpec.type?lower_case == 'request' && (messageSpec.hasAtLeastOneEntityField || messageSpec.name == 'FindCoordinatorRequest')>
 import org.apache.kafka.common.message.${messageSpec.name}Data;
-</#if>
+    </#if>
+    <#if messageSpec.type?lower_case == 'response' && (messageSpec.hasAtLeastOneEntityField || messageSpec.name == 'FindCoordinatorResponse')>
+import org.apache.kafka.common.message.${messageSpec.name}Data;
+    </#if>
 </#list>
 
-import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData;
-import org.apache.kafka.common.message.DescribeGroupsResponseData;
-import org.apache.kafka.common.message.FindCoordinatorRequestData;
-import org.apache.kafka.common.message.FindCoordinatorResponseData;
-import org.apache.kafka.common.message.JoinGroupResponseData;
-import org.apache.kafka.common.message.OffsetCommitResponseData;
-import org.apache.kafka.common.message.OffsetFetchResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -79,12 +104,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-import static org.apache.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_DESCRIBE;
-import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_GROUPS;
 import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
-import static org.apache.kafka.common.protocol.ApiKeys.JOIN_GROUP;
-import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_COMMIT;
-import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_FETCH;
 
 
 /**
@@ -93,9 +113,6 @@ import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_FETCH;
 */
 public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
-    private final UserNamespace.Config config;
-
-    private static final Set<ApiKeys> responseKeys = Set.of(FIND_COORDINATOR, OFFSET_COMMIT, CONSUMER_GROUP_DESCRIBE, DESCRIBE_GROUPS, JOIN_GROUP, OFFSET_FETCH);
     private static final Logger LOGGER = LoggerFactory.getLogger(UserNamespaceFilter.class);
 
     <#list messageSpecs as messageSpec>
@@ -106,6 +123,18 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
     private static final Set<Short> ${specName?trim}_VERSIONS = Set.of(<#list messageSpec.entityFieldIntersectedVersions as version>(short) ${version}<#sep>, </#list>);
         </#if>
     </#list>
+
+    <#list messageSpecs as messageSpec>
+        <#if messageSpec.type?lower_case == 'response' && messageSpec.hasAtLeastOneEntityField>
+            <#assign specName>
+            <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
+            </#assign>
+    private static final Set<Short> ${specName?trim}_VERSIONS = Set.of(<#list messageSpec.entityFieldIntersectedVersions as version>(short) ${version}<#sep>, </#list>);
+        </#if>
+    </#list>
+
+    private final UserNamespace.Config config;
+    private final Map<ApiKeys, Short> responseApiKeyMap = new HashMap<>();
 
     UserNamespaceFilter(UserNamespace.Config config) {
         this.config = config;
@@ -130,13 +159,36 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         };
     }
 
-    private static boolean inVersion(short apiVersions, Set<Short> versions) {
-        return versions.contains(apiVersions);
-    }
-
     @Override
     public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
-        return responseKeys.contains(apiKey);
+        boolean should = doShouldHandleResponse(apiKey, apiVersion);
+        if (should) {
+            responseApiKeyMap.put(apiKey, apiVersion);
+        }
+        return should;
+    }
+
+    private static boolean doShouldHandleResponse(ApiKeys apiKey, short apiVersion) {
+        // Find coordinator uses identifies entities using a key type
+        if (apiKey == FIND_COORDINATOR) {
+            return true;
+        }
+        return switch (apiKey) {
+<#list messageSpecs as messageSpec>
+                <#if messageSpec.type?c_lower_case == 'response' && messageSpec.hasAtLeastOneEntityField>
+                    <#assign specName>
+                        <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${
+                    word?c_upper_case}<#sep>_</#list>
+                    </#assign>
+            case ${retrieveApiKey(messageSpec)} -> inVersion(apiVersion, ${specName?trim}_VERSIONS);
+            </#if>
+        </#list>
+        default -> false;
+        };
+    }
+
+    private static boolean inVersion(short apiVersions, Set<Short> versions) {
+        return versions.contains(apiVersions);
     }
 
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
@@ -173,7 +225,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                             .addArgument(aid)
                             .addArgument(${dataVar})
                             .log("{} for {}: request ${specName?trim}: {}");
-                    <@namespaceFields messageSpec dataVar messageSpec.fields 5/>
+                    <@mapRequestFields messageSpec dataVar messageSpec.fields 5/>
                     LOGGER.atDebug()
                             .addArgument(context.sessionId())
                             .addArgument(aid)
@@ -185,7 +237,6 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
             }
         });
         return context.forwardRequest(header, request);
-
     }
 
     private boolean shouldMap(String entityType) {
@@ -219,6 +270,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                                                             ResponseHeaderData header,
                                                             ApiMessage response,
                                                             FilterContext context) {
+        var apiVersion = Objects.requireNonNull(responseApiKeyMap.get(apiKey)); // Workaround for https://github.com/kroxylicious/kroxylicious/issues/2916
         var authzId = context.clientSaslContext().map(ClientSaslContext::authorizationId);
         authzId.ifPresent(aid -> {
             switch (apiKey) {
@@ -232,66 +284,74 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                             .addArgument(findCoordinatorResponseData)
                             .log("{} for {}: find coordinator response result: {}");
                 }
-                case OFFSET_COMMIT -> {
-                    OffsetCommitResponseData offsetCommitResponseData = (OffsetCommitResponseData) response;
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(response)
-                            .log("{} for {}: offset commit response result: {}");
-                }
-                case CONSUMER_GROUP_DESCRIBE -> {
-                    ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData = (ConsumerGroupDescribeResponseData) response;
-                    consumerGroupDescribeResponseData.groups().forEach(group -> {
-                        group.setGroupId(unmap(aid, group.groupId()));
-                    });
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(response).log("{} for {}: consumer group describe response: {}");
-                }
-                case DESCRIBE_GROUPS -> {
-                    DescribeGroupsResponseData describeGroupsResponseData = (DescribeGroupsResponseData) response;
-                    describeGroupsResponseData.groups().forEach(g -> g.setGroupId(unmap(aid, g.groupId())));
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(response).log("{} for {}: describe group response: {}");
-                }
-                case OFFSET_FETCH -> {
-                    OffsetFetchResponseData offsetFetchResponseData = (OffsetFetchResponseData) response;
-                    offsetFetchResponseData.groups().forEach(g -> g.setGroupId(unmap(aid, g.groupId())));
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(response).log("{} for {}: offset fetch response: {}");
-                }
-                case JOIN_GROUP -> {
-                    JoinGroupResponseData joinGroupResponseData = (JoinGroupResponseData) response;
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(response).log("{} for {}: join group response got: {}");
-                    joinGroupResponseData.members().forEach(member -> {
-                        if (!member.memberId().isBlank()) {
-                            LOGGER.atDebug()
-                                    .addArgument(member.memberId())
-                                    .addArgument(member.memberId().substring(aid.length() + 1))
-                                    .log("replacing {} with {}");
-                        }
-                        else {
-                            LOGGER.atDebug().log("blank member ID");
-                        }
-                    });
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(joinGroupResponseData).log("{} for {}: join group response forwarded: {}");
-                }
+            }
 
+            switch (apiKey) {
+<#list messageSpecs as messageSpec>
+    <#if messageSpec.type?lower_case == 'response' && messageSpec.hasAtLeastOneEntityField>
+                case ${retrieveApiKey(messageSpec)} -> {
+                    <#assign specName>
+                        <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
+                    </#assign>
+                    <#assign dataClass="${messageSpec.name}Data" dataVar="${messageSpec.name?uncap_first}Data"/>
+                        var ${dataVar} = (${dataClass}) response;
+                    LOGGER.atDebug()
+                            .addArgument(context.sessionId())
+                            .addArgument(aid)
+                            .addArgument(${dataVar})
+                            .log("{} for {}: response ${specName?trim}: {}");
+                    <@mapAndFilterResponseFields messageSpec dataVar messageSpec.fields 5/>
+                    LOGGER.atDebug()
+                            .addArgument(context.sessionId())
+                            .addArgument(aid)
+                            .addArgument(${dataVar})
+                            .log("{} for {}: response result ${specName?trim}: {}");
+                }
+    </#if>
+</#list>
             }
         });
+        return context.forwardRequest(header, request);
 
-        return context.forwardResponse(header, response);
+
+<#--            switch (apiKey) {-->
+<#--                case OFFSET_COMMIT -> {-->
+<#--                    OffsetCommitResponseData offsetCommitResponseData = (OffsetCommitResponseData) response;-->
+<#--                    LOGGER.atDebug()-->
+<#--                            .addArgument(context.sessionId())-->
+<#--                            .addArgument(authzId.get())-->
+<#--                            .addArgument(response)-->
+<#--                            .log("{} for {}: offset commit response result: {}");-->
+<#--                }-->
+<#--                case CONSUMER_GROUP_DESCRIBE -> {-->
+<#--                    ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData = (ConsumerGroupDescribeResponseData) response;-->
+<#--                    consumerGroupDescribeResponseData.groups().forEach(group -> {-->
+<#--                        group.setGroupId(unmap(aid, group.groupId()));-->
+<#--                    });-->
+<#--                    LOGGER.atDebug()-->
+<#--                            .addArgument(context.sessionId())-->
+<#--                            .addArgument(authzId.get())-->
+<#--                            .addArgument(response).log("{} for {}: consumer group describe response: {}");-->
+<#--                }-->
+<#--                case DESCRIBE_GROUPS -> {-->
+<#--                    DescribeGroupsResponseData describeGroupsResponseData = (DescribeGroupsResponseData) response;-->
+<#--                    describeGroupsResponseData.groups().forEach(g -> g.setGroupId(unmap(aid, g.groupId())));-->
+<#--                    LOGGER.atDebug()-->
+<#--                            .addArgument(context.sessionId())-->
+<#--                            .addArgument(authzId.get())-->
+<#--                            .addArgument(response).log("{} for {}: describe group response: {}");-->
+<#--                }-->
+<#--                case OFFSET_FETCH -> {-->
+<#--                    OffsetFetchResponseData offsetFetchResponseData = (OffsetFetchResponseData) response;-->
+<#--                    offsetFetchResponseData.groups().forEach(g -> g.setGroupId(unmap(aid, g.groupId())));-->
+<#--                    LOGGER.atDebug()-->
+<#--                            .addArgument(context.sessionId())-->
+<#--                            .addArgument(authzId.get())-->
+<#--                            .addArgument(response).log("{} for {}: offset fetch response: {}");-->
+<#--                }-->
+<#--            }-->
+<#--        });-->
+
+<#--        return context.forwardResponse(header, response);-->
     }
 }
