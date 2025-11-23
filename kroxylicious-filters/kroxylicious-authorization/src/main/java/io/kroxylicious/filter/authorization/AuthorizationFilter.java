@@ -71,6 +71,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.CREATE_PARTITIONS, new CreatePartitionsEnforcement());
         apiEnforcement.put(ApiKeys.DELETE_TOPICS, new DeleteTopicsEnforcement());
         apiEnforcement.put(ApiKeys.DELETE_RECORDS, new DeleteRecordsEnforcement());
+        apiEnforcement.put(ApiKeys.DESCRIBE_PRODUCERS, new DescribeProducersEnforcement());
 
         apiEnforcement.put(ApiKeys.LIST_OFFSETS, new ListOffsetsEnforcement());
 
