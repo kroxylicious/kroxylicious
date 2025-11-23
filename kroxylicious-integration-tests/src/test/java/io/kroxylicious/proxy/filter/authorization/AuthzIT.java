@@ -117,7 +117,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @ExtendWith(KafkaClusterExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class AuthzIT extends BaseIT {
+public abstract class AuthzIT extends BaseIT {
 
     static final Logger LOG = LoggerFactory.getLogger(AuthzIT.class);
 

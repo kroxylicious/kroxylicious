@@ -125,14 +125,14 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     <R> void pushInflightState(RequestHeaderData header, InflightState<R> inflightState) {
         var existing = this.inflightState.put(header.correlationId(), inflightState);
         if (existing != null) {
-            throw new IllegalStateException("Already have inflightState");
+            throw new IllegalStateException("Already have inflightState for correlationId " + header.correlationId());
         }
     }
 
     <C extends InflightState<?>> C peekInflightState(int correlationId, Class<C> cClass) {
         InflightState<?> result = this.inflightState.get(correlationId);
         if (result == null) {
-            throw new IllegalStateException("No inflightState");
+            throw new IllegalStateException("No inflightState for correlationId " + correlationId);
         }
         return cClass.cast(result);
     }
@@ -153,10 +153,6 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         }
     }
 
-    static IllegalStateException topicIdsNotSupported() {
-        return new IllegalStateException("Topic ids not supported yet");
-    }
-
     @Nullable
     private CompletionStage<RequestFilterResult> checkRequestApiAndVersions(ApiKeys apiKey,
                                                                             RequestHeaderData header,
@@ -175,7 +171,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
             }
             else {
                 LOG.warn("Filter of type {} does not support {} API version {} used in request."
-                        + " It supports does not support version this API at all."
+                        + " It does not support version this API at all."
                         + " This error is due to a misconfigured, buggy, or possibly malicious client.",
                         getClass().getName(),
                         apiKey,

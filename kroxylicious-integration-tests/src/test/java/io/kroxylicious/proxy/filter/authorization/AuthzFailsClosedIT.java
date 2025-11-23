@@ -26,7 +26,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class AuthzFailsClosedIT extends AuthzIT {
+class AuthzFailsClosedIT extends AuthzIT {
 
     @Test
     void shouldFailClosedWhenUserExpectsAuthzOverUnsupportedResourceTypes() throws IOException {

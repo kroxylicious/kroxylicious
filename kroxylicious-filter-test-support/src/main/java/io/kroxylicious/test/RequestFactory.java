@@ -187,8 +187,7 @@ public class RequestFactory {
         final OffsetFetchRequestData.OffsetFetchRequestTopic t1 = new OffsetFetchRequestData.OffsetFetchRequestTopic();
         t1.setName(MobyNamesGenerator.getRandomName());
         t1.setPartitionIndexes(List.of(0, 1));
-        offsetFetchRequestData.setGroupId(MobyNamesGenerator.getRandomName());
-        offsetFetchRequestData.setTopics(List.of(t1));
+
         OffsetFetchRequestData.OffsetFetchRequestGroup group = new OffsetFetchRequestData.OffsetFetchRequestGroup();
         group.setGroupId(MobyNamesGenerator.getRandomName());
         OffsetFetchRequestData.OffsetFetchRequestTopics topics = new OffsetFetchRequestData.OffsetFetchRequestTopics();
@@ -196,12 +195,14 @@ public class RequestFactory {
         topics.setTopicId(Uuid.ONE_UUID);
         topics.setPartitionIndexes(List.of(0, 1));
         group.setTopics(List.of(topics));
-        offsetFetchRequestData.setGroups(List.of(group));
 
         if (apiVersion <= 7) {
             offsetFetchRequestData.setGroups(List.of());
+            offsetFetchRequestData.setGroupId(MobyNamesGenerator.getRandomName());
+            offsetFetchRequestData.setTopics(List.of(t1));
         }
         else {
+            offsetFetchRequestData.setGroups(List.of(group));
             offsetFetchRequestData.setGroupId("");
             offsetFetchRequestData.setTopics(List.of());
         }
@@ -400,12 +401,11 @@ public class RequestFactory {
 
     private static void populateListConfigResourcesRequest(ApiMessage apiMessage, short apiVersion) {
         final ListConfigResourcesRequestData listConfigResourcesRequestData = (ListConfigResourcesRequestData) apiMessage;
-        listConfigResourcesRequestData.setResourceTypes(List.of(ConfigResource.Type.CLIENT_METRICS.id())); // the only type you can use with v0 LIST_CONFIG_RESOURCES
         if (apiVersion == 0) {
-            ((ListConfigResourcesRequestData) apiMessage).setResourceTypes(List.of());
+            listConfigResourcesRequestData.setResourceTypes(List.of());
         }
         else {
-            ((ListConfigResourcesRequestData) apiMessage).setResourceTypes(List.of((byte) 16));
+            listConfigResourcesRequestData.setResourceTypes(List.of(ConfigResource.Type.CLIENT_METRICS.id()));
         }
     }
 
