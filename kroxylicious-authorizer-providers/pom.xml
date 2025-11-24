@@ -20,6 +20,7 @@
 
     <name>Authorizer provider implementations</name>
     <artifactId>kroxylicious-authorizer-providers</artifactId>
+    <description>Authorizer provider implementations</description>
     <packaging>pom</packaging>
 
     <modules>

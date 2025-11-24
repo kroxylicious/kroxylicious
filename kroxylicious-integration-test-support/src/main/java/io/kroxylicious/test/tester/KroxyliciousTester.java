@@ -297,6 +297,8 @@ public interface KroxyliciousTester extends Closeable {
      */
     void deleteTopics(String clusterName);
 
+    Map<String, Object> clientConfiguration();
+
     /**
      * @return the bootstrap address of the only virtual cluster
      * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
