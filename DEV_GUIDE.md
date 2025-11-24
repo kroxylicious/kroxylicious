@@ -586,6 +586,15 @@ You can check that worked with something like
 kubectl logs -n kroxylicious-operator deployment/kroxylicious-operator -c operator
 ```
 
+## Changing the Operand Image deployed by the Operator
+
+Sometimes we want to use the Operator to deploy a different Proxy image than the default. We can control this by setting 
+the KROXYLICIOUS_IMAGE environment variable on the operators container.
+
+```bash
+kubectl set env deployment/kroxylicious-operator -nkroxylicious-operator KROXYLICIOUS_IMAGE=${YOUR IMAGE}
+```
+
 ## Creating a `KafkaProxy`
 
 ```bash
