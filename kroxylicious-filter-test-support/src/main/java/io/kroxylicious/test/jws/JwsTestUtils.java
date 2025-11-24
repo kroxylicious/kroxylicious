@@ -17,7 +17,7 @@ import org.jose4j.lang.JoseException;
 
 @SuppressWarnings("java:S2386") // Some constants are used in different packages
 public final class JwsTestUtils {
-    public static final String JWS_HEADER_NAME = "jws";
+    public static final String JWS_HEADER_NAME = "kroxylicious.io/jws";
 
     public static final String ECDSA_SIGN_JWK_JSON = "{" +
             "\"kty\": \"EC\"," +

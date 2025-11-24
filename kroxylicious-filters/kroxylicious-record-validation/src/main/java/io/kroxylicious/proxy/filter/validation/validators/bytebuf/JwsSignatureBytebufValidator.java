@@ -39,7 +39,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class JwsSignatureBytebufValidator implements BytebufValidator {
     private static final String DEFAULT_ERROR_MESSAGE = "JWS Signature could not be successfully verified";
-    private final String jwsHeaderName;
+    private final String jwsRecordHeaderKey;
 
     private static final VerificationJwkSelector jwkSelector = new VerificationJwkSelector();
 
@@ -52,10 +52,10 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
      *
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
-    public JwsSignatureBytebufValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints, String jwsHeaderName, boolean isContentDetached) {
+    public JwsSignatureBytebufValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints, String jwsRecordHeaderKey, boolean isContentDetached) {
         this.jsonWebKeySet = jsonWebKeySet;
         jws.setAlgorithmConstraints(algorithmConstraints);
-        this.jwsHeaderName = jwsHeaderName;
+        this.jwsRecordHeaderKey = jwsRecordHeaderKey;
         this.isContentDetached = isContentDetached;
     }
 
@@ -63,13 +63,13 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
     public CompletionStage<Result> validate(ByteBuffer buffer, Record record, boolean isKey) {
         Objects.requireNonNull(record);
 
-        if (record.headers().length == 0 || new RecordHeaders(record.headers()).lastHeader(jwsHeaderName) == null) {
-            String message = DEFAULT_ERROR_MESSAGE + ": valid " + jwsHeaderName + " JWS record header could not be found";
+        if (record.headers().length == 0 || new RecordHeaders(record.headers()).lastHeader(jwsRecordHeaderKey) == null) {
+            String message = DEFAULT_ERROR_MESSAGE + ": valid " + jwsRecordHeaderKey + " JWS record header could not be found";
             return CompletableFuture.completedStage(new Result(false, message));
         }
 
         try {
-            byte[] jwsHeaderValue = new RecordHeaders(record.headers()).lastHeader(jwsHeaderName).value();
+            byte[] jwsHeaderValue = new RecordHeaders(record.headers()).lastHeader(jwsRecordHeaderKey).value();
             String jwsHeaderValueString = new String(jwsHeaderValue, StandardCharsets.UTF_8);
 
             String payload = null;
