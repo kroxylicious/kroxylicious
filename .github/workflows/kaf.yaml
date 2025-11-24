@@ -28,7 +28,7 @@ jobs:
     if: ${{ vars.REGISTRY_SERVER != '' && vars.REGISTRY_USERNAME != '' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository:  ${{ github.event.inputs.repository }}
           ref: ${{ github.event.inputs.ref }}
