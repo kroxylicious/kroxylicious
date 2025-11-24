@@ -153,57 +153,47 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         }
     }
 
-    @Nullable
-    private CompletionStage<RequestFilterResult> checkRequestApiAndVersions(ApiKeys apiKey,
-                                                                            RequestHeaderData header,
-                                                                            ApiMessage request,
-                                                                            FilterContext context) {
-        if (!isApiVersionSupported(apiKey, header.requestApiVersion())) {
-            if (isApiSupported(apiKey)) {
-                LOG.warn("Filter of type {} does not support {} API version {} used in request."
-                        + " It supports version {} to {} (inclusive) of this API."
-                        + " This error is due to a misconfigured, buggy, or possibly malicious client.",
-                        getClass().getName(),
-                        apiKey,
-                        header.requestApiVersion(),
-                        minSupportedApiVersion(apiKey),
-                        maxSupportedApiVersion(apiKey));
-            }
-            else {
-                LOG.warn("Filter of type {} does not support {} API version {} used in request."
-                        + " It does not support version this API at all."
-                        + " This error is due to a misconfigured, buggy, or possibly malicious client.",
-                        getClass().getName(),
-                        apiKey,
-                        header.requestApiVersion());
-            }
-            return context.requestFilterResultBuilder()
-                    .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
-                    .completed();
-        }
-        return null;
-    }
-
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
                                                           RequestHeaderData header,
                                                           ApiMessage request,
                                                           FilterContext context) {
 
-        var usesUnsupportedApi = checkRequestApiAndVersions(apiKey,
-                header,
-                request,
-                context);
-        if (usesUnsupportedApi != null) {
-            return usesUnsupportedApi;
-        }
-
-        var enforcement = apiEnforcement.get(apiKey);
-        if (enforcement != null) {
-            return enforceRequest(header, request, context, enforcement);
+        if (isApiVersionSupported(apiKey, header.requestApiVersion())) {
+            var enforcement = apiEnforcement.get(apiKey);
+            if (enforcement != null) {
+                return enforceRequest(header, request, context, enforcement);
+            }
+            else {
+                return context.forwardRequest(header, request);
+            }
         }
         else {
-            return context.forwardRequest(header, request);
+            logUnsupportedVersion(apiKey, header);
+            return context.requestFilterResultBuilder()
+                    .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
+                    .completed();
+        }
+    }
+
+    private void logUnsupportedVersion(ApiKeys apiKey, RequestHeaderData header) {
+        if (isApiSupported(apiKey)) {
+            LOG.warn("Filter of type {} does not support {} API version {} used in request."
+                    + " It supports version {} to {} (inclusive) of this API."
+                    + " This error is due to a misconfigured, buggy, or possibly malicious client.",
+                    getClass().getName(),
+                    apiKey,
+                    header.requestApiVersion(),
+                    minSupportedApiVersion(apiKey),
+                    maxSupportedApiVersion(apiKey));
+        }
+        else {
+            LOG.warn("Filter of type {} does not support {} API version {} used in request."
+                    + " It does not support version this API at all."
+                    + " This error is due to a misconfigured, buggy, or possibly malicious client.",
+                    getClass().getName(),
+                    apiKey,
+                    header.requestApiVersion());
         }
     }
 
