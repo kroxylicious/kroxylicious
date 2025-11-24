@@ -44,7 +44,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
     private static final VerificationJwkSelector jwkSelector = new VerificationJwkSelector();
 
     private final JsonWebSignature jws = new JsonWebSignature();
-    private final JsonWebKeySet jsonWebKeySet;
+    private final JsonWebKeySet trustedJsonWebKeySet;
     private final boolean isContentDetached;
 
     /**
@@ -52,8 +52,8 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
      *
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
-    public JwsSignatureBytebufValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints, String jwsRecordHeaderKey, boolean isContentDetached) {
-        this.jsonWebKeySet = jsonWebKeySet;
+    public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AlgorithmConstraints algorithmConstraints, String jwsRecordHeaderKey, boolean isContentDetached) {
+        this.trustedJsonWebKeySet = trustedJsonWebKeySet;
         jws.setAlgorithmConstraints(algorithmConstraints);
         this.jwsRecordHeaderKey = jwsRecordHeaderKey;
         this.isContentDetached = isContentDetached;
@@ -107,7 +107,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
         }
 
         // We can only select the key after setCompactSerialization() has set the JWS's "alg" header
-        JsonWebKey jwk = jwkSelector.select(this.jws, jsonWebKeySet.getJsonWebKeys());
+        JsonWebKey jwk = jwkSelector.select(this.jws, trustedJsonWebKeySet.getJsonWebKeys());
         if (jwk == null) {
             throw new UnresolvableKeyException("Could not select valid JWK that matches the algorithm constraints");
         }

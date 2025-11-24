@@ -37,7 +37,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class JwsSignatureValidationConfig {
     private static final List<String> algorithmIdentifiersClassValues;
 
-    private final JsonWebKeySet jsonWebKeySet;
+    private final JsonWebKeySet trustedJsonWebKeySet;
     private final AlgorithmConstraints algorithmConstraints;
     private final String jwsRecordHeaderKey;
     private final boolean isContentDetached;
@@ -61,12 +61,12 @@ public class JwsSignatureValidationConfig {
      * @param nullableAlgorithms Array of {@link AlgorithmIdentifiers}.
      */
     @JsonCreator
-    public JwsSignatureValidationConfig(@JsonProperty(value = "jsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet jsonWebKeySet,
+    public JwsSignatureValidationConfig(@JsonProperty(value = "trustedJsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet trustedJsonWebKeySet,
                                         @JsonProperty(value = "algorithmConstraintType", defaultValue = "BLOCK") @Nullable AlgorithmConstraints.ConstraintType nullableAlgorithmConstraintType,
                                         @JsonProperty(value = "algorithms", defaultValue = "[]") @Nullable String[] nullableAlgorithms,
                                         @JsonProperty(value = "jwsRecordHeaderKey", defaultValue = "kroxylicious.io/jws") @Nullable String nullablejwsRecordHeaderKey,
                                         @JsonProperty(value = "isContentDetached", defaultValue = "false") boolean nullableIsContentDetached) {
-        this.jsonWebKeySet = jsonWebKeySet;
+        this.trustedJsonWebKeySet = trustedJsonWebKeySet;
 
         AlgorithmConstraints.ConstraintType algorithmConstraintType = nullableAlgorithmConstraintType != null ? nullableAlgorithmConstraintType
                 : AlgorithmConstraints.ConstraintType.BLOCK;
@@ -77,7 +77,7 @@ public class JwsSignatureValidationConfig {
     }
 
     public JsonWebKeySet getJsonWebKeySet() {
-        return jsonWebKeySet;
+        return trustedJsonWebKeySet;
     }
 
     public AlgorithmConstraints getAlgorithmConstraints() {
@@ -134,24 +134,24 @@ public class JwsSignatureValidationConfig {
             }
         }
 
-        List<JsonWebKey> keyList = jsonWebKeySet.getJsonWebKeys();
-        boolean hasSameAmountOfKeys = keyList.size() == that.jsonWebKeySet.getJsonWebKeys().size();
+        List<JsonWebKey> keyList = trustedJsonWebKeySet.getJsonWebKeys();
+        boolean hasSameAmountOfKeys = keyList.size() == that.trustedJsonWebKeySet.getJsonWebKeys().size();
         boolean allKeysFound = keyList.stream()
-                .allMatch(key -> that.jsonWebKeySet.findJsonWebKey(key.getKeyId(), key.getKeyType(), key.getUse(), key.getAlgorithm()) != null);
+                .allMatch(key -> that.trustedJsonWebKeySet.findJsonWebKey(key.getKeyId(), key.getKeyType(), key.getUse(), key.getAlgorithm()) != null);
 
         return hasSameAmountOfKeys && allKeysFound && jwsRecordHeaderKey.equals(that.jwsRecordHeaderKey) && isContentDetached == that.isContentDetached;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(jsonWebKeySet, algorithmConstraints, jwsRecordHeaderKey, isContentDetached);
+        return Objects.hash(trustedJsonWebKeySet, algorithmConstraints, jwsRecordHeaderKey, isContentDetached);
     }
 
     @Override
     public String toString() {
         // Probably best to keep this primitive in order to not leak sensitive information
         return "JwsSignatureValidationConfig{" +
-                "jsonWebKeySet=" + jsonWebKeySet +
+                "trustedJsonWebKeySet=" + trustedJsonWebKeySet +
                 ", algorithmConstraintType='" + algorithmConstraints + '\'' +
                 ", jwsRecordHeaderKey='" + jwsRecordHeaderKey + '\'' +
                 ", isContentDetached='" + isContentDetached + '\'' +
@@ -178,7 +178,7 @@ public class JwsSignatureValidationConfig {
                 jwks = new JsonWebKeySet(node.textValue());
             }
             catch (JoseException e) {
-                String message = "Could not deserialize JsonWebKeySet" + (e.getMessage() != null ? ": " + e.getMessage() : "");
+                String message = "Could not deserialize TrustedJsonWebKeySet" + (e.getMessage() != null ? ": " + e.getMessage() : "");
                 throw new JsonParseException(message);
             }
 
