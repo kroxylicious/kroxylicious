@@ -228,6 +228,9 @@ public class KafkaProxyExceptionMapper {
 
     public static AbstractResponse errorResponseForMessage(RequestHeaderData requestHeaders, ApiMessage message, ApiException apiException) {
         final short apiKey = message.apiKey();
+        // Our ListConfigResourcesRequestData is deserialized off the wire and so will only have the v0 fields populated.
+        // we can't just all errorResponse, which in turn uses a ListConfigResourcesRequest.Builder,
+        // because that builder applies some validation that's inappropriate for our purposes.
         if (apiKey == ApiKeys.LIST_CONFIG_RESOURCES.id && requestHeaders.requestApiVersion() == 0) {
             return new ListConfigResourcesResponse(new ListConfigResourcesResponseData()
                     .setErrorCode(Errors.forException(apiException).code())
