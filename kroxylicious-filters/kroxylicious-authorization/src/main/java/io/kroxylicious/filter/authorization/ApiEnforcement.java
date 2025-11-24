@@ -40,7 +40,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
  * @param <Q> The request type.
  * @param <S> The response type.
  */
-public abstract class ApiEnforcement<Q extends ApiMessage, S extends ApiMessage> {
+abstract class ApiEnforcement<Q extends ApiMessage, S extends ApiMessage> {
 
     /**
      * @return The inclusive minimum version of the range of versions supported

@@ -16,7 +16,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-public class Passthrough<Q extends ApiMessage, S extends ApiMessage> extends ApiEnforcement<Q, S> {
+class Passthrough<Q extends ApiMessage, S extends ApiMessage> extends ApiEnforcement<Q, S> {
     static short asShort(int version) {
         if (version < 0) {
             throw new IllegalArgumentException("version cannot be negative");

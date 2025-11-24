@@ -31,7 +31,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import static io.kroxylicious.filter.authorization.AuthorizedOps.clusterAuthorizedOps;
 import static io.kroxylicious.filter.authorization.AuthorizedOps.topicAuthorizedOps;
 
-public class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataResponseData> {
+class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataResponseData> {
     @Override
     short minSupportedVersion() {
         return 0;
