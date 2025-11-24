@@ -21,9 +21,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 /**
- * <p>Enforces authorization rules for a range of versions of a single API key.
- * The version range is not required to be the whole range supported by the
- * {@link AuthorizationFilter}, although that's usually the case.</p>
+ * <p>Enforces authorization rules for a range of versions of a single API key.</p>
  *
  * <p> If the request contains references
  * to access-controlled entities (such as topics) then {@link AuthorizationFilter#authorization(FilterContext, List)}
