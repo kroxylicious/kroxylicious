@@ -174,6 +174,8 @@ class AuthorizationFilterTest {
                 ApiKeys.CREATE_TOPICS,
                 ApiKeys.CREATE_PARTITIONS,
                 ApiKeys.DELETE_TOPICS,
+                ApiKeys.DELETE_RECORDS,
+                ApiKeys.DESCRIBE_PRODUCERS,
                 ApiKeys.OFFSET_DELETE,
                 ApiKeys.OFFSET_FOR_LEADER_EPOCH,
                 ApiKeys.TXN_OFFSET_COMMIT,
