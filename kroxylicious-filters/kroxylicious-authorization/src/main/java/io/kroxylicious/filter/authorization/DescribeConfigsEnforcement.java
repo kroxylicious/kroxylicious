@@ -25,7 +25,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 import static org.apache.kafka.common.resource.ResourceType.TOPIC;
 
-public class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestData, DescribeClusterResponseData> {
+class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestData, DescribeClusterResponseData> {
     @Override
     short minSupportedVersion() {
         return 1;

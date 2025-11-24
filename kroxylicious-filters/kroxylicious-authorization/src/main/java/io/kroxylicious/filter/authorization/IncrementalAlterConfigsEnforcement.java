@@ -24,7 +24,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 import static org.apache.kafka.common.resource.ResourceType.TOPIC;
 
-public class IncrementalAlterConfigsEnforcement extends ApiEnforcement<IncrementalAlterConfigsRequestData, IncrementalAlterConfigsResponseData> {
+class IncrementalAlterConfigsEnforcement extends ApiEnforcement<IncrementalAlterConfigsRequestData, IncrementalAlterConfigsResponseData> {
     @Override
     short minSupportedVersion() {
         return 0;
