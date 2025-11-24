@@ -84,7 +84,7 @@ The JWS Signature Validation rule validates that the configured Kafka record hea
 
 [source,yaml]
 ----
-jwsSignatureValidationConfig:
+jwsSignatureValidation:
     trustedJsonWebKeySet: |                                              # <1>
       {
         "keys": [

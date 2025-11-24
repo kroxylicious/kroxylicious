@@ -124,7 +124,7 @@ class ValidationConfigTest {
                   - one
                   valueRule:
                     syntacticallyCorrectJson: {}
-                    jwsSignatureValidationConfig:
+                    jwsSignatureValidation:
                         trustedJsonWebKeySet: >
                             %s
                 - topicNames:
@@ -156,7 +156,7 @@ class ValidationConfigTest {
                           valueRule:
                             syntacticallyCorrectJson:
                                 validateObjectKeysUnique: true
-                            jwsSignatureValidationConfig:
+                            jwsSignatureValidation:
                                 trustedJsonWebKeySet: >
                                     %s
                                 algorithmConstraintType: PERMIT
