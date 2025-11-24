@@ -160,7 +160,12 @@ class ApiVersionsIT {
                     .collect(Collectors.toMap(k -> ApiKeys.forId(k.apiKey()), k -> k));
             for (ApiKeys knownValue : ApiKeys.values()) {
                 assertTrue(responseVersions.containsKey(knownValue));
-                assertEquals(knownValue.oldestVersion(), responseVersions.get(knownValue).minVersion());
+                if (knownValue == ApiKeys.PRODUCE) {
+                    assertEquals(knownValue.messageType.lowestDeprecatedVersion(), responseVersions.get(knownValue).minVersion());
+                }
+                else {
+                    assertEquals(knownValue.oldestVersion(), responseVersions.get(knownValue).minVersion());
+                }
                 assertEquals(knownValue.latestVersion(), responseVersions.get(knownValue).maxVersion());
             }
         }
@@ -178,6 +183,40 @@ class ApiVersionsIT {
             ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
             version.setApiKey(ApiKeys.PRODUCE.id)
                     .setMinVersion(ApiKeys.PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION)
+                    .setMaxVersion(ApiKeys.PRODUCE.latestVersion());
+            mockResponse.apiKeys().add(version);
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+
+            // When
+            Response response = whenGetApiVersionsFromKroxylicious(client);
+
+            // Then
+            ResponsePayload payload = response.payload();
+            assertThat(payload.message())
+                    .asInstanceOf(InstanceOfAssertFactories.type(ApiVersionsResponseData.class))
+                    .satisfies(apiVersionsResponseData -> assertThat(apiVersionsResponseData.apiKeys())
+                            .singleElement()
+                            .satisfies(apiKeys -> assertThat(apiKeys)
+                                    .satisfies(apiVersion -> {
+                                        assertThat(apiVersion.apiKey()).isEqualTo(ApiKeys.PRODUCE.id);
+                                        assertThat(apiVersion.minVersion()).isEqualTo(ApiKeys.PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION);
+                                    })));
+        }
+    }
+
+    // Kafka 4 removed support for ProduceRequest v0-v2 however there is an issue with libRDKafka versions <= v2.11.0 that meant this broke compression support
+    // The proxy needs to replicate this special case handling so we can proxy older libRDKafka based clients (just about anything that isn't Java)
+    // Some Filters also manipulate versions, to avoid them all having to replicate this logic the framework will
+    // always set the minimum version for Produce to v0.
+    @Test
+    void shouldMarkProduceV0toV2AsSupportedVersionsEvenIfUpstreamDisagrees() {
+        // Given
+        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+                var client = tester.simpleTestClient()) {
+            ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
+            ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
+            version.setApiKey(ApiKeys.PRODUCE.id)
+                    .setMinVersion((short) 3)
                     .setMaxVersion(ApiKeys.PRODUCE.latestVersion());
             mockResponse.apiKeys().add(version);
             tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
