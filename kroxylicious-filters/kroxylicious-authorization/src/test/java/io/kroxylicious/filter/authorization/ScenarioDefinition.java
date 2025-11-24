@@ -11,6 +11,7 @@ import java.util.Map;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -22,7 +23,7 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
     }
 
     public record MockResponse(ApiKeys expectedRequestKey, short expectedRequestVersion, JsonNode expectedRequestHeader, JsonNode expectedRequest,
-                               JsonNode upstreamResponseHeader, JsonNode upstreamResponse) {
+                               @Nullable JsonNode upstreamResponseHeader, @Nullable JsonNode upstreamResponse) {
 
     }
 
@@ -44,6 +45,22 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
     /**
      * @param expectedResponseHeader
      * @param expectedResponse
+     * @param expectedErrorResponse in the case that we expect an error response (the message generation is a framework responsibility)
+     * @param hasResponse true if we expect a response (zero-ack produce request is the only case known with no response). default true
+     * @param expectRequestDropped true if we expect the request to be dropped. default false
      */
-    public record Then(@Nullable JsonNode expectedResponseHeader, @Nullable JsonNode expectedResponse) {}
+    public record Then(@Nullable JsonNode expectedResponseHeader,
+                       @Nullable JsonNode expectedResponse,
+                       @Nullable Errors expectedErrorResponse,
+                       @Nullable Boolean hasResponse,
+                       @Nullable Boolean expectRequestDropped) {
+
+        boolean getHasResponse() {
+            return hasResponse == null || hasResponse;
+        }
+
+        boolean isExpectRequestDropped() {
+            return expectRequestDropped != null && expectRequestDropped;
+        }
+    }
 }

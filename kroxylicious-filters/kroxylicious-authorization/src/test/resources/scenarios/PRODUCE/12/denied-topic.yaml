@@ -1,0 +1,40 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "PRODUCE"
+  apiVersion: 12
+  scenario: "all topics denied"
+given:
+  mockedUpstreamResponses: [ ]
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "WRITE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 0
+    requestApiVersion: 12
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-292"
+    acks: 1
+    timeoutMs: 141
+    topicData:
+      - name: "unauthorized"
+        partitionData:
+          - index: 134
+            records: !!binary ""
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedErrorResponse: "TOPIC_AUTHORIZATION_FAILED"

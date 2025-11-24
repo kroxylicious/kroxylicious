@@ -24,6 +24,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class MockUpstream {
@@ -64,7 +66,7 @@ public class MockUpstream {
         return mockResponses.isEmpty();
     }
 
-    public Response respond(RequestHeaderData requestHeader, ApiMessage request) {
+    public @Nullable Response respond(RequestHeaderData requestHeader, ApiMessage request) {
         ScenarioDefinition.MockResponse mockDefinition = pop();
         ApiKeys key = mockDefinition.expectedRequestKey();
         assertThat(key).isEqualTo(ApiKeys.forId(requestHeader.requestApiKey()));
@@ -74,6 +76,9 @@ public class MockUpstream {
         assertThat(toYaml(actualHeader)).isEqualTo(toYaml(mockDefinition.expectedRequestHeader()));
         JsonNode actualBody = KafkaApiMessageConverter.requestConverterFor(key.messageType).writer().apply(request, version);
         assertThat(toYaml(actualBody)).isEqualTo(toYaml(mockDefinition.expectedRequest()));
+        if (mockDefinition.upstreamResponse() == null || mockDefinition.upstreamResponseHeader() == null) {
+            return null;
+        }
         JsonNode jsonNode = mockDefinition.upstreamResponse();
         ResponseHeaderData header = ResponseHeaderDataJsonConverter.read(mockDefinition.upstreamResponseHeader(), key.requestHeaderVersion(version));
         ApiMessage responseMessage = KafkaApiMessageConverter.responseConverterFor(key.messageType).reader().apply(jsonNode, version);

@@ -89,6 +89,7 @@ class AuthorizationFilterTest {
             if (!mockUpstream.isFinished()) {
                 throw new IllegalStateException("mock upstream still has responses queued, but request was dropped by filter");
             }
+            assertThat(definition.then().isExpectRequestDropped()).isTrue();
         }
         else {
             if (!actual.shortCircuitResponse()) {
@@ -98,32 +99,50 @@ class AuthorizationFilterTest {
                 ApiMessage forwardedMessage = Objects.requireNonNull(actual.message());
                 ApiMessage forwardedHeader = Objects.requireNonNull(actual.header());
                 MockUpstream.Response response = mockUpstream.respond((RequestHeaderData) forwardedHeader, forwardedMessage);
-                MockFilterContext responseContext = new MockFilterContext(response.header(), response.message(), subject, topicNames, mockUpstream);
-                CompletionStage<ResponseFilterResult> filterResultCompletionStage = authorizationFilter.onResponse(apiKeys, response.header(), response.message(),
-                        responseContext);
-                ResponseFilterResult responseResult = assertThat(filterResultCompletionStage).succeedsWithin(Duration.ZERO).actual();
-                if (responseResult.drop()) {
-                    assertThat(definition.then().expectedResponse()).isNull();
-                    assertThat(definition.then().expectedResponseHeader()).isNull();
+                if (definition.then().getHasResponse()) {
+                    MockFilterContext responseContext = new MockFilterContext(response.header(), response.message(), subject, topicNames, mockUpstream);
+                    CompletionStage<ResponseFilterResult> filterResultCompletionStage = authorizationFilter.onResponse(apiKeys, response.header(), response.message(),
+                            responseContext);
+                    ResponseFilterResult responseResult = assertThat(filterResultCompletionStage).succeedsWithin(Duration.ZERO).actual();
+                    if (responseResult.drop()) {
+                        assertThat(definition.then().expectedResponse()).isNull();
+                        assertThat(definition.then().expectedResponseHeader()).isNull();
+                    }
+                    else {
+                        String actualMessage = toYaml(
+                                KafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(responseResult.message(), version));
+                        ApiMessage header = Objects.requireNonNull(responseResult.header());
+                        String actualHeader = toYaml(ResponseHeaderDataJsonConverter.write((ResponseHeaderData) header, apiKeys.responseHeaderVersion(version)));
+                        assertThat(actualMessage).isEqualTo(toYaml(definition.then().expectedResponse()));
+                        assertThat(actualHeader).isEqualTo(toYaml(definition.then().expectedResponseHeader()));
+                    }
                 }
                 else {
-                    String actualMessage = toYaml(KafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(responseResult.message(), version));
-                    ApiMessage header = Objects.requireNonNull(responseResult.header());
-                    String actualHeader = toYaml(ResponseHeaderDataJsonConverter.write((ResponseHeaderData) header, apiKeys.responseHeaderVersion(version)));
-                    assertThat(actualMessage).isEqualTo(toYaml(definition.then().expectedResponse()));
-                    assertThat(actualHeader).isEqualTo(toYaml(definition.then().expectedResponseHeader()));
+                    assertThat(response).isNull();
                 }
             }
             else {
                 if (!mockUpstream.isFinished()) {
                     throw new IllegalStateException("mock upstream still has responses queued, but filter short circuit responded");
                 }
-                ApiMessage forwardedMessage = Objects.requireNonNull(actual.message());
-                ApiMessage forwardedHeader = Objects.requireNonNull(actual.header());
-                String actualMessage = toYaml(KafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(forwardedMessage, version));
-                String actualHeader = toYaml(ResponseHeaderDataJsonConverter.write((ResponseHeaderData) forwardedHeader, apiKeys.responseHeaderVersion(version)));
-                assertThat(actualMessage).isEqualTo(toYaml(definition.then().expectedResponse()));
-                assertThat(actualHeader).isEqualTo(toYaml(definition.then().expectedResponseHeader()));
+                if (definition.then().expectedErrorResponse() != null) {
+                    assertThat(actual).isInstanceOfSatisfying(MockFilterContext.ErrorRequestFilterResult.class, result -> {
+                        assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception());
+                    });
+                }
+                else {
+                    if (definition.then().expectedResponseHeader() != null) {
+                        ApiMessage forwardedHeader = Objects.requireNonNull(actual.header());
+                        String actualHeader = toYaml(
+                                ResponseHeaderDataJsonConverter.write((ResponseHeaderData) forwardedHeader, apiKeys.responseHeaderVersion(version)));
+                        assertThat(actualHeader).isEqualTo(toYaml(definition.then().expectedResponseHeader()));
+                    }
+                    if (definition.then().expectedResponse() != null) {
+                        ApiMessage forwardedMessage = Objects.requireNonNull(actual.message());
+                        String actualMessage = toYaml(KafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(forwardedMessage, version));
+                        assertThat(actualMessage).isEqualTo(toYaml(definition.then().expectedResponse()));
+                    }
+                }
             }
         }
         if (!mockUpstream.isFinished()) {

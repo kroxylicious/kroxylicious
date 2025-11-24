@@ -235,7 +235,7 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
         @Override
         public CloseOrTerminalStage<RequestFilterResult> errorResponse(@NonNull RequestHeaderData header, @NonNull ApiMessage message, @NonNull ApiException apiException)
                 throws IllegalArgumentException {
-            throw new IllegalArgumentException();
+            return new ErrorCloseOrTerminalStage(header, message, apiException, false);
         }
 
         @NonNull
@@ -254,6 +254,38 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
         @Override
         public TerminalStage<RequestFilterResult> withCloseConnection() {
             return new RequestTerminalStage(new MockRequestFilterResult(false, null, null, true, false));
+        }
+
+        private record ErrorCloseOrTerminalStage(RequestHeaderData header, ApiMessage message, ApiException apiException, boolean closeConnection)
+                implements CloseOrTerminalStage<RequestFilterResult> {
+            @Override
+            public TerminalStage<RequestFilterResult> withCloseConnection() {
+                return new ErrorCloseOrTerminalStage(header, message, apiException, true);
+            }
+
+            @Override
+            public RequestFilterResult build() {
+                return new ErrorRequestFilterResult(header, message, apiException, closeConnection);
+            }
+
+            @Override
+            public CompletionStage<RequestFilterResult> completed() {
+                return CompletableFuture.completedFuture(build());
+            }
+
+        }
+    }
+
+    record ErrorRequestFilterResult(RequestHeaderData header, ApiMessage message, ApiException apiException, boolean closeConnection)
+            implements RequestFilterResult {
+        @Override
+        public boolean shortCircuitResponse() {
+            return true;
+        }
+
+        @Override
+        public boolean drop() {
+            return false;
         }
     }
 }

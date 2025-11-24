@@ -8,7 +8,7 @@
 metadata:
   apiKeys: "PRODUCE"
   apiVersion: 12
-  scenario: "baseline"
+  scenario: "allowed topic is forwarded upstream"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "PRODUCE"
