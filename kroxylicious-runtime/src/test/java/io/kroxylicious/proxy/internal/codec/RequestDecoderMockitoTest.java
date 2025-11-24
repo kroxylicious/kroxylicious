@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal.codec;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,6 +58,7 @@ class RequestDecoderMockitoTest {
 
         // Then
         verify(frameBuffer).readerIndex(initialIndex);
+
     }
 
     @SuppressWarnings("DataFlowIssue")
@@ -69,6 +71,7 @@ class RequestDecoderMockitoTest {
         when(frameBuffer.readInt()).thenReturn(10);
         when(frameBuffer.readableBytes()).thenReturn(20);
         when(frameBuffer.readSlice(anyInt())).thenReturn(frameSlice);
+        when(frameSlice.readShort()).thenReturn(ApiKeys.API_VERSIONS.id, (short) 0);
 
         List<Object> messageReceiver = new ArrayList<>();
 
@@ -77,6 +80,5 @@ class RequestDecoderMockitoTest {
         assertThatThrownBy(() -> kafkaRequestDecoder.decode(null, frameBuffer, messageReceiver))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("decodeHeaderAndBody did not read all of the buffer");
-
     }
 }
