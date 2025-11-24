@@ -174,11 +174,11 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
         if (multiKeyJwks) {
             jwsConfig = Map.of("jsonWebKeySet", RSA_AND_ECDSA_VERIFY_JWKS.toJson(), "algorithmConstraintType", "PERMIT", "algorithms", List.of("ES256", "RS256"),
-                    "jwsHeaderName",
+                    "jwsRecordHeaderKey",
                     JWS_HEADER_NAME, "isContentDetached", contentDetached);
         }
         else {
-            jwsConfig = Map.of("jsonWebKeySet", ECDSA_VERIFY_JWKS.toJson(), "algorithmConstraintType", "PERMIT", "algorithms", List.of("ES256"), "jwsHeaderName",
+            jwsConfig = Map.of("jsonWebKeySet", ECDSA_VERIFY_JWKS.toJson(), "algorithmConstraintType", "PERMIT", "algorithms", List.of("ES256"), "jwsRecordHeaderKey",
                     JWS_HEADER_NAME, "isContentDetached", contentDetached);
         }
 
