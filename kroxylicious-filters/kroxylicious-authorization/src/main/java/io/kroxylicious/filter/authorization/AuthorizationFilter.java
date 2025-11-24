@@ -50,8 +50,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     static Map<ApiKeys, ApiEnforcement<?, ?>> apiEnforcement = new EnumMap<>(ApiKeys.class);
 
     static {
-        // This filter "fails closed", rejecting all (apikey, apiversions)-combinations which is doesn't understand
-        // because a new api or version could introduce a reference to some authorizable entity, like a topic,
+        // This filter "fails closed", rejecting all (apikey, apiversions)-combinations which it doesn't understand.
+        // That's because a new API or version could introduce a reference to some authorizable entity, like a topic,
         // which would result in information disclosure because this filter was not applying authz.
         apiEnforcement.put(ApiKeys.API_VERSIONS, new Passthrough<ApiVersionsRequestData, ApiVersionsResponseData>(0, 4) {
             @Override
