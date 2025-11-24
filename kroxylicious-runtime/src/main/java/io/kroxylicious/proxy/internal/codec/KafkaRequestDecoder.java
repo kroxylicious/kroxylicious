@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -70,15 +71,20 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         final RequestFrame frame;
         if (decodeRequest) {
             short highestProxyVersion = apiVersionsService.latestVersion(apiKey);
+            short oldestProxyVersion = apiKey.oldestVersion();
             boolean clientAheadOfProxy = apiVersion > highestProxyVersion;
+            boolean proxyAheadOfClient = apiVersion < oldestProxyVersion;
             if (clientAheadOfProxy) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
                     return createV0ApiVersionRequestFrame(ctx, correlationId);
                 }
                 else {
-                    log().error("{}: apiVersion {} for {} ahead of proxy maximum: {}", ctx, apiVersion, apiKey, highestProxyVersion);
-                    throw new IllegalStateException("client apiVersion " + apiVersion + " ahead of proxy maximum " + highestProxyVersion + " for api key: " + apiKey);
+                    throw new UnsupportedVersionException(
+                            "client apiVersion " + apiVersion + " ahead of proxy maximum " + highestProxyVersion + " for api key: " + apiKey);
                 }
+            }
+            else if (proxyAheadOfClient) {
+                throw new UnsupportedVersionException("client apiVersion " + apiVersion + " below proxy minimum " + oldestProxyVersion + " for api key: " + apiKey);
             }
             DecodedBufer result = decodeRequest(ctx, in, headerVersion, sof);
             ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, result.accessor());
