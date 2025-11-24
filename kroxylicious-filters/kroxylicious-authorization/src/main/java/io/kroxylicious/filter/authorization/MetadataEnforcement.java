@@ -175,6 +175,9 @@ public class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, Met
                                                      FilterContext context,
                                                      AuthorizationFilter authorizationFilter) {
         var completer = authorizationFilter.popInflightState(header, MetadataCompleter.class);
+        if (completer == null) {
+            throw new IllegalStateException("No MetadataCompleter found for correlationId: " + header.correlationId());
+        }
         List<Action> actions = new ArrayList<>();
         if (completer.includeClusterAuthorizedOperations()) {
             for (var clusterOp : ClusterResource.values()) {
