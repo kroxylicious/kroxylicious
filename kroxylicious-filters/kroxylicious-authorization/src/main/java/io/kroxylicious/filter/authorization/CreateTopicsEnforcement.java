@@ -21,7 +21,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-public class CreateTopicsEnforcement extends ApiEnforcement<CreateTopicsRequestData, CreateTopicsResponseData> {
+class CreateTopicsEnforcement extends ApiEnforcement<CreateTopicsRequestData, CreateTopicsResponseData> {
 
     @Override
     short minSupportedVersion() {

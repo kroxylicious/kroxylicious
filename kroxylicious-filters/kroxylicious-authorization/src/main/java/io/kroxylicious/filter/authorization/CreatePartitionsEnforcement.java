@@ -19,7 +19,7 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-public class CreatePartitionsEnforcement extends ApiEnforcement<CreatePartitionsRequestData, CreatePartitionsResponseData> {
+class CreatePartitionsEnforcement extends ApiEnforcement<CreatePartitionsRequestData, CreatePartitionsResponseData> {
 
     @Override
     short minSupportedVersion() {

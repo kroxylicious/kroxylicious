@@ -20,7 +20,7 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-public class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, OffsetDeleteResponseData> {
+class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, OffsetDeleteResponseData> {
     @Override
     short minSupportedVersion() {
         return 0;
