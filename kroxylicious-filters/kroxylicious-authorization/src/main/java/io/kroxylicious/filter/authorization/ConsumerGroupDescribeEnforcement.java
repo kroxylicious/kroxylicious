@@ -29,7 +29,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-public class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescribeRequestData, ConsumerGroupDescribeResponseData> {
+class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescribeRequestData, ConsumerGroupDescribeResponseData> {
 
     public static final List<Function<Member, Assignment>> ALL_ASSIGNMENTS = List.of(Member::assignment, Member::targetAssignment);
 

@@ -26,7 +26,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-public class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPartitionsRequestData, DescribeTopicPartitionsResponseData> {
+class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPartitionsRequestData, DescribeTopicPartitionsResponseData> {
     @Override
     short minSupportedVersion() {
         return 0;

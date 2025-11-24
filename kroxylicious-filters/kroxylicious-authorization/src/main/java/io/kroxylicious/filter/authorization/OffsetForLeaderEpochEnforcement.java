@@ -24,7 +24,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import static org.apache.kafka.common.requests.OffsetsForLeaderEpochResponse.UNDEFINED_EPOCH;
 import static org.apache.kafka.common.requests.OffsetsForLeaderEpochResponse.UNDEFINED_EPOCH_OFFSET;
 
-public class OffsetForLeaderEpochEnforcement extends ApiEnforcement<OffsetForLeaderEpochRequestData, OffsetForLeaderEpochResponseData> {
+class OffsetForLeaderEpochEnforcement extends ApiEnforcement<OffsetForLeaderEpochRequestData, OffsetForLeaderEpochResponseData> {
     // lowest supported by proxy
     @Override
     short minSupportedVersion() {

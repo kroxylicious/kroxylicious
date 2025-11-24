@@ -23,7 +23,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 import static java.util.function.Function.identity;
 
-public class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHeartbeatRequestData, ConsumerGroupHeartbeatResponseData> {
+class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHeartbeatRequestData, ConsumerGroupHeartbeatResponseData> {
     @Override
     short minSupportedVersion() {
         return 0;

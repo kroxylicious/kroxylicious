@@ -22,7 +22,7 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-public class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestData, TxnOffsetCommitResponseData> {
+class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestData, TxnOffsetCommitResponseData> {
     @Override
     short minSupportedVersion() {
         return 0;
