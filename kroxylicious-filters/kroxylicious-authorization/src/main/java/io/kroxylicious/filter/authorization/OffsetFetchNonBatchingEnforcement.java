@@ -23,7 +23,7 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-public class OffsetFetchNonBatchingEnforcement extends ApiEnforcement<OffsetFetchRequestData, OffsetFetchResponseData> {
+class OffsetFetchNonBatchingEnforcement extends ApiEnforcement<OffsetFetchRequestData, OffsetFetchResponseData> {
     // lowest version supported by proxy
     @Override
     short minSupportedVersion() {

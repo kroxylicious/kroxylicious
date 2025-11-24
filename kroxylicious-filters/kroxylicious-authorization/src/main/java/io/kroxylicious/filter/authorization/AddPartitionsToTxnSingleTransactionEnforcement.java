@@ -23,7 +23,7 @@ import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-public class AddPartitionsToTxnSingleTransactionEnforcement extends ApiEnforcement<AddPartitionsToTxnRequestData, AddPartitionsToTxnResponseData> {
+class AddPartitionsToTxnSingleTransactionEnforcement extends ApiEnforcement<AddPartitionsToTxnRequestData, AddPartitionsToTxnResponseData> {
     @Override
     short minSupportedVersion() {
         return 0;
