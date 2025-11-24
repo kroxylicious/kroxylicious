@@ -184,7 +184,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
                 List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
-                        Map.of("jwsSignatureValidationConfig", jwsConfig))))
+                        Map.of("jwsSignatureValidation", jwsConfig))))
                 .build();
 
         return proxy(cluster)
