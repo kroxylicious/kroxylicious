@@ -4,7 +4,7 @@
 // A Renovate rule will update the strimzi-version but not kafka-version. Update the kafka-version to the point
 // at the latest kafka version supported by that strimzi.
 :strimzi-version: 0.49.0
-:kafka-version: 4.0.0
+:kafka-version: 4.1.1
 :kafka-image: quay.io/strimzi/kafka:{strimzi-version}-kafka-{kafka-version}
 
 include::_assets/attributes.adoc[]
