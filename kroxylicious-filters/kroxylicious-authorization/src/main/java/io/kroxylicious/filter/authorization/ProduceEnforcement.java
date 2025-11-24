@@ -18,7 +18,7 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-public class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceResponseData> {
+class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceResponseData> {
     @Override
     short minSupportedVersion() {
         return 3;
