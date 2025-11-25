@@ -12,7 +12,6 @@ import java.util.concurrent.CompletionStage;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;

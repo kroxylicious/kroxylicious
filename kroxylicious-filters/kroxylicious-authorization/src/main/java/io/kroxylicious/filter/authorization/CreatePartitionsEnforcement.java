@@ -6,13 +6,11 @@
 
 package io.kroxylicious.filter.authorization;
 
-import java.util.List;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.CreatePartitionsRequestData;
 import org.apache.kafka.common.message.CreatePartitionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
