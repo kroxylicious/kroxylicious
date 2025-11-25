@@ -175,11 +175,11 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         if (multiKeyJwks) {
             jwsConfig = Map.of("trustedJsonWebKeySet", RSA_AND_ECDSA_VERIFY_JWKS.toJson(), "algorithmConstraintType", "PERMIT", "algorithms", List.of("ES256", "RS256"),
                     "jwsRecordHeaderKey",
-                    JWS_HEADER_NAME, "isContentDetached", contentDetached);
+                    JWS_HEADER_NAME, "contentDetached", contentDetached);
         }
         else {
             jwsConfig = Map.of("trustedJsonWebKeySet", ECDSA_VERIFY_JWKS.toJson(), "algorithmConstraintType", "PERMIT", "algorithms", List.of("ES256"), "jwsRecordHeaderKey",
-                    JWS_HEADER_NAME, "isContentDetached", contentDetached);
+                    JWS_HEADER_NAME, "contentDetached", contentDetached);
         }
 
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",

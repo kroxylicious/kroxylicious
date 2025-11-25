@@ -166,7 +166,7 @@ class ValidationConfigTest {
                                         - ES256
                                         - RS256
                                 jwsRecordHeaderKey: kroxylicious.io/jws
-                                isContentDetached: true
+                                contentDetached: true
                             allowNulls: false
                             allowEmpty: true
                         - topicNames:
