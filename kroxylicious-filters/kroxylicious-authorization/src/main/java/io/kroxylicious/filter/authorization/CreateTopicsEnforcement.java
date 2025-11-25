@@ -51,7 +51,8 @@ class CreateTopicsEnforcement extends ApiEnforcement<CreateTopicsRequestData, Cr
                     var allowedTopics = decisions.get(Decision.ALLOW);
                     if (allowedTopics.isEmpty()) {
                         // Shortcircuit if there are no allowed topics
-                        CreateTopicsResponseData.CreatableTopicResultCollection creatableTopics = new CreateTopicsResponseData.CreatableTopicResultCollection(deniedTopics.size());
+                        CreateTopicsResponseData.CreatableTopicResultCollection creatableTopics = new CreateTopicsResponseData.CreatableTopicResultCollection(
+                                deniedTopics.size());
                         deniedTopics.stream()
                                 .map(ct -> topicAuthzFailed(header.requestApiVersion(), ct))
                                 .forEach(creatableTopics::mustAdd);
