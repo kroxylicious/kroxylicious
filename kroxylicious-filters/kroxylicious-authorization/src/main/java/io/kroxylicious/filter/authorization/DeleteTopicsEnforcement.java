@@ -41,8 +41,6 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
 
     @Override
     short maxSupportedVersion() {
-        // DELETE_TOPICS: v6 allows topic ids: It's better to force the client to use v5 than fail a v6 later on
-        // when the client goes ahead and uses topic ids
         return 6;
     }
 

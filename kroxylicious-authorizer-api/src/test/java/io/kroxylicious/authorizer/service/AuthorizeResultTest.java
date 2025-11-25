@@ -70,4 +70,13 @@ class AuthorizeResultTest {
                         Decision.DENY, List.of(new Widget("bar"), new Widget("baz"))));
     }
 
+    @Test
+    void shouldDenyIfPartitionFnReturnsNull() {
+        Assertions.assertThat(result.partition(List.of(new Widget("foo"), new Widget("bar"), new Widget("baz")),
+                TestResource.SQUIDGE,
+                name -> name.name().equals("foo") ? null : name.name())).
+                isEqualTo(Map.of(Decision.ALLOW, List.of(),
+                Decision.DENY, List.of(new Widget("foo"), new Widget("bar"), new Widget("baz"))));
+    }
+
 }
