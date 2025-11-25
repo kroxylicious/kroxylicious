@@ -32,6 +32,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescribeRequestData, ConsumerGroupDescribeResponseData> {
 
     public static final List<Function<Member, Assignment>> ALL_ASSIGNMENTS = List.of(Member::assignment, Member::targetAssignment);
+    private static final String AUTHZ_FAILED_MSG = "The group has described topic(s) that the client is not authorized to describe.";
 
     @Override
     short minSupportedVersion() {
@@ -72,7 +73,7 @@ class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescr
                     DescribedGroup e = new DescribedGroup()
                             .setGroupId(denied.groupId())
                             .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                            .setErrorMessage("The group has described topic(s) that the client is not authorized to describe.")
+                            .setErrorMessage(AUTHZ_FAILED_MSG)
                             .setMembers(List.of());
                     response.groups().add(e);
                 });

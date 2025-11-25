@@ -72,11 +72,11 @@ class CompositeEnforcementTest {
     @Test
     void shouldDetectDisjointRange() {
         // Given
-        List<ApiEnforcement<ApiMessage, ApiMessage>> overlappingVersions = List.of(new StubApiEnforcement(ONE, ONE), new StubApiEnforcement(THREE, FOUR));
+        List<ApiEnforcement<ApiMessage, ApiMessage>> disjointVersions = List.of(new StubApiEnforcement(ONE, ONE), new StubApiEnforcement(THREE, FOUR));
 
         // When
         // Then
-        assertThatThrownBy(() -> new CompositeEnforcement<>(overlappingVersions))
+        assertThatThrownBy(() -> new CompositeEnforcement<>(disjointVersions))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Api version range support must be contiguous");
     }

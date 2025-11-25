@@ -49,6 +49,7 @@ class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHear
                 if (!denied.isEmpty()) {
                     ConsumerGroupHeartbeatResponseData message = new ConsumerGroupHeartbeatResponseData();
                     message.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
+                    // Note the broker does not set an error message for this error code, and we copy that behaviour.
                     return context.requestFilterResultBuilder().shortCircuitResponse(message).completed();
                 }
                 return context.forwardRequest(header, request);

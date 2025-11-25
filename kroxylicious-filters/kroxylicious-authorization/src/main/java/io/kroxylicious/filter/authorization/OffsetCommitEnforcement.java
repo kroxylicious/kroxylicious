@@ -21,6 +21,9 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, OffsetCommitResponseData> {
+
+    public static final int LAST_VERSION_WITH_TOPIC_NAMES = 9;
+
     @Override
     short minSupportedVersion() {
         return 2;
@@ -28,7 +31,7 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
 
     @Override
     short maxSupportedVersion() {
-        return 9; // doesn't currently support topicids
+        return LAST_VERSION_WITH_TOPIC_NAMES; // doesn't currently support topicids
     }
 
     @Override

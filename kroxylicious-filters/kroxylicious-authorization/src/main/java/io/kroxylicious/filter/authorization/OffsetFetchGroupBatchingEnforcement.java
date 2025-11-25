@@ -32,6 +32,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 public class OffsetFetchGroupBatchingEnforcement extends ApiEnforcement<OffsetFetchRequestData, OffsetFetchResponseData> {
 
     public static final short FIRST_VERSION_USING_GROUP_BATCHING = 8;
+    public static final int LAST_VERSION_WITH_TOPIC_NAMES = 9;
 
     @Override
     short minSupportedVersion() {
@@ -41,7 +42,7 @@ public class OffsetFetchGroupBatchingEnforcement extends ApiEnforcement<OffsetFe
     // last version before switching to topic ids
     @Override
     short maxSupportedVersion() {
-        return 9;
+        return LAST_VERSION_WITH_TOPIC_NAMES;
     }
 
     @Override
