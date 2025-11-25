@@ -161,7 +161,7 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
                     // using method reference is failing to compile on JDK17, see JDK-8268312
                     .forEach(topicResults::mustAdd);
             errorStates.stream()
-                    .map(topicState -> getDeletableTopicResult(mapping, topicState, apiVersion))
+                    .map(topicState -> deletableTopicResult(mapping, topicState, apiVersion))
                     // using method reference is failing to compile on JDK17, see JDK-8268312
                     .forEach(topicResults::mustAdd);
             return context.requestFilterResultBuilder()
@@ -175,7 +175,7 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
             request.setTopics(okStates);
             authorizationFilter.pushInflightState(header, (DeleteTopicsResponseData response) -> {
                 response.responses().addAll(errorStates.stream()
-                        .map(topicState -> getDeletableTopicResult(mapping, topicState, apiVersion)).toList());
+                        .map(topicState -> deletableTopicResult(mapping, topicState, apiVersion)).toList());
                 return response;
             });
             return context.forwardRequest(header, request);
@@ -189,7 +189,7 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
                     .stream().map(topicState -> errorResult(apiVersion, topicState, Errors.TOPIC_AUTHORIZATION_FAILED))
                     .toList();
             var errored = errorStates.stream()
-                    .map(topicState -> getDeletableTopicResult(mapping, topicState, apiVersion)).toList();
+                    .map(topicState -> deletableTopicResult(mapping, topicState, apiVersion)).toList();
             authorizationFilter.pushInflightState(header, (DeleteTopicsResponseData response) -> {
                 response.responses().addAll(denied);
                 response.responses().addAll(errored);
@@ -199,9 +199,9 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
         }
     }
 
-    private static DeleteTopicsResponseData.DeletableTopicResult getDeletableTopicResult(TopicNameMapping mapping,
-                                                                                         DeleteTopicsRequestData.DeleteTopicState topicState,
-                                                                                         short apiVersion) {
+    private static DeleteTopicsResponseData.DeletableTopicResult deletableTopicResult(TopicNameMapping mapping,
+                                                                                      DeleteTopicsRequestData.DeleteTopicState topicState,
+                                                                                      short apiVersion) {
         var exception = mapping.failures().getOrDefault(topicState.topicId(), new TopicNameMappingException(Errors.UNKNOWN_SERVER_ERROR));
         return errorResult(apiVersion, topicState, exception.getError());
     }
