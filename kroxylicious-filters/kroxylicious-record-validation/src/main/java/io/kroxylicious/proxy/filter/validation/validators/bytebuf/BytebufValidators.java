@@ -10,8 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwk.JsonWebKeySet;
+
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 /**
  * Static factory methods for creating/getting {@link BytebufValidator} instances
@@ -65,9 +66,9 @@ public class BytebufValidators {
      * get validator that validates if a record contains a valid JWS (JSON Web Signature) Signature
      * @return validator
      */
-    public static BytebufValidator jwsSignatureValidator(JsonWebKeySet trustedJsonWebKeySet, AlgorithmConstraints algorithmConstraints, String jwsRecordHeaderKey,
+    public static BytebufValidator jwsSignatureValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> allowedAndDeniedAlgorithms, String jwsRecordHeaderKey,
                                                          boolean isContentDetached) {
-        return new JwsSignatureBytebufValidator(trustedJsonWebKeySet, algorithmConstraints, jwsRecordHeaderKey, isContentDetached);
+        return new JwsSignatureBytebufValidator(trustedJsonWebKeySet, allowedAndDeniedAlgorithms, jwsRecordHeaderKey, isContentDetached);
     }
 
     /**

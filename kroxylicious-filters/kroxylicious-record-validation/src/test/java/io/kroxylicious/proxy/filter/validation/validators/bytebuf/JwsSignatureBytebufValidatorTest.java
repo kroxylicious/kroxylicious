@@ -9,14 +9,16 @@ package io.kroxylicious.proxy.filter.validation.validators.bytebuf;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
-import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jws.AlgorithmIdentifiers;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
@@ -36,11 +38,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class JwsSignatureBytebufValidatorTest {
     // Recommended algorithms from https://datatracker.ietf.org/doc/html/rfc7518#section-3.1
-    private static final AlgorithmConstraints PERMIT_ES256 = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT,
-            AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256);
-    private static final AlgorithmConstraints PERMIT_RS256 = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT, AlgorithmIdentifiers.RSA_USING_SHA256);
-    private static final AlgorithmConstraints PERMIT_ES256_AND_RS256 = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT,
-            AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256);
+    private static final AllowDeny<String> PERMIT_ES256 = new AllowDeny<>(List.of(AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256), Set.of());
+    private static final AllowDeny<String> PERMIT_RS256 = new AllowDeny<>(List.of(AlgorithmIdentifiers.RSA_USING_SHA256), Set.of());
+    private static final AllowDeny<String> PERMIT_ES256_AND_RS256 = new AllowDeny<>(List.of(AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256), Set.of());
+    private static final AllowDeny<String> PERMIT_ALL = new AllowDeny<>(List.of(), Set.of("not-an-algorithm"));
 
     private static final byte[] EMPTY = new byte[0];
 
@@ -70,7 +71,7 @@ public class JwsSignatureBytebufValidatorTest {
     void jwsSignedWithEcdsaJwkAndJwsSignedWithRsaJwkBothPassValidationWithNoConstraints() {
         Record ecdsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
 
-        BytebufValidator ecdsaValidator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, AlgorithmConstraints.NO_CONSTRAINTS, JWS_HEADER_NAME, false);
+        BytebufValidator ecdsaValidator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ALL, JWS_HEADER_NAME, false);
         CompletionStage<Result> ecdsaFuture = ecdsaValidator.validate(ecdsaRecord.value(), ecdsaRecord, false);
 
         assertThat(ecdsaFuture)
@@ -79,7 +80,7 @@ public class JwsSignatureBytebufValidatorTest {
 
         Record rsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK));
 
-        BytebufValidator rsaValidator = BytebufValidators.jwsSignatureValidator(RSA_VERIFY_JWKS, AlgorithmConstraints.NO_CONSTRAINTS, JWS_HEADER_NAME, false);
+        BytebufValidator rsaValidator = BytebufValidators.jwsSignatureValidator(RSA_VERIFY_JWKS, PERMIT_ALL, JWS_HEADER_NAME, false);
         CompletionStage<Result> rsaFuture = rsaValidator.validate(rsaRecord.value(), rsaRecord, false);
 
         assertThat(rsaFuture)

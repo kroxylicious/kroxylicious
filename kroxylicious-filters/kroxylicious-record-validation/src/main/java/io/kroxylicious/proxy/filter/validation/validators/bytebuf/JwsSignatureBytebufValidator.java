@@ -8,7 +8,10 @@ package io.kroxylicious.proxy.filter.validation.validators.bytebuf;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -18,10 +21,12 @@ import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwk.JsonWebKey;
 import org.jose4j.jwk.JsonWebKeySet;
 import org.jose4j.jwk.VerificationJwkSelector;
+import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.lang.JoseException;
 import org.jose4j.lang.UnresolvableKeyException;
 
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -52,11 +57,13 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
      *
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
-    public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AlgorithmConstraints algorithmConstraints, String jwsRecordHeaderKey, boolean isContentDetached) {
+    public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> allowedAndDeniedAlgorithms, String jwsRecordHeaderKey, boolean isContentDetached) {
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
-        jws.setAlgorithmConstraints(algorithmConstraints);
         this.jwsRecordHeaderKey = jwsRecordHeaderKey;
         this.isContentDetached = isContentDetached;
+
+        AlgorithmConstraints algorithmConstraints = extractAlgorithmConstraints(allowedAndDeniedAlgorithms);
+        jws.setAlgorithmConstraints(algorithmConstraints);
     }
 
     @Override
@@ -115,5 +122,33 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
         this.jws.setKey(jwk.getKey());
 
         return this.jws.verifySignature();
+    }
+
+    /**
+     * Convert an {@link AllowDeny} containing {@link AlgorithmIdentifiers} into {@link AlgorithmConstraints} using the following strategy (null -> empty):
+     *
+     * <ul>
+     *     <li>If both {@link AllowDeny#allowed()} and {@link AllowDeny#denied()} are empty: block all algorithms.</li>
+     *     <li>If only {@link AllowDeny#allowed()} is filled: only allow the algorithms in {@link AllowDeny#allowed()}.</li>
+     *     <li>If only {@link AllowDeny#denied()} is filled: allow all algorithms except the ones in {@link AllowDeny#denied()}.</li>
+     *     <li>If both {@link AllowDeny#allowed()} and {@link AllowDeny#denied()} are filled: only allow the algorithms in {@link AllowDeny#allowed()}.</li>
+     * </ul>
+     *
+     * @param allowedAndDeniedAlgorithms An {@link AllowDeny} containing {@link AlgorithmIdentifiers}.
+     * @return The {@link AlgorithmConstraints} equivalent of the passed {@link AllowDeny}.
+     */
+    private static AlgorithmConstraints extractAlgorithmConstraints(AllowDeny<String> allowedAndDeniedAlgorithms) {
+        String[] allowedAlgorithms = Optional.ofNullable(allowedAndDeniedAlgorithms.allowed()).orElse(List.of()).toArray(new String[0]);
+        String[] deniedAlgorithms = Optional.ofNullable(allowedAndDeniedAlgorithms.denied()).orElse(Set.of()).toArray(new String[0]);
+
+        AlgorithmConstraints.ConstraintType constraintType = AlgorithmConstraints.ConstraintType.PERMIT;
+        String[] algorithms = allowedAlgorithms;
+
+        if (allowedAlgorithms.length == 0 && deniedAlgorithms.length > 0) {
+            constraintType = AlgorithmConstraints.ConstraintType.BLOCK;
+            algorithms = deniedAlgorithms;
+        }
+
+        return new AlgorithmConstraints(constraintType, algorithms);
     }
 }
