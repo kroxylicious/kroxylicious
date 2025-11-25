@@ -8,7 +8,11 @@
 metadata:
   apiKeys: "OFFSET_COMMIT"
   apiVersion: 9
-  scenario: "baseline"
+  scenario: |
+    request contains some allowed topics and some denied
+    allowed topics are forwarded upstream
+    denied topics are not forwarded upstream
+    denied topic errors are augmented into response to client
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "OFFSET_COMMIT"
@@ -65,6 +69,12 @@ when:
             committedOffset: 825
             committedLeaderEpoch: 251
             committedMetadata: "random-string-0"
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 61
+            committedOffset: 825
+            committedLeaderEpoch: 251
+            committedMetadata: "random-string-0"
 then:
   expectedResponseHeader:
     correlationId: 1
@@ -75,3 +85,8 @@ then:
         partitions:
           - partitionIndex: 399
             errorCode: 94
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 61
+            errorCode: 29
+

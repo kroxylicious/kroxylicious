@@ -1,0 +1,99 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_FETCH"
+  apiVersion: 9
+  scenario: |
+    request contains some allowed topics and some denied
+    allowed topics are forwarded upstream
+    denied topics are not forwarded upstream
+    denied topic errors are augmented into response to client
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_FETCH"
+      expectedRequestVersion: 9
+      expectedRequestHeader:
+        requestApiKey: 9
+        requestApiVersion: 9
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groups:
+          - groupId: "group"
+            memberId: "random-string-641"
+            memberEpoch: 990
+            topics:
+              - name: "my-topic"
+                partitionIndexes:
+                  - 639
+        requireStable: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 712
+        groups:
+          - groupId: "group"
+            topics:
+              - name: "my-topic"
+                partitions:
+                  - partitionIndex: 65
+                    committedOffset: 845
+                    committedLeaderEpoch: 240
+                    metadata: "random-string-576"
+                    errorCode: 1010
+            errorCode: 162
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 9
+    requestApiVersion: 9
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groups:
+      - groupId: "group"
+        memberId: "random-string-641"
+        memberEpoch: 990
+        topics:
+          - name: "my-topic"
+            partitionIndexes:
+              - 639
+          - name: "unauthorized"
+            partitionIndexes:
+              - 639
+    requireStable: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 712
+    groups:
+      - groupId: "group"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 65
+                committedOffset: 845
+                committedLeaderEpoch: 240
+                metadata: "random-string-576"
+                errorCode: 1010
+          - name: "unauthorized"
+            partitions:
+              - partitionIndex: 639
+                committedOffset: -1
+                committedLeaderEpoch: -1
+                metadata: ""
+                errorCode: 29
+        errorCode: 162

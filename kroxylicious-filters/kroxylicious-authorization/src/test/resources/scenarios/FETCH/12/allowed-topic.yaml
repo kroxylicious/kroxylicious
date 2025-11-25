@@ -8,7 +8,7 @@
 metadata:
   apiKeys: "FETCH"
   apiVersion: 12
-  scenario: "baseline"
+  scenario: "all topics in request are allowed"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "FETCH"
