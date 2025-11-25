@@ -7,18 +7,15 @@
 package io.kroxylicious.proxy.filter.validation.config;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwk.JsonWebKey;
 import org.jose4j.jwk.JsonWebKeySet;
 import org.jose4j.jws.AlgorithmIdentifiers;
-import org.jose4j.lang.InvalidAlgorithmException;
 import org.jose4j.lang.JoseException;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -37,28 +34,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * Configuration for validating a {@link org.apache.kafka.common.record.Record} contains a valid {@link org.jose4j.jws.JsonWebSignature} Signature.
  */
-@SuppressWarnings("java:S112") // Needed in static block
 public class JwsSignatureValidationConfig {
-    private static final List<String> algorithmIdentifiersClassValues;
-
     private final JsonWebKeySet trustedJsonWebKeySet;
-    private final AlgorithmConstraints algorithmConstraints;
+    private final AllowDeny<String> allowedAndDeniedAlgorithms;
     private final String jwsRecordHeaderKey;
     private final boolean isContentDetached;
-
-    static {
-        @SuppressWarnings("java:S2440") // Needed for reflection
-        Object algorithmIdentifiers = new AlgorithmIdentifiers();
-        Field[] declaredFields = algorithmIdentifiers.getClass().getDeclaredFields();
-        algorithmIdentifiersClassValues = Arrays.stream(declaredFields).map(field -> {
-            try {
-                return field.get(algorithmIdentifiers).toString();
-            }
-            catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
-        }).toList();
-    }
 
     /**
      * Construct JwsSignatureValidationConfig
@@ -71,46 +51,18 @@ public class JwsSignatureValidationConfig {
                                         @JsonProperty(value = "contentDetached", defaultValue = "false") boolean nullableIsContentDetached) {
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
 
-        this.algorithmConstraints = nullableAlgorithms != null ? extractAlgorithmConstraints(nullableAlgorithms) : new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT);
+        this.allowedAndDeniedAlgorithms = nullableAlgorithms != null ? nullableAlgorithms : new AllowDeny<>(List.of(), Set.of());
 
         this.jwsRecordHeaderKey = nullablejwsRecordHeaderKey != null ? nullablejwsRecordHeaderKey : "kroxylicious.io/jws";
         this.isContentDetached = nullableIsContentDetached;
-    }
-
-    /**
-     * Convert an {@link AllowDeny} containing {@link AlgorithmIdentifiers} into {@link AlgorithmConstraints} using the following strategy (null -> empty):
-     *
-     * <ul>
-     *     <li>If both {@link AllowDeny#allowed()} and {@link AllowDeny#denied()} are empty: block all algorithms.</li>
-     *     <li>If only {@link AllowDeny#allowed()} is filled: only allow the algorithms in {@link AllowDeny#allowed()}.</li>
-     *     <li>If only {@link AllowDeny#denied()} is filled: allow all algorithms except the ones in {@link AllowDeny#denied()}.</li>
-     *     <li>If both {@link AllowDeny#allowed()} and {@link AllowDeny#denied()} are filled: only allow the algorithms in {@link AllowDeny#allowed()}.</li>
-     * </ul>
-     *
-     * @param allowDenyAlgorithms An {@link AllowDeny} containing {@link AlgorithmIdentifiers}.
-     * @return The {@link AlgorithmConstraints} equivalent of the passed {@link AllowDeny}.
-     */
-    private AlgorithmConstraints extractAlgorithmConstraints(AllowDeny<String> allowDenyAlgorithms) {
-        String[] allowedAlgorithms = Optional.ofNullable(allowDenyAlgorithms.allowed()).orElse(List.of()).toArray(new String[0]);
-        String[] deniedAlgorithms = Optional.ofNullable(allowDenyAlgorithms.denied()).orElse(Set.of()).toArray(new String[0]);
-
-        AlgorithmConstraints.ConstraintType constraintType = AlgorithmConstraints.ConstraintType.PERMIT;
-        String[] algorithms = allowedAlgorithms;
-
-        if (allowedAlgorithms.length == 0 && deniedAlgorithms.length > 0) {
-            constraintType = AlgorithmConstraints.ConstraintType.BLOCK;
-            algorithms = deniedAlgorithms;
-        }
-
-        return new AlgorithmConstraints(constraintType, algorithms);
     }
 
     public JsonWebKeySet getJsonWebKeySet() {
         return trustedJsonWebKeySet;
     }
 
-    public AlgorithmConstraints getAlgorithmConstraints() {
-        return algorithmConstraints;
+    public AllowDeny<String> getAllowedAndDeniedAlgorithms() {
+        return allowedAndDeniedAlgorithms;
     }
 
     public String getjwsRecordHeaderKey() {
@@ -122,11 +74,12 @@ public class JwsSignatureValidationConfig {
     }
 
     /**
-     * Both {@link JsonWebKeySet} and {@link AlgorithmConstraints} use the default {@link Object#equals(Object)} which is insufficient. Instead:
+     * Both {@link JsonWebKeySet} and {@link AllowDeny} use the default {@link Object#equals(Object)} which is insufficient. Instead:
      *
      * <ul>
      * <li>For {@link JsonWebKeySet}, the value of {@link JsonWebKeySet#toJson()} is compared.</li>
-     * <li>For {@link AlgorithmConstraints}, the result of {@link AlgorithmConstraints#checkConstraint(String)} is compared for each {@link AlgorithmIdentifiers} property.</li>
+     * <li>For {@link AllowDeny}, {@link List#equals(Object)} and {@link Set#equals(Object)} are used to compare the values of
+     * {@link AllowDeny#allowed()} (after sorting) and {@link AllowDeny#denied()} respectively.</li>
      * </ul>
      */
     @Override
@@ -139,28 +92,16 @@ public class JwsSignatureValidationConfig {
         }
         JwsSignatureValidationConfig that = (JwsSignatureValidationConfig) o;
 
-        // Check all constraints match
-        for (String algorithIdentifier : algorithmIdentifiersClassValues) {
-            boolean thisThrew = false;
-            boolean thatThrew = false;
+        ArrayList<String> thisAllowedAlgorithms = new ArrayList<>(Optional.ofNullable(allowedAndDeniedAlgorithms.allowed()).orElse(List.of()));
+        thisAllowedAlgorithms.sort(null);
+        Set<String> thisDeniedAlgorithms = Optional.ofNullable(allowedAndDeniedAlgorithms.denied()).orElse(Set.of());
 
-            try {
-                algorithmConstraints.checkConstraint(algorithIdentifier);
-            }
-            catch (InvalidAlgorithmException e) {
-                thisThrew = true;
-            }
+        ArrayList<String> thatAllowedAlgorithms = new ArrayList<>(Optional.ofNullable(that.allowedAndDeniedAlgorithms.allowed()).orElse(List.of()));
+        thatAllowedAlgorithms.sort(null);
+        Set<String> thatDeniedAlgorithms = Optional.ofNullable(that.allowedAndDeniedAlgorithms.denied()).orElse(Set.of());
 
-            try {
-                that.algorithmConstraints.checkConstraint(algorithIdentifier);
-            }
-            catch (InvalidAlgorithmException e) {
-                thatThrew = true;
-            }
-
-            if (thisThrew != thatThrew) {
-                return false;
-            }
+        if (!thisDeniedAlgorithms.equals(thatDeniedAlgorithms) || !thisAllowedAlgorithms.equals(thatAllowedAlgorithms)) {
+            return false;
         }
 
         List<JsonWebKey> keyList = trustedJsonWebKeySet.getJsonWebKeys();
@@ -173,7 +114,7 @@ public class JwsSignatureValidationConfig {
 
     @Override
     public int hashCode() {
-        return Objects.hash(trustedJsonWebKeySet, algorithmConstraints, jwsRecordHeaderKey, isContentDetached);
+        return Objects.hash(trustedJsonWebKeySet, allowedAndDeniedAlgorithms, jwsRecordHeaderKey, isContentDetached);
     }
 
     @Override
@@ -181,7 +122,7 @@ public class JwsSignatureValidationConfig {
         // Probably best to keep this primitive in order to not leak sensitive information
         return "JwsSignatureValidationConfig{" +
                 "trustedJsonWebKeySet=" + trustedJsonWebKeySet +
-                ", algorithmConstraintType='" + algorithmConstraints + '\'' +
+                ", allowedAndDeniedAlgorithms='" + allowedAndDeniedAlgorithms + '\'' +
                 ", jwsRecordHeaderKey='" + jwsRecordHeaderKey + '\'' +
                 ", isContentDetached='" + isContentDetached + '\'' +
                 '}';
