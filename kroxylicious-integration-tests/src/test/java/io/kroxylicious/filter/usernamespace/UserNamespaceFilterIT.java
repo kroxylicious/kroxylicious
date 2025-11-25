@@ -33,6 +33,7 @@ import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -179,6 +180,48 @@ class UserNamespaceFilterIT {
                         .withFailMessage("Alice should be able to restart consuming from where she left off")
                         .extracting(ConsumerRecord::key)
                         .isEqualTo("k2");
+            }
+        }
+    }
+
+    @Test
+    @Disabled("NPE in the filter - recursion needs to respect the field versioning too")
+    void listConsumerGroupOffsets(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd") } ) KafkaCluster cluster, Topic topic) {
+
+        var configBuilder = buildConfig(cluster);
+        var aliceConfig = buildClientConfig("alice", "pwd",
+                Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                        ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false,
+                        ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, UUID.randomUUID().toString()));
+
+        try (var tester = kroxyliciousTester(configBuilder)) {
+
+            try (var producer = tester.producer(aliceConfig)) {
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k2", "v2")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
+
+            try (var aliceConsumer = tester.consumer(aliceConfig)) {
+                aliceConsumer.subscribe(List.of(topic.name()));
+                var aliceRecs = aliceConsumer.poll(Duration.ofSeconds(5));
+
+                assertThat(aliceRecs).hasSize(2);
+
+                var first = aliceRecs.records(topic.name()).iterator().next();
+                // commit the first record leaving the second one to consume later
+                aliceConsumer.commitSync(Map.of(new TopicPartition(topic.name(), first.partition()), new OffsetAndMetadata(first.offset() + 1)));
+            }
+
+            try (var aliceAdmin = tester.admin(aliceConfig)) {
+                var actual = assertThat(aliceAdmin.listConsumerGroupOffsets(CONSUMER_GROUP_NAME).all())
+                        .succeedsWithin(Duration.ofSeconds(30))
+                        .actual();
+
+                assertThat(actual)
+                        .containsOnlyKeys("foo");
             }
         }
     }
