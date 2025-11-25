@@ -73,7 +73,7 @@ public class BytebufValidators {
 
     /**
      * A chain of {@link BytebufValidators}.  Validators are executed in the order
-     *  * they are defined.  Validation stops after the first validation failure.
+     * they are defined.  Validation stops after the first validation failure.
      * @param elements list of validators
      *
      * @return BytebufValidator that will validate against all.
