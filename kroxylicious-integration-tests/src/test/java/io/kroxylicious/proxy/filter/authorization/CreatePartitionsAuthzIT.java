@@ -159,7 +159,7 @@ public class CreatePartitionsAuthzIT extends AuthzIT {
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonNodes) {
-            var topics = sortArray(jsonNodes, "results", "name");
+            sortArray(jsonNodes, "results", "name");
 
             return prettyJsonString(jsonNodes);
         }

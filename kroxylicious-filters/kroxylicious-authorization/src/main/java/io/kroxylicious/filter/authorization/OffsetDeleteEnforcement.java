@@ -50,11 +50,11 @@ class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, Of
                         var creatableTopics = decisions.get(Decision.DENY).stream()
                                 .map(this::topicAuthzFailed)
                                 .toList();
-                        var x = new OffsetDeleteResponseData.OffsetDeleteResponseTopicCollection();
-                        x.addAll(creatableTopics);
+                        var deleteResponseTopics = new OffsetDeleteResponseData.OffsetDeleteResponseTopicCollection();
+                        deleteResponseTopics.addAll(creatableTopics);
                         return context.requestFilterResultBuilder().shortCircuitResponse(
                                 new ResponseHeaderData().setCorrelationId(header.correlationId()),
-                                new OffsetDeleteResponseData().setTopics(x)).completed();
+                                new OffsetDeleteResponseData().setTopics(deleteResponseTopics)).completed();
                     }
                     else if (decisions.get(Decision.DENY).isEmpty()) {
                         // Just forward if there's no denied topics
@@ -83,11 +83,11 @@ class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, Of
     private OffsetDeleteResponseData.OffsetDeleteResponseTopic topicAuthzFailed(OffsetDeleteRequestData.OffsetDeleteRequestTopic requestTopic) {
         var result = new OffsetDeleteResponseData.OffsetDeleteResponseTopic()
                 .setName(requestTopic.name());
-        result.partitions().addAll(requestTopic.partitions().stream().map(p -> {
-            return new OffsetDeleteResponseData.OffsetDeleteResponsePartition()
-                    .setPartitionIndex(p.partitionIndex())
-                    .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
-        }).toList());
+        result.partitions().addAll(requestTopic.partitions().stream()
+                .map(p -> new OffsetDeleteResponseData.OffsetDeleteResponsePartition()
+                        .setPartitionIndex(p.partitionIndex())
+                        .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
+                .toList());
         return result;
     }
 }
