@@ -14,7 +14,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -24,6 +23,8 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
+import io.netty.util.concurrent.EventExecutor;
+
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.metadata.TopLevelMetadataErrorException;
 import io.kroxylicious.proxy.filter.metadata.TopicLevelMetadataErrorException;
@@ -32,15 +33,17 @@ import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static java.util.Collections.unmodifiableMap;
+import static java.util.concurrent.CompletableFuture.completedFuture;
+import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.stream.Collectors.toMap;
 
 final class TopicNameRetriever {
     // Version 12 was the first version that uses topic ids.
     private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
     private final FilterContext filterContext;
-    private final Executor filterDispatchExecutor;
+    private final EventExecutor filterDispatchExecutor;
 
-    TopicNameRetriever(FilterContext filterContext, Executor filterDispatchExecutor) {
+    TopicNameRetriever(FilterContext filterContext, EventExecutor filterDispatchExecutor) {
         this.filterContext = filterContext;
         this.filterDispatchExecutor = filterDispatchExecutor;
     }
@@ -48,7 +51,11 @@ final class TopicNameRetriever {
     CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
         Objects.requireNonNull(topicIds);
         if (topicIds.isEmpty()) {
-            return CompletableFuture.supplyAsync(() -> MapTopicNameMapping.EMPTY, filterDispatchExecutor).minimalCompletionStage();
+            // if we are already in the filter dispatch thread, we can return the completed future directly
+            CompletableFuture<TopicNameMapping> responseStage = filterDispatchExecutor.inEventLoop()
+                    ? completedFuture(MapTopicNameMapping.EMPTY)
+                    : supplyAsync(() -> MapTopicNameMapping.EMPTY, filterDispatchExecutor);
+            return responseStage.minimalCompletionStage();
         }
         CompletionStage<ApiMessage> apiMessageCompletionStage = requestTopicMetadata(topicIds);
         return apiMessageCompletionStage

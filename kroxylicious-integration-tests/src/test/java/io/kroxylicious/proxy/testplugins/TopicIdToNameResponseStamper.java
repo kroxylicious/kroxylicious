@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -46,29 +47,31 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * look up the corresponding topic names for those topic ids. Then when the response is intercepted we will add
  * an unknownTaggedField with id {@link #TOPIC_NAME_TAG} containing a comma-separated set of topic names.
  */
-@Plugin(configType = Void.class)
-public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
+@Plugin(configType = TopicIdToNameResponseStamper.Config.class)
+public class TopicIdToNameResponseStamper implements FilterFactory<TopicIdToNameResponseStamper.Config, TopicIdToNameResponseStamper.Config> {
 
     public static final int TOPIC_ID_TAG = 98;
     public static final int TOPIC_NAME_TAG = 99;
 
     @Override
-    public Void initialize(FilterFactoryContext context, Void config) throws PluginConfigurationException {
-        return null;
+    public Config initialize(FilterFactoryContext context, @Nullable Config config) throws PluginConfigurationException {
+        return config == null ? new Config(false) : config;
     }
 
     @Override
-    public Filter createFilter(FilterFactoryContext context, Void initializationData) {
-        return new TopicIdToNameResponseStamperFilter(context.filterDispatchExecutor());
+    public Filter createFilter(FilterFactoryContext context, Config initializationData) {
+        return new TopicIdToNameResponseStamperFilter(context.filterDispatchExecutor(), initializationData.asyncTopicNameLookup);
     }
 
     static class TopicIdToNameResponseStamperFilter implements RequestFilter, ResponseFilter {
 
         private final FilterDispatchExecutor filterDispatchExecutor;
+        private final boolean asyncTopicNameLookup;
         Map<Integer, TopicNameMapping> correlated = new HashMap<>();
 
-        TopicIdToNameResponseStamperFilter(FilterDispatchExecutor filterDispatchExecutor) {
+        TopicIdToNameResponseStamperFilter(FilterDispatchExecutor filterDispatchExecutor, boolean asyncTopicNameLookup) {
             this.filterDispatchExecutor = filterDispatchExecutor;
+            this.asyncTopicNameLookup = asyncTopicNameLookup;
         }
 
         @Override
@@ -80,7 +83,15 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
             }
 
             Set<Uuid> uuids = Arrays.stream(list.getFirst().split(",")).filter(s -> !s.isEmpty()).map(Uuid::fromString).collect(Collectors.toSet());
-            return context.topicNames(uuids).thenCompose(topicNames -> {
+            CompletionStage<TopicNameMapping> topicNameLookup;
+            if (asyncTopicNameLookup) {
+                // this is to demonstrate that the composed future executes chained work in the filter dispatch thread
+                topicNameLookup = CompletableFuture.supplyAsync(() -> null).thenCompose(o -> context.topicNames(uuids));
+            }
+            else {
+                topicNameLookup = context.topicNames(uuids);
+            }
+            return topicNameLookup.thenCompose(topicNames -> {
                 if (!filterDispatchExecutor.isInFilterDispatchThread()) {
                     throw new IllegalStateException("work chained to topicNames future should execute in filter dispatch thread");
                 }
@@ -109,5 +120,9 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
 
     public static String topicNameMapping(Uuid topicId, @Nullable String topicName, @Nullable String error) {
         return topicId + "::" + topicName + "::" + error;
+    }
+
+    public record Config(boolean asyncTopicNameLookup) {
+
     }
 }
