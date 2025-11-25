@@ -46,7 +46,7 @@ class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestDa
         }
         else {
             List<Action> actions = topicRequests.stream()
-                    .map(re -> new Action(TopicResource.DESCRIBE_CONFIGS, re.resourceName())).toList();
+                    .map(resource -> new Action(TopicResource.DESCRIBE_CONFIGS, resource.resourceName())).toList();
             return authorizationFilter.authorization(context, actions).thenCompose(result -> {
                 Map<Decision, List<DescribeConfigsRequestData.DescribeConfigsResource>> partitioned = result.partition(topicRequests, TopicResource.DESCRIBE_CONFIGS,
                         DescribeConfigsRequestData.DescribeConfigsResource::resourceName);
@@ -56,7 +56,7 @@ class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestDa
                 }
                 else {
                     request.resources().removeAll(denied);
-                    authorizationFilter.pushInflightState(header, (DescribeConfigsResponseData d) -> {
+                    authorizationFilter.pushInflightState(header, (DescribeConfigsResponseData describeConfigsResponseData) -> {
                         denied.forEach(describeConfigsResource -> {
                             DescribeConfigsResult configResult = new DescribeConfigsResult();
                             configResult.setConfigs(List.of());
@@ -64,9 +64,9 @@ class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestDa
                             configResult.setErrorMessage(Errors.TOPIC_AUTHORIZATION_FAILED.message());
                             configResult.setResourceName(describeConfigsResource.resourceName());
                             configResult.setResourceType(describeConfigsResource.resourceType());
-                            d.results().add(configResult);
+                            describeConfigsResponseData.results().add(configResult);
                         });
-                        return d;
+                        return describeConfigsResponseData;
                     });
                     return context.forwardRequest(header, request);
                 }

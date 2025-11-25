@@ -51,7 +51,7 @@ class DescribeProducersEnforcement extends ApiEnforcement<DescribeProducersReque
                     Map<String, Integer> originalIndex = denied.stream()
                             .collect(Collectors.toMap(DescribeProducersRequestData.TopicRequest::name, t -> request.topics().indexOf(t)));
                     request.topics().removeAll(denied);
-                    authorizationFilter.pushInflightState(header, (DescribeProducersResponseData d) -> {
+                    authorizationFilter.pushInflightState(header, (DescribeProducersResponseData producersResponseData) -> {
                         for (int i = denied.size() - 1; i >= 0; i--) {
                             DescribeProducersRequestData.TopicRequest topicRequest = denied.get(i);
                             TopicResponse topicResponse = new TopicResponse();
@@ -66,9 +66,9 @@ class DescribeProducersEnforcement extends ApiEnforcement<DescribeProducersReque
                             // re-insert items in the original order
                             Integer finalIndex = originalIndex.get(topicRequest.name());
                             int adjusted = finalIndex - i;
-                            d.topics().add(adjusted, topicResponse);
+                            producersResponseData.topics().add(adjusted, topicResponse);
                         }
-                        return d;
+                        return producersResponseData;
                     });
                 }
                 return context.forwardRequest(header, request);

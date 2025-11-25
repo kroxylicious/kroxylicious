@@ -61,11 +61,11 @@ class CreateTopicsEnforcement extends ApiEnforcement<CreateTopicsRequestData, Cr
                         return context.forwardRequest(header, request);
                     }
                     else {
-                        var xx = new CreateTopicsRequestData.CreatableTopicCollection();
-                        for (var yy : decisions.get(Decision.ALLOW)) {
-                            xx.mustAdd(yy.duplicate());
+                        var creatableTopics = new CreateTopicsRequestData.CreatableTopicCollection();
+                        for (var allowedTopicNames : decisions.get(Decision.ALLOW)) {
+                            creatableTopics.mustAdd(allowedTopicNames.duplicate());
                         }
-                        request.setTopics(xx);
+                        request.setTopics(creatableTopics);
                         var creatableTopicResults = decisions.get(Decision.DENY)
                                 .stream().map(t -> topicAuthzFailed(header.requestApiVersion(), t))
                                 .toList();

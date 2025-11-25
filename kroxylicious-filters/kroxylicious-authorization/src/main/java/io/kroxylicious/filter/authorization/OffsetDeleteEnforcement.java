@@ -84,8 +84,8 @@ class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, Of
         var result = new OffsetDeleteResponseData.OffsetDeleteResponseTopic()
                 .setName(requestTopic.name());
         result.partitions().addAll(requestTopic.partitions().stream()
-                .map(p -> new OffsetDeleteResponseData.OffsetDeleteResponsePartition()
-                        .setPartitionIndex(p.partitionIndex())
+                .map(requestPartition -> new OffsetDeleteResponseData.OffsetDeleteResponsePartition()
+                        .setPartitionIndex(requestPartition.partitionIndex())
                         .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
                 .toList());
         return result;

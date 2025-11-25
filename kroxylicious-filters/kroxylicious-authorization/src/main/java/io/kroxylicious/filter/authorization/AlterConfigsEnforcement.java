@@ -55,16 +55,16 @@ class AlterConfigsEnforcement extends ApiEnforcement<AlterConfigsRequestData, Al
                 }
                 else {
                     request.resources().removeAll(denied);
-                    authorizationFilter.pushInflightState(header, (AlterConfigsResponseData d) -> {
+                    authorizationFilter.pushInflightState(header, (AlterConfigsResponseData alterConfigsResponseData) -> {
                         denied.forEach(describeConfigsResource -> {
                             AlterConfigsResponseData.AlterConfigsResourceResponse configResult = new AlterConfigsResponseData.AlterConfigsResourceResponse();
                             configResult.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
                             configResult.setErrorMessage(Errors.TOPIC_AUTHORIZATION_FAILED.message());
                             configResult.setResourceName(describeConfigsResource.resourceName());
                             configResult.setResourceType(describeConfigsResource.resourceType());
-                            d.responses().add(configResult);
+                            alterConfigsResponseData.responses().add(configResult);
                         });
-                        return d;
+                        return alterConfigsResponseData;
                     });
                     return context.forwardRequest(header, request);
                 }
