@@ -92,7 +92,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
                 payload = new String(StandardCharsets.UTF_8.decode(buffer).array());
             }
 
-            if (!verifySignature(jwsHeaderValueString, payload)) {
+            if (!isSignatureValid(jwsHeaderValueString, payload)) {
                 String message = DEFAULT_ERROR_MESSAGE + ": JWS Signature was invalid";
                 return CompletableFuture.completedStage(new Result(false, message));
             }
@@ -113,7 +113,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
      * @return True if the signature was validated successfully, otherwise False.
      * @throws JoseException If a {@link JsonWebKey} that matches the {@link AlgorithmConstraints} cannot be found in the {@link JsonWebKeySet}, the {@link JsonWebSignature} cannot be deserialized, etc.
      */
-    private boolean verifySignature(String jwsCompactSerialization, @Nullable String payload) throws JoseException {
+    private boolean isSignatureValid(String jwsCompactSerialization, @Nullable String payload) throws JoseException {
         this.jws.setCompactSerialization(jwsCompactSerialization);
 
         // Cannot use a function overload because order of execution matters for jose4j jws set functions.
