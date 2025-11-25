@@ -185,7 +185,7 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-authorization</artifactId>
+                <artifactId>kroxylicious-user-namespace</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

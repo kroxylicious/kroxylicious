@@ -186,7 +186,7 @@ class UserNamespaceFilterIT {
 
     @Test
     @Disabled("NPE in the filter - recursion needs to respect the field versioning too")
-    void listConsumerGroupOffsets(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd") } ) KafkaCluster cluster, Topic topic) {
+    void listConsumerGroupOffsets(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd") }) KafkaCluster cluster, Topic topic) {
 
         var configBuilder = buildConfig(cluster);
         var aliceConfig = buildClientConfig("alice", "pwd",
