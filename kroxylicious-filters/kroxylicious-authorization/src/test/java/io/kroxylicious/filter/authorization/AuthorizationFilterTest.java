@@ -148,6 +148,11 @@ class AuthorizationFilterTest {
         if (!mockUpstream.isFinished()) {
             throw new IllegalStateException("test has finished, but mock responses are still queued");
         }
+        // we expect that any inflight state pushed during a request is always popped on the corresponding response
+        // if it is non-empty then we may have a memory leak
+        assertThat(authorizationFilter.inflightState())
+                .describedAs("inflight state")
+                .isEmpty();
     }
 
     private static String toYaml(Object actualBody) {

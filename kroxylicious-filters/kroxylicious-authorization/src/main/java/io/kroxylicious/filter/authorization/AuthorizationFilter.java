@@ -8,6 +8,7 @@
 package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -272,5 +273,11 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         }
         apiVersions.removeAll(toRemove);
 
+    }
+
+    @SuppressWarnings("java:S1452") // wildcard type expected
+    @VisibleForTesting
+    Map<Integer, InflightState<?>> inflightState() {
+        return Collections.unmodifiableMap(inflightState);
     }
 }
