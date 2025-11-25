@@ -90,6 +90,34 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
             }
             """;
 
+    private static final String JSON_SCHEMA_TOPIC_2 = """
+            {
+              "$id": "https://example.com/person2.schema.json",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "Person2",
+              "type": "object",
+              "properties": {
+                "firstName": {
+                  "type": "string",
+                  "description": "The person's first name."
+                },
+                "lastName": {
+                  "type": "string",
+                  "description": "The person's last name."
+                },
+                "age": {
+                  "description": "Age in years which must be equal to or greater than zero.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "email": {
+                  "type": "string",
+                  "description": "The person's email address."
+                }
+              }
+            }
+            """;
+
     private static final String JSON_MESSAGE = """
             {"firstName":"json1","lastName":"json2"}""";
     private static final String INVALID_AGE_MESSAGE = """
@@ -119,27 +147,38 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                 .withEnv(Map.of(
                         "QUARKUS_HTTP_PORT", String.valueOf(APICURIO_REGISTRY_PORT)))
                 .withExposedPorts(APICURIO_REGISTRY_PORT)
-                .withCreateContainerCmdModifier(cmd);
+                .withCreateContainerCmdModifier(cmd)
+                .waitingFor(Wait.forHttp(APICURIO_REGISTRY_API + "/system/info").forStatusCode(200));
 
         registryContainer.start();
-        registryContainer.waitingFor(Wait.forLogMessage(".*Installed features:*", 1));
 
         RegistryClientOptions.create(APICURIO_REGISTRY_URL);
 
         // Preparation: In this test class, schemas are registered in Apicurio Registry v3 and their contentIds are stored for validation.
         var client = RegistryClientFactory.create(RegistryClientOptions.create(APICURIO_REGISTRY_URL));
 
-        CreateArtifact createArtifact = new CreateArtifact();
-        createArtifact.setArtifactType("JSON");
-        io.apicurio.registry.rest.client.models.CreateVersion createVersion = new io.apicurio.registry.rest.client.models.CreateVersion();
-        io.apicurio.registry.rest.client.models.VersionContent versionContent = new io.apicurio.registry.rest.client.models.VersionContent();
-        versionContent.setContent(JSON_SCHEMA_TOPIC_1);
-        versionContent.setContentType("application/json");
-        createVersion.setContent(versionContent);
-        createArtifact.setFirstVersion(createVersion);
+        // Create first artifact with JSON_SCHEMA_TOPIC_1
+        CreateArtifact createFirstArtifact = new CreateArtifact();
+        createFirstArtifact.setArtifactType("JSON");
+        io.apicurio.registry.rest.client.models.CreateVersion firstVersion = new io.apicurio.registry.rest.client.models.CreateVersion();
+        io.apicurio.registry.rest.client.models.VersionContent firstContent = new io.apicurio.registry.rest.client.models.VersionContent();
+        firstContent.setContent(JSON_SCHEMA_TOPIC_1);
+        firstContent.setContentType("application/json");
+        firstVersion.setContent(firstContent);
+        createFirstArtifact.setFirstVersion(firstVersion);
 
-        VersionMetaData firstArtifact = client.groups().byGroupId("default").artifacts().post(createArtifact).getVersion();
-        VersionMetaData secondArtifact = client.groups().byGroupId("default").artifacts().post(createArtifact).getVersion();
+        // Create second artifact with JSON_SCHEMA_TOPIC_2 (different schema to get different contentId)
+        CreateArtifact createSecondArtifact = new CreateArtifact();
+        createSecondArtifact.setArtifactType("JSON");
+        io.apicurio.registry.rest.client.models.CreateVersion secondVersion = new io.apicurio.registry.rest.client.models.CreateVersion();
+        io.apicurio.registry.rest.client.models.VersionContent secondContent = new io.apicurio.registry.rest.client.models.VersionContent();
+        secondContent.setContent(JSON_SCHEMA_TOPIC_2);
+        secondContent.setContentType("application/json");
+        secondVersion.setContent(secondContent);
+        createSecondArtifact.setFirstVersion(secondVersion);
+
+        VersionMetaData firstArtifact = client.groups().byGroupId("default").artifacts().post(createFirstArtifact).getVersion();
+        VersionMetaData secondArtifact = client.groups().byGroupId("default").artifacts().post(createSecondArtifact).getVersion();
         firstArtifactId = firstArtifact.getArtifactId();
         firstContentId = firstArtifact.getContentId().intValue();
         secondContentId = secondArtifact.getContentId().intValue();
@@ -188,7 +227,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", JSON_MESSAGE));
-            assertThatFutureFails(invalid, InvalidRecordException.class, "No artifact with ID '3' in group 'null' was found");
+            assertThatFutureFails(invalid, InvalidRecordException.class, "No content with ID '3' was found.");
         }
     }
 
