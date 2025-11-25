@@ -124,7 +124,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
         // We can only select the key after setCompactSerialization() has set the JWS's "alg" header
         JsonWebKey jwk = jwkSelector.select(this.jws, trustedJsonWebKeySet.getJsonWebKeys());
         if (jwk == null) {
-            throw new UnresolvableKeyException("Could not select valid JWK that matches the algorithm constraints");
+            throw new UnresolvableKeyException("Could not select a valid JWK that matches the algorithm constraints");
         }
 
         this.jws.setKey(jwk.getKey());
