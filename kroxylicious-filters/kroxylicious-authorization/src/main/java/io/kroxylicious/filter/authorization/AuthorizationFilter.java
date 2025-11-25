@@ -67,12 +67,18 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.PRODUCE, new ProduceEnforcement());
         apiEnforcement.put(ApiKeys.METADATA, new MetadataEnforcement());
         apiEnforcement.put(ApiKeys.DESCRIBE_TOPIC_PARTITIONS, new DescribeTopicPartitionsEnforcement());
+        apiEnforcement.put(ApiKeys.CREATE_TOPICS, new CreateTopicsEnforcement());
+        apiEnforcement.put(ApiKeys.CREATE_PARTITIONS, new CreatePartitionsEnforcement());
+        apiEnforcement.put(ApiKeys.DELETE_TOPICS, new DeleteTopicsEnforcement());
+        apiEnforcement.put(ApiKeys.DELETE_RECORDS, new DeleteRecordsEnforcement());
+        apiEnforcement.put(ApiKeys.DESCRIBE_PRODUCERS, new DescribeProducersEnforcement());
 
         apiEnforcement.put(ApiKeys.LIST_OFFSETS, new ListOffsetsEnforcement());
 
         apiEnforcement.put(ApiKeys.FETCH, new FetchEnforcement());
         apiEnforcement.put(ApiKeys.OFFSET_COMMIT, new OffsetCommitEnforcement());
         apiEnforcement.put(ApiKeys.OFFSET_FETCH, new CompositeEnforcement<>(List.of(new OffsetFetchNonBatchingEnforcement(), new OffsetFetchGroupBatchingEnforcement())));
+        apiEnforcement.put(ApiKeys.OFFSET_DELETE, new OffsetDeleteEnforcement());
         apiEnforcement.put(ApiKeys.OFFSET_FOR_LEADER_EPOCH, new OffsetForLeaderEpochEnforcement());
 
         apiEnforcement.put(ApiKeys.TXN_OFFSET_COMMIT, new TxnOffsetCommitEnforcement());
@@ -86,6 +92,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.ADD_OFFSETS_TO_TXN, new Passthrough<>(0, 4));
         apiEnforcement.put(ApiKeys.END_TXN, new Passthrough<>(0, 5));
 
+        apiEnforcement.put(ApiKeys.DESCRIBE_CONFIGS, new DescribeConfigsEnforcement());
+        apiEnforcement.put(ApiKeys.ALTER_CONFIGS, new AlterConfigsEnforcement());
+        apiEnforcement.put(ApiKeys.INCREMENTAL_ALTER_CONFIGS, new IncrementalAlterConfigsEnforcement());
         apiEnforcement.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, new ConsumerGroupDescribeEnforcement());
     }
 

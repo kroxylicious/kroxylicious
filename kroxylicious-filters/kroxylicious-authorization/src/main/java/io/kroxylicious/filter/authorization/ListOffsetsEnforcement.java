@@ -46,7 +46,7 @@ class ListOffsetsEnforcement extends ApiEnforcement<ListOffsetsRequestData, List
                             ListOffsetsTopic::name);
                     List<ListOffsetsTopic> allowedTopics = topicDescribeDecisions.getOrDefault(Decision.ALLOW, List.of());
                     if (allowedTopics.isEmpty()) {
-                        // Shortcircuit if there's no allowed topics
+                        // Shortcircuit if there are no allowed topics
                         ListOffsetsResponseData response = new ListOffsetsResponseData();
                         var topics = createDenyTopicResponses(topicDescribeDecisions);
                         response.setTopics(topics);
@@ -55,7 +55,7 @@ class ListOffsetsEnforcement extends ApiEnforcement<ListOffsetsRequestData, List
                                 .completed();
                     }
                     else if (topicDescribeDecisions.getOrDefault(Decision.DENY, List.of()).isEmpty()) {
-                        // Just forward if there's no denied topics
+                        // Just forward if there are no denied topics
                         return context.forwardRequest(header, request);
                     }
                     else {
@@ -73,8 +73,8 @@ class ListOffsetsEnforcement extends ApiEnforcement<ListOffsetsRequestData, List
 
     private List<ListOffsetsResponseData.ListOffsetsTopicResponse> createDenyTopicResponses(Map<Decision, List<ListOffsetsTopic>> topicDescribeDecisions) {
         List<ListOffsetsTopic> listOffsetsTopics = topicDescribeDecisions.get(Decision.DENY);
-        return listOffsetsTopics.stream().map(t -> {
-            List<ListOffsetsResponseData.ListOffsetsPartitionResponse> partitionResponses = t.partitions().stream()
+        return listOffsetsTopics.stream().map(listOffsetsTopic -> {
+            List<ListOffsetsResponseData.ListOffsetsPartitionResponse> partitionResponses = listOffsetsTopic.partitions().stream()
                     .map(listOffsetsPartition -> new ListOffsetsResponseData.ListOffsetsPartitionResponse()
                             .setPartitionIndex(listOffsetsPartition.partitionIndex())
                             .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
@@ -82,7 +82,7 @@ class ListOffsetsEnforcement extends ApiEnforcement<ListOffsetsRequestData, List
                             .setOffset(ListOffsetsResponse.UNKNOWN_OFFSET))
                     .toList();
             ListOffsetsResponseData.ListOffsetsTopicResponse responseTopic = new ListOffsetsResponseData.ListOffsetsTopicResponse();
-            responseTopic.setName(t.name());
+            responseTopic.setName(listOffsetsTopic.name());
             responseTopic.setPartitions(partitionResponses);
             return responseTopic;
         }).toList();
