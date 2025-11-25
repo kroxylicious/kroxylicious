@@ -11,6 +11,8 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 
 import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwk.JsonWebKey;
@@ -27,6 +29,8 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -62,18 +66,43 @@ public class JwsSignatureValidationConfig {
      */
     @JsonCreator
     public JwsSignatureValidationConfig(@JsonProperty(value = "trustedJsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet trustedJsonWebKeySet,
-                                        @JsonProperty(value = "algorithmConstraintType", defaultValue = "BLOCK") @Nullable AlgorithmConstraints.ConstraintType nullableAlgorithmConstraintType,
-                                        @JsonProperty(value = "algorithms", defaultValue = "[]") @Nullable String[] nullableAlgorithms,
+                                        @JsonProperty(value = "algorithms") @Nullable AllowDeny<String> nullableAlgorithms,
                                         @JsonProperty(value = "jwsRecordHeaderKey", defaultValue = "kroxylicious.io/jws") @Nullable String nullablejwsRecordHeaderKey,
                                         @JsonProperty(value = "isContentDetached", defaultValue = "false") boolean nullableIsContentDetached) {
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
 
-        AlgorithmConstraints.ConstraintType algorithmConstraintType = nullableAlgorithmConstraintType != null ? nullableAlgorithmConstraintType
-                : AlgorithmConstraints.ConstraintType.BLOCK;
-        String[] algorithms = nullableAlgorithms != null ? nullableAlgorithms : new String[]{};
-        this.algorithmConstraints = new AlgorithmConstraints(algorithmConstraintType, algorithms);
+        this.algorithmConstraints = nullableAlgorithms != null ? extractAlgorithmConstraints(nullableAlgorithms) : new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT);
+
         this.jwsRecordHeaderKey = nullablejwsRecordHeaderKey != null ? nullablejwsRecordHeaderKey : "kroxylicious.io/jws";
         this.isContentDetached = nullableIsContentDetached;
+    }
+
+    /**
+     * Convert an {@link AllowDeny} containing {@link AlgorithmIdentifiers} into {@link AlgorithmConstraints} using the following strategy (null -> empty):
+     *
+     * <ul>
+     *     <li>If both {@link AllowDeny#allowed()} and {@link AllowDeny#denied()} are empty: block all algorithms.</li>
+     *     <li>If only {@link AllowDeny#allowed()} is filled: only allow the algorithms in {@link AllowDeny#allowed()}.</li>
+     *     <li>If only {@link AllowDeny#denied()} is filled: allow all algorithms except the ones in {@link AllowDeny#denied()}.</li>
+     *     <li>If both {@link AllowDeny#allowed()} and {@link AllowDeny#denied()} are filled: only allow the algorithms in {@link AllowDeny#allowed()}.</li>
+     * </ul>
+     *
+     * @param allowDenyAlgorithms An {@link AllowDeny} containing {@link AlgorithmIdentifiers}.
+     * @return The {@link AlgorithmConstraints} equivalent of the passed {@link AllowDeny}.
+     */
+    private AlgorithmConstraints extractAlgorithmConstraints(AllowDeny<String> allowDenyAlgorithms) {
+        String[] allowedAlgorithms = Optional.ofNullable(allowDenyAlgorithms.allowed()).orElse(List.of()).toArray(new String[0]);
+        String[] deniedAlgorithms = Optional.ofNullable(allowDenyAlgorithms.denied()).orElse(Set.of()).toArray(new String[0]);
+
+        AlgorithmConstraints.ConstraintType constraintType = AlgorithmConstraints.ConstraintType.PERMIT;
+        String[] algorithms = allowedAlgorithms;
+
+        if (allowedAlgorithms.length == 0 && deniedAlgorithms.length > 0) {
+            constraintType = AlgorithmConstraints.ConstraintType.BLOCK;
+            algorithms = deniedAlgorithms;
+        }
+
+        return new AlgorithmConstraints(constraintType, algorithms);
     }
 
     public JsonWebKeySet getJsonWebKeySet() {

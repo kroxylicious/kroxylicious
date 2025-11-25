@@ -107,18 +107,21 @@ jwsSignatureValidation:
           }
         ]
       }
-    algorithmConstraintType: PERMIT                               # <2>
-    algorithms:                                                   # <3>
-      - ES256
-      - RS256
-    jwsRecordHeaderKey: kroxylicious.io/jws                       # <4>
-    isContentDetached: true                                       # <5>
+    algorithms:                                                   # <2>
+      allowed:
+          - ES256
+          - RS256
+    jwsRecordHeaderKey: kroxylicious.io/jws                       # <3>
+    isContentDetached: true                                       # <4>
 ----
 <1> Set of https://datatracker.ietf.org/doc/html/rfc7517[JSON Web Keys (JWK)] to use for verifying JWS Signatures.
-<2> `BLOCK` only / `PERMIT` only the specified algorithms. The default is `BLOCK`.
-<3> https://datatracker.ietf.org/doc/html/rfc7518#section-3.1[JSON Web Algorithms (JWA)] to `BLOCK` / `PERMIT`. The default is `[]`.
-<4> Key of the Kafka record header containing the JWS. The default is `kroxylicious.io/jws`.
-<5> if `true`, the validator decodes the buffer into a UTF-8 string and uses that as the JWS Payload (see https://datatracker.ietf.org/doc/html/rfc7515#appendix-F[RFC 7515 Appendix F (Detached Content)]). The default is `false`.
+<2> List of `allowed` and `denied` https://datatracker.ietf.org/doc/html/rfc7518#section-3.1[JSON Web Algorithms (JWA)].
+    * (Default) If both `allowed` and `denied` are empty: block all algorithms.
+    * If only `allowed` is filled: only allow the algorithms in `allowed`.
+    * If only `denied` is filled: allow all algorithms except the ones in `denied`.
+    * If both `allowed` and `denied` are filled: only allow the algorithms in `allowed`.
+<3> Key of the Kafka record header containing the JWS. The default is `kroxylicious.io/jws`.
+<4> If `true`, the validator decodes the buffer into a UTF-8 string and uses that as the JWS Payload (see https://datatracker.ietf.org/doc/html/rfc7515#appendix-F[RFC 7515 Appendix F (Detached Content)]). The default is `false`.
 
 ifdef::include-platform-bare-metal[]
 include::../_modules/record-validation/con-example-proxy-config.adoc[leveloffset=+1]
