@@ -53,7 +53,6 @@ class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, Of
                         var deleteResponseTopics = new OffsetDeleteResponseData.OffsetDeleteResponseTopicCollection();
                         deleteResponseTopics.addAll(creatableTopics);
                         return context.requestFilterResultBuilder().shortCircuitResponse(
-                                new ResponseHeaderData().setCorrelationId(header.correlationId()),
                                 new OffsetDeleteResponseData().setTopics(deleteResponseTopics)).completed();
                     }
                     else if (decisions.get(Decision.DENY).isEmpty()) {

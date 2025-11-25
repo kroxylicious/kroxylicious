@@ -56,7 +56,6 @@ class CreateTopicsEnforcement extends ApiEnforcement<CreateTopicsRequestData, Cr
                                 .map(ct -> topicAuthzFailed(header.requestApiVersion(), ct))
                                 .forEach(creatableTopics::mustAdd);
                         return context.requestFilterResultBuilder().shortCircuitResponse(
-                                new ResponseHeaderData().setCorrelationId(header.correlationId()),
                                 new CreateTopicsResponseData().setTopics(creatableTopics)).completed();
                     }
                     else if (deniedTopics.isEmpty()) {

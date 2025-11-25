@@ -52,7 +52,6 @@ class CreatePartitionsEnforcement extends ApiEnforcement<CreatePartitionsRequest
                                 .map(CreatePartitionsEnforcement::topicAuthzFailed)
                                 .toList();
                         return context.requestFilterResultBuilder().shortCircuitResponse(
-                                new ResponseHeaderData().setCorrelationId(header.correlationId()),
                                 new CreatePartitionsResponseData().setResults(creatableTopics)).completed();
                     }
                     else if (deniedPartitions.isEmpty()) {

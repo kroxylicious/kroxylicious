@@ -53,7 +53,6 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
                                 .map(this::topicAuthzFailed)
                                 .toList();
                         return context.requestFilterResultBuilder().shortCircuitResponse(
-                                new ResponseHeaderData().setCorrelationId(header.correlationId()),
                                 new OffsetCommitResponseData().setTopics(creatableTopics)).completed();
                     }
                     else if (decisions.get(Decision.DENY).isEmpty()) {
