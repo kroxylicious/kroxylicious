@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.authorization;
 
+import java.util.List;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.CreatePartitionsRequestData;
@@ -43,26 +44,28 @@ class CreatePartitionsEnforcement extends ApiEnforcement<CreatePartitionsRequest
                     var decisions = authorization.partition(request.topics(),
                             TopicResource.ALTER,
                             CreatePartitionsRequestData.CreatePartitionsTopic::name);
-                    if (decisions.get(Decision.ALLOW).isEmpty()) {
+                    var allowedPartitions = decisions.get(Decision.ALLOW);
+                    var deniedPartitions = decisions.get(Decision.DENY);
+                    if (allowedPartitions.isEmpty()) {
                         // Shortcircuit if there are no allowed topics
-                        var creatableTopics = decisions.get(Decision.DENY).stream()
+                        var creatableTopics = deniedPartitions.stream()
                                 .map(CreatePartitionsEnforcement::topicAuthzFailed)
                                 .toList();
                         return context.requestFilterResultBuilder().shortCircuitResponse(
                                 new ResponseHeaderData().setCorrelationId(header.correlationId()),
                                 new CreatePartitionsResponseData().setResults(creatableTopics)).completed();
                     }
-                    else if (decisions.get(Decision.DENY).isEmpty()) {
+                    else if (deniedPartitions.isEmpty()) {
                         // Just forward if there are no denied topics
                         return context.forwardRequest(header, request);
                     }
                     else {
-                        var topicCollection = new CreatePartitionsRequestData.CreatePartitionsTopicCollection();
-                        for (var topic : decisions.get(Decision.ALLOW)) {
+                        var topicCollection = new CreatePartitionsRequestData.CreatePartitionsTopicCollection(allowedPartitions.size());
+                        for (var topic : allowedPartitions) {
                             topicCollection.mustAdd(topic.duplicate());
                         }
                         request.setTopics(topicCollection);
-                        var creatableTopicResults = decisions.get(Decision.DENY)
+                        var creatableTopicResults = deniedPartitions
                                 .stream().map(CreatePartitionsEnforcement::topicAuthzFailed)
                                 .toList();
                         authorizationFilter.pushInflightState(header, (CreatePartitionsResponseData response) -> {

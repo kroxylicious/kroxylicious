@@ -35,6 +35,7 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
 
     @Override
     short minSupportedVersion() {
+        // Version 0 was removed in Apache Kafka 4.0, Version 1 is the new baseline.
         return 1;
     }
 
@@ -101,7 +102,9 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
                                                                                  TopicResource operation,
                                                                                  short apiVersion) {
         var decisions = authorization.partition(request.topicNames(), operation, Function.identity());
-        if (decisions.get(Decision.ALLOW).isEmpty()) {
+        var allowedTopicNames = decisions.get(Decision.ALLOW);
+        var deniedTopicNames = decisions.get(Decision.DENY);
+        if (allowedTopicNames.isEmpty()) {
             // Shortcircuit if there's no allowed actions
             DeleteTopicsResponseData.DeletableTopicResultCollection topicResults = new DeleteTopicsResponseData.DeletableTopicResultCollection();
             request.topicNames().stream()
@@ -114,7 +117,7 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
                                     .setResponses(topicResults))
                     .completed();
         }
-        else if (decisions.get(Decision.DENY).isEmpty()) {
+        else if (deniedTopicNames.isEmpty()) {
             // Just forward if there's no denied actions
             return context.forwardRequest(header, request);
         }
@@ -123,7 +126,7 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
                     .filter(topicName -> authorization.decision(operation, topicName) == Decision.ALLOW)
                     .toList());
 
-            var list = decisions.get(Decision.DENY)
+            var list = deniedTopicNames
                     .stream().map(topicName -> errorResult(apiVersion, topicName, Errors.TOPIC_AUTHORIZATION_FAILED))
                     .toList();
             authorizationFilter.pushInflightState(header, (DeleteTopicsResponseData response) -> {
@@ -153,7 +156,9 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
                 okStates,
                 operation,
                 state -> topicName(state, topicIdToName));
-        if (decisions.get(Decision.ALLOW).isEmpty()) {
+        var allowedTopicStates = decisions.get(Decision.ALLOW);
+        var deniedTopicStates = decisions.get(Decision.DENY);
+        if (allowedTopicStates.isEmpty()) {
             // Shortcircuit if there's no allowed actions
             DeleteTopicsResponseData.DeletableTopicResultCollection topicResults = new DeleteTopicsResponseData.DeletableTopicResultCollection();
             okStates.stream()
@@ -170,7 +175,7 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
                                     .setResponses(topicResults))
                     .completed();
         }
-        else if (decisions.get(Decision.DENY).isEmpty()) {
+        else if (deniedTopicStates.isEmpty()) {
             // Forward if there's no denied actions, but we might need to reinsert lookup errors
             request.setTopics(okStates);
             authorizationFilter.pushInflightState(header, (DeleteTopicsResponseData response) -> {
@@ -185,7 +190,7 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
                     .filter(topicState -> authorization.decision(operation, topicState.name()) == Decision.ALLOW)
                     .toList());
 
-            var denied = decisions.get(Decision.DENY)
+            var denied = deniedTopicStates
                     .stream().map(topicState -> errorResult(apiVersion, topicState, Errors.TOPIC_AUTHORIZATION_FAILED))
                     .toList();
             var errored = errorStates.stream()
@@ -197,6 +202,7 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
             });
             return context.forwardRequest(header, request);
         }
+
     }
 
     private static DeleteTopicsResponseData.DeletableTopicResult deletableTopicResult(TopicNameMapping mapping,

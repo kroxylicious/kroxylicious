@@ -25,6 +25,7 @@ class CreateTopicsEnforcement extends ApiEnforcement<CreateTopicsRequestData, Cr
 
     @Override
     short minSupportedVersion() {
+        // Versions 0-1 were removed in Apache Kafka 4.0, Version 2 is the new baseline.
         return 2;
     }
 
@@ -46,27 +47,29 @@ class CreateTopicsEnforcement extends ApiEnforcement<CreateTopicsRequestData, Cr
                     var decisions = authorization.partition(request.topics(),
                             TopicResource.CREATE,
                             CreateTopicsRequestData.CreatableTopic::name);
-                    if (decisions.get(Decision.ALLOW).isEmpty()) {
+                    var deniedTopics = decisions.get(Decision.DENY);
+                    var allowedTopics = decisions.get(Decision.ALLOW);
+                    if (allowedTopics.isEmpty()) {
                         // Shortcircuit if there are no allowed topics
-                        CreateTopicsResponseData.CreatableTopicResultCollection creatableTopics = new CreateTopicsResponseData.CreatableTopicResultCollection();
-                        decisions.get(Decision.DENY).stream()
+                        CreateTopicsResponseData.CreatableTopicResultCollection creatableTopics = new CreateTopicsResponseData.CreatableTopicResultCollection(deniedTopics.size());
+                        deniedTopics.stream()
                                 .map(ct -> topicAuthzFailed(header.requestApiVersion(), ct))
                                 .forEach(creatableTopics::mustAdd);
                         return context.requestFilterResultBuilder().shortCircuitResponse(
                                 new ResponseHeaderData().setCorrelationId(header.correlationId()),
                                 new CreateTopicsResponseData().setTopics(creatableTopics)).completed();
                     }
-                    else if (decisions.get(Decision.DENY).isEmpty()) {
+                    else if (deniedTopics.isEmpty()) {
                         // Just forward if there are no denied topics
                         return context.forwardRequest(header, request);
                     }
                     else {
-                        var creatableTopics = new CreateTopicsRequestData.CreatableTopicCollection();
-                        for (var allowedTopicNames : decisions.get(Decision.ALLOW)) {
-                            creatableTopics.mustAdd(allowedTopicNames.duplicate());
+                        var allowedTopicsToSet = new CreateTopicsRequestData.CreatableTopicCollection(allowedTopics.size());
+                        for (var allowedTopicName : allowedTopics) {
+                            allowedTopicsToSet.mustAdd(allowedTopicName.duplicate());
                         }
-                        request.setTopics(creatableTopics);
-                        var creatableTopicResults = decisions.get(Decision.DENY)
+                        request.setTopics(allowedTopicsToSet);
+                        var creatableTopicResults = deniedTopics
                                 .stream().map(t -> topicAuthzFailed(header.requestApiVersion(), t))
                                 .toList();
                         filter.pushInflightState(header, (CreateTopicsResponseData response) -> {
