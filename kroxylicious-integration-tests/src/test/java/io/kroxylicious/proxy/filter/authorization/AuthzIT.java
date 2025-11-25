@@ -198,7 +198,13 @@ public abstract class AuthzIT extends BaseIT {
             return getRequest(apiVersion(), aliceRequest);
         }
 
-        default boolean needsRetry(S r) {
+        /**
+         * @param response The response to a test request.
+         * @return Determine whether the test request that resulted in the given response should be retried.
+         * (This can be necessary if the broker is not initially in the needed state, for example
+         * being the leader of a partition in the request).
+         */
+        default boolean needsRetry(S response) {
             return false;
         }
     }

@@ -148,12 +148,10 @@ public class FetchAuthzIT extends AuthzIT {
         }
 
         @Override
-        public boolean needsRetry(FetchResponseData r) {
-            Errors errors = Errors.forCode(r.errorCode());
-            boolean anyPartitionError = r.responses().stream()
+        public boolean needsRetry(FetchResponseData response) {
+            return response.responses().stream()
                     .flatMap(topicData -> topicData.partitions().stream())
-                    .anyMatch(partitionData -> Errors.forCode(partitionData.errorCode()) == Errors.NOT_LEADER_OR_FOLLOWER);
-            return errors == Errors.NOT_LEADER_OR_FOLLOWER || anyPartitionError;
+                    .anyMatch(partitionData -> partitionData.errorCode() == Errors.NOT_LEADER_OR_FOLLOWER.code());
         }
     }
 
