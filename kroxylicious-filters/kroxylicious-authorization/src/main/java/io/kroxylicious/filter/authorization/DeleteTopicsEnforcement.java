@@ -22,11 +22,14 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, DeleteTopicsResponseData> {
 
@@ -79,100 +82,125 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
 
             return authorizationFilter.authorization(context, actions).thenCompose(authorization -> {
                 if (useStates) {
-                    var errorPartitionedStates = request.topics().stream()
-                            .collect(Collectors.partitioningBy(state -> state.name() != null || !mapping.failures().containsKey(state.topicId())));
-                    var okStates = errorPartitionedStates.get(true);
-                    var errorStates = errorPartitionedStates.get(false);
-                    Map<Decision, List<DeleteTopicsRequestData.DeleteTopicState>> decisions = authorization.partition(
-                            okStates,
-                            operation,
-                            state -> topicName(state, topicIdToName));
-                    if (decisions.get(Decision.ALLOW).isEmpty()) {
-                        // Shortcircuit if there's no allowed actions
-                        DeleteTopicsResponseData.DeletableTopicResultCollection v = new DeleteTopicsResponseData.DeletableTopicResultCollection();
-                        okStates.stream()
-                                .map(topicState -> errorResult(apiVersion, topicState, Errors.TOPIC_AUTHORIZATION_FAILED))
-                                // using method reference is failing to compile on JDK17, see JDK-8268312
-                                .forEach(newElement -> v.mustAdd(newElement));
-                        errorStates.stream()
-                                .map(topicState -> {
-                                    return getDeletableTopicResult(mapping, topicState, apiVersion);
-                                })
-                                // using method reference is failing to compile on JDK17, see JDK-8268312
-                                .forEach(newElement -> v.mustAdd(newElement));
-                        return context.requestFilterResultBuilder()
-                                .shortCircuitResponse(
-                                        new DeleteTopicsResponseData()
-                                                .setResponses(v))
-                                .completed();
-                    }
-                    else if (decisions.get(Decision.DENY).isEmpty()) {
-                        // Forward if there's no denied actions, but we might need to reinsert lookup errors
-                        request.setTopics(okStates);
-                        authorizationFilter.pushInflightState(header, (DeleteTopicsResponseData response) -> {
-                            response.responses().addAll(errorStates.stream()
-                                    .map(topicState -> getDeletableTopicResult(mapping, topicState, apiVersion)).toList());
-                            return response;
-                        });
-                        return context.forwardRequest(header, request);
-                    }
-                    else {
-                        request.setTopics(okStates.stream()
-                                .filter(topicState -> authorization.decision(operation, topicState.name()) == Decision.ALLOW)
-                                .toList());
-
-                        var denied = decisions.get(Decision.DENY)
-                                .stream().map(t -> errorResult(apiVersion, t, Errors.TOPIC_AUTHORIZATION_FAILED))
-                                .toList();
-                        var errored = errorStates.stream()
-                                .map(topicState -> getDeletableTopicResult(mapping, topicState, apiVersion)).toList();
-                        authorizationFilter.pushInflightState(header, (DeleteTopicsResponseData response) -> {
-                            response.responses().addAll(denied);
-                            response.responses().addAll(errored);
-                            return response;
-                        });
-                        return context.forwardRequest(header, request);
-                    }
+                    return onRequestUsingStates(header, request, context, authorizationFilter, mapping, authorization, operation, topicIdToName,
+                            apiVersion);
                 }
                 else { // using topic names
-                    var decisions = authorization.partition(request.topicNames(), operation, Function.identity());
-                    if (decisions.get(Decision.ALLOW).isEmpty()) {
-                        // Shortcircuit if there's no allowed actions
-                        DeleteTopicsResponseData.DeletableTopicResultCollection v = new DeleteTopicsResponseData.DeletableTopicResultCollection();
-                        request.topicNames().stream()
-                                .map(topicName -> errorResult(apiVersion, topicName, Errors.TOPIC_AUTHORIZATION_FAILED))
-                                // using method reference is failing to compile on JDK17, see JDK-8268312
-                                .forEach(newElement -> v.mustAdd(newElement));
-                        return context.requestFilterResultBuilder()
-                                .shortCircuitResponse(
-                                        new DeleteTopicsResponseData()
-                                                .setResponses(v))
-                                .completed();
-                    }
-                    else if (decisions.get(Decision.DENY).isEmpty()) {
-                        // Just forward if there's no denied actions
-                        return context.forwardRequest(header, request);
-                    }
-                    else {
-                        request.setTopicNames(request.topicNames().stream()
-                                .filter(tn -> authorization.decision(operation, tn) == Decision.ALLOW)
-                                .toList());
-
-                        var list = decisions.get(Decision.DENY)
-                                .stream().map(t -> errorResult(apiVersion, t, Errors.TOPIC_AUTHORIZATION_FAILED))
-                                .toList();
-                        authorizationFilter.pushInflightState(header, (DeleteTopicsResponseData response) -> {
-                            response.responses().addAll(list);
-                            return response;
-                        });
-                        return context.forwardRequest(header, request);
-                    }
+                    return onRequestUsingTopicNames(header, request, context, authorizationFilter, authorization, operation, apiVersion);
                 }
             });
         });
     }
 
-    private static DeleteTopicsResponseData.DeletableTopicResult getDeletableTopicResult(TopicNameMapping mapping, DeleteTopicsRequestData.DeleteTopicState topicState,
+    @NonNull
+    private static CompletionStage<RequestFilterResult> onRequestUsingTopicNames(RequestHeaderData header,
+                                                                                 DeleteTopicsRequestData request,
+                                                                                 FilterContext context,
+                                                                                 AuthorizationFilter authorizationFilter,
+                                                                                 AuthorizeResult authorization,
+                                                                                 TopicResource operation,
+                                                                                 short apiVersion) {
+        var decisions = authorization.partition(request.topicNames(), operation, Function.identity());
+        if (decisions.get(Decision.ALLOW).isEmpty()) {
+            // Shortcircuit if there's no allowed actions
+            DeleteTopicsResponseData.DeletableTopicResultCollection topicResults = new DeleteTopicsResponseData.DeletableTopicResultCollection();
+            request.topicNames().stream()
+                    .map(topicName -> errorResult(apiVersion, topicName, Errors.TOPIC_AUTHORIZATION_FAILED))
+                    // using method reference is failing to compile on JDK17, see JDK-8268312
+                    .forEach(topicResults::mustAdd);
+            return context.requestFilterResultBuilder()
+                    .shortCircuitResponse(
+                            new DeleteTopicsResponseData()
+                                    .setResponses(topicResults))
+                    .completed();
+        }
+        else if (decisions.get(Decision.DENY).isEmpty()) {
+            // Just forward if there's no denied actions
+            return context.forwardRequest(header, request);
+        }
+        else {
+            request.setTopicNames(request.topicNames().stream()
+                    .filter(topicName -> authorization.decision(operation, topicName) == Decision.ALLOW)
+                    .toList());
+
+            var list = decisions.get(Decision.DENY)
+                    .stream().map(topicName -> errorResult(apiVersion, topicName, Errors.TOPIC_AUTHORIZATION_FAILED))
+                    .toList();
+            authorizationFilter.pushInflightState(header, (DeleteTopicsResponseData response) -> {
+                response.responses().addAll(list);
+                return response;
+            });
+            return context.forwardRequest(header, request);
+        }
+    }
+
+    @NonNull
+    private static CompletionStage<RequestFilterResult> onRequestUsingStates(RequestHeaderData header,
+                                                                             DeleteTopicsRequestData request,
+                                                                             FilterContext context,
+                                                                             AuthorizationFilter authorizationFilter,
+                                                                             TopicNameMapping mapping,
+                                                                             AuthorizeResult authorization,
+                                                                             TopicResource operation,
+                                                                             Map<Uuid, String> topicIdToName,
+                                                                             short apiVersion) {
+        var errorPartitionedStates = request.topics().stream()
+                .collect(Collectors.partitioningBy(state -> state.name() != null
+                        || !mapping.failures().containsKey(state.topicId())));
+        var okStates = errorPartitionedStates.get(true);
+        var errorStates = errorPartitionedStates.get(false);
+        Map<Decision, List<DeleteTopicsRequestData.DeleteTopicState>> decisions = authorization.partition(
+                okStates,
+                operation,
+                state -> topicName(state, topicIdToName));
+        if (decisions.get(Decision.ALLOW).isEmpty()) {
+            // Shortcircuit if there's no allowed actions
+            DeleteTopicsResponseData.DeletableTopicResultCollection topicResults = new DeleteTopicsResponseData.DeletableTopicResultCollection();
+            okStates.stream()
+                    .map(topicState -> errorResult(apiVersion, topicState, Errors.TOPIC_AUTHORIZATION_FAILED))
+                    // using method reference is failing to compile on JDK17, see JDK-8268312
+                    .forEach(topicResults::mustAdd);
+            errorStates.stream()
+                    .map(topicState -> getDeletableTopicResult(mapping, topicState, apiVersion))
+                    // using method reference is failing to compile on JDK17, see JDK-8268312
+                    .forEach(topicResults::mustAdd);
+            return context.requestFilterResultBuilder()
+                    .shortCircuitResponse(
+                            new DeleteTopicsResponseData()
+                                    .setResponses(topicResults))
+                    .completed();
+        }
+        else if (decisions.get(Decision.DENY).isEmpty()) {
+            // Forward if there's no denied actions, but we might need to reinsert lookup errors
+            request.setTopics(okStates);
+            authorizationFilter.pushInflightState(header, (DeleteTopicsResponseData response) -> {
+                response.responses().addAll(errorStates.stream()
+                        .map(topicState -> getDeletableTopicResult(mapping, topicState, apiVersion)).toList());
+                return response;
+            });
+            return context.forwardRequest(header, request);
+        }
+        else {
+            request.setTopics(okStates.stream()
+                    .filter(topicState -> authorization.decision(operation, topicState.name()) == Decision.ALLOW)
+                    .toList());
+
+            var denied = decisions.get(Decision.DENY)
+                    .stream().map(topicState -> errorResult(apiVersion, topicState, Errors.TOPIC_AUTHORIZATION_FAILED))
+                    .toList();
+            var errored = errorStates.stream()
+                    .map(topicState -> getDeletableTopicResult(mapping, topicState, apiVersion)).toList();
+            authorizationFilter.pushInflightState(header, (DeleteTopicsResponseData response) -> {
+                response.responses().addAll(denied);
+                response.responses().addAll(errored);
+                return response;
+            });
+            return context.forwardRequest(header, request);
+        }
+    }
+
+    private static DeleteTopicsResponseData.DeletableTopicResult getDeletableTopicResult(TopicNameMapping mapping,
+                                                                                         DeleteTopicsRequestData.DeleteTopicState topicState,
                                                                                          short apiVersion) {
         var exception = mapping.failures().getOrDefault(topicState.topicId(), new TopicNameMappingException(Errors.UNKNOWN_SERVER_ERROR));
         return errorResult(apiVersion, topicState, exception.getError());

@@ -107,8 +107,6 @@ public class ClientAuthzIT extends AuthzIT {
 
     @BeforeAll
     void beforeAll() throws IOException {
-        // TODO need to add Carol who has Cluster.CREATE
-        // TODO need to add Carol who has Cluster.CREATE
         rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
         Files.writeString(rulesFile, """
                 from io.kroxylicious.filter.authorization import TopicResource as Topic;
@@ -584,8 +582,6 @@ public class ClientAuthzIT extends AuthzIT {
         public void run(ClientFactory clientFactory) {
             String topicA = TOPIC_A;
             String topicB = TOPIC_B;
-            TopicPartition topicAPartition0 = new TopicPartition(topicA, 0);
-            TopicPartition topicAPartition1 = new TopicPartition(topicA, 1);
 
             String setupUser = ALICE;
             String adminUser = ALICE;
@@ -646,6 +642,7 @@ public class ClientAuthzIT extends AuthzIT {
     static class TransactionalProg implements Prog {
 
         @Override
+        @SuppressWarnings("java:S2925") // Thread.sleep
         public void run(ClientFactory clientFactory) throws InterruptedException {
             String topicA = TOPIC_A;
             TopicPartition topicAPartition0 = new TopicPartition(topicA, 0);
@@ -715,7 +712,7 @@ public class ClientAuthzIT extends AuthzIT {
                         }
 
                         var offsets = records.nextOffsets();
-                        assertThat(offsets.isEmpty()).isFalse();
+                        assertThat(offsets).isNotEmpty();
                         assertThat(offsets.get(topicAPartition0).offset()).isGreaterThan(0);
                         var metadata = consumer2.groupMetadata().value();
                         assertThat(metadata.generationId()).isGreaterThan(0);
