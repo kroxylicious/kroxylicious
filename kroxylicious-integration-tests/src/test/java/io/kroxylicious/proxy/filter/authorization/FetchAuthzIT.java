@@ -23,6 +23,7 @@ import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
@@ -144,6 +145,12 @@ public class FetchAuthzIT extends AuthzIT {
             FetchRequestData.FetchTopic topicC = createFetchTopic(EXISTING_TOPIC_NAME, 0);
             fetchRequestData.setTopics(List.of(topicA, topicB, topicC));
             return fetchRequestData;
+        }
+
+        @Override
+        public boolean needsRetry(FetchResponseData r) {
+            Errors errors = Errors.forCode(r.errorCode());
+            return errors == Errors.NOT_LEADER_OR_FOLLOWER;
         }
     }
 

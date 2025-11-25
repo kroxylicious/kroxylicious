@@ -78,6 +78,7 @@ import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.testplugins.SaslPlainTermination;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.RequestFactory;
+import io.kroxylicious.test.Response;
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -195,6 +196,10 @@ public abstract class AuthzIT extends BaseIT {
 
         default Request newRequest(ApiMessage aliceRequest) {
             return getRequest(apiVersion(), aliceRequest);
+        }
+
+        default boolean needsRetry(S r) {
+            return false;
         }
     }
 
@@ -567,22 +572,33 @@ public abstract class AuthzIT extends BaseIT {
                 String user = entry.getKey();
                 KafkaClient client = entry.getValue();
                 Request request = requests.get(user);
+                Response resp;
+                S r;
+                while (true) {
+                    LOG.info("{} {}{} >> {}",
+                            user,
+                            request.apiKeys(),
+                            prettyJsonString(
+                                    KafkaApiMessageConverter.requestConverterFor(request.apiKeys().messageType).writer().apply(request.message(), request.apiVersion())),
+                            baseTestCluster.name());
+                    resp = client.getSync(request);
 
-                LOG.info("{} {}{} >> {}",
-                        user,
-                        request.apiKeys(),
-                        prettyJsonString(
-                                KafkaApiMessageConverter.requestConverterFor(request.apiKeys().messageType).writer().apply(request.message(), request.apiVersion())),
-                        baseTestCluster.name());
-                var resp = client.getSync(request);
-
-                var r = (S) resp.payload().message();
-                LOG.info("{} {}{} << {}",
-                        user,
-                        request.apiKeys(),
-                        prettyJsonString(KafkaApiMessageConverter.responseConverterFor(request.apiKeys().messageType).writer().apply(r, request.apiVersion())),
-                        baseTestCluster.name());
-
+                    r = (S) resp.payload().message();
+                    LOG.info("{} {}{} << {}",
+                            user,
+                            request.apiKeys(),
+                            prettyJsonString(KafkaApiMessageConverter.responseConverterFor(request.apiKeys().messageType).writer().apply(r, request.apiVersion())),
+                            baseTestCluster.name());
+                    if (!scenario.needsRetry(r)) {
+                        break;
+                    }
+                    try {
+                        Thread.sleep(10);
+                    }
+                    catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
                 responsesByUser.put(user, r);
             }
             return responsesByUser;
