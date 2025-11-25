@@ -1,0 +1,103 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_TOPIC_PARTITIONS"
+  apiVersion: 0
+  scenario: >
+    when the client sends an empty topic list it is requesting all topics, for all topics that are allowed to
+    be described for the subject, we must update the topic authorized ops to accurately describe what is permitted
+    In this case the upstream allows DESCRIBE+CREATE (288), downstream only allows DESCRIBE (256) so we respond
+    to client with 256.
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_TOPIC_PARTITIONS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 75
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        topics: [ ]
+        responsePartitionLimit: 534
+        cursor: null
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 343
+        topics:
+          - errorCode: 0
+            name: "my-topic"
+            topicId: "i4YiqCLdQi2cideBU8SZgQ"
+            isInternal: false
+            partitions:
+              - errorCode: 0
+                partitionIndex: 869
+                leaderId: 871
+                leaderEpoch: 198
+                replicaNodes:
+                  - 6
+                isrNodes:
+                  - 27
+                eligibleLeaderReplicas:
+                  - 215
+                lastKnownElr:
+                  - 172
+                offlineReplicas:
+                  - 392
+            topicAuthorizedOperations: 288
+        nextCursor:
+          topicName: ""
+          partitionIndex: -1
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 75
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    topics: []
+    responsePartitionLimit: 534
+    cursor: null
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 343
+    topics:
+        - errorCode: 0
+          name: "my-topic"
+          topicId: "i4YiqCLdQi2cideBU8SZgQ"
+          isInternal: false
+          partitions:
+            - errorCode: 0
+              partitionIndex: 869
+              leaderId: 871
+              leaderEpoch: 198
+              replicaNodes:
+                - 6
+              isrNodes:
+                - 27
+              eligibleLeaderReplicas:
+                - 215
+              lastKnownElr:
+                - 172
+              offlineReplicas:
+                - 392
+          topicAuthorizedOperations: 256
+    nextCursor:
+      topicName: ""
+      partitionIndex: -1

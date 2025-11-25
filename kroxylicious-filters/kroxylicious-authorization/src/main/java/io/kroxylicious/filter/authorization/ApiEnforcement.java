@@ -21,7 +21,10 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 /**
- * <p>Enforces authorization rules for a range of versions of a single API key.</p>
+ * <p>Enforces authorization rules for a range of versions of a single API key.
+ * It's usually the case that a single implementation is sufficient for a given API key, but
+ * {@link CompositeEnforcement} can be used in cases where it's desirable to have
+ * different implementations cover disjoint version ranges.</p>
  *
  * <p> If the request contains references
  * to access-controlled entities (such as topics) then {@link AuthorizationFilter#authorization(FilterContext, List)}

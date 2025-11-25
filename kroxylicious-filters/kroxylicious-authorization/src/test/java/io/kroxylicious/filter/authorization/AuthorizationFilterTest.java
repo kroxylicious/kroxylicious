@@ -173,8 +173,20 @@ class AuthorizationFilterTest {
                 ApiKeys.FIND_COORDINATOR,
                 ApiKeys.INIT_PRODUCER_ID,
                 ApiKeys.ADD_OFFSETS_TO_TXN,
-                ApiKeys.END_TXN);
-        EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.PRODUCE);
+                ApiKeys.END_TXN,
+                ApiKeys.LIST_OFFSETS,
+                ApiKeys.DESCRIBE_TOPIC_PARTITIONS,
+                ApiKeys.OFFSET_FOR_LEADER_EPOCH,
+                ApiKeys.TXN_OFFSET_COMMIT,
+                ApiKeys.JOIN_GROUP,
+                ApiKeys.SYNC_GROUP,
+                ApiKeys.CONSUMER_GROUP_HEARTBEAT,
+                ApiKeys.CONSUMER_GROUP_DESCRIBE);
+        EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.PRODUCE,
+                ApiKeys.FETCH,
+                ApiKeys.OFFSET_COMMIT,
+                ApiKeys.OFFSET_FETCH,
+                ApiKeys.ADD_PARTITIONS_TO_TXN);
         EnumSet<ApiKeys> noVersionsSupported = complementOf(unionOf(allVersionsSupported, someVersionsSupported));
         for (ApiKeys apiKey : allVersionsSupported) {
 

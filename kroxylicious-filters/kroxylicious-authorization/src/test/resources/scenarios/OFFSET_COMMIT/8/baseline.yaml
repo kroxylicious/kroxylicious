@@ -1,0 +1,77 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_COMMIT"
+  apiVersion: 8
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_COMMIT"
+      expectedRequestVersion: 8
+      expectedRequestHeader:
+        requestApiKey: 8
+        requestApiVersion: 8
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-414"
+        generationIdOrMemberEpoch: 21
+        memberId: "random-string-3"
+        groupInstanceId: "random-string-122"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 856
+                committedOffset: 911
+                committedLeaderEpoch: 334
+                committedMetadata: "random-string-621"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 503
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 363
+                errorCode: 249
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 8
+    requestApiVersion: 8
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-414"
+    generationIdOrMemberEpoch: 21
+    memberId: "random-string-3"
+    groupInstanceId: "random-string-122"
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 856
+            committedOffset: 911
+            committedLeaderEpoch: 334
+            committedMetadata: "random-string-621"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 503
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 363
+            errorCode: 249
