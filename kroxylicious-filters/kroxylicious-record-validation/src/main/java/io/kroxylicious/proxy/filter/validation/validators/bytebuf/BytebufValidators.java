@@ -67,8 +67,8 @@ public class BytebufValidators {
      * @return validator
      */
     public static BytebufValidator jwsSignatureValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> allowedAndDeniedAlgorithms, String jwsRecordHeaderKey,
-                                                         boolean isContentDetached) {
-        return new JwsSignatureBytebufValidator(trustedJsonWebKeySet, allowedAndDeniedAlgorithms, jwsRecordHeaderKey, isContentDetached);
+                                                         boolean isContentDetached, boolean failOnMissingJwsRecordHeader) {
+        return new JwsSignatureBytebufValidator(trustedJsonWebKeySet, allowedAndDeniedAlgorithms, jwsRecordHeaderKey, isContentDetached, failOnMissingJwsRecordHeader);
     }
 
     /**

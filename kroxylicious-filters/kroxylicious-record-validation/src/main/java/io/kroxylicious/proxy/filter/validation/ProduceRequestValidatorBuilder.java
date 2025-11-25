@@ -65,7 +65,7 @@ class ProduceRequestValidatorBuilder {
         valueRule.getJwsSignatureValidationConfig().ifPresent(
                 config -> validators
                         .add(BytebufValidators.jwsSignatureValidator(config.getJsonWebKeySet(), config.getAllowedAndDeniedAlgorithms(), config.getjwsRecordHeaderKey(),
-                                config.getIsContentDetached())));
+                                config.getIsContentDetached(), config.getFailOnMissingJwsRecordHeader())));
 
         return BytebufValidators.chainOf(validators);
     }
