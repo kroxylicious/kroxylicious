@@ -60,8 +60,10 @@ class ProduceRequestValidatorBuilder {
         var validators = new ArrayList<BytebufValidator>();
         valueRule.getSyntacticallyCorrectJsonConfig().ifPresent(config -> validators.add(BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique())));
         valueRule.getSchemaValidationConfig().ifPresent(
-                config -> validators.add(BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
-                        config.apicurioContentId())));
+                config -> validators.add(BytebufValidators.jsonSchemaValidator(
+                        Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
+                        config.apicurioContentId(),
+                        config.wireFormatVersion())));
         valueRule.getJwsSignatureValidationConfig().ifPresent(
                 config -> validators
                         .add(BytebufValidators.jwsSignatureValidator(config.getJsonWebKeySet(), config.getAlgorithms(), config.getHeaderOptions(),
