@@ -14,9 +14,8 @@ import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AN
 import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD;
 import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_PAYLOAD;
 import static io.kroxylicious.test.jws.JwsTestUtils.generateJws;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JwsTestUtilsTest {
     static final String BASE64_ENCODED_LEFT_CURLY_BRACKET = "ey";
@@ -26,8 +25,8 @@ class JwsTestUtilsTest {
     void generateJwsGeneratesValidEcdsaJws() {
         String jws = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, false, false);
 
-        assertFalse(jws.isEmpty());
-        assertTrue(isJsonObject(jws));
+        assertThat(jws).isNotEmpty();
+        assertThat(isJsonObject(jws)).isTrue();
     }
 
     @Test
@@ -36,9 +35,9 @@ class JwsTestUtilsTest {
                 true,
                 false);
 
-        assertFalse(jws.isEmpty());
-        assertTrue(isJsonObject(jws));
-        assertTrue(isJwsWithDetachedContent(jws));
+        assertThat(jws).isNotEmpty();
+        assertThat(isJsonObject(jws)).isTrue();
+        assertThat(isJwsWithDetachedContent(jws)).isTrue();
     }
 
     @Test
@@ -46,14 +45,14 @@ class JwsTestUtilsTest {
         String jws = generateJws(ECDSA_SIGN_JWKS,
                 VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD, true, true);
 
-        assertFalse(jws.isEmpty());
-        assertTrue(isJsonObject(jws));
-        assertTrue(isJwsWithDetachedContent(jws));
+        assertThat(jws).isNotEmpty();
+        assertThat(isJsonObject(jws)).isTrue();
+        assertThat(isJwsWithDetachedContent(jws)).isTrue();
     }
 
     @Test
     void generateJwsFailsWhenJwksIsEmpty() {
-        assertThrows(IndexOutOfBoundsException.class, () -> generateJws(EMPTY_JWKS, "random string", false, false));
+        assertThatThrownBy(() -> generateJws(EMPTY_JWKS, "random string", false, false)).isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     private boolean isJsonObject(String string) {
