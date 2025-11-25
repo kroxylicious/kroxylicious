@@ -44,7 +44,7 @@ class CreatePartitionsEnforcement extends ApiEnforcement<CreatePartitionsRequest
                             TopicResource.ALTER,
                             CreatePartitionsRequestData.CreatePartitionsTopic::name);
                     if (decisions.get(Decision.ALLOW).isEmpty()) {
-                        // Shortcircuit if there's no allowed topics
+                        // Shortcircuit if there are no allowed topics
                         var creatableTopics = decisions.get(Decision.DENY).stream()
                                 .map(CreatePartitionsEnforcement::topicAuthzFailed)
                                 .toList();
@@ -53,7 +53,7 @@ class CreatePartitionsEnforcement extends ApiEnforcement<CreatePartitionsRequest
                                 new CreatePartitionsResponseData().setResults(creatableTopics)).completed();
                     }
                     else if (decisions.get(Decision.DENY).isEmpty()) {
-                        // Just forward if there's no denied topics
+                        // Just forward if there are no denied topics
                         return context.forwardRequest(header, request);
                     }
                     else {

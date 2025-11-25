@@ -46,7 +46,7 @@ class ListOffsetsEnforcement extends ApiEnforcement<ListOffsetsRequestData, List
                             ListOffsetsTopic::name);
                     List<ListOffsetsTopic> allowedTopics = topicDescribeDecisions.getOrDefault(Decision.ALLOW, List.of());
                     if (allowedTopics.isEmpty()) {
-                        // Shortcircuit if there's no allowed topics
+                        // Shortcircuit if there are no allowed topics
                         ListOffsetsResponseData response = new ListOffsetsResponseData();
                         var topics = createDenyTopicResponses(topicDescribeDecisions);
                         response.setTopics(topics);
@@ -55,7 +55,7 @@ class ListOffsetsEnforcement extends ApiEnforcement<ListOffsetsRequestData, List
                                 .completed();
                     }
                     else if (topicDescribeDecisions.getOrDefault(Decision.DENY, List.of()).isEmpty()) {
-                        // Just forward if there's no denied topics
+                        // Just forward if there are no denied topics
                         return context.forwardRequest(header, request);
                     }
                     else {

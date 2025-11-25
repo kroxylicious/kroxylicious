@@ -47,7 +47,7 @@ class CreateTopicsEnforcement extends ApiEnforcement<CreateTopicsRequestData, Cr
                             TopicResource.CREATE,
                             CreateTopicsRequestData.CreatableTopic::name);
                     if (decisions.get(Decision.ALLOW).isEmpty()) {
-                        // Shortcircuit if there's no allowed topics
+                        // Shortcircuit if there are no allowed topics
                         CreateTopicsResponseData.CreatableTopicResultCollection creatableTopics = new CreateTopicsResponseData.CreatableTopicResultCollection();
                         decisions.get(Decision.DENY).stream()
                                 .map(ct -> topicAuthzFailed(header.requestApiVersion(), ct))
@@ -57,7 +57,7 @@ class CreateTopicsEnforcement extends ApiEnforcement<CreateTopicsRequestData, Cr
                                 new CreateTopicsResponseData().setTopics(creatableTopics)).completed();
                     }
                     else if (decisions.get(Decision.DENY).isEmpty()) {
-                        // Just forward if there's no denied topics
+                        // Just forward if there are no denied topics
                         return context.forwardRequest(header, request);
                     }
                     else {

@@ -50,7 +50,7 @@ class FetchEnforcement extends ApiEnforcement<FetchRequestData, FetchResponseDat
                             FetchRequestData.FetchTopic::topic);
                     List<FetchRequestData.FetchTopic> allowedTopics = topicReadDecisions.getOrDefault(Decision.ALLOW, List.of());
                     if (allowedTopics.isEmpty()) {
-                        // Shortcircuit if there's no allowed topics
+                        // Shortcircuit if there are no allowed topics
                         FetchResponseData response = new FetchResponseData();
                         response.setErrorCode(Errors.NONE.code());
                         var fetchableTopicResponses = createDenyTopicResponses(topicReadDecisions);
@@ -60,7 +60,7 @@ class FetchEnforcement extends ApiEnforcement<FetchRequestData, FetchResponseDat
                                 .completed();
                     }
                     else if (topicReadDecisions.getOrDefault(Decision.DENY, List.of()).isEmpty()) {
-                        // Just forward if there's no denied topics
+                        // Just forward if there are no denied topics
                         return context.forwardRequest(header, request);
                     }
                     else {
