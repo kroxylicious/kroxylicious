@@ -114,8 +114,30 @@ public class JwsSignatureValidationConfig {
 
     @Override
     public int hashCode() {
-        return Objects.hash(trustedJsonWebKeySet, allowedAndDeniedAlgorithms, jwsRecordHeaderKey, isContentDetached);
+        List<String> allowedAlgorithms = new ArrayList<>(Optional.ofNullable(allowedAndDeniedAlgorithms.allowed()).orElse(List.of()));
+        allowedAlgorithms.sort(null);
+
+        Set<String> deniedAlgorithms = Optional.ofNullable(allowedAndDeniedAlgorithms.denied()).orElse(Set.of());
+
+        List<String> jsonWebKeys = trustedJsonWebKeySet.getJsonWebKeys().stream()
+                .map(k -> String.join("|",
+                        k.getKeyId(),
+                        k.getKeyType(),
+                        k.getUse(),
+                        k.getAlgorithm()
+                ))
+                .sorted()
+                .toList();
+
+        return Objects.hash(
+                jsonWebKeys,
+                allowedAlgorithms,
+                deniedAlgorithms,
+                jwsRecordHeaderKey,
+                isContentDetached
+        );
     }
+
 
     @Override
     public String toString() {
