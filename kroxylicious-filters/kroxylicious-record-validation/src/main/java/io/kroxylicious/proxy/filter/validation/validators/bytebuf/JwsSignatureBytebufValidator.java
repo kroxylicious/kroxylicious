@@ -48,7 +48,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
 
     private static final VerificationJwkSelector jwkSelector = new VerificationJwkSelector();
 
-    private final JsonWebSignature jws = new JsonWebSignature();
+    private final JsonWebSignature jws;
     private final JsonWebKeySet trustedJsonWebKeySet;
     private final boolean isContentDetached;
 
@@ -58,6 +58,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
     public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> allowedAndDeniedAlgorithms, String jwsRecordHeaderKey, boolean isContentDetached) {
+        this.jws = new JsonWebSignature();
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
         this.jwsRecordHeaderKey = jwsRecordHeaderKey;
         this.isContentDetached = isContentDetached;
