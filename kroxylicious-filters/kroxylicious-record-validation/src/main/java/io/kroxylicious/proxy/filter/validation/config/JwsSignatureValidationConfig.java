@@ -38,7 +38,7 @@ public class JwsSignatureValidationConfig {
     private final JsonWebKeySet trustedJsonWebKeySet;
     private final AllowDeny<String> allowedAndDeniedAlgorithms;
     private final String jwsRecordHeaderKey;
-    private final boolean isContentDetached;
+    private final Boolean isContentDetached;
     private final Boolean failOnMissingJwsRecordHeader;
 
     /**
@@ -49,14 +49,14 @@ public class JwsSignatureValidationConfig {
     public JwsSignatureValidationConfig(@JsonProperty(value = "trustedJsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet trustedJsonWebKeySet,
                                         @JsonProperty(value = "algorithms") @Nullable AllowDeny<String> nullableAlgorithms,
                                         @JsonProperty(value = "jwsRecordHeaderKey", defaultValue = "kroxylicious.io/jws") @Nullable String nullablejwsRecordHeaderKey,
-                                        @JsonProperty(value = "contentDetached", defaultValue = "false") boolean nullableIsContentDetached,
+                                        @JsonProperty(value = "contentDetached", defaultValue = "false") @Nullable Boolean nullableIsContentDetached,
                                         @JsonProperty(value = "failOnMissingJwsRecordHeader", defaultValue = "true") @Nullable Boolean nullableFailOnMissingJwsRecordHeader) {
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
 
         this.allowedAndDeniedAlgorithms = nullableAlgorithms != null ? nullableAlgorithms : new AllowDeny<>(List.of(), Set.of());
 
         this.jwsRecordHeaderKey = nullablejwsRecordHeaderKey != null ? nullablejwsRecordHeaderKey : "kroxylicious.io/jws";
-        this.isContentDetached = nullableIsContentDetached;
+        this.isContentDetached = nullableIsContentDetached != null && nullableIsContentDetached;
         this.failOnMissingJwsRecordHeader = nullableFailOnMissingJwsRecordHeader == null || nullableFailOnMissingJwsRecordHeader;
     }
 
