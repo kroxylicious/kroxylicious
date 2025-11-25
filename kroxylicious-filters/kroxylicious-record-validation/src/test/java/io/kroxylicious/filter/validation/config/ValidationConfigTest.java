@@ -8,6 +8,7 @@ package io.kroxylicious.filter.validation.config;
 
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -16,13 +17,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jws.AlgorithmIdentifiers;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
 import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
@@ -133,7 +135,7 @@ class ValidationConfigTest {
                 """.formatted(ECDSA_VERIFY_JWKS.toJson()));
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null, false), true,
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, false), true,
                         false));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, true, false), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo),
@@ -159,10 +161,10 @@ class ValidationConfigTest {
                             jwsSignatureValidation:
                                 trustedJsonWebKeySet: >
                                     %s
-                                algorithmConstraintType: PERMIT
                                 algorithms:
-                                    - ES256
-                                    - RS256
+                                    allowed:
+                                        - ES256
+                                        - RS256
                                 jwsRecordHeaderKey: kroxylicious.io/jws
                                 isContentDetached: true
                             allowNulls: false
@@ -176,8 +178,7 @@ class ValidationConfigTest {
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
                 new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null,
-                        new JwsSignatureValidationConfig(RSA_AND_ECDSA_VERIFY_JWKS, AlgorithmConstraints.ConstraintType.PERMIT,
-                                new String[]{ AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256 }, "kroxylicious.io/jws", true),
+                        new JwsSignatureValidationConfig(RSA_AND_ECDSA_VERIFY_JWKS, new AllowDeny<>(List.of(AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256), Collections.emptySet()), "kroxylicious.io/jws", true),
                         false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
