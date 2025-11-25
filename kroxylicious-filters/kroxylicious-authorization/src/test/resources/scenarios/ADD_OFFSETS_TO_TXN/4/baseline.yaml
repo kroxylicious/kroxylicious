@@ -1,0 +1,55 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "ADD_OFFSETS_TO_TXN"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "ADD_OFFSETS_TO_TXN"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 25
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "random-string-920"
+        producerId: 246
+        producerEpoch: 624
+        groupId: "random-string-527"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 877
+        errorCode: 574
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 25
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-920"
+    producerId: 246
+    producerEpoch: 624
+    groupId: "random-string-527"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 877
+    errorCode: 574
