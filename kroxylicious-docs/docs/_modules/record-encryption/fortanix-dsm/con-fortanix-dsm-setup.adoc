@@ -32,7 +32,7 @@ the URL you should use.
 == Establish a naming convention for keys within Fortanix DSM
 
 Establish a naming convention for keys to keep the filter’s keys separate from those used by other systems.
-Here, we use a prefix of `KEK_` for filter key name.
+Here, we use a prefix of `KEK-` for filter key name.
 
 Choose the Fortanix DSM groups to keep the keys. Here, we assume a group name of `topic-keks`.
 

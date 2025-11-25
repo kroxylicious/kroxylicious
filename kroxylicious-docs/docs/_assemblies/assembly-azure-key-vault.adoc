@@ -1,0 +1,31 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// assembly-record-encryption-filter.adoc
+
+[id='assembly-azure-key-vault-{context}']
+= Preparing Azure Key Vault
+
+[role="_abstract"]
+To prepare Azure Key Vault for use with the Record Encryption filter, use the following setup:
+
+* Setup Azure resources
+* Establish a naming convention for keys
+* Create Azure Key Vault keys
+
+You'll need a privileged Azure user that is capable of creating users and resources to perform the set-up.
+
+include::../_modules/record-encryption/azure-key-vault/proc-azure-key-vault-setup.adoc[leveloffset=+1]
+include::../_modules/record-encryption/azure-key-vault/con-azure-key-vault-key-creation.adoc[leveloffset=+1]
+
+[role="_additional-resources"]
+.Additional resources
+
+* https://learn.microsoft.com/en-us/azure/key-vault/general/overview
+* https://learn.microsoft.com/en-us/azure/key-vault/keys/about-keys
+* https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-access-policy
+* https://learn.microsoft.com/en-us/azure/key-vault/general/best-practices
+* https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/overview
+* https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/privileged
+* https://learn.microsoft.com/en-us/azure/role-based-access-control/scope-overview

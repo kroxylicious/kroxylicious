@@ -51,7 +51,7 @@ https://myvaultinstance:8200/v1/mytransit
 == Establish the naming convention for keys within Vault hierarchy
 
 Establish a naming convention for keys to keep the filter’s keys separate from those used by other systems.
-Here, we use a prefix of KEK_ for filter key name.
+Here, we use a prefix of KEK- for filter key name.
 Adjust the instructions if a different naming convention is used.
 
 == Role of the administrator
@@ -61,13 +61,13 @@ are used by the xref:con-record-encryption-overview-{context}[envelope encryptio
 
 The organization deploying the Record Encryption filter is responsible for managing this administrator or process.
 
-The administrator must have permissions to create keys beneath `transit/keys/KEK_*` in the Vault hierarchy.
+The administrator must have permissions to create keys beneath `transit/keys/KEK-*` in the Vault hierarchy.
 
 As a guideline, the minimal Vault policy required by the administrator is as follows:
 
 [source,shell]
 ----
-path "transit/keys/KEK_*" {
+path "transit/keys/KEK-*" {
   capabilities = ["read", "write"]
 }
 ----
@@ -82,13 +82,13 @@ Create a Vault policy for the filter:
 [source,shell]
 ----
 vault policy write kroxylicious_encryption_filter_policy - << EOF
-path "transit/keys/KEK_*" {
+path "transit/keys/KEK-*" {
   capabilities = ["read"]
 }
-path "/transit/datakey/plaintext/KEK_*" {
+path "/transit/datakey/plaintext/KEK-*" {
   capabilities = ["update"]
 }
-path "transit/decrypt/KEK_*" {
+path "transit/decrypt/KEK-*" {
   capabilities = ["update"]
 }
 EOF
@@ -140,7 +140,7 @@ vault token renew --accessor <token_accessor>
 To test whether the application identity and the policy are working correctly, a
 {github-raw-root}/scripts/validate_vault_token.sh[script] can be used.
 
-First, as the administrator, create a KEK in the hierarchy at this path `transit/keys/KEK_testkey`.
+First, as the administrator, create a KEK in the hierarchy at this path `transit/keys/KEK-testkey`.
 
 [source,shell]
 ----
@@ -150,5 +150,5 @@ VAULT_TOKEN=<kroxylicious encryption filter token> validate_vault_token.sh <kek 
 The script should respond `Ok`.  
 If errors are reported check the policy/token configuration.
 
-`transit/keys/KEK_testkey` can now be removed.
+`transit/keys/KEK-testkey` can now be removed.
 

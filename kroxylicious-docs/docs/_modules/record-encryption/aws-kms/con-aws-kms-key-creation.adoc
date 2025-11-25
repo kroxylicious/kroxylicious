@@ -21,7 +21,7 @@ If using the CLI, this can be done with commands like this:
 
 [source,shell]
 ----
-KEY_ALIAS="KEK_<name>"
+KEY_ALIAS="KEK-<name>"
 KEY_ID=$(aws kms create-key | jq -r '.KeyMetadata.KeyId')
 # the create key command will produce JSON output including the KeyId
 aws kms create-alias --alias-name alias/${KEY_ALIAS} --target-key-id ${KEY_ID}
