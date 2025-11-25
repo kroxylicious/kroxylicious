@@ -72,10 +72,10 @@ class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPar
                     // populate the topic authorized operations
                     request.topics().removeAll(partitioned.get(Decision.DENY));
                     authorizationFilter.pushInflightState(header, (DescribeTopicPartitionsResponseData response) -> {
-                        response.topics().forEach(topic -> {
-                            // following the real broker behaviour we do not need to compute this for unauthorized topics
+                        // following the real broker behaviour we do not need to compute this for unauthorized topics
+                        for (DescribeTopicPartitionsResponseTopic topic : response.topics()) {
                             topic.setTopicAuthorizedOperations(AuthorizedOps.topicAuthorizedOps(authorizeResult, topic.topicAuthorizedOperations(), topic.name()));
-                        });
+                        }
                         response.topics().addAll(unauthorized);
                         return response;
                     });
@@ -118,9 +118,9 @@ class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPar
             Map<Decision, List<DescribeTopicPartitionsResponseTopic>> partitioned = authorizeResult.partition(response.topics(), TopicResource.DESCRIBE,
                     DescribeTopicPartitionsResponseTopic::name);
             response.topics().removeAll(partitioned.get(Decision.DENY));
-            response.topics().forEach(topic -> {
+            for (DescribeTopicPartitionsResponseTopic topic : response.topics()) {
                 topic.setTopicAuthorizedOperations(AuthorizedOps.topicAuthorizedOps(authorizeResult, topic.topicAuthorizedOperations(), topic.name()));
-            });
+            }
             return context.forwardResponse(header, response);
         });
     }

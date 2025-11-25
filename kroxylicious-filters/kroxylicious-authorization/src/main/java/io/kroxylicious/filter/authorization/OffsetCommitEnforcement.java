@@ -78,11 +78,11 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
     private OffsetCommitResponseData.OffsetCommitResponseTopic topicAuthzFailed(OffsetCommitRequestData.OffsetCommitRequestTopic offsetCommitRequestTopic) {
         return new OffsetCommitResponseData.OffsetCommitResponseTopic()
                 .setName(offsetCommitRequestTopic.name())
-                .setPartitions(offsetCommitRequestTopic.partitions().stream().map(p -> {
-                    return new OffsetCommitResponseData.OffsetCommitResponsePartition()
-                            .setPartitionIndex(p.partitionIndex())
-                            .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
-                }).toList());
+                .setPartitions(offsetCommitRequestTopic.partitions().stream()
+                        .map(p -> new OffsetCommitResponseData.OffsetCommitResponsePartition()
+                                .setPartitionIndex(p.partitionIndex())
+                                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
+                        .toList());
     }
 
 }

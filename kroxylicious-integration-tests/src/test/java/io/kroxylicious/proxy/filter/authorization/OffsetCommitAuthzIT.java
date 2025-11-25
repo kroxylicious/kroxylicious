@@ -175,12 +175,6 @@ public class OffsetCommitAuthzIT extends AuthzIT {
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonNodes) {
-            // var topics = sortArray(jsonNodes, "topics", "name");
-            // for (var topics1 : topics) {
-            // if (topics1.isObject()) {
-            // clobberUuid((ObjectNode) topics1, "topicId");
-            // }
-            // }
             return prettyJsonString(jsonNodes);
         }
 
@@ -195,7 +189,10 @@ public class OffsetCommitAuthzIT extends AuthzIT {
 
         @Override
         public Object observedVisibleSideEffects(BaseClusterFixture cluster) {
-            return GROUP_PER_USER.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> offsets(cluster, e.getValue())));
+            return GROUP_PER_USER.entrySet().stream()
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            entry -> offsets(cluster, entry.getValue())));
         }
 
         @Override
@@ -217,17 +214,6 @@ public class OffsetCommitAuthzIT extends AuthzIT {
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
                     .as("%s offsets in %s", EVE, unproxiedResponsesByUser)
                     .isEmpty();
-
-            // assertThat(unproxiedResponsesByUser.get(EVE).topics().stream().filter(t -> t.name().equals(EVE_TOPIC_NAME)).findFirst()
-            // .orElseThrow()
-            // .partitions().stream()
-            // .allMatch(p -> p.errorCode() == Errors.TOPIC_AUTHORIZATION_FAILED.code())).isTrue();
-
-            // var xx = unproxiedResponsesByUser.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey,
-            // entry -> prettyJsonString(convertResponse(entry.getValue()))));
-            // assertThat(xx).as("UnproxiedResponses").isEqualTo(Map.of("alice", "",
-            // "bob", "",
-            // "eve", ""));
         }
     }
 
