@@ -19,11 +19,13 @@ import io.apicurio.registry.resolver.strategy.ArtifactReference;
 import io.apicurio.registry.serde.BaseSerde;
 import io.apicurio.registry.serde.Default4ByteIdHandler;
 import io.apicurio.registry.serde.IdHandler;
+import io.apicurio.registry.serde.Legacy8ByteIdHandler;
 import io.apicurio.registry.serde.headers.DefaultHeadersHandler;
 import io.apicurio.registry.serde.headers.HeadersHandler;
 import io.apicurio.schema.validation.json.JsonValidationResult;
 import io.apicurio.schema.validation.json.JsonValidator;
 
+import io.kroxylicious.proxy.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
 public class JsonSchemaBytebufValidator implements BytebufValidator {
@@ -34,14 +36,14 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
     private final IdHandler keyIdHandler;
     private final IdHandler valueIdHandler;
 
-    public JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long contentId) {
+    public JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long contentId, WireFormatVersion wireFormatVersion) {
         this.contentId = contentId;
         this.jsonValidator = new JsonValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromContentId(contentId)));
         this.keyHeaderHandler = buildHeaderHandler(true);
-        this.keyIdHandler = buildIdHandler(true);
+        this.keyIdHandler = buildIdHandler(true, wireFormatVersion);
 
         this.valueHeaderHandler = buildHeaderHandler(false);
-        this.valueIdHandler = buildIdHandler(false);
+        this.valueIdHandler = buildIdHandler(false, wireFormatVersion);
     }
 
     @Override
@@ -89,8 +91,11 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
         return handler;
     }
 
-    private static IdHandler buildIdHandler(boolean isKey) {
-        var handler = new Default4ByteIdHandler();
+    private static IdHandler buildIdHandler(boolean isKey, WireFormatVersion wireFormatVersion) {
+        IdHandler handler = switch (wireFormatVersion) {
+            case V2 -> new Legacy8ByteIdHandler();
+            case V3 -> new Default4ByteIdHandler();
+        };
         handler.configure(Map.of(), isKey);
         return handler;
     }

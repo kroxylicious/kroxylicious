@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import io.kroxylicious.proxy.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
+
 /**
  * Static factory methods for creating/getting {@link BytebufValidator} instances
  */
@@ -52,10 +54,13 @@ public class BytebufValidators {
 
     /**
      * get validator that validates if a non-null/non-empty buffer contains data that matches a JSONSchema registered in the Schema Registry
+     * @param schemaResolverConfig schema resolver configuration
+     * @param contentId content ID to validate against
+     * @param wireFormatVersion wire format version (V2 or V3)
      * @return validator
      */
-    public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId) {
-        return new JsonSchemaBytebufValidator(schemaResolverConfig, contentId);
+    public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId, WireFormatVersion wireFormatVersion) {
+        return new JsonSchemaBytebufValidator(schemaResolverConfig, contentId, wireFormatVersion);
     }
 
     /**
