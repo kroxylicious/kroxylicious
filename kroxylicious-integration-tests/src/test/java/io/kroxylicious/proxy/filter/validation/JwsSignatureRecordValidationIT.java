@@ -50,7 +50,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void validJwsProduceAccepted(KafkaCluster cluster, Topic topic) {
-        ConfigurationBuilder config = createFilterDef(cluster, topic, false, false);
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false, false, true);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -71,8 +71,26 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
+    void missingJwsHeaderProduceAcceptedWhenConfigured(KafkaCluster cluster, Topic topic) {
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false, false, false);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer()) {
+            var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
+                    EMPTY_STRING, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, List.of()));
+            assertThatFutureSucceeds(result);
+
+            var records = consumeAll(tester, topic);
+            assertThat(records)
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(VALID_JWS_USING_ECDSA_JWK_PAYLOAD);
+        }
+    }
+
+    @Test
     void validJwsSignedWithJwkFromMultiKeyJwksProduceAccepted(KafkaCluster cluster, Topic topic) {
-        ConfigurationBuilder config = createFilterDef(cluster, topic, true, false);
+        ConfigurationBuilder config = createFilterDef(cluster, topic, true, false, true);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -94,7 +112,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void validDetachedContentJwsProduceAccepted(KafkaCluster cluster, Topic topic) {
-        ConfigurationBuilder config = createFilterDef(cluster, topic, false, true);
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false, true, true);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -117,7 +135,19 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void invalidJwsProduceRejected(KafkaCluster cluster, Topic topic) {
-        ConfigurationBuilder config = createFilterDef(cluster, topic, false, false);
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false, false, true);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer()) {
+            var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
+                    EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, INVALID_JWS))));
+            assertThatFutureFails(result, InvalidRecordException.class, DEFAULT_ERROR_MESSAGE + ": A JWS Compact Serialization must have exactly 3 parts");
+        }
+    }
+
+    @Test
+    void invalidJwsHeaderProduceRejectedWhenConfiguredToNotFailOnMissing(KafkaCluster cluster, Topic topic) {
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false, false, false);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -129,7 +159,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void jwsSignedWithMissingJwkProduceRejected(KafkaCluster cluster, Topic topic) {
-        ConfigurationBuilder config = createFilterDef(cluster, topic, false, false);
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false, false, true);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -141,7 +171,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void jwsSignedWithRsaJwkProduceRejectedDueToEcdsaConstraints(KafkaCluster cluster, Topic topic) {
-        ConfigurationBuilder config = createFilterDef(cluster, topic, false, false);
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false, false, true);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -153,7 +183,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void invalidDetachedContentJwsProduceRejected(KafkaCluster cluster, Topic topic) {
-        ConfigurationBuilder config = createFilterDef(cluster, topic, false, true);
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false, true, true);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -167,19 +197,19 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         assertThat(new RecordHeaders(record.headers()).lastHeader(JWS_HEADER_NAME).value()).isEqualTo(value);
     }
 
-    private static ConfigurationBuilder createFilterDef(KafkaCluster cluster, Topic topic, boolean multiKeyJwks, boolean contentDetached) {
+    private static ConfigurationBuilder createFilterDef(KafkaCluster cluster, Topic topic, boolean multiKeyJwks, boolean contentDetached, boolean failOnMissingJwsRecordHeader) {
         String className = RecordValidation.class.getName();
 
         Map<String, Object> jwsConfig;
 
         if (multiKeyJwks) {
-            jwsConfig = Map.of("trustedJsonWebKeySet", RSA_AND_ECDSA_VERIFY_JWKS.toJson(), "algorithmConstraintType", "PERMIT", "algorithms", List.of("ES256", "RS256"),
+            jwsConfig = Map.of("trustedJsonWebKeySet", RSA_AND_ECDSA_VERIFY_JWKS.toJson(), "algorithms", Map.of("allowed", List.of("ES256", "RS256")),
                     "jwsRecordHeaderKey",
-                    JWS_HEADER_NAME, "contentDetached", contentDetached);
+                    JWS_HEADER_NAME, "contentDetached", contentDetached,  "failOnMissingJwsRecordHeader", failOnMissingJwsRecordHeader);
         }
         else {
-            jwsConfig = Map.of("trustedJsonWebKeySet", ECDSA_VERIFY_JWKS.toJson(), "algorithmConstraintType", "PERMIT", "algorithms", List.of("ES256"), "jwsRecordHeaderKey",
-                    JWS_HEADER_NAME, "contentDetached", contentDetached);
+            jwsConfig = Map.of("trustedJsonWebKeySet", ECDSA_VERIFY_JWKS.toJson(), "algorithms", Map.of("allowed", List.of("ES256")), "jwsRecordHeaderKey",
+                    JWS_HEADER_NAME, "contentDetached", contentDetached, "failOnMissingJwsRecordHeader", failOnMissingJwsRecordHeader);
         }
 
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
