@@ -68,7 +68,7 @@ public class JwsSignatureValidationConfig {
     public JwsSignatureValidationConfig(@JsonProperty(value = "trustedJsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet trustedJsonWebKeySet,
                                         @JsonProperty(value = "algorithms") @Nullable AllowDeny<String> nullableAlgorithms,
                                         @JsonProperty(value = "jwsRecordHeaderKey", defaultValue = "kroxylicious.io/jws") @Nullable String nullablejwsRecordHeaderKey,
-                                        @JsonProperty(value = "isContentDetached", defaultValue = "false") boolean nullableIsContentDetached) {
+                                        @JsonProperty(value = "contentDetached", defaultValue = "false") boolean nullableIsContentDetached) {
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
 
         this.algorithmConstraints = nullableAlgorithms != null ? extractAlgorithmConstraints(nullableAlgorithms) : new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT);
