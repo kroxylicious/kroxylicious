@@ -53,6 +53,12 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
                 (metadataRequest.topics().isEmpty() && header.requestApiVersion() == 0);
     }
 
+    private boolean isNoTopics(RequestHeaderData header, MetadataRequestData metadataRequest) {
+        return metadataRequest.topics() != null
+                && metadataRequest.topics().isEmpty()
+                && header.requestApiVersion() != 0;
+    }
+
     @Override
     CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
                                                    MetadataRequestData request,
@@ -85,7 +91,8 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
         // Therefore, it's safe to forward the requests with allowAutoTopicCreation=false as-is
         // (and leave the response handler to filter out topics disallowed by the authorizer),
         // EXCEPT when the request allows topic creation.
-        if (isAllTopics // An all-topics query won't create topics even if the flag is set
+        if (isNoTopics(header, request)
+                || isAllTopics // An all-topics query won't create topics even if the flag is set
                 || !request.allowAutoTopicCreation() || onlyContainsTopicIds) {
             return context.forwardRequest(header, request);
         }
