@@ -40,7 +40,8 @@ public class JwsSignatureBytebufValidatorTest {
     // Recommended algorithms from https://datatracker.ietf.org/doc/html/rfc7518#section-3.1
     private static final AllowDeny<String> PERMIT_ES256 = new AllowDeny<>(List.of(AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256), Set.of());
     private static final AllowDeny<String> PERMIT_RS256 = new AllowDeny<>(List.of(AlgorithmIdentifiers.RSA_USING_SHA256), Set.of());
-    private static final AllowDeny<String> PERMIT_ES256_AND_RS256 = new AllowDeny<>(List.of(AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256), Set.of());
+    private static final AllowDeny<String> PERMIT_ES256_AND_RS256 = new AllowDeny<>(
+            List.of(AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256), Set.of());
     private static final AllowDeny<String> PERMIT_ALL = new AllowDeny<>(List.of(), Set.of("not-an-algorithm"));
 
     private static final byte[] EMPTY = new byte[0];

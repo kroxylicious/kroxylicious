@@ -141,7 +141,8 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
                     EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, INVALID_JWS))));
-            assertThatFutureFails(result, InvalidRecordException.class, DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: A JWS Compact Serialization must have exactly 3 parts");
+            assertThatFutureFails(result, InvalidRecordException.class,
+                    DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: A JWS Compact Serialization must have exactly 3 parts");
         }
     }
 
@@ -153,7 +154,8 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
                     EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, INVALID_JWS))));
-            assertThatFutureFails(result, InvalidRecordException.class, DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: A JWS Compact Serialization must have exactly 3 parts");
+            assertThatFutureFails(result, InvalidRecordException.class,
+                    DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: A JWS Compact Serialization must have exactly 3 parts");
         }
     }
 
@@ -165,7 +167,8 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
                     EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_MISSING_ECDSA_JWK))));
-            assertThatFutureFails(result, InvalidRecordException.class, DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: Could not select a valid JWK that matches the algorithm constraints");
+            assertThatFutureFails(result, InvalidRecordException.class,
+                    DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: Could not select a valid JWK that matches the algorithm constraints");
         }
     }
 
@@ -177,7 +180,8 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
                     EMPTY_STRING, VALID_JWS_USING_RSA_JWK_PAYLOAD, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK))));
-            assertThatFutureFails(result, InvalidRecordException.class, DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: Could not select a valid JWK that matches the algorithm constraints");
+            assertThatFutureFails(result, InvalidRecordException.class,
+                    DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: Could not select a valid JWK that matches the algorithm constraints");
         }
     }
 
@@ -197,7 +201,8 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         assertThat(new RecordHeaders(record.headers()).lastHeader(JWS_HEADER_NAME).value()).isEqualTo(value);
     }
 
-    private static ConfigurationBuilder createFilterDef(KafkaCluster cluster, Topic topic, boolean multiKeyJwks, boolean contentDetached, boolean failOnMissingJwsRecordHeader) {
+    private static ConfigurationBuilder createFilterDef(KafkaCluster cluster, Topic topic, boolean multiKeyJwks, boolean contentDetached,
+                                                        boolean failOnMissingJwsRecordHeader) {
         String className = RecordValidation.class.getName();
 
         Map<String, Object> jwsConfig;
@@ -205,7 +210,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         if (multiKeyJwks) {
             jwsConfig = Map.of("trustedJsonWebKeySet", RSA_AND_ECDSA_VERIFY_JWKS.toJson(), "algorithms", Map.of("allowed", List.of("ES256", "RS256")),
                     "jwsRecordHeaderKey",
-                    JWS_HEADER_NAME, "contentDetached", contentDetached,  "failOnMissingJwsRecordHeader", failOnMissingJwsRecordHeader);
+                    JWS_HEADER_NAME, "contentDetached", contentDetached, "failOnMissingJwsRecordHeader", failOnMissingJwsRecordHeader);
         }
         else {
             jwsConfig = Map.of("trustedJsonWebKeySet", ECDSA_VERIFY_JWKS.toJson(), "algorithms", Map.of("allowed", List.of("ES256")), "jwsRecordHeaderKey",
