@@ -64,7 +64,7 @@ NETTY_NATIVE_LIB=$(native_library_path netty)
 LZ4_NATIVE_LIB=$(native_library_path lz4-java/net/jpountz/util)
 SNAPPY_NATIVE_LIB=$(native_library_path snappy/org/xerial/snappy/native)
 ZSTD_NATIVE_LIB=$(native_library_path zstd-jni)
-ZSTD_FULLY_QUALIFIED=$(ls "${ZSTD_NATIVE_LIB}"/libzstd-jni-*.so)
+ZSTD_FULLY_QUALIFIED=$(ls "${ZSTD_NATIVE_LIB}"/libzstd-jni-*)
 NATIVE_LIB_PATH="${NATIVE_LIB_PATH:-${NETTY_NATIVE_LIB}:${LZ4_NATIVE_LIB}:${SNAPPY_NATIVE_LIB}:${ZSTD_NATIVE_LIB}:${LD_LIBRARY_PATH:-}}"
 
 NATIVE_LIB_OPTIONS=${NATIVE_LIB_OPTIONS:-"-Djava.library.path=${NATIVE_LIB_PATH} -Dorg.xerial.snappy.disable.bundled.libs=true -DZstdNativePath=${ZSTD_FULLY_QUALIFIED}"}
