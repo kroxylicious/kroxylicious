@@ -10,7 +10,6 @@ import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletionException;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -74,12 +73,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                     .isEqualTo(expectedSubject);
         }
         else {
-            Assertions.assertThat(fut)
-                    .isCompletedExceptionally();
-            assertThatThrownBy(() -> fut.join()).isExactlyInstanceOf(CompletionException.class)
-                    .cause()
-                    .isExactlyInstanceOf(expectedException.getClass())
-                    .hasMessage(expectedException.getMessage());
+            Assertions.fail();
         }
 
     }
@@ -129,7 +123,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                       - else: identity
                                     principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
-                        "An `else` mapping may only occur as the last element of `map`."),
+                        "An `else` mapping may only occur at most once, as the last element of `map`."),
                 Arguments.argumentSet(
                         "else not the last mapping",
                         """

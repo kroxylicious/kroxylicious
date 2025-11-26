@@ -14,6 +14,9 @@ import java.util.Optional;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
@@ -27,6 +30,8 @@ public class ClientSubjectManager implements
         ClientSaslContext,
         ClientTlsContext,
         TransportSubjectBuilder.Context {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientSubjectManager.class);
 
     @VisibleForTesting
     static @Nullable X509Certificate peerTlsCertificate(@Nullable SSLSession session) {
@@ -89,6 +94,7 @@ public class ClientSubjectManager implements
                 this.subject = newSubject;
             }
             else {
+                LOGGER.warn("Failed to build subject from transport information; client will be treated as anonymous", error);
                 this.subject = Subject.anonymous();
             }
             this.mechanismName = null;

@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal.subject;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -56,7 +55,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
             for (PrincipalAdderConf adder : addPrincipals) {
                 // call methods for validation side-effect
                 buildExtractor(adder.from());
-                buildMappingRules(adder.map());
+                MappingRule.buildMappingRules(adder.map());
                 buildPrincipalFactory(adder.principalFactory());
             }
         }
@@ -70,7 +69,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
     public void initialize(Config config) {
         adders = Plugins.requireConfig(this, config).addPrincipals().stream()
                 .map(addConf -> new PrincipalAdder(buildExtractor(addConf.from()),
-                        buildMappingRules(addConf.map()),
+                        MappingRule.buildMappingRules(addConf.map()),
                         buildPrincipalFactory(addConf.principalFactory())))
                 .toList();
     }
@@ -81,49 +80,6 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("`principalFactory` '%s' not found.".formatted(principalFactory)))
                 .get();
-    }
-
-    @NonNull
-    static List<MappingRule> buildMappingRules(@Nullable List<Map> maps) {
-        if (maps == null || maps.isEmpty()) {
-            return List.of(new IdentityMappingRule());
-        }
-        int firstElseIndex = -1;
-        int numElses = 0;
-        for (int i = 0; i < maps.size(); i++) {
-            Map m = maps.get(i);
-
-            if (m.else_() != null) {
-                numElses++;
-                if (firstElseIndex == -1) {
-                    firstElseIndex = i;
-                }
-            }
-        }
-        if (numElses > 1) {
-            throw new IllegalArgumentException("An `else` mapping may only occur at most once, as the last element of `map`.");
-        }
-        else if (firstElseIndex != -1 && firstElseIndex < maps.size() - 1) {
-            throw new IllegalArgumentException("An `else` mapping may only occur as the last element of `map`.");
-        }
-        return maps.stream().map(DefaultSaslSubjectBuilderService::buildMappingRule).toList();
-    }
-
-    @NonNull
-    private static MappingRule buildMappingRule(Map map) {
-        if (map.replaceMatch() != null) {
-            return new ReplaceMatchMappingRule(map.replaceMatch());
-        }
-        else if (ELSE_IDENTITY.equals(map.else_())) {
-            return new IdentityMappingRule();
-        }
-        else if (ELSE_ANONYMOUS.equals(map.else_())) {
-            return s -> Optional.empty();
-        }
-        else {
-            throw new IllegalArgumentException("Unknown `else` map '%s', supported values are: '%s', '%s'."
-                    .formatted(map.else_(), ELSE_IDENTITY, ELSE_ANONYMOUS));
-        }
     }
 
     @NonNull

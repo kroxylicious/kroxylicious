@@ -276,7 +276,7 @@ public class KafkaProxyFrontendHandler
         clientChannel.config().setAutoRead(false);
         clientChannel.read();
         this.clientSubjectManager = new ClientSubjectManager();
-        this.progressionLatch = 2;
+        this.progressionLatch = 2; // we require two events before unblocking
         if (!this.endpointBinding.endpointGateway().isUseTls()) {
             this.clientSubjectManager.subjectFromTransport(null, this.subjectBuilder, this::onTransportSubjectBuilt);
         }
