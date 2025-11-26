@@ -83,15 +83,15 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
             return CompletableFuture.completedStage(new Result(false, message));
         }
 
+        byte[] jwsHeaderValue = new RecordHeaders(record.headers()).lastHeader(jwsRecordHeaderKey).value();
+        String jwsHeaderValueString = new String(jwsHeaderValue, StandardCharsets.UTF_8);
+
+        String payload = null;
+        if (isContentDetached) {
+            payload = new String(StandardCharsets.UTF_8.decode(buffer).array());
+        }
+
         try {
-            byte[] jwsHeaderValue = new RecordHeaders(record.headers()).lastHeader(jwsRecordHeaderKey).value();
-            String jwsHeaderValueString = new String(jwsHeaderValue, StandardCharsets.UTF_8);
-
-            String payload = null;
-            if (isContentDetached) {
-                payload = new String(StandardCharsets.UTF_8.decode(buffer).array());
-            }
-
             if (!isSignatureValid(jwsHeaderValueString, payload)) {
                 String message = DEFAULT_ERROR_MESSAGE + ": JWS Signature was invalid";
                 return CompletableFuture.completedStage(new Result(false, message));
