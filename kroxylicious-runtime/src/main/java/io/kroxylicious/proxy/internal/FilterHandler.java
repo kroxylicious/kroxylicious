@@ -461,7 +461,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                         channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
             }
             else {
-                LOGGER.debug("{}: {} response for internal request to filter '{}' was already completed: {}",
+                LOGGER.trace("{}: {} response for internal request to filter '{}' was already completed: {}",
                         channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
             }
         }
