@@ -204,6 +204,23 @@
             <artifactId>kroxylicious-record-encryption</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-authorization</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-authorizer-acl</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-authorizer-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-sasl-inspection</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
         </dependency>

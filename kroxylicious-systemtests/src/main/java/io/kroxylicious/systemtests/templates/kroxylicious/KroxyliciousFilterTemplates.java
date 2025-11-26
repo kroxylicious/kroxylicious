@@ -8,6 +8,9 @@ package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -21,7 +24,13 @@ import com.fasterxml.jackson.databind.cfg.ConstructorDetector;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 
+import io.kroxylicious.authorizer.provider.acl.AclAuthorizerConfig;
+import io.kroxylicious.authorizer.provider.acl.AclAuthorizerService;
+import io.kroxylicious.filter.authorization.Authorization;
+import io.kroxylicious.filter.authorization.AuthorizationConfig;
 import io.kroxylicious.filter.encryption.RecordEncryption;
+import io.kroxylicious.filters.sasl.inspection.Config;
+import io.kroxylicious.filters.sasl.inspection.SaslInspection;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.systemtests.Constants;
@@ -109,5 +118,46 @@ public final class KroxyliciousFilterTemplates {
         }
 
         return map;
+    }
+
+    /**
+     * Kroxylicious authorization kafka protocol filter builder.
+     *
+     * @param namespace the namespace
+     * @param aclFile the acl file
+     * @return  the kafka protocol filter builder
+     */
+    public static KafkaProtocolFilterBuilder kroxyliciousAuthorizationFilter(String namespace, String aclFile) {
+        return baseFilterDeployment(namespace, Constants.KROXYLICIOUS_AUTHORIZATION_FILTER_NAME)
+                .withNewSpec()
+                .withType(Authorization.class.getSimpleName())
+                .withConfigTemplate(getAuthorizationConfigMap(aclFile))
+                .endSpec();
+    }
+
+    private static Map<String, Object> getAuthorizationConfigMap(String aclFile) {
+        AuthorizationConfig authorizationConfig = new AuthorizationConfig(AclAuthorizerService.class.getSimpleName(),
+                new AclAuthorizerConfig(aclFile));
+
+        return OBJECT_MAPPER
+                .convertValue(authorizationConfig, new TypeReference<>() {
+                });
+    }
+
+    public static KafkaProtocolFilterBuilder kroxyliciousSaslInspectorFilter(String namespace) {
+        return baseFilterDeployment(namespace, Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME)
+                .withNewSpec()
+                .withType(SaslInspection.class.getSimpleName())
+                .withConfigTemplate(getSaslInspectionConfigMap())
+                .endSpec();
+
+    }
+
+    private static Map<String, Object> getSaslInspectionConfigMap() {
+        Config saslInspectionConfig = new Config(Set.of(ScramMechanism.SCRAM_SHA_512.mechanismName()), null, null);
+
+        return OBJECT_MAPPER
+                .convertValue(saslInspectionConfig, new TypeReference<>() {
+                });
     }
 }

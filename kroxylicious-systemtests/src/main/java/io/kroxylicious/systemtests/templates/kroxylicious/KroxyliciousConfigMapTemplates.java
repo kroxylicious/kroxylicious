@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
+import java.util.List;
 import java.util.Map;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -71,5 +72,31 @@ public final class KroxyliciousConfigMapTemplates {
         else {
             return null;
         }
+    }
+
+    /**
+     * Gets acl rules config map.
+     *
+     * @param namespace the namespace
+     * @param name the name
+     * @param aclRules the acl rules
+     * @return  the acl rules config map
+     */
+    public static ConfigMapBuilder getAclRulesConfigMap(String namespace, String name, List<String> aclRules) {
+        // @formatter:off
+        return new ConfigMapBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withData(Map.of(name, generateAclRules(aclRules)));
+        // @formatter:on
+    }
+
+    private static String generateAclRules(List<String> aclRules) {
+        StringBuilder aclRule = new StringBuilder("from io.kroxylicious.filter.authorization import TopicResource as Topic;");
+        aclRules.forEach(rule -> aclRule.append("\n").append(rule));
+        aclRule.append("\n").append("otherwise deny;");
+        return aclRule.toString();
     }
 }

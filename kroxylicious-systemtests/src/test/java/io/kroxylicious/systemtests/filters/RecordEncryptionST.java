@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests;
+package io.kroxylicious.systemtests.filters;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -25,6 +25,8 @@ import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.systemtests.AbstractST;
+import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.extensions.CompressionTypeInvocationContextProvider;
 import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
@@ -113,7 +115,7 @@ class RecordEncryptionST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade);
+        kroxylicious.deployPortIdentifiesNodeWithRecordEncryptionFilter(clusterName, testKmsFacade);
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
@@ -157,7 +159,7 @@ class RecordEncryptionST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade);
+        kroxylicious.deployPortIdentifiesNodeWithRecordEncryptionFilter(clusterName, testKmsFacade);
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
@@ -191,7 +193,7 @@ class RecordEncryptionST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade, experimentalKmsConfig);
+        kroxylicious.deployPortIdentifiesNodeWithRecordEncryptionFilter(clusterName, testKmsFacade, experimentalKmsConfig);
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
@@ -259,7 +261,7 @@ class RecordEncryptionST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade, experimentalKmsConfig);
+        kroxylicious.deployPortIdentifiesNodeWithRecordEncryptionFilter(clusterName, testKmsFacade, experimentalKmsConfig);
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);

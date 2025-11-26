@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -35,7 +36,9 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemp
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
+import io.kroxylicious.systemtests.templates.strimzi.KafkaUserTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -64,6 +67,19 @@ public class Kroxylicious {
         LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
         resourceManager.createResourceFromBuilderWithWait(
                 KroxyliciousFilterTemplates.kroxyliciousRecordEncryptionFilter(deploymentNamespace, testKmsFacade, experimentalKmsConfig));
+    }
+
+    private void createAuthorizationFilterConfigMap(String clusterName, Map<String, String> usernamePassword, List<String> aclRules) {
+        LOGGER.info("Deploy Kroxylicious with authorization filter in {} namespace", deploymentNamespace);
+
+        usernamePassword.forEach((user, password) -> resourceManager.createResourceFromBuilderWithWait(
+                KroxyliciousSecretTemplates.createPasswordSecret(deploymentNamespace, user + "-password", password),
+                KafkaUserTemplates.kafkaUserWithSecret(deploymentNamespace, clusterName, user, user + "-password")));
+
+        resourceManager.createResourceFromBuilderWithWait(
+                KroxyliciousConfigMapTemplates.getAclRulesConfigMap(deploymentNamespace, "acl-rules", aclRules),
+                KroxyliciousFilterTemplates.kroxyliciousAuthorizationFilter(deploymentNamespace, "${configmap:acl-rules:acl-rules}"),
+                KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(deploymentNamespace));
     }
 
     /**
@@ -187,8 +203,8 @@ public class Kroxylicious {
      * @param clusterName the cluster name
      * @param testKmsFacade the test kms facade
      */
-    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade) {
-        deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade, null);
+    public void deployPortIdentifiesNodeWithRecordEncryptionFilter(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        deployPortIdentifiesNodeWithRecordEncryptionFilter(clusterName, testKmsFacade, null);
     }
 
     /**
@@ -198,7 +214,7 @@ public class Kroxylicious {
      * @param testKmsFacade the test kms facade
      * @param experimentalKmsConfig the experimental kms config
      */
-    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade,
+    public void deployPortIdentifiesNodeWithRecordEncryptionFilter(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade,
                                                                    ExperimentalKmsConfig experimentalKmsConfig) {
         createRecordEncryptionFilterConfigMap(testKmsFacade, experimentalKmsConfig);
         deployPortIdentifiesNodeWithFilters(clusterName, List.of(Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME));
@@ -272,5 +288,16 @@ public class Kroxylicious {
                 KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(deploymentNamespace, clusterName),
                 KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
+    }
+
+    /**
+     * Deploy port identifies node with authorization filter.
+     *
+     * @param clusterName the cluster name
+     */
+    public void deployPortIdentifiesNodeWithAuthorizationFilter(String clusterName, Map<String, String> usernamePassword, List<String> aclRules) {
+        createAuthorizationFilterConfigMap(clusterName, usernamePassword, aclRules);
+        deployPortIdentifiesNodeWithFilters(clusterName,
+                List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_AUTHORIZATION_FILTER_NAME));
     }
 }
