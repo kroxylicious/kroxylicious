@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,7 +59,7 @@ class AuthorizationST extends AbstractST {
             LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
             int numberOfBrokers = 1;
-            KafkaBuilder kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, numberOfBrokers);
+            KafkaBuilder kafka = KafkaTemplates.kafkaPersistentWithAuthentication(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, numberOfBrokers);
 
             resourceManager.createResourceFromBuilderWithWait(
                     KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka.build(), numberOfBrokers),
@@ -85,13 +84,6 @@ class AuthorizationST extends AbstractST {
         kroxyliciousOperator.delete();
     }
 
-    @AfterEach
-    void afterEach(String namespace) {
-        if (bootstrap != null) {
-            KafkaSteps.deleteTopic(namespace, topicName, bootstrap);
-        }
-    }
-
     @Test
     void produceAndConsumeMessage(String namespace) {
         int numberOfMessages = 1;
@@ -106,7 +98,6 @@ class AuthorizationST extends AbstractST {
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
-        KafkaSteps.configureNode(namespace, usernamePasswords);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
 
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();

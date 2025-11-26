@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -95,6 +96,7 @@ public final class KroxyliciousConfigMapTemplates {
 
     private static String generateAclRules(List<String> aclRules) {
         StringBuilder aclRule = new StringBuilder("from io.kroxylicious.filter.authorization import TopicResource as Topic;");
+        aclRules.sort(Collections.reverseOrder());
         aclRules.forEach(rule -> aclRule.append("\n").append(rule));
         aclRule.append("\n").append("otherwise deny;");
         return aclRule.toString();

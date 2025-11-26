@@ -71,15 +71,20 @@ public class Kroxylicious {
 
     private void createAuthorizationFilterConfigMap(String clusterName, Map<String, String> usernamePassword, List<String> aclRules) {
         LOGGER.info("Deploy Kroxylicious with authorization filter in {} namespace", deploymentNamespace);
+        String passwordSuffix = "-password";
 
         usernamePassword.forEach((user, password) -> resourceManager.createResourceFromBuilderWithWait(
-                KroxyliciousSecretTemplates.createPasswordSecret(deploymentNamespace, user + "-password", password),
-                KafkaUserTemplates.kafkaUserWithSecret(deploymentNamespace, clusterName, user, user + "-password")));
+                KroxyliciousSecretTemplates.createPasswordSecret(Constants.KAFKA_DEFAULT_NAMESPACE, user + passwordSuffix, password),
+                KroxyliciousSecretTemplates.createPasswordSecret(deploymentNamespace, user + passwordSuffix, password),
+                KafkaUserTemplates.kafkaUserWithSecret(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, user, user + passwordSuffix),
+                KafkaUserTemplates.kafkaUserWithSecret(deploymentNamespace, clusterName, user, user + passwordSuffix))
+        );
 
         resourceManager.createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getAclRulesConfigMap(deploymentNamespace, "acl-rules", aclRules),
-                KroxyliciousFilterTemplates.kroxyliciousAuthorizationFilter(deploymentNamespace, "${configmap:acl-rules:acl-rules}"),
-                KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(deploymentNamespace));
+                KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(deploymentNamespace),
+                KroxyliciousFilterTemplates.kroxyliciousAuthorizationFilter(deploymentNamespace, "${configmap:acl-rules:acl-rules}")
+                );
     }
 
     /**

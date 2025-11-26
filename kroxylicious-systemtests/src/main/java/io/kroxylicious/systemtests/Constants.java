@@ -30,7 +30,6 @@ public final class Constants {
     public static final String KROXYLICIOUS_TLS_CA_NAME = "ca.pem";
     public static final String KROXYLICIOUS_OPERATOR_SUBSCRIPTION_NAME = Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME + "-v" + Environment.KROXYLICIOUS_OPERATOR_VERSION
             + "-sub";
-    public static final String KROXYLICIOUS_ACL_AUTHORIZER_SERVICE_NAME = "AclAuthorizerService";
     public static final String KROXYLICIOUS_ADMIN_USER = "admin";
 
     /**

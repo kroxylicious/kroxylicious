@@ -9,7 +9,11 @@ package io.kroxylicious.systemtests.templates.strimzi;
 import io.strimzi.api.ResourceAnnotations;
 import io.strimzi.api.kafka.model.common.template.ExternalTrafficPolicy;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
+import io.strimzi.api.kafka.model.kafka.entityoperator.EntityOperatorSpec;
+import io.strimzi.api.kafka.model.kafka.entityoperator.EntityTopicOperatorSpec;
+import io.strimzi.api.kafka.model.kafka.entityoperator.EntityUserOperatorSpec;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerAuthenticationScramSha512Builder;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 
 import io.kroxylicious.systemtests.Constants;
@@ -89,6 +93,40 @@ public class KafkaTemplates {
                 .addToAnnotations(ResourceAnnotations.ANNO_STRIMZI_IO_NODE_POOLS, "enabled")
                 .addToAnnotations(ResourceAnnotations.ANNO_STRIMZI_IO_KRAFT, "enabled")
                 .endMetadata();
+    }
+
+    /**
+     * Kafka persistent with authentication kafka builder.
+     *
+     * @param namespaceName the namespace name
+     * @param clusterName the cluster name
+     * @param kafkaReplicas the kafka replicas
+     * @return  the kafka builder
+     */
+    public static KafkaBuilder kafkaPersistentWithAuthentication(String namespaceName, String clusterName, int kafkaReplicas) {
+        EntityOperatorSpec entityOperatorSpec = new EntityOperatorSpec();
+        entityOperatorSpec.setTopicOperator(new EntityTopicOperatorSpec());
+        entityOperatorSpec.setUserOperator(new EntityUserOperatorSpec());
+        return kafkaPersistentWithKRaftAnnotations(namespaceName, clusterName, kafkaReplicas)
+                .editSpec()
+                .editKafka()
+                .withListeners(new GenericKafkaListenerBuilder()
+                                .withName(Constants.PLAIN_LISTENER_NAME)
+                                .withPort(9092)
+                                .withType(KafkaListenerType.INTERNAL)
+                                .withTls(false)
+                                .withAuth(new KafkaListenerAuthenticationScramSha512Builder()
+                                        .build())
+                                .build(),
+                        new GenericKafkaListenerBuilder()
+                                .withName(Constants.TLS_LISTENER_NAME)
+                                .withPort(9093)
+                                .withType(KafkaListenerType.INTERNAL)
+                                .withTls(true)
+                                .build())
+                .endKafka()
+                .withEntityOperator(entityOperatorSpec)
+                .endSpec();
     }
 
     private static KafkaBuilder defaultKafka(String namespaceName, String clusterName, int kafkaReplicas, int zkReplicas) {

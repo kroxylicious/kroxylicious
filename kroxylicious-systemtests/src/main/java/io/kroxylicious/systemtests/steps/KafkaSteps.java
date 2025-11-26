@@ -11,12 +11,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.kafka.clients.admin.ScramMechanism;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
-import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -159,29 +159,5 @@ public class KafkaSteps {
     public static void restartKafkaBroker(String clusterName) {
         clusterName = clusterName + "-kafka";
         assertThat("Broker has not been restarted successfully!", KafkaUtils.restartBroker(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName));
-    }
-
-    /**
-     * Configure node.
-     *
-     * @param deployNamespace the deploy namespace
-     * @param usernamePasswords the username passwords
-     */
-    public static void configureNode(String deployNamespace, Map<String, String> usernamePasswords) {
-        LOGGER.atDebug().setMessage("Configuring node").log();
-        if (!usernamePasswords.containsKey(Constants.KROXYLICIOUS_ADMIN_USER)) {
-            throw new ConfigException("'admin' user not found! It is necessary to manage the topics");
-        }
-
-        String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-configure";
-        List<String> args = new ArrayList<>(
-                List.of("configure", "sasl", "--mechanism=" + ScramMechanism.SCRAM_SHA_512.name(), "--jaas-config='org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
-                                + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";'"));
-
-        Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
-        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
-        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofMinutes(1));
-        LOGGER.atInfo().setMessage("Admin client configure pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
     }
 }
