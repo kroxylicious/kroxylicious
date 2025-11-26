@@ -100,7 +100,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
             return Result.VALID_RESULT_STAGE;
         }
         catch (JoseException e) {
-            String message = DEFAULT_ERROR_MESSAGE + (e.getMessage() != null ? ": " + e.getMessage() : "");
+            String message = DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: " + (e.getMessage() != null ? e.getMessage() : "(exception message was null)");
             return CompletableFuture.completedStage(new Result(false, message));
         }
     }
