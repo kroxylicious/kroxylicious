@@ -116,7 +116,8 @@ public class JwsSignatureValidationConfig {
         boolean allKeysFound = keyList.stream()
                 .allMatch(key -> that.trustedJsonWebKeySet.findJsonWebKey(key.getKeyId(), key.getKeyType(), key.getUse(), key.getAlgorithm()) != null);
 
-        return hasSameAmountOfKeys && allKeysFound && jwsRecordHeaderKey.equals(that.jwsRecordHeaderKey) && isContentDetached == that.isContentDetached && failOnMissingJwsRecordHeader == that.failOnMissingJwsRecordHeader;
+        return hasSameAmountOfKeys && allKeysFound && jwsRecordHeaderKey.equals(that.jwsRecordHeaderKey) && isContentDetached == that.isContentDetached
+                && failOnMissingJwsRecordHeader == that.failOnMissingJwsRecordHeader;
     }
 
     @Override
@@ -131,8 +132,7 @@ public class JwsSignatureValidationConfig {
                         k.getKeyId(),
                         k.getKeyType(),
                         k.getUse(),
-                        k.getAlgorithm()
-                ))
+                        k.getAlgorithm()))
                 .sorted()
                 .toList();
 
@@ -142,10 +142,8 @@ public class JwsSignatureValidationConfig {
                 deniedAlgorithms,
                 jwsRecordHeaderKey,
                 isContentDetached,
-                failOnMissingJwsRecordHeader
-        );
+                failOnMissingJwsRecordHeader);
     }
-
 
     @Override
     public String toString() {

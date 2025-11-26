@@ -179,7 +179,10 @@ class ValidationConfigTest {
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
                 new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null,
-                        new JwsSignatureValidationConfig(RSA_AND_ECDSA_VERIFY_JWKS, new AllowDeny<>(List.of(AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256), Collections.emptySet()), "kroxylicious.io/jws", true, false),
+                        new JwsSignatureValidationConfig(RSA_AND_ECDSA_VERIFY_JWKS,
+                                new AllowDeny<>(List.of(AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256),
+                                        Collections.emptySet()),
+                                "kroxylicious.io/jws", true, false),
                         false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);

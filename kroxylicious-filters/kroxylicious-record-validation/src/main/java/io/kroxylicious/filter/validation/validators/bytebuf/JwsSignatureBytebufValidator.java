@@ -58,7 +58,8 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
      *
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
-    public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> allowedAndDeniedAlgorithms, String jwsRecordHeaderKey, boolean isContentDetached, boolean failOnMissingJwsRecordHeader) {
+    public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> allowedAndDeniedAlgorithms, String jwsRecordHeaderKey,
+                                        boolean isContentDetached, boolean failOnMissingJwsRecordHeader) {
         this.jws = new JsonWebSignature();
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
         this.jwsRecordHeaderKey = jwsRecordHeaderKey;
