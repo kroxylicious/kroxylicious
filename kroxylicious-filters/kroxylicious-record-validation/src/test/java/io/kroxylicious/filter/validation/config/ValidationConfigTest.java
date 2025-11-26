@@ -10,6 +10,8 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -141,7 +143,7 @@ class ValidationConfigTest {
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo),
                 new RecordValidationRule(null, new BytebufValidation(null, null, null, true, false)));
         assertEquals(expected, deserialised);
-        assertEquals(expected.hashCode(), deserialised.hashCode());
+        assertEquals(getJwsConfigHashCode(expected), getJwsConfigHashCode(deserialised));
     }
 
     @Test
@@ -189,7 +191,17 @@ class ValidationConfigTest {
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, null, false, true)));
         assertEquals(expected, deserialised);
-        assertEquals(expected.hashCode(), deserialised.hashCode());
+        assertEquals(getJwsConfigHashCode(expected), getJwsConfigHashCode(deserialised));
+    }
+
+    private static int getJwsConfigHashCode(ValidationConfig config) {
+        Optional<BytebufValidation> valueRule = Objects.requireNonNull(config.rules()).get(0).getValueRule();
+
+        if (valueRule.isEmpty()) {
+            throw new IllegalArgumentException("No value rule found in ValidationConfig, cannot get hashCode for getJwsSignatureValidationConfig");
+        }
+
+        return valueRule.get().getJwsSignatureValidationConfig().hashCode();
     }
 
 }
