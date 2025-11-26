@@ -6,7 +6,7 @@
 
 # Helm Overrides File for localstack used by the system tests.
 image:
-  tag: 4.10.0
+  tag: 4.11.1
 enableStartupScripts: true
 startupScriptContent: |
   #!/bin/bash
