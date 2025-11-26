@@ -52,7 +52,7 @@ given:
                 offlineReplicas:
                   - 421
             topicAuthorizedOperations: 769
-        errorCode: 1003
+        errorCode: 0
     - expectedRequestKey: "METADATA"
       expectedRequestVersion: 10
       expectedRequestHeader:
@@ -94,7 +94,7 @@ given:
                 offlineReplicas:
                   - 421
         clusterAuthorizedOperations: 760
-        errorCode: 1003
+        errorCode: 0
   authorizerRules:
     allowed:
       - subject: "alice"
