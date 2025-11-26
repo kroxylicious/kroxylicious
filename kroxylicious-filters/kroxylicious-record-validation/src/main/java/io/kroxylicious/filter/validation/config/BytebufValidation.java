@@ -26,8 +26,9 @@ public class BytebufValidation {
 
     /**
      * Create a new BytebufValidation
-     * @param syntacticallyCorrectJsonConfig optional configuration, if non-null indicates ByteBuffer should contain syntactically correct JSON
+     * @param syntacticallyCorrectJsonConfig optional configuration, if non-null, indicates ByteBuffer should contain syntactically correct JSON
      * @param schemaValidationConfig optional configuration, if non-null, indicates ByteBuffer to validate the data using the schema configuration
+     * @param jwsSignatureValidationConfig optional configuration, if non-null, indicates Kafka Record should contain a valid JSON Web Signature (JWS)
      * @param allowNulls whether a null byte-buffer should be considered valid
      * @param allowEmpty whether an empty byte-buffer should be considered valid
      */
