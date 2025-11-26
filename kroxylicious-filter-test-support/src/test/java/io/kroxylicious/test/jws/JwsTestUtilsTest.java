@@ -55,6 +55,11 @@ class JwsTestUtilsTest {
         assertThatThrownBy(() -> generateJws(EMPTY_JWKS, "random string", false, false)).isInstanceOf(IndexOutOfBoundsException.class);
     }
 
+    @Test
+    void generateJwsFailsWhenPayloadIsInvalid() {
+        assertThatThrownBy(() -> generateJws(ECDSA_SIGN_JWKS, "unencoded.payload.with.dot", false, true)).isInstanceOf(IllegalArgumentException.class);
+    }
+
     private boolean isJsonObject(String string) {
         return string.startsWith(BASE64_ENCODED_LEFT_CURLY_BRACKET);
     }
