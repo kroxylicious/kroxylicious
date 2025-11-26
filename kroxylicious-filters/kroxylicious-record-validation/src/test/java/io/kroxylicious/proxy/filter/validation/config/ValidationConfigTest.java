@@ -194,6 +194,7 @@ class ValidationConfigTest {
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo),
                 new RecordValidationRule(null, new BytebufValidation(null, null, null, true, false)));
         assertEquals(expected, deserialised);
+        assertEquals(expected.hashCode(), deserialised.hashCode());
     }
 
     @Test
@@ -241,5 +242,6 @@ class ValidationConfigTest {
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, null, false, true)));
         assertEquals(expected, deserialised);
+        assertEquals(expected.hashCode(), deserialised.hashCode());
     }
 }
