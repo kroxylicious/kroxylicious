@@ -23,6 +23,11 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
  * As such, {@code SaslSubjectBuilder} is an opt-in way of decoupling the building of Subjects
  * from the mechanism of SASL authentication.
  * SASL-authenticating filters are not obliged to use this abstraction.</p>
+ *
+ * <p>{@link TransportSubjectBuilder} is a similar interface use for building a
+ * {@code Subject} based on transport-layer information.
+ * However, note that a {@code SaslSubjectBuilder} is not specified directly
+ * on a virtual cluster as a {@code TransportSubjectBuilder} is.</p>
  */
 public interface SaslSubjectBuilder {
 

@@ -42,6 +42,7 @@ import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -86,6 +87,7 @@ public class KafkaProxyFrontendHandler
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
+    private final TransportSubjectBuilder subjectBuilder;
 
     private @Nullable ChannelHandlerContext clientCtx;
     @VisibleForTesting
@@ -100,7 +102,8 @@ public class KafkaProxyFrontendHandler
     // once the outbound channel is active
     private boolean pendingReadComplete = true;
 
-    private boolean isClientBlocked = true;
+    private @Nullable ClientSubjectManager clientSubjectManager;
+    private int progressionLatch = -1;
 
     static {
         var objectMapper = new ObjectMapper();
@@ -111,8 +114,6 @@ public class KafkaProxyFrontendHandler
             throw new UncheckedIOException(e);
         }
     }
-
-    private @Nullable ClientSubjectManager clientSubjectManager;
 
     /**
      * @return the SSL session, or null if a session does not (currently) exist.
@@ -131,10 +132,12 @@ public class KafkaProxyFrontendHandler
     KafkaProxyFrontendHandler(
                               NetFilter netFilter,
                               SaslDecodePredicate dp,
+                              TransportSubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
                               ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
+        this.subjectBuilder = Objects.requireNonNull(subjectBuilder);
         this.endpointBinding = endpointBinding;
         this.virtualClusterModel = endpointBinding.endpointGateway().virtualCluster();
         this.proxyChannelStateMachine = proxyChannelStateMachine;
@@ -155,7 +158,7 @@ public class KafkaProxyFrontendHandler
                 + ", authentication=" + authentication
                 + ", sniHostname='" + sniHostname + '\''
                 + ", pendingReadComplete=" + pendingReadComplete
-                + ", isClientBlocked=" + isClientBlocked
+                + ", blocked=" + progressionLatch
                 + '}';
     }
 
@@ -182,10 +185,9 @@ public class KafkaProxyFrontendHandler
                 throw new IllegalStateException("SNI failed", sniCompletionEvent.cause());
             }
         }
-        if (event instanceof SslHandshakeCompletionEvent sslHandshakeCompletionEvent) {
-            if (sslHandshakeCompletionEvent.isSuccess()) {
-                this.clientSubjectManager.subjectFromTransport(sslSession());
-            }
+        else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent
+                && handshakeCompletionEvent.isSuccess()) {
+            this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder, this::onTransportSubjectBuilt);
         }
         else if (event instanceof AuthenticationEvent authenticationEvent) {
             this.authentication = authenticationEvent;
@@ -202,7 +204,7 @@ public class KafkaProxyFrontendHandler
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         this.clientCtx = ctx;
         this.proxyChannelStateMachine.onClientActive(this);
-        super.channelActive(this.clientCtx);
+
     }
 
     /**
@@ -270,11 +272,28 @@ public class KafkaProxyFrontendHandler
     void inClientActive() {
         Channel clientChannel = clientCtx().channel();
         LOGGER.trace("{}: channelActive", clientChannel.id());
-        // Initially the channel is not auto reading, so read the first batch of requests
+        // Initially the channel is not auto reading
         clientChannel.config().setAutoRead(false);
-        // TODO why doesn't the initializer set autoread to false so we don't have to set it here?
         clientChannel.read();
         this.clientSubjectManager = new ClientSubjectManager();
+        this.progressionLatch = 2; // we require two events before unblocking
+        if (!this.endpointBinding.endpointGateway().isUseTls()) {
+            this.clientSubjectManager.subjectFromTransport(null, this.subjectBuilder, this::onTransportSubjectBuilt);
+        }
+    }
+
+    private void onTransportSubjectBuilt() {
+        maybeUnblock();
+    }
+
+    private void onReadyToForwardMore() {
+        maybeUnblock();
+    }
+
+    private void maybeUnblock() {
+        if (--this.progressionLatch == 0) {
+            unblockClient();
+        }
     }
 
     /**
@@ -578,10 +597,8 @@ public class KafkaProxyFrontendHandler
             channelReadComplete(Objects.requireNonNull(this.clientCtx));
         }
 
-        if (isClientBlocked) {
-            // once buffered message has been forwarded we enable auto-read to start accepting further messages
-            unblockClient();
-        }
+        // once buffered message has been forwarded we enable auto-read to start accepting further messages
+        onReadyToForwardMore();
     }
 
     /**
@@ -670,7 +687,6 @@ public class KafkaProxyFrontendHandler
     }
 
     private void unblockClient() {
-        isClientBlocked = false;
         var inboundChannel = clientCtx().channel();
         inboundChannel.config().setAutoRead(true);
         proxyChannelStateMachine.onClientWritable();

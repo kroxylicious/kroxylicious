@@ -7,26 +7,29 @@
 package io.kroxylicious.proxy.internal.subject;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.kroxylicious.proxy.authentication.PrincipalFactory;
-import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
-import io.kroxylicious.proxy.authentication.SaslSubjectBuilderService;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilderService;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-@Plugin(configType = DefaultSaslSubjectBuilderService.Config.class)
-public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderService<DefaultSaslSubjectBuilderService.Config> {
+@Plugin(configType = DefaultTransportSubjectBuilderService.Config.class)
+public class DefaultTransportSubjectBuilderService implements TransportSubjectBuilderService<DefaultTransportSubjectBuilderService.Config> {
 
-    public static final String SASL_AUTHORIZED_ID = "saslAuthorizedId";
+    public static final String CLIENT_TLS_SUBJECT = "clientTlsSubject";
+    public static final String CLIENT_TLS_SAN_RFC822_NAME = "clientTlsSanRfc822Name";
+    public static final String CLIENT_TLS_SAN_DIR_NAME = "clientTlsSanDirName";
+    public static final String CLIENT_TLS_SAN_DNS_NAME = "clientTlsSanDnsName";
+    public static final String CLIENT_TLS_SAN_URI = "clientTlsSanUri";
+    public static final String CLIENT_TLS_SAN_IP_ADDRESS = "clientTlsSanIpAddress";
     public static final String ELSE_IDENTITY = "identity";
     public static final String ELSE_ANONYMOUS = "anonymous";
 
@@ -59,14 +62,13 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
                 buildPrincipalFactory(adder.principalFactory());
             }
         }
-
     }
 
     @Nullable
     List<PrincipalAdder> adders;
 
     @Override
-    public void initialize(Config config) {
+    public void initialize(@Nullable Config config) {
         adders = Plugins.requireConfig(this, config).addPrincipals().stream()
                 .map(addConf -> new PrincipalAdder(buildExtractor(addConf.from()),
                         MappingRule.buildMappingRules(addConf.map()),
@@ -74,7 +76,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
                 .toList();
     }
 
-    static PrincipalFactory<?> buildPrincipalFactory(String principalFactory) {
+    static PrincipalFactory buildPrincipalFactory(String principalFactory) {
         return ServiceLoader.load(PrincipalFactory.class).stream()
                 .filter(provider -> provider.type().getName().equals(principalFactory))
                 .findFirst()
@@ -85,10 +87,20 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
     @NonNull
     static Function<Object, Stream<String>> buildExtractor(String from) {
         return switch (from) {
-            case SASL_AUTHORIZED_ID -> context -> Stream.of(((SaslSubjectBuilder.Context) context).clientSaslContext().authorizationId());
+            case CLIENT_TLS_SUBJECT -> getContextStreamFunction(TlsCertificateExtractor.subject());
+            case CLIENT_TLS_SAN_RFC822_NAME -> getContextStreamFunction(TlsCertificateExtractor.san(TlsCertificateExtractor.Asn1SanNameType.RFC822));
+            case CLIENT_TLS_SAN_DIR_NAME -> getContextStreamFunction(TlsCertificateExtractor.san(TlsCertificateExtractor.Asn1SanNameType.DIR_NAME));
+            case CLIENT_TLS_SAN_DNS_NAME -> getContextStreamFunction(TlsCertificateExtractor.san(TlsCertificateExtractor.Asn1SanNameType.DNS));
+            case CLIENT_TLS_SAN_URI -> getContextStreamFunction(TlsCertificateExtractor.san(TlsCertificateExtractor.Asn1SanNameType.URI));
+            case CLIENT_TLS_SAN_IP_ADDRESS -> getContextStreamFunction(TlsCertificateExtractor.san(TlsCertificateExtractor.Asn1SanNameType.IP_ADDRESS));
             default -> throw new IllegalArgumentException("Unknown `from` '%s', supported values are: %s."
                     .formatted(from,
-                            Stream.of(SASL_AUTHORIZED_ID).map(s -> '\'' + s + '\'')
+                            Stream.of(CLIENT_TLS_SUBJECT,
+                                    CLIENT_TLS_SAN_RFC822_NAME,
+                                    CLIENT_TLS_SAN_DIR_NAME,
+                                    CLIENT_TLS_SAN_DNS_NAME,
+                                    CLIENT_TLS_SAN_URI,
+                                    CLIENT_TLS_SAN_IP_ADDRESS).map(s -> '\'' + s + '\'')
                                     .collect(Collectors.joining(", "))));
         };
     }
@@ -101,13 +113,12 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
     }
 
     @Override
-    public SaslSubjectBuilder build() {
-        return new DefaultSubjectBuilder(Objects.requireNonNull(adders, "build() called before initialize()"));
+    public TransportSubjectBuilder build() {
+        return new DefaultSubjectBuilder(adders);
     }
 
     @Override
     public void close() {
-        // We have no closeable resources
     }
 
 }

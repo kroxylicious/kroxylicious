@@ -14,8 +14,12 @@ import java.util.Optional;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
@@ -24,7 +28,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class ClientSubjectManager implements
         ClientSaslContext,
-        ClientTlsContext {
+        ClientTlsContext,
+        TransportSubjectBuilder.Context {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientSubjectManager.class);
 
     @VisibleForTesting
     static @Nullable X509Certificate peerTlsCertificate(@Nullable SSLSession session) {
@@ -77,9 +84,22 @@ public class ClientSubjectManager implements
         this.subject = Subject.anonymous();
     }
 
-    public void subjectFromTransport(@Nullable SSLSession session) {
+    public void subjectFromTransport(@Nullable SSLSession session,
+                                     TransportSubjectBuilder transportSubjectBuilder,
+                                     Runnable whenDoneCallback) {
         this.clientCertificate = peerTlsCertificate(session);
         this.proxyCertificate = localTlsCertificate(session);
+        transportSubjectBuilder.buildTransportSubject(this).whenComplete((newSubject, error) -> {
+            if (error == null) {
+                this.subject = newSubject;
+            }
+            else {
+                LOGGER.warn("Failed to build subject from transport information; client will be treated as anonymous", error);
+                this.subject = Subject.anonymous();
+            }
+            this.mechanismName = null;
+            whenDoneCallback.run();
+        });
     }
 
     void clientSaslAuthenticationSuccess(
