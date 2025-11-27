@@ -10,6 +10,51 @@ Format `<github issue/pr number>: <short description>`.
 * [#2922](https://github.com/kroxylicious/kroxylicious/pull/2922): build(deps): bump kafka.version from 4.1.0 to 4.1.1
 * [#1318](https://github.com/kroxylicious/kroxylicious/issues/1318): Add FilterContext#topicNames to enable filters to retrieve names for topic ids
 * [#2821](https://github.com/kroxylicious/kroxylicious/pull/2821): Fix OauthBearerValidationFilter unnecessarily copying the authentication bytes from an incoming request to a failed response 
+* [#2893](https://github.com/kroxylicious/kroxylicious/pull/2893): Add Subject, replace FilterContext#clientSaslAuthenticationSuccess
+* [#2899](https://github.com/kroxylicious/kroxylicious/pull/2898): Add SaslSubjectBuilder API
+* [#2899](https://github.com/kroxylicious/kroxylicious/pull/2899): Add the Authorizer API
+* [#2903](https://github.com/kroxylicious/kroxylicious/pull/2903): Add an ACL Authorizer implementation
+* [#2909](https://github.com/kroxylicious/kroxylicious/pull/2909): Add an Authorizer Filter that can authorize Topic operations
+* [#2913](https://github.com/kroxylicious/kroxylicious/pull/2913): Add pluggable mTLS Subject publishing
+* [#2904](https://github.com/kroxylicious/kroxylicious/pull/2904): SaslInspection Filter publishes Subject using pluggable SaslSubjectBuilder
+
+### Changes, deprecations and removals
+
+* `Subject`, `Principal` and `User` principal added to `io.kroxylicious.proxy.authentication` package.
+* `Subject authenticatedSubject();` added to `FilterContext`, enabling Filters to access the current authenticated Subject.
+* `io.kroxylicious.proxy.authentication.SaslSubjectBuilder` has been added to `kroxylicious-api`. This is an optional
+  Service interface that SASL-oriented Filters can choose to load.
+* `FilterContext#clientSaslAuthenticationSuccess(String mechanism, String authorizedId)` is deprecated. Use
+  `FilterContext#clientSaslAuthenticationSuccess(String mechanism, Subject subject)` instead. Initially the framework
+   expects the Subject to contain a single `io.kroxylicious.proxy.authentication.User` principal which contains the
+   `authorizedId`, though this may change in the future.
+* `io.kroxylicious.proxy.authentication.SaslSubjectBuilder` has been added to `kroxylicious-api`. This is an optional
+   Service interface that SASL-oriented Filters can choose to load.
+* A Virtual Cluster now has a pluggable `io.kroxylicious.proxy.authentication.TransportSubjectBuilder` associated with it.
+  This new Service is responsible for building a `Subject` from mTLS certificates presented by the client to the proxy.
+  This is configurable on the virtual cluster using the `subjectBuilder`:
+  ```yaml
+  virtualClusters:
+    - name: demo
+      subjectBuilder:
+        type: YourSubjectBuilderType
+        config:
+          your: "configObject"
+  ```
+* A new module `kroxylicious-authorizer-api` has been added. This contains `io.kroxylicious.authorizer.service.Authorizer`,
+  an interface which abstracts making an allow/deny decision about some Subject performing some Action on a resource.
+* The `SaslInspection` filter can be configured with a pluggable `SaslSubjectBuilder` using configuration like:
+  ```yaml
+  type: SaslInspection
+  config:
+    subjectBuilder: YourSubjectBuilder
+    subjectBuilderConfig:
+      your: "config"
+    enabledMechanisms:
+      - SCRAM-SHA-512
+  ```
+* `AuthorizationFilter` is added to the inary distribution and image. Note this is a new experimental Filter, not yet
+  ready for production environments.
 
 ## 0.17.1
 
