@@ -123,8 +123,8 @@ public final class KroxyliciousConfigMapTemplates {
         Properties adminConfig = new Properties();
         adminConfig.put("ADDITIONAL_CONFIG", CommonClientConfigs.SECURITY_PROTOCOL_CONFIG + "=" + securityProtocol
                 + "\n" + SaslConfigs.SASL_MECHANISM + "=" + saslMechanism
-                + "\n" + SaslConfigs.SASL_JAAS_CONFIG + "='org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + username +
-                "\" password=\"" + usernamePassword + "\";'");
+                + "\n" + SaslConfigs.SASL_JAAS_CONFIG + "=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + username +
+                "\" password=\"" + usernamePassword + "\";");
 
         String properties;
         try (StringWriter writer = new StringWriter()) {
