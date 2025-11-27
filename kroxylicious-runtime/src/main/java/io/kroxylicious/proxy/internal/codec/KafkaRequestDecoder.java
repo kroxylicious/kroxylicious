@@ -54,14 +54,8 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         final int sof = in.readerIndex();
         var apiId = in.readShort();
         // TODO handle unknown api key
-        ApiKeys apiKey = ApiKeys.forId(apiId);
-        if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("{}: apiKey: {} {}", ctx, apiId, apiKey);
-        }
-        short apiVersion = in.readShort();
-        if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("{}: apiVersion: {}", ctx, apiVersion);
-        }
+        ApiKeys apiKey = readApiKey(ctx, apiId);
+        short apiVersion = readApiVersion(ctx, in);
         final int startOfMessage = in.readerIndex();
         int correlationId = in.readInt();
         LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
@@ -72,26 +66,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} response? {}, Predicate {}", apiKey, apiVersion, decodeResponse, decodePredicate);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
-        RequestHeaderData header = null;
-        final ByteBufAccessorImpl accessor;
-        if (decodeRequest) {
-            if (log().isTraceEnabled()) { // avoid boxing
-                log().trace("{}: headerVersion {}", ctx, headerVersion);
-            }
-            in.readerIndex(sof);
 
-            // TODO Decide whether to decode this API at all
-            // TODO Can we implement ApiMessage using an opaque wrapper around a bytebuf?
-
-            accessor = new ByteBufAccessorImpl(in);
-            header = readHeader(headerVersion, accessor);
-            if (log().isTraceEnabled()) {
-                log().trace("{}: header: {}", ctx, header);
-            }
-        }
-        else {
-            accessor = null;
-        }
         final RequestFrame frame;
         if (decodeRequest) {
             short highestProxyVersion = apiVersionsService.latestVersion(apiKey);
@@ -105,27 +80,69 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                     throw new IllegalStateException("client apiVersion " + apiVersion + " ahead of proxy maximum " + highestProxyVersion + " for api key: " + apiKey);
                 }
             }
-            ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, accessor);
+            DecodedBufer result = decodeRequest(ctx, in, headerVersion, sof);
+            ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, result.accessor());
             if (log().isTraceEnabled()) {
                 log().trace("{}: body {}", ctx, body);
             }
 
-            frame = new DecodedRequestFrame<>(apiVersion, correlationId, decodeResponse, header, body);
+            frame = new DecodedRequestFrame<>(apiVersion, correlationId, decodeResponse, result.header(), body);
             if (log().isTraceEnabled()) {
                 log().trace("{}: frame {}", ctx, frame);
             }
         }
         else {
-            boolean hasResponse = true;
-            if (apiKey == ApiKeys.PRODUCE) {
-                short acks = readAcks(in, startOfMessage, apiKey.id, apiVersion);
-                hasResponse = acks != 0;
-            }
+            boolean hasResponse = requiresResponse(in, apiKey, startOfMessage, apiVersion);
             in.readerIndex(sof);
             frame = opaqueFrame(in, apiId, apiVersion, correlationId, decodeResponse, length, hasResponse);
             in.readerIndex(sof + length);
         }
         return frame;
+    }
+
+    private static boolean requiresResponse(ByteBuf in, ApiKeys apiKey, int startOfMessage, short apiVersion) {
+        boolean hasResponse = true;
+        if (apiKey == ApiKeys.PRODUCE) {
+            short acks = readAcks(in, startOfMessage, apiKey.id, apiVersion);
+            hasResponse = acks != 0;
+        }
+        return hasResponse;
+    }
+
+    private DecodedBufer decodeRequest(ChannelHandlerContext ctx, ByteBuf in, short headerVersion, int sof) {
+        if (log().isTraceEnabled()) { // avoid boxing
+            log().trace("{}: headerVersion {}", ctx, headerVersion);
+        }
+        in.readerIndex(sof);
+
+        // TODO Decide whether to decode this API at all
+        // TODO Can we implement ApiMessage using an opaque wrapper around a bytebuf?
+
+        final ByteBufAccessorImpl accessor = new ByteBufAccessorImpl(in);
+        RequestHeaderData header = readHeader(headerVersion, accessor);
+        if (log().isTraceEnabled()) {
+            log().trace("{}: header: {}", ctx, header);
+        }
+        return new DecodedBufer(header, accessor);
+    }
+
+    private record DecodedBufer(RequestHeaderData header, ByteBufAccessorImpl accessor) {
+    }
+
+    private short readApiVersion(ChannelHandlerContext ctx, ByteBuf in) {
+        short apiVersion = in.readShort();
+        if (log().isTraceEnabled()) { // avoid boxing
+            log().trace("{}: apiVersion: {}", ctx, apiVersion);
+        }
+        return apiVersion;
+    }
+
+    private ApiKeys readApiKey(ChannelHandlerContext ctx, short apiId) {
+        ApiKeys apiKey = ApiKeys.forId(apiId);
+        if (log().isTraceEnabled()) { // avoid boxing
+            log().trace("{}: apiKey: {} {}", ctx, apiId, apiKey);
+        }
+        return apiKey;
     }
 
     private DecodedRequestFrame<ApiVersionsRequestData> createV0ApiVersionRequestFrame(ChannelHandlerContext ctx,
