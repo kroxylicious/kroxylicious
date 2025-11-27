@@ -21,7 +21,6 @@ import io.netty.buffer.ByteBuf;
 import static io.kroxylicious.proxy.internal.codec.RequestDecoderTest.DECODE_EVERYTHING;
 import static io.kroxylicious.proxy.internal.codec.RequestDecoderTest.getKafkaRequestDecoder;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,7 +56,7 @@ class RequestDecoderMockitoTest {
         kafkaRequestDecoder.decode(null, frameBuffer, List.of());
 
         // Then
-        verify(frameBuffer).readerIndex(eq(initialIndex));
+        verify(frameBuffer).readerIndex(initialIndex);
     }
 
     @SuppressWarnings("DataFlowIssue")
