@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -21,6 +22,8 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
@@ -32,6 +35,9 @@ import static io.kroxylicious.filter.authorization.AuthorizedOps.clusterAuthoriz
 import static io.kroxylicious.filter.authorization.AuthorizedOps.topicAuthorizedOps;
 
 class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataResponseData> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(MetadataEnforcement.class);
+
     @Override
     short minSupportedVersion() {
         return 0;
@@ -111,6 +117,11 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
         return context.sendRequest(initialRequestHeader, initialRequest)
                 .thenCompose(notCreateResponse -> {
                     var notCreateMetadataResponse = (MetadataResponseData) notCreateResponse;
+                    Errors error = Errors.forCode(notCreateMetadataResponse.errorCode());
+                    if (error != Errors.NONE) {
+                        LOG.info("{}: Internal metadata response from broker has error code {}", context.sessionId(), error);
+                        return CompletableFuture.failedStage(new AuthorizationException("Internal metadata request failed with " + error));
+                    }
                     var responseTopicsByExistence = notCreateMetadataResponse.topics().stream()
                             .collect(Collectors.partitioningBy(responseTopic -> Errors.UNKNOWN_TOPIC_OR_PARTITION.code() == responseTopic.errorCode()));
                     var notExistingTopics = responseTopicsByExistence.get(true);
