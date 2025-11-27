@@ -23,6 +23,7 @@ import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.BeforeEach;
@@ -151,7 +152,9 @@ class SaslInspectionFilterTest {
         var expectedUpstreamHandshakeRequest = downstreamHandshakeRequest.duplicate();
 
         // When
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
 
         // Then
@@ -177,7 +180,9 @@ class SaslInspectionFilterTest {
                 .setRequestApiVersion(downstreamHandshakeRequest.highestSupportedVersion());
         var expectedUpstreamHandshakeRequest = downstreamHandshakeRequest.duplicate();
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
 
         assertThat(actualUpstreamHandshakeRequest)
@@ -215,7 +220,9 @@ class SaslInspectionFilterTest {
                 .setRequestApiVersion(downstreamHandshakeRequest.highestSupportedVersion());
         var expectedUpstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism(SaslInspectionFilter.PROBE_UPSTREAM);
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
         assertThat(actualUpstreamHandshakeRequest)
                 .succeedsWithin(Duration.ofSeconds(1))
@@ -252,7 +259,9 @@ class SaslInspectionFilterTest {
                 .setRequestApiVersion(downstreamHandshakeRequest.highestSupportedVersion());
         var expectedUpstreamHandshakeRequest = downstreamHandshakeRequest.duplicate();
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
         assertThat(actualUpstreamHandshakeRequest)
                 .succeedsWithin(Duration.ofSeconds(1))
@@ -316,7 +325,9 @@ class SaslInspectionFilterTest {
                 .setRequestApiVersion(downstreamHandshakeRequest.highestSupportedVersion());
         var expectedUpstreamHandshakeRequest = downstreamHandshakeRequest.duplicate();
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
 
         assertThat(actualUpstreamHandshakeRequest)
@@ -328,7 +339,9 @@ class SaslInspectionFilterTest {
         var expectedResponse = new SaslHandshakeResponseData().setErrorCode(Errors.ILLEGAL_SASL_STATE.code());
 
         // When
-        var response = filter.onSaslHandshakeRequest(unexpectedSecondDownstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var response = filter.onRequest(
+                ApiKeys.forId(unexpectedSecondDownstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 unexpectedSecondDownstreamHandshakeRequest, context);
 
         // Then
@@ -569,7 +582,9 @@ class SaslInspectionFilterTest {
 
         // When
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(unexpectedHandshakeHeader.requestApiVersion(), unexpectedHandshakeHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(unexpectedHandshake.apiKey()),
+                unexpectedHandshakeHeader,
                 unexpectedHandshake, context);
 
         // Then
@@ -672,7 +687,9 @@ class SaslInspectionFilterTest {
                 .setRequestApiVersion(version);
         var expectedHandshakeRequest = handshakeRequest.duplicate();
 
-        var actualHandshakeRequest = filter.onSaslHandshakeRequest(handshakeRequestHeader.requestApiVersion(), handshakeRequestHeader,
+        var actualHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(handshakeRequest.apiKey()),
+                handshakeRequestHeader,
                 handshakeRequest, context);
 
         assertThat(actualHandshakeRequest)
