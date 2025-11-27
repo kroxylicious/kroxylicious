@@ -51,7 +51,7 @@ Format `<github issue/pr number>: <short description>`.
     enabledMechanisms:
       - SCRAM-SHA-512
   ```
-* `AuthorizationFilter` is added to the inary distribution and image. Note this is a new experimental Filter, not yet
+* `AuthorizationFilter` is added to the binary distribution and image. Note this is a new experimental Filter, not yet
   ready for production environments.
 * `FilterContext` now offers a `topicNames` method to map from topic ids to topic names. Caching the result is initially
   a Filter responsibility.
