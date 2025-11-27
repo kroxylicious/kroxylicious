@@ -80,20 +80,20 @@ public class KafkaSteps {
             topicConfig.add(TopicConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType);
         }
 
-//        Properties adminConfig = new Properties();
-//        if (usernamePasswords != null && !usernamePasswords.isEmpty()) {
-//            if (!usernamePasswords.containsKey(Constants.KROXYLICIOUS_ADMIN_USER)) {
-//                throw new ConfigException("'admin' user not found! It is necessary to manage the topics");
-//            }
-////            topicConfig.add("security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name);
+        // Properties adminConfig = new Properties();
+        // if (usernamePasswords != null && !usernamePasswords.isEmpty()) {
+        // if (!usernamePasswords.containsKey(Constants.KROXYLICIOUS_ADMIN_USER)) {
+        // throw new ConfigException("'admin' user not found! It is necessary to manage the topics");
+        // }
+        ////            topicConfig.add("security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name);
 ////            topicConfig.add(SaslConfigs.SASL_MECHANISM + "=" + ScramMechanism.SCRAM_SHA_512.mechanismName());
 ////            topicConfig.add(SaslConfigs.SASL_JAAS_CONFIG + "='org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
 ////                    + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";'");
-//            adminConfig.put("ADDITIONAL_CONFIG", "security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name
-//                    + "\n" + "sasl.mechanism=" + ScramMechanism.SCRAM_SHA_512.mechanismName()
-//                    + "\n" + "sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
-//                    + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";");
-//        }
+        // adminConfig.put("ADDITIONAL_CONFIG", "security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name
+        // + "\n" + "sasl.mechanism=" + ScramMechanism.SCRAM_SHA_512.mechanismName()
+        // + "\n" + "sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
+        // + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";");
+        // }
 
         if (!topicConfig.isEmpty()) {
             args.add("--topic-config=" + String.join(",", topicConfig));
@@ -128,20 +128,19 @@ public class KafkaSteps {
                 List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
                         "--topic-rep-factor=" + replicas));
 
-//        Properties adminConfig = new Properties();
-//        adminConfig.put("ADDITIONAL_CONFIG", "security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name
-//                + "\n" + "sasl.mechanism=" + ScramMechanism.SCRAM_SHA_512.mechanismName()
-//                + "\n" + "sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
-//                + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";");
+        // Properties adminConfig = new Properties();
+        // adminConfig.put("ADDITIONAL_CONFIG", "security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name
+        // + "\n" + "sasl.mechanism=" + ScramMechanism.SCRAM_SHA_512.mechanismName()
+        // + "\n" + "sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
+        // + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";");
 
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                KroxyliciousConfigMapTemplates.getConfigMapForAdditionalConfig(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME, SecurityProtocol.SASL_PLAINTEXT.name,
-                        ScramMechanism.SCRAM_SHA_512.mechanismName(), Constants.KROXYLICIOUS_ADMIN_USER,usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER))
-        );
+                KroxyliciousConfigMapTemplates.getConfigMapForSaslConfig(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME, SecurityProtocol.SASL_PLAINTEXT.name,
+                        ScramMechanism.SCRAM_SHA_512.mechanismName(), Constants.KROXYLICIOUS_ADMIN_USER, usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER)));
 
-//        ConfigMap map = new ConfigMapBuilder().withNewMetadata().withName("admin-client-config").endMetadata()
-//                .withData(Map.of("config.properties", properties)).build();
-//        kubeClient().getClient().configMaps().inNamespace(deployNamespace).resource(map).createOr(NonDeletingOperation::update);
+        // ConfigMap map = new ConfigMapBuilder().withNewMetadata().withName("admin-client-config").endMetadata()
+        // .withData(Map.of("config.properties", properties)).build();
+        // kubeClient().getClient().configMaps().inNamespace(deployNamespace).resource(map).createOr(NonDeletingOperation::update);
 
         Job adminClientJob = TestClientsJobTemplates.authenticationAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();

@@ -110,7 +110,7 @@ public final class KroxyliciousConfigMapTemplates {
     }
 
     /**
-     * Gets config map for additional config.
+     * Gets config map for sasl config.
      *
      * @param namespace the namespace
      * @param name the name
@@ -118,8 +118,8 @@ public final class KroxyliciousConfigMapTemplates {
      * @param saslMechanism the sasl mechanism
      * @return  the config map for additional config
      */
-    public static ConfigMapBuilder getConfigMapForAdditionalConfig(String namespace, String name, String securityProtocol, String saslMechanism, String username,
-                                                                   String usernamePassword) {
+    public static ConfigMapBuilder getConfigMapForSaslConfig(String namespace, String name, String securityProtocol, String saslMechanism, String username,
+                                                             String usernamePassword) {
         Properties adminConfig = new Properties();
         adminConfig.put("ADDITIONAL_CONFIG", CommonClientConfigs.SECURITY_PROTOCOL_CONFIG + "=" + securityProtocol
                 + "\n" + SaslConfigs.SASL_MECHANISM + "=" + saslMechanism

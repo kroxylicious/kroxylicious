@@ -104,7 +104,8 @@ class AuthorizationST extends AbstractST {
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
 
-        String jaasConfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\" algorithm=SHA-512;".formatted(user, usernamePasswords.get(user));
+        String jaasConfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\" algorithm=SHA-512;".formatted(user,
+                usernamePasswords.get(user));
         Map<String, String> additionalKafkaProps = Map.of(SaslConfigs.SASL_JAAS_CONFIG, jaasConfig, SaslConfigs.SASL_MECHANISM,
                 ScramMechanism.SCRAM_SHA_512.mechanismName(), CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
@@ -133,7 +134,8 @@ class AuthorizationST extends AbstractST {
         if (topicName.contains("*")) {
             comparison = "like";
         }
-        return decision.name().toLowerCase(Locale.ROOT) + " User with name = \"" + userName.toLowerCase(Locale.ROOT) + "\" to * Topic with name " + comparison + " \"" + topicName + "\";";
+        return decision.name().toLowerCase(Locale.ROOT) + " User with name = \"" + userName.toLowerCase(Locale.ROOT) + "\" to * Topic with name " + comparison + " \""
+                + topicName + "\";";
     }
 
     private void generatePasswordForNewUser(String user) {

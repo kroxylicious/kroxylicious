@@ -190,7 +190,8 @@ public class TestClientsJobTemplates {
      * @param additionalKafkaProps the additional kafka props
      * @return  the job builder
      */
-    public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages, Map<String, String> additionalKafkaProps) {
+    public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages,
+                                                          Map<String, String> additionalKafkaProps) {
         return newJobForContainer(jobName,
                 "test-client-consumer",
                 Environment.TEST_CLIENTS_IMAGE,

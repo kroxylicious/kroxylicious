@@ -77,14 +77,12 @@ public class Kroxylicious {
                 KroxyliciousSecretTemplates.createPasswordSecret(Constants.KAFKA_DEFAULT_NAMESPACE, user + passwordSuffix, password),
                 KroxyliciousSecretTemplates.createPasswordSecret(deploymentNamespace, user + passwordSuffix, password),
                 KafkaUserTemplates.kafkaUserWithSecret(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, user, user + passwordSuffix),
-                KafkaUserTemplates.kafkaUserWithSecret(deploymentNamespace, clusterName, user, user + passwordSuffix))
-        );
+                KafkaUserTemplates.kafkaUserWithSecret(deploymentNamespace, clusterName, user, user + passwordSuffix)));
 
         resourceManager.createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getAclRulesConfigMap(deploymentNamespace, "acl-rules", aclRules),
                 KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(deploymentNamespace),
-                KroxyliciousFilterTemplates.kroxyliciousAuthorizationFilter(deploymentNamespace, "${configmap:acl-rules:acl-rules}")
-                );
+                KroxyliciousFilterTemplates.kroxyliciousAuthorizationFilter(deploymentNamespace, "${configmap:acl-rules:acl-rules}"));
     }
 
     /**
