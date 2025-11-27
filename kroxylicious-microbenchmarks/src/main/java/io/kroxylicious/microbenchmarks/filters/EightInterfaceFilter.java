@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filters;
+package io.kroxylicious.microbenchmarks.filters;
 
 import java.util.concurrent.CompletionStage;
 
