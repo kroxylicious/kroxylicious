@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.internal.codec;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +19,7 @@ import io.netty.buffer.ByteBuf;
 
 import static io.kroxylicious.proxy.internal.codec.RequestDecoderTest.DECODE_EVERYTHING;
 import static io.kroxylicious.proxy.internal.codec.RequestDecoderTest.getKafkaRequestDecoder;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -70,9 +70,11 @@ class RequestDecoderMockitoTest {
         when(frameBuffer.readableBytes()).thenReturn(20);
         when(frameBuffer.readSlice(anyInt())).thenReturn(frameSlice);
 
+        List<Object> messageReceiver = new ArrayList<>();
+
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> kafkaRequestDecoder.decode(null, frameBuffer, new ArrayList<>()))
+        assertThatThrownBy(() -> kafkaRequestDecoder.decode(null, frameBuffer, messageReceiver))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("decodeHeaderAndBody did not read all of the buffer");
 
