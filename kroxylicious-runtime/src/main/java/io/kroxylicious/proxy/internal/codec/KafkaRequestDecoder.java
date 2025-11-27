@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -61,6 +62,11 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         short apiVersion = in.readShort();
         if (log().isTraceEnabled()) { // avoid boxing
             log().trace("{}: apiVersion: {}", ctx, apiVersion);
+        }
+        short lowestSupportedVersion = apiKey.messageType.lowestSupportedVersion();
+        if (apiVersion < lowestSupportedVersion) {
+            throw new UnsupportedVersionException(
+                    "Client request uses apiVersion " + apiVersion + " for " + apiKey.name + " which is below the lowest supported version " + lowestSupportedVersion);
         }
         final int startOfMessage = in.readerIndex();
         int correlationId = in.readInt();
