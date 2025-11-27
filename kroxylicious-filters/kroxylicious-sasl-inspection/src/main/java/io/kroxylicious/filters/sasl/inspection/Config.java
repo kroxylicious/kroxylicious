@@ -22,7 +22,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param requireAuthentication If true then successful authentication will be required before the filter
  * will forward any requests other than those strictly required to perform SASL authentication.
  * If false then the filter will forward all requests regardless of whether
- * SASL authentication has been attempted or was successful. Defaults to true.
+ * SASL authentication has been attempted or was successful. Defaults to false.
  */
 public record Config(@Nullable Set<String> enabledMechanisms,
                      @Nullable String subjectBuilder,
