@@ -38,10 +38,6 @@ sealed interface State
         return new RequiringHandshakeRequest();
     }
 
-    default boolean clientFinished() {
-        return false;
-    }
-
     default boolean clientIsAuthenticated() {
         return false;
     }
