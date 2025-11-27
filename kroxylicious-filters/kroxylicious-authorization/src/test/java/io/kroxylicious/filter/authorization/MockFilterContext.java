@@ -233,9 +233,10 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
 
         @NonNull
         @Override
-        public CloseOrTerminalStage<RequestFilterResult> errorResponse(@NonNull RequestHeaderData header, @NonNull ApiMessage message, @NonNull ApiException apiException)
+        public CloseOrTerminalStage<RequestFilterResult> errorResponse(@NonNull RequestHeaderData header, @NonNull ApiMessage requestMessage,
+                                                                       @NonNull ApiException apiException)
                 throws IllegalArgumentException {
-            return new ErrorCloseOrTerminalStage(header, message, apiException, false);
+            return new ErrorCloseOrTerminalStage(header, requestMessage, apiException, false);
         }
 
         @NonNull
