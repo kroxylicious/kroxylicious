@@ -13,7 +13,6 @@ import java.util.Map;
 
 import org.apache.kafka.clients.admin.ScramMechanism;
 import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -23,12 +22,13 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -69,36 +69,6 @@ public class KafkaSteps {
      */
     public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas,
                                    @NonNull CompressionType compressionType) {
-        createTopic(deployNamespace, topicName, bootstrap, partitions, replicas, compressionType, null);
-    }
-
-    /**
-     * Create topic.
-     *
-     * @param deployNamespace the deploy namespace
-     * @param topicName the topic name
-     * @param bootstrap the bootstrap
-     * @param partitions the partitions
-     * @param replicas the replicas
-     * @param usernamePasswords the username passwords
-     */
-    public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas,
-                                   Map<String, String> usernamePasswords) {
-        createTopic(deployNamespace, topicName, bootstrap, partitions, replicas, CompressionType.NONE, usernamePasswords);
-    }
-
-    /**
-     * Create topic.
-     *
-     * @param deployNamespace the deploy namespace
-     * @param topicName the topic name
-     * @param bootstrap the bootstrap
-     * @param partitions the partitions
-     * @param replicas the replicas
-     * @param compressionType the compression type
-     */
-    public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas,
-                                   @NonNull CompressionType compressionType, @Nullable Map<String, String> usernamePasswords) {
         LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
         List<String> args = new ArrayList<>(
@@ -110,15 +80,20 @@ public class KafkaSteps {
             topicConfig.add(TopicConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType);
         }
 
-        if (usernamePasswords != null && !usernamePasswords.isEmpty()) {
-            if (!usernamePasswords.containsKey(Constants.KROXYLICIOUS_ADMIN_USER)) {
-                throw new ConfigException("'admin' user not found! It is necessary to manage the topics");
-            }
-            topicConfig.add("security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name);
-            topicConfig.add(SaslConfigs.SASL_MECHANISM + "=" + ScramMechanism.SCRAM_SHA_512.mechanismName());
-            topicConfig.add(SaslConfigs.SASL_JAAS_CONFIG + "='org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
-                    + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";'");
-        }
+//        Properties adminConfig = new Properties();
+//        if (usernamePasswords != null && !usernamePasswords.isEmpty()) {
+//            if (!usernamePasswords.containsKey(Constants.KROXYLICIOUS_ADMIN_USER)) {
+//                throw new ConfigException("'admin' user not found! It is necessary to manage the topics");
+//            }
+////            topicConfig.add("security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name);
+////            topicConfig.add(SaslConfigs.SASL_MECHANISM + "=" + ScramMechanism.SCRAM_SHA_512.mechanismName());
+////            topicConfig.add(SaslConfigs.SASL_JAAS_CONFIG + "='org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
+////                    + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";'");
+//            adminConfig.put("ADDITIONAL_CONFIG", "security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name
+//                    + "\n" + "sasl.mechanism=" + ScramMechanism.SCRAM_SHA_512.mechanismName()
+//                    + "\n" + "sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
+//                    + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";");
+//        }
 
         if (!topicConfig.isEmpty()) {
             args.add("--topic-config=" + String.join(",", topicConfig));
@@ -128,6 +103,50 @@ public class KafkaSteps {
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofMinutes(1));
+        LOGGER.atDebug().setMessage("Admin client create pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
+    }
+
+    /**
+     * Create topic with authentication.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param partitions the partitions
+     * @param replicas the replicas
+     * @param usernamePasswords the username passwords
+     */
+    public static void createTopicWithAuthentication(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas,
+                                                     Map<String, String> usernamePasswords) {
+        if (!usernamePasswords.containsKey(Constants.KROXYLICIOUS_ADMIN_USER)) {
+            throw new ConfigException("'admin' user not found! It is necessary to manage the topics");
+        }
+
+        LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
+        String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
+        List<String> args = new ArrayList<>(
+                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
+                        "--topic-rep-factor=" + replicas));
+
+//        Properties adminConfig = new Properties();
+//        adminConfig.put("ADDITIONAL_CONFIG", "security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name
+//                + "\n" + "sasl.mechanism=" + ScramMechanism.SCRAM_SHA_512.mechanismName()
+//                + "\n" + "sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
+//                + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";");
+
+        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+                KroxyliciousConfigMapTemplates.getConfigMapForAdditionalConfig(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME, SecurityProtocol.SASL_PLAINTEXT.name,
+                        ScramMechanism.SCRAM_SHA_512.mechanismName(), Constants.KROXYLICIOUS_ADMIN_USER,usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER))
+        );
+
+//        ConfigMap map = new ConfigMapBuilder().withNewMetadata().withName("admin-client-config").endMetadata()
+//                .withData(Map.of("config.properties", properties)).build();
+//        kubeClient().getClient().configMaps().inNamespace(deployNamespace).resource(map).createOr(NonDeletingOperation::update);
+
+        Job adminClientJob = TestClientsJobTemplates.authenticationAdminClientJob(name, args).build();
+        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
+        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofMinutes(5));
         LOGGER.atDebug().setMessage("Admin client create pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
     }
 

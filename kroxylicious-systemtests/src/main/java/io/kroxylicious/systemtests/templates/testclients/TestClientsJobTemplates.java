@@ -11,20 +11,21 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.record.CompressionType;
-
+import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.PodSpecBuilder;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
+import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.templates.ContainerTemplates;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -104,6 +105,49 @@ public class TestClientsJobTemplates {
     }
 
     /**
+     * Authentication admin client job builder.
+     *
+     * @param jobName the job name
+     * @param args the args
+     * @return  the job builder
+     */
+    public static JobBuilder authenticationAdminClientJob(String jobName, List<String> args) {
+        List<VolumeMount> volumeMounts = new ArrayList<>();
+        List<Volume> volumes = new ArrayList<>();
+        Volume configVolume = new VolumeBuilder()
+                .withName(Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME)
+                .withConfigMap(new ConfigMapVolumeSourceBuilder()
+                        .withName(Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME)
+                        .addNewItem()
+                        .withKey(Constants.CONFIG_PROP_FILE_NAME)
+                        .withPath(Constants.CONFIG_PROP_FILE_NAME)
+                        .endItem()
+                        .build())
+                .build();
+
+        VolumeMount configMount = new VolumeMountBuilder()
+                .withName(Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME)
+                .withMountPath(Constants.CONFIG_PROP_TEMP_DIR)
+                .build();
+        volumeMounts.add(configMount);
+        volumes.add(configVolume);
+
+        return baseClientJob(jobName)
+                .editSpec()
+                .editTemplate()
+                .editSpec()
+                .withVolumes(volumes)
+                .withContainers(ContainerTemplates.baseImageBuilder("admin", Environment.TEST_CLIENTS_IMAGE)
+                        .withCommand("admin-client")
+                        .withArgs(args)
+                        .withVolumeMounts(volumeMounts)
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    /**
      * Default test client producer job builder.
      *
      * @param jobName the job name
@@ -112,15 +156,15 @@ public class TestClientsJobTemplates {
      * @param numOfMessages the num of messages
      * @param message the message
      * @param messageKey the message key
-     * @param compressionType the compression type
+     * @param additionalConfig the additional config
      * @return  the job builder
      */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
-                                                          @Nullable String messageKey, @NonNull CompressionType compressionType) {
+                                                          @Nullable String messageKey, Map<String, String> additionalConfig) {
         return newJobForContainer(jobName,
                 "test-client-producer",
                 Environment.TEST_CLIENTS_IMAGE,
-                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey, compressionType));
+                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey, additionalConfig));
     }
 
     private static JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
@@ -143,13 +187,14 @@ public class TestClientsJobTemplates {
      * @param bootstrap the bootstrap
      * @param topicName the topic name
      * @param numOfMessages the num of messages
-     * @return the job builder
+     * @param additionalKafkaProps the additional kafka props
+     * @return  the job builder
      */
-    public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages) {
+    public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages, Map<String, String> additionalKafkaProps) {
         return newJobForContainer(jobName,
                 "test-client-consumer",
                 Environment.TEST_CLIENTS_IMAGE,
-                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages));
+                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages, additionalKafkaProps));
     }
 
     /**
@@ -226,7 +271,10 @@ public class TestClientsJobTemplates {
     }
 
     private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message,
-                                                           @Nullable String messageKey, @NonNull CompressionType compressionType) {
+                                                           @Nullable String messageKey, Map<String, String> additionalKafkaProps) {
+        List<String> additionalConfig = new ArrayList<>();
+        additionalKafkaProps.forEach((key, value) -> additionalConfig.add(key + "=" + value));
+
         List<EnvVar> envVars = new ArrayList<>(List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(DELAY_MS_VAR, "200"),
@@ -235,19 +283,18 @@ public class TestClientsJobTemplates {
                 envVar(MESSAGE_VAR, message),
                 envVar(PRODUCER_ACKS_VAR, "all"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
-                envVar(CLIENT_TYPE_VAR, "KafkaProducer")));
+                envVar(CLIENT_TYPE_VAR, "KafkaProducer"),
+                envVar(ADDITIONAL_CONFIG_VAR, String.join("\n", additionalConfig))));
         if (messageKey != null) {
             envVars.add(envVar(MESSAGE_KEY_VAR, messageKey));
         }
-        List<String> additionalConfig = new ArrayList<>();
-        if (!CompressionType.NONE.equals(compressionType)) {
-            additionalConfig.add(ProducerConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType.name);
-        }
-        envVars.add(envVar(ADDITIONAL_CONFIG_VAR, String.join("\n", additionalConfig)));
+
         return envVars;
     }
 
-    private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages) {
+    private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages, Map<String, String> additionalKafkaProps) {
+        List<String> additionalConfig = new ArrayList<>();
+        additionalKafkaProps.forEach((key, value) -> additionalConfig.add(key + "=" + value));
         return List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(TOPIC_VAR, topicName),
@@ -255,6 +302,7 @@ public class TestClientsJobTemplates {
                 envVar(GROUP_ID_VAR, "my-group"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
                 envVar(CLIENT_TYPE_VAR, "KafkaConsumer"),
-                envVar(OUTPUT_FORMAT_VAR, "json"));
+                envVar(OUTPUT_FORMAT_VAR, "json"),
+                envVar(ADDITIONAL_CONFIG_VAR, String.join("\n", additionalConfig)));
     }
 }

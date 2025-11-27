@@ -6,9 +6,16 @@
 
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.common.config.SaslConfigs;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
@@ -96,9 +103,45 @@ public final class KroxyliciousConfigMapTemplates {
 
     private static String generateAclRules(List<String> aclRules) {
         StringBuilder aclRule = new StringBuilder("from io.kroxylicious.filter.authorization import TopicResource as Topic;");
-        aclRules.sort(Collections.reverseOrder());
+        aclRules.sort(Collections.reverseOrder()); // deny should be always first, then allow sentences
         aclRules.forEach(rule -> aclRule.append("\n").append(rule));
         aclRule.append("\n").append("otherwise deny;");
         return aclRule.toString();
+    }
+
+    /**
+     * Gets config map for additional config.
+     *
+     * @param namespace the namespace
+     * @param name the name
+     * @param securityProtocol the security protocol
+     * @param saslMechanism the sasl mechanism
+     * @return  the config map for additional config
+     */
+    public static ConfigMapBuilder getConfigMapForAdditionalConfig(String namespace, String name, String securityProtocol, String saslMechanism, String username,
+                                                                   String usernamePassword) {
+        Properties adminConfig = new Properties();
+        adminConfig.put("ADDITIONAL_CONFIG", CommonClientConfigs.SECURITY_PROTOCOL_CONFIG + "=" + securityProtocol
+                + "\n" + SaslConfigs.SASL_MECHANISM + "=" + saslMechanism
+                + "\n" + SaslConfigs.SASL_JAAS_CONFIG + "='org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + username +
+                "\" password=\"" + usernamePassword + "\";'");
+
+        String properties;
+        try (StringWriter writer = new StringWriter()) {
+            adminConfig.store(writer, "admin config");
+            properties = writer.toString();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        // @formatter:off
+        return new ConfigMapBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .withNamespace(namespace)
+                .endMetadata()
+                .withData(Map.of(Constants.CONFIG_PROP_FILE_NAME, properties));
+        // @formatter:on
     }
 }

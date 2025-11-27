@@ -9,11 +9,12 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +32,6 @@ import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
@@ -60,8 +60,8 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, @NonNull CompressionType compressionType,
-                                int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                Map<String, String> additionalConfig) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
         StringBuilder msg = new StringBuilder();
@@ -82,18 +82,30 @@ public class KcatClient implements KafkaClient {
                 "--image=" + Constants.KCAT_CLIENT_IMAGE,
                 "--override-type=strategic",
                 "--overrides=" + jsonOverrides,
-                "--", "-b", bootstrap, "-l", "-t", topicName, "-P", "-z", compressionType.name));
+                "--", "-b", bootstrap, "-l", "-t", topicName, "-P"));
         recordKey.ifPresent(ignored -> executableCommand.add("-K :"));
+        if (additionalConfig.containsKey(ProducerConfig.COMPRESSION_TYPE_CONFIG)) {
+            executableCommand.add("-z");
+            executableCommand.add(additionalConfig.get(ProducerConfig.COMPRESSION_TYPE_CONFIG));
+        }
+        additionalConfig.forEach((key, value) -> {
+            executableCommand.add("-X");
+            executableCommand.add(key + "=" + value);
+        });
 
         KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.KCAT.name().toLowerCase());
     }
 
     @Override
-    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig) {
         LOGGER.atInfo().log("Consuming messages using kcat");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat-" + TestUtils.getRandomPodNameSuffix();
         // Running consumer with parameters to get the latest N number of messages received to avoid consuming twice the same messages
-        List<String> args = List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-o", "-" + numOfMessages, "-e", "-J");
+        List<String> args = new ArrayList<>(List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-o", "-" + numOfMessages, "-e", "-J"));
+        additionalConfig.forEach((key, value) -> {
+            args.add("-X");
+            args.add(key + "=" + value);
+        });
         Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, kCatClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
