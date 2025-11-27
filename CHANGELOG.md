@@ -12,10 +12,10 @@ Format `<github issue/pr number>: <short description>`.
 * [#2821](https://github.com/kroxylicious/kroxylicious/pull/2821): Fix OauthBearerValidationFilter unnecessarily copying the authentication bytes from an incoming request to a failed response 
 * [#2893](https://github.com/kroxylicious/kroxylicious/pull/2893): Add Subject, replace FilterContext#clientSaslAuthenticationSuccess
 * [#2899](https://github.com/kroxylicious/kroxylicious/pull/2898): Add SaslSubjectBuilder API
+* [#2913](https://github.com/kroxylicious/kroxylicious/pull/2913): Add TransportSubjectBuilder API, enable user to configure one per virtual cluster
 * [#2899](https://github.com/kroxylicious/kroxylicious/pull/2899): Add the Authorizer API
 * [#2903](https://github.com/kroxylicious/kroxylicious/pull/2903): Add an ACL Authorizer implementation
 * [#2909](https://github.com/kroxylicious/kroxylicious/pull/2909): Add an Authorizer Filter that can authorize Topic operations
-* [#2913](https://github.com/kroxylicious/kroxylicious/pull/2913): Add pluggable mTLS Subject publishing
 * [#2904](https://github.com/kroxylicious/kroxylicious/pull/2904): SaslInspection Filter publishes Subject using pluggable SaslSubjectBuilder
 
 ### Changes, deprecations and removals
