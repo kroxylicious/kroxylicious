@@ -19,7 +19,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * {@link SaslObserverFactory#transmitsCredentialInCleartext()} values of false.
  * @param subjectBuilder The name of a plugin class implementing {@link io.kroxylicious.proxy.authentication.SaslSubjectBuilderService}
  * @param subjectBuilderConfig The configuration for the SaslSubjectBuilderService.
+ * @param requireAuthentication If true then successful authentication will be required before the filter
+ * will forward any requests other than those strictly required to perform SASL authentication.
+ * If false then the filter will forward all requests regardless of whether
+ * SASL authentication has been attempted or was successful. Defaults to true.
  */
 public record Config(@Nullable Set<String> enabledMechanisms,
                      @Nullable String subjectBuilder,
-                     @Nullable Object subjectBuilderConfig) {}
+                     @Nullable Object subjectBuilderConfig,
+                     @Nullable Boolean requireAuthentication) {}

@@ -64,17 +64,16 @@ class SaslInspectionFilter
 
     private final Map<String, SaslObserverFactory> observerFactoryMap;
     private final SaslSubjectBuilder subjectBuilder;
+    private final boolean authenticationRequired;
 
     private State currentState = State.start();
 
-    State currentState() {
-        return currentState;
-    }
-
     SaslInspectionFilter(Map<String, SaslObserverFactory> mechanismFactories,
-                         SaslSubjectBuilder subjectBuilder) {
+                         SaslSubjectBuilder subjectBuilder,
+                         boolean authenticationRequired) {
         this.observerFactoryMap = Objects.requireNonNull(mechanismFactories, "mechanismFactories");
         this.subjectBuilder = Objects.requireNonNull(subjectBuilder, "subjectBuilder");
+        this.authenticationRequired = authenticationRequired;
     }
 
     @Override
@@ -84,11 +83,19 @@ class SaslInspectionFilter
             case SASL_AUTHENTICATE -> onSaslAuthenticateRequest(header.requestApiVersion(), header, (SaslAuthenticateRequestData) request, context);
             case SASL_HANDSHAKE -> onSaslHandshakeRequest(header, (SaslHandshakeRequestData) request, context);
             default -> {
-                if (currentState().clientIsAuthenticated()) {
+                if (!authenticationRequired || currentState.clientIsAuthenticated()) {
                     yield context.forwardRequest(header, request);
                 }
                 else {
-                    LOGGER.info("{} Client attempted {} request while NOT AUTHENTICATED", context.sessionId(), apiKey);
+                    String disposition;
+                    if (currentState instanceof State.RequiringAuthenticateRequest) {
+                        disposition = "attempted";
+                    }
+                    else {
+                        disposition = "completed";
+                    }
+                    LOGGER.info("{}: Client attempted {} request without having {} SASL authentication", context.sessionId(), apiKey, disposition);
+
                     yield context.requestFilterResultBuilder()
                             .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED.exception())
                             .withCloseConnection()
@@ -247,7 +254,6 @@ class SaslInspectionFilter
         }
     }
 
-
     @Override
     public CompletionStage<ResponseFilterResult> onSaslAuthenticateResponse(short apiVersion,
                                                                             ResponseHeaderData header,
@@ -255,7 +261,7 @@ class SaslInspectionFilter
                                                                             FilterContext context) {
         return this.handleSaslAuthenticateResponse(header, brokerResponse, context)
                 .thenApply(clientFacingResponse -> {
-                    if (this.currentState().clientIsAuthenticated()) {
+                    if (currentState.clientIsAuthenticated()) {
                         LOGGER.info("Authentication successful");
                     }
                     else {

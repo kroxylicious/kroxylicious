@@ -180,6 +180,7 @@ sealed interface State
     final class DisallowingAuthenticateRequest implements State {
         private DisallowingAuthenticateRequest() {
         }
+
         @Override
         public boolean clientIsAuthenticated() {
             return true;
