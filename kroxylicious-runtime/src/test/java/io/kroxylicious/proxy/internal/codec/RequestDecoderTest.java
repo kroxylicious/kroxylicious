@@ -229,7 +229,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         assertEquals(expectRead, byteBuf.readerIndex());
     }
 
-    private static KafkaRequestDecoder getKafkaRequestDecoder(DecodePredicate predicate, int socketFrameMaxSizeBytes) {
+    public static KafkaRequestDecoder getKafkaRequestDecoder(DecodePredicate predicate, int socketFrameMaxSizeBytes) {
         return new KafkaRequestDecoder(
                 predicate,
                 socketFrameMaxSizeBytes, new ApiVersionsServiceImpl(), null);
