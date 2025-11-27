@@ -52,7 +52,7 @@ import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Stream.concat;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class TxnOffsetCommitAuthzIT extends AuthzIT {
+class TxnOffsetCommitAuthzIT extends AuthzIT {
 
     public static final String EXISTING_TOPIC_NAME = "other-topic";
     private Path rulesFile;

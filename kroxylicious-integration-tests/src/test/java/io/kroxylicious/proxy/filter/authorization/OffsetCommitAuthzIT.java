@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.admin.Admin;
@@ -47,7 +46,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class OffsetCommitAuthzIT extends AuthzIT {
+class OffsetCommitAuthzIT extends AuthzIT {
 
     private static final String ALICE_TOPIC_NAME = "alice-topic";
     private static final String BOB_TOPIC_NAME = "bob-topic";
@@ -73,7 +72,7 @@ public class OffsetCommitAuthzIT extends AuthzIT {
     static Admin kafkaClusterNoAuthzAdmin;
 
     @BeforeAll
-    void beforeAll() throws IOException, ExecutionException, InterruptedException {
+    void beforeAll() throws IOException {
         rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
         Files.writeString(rulesFile, """
                 from io.kroxylicious.filter.authorization import TopicResource as Topic;

@@ -57,7 +57,7 @@ import static org.apache.kafka.common.protocol.ApiKeys.SASL_AUTHENTICATE;
 import static org.apache.kafka.common.protocol.ApiKeys.SASL_HANDSHAKE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ZeroAckProduceAuthzIT {
+class ZeroAckProduceAuthzIT {
     private static final String TOPIC_NAME_A = "topica";
     private static final String TOPIC_NAME_B = "topicb";
     public static final String ALICE = "alice";

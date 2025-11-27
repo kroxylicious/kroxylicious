@@ -40,7 +40,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
-public class DeleteTopicsAuthzIT extends AuthzIT {
+class DeleteTopicsAuthzIT extends AuthzIT {
 
     private static final String ALICE_TOPIC_NAME = "alice-topic";
     private static final String BOB_TOPIC_NAME = "bob-topic";
@@ -287,8 +287,8 @@ public class DeleteTopicsAuthzIT extends AuthzIT {
     @ParameterizedTest
     @MethodSource
     void shouldEnforceAccessToTopics(VersionSpecificVerification<DeleteTopicsRequestData, DeleteTopicsResponseData> test) {
-        try (var referenceCluster = new ReferenceCluster(this.kafkaClusterWithAuthz, this.topicIdsInUnproxiedCluster);
-                var proxiedCluster = new ProxiedCluster(this.kafkaClusterNoAuthz, this.topicIdsInProxiedCluster, rulesFile)) {
+        try (var referenceCluster = new ReferenceCluster(kafkaClusterWithAuthz, this.topicIdsInUnproxiedCluster);
+                var proxiedCluster = new ProxiedCluster(kafkaClusterNoAuthz, this.topicIdsInProxiedCluster, rulesFile)) {
             test.verifyBehaviour(referenceCluster, proxiedCluster);
         }
     }

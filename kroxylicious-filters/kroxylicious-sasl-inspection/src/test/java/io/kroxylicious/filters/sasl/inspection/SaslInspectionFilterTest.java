@@ -490,8 +490,8 @@ class SaslInspectionFilterTest {
                                         String expectedAuthorizedId) {
         // Given
         when(subjectBuilder.buildSaslSubject(any())).then(a -> {
-            var context = (SaslSubjectBuilder.Context) a.getArguments()[0];
-            return CompletableFuture.completedFuture(new Subject(new User(context.clientSaslContext().authorizationId())));
+            var ctx = (SaslSubjectBuilder.Context) a.getArguments()[0];
+            return CompletableFuture.completedFuture(new Subject(new User(ctx.clientSaslContext().authorizationId())));
         });
 
         // When
@@ -534,8 +534,8 @@ class SaslInspectionFilterTest {
                                           InitialResponse reauthInitialResponse, List<ChallengeResponse> reauthChallengeResponses, Consumer<FilterContext> verify) {
         // Given
         when(subjectBuilder.buildSaslSubject(any())).then(a -> {
-            var context = (SaslSubjectBuilder.Context) a.getArguments()[0];
-            return CompletableFuture.completedFuture(new Subject(new User(context.clientSaslContext().authorizationId())));
+            var ctx = (SaslSubjectBuilder.Context) a.getArguments()[0];
+            return CompletableFuture.completedFuture(new Subject(new User(ctx.clientSaslContext().authorizationId())));
         });
 
         // When
@@ -550,8 +550,8 @@ class SaslInspectionFilterTest {
     void shouldDetectUnexpectedReauthentication() {
         // Given
         when(subjectBuilder.buildSaslSubject(any())).then(a -> {
-            var context = (SaslSubjectBuilder.Context) a.getArguments()[0];
-            return CompletableFuture.completedFuture(new Subject(new User(context.clientSaslContext().authorizationId())));
+            var ctx = (SaslSubjectBuilder.Context) a.getArguments()[0];
+            return CompletableFuture.completedFuture(new Subject(new User(ctx.clientSaslContext().authorizationId())));
         });
 
         // When
@@ -610,7 +610,6 @@ class SaslInspectionFilterTest {
         // Given
         RuntimeException oops = new RuntimeException("Oops");
         when(subjectBuilder.buildSaslSubject(any())).then(a -> {
-            var context = (SaslSubjectBuilder.Context) a.getArguments()[0];
             return CompletableFuture.failedStage(oops);
         });
         var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder);

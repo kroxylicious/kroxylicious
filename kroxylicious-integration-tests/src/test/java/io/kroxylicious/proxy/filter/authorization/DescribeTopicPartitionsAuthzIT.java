@@ -11,7 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -44,7 +43,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static java.util.stream.Stream.concat;
 
-public class DescribeTopicPartitionsAuthzIT extends AuthzIT {
+class DescribeTopicPartitionsAuthzIT extends AuthzIT {
 
     private static final String ALICE_TOPIC_NAME = "alice-topic";
     private static final String BOB_TOPIC_NAME = "bob-topic";
@@ -66,7 +65,7 @@ public class DescribeTopicPartitionsAuthzIT extends AuthzIT {
     static Admin kafkaClusterNoAuthzAdmin;
 
     @BeforeAll
-    void beforeAll() throws IOException, ExecutionException, InterruptedException {
+    void beforeAll() throws IOException {
         rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
         Files.writeString(rulesFile, """
                 from io.kroxylicious.filter.authorization import TopicResource as Topic;

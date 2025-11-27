@@ -42,7 +42,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class CreatePartitionsAuthzIT extends AuthzIT {
+class CreatePartitionsAuthzIT extends AuthzIT {
 
     private static final String ALICE_TOPIC_NAME = "alice-topic";
     private static final String BOB_TOPIC_NAME = "bob-topic";

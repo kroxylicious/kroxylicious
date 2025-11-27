@@ -40,7 +40,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class CreateTopicsAuthzIT extends AuthzIT {
+class CreateTopicsAuthzIT extends AuthzIT {
 
     private static final String ALICE_TO_CREATE_TOPIC_NAME = "alice-new-topic";
     private static final String BOB_TO_CREATE_TOPIC_NAME = "bob-new-topic";
