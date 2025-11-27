@@ -80,7 +80,7 @@ class PromiseFactory {
                     logger.warn(message);
                 }
                 else {
-                    logger.trace("Promise was completed before timeout (message on timeout would have been \"{}\")", message);
+                    logger.trace("Promise was already completed before timeout (message on timeout would have been \"{}\")", message);
                 }
             }
             catch (Exception e) {
