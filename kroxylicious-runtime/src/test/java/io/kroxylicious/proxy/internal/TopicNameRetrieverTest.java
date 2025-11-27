@@ -16,12 +16,13 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
-import org.awaitility.core.InternalExecutorServiceFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import io.netty.util.concurrent.EventExecutor;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.metadata.TopLevelMetadataErrorException;
@@ -34,6 +35,7 @@ import static java.util.concurrent.CompletableFuture.failedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +47,8 @@ class TopicNameRetrieverTest {
     private static final Uuid UUID = new Uuid(5L, 5L);
     public static final String TOPIC_NAME = "topicName";
     public static final String TOPIC_NAME_2 = "topicName2";
+    @Mock
+    private EventExecutor eventExecutor;
 
     @Mock
     private FilterContext filterContext;
@@ -52,7 +56,7 @@ class TopicNameRetrieverTest {
 
     @BeforeEach
     void setUp() {
-        retriever = new TopicNameRetriever(filterContext, InternalExecutorServiceFactory.sameThreadExecutorService());
+        retriever = new TopicNameRetriever(filterContext, eventExecutor);
     }
 
     @Test
@@ -73,6 +77,12 @@ class TopicNameRetrieverTest {
 
     @Test
     void retrieveEmptyTopicNamesMapping() {
+        when(eventExecutor.inEventLoop()).thenReturn(false);
+        doAnswer(invocation -> {
+            Runnable runnable = invocation.getArgument(0);
+            runnable.run();
+            return null;
+        }).when(eventExecutor).execute(any());
         // when
         CompletionStage<TopicNameMapping> topicNames = getTopicNamesMapping(Set.of());
         // then
@@ -83,6 +93,22 @@ class TopicNameRetrieverTest {
                     assertThat(topicNamesMapping.failures()).isEmpty();
                 });
         verify(filterContext, never()).sendRequest(any(), any());
+    }
+
+    @Test
+    void retrieveEmptyTopicNamesMappingInFilterDispatchThread() {
+        when(eventExecutor.inEventLoop()).thenReturn(true);
+        // when
+        CompletionStage<TopicNameMapping> topicNames = getTopicNamesMapping(Set.of());
+        // then
+        assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
+                .satisfies(topicNamesMapping -> {
+                    assertThat(topicNamesMapping.anyFailures()).isFalse();
+                    assertThat(topicNamesMapping.topicNames()).isEmpty();
+                    assertThat(topicNamesMapping.failures()).isEmpty();
+                });
+        verify(filterContext, never()).sendRequest(any(), any());
+        verify(eventExecutor, never()).execute(any());
     }
 
     @Test

@@ -452,13 +452,19 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     @SuppressWarnings("unchecked")
     private void completeInternalResponse(InternalResponseFrame<?> decodedFrame) {
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Completing {} response for request to filter '{}': {}",
-                    channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
-        }
         CompletableFuture<ApiMessage> p = (CompletableFuture<ApiMessage>) decodedFrame
                 .promise();
-        p.complete(decodedFrame.body());
+        boolean newlyCompleted = p.complete(decodedFrame.body());
+        if (LOGGER.isDebugEnabled()) {
+            if (newlyCompleted) {
+                LOGGER.debug("{}: Completed {} response for internal request to filter '{}': {}",
+                        channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
+            }
+            else {
+                LOGGER.trace("{}: {} response for internal request to filter '{}' was already completed: {}",
+                        channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
+            }
+        }
     }
 
     private static <F extends FilterResult> F validateFilterResultNonNull(F f) {
