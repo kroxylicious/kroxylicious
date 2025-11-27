@@ -112,7 +112,6 @@ class SaslInspectionFilterTest {
             lenient().when(closeOrTerminalStage.completed()).thenReturn(CompletableFuture.completedStage(filterResult));
             lenient().when(closeOrTerminalStage.build()).thenReturn(filterResult);
 
-
             lenient().when(builder.shortCircuitResponse(apiMessageCaptor.capture())).then(invocation -> {
                 lenient().when(filterResult.shortCircuitResponse()).thenReturn(true);
                 lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
