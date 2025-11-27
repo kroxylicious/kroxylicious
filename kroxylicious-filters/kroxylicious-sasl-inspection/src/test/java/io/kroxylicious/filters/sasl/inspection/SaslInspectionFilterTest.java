@@ -137,14 +137,14 @@ class SaslInspectionFilterTest {
     @Test
     @SuppressWarnings("DataFlowIssue")
     void shouldRejectNullConfig() {
-        assertThatThrownBy(() -> new SaslInspectionFilter(null, subjectBuilder))
+        assertThatThrownBy(() -> new SaslInspectionFilter(null, subjectBuilder, false))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void shouldForwardHandshakeUpstream() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -173,7 +173,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeResponseDownstreamWhenMechanismsAgree() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -213,7 +213,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeErrorResponseDownstreamWhenClientMechanismUnknownToProxy() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("NOTAMECH");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -252,7 +252,8 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeErrorResponseDownstreamWhenClientMechanismUnknownToBroker() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory(), "SCRAM-SHA-256", new ScramSha256SaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory(), "SCRAM-SHA-256", new ScramSha256SaslObserverFactory()), subjectBuilder,
+                false);
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -291,7 +292,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldDetectMissingHandshake() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         // Omits handshake
 
@@ -318,7 +319,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldDetectUnexpectedSecondHandshake() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -359,7 +360,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldDetectMalformedClientInitialResponse() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         doSaslHandshakeRequest("PLAIN", filter);
         doSaslHandshakeResponse("PLAIN", filter);
@@ -398,7 +399,7 @@ class SaslInspectionFilterTest {
         var saslObserverFactory = mock(SaslObserverFactory.class);
         when(saslObserverFactory.createObserver()).thenReturn(saslObserver);
 
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", saslObserverFactory), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", saslObserverFactory), subjectBuilder, false);
 
         doSaslHandshakeRequest("PLAIN", filter);
         doSaslHandshakeResponse("PLAIN", filter);
@@ -433,7 +434,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnAuthenticationErrorResponseDownstreamWhenBrokerSignalsAuthenticationError() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         // When
         doSaslHandshakeRequest("PLAIN", filter);
@@ -568,7 +569,7 @@ class SaslInspectionFilterTest {
         });
 
         // When
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         doSaslHandshakeRequest("PLAIN", filter);
         doSaslHandshakeResponse("PLAIN", filter);
@@ -600,7 +601,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReportRecentlyExpiredTokenAsFailedAuthentication() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("OAUTHBEAER", new OauthBearerSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("OAUTHBEAER", new OauthBearerSaslObserverFactory()), subjectBuilder, false);
 
         doSaslHandshakeRequest("OAUTHBEAER", filter);
         doSaslHandshakeResponse("OAUTHBEAER", filter);
@@ -627,7 +628,7 @@ class SaslInspectionFilterTest {
         when(subjectBuilder.buildSaslSubject(any())).then(a -> {
             return CompletableFuture.failedStage(oops);
         });
-        var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder, false);
 
         // When
         doSaslHandshakeRequest(observerFactory.mechanismName(), filter);
@@ -661,7 +662,7 @@ class SaslInspectionFilterTest {
 
     private void doAuthenticateSuccessfully(SaslObserverFactory saslObserverFactory, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {
         // Given
-        var filter = new SaslInspectionFilter(Map.of(saslObserverFactory.mechanismName(), saslObserverFactory), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of(saslObserverFactory.mechanismName(), saslObserverFactory), subjectBuilder, false);
 
         // When
         doSaslHandshakeRequest(saslObserverFactory.mechanismName(), filter);
