@@ -59,7 +59,6 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
                 && header.requestApiVersion() != 0;
     }
 
-
     private static boolean containsAnyTopicIds(MetadataRequestData request) {
         return request.topics() != null
                 && !request.topics().isEmpty()
@@ -114,7 +113,6 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
 
         return onNonIdempotentMetadataRequest(header, request, context, authorizationFilter);
     }
-
 
     private CompletionStage<RequestFilterResult> onNonIdempotentMetadataRequest(RequestHeaderData header,
                                                                                 MetadataRequestData request,
