@@ -41,7 +41,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static java.util.stream.Stream.concat;
 
-public class OffsetForLeaderEpochAuthzIT extends AuthzIT {
+class OffsetForLeaderEpochAuthzIT extends AuthzIT {
 
     public static final String EXISTING_TOPIC_NAME = "other-topic";
     private Path rulesFile;

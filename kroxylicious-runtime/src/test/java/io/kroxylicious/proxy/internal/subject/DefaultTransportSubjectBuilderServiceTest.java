@@ -31,9 +31,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class DefaultTransportSubjectBuilderServiceTest {
+class DefaultTransportSubjectBuilderServiceTest {
 
-    private static YAMLMapper mapper = new YAMLMapper();
+    private static final YAMLMapper mapper = new YAMLMapper();
 
     private static void tls(DefaultTransportSubjectBuilderService.Config builderConfig,
                             X509Certificate cert,

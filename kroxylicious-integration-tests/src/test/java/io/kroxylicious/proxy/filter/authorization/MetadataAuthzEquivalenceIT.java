@@ -57,7 +57,7 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
+class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
 
     private static final Uuid SENTINEL_TOPIC_ID = Uuid.randomUuid();
     private static final Uuid NON_EXISTENT_TOPIC_ID = Uuid.randomUuid();

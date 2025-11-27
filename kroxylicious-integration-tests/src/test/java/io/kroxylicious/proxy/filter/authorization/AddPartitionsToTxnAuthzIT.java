@@ -53,7 +53,7 @@ import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Stream.concat;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class AddPartitionsToTxnAuthzIT extends AuthzIT {
+class AddPartitionsToTxnAuthzIT extends AuthzIT {
 
     public static final String EXISTING_TOPIC_NAME = "other-topic";
     private Path rulesFile;

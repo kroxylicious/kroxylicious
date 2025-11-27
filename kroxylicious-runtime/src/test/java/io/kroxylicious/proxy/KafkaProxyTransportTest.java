@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SetSystemProperty(key = "io.netty.transport.noNative", value = "true")
 @RestoreSystemProperties
 @Tag("requiresIsolatedJvm")
-public class KafkaProxyTransportTest {
+class KafkaProxyTransportTest {
 
     private static final String MINIMUM_VIABLE_CONFIG_YAML = """
                virtualClusters:

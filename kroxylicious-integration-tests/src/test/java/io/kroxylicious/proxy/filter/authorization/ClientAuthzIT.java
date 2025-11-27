@@ -84,7 +84,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * We expect the client to experience the same outcomes when pointed at Kafka-with-ACLs,
  * or proxy-with-authz (give or take some internal identifiers).
  */
-public class ClientAuthzIT extends AuthzIT {
+class ClientAuthzIT extends AuthzIT {
 
     public static final String TOPIC_A = "topicA";
     public static final String TOPIC_B = "topicB";
