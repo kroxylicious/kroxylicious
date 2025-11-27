@@ -48,18 +48,7 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 }
                 // TODO handle too-large frames
                 if (readable >= frameSize) { // We can read the whole frame
-                    var idx = in.readerIndex();
-                    var frame = decodeHeaderAndBody(ctx,
-                            in.readSlice(frameSize), // Prevent decodeHeaderAndBody() from reading beyond the frame
-                            frameSize);
-                    out.add(frame);
-                    if (listener != null) {
-                        listener.onMessage(frame, frameSize + Frame.FRAME_SIZE_LENGTH);
-                    }
-                    log().trace("{}: readable: {}, having read {}", ctx, in.readableBytes(), in.readerIndex() - idx);
-                    if (in.readerIndex() - idx != frameSize) {
-                        throw new RuntimeException("decodeHeaderAndBody did not read all of the buffer " + in);
-                    }
+                    validateRead(ctx, in, out, frameSize);
                 }
                 else {
                     in.readerIndex(sof);
@@ -70,6 +59,26 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 log().error("{}: Error in decoder", ctx, e);
                 throw e;
             }
+        }
+    }
+
+    private int readSingleFrame(ChannelHandlerContext ctx, ByteBuf in, List<Object> out, int frameSize) {
+        var idx = in.readerIndex();
+        var frame = decodeHeaderAndBody(ctx,
+                in.readSlice(frameSize), // Prevent decodeHeaderAndBody() from reading beyond the frame
+                frameSize);
+        out.add(frame);
+        if (listener != null) {
+            listener.onMessage(frame, frameSize + Frame.FRAME_SIZE_LENGTH);
+        }
+        return idx;
+    }
+
+    private void validateRead(ChannelHandlerContext ctx, ByteBuf in, List<Object> out, int frameSize) {
+        var idx = readSingleFrame(ctx, in, out, frameSize);
+        log().trace("{}: readable: {}, having read {}", ctx, in.readableBytes(), in.readerIndex() - idx);
+        if (in.readerIndex() - idx != frameSize) {
+            throw new IllegalStateException("decodeHeaderAndBody did not read all of the buffer " + in);
         }
     }
 
