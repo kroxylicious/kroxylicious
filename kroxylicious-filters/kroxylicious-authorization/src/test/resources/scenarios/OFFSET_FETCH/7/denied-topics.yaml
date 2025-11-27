@@ -1,0 +1,48 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_FETCH"
+  apiVersion: 7
+  scenario: "if all topics in request are denied, we shortcircuit respond"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 9
+    requestApiVersion: 7
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-487"
+    topics:
+      - name: "unauthorized"
+        partitionIndexes:
+          - 808
+    requireStable: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    topics:
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 808
+            committedOffset: -1
+            committedLeaderEpoch: -1
+            metadata: ""
+            errorCode: 29
+    errorCode: 0
