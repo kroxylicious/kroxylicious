@@ -20,23 +20,27 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class BytebufValidation {
     private final @Nullable SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig;
     private final @Nullable SchemaValidationConfig schemaValidationConfig;
+    private final @Nullable JwsSignatureValidationConfig jwsSignatureValidationConfig;
     private final boolean allowNulls;
     private final boolean allowEmpty;
 
     /**
      * Create a new BytebufValidation
-     * @param syntacticallyCorrectJsonConfig optional configuration, if non-null indicates ByteBuffer should contain syntactically correct JSON
+     * @param syntacticallyCorrectJsonConfig optional configuration, if non-null, indicates ByteBuffer should contain syntactically correct JSON
      * @param schemaValidationConfig optional configuration, if non-null, indicates ByteBuffer to validate the data using the schema configuration
+     * @param jwsSignatureValidationConfig optional configuration, if non-null, indicates Kafka Record should contain a valid JSON Web Signature (JWS)
      * @param allowNulls whether a null byte-buffer should be considered valid
      * @param allowEmpty whether an empty byte-buffer should be considered valid
      */
     @JsonCreator
     public BytebufValidation(@JsonProperty("syntacticallyCorrectJson") @Nullable SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig,
                              @JsonProperty("schemaValidationConfig") @Nullable SchemaValidationConfig schemaValidationConfig,
+                             @JsonProperty("jwsSignatureValidation") @Nullable JwsSignatureValidationConfig jwsSignatureValidationConfig,
                              @JsonProperty(value = "allowNulls", defaultValue = "true") @Nullable Boolean allowNulls,
                              @JsonProperty(value = "allowEmpty", defaultValue = "false") @Nullable Boolean allowEmpty) {
         this.syntacticallyCorrectJsonConfig = syntacticallyCorrectJsonConfig;
         this.schemaValidationConfig = schemaValidationConfig;
+        this.jwsSignatureValidationConfig = jwsSignatureValidationConfig;
         this.allowNulls = allowNulls == null || allowNulls;
         this.allowEmpty = allowEmpty != null && allowEmpty;
     }
@@ -55,6 +59,14 @@ public class BytebufValidation {
      */
     public Optional<SchemaValidationConfig> getSchemaValidationConfig() {
         return Optional.ofNullable(schemaValidationConfig);
+    }
+
+    /**
+     * Get jws validation json config
+     * @return optional containing jws validation config if non-null, empty otherwise
+     */
+    public Optional<JwsSignatureValidationConfig> getJwsSignatureValidationConfig() {
+        return Optional.ofNullable(jwsSignatureValidationConfig);
     }
 
     /**
@@ -83,12 +95,13 @@ public class BytebufValidation {
         }
         BytebufValidation that = (BytebufValidation) o;
         return allowNulls == that.allowNulls && allowEmpty == that.allowEmpty && Objects.equals(syntacticallyCorrectJsonConfig,
-                that.syntacticallyCorrectJsonConfig) && Objects.equals(schemaValidationConfig, that.schemaValidationConfig);
+                that.syntacticallyCorrectJsonConfig) && Objects.equals(schemaValidationConfig, that.schemaValidationConfig)
+                && Objects.equals(jwsSignatureValidationConfig, that.jwsSignatureValidationConfig);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(syntacticallyCorrectJsonConfig, schemaValidationConfig, allowNulls, allowEmpty);
+        return Objects.hash(syntacticallyCorrectJsonConfig, schemaValidationConfig, jwsSignatureValidationConfig, allowNulls, allowEmpty);
     }
 
     @Override
@@ -96,6 +109,7 @@ public class BytebufValidation {
         return "BytebufValidation{" +
                 "syntacticallyCorrectJsonConfig=" + syntacticallyCorrectJsonConfig +
                 ", schemaValidationConfig=" + schemaValidationConfig +
+                ", jwsSignatureValidationConfig=" + jwsSignatureValidationConfig +
                 ", allowNulls=" + allowNulls +
                 ", allowEmpty=" + allowEmpty +
                 '}';
