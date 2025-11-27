@@ -55,6 +55,8 @@ Format `<github issue/pr number>: <short description>`.
   ```
 * `AuthorizationFilter` is added to the inary distribution and image. Note this is a new experimental Filter, not yet
   ready for production environments.
+* `FilterContext` now offers a `topicNames` method to map from topic ids to topic names. Caching the result is initially
+  a Filter responsibility.
 
 ## 0.17.1
 
