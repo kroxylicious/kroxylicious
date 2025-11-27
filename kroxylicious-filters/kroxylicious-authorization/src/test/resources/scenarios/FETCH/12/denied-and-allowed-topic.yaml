@@ -1,0 +1,139 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FETCH"
+  apiVersion: 12
+  scenario: |
+    request contains some allowed topics and some denied
+    allowed topics are forwarded upstream
+    denied topics are not forwarded upstream
+    denied topic errors are augmented into response to client
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FETCH"
+      expectedRequestVersion: 12
+      expectedRequestHeader:
+        requestApiKey: 1
+        requestApiVersion: 12
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 66
+        maxWaitMs: 631
+        minBytes: 576
+        maxBytes: 658
+        isolationLevel: 5
+        sessionId: 267
+        sessionEpoch: 603
+        topics:
+          - topic: "my-topic"
+            partitions:
+              - partition: 549
+                currentLeaderEpoch: 609
+                fetchOffset: 402
+                lastFetchedEpoch: 645
+                logStartOffset: 742
+                partitionMaxBytes: 944
+        forgottenTopicsData:
+          - topic: "my-topic"
+            partitions:
+              - 563
+        rackId: "random-string-474"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 15
+        errorCode: 856
+        sessionId: 885
+        responses:
+          - topic: "my-topic"
+            partitions:
+              - partitionIndex: 647
+                errorCode: 575
+                highWatermark: 339
+                lastStableOffset: 551
+                logStartOffset: 596
+                abortedTransactions:
+                  - producerId: 287
+                    firstOffset: 914
+                preferredReadReplica: 22
+                records: !!binary ""
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 1
+    requestApiVersion: 12
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    replicaId: 66
+    maxWaitMs: 631
+    minBytes: 576
+    maxBytes: 658
+    isolationLevel: 5
+    sessionId: 267
+    sessionEpoch: 603
+    topics:
+      - topic: "my-topic"
+        partitions:
+          - partition: 549
+            currentLeaderEpoch: 609
+            fetchOffset: 402
+            lastFetchedEpoch: 645
+            logStartOffset: 742
+            partitionMaxBytes: 944
+      - topic: "unauthorized"
+        partitions:
+          - partition: 549
+            currentLeaderEpoch: 609
+            fetchOffset: 402
+            lastFetchedEpoch: 645
+            logStartOffset: 742
+            partitionMaxBytes: 944
+    forgottenTopicsData:
+      - topic: "my-topic"
+        partitions:
+          - 563
+    rackId: "random-string-474"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 15
+    errorCode: 856
+    sessionId: 885
+    responses:
+      - topic: "my-topic"
+        partitions:
+          - partitionIndex: 647
+            errorCode: 575
+            highWatermark: 339
+            lastStableOffset: 551
+            logStartOffset: 596
+            abortedTransactions:
+              - producerId: 287
+                firstOffset: 914
+            preferredReadReplica: 22
+            records: !!binary ""
+      - topic: "unauthorized"
+        partitions:
+          - partitionIndex: 549
+            errorCode: 29
+            highWatermark: -1
+            lastStableOffset: -1
+            logStartOffset: -1
+            abortedTransactions: [ ]
+            preferredReadReplica: -1
+            records: !!binary ""

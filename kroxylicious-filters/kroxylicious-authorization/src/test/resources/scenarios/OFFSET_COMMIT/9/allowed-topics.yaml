@@ -1,0 +1,77 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_COMMIT"
+  apiVersion: 9
+  scenario: "if all topics are allowed, forward to upstream"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_COMMIT"
+      expectedRequestVersion: 9
+      expectedRequestHeader:
+        requestApiKey: 8
+        requestApiVersion: 9
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-600"
+        generationIdOrMemberEpoch: 957
+        memberId: "random-string-816"
+        groupInstanceId: "random-string-577"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 61
+                committedOffset: 825
+                committedLeaderEpoch: 251
+                committedMetadata: "random-string-0"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 808
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 399
+                errorCode: 94
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 8
+    requestApiVersion: 9
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-600"
+    generationIdOrMemberEpoch: 957
+    memberId: "random-string-816"
+    groupInstanceId: "random-string-577"
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 61
+            committedOffset: 825
+            committedLeaderEpoch: 251
+            committedMetadata: "random-string-0"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 808
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 399
+            errorCode: 94
