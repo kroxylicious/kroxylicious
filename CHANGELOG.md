@@ -28,8 +28,6 @@ Format `<github issue/pr number>: <short description>`.
   `FilterContext#clientSaslAuthenticationSuccess(String mechanism, Subject subject)` instead. Initially the framework
    expects the Subject to contain a single `io.kroxylicious.proxy.authentication.User` principal which contains the
    `authorizedId`, though this may change in the future.
-* `io.kroxylicious.proxy.authentication.SaslSubjectBuilder` has been added to `kroxylicious-api`. This is an optional
-   Service interface that SASL-oriented Filters can choose to load.
 * A Virtual Cluster now has a pluggable `io.kroxylicious.proxy.authentication.TransportSubjectBuilder` associated with it.
   This new Service is responsible for building a `Subject` from mTLS certificates presented by the client to the proxy.
   This is configurable on the virtual cluster using the `subjectBuilder`:
