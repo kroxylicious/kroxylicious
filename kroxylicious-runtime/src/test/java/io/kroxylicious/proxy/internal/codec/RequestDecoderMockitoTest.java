@@ -40,7 +40,7 @@ class RequestDecoderMockitoTest {
 
     @BeforeEach
     void setUp() {
-        kafkaRequestDecoder =  getKafkaRequestDecoder(DECODE_EVERYTHING, SOCKET_MAX_FRAME_SIZE);
+        kafkaRequestDecoder = getKafkaRequestDecoder(DECODE_EVERYTHING, SOCKET_MAX_FRAME_SIZE);
     }
 
     @SuppressWarnings("DataFlowIssue")

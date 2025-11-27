@@ -126,8 +126,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         return new DecodedBufer(header, accessor);
     }
 
-    private record DecodedBufer(RequestHeaderData header, ByteBufAccessorImpl accessor) {
-    }
+    private record DecodedBufer(RequestHeaderData header, ByteBufAccessorImpl accessor) {}
 
     private short readApiVersion(ChannelHandlerContext ctx, ByteBuf in) {
         short apiVersion = in.readShort();
