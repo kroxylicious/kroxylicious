@@ -54,6 +54,7 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
+import nl.altindag.log.LogCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -73,6 +74,10 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class SaslInspectionFilterTest {
 
+    public static final String SESSION_ID = "123-session-id-abc";
+
+    LogCaptor logCaptor;
+
     @Mock(strictness = LENIENT)
     private FilterContext context;
 
@@ -89,6 +94,8 @@ class SaslInspectionFilterTest {
 
     @BeforeEach
     void setUp() {
+        logCaptor = LogCaptor.forClass(SaslInspectionFilter.class);
+        when(context.sessionId()).thenReturn(SESSION_ID);
         when(context.forwardRequest(any(RequestHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
             var filterResult = mock(RequestFilterResult.class);
             lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
@@ -702,7 +709,8 @@ class SaslInspectionFilterTest {
         verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
         verify(context, never()).forwardRequest(any(), ArgumentMatchers.assertArg(r -> assertThat(ApiKeys.forId(r.apiKey())).isEqualTo(ApiKeys.METADATA)));
         verify(requestCloseOrTerminalStage).withCloseConnection();
-
+        assertThat(logCaptor.getInfoLogs()).singleElement()
+                .isEqualTo("123-session-id-abc: Client attempted METADATA request without having attempted SASL authentication: closing connection with error");
     }
 
     @SuppressWarnings("deprecation")
@@ -730,7 +738,8 @@ class SaslInspectionFilterTest {
                     assertThat(ApiKeys.forId(rfr.message().apiKey()))
                             .isEqualTo(ApiKeys.METADATA);
                 });
-
+        assertThat(logCaptor.getInfoLogs()).singleElement()
+                .isEqualTo("123-session-id-abc: Client attempted METADATA request without having attempted SASL authentication: forwarding request");
     }
 
     @SuppressWarnings("deprecation")
@@ -764,6 +773,8 @@ class SaslInspectionFilterTest {
                     assertThat(ApiKeys.forId(rfr.message().apiKey()))
                             .isEqualTo(ApiKeys.METADATA);
                 });
+        assertThat(logCaptor.getInfoLogs())
+                .contains("123-session-id-abc: Client attempted METADATA request without having completed SASL authentication: forwarding request");
     }
 
     private void doAuthenticateSuccessfully(SaslObserverFactory saslObserverFactory, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {

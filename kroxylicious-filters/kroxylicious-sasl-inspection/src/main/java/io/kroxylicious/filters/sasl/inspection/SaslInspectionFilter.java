@@ -83,19 +83,21 @@ class SaslInspectionFilter
             case SASL_AUTHENTICATE -> onSaslAuthenticateRequest(header.requestApiVersion(), header, (SaslAuthenticateRequestData) request, context);
             case SASL_HANDSHAKE -> onSaslHandshakeRequest(header, (SaslHandshakeRequestData) request, context);
             default -> {
-                if (!authenticationRequired || currentState.clientIsAuthenticated()) {
+                if (!currentState.isFinishedSuccessfully()) {
+                    String disposition = currentState.isStarted() ? "completed" : "attempted";
+                    String outcome = authenticationRequired ? "closing connection with error" : "forwarding request";
+                    LOGGER.atInfo()
+                            .setMessage("{}: Client attempted {} request without having {} SASL authentication: {}")
+                            .addArgument(context.sessionId())
+                            .addArgument(apiKey)
+                            .addArgument(disposition)
+                            .addArgument(outcome)
+                            .log();
+                }
+                if (!authenticationRequired || currentState.isFinishedSuccessfully()) {
                     yield context.forwardRequest(header, request);
                 }
                 else {
-                    String disposition;
-                    if (currentState instanceof State.RequiringAuthenticateRequest) {
-                        disposition = "attempted";
-                    }
-                    else {
-                        disposition = "completed";
-                    }
-                    LOGGER.info("{}: Client attempted {} request without having {} SASL authentication", context.sessionId(), apiKey, disposition);
-
                     yield context.requestFilterResultBuilder()
                             .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED.exception())
                             .withCloseConnection()
@@ -261,11 +263,11 @@ class SaslInspectionFilter
                                                                             FilterContext context) {
         return this.handleSaslAuthenticateResponse(header, brokerResponse, context)
                 .thenApply(clientFacingResponse -> {
-                    if (currentState.clientIsAuthenticated()) {
-                        LOGGER.info("Authentication successful");
+                    if (currentState.isFinishedSuccessfully()) {
+                        LOGGER.info("{}: Authentication successful", context.sessionId());
                     }
-                    else {
-                        LOGGER.info("Authentication NOT successful (yet)");
+                    else if (currentState.isFinishedUnsuccessfully()) {
+                        LOGGER.info("{}: Authentication failed", context.sessionId());
                     }
                     return clientFacingResponse;
                 });
