@@ -65,11 +65,11 @@ public class PythonTestClient implements KafkaClient {
         this.deployNamespace = kubeClient().getNamespace();
     }
 
-//    @Override
-//    public Map<String, String> getAdditionalSaslProps(String user, String password) {
-//        return Map.of("sasl.username", user, "sasl.password", password, SaslConfigs.SASL_MECHANISM,
-//                ScramMechanism.SCRAM_SHA_512.mechanismName(), CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
-//    }
+    // @Override
+    // public Map<String, String> getAdditionalSaslProps(String user, String password) {
+    // return Map.of("sasl.username", user, "sasl.password", password, SaslConfigs.SASL_MECHANISM,
+    // ScramMechanism.SCRAM_SHA_512.mechanismName(), CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
+    // }
 
     @Override
     public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,

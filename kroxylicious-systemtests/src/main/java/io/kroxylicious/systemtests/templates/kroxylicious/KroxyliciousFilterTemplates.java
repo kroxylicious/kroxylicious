@@ -154,7 +154,7 @@ public final class KroxyliciousFilterTemplates {
     }
 
     private static Map<String, Object> getSaslInspectionConfigMap() {
-        Config saslInspectionConfig = new Config(Set.of(ScramMechanism.SCRAM_SHA_512.mechanismName()), null, null);
+        Config saslInspectionConfig = new Config(Set.of(ScramMechanism.SCRAM_SHA_512.mechanismName()), null, null, true);
 
         return OBJECT_MAPPER
                 .convertValue(saslInspectionConfig, new TypeReference<>() {
