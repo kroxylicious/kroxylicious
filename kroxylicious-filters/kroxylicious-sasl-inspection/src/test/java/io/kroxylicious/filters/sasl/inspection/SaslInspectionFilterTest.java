@@ -85,7 +85,7 @@ class SaslInspectionFilterTest {
     @Captor
     private ArgumentCaptor<ResponseHeaderData> responseHeaderDataCaptor;
 
-    CloseOrTerminalStage<RequestFilterResult> closeOrTerminalStage;
+    CloseOrTerminalStage<RequestFilterResult> requestCloseOrTerminalStage;
 
     @BeforeEach
     void setUp() {
@@ -102,47 +102,47 @@ class SaslInspectionFilterTest {
         });
 
         when(context.requestFilterResultBuilder()).then(invocationOnMock -> {
-            var builder = mock(RequestFilterResultBuilder.class);
-            var filterResult = mock(RequestFilterResult.class);
+            var requestBuilder = mock(RequestFilterResultBuilder.class);
+            var requestFilterResult = mock(RequestFilterResult.class);
 
             var terminalStage = mock(TerminalStage.class);
 
-            closeOrTerminalStage = mock(CloseOrTerminalStage.class);
-            lenient().when(closeOrTerminalStage.withCloseConnection()).thenReturn(terminalStage);
-            lenient().when(closeOrTerminalStage.completed()).thenReturn(CompletableFuture.completedStage(filterResult));
-            lenient().when(closeOrTerminalStage.build()).thenReturn(filterResult);
+            requestCloseOrTerminalStage = mock(CloseOrTerminalStage.class);
+            lenient().when(requestCloseOrTerminalStage.withCloseConnection()).thenReturn(terminalStage);
+            lenient().when(requestCloseOrTerminalStage.completed()).thenReturn(CompletableFuture.completedStage(requestFilterResult));
+            lenient().when(requestCloseOrTerminalStage.build()).thenReturn(requestFilterResult);
 
-            lenient().when(builder.shortCircuitResponse(apiMessageCaptor.capture())).then(invocation -> {
-                lenient().when(filterResult.shortCircuitResponse()).thenReturn(true);
-                lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
-                lenient().when(closeOrTerminalStage.withCloseConnection()).then(closeInvocation -> {
-                    lenient().when(filterResult.closeConnection()).thenReturn(true);
-                    return closeOrTerminalStage;
+            lenient().when(requestBuilder.shortCircuitResponse(apiMessageCaptor.capture())).then(invocation -> {
+                lenient().when(requestFilterResult.shortCircuitResponse()).thenReturn(true);
+                lenient().when(requestFilterResult.message()).thenReturn(apiMessageCaptor.getValue());
+                lenient().when(requestCloseOrTerminalStage.withCloseConnection()).then(closeInvocation -> {
+                    lenient().when(requestFilterResult.closeConnection()).thenReturn(true);
+                    return requestCloseOrTerminalStage;
                 });
-                return closeOrTerminalStage;
+                return requestCloseOrTerminalStage;
             });
 
-            lenient().when(builder.errorResponse(any(), any(), any())).thenReturn(closeOrTerminalStage);
-            return builder;
+            lenient().when(requestBuilder.errorResponse(any(), any(), any())).thenReturn(requestCloseOrTerminalStage);
+            return requestBuilder;
         });
 
         when(context.responseFilterResultBuilder()).then(invocationOnMock -> {
-            var builder = mock(ResponseFilterResultBuilder.class);
-            var filterResult = mock(ResponseFilterResult.class);
+            var responseBuilder = mock(ResponseFilterResultBuilder.class);
+            var responseFilterResult = mock(ResponseFilterResult.class);
 
-            var closeOrTerminalStage = mock(CloseOrTerminalStage.class);
-            lenient().when(closeOrTerminalStage.completed()).thenReturn(CompletableFuture.completedStage(filterResult));
-            lenient().when(closeOrTerminalStage.build()).thenReturn(filterResult);
-            lenient().when(closeOrTerminalStage.withCloseConnection()).then(invocation -> {
-                lenient().when(filterResult.closeConnection()).thenReturn(true);
-                return closeOrTerminalStage;
+            var responseCloseOrTerminalStage = mock(CloseOrTerminalStage.class);
+            lenient().when(responseCloseOrTerminalStage.completed()).thenReturn(CompletableFuture.completedStage(responseFilterResult));
+            lenient().when(responseCloseOrTerminalStage.build()).thenReturn(responseFilterResult);
+            lenient().when(responseCloseOrTerminalStage.withCloseConnection()).then(invocation -> {
+                lenient().when(responseFilterResult.closeConnection()).thenReturn(true);
+                return responseCloseOrTerminalStage;
             });
 
-            when(builder.forward(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).then(invocation -> {
-                lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
-                return closeOrTerminalStage;
+            when(responseBuilder.forward(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).then(invocation -> {
+                lenient().when(responseFilterResult.message()).thenReturn(apiMessageCaptor.getValue());
+                return responseCloseOrTerminalStage;
             });
-            return builder;
+            return responseBuilder;
         });
     }
 
@@ -701,7 +701,7 @@ class SaslInspectionFilterTest {
         verify(context, never()).clientSaslAuthenticationSuccess(any(), any(String.class));
         verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
         verify(context, never()).forwardRequest(any(), ArgumentMatchers.assertArg(r -> assertThat(ApiKeys.forId(r.apiKey())).isEqualTo(ApiKeys.METADATA)));
-        verify(closeOrTerminalStage).withCloseConnection();
+        verify(requestCloseOrTerminalStage).withCloseConnection();
 
     }
 
@@ -861,13 +861,11 @@ class SaslInspectionFilterTest {
         var metadataRequest = new MetadataRequestData();
         var metadataRequestHeader = new RequestHeaderData().setRequestApiKey(metadataRequest.apiKey())
                 .setRequestApiVersion(version);
-        var expectedMetadataRequest = metadataRequest.duplicate();
 
-        var actualMetadataRequest = filter.onRequest(
+        return filter.onRequest(
                 ApiKeys.forId(metadataRequest.apiKey()),
                 metadataRequestHeader,
                 metadataRequest, context);
-        return actualMetadataRequest;
     }
 
     private interface SaslInteraction {
