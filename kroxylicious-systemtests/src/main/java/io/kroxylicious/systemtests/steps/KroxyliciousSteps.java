@@ -25,6 +25,10 @@ public class KroxyliciousSteps {
     private KroxyliciousSteps() {
     }
 
+    public static Map<String, String> getAdditionalKafkaProps(String namespace, String user, String password) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).getAdditionalSaslProps(user, password);
+    }
+
     /**
      * Produce messages.
      *

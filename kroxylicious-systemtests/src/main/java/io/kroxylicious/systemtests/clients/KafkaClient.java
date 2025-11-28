@@ -10,8 +10,12 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.ScramMechanism;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -30,6 +34,11 @@ public interface KafkaClient {
      * @return the kafka client
      */
     KafkaClient inNamespace(String namespace);
+
+    default Map<String, String> getAdditionalSaslProps(String user, String password) {
+        return Map.of("sasl.username", user, "sasl.password", password, SaslConfigs.SASL_MECHANISM,
+                ScramMechanism.SCRAM_SHA_512.mechanismName(), CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
+    }
 
     /**
      * Produce messages.

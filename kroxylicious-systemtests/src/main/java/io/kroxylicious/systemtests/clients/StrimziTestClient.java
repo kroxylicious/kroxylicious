@@ -7,12 +7,14 @@
 package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.config.SaslConfigs;
 import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +58,15 @@ public class StrimziTestClient implements KafkaClient {
     public KafkaClient inNamespace(String namespace) {
         this.deployNamespace = namespace;
         return this;
+    }
+
+    @Override
+    public Map<String, String> getAdditionalSaslProps(String user, String password) {
+        String jaasConfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\" algorithm=SHA-512;".formatted(user,
+                password);
+        Map<String, String> additionalProps = new HashMap<>(KafkaClient.super.getAdditionalSaslProps(user, password));
+        additionalProps.putIfAbsent(SaslConfigs.SASL_JAAS_CONFIG, jaasConfig);
+        return additionalProps;
     }
 
     @Override

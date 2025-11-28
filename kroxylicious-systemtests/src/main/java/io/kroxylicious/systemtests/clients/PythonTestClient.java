@@ -65,6 +65,12 @@ public class PythonTestClient implements KafkaClient {
         this.deployNamespace = kubeClient().getNamespace();
     }
 
+//    @Override
+//    public Map<String, String> getAdditionalSaslProps(String user, String password) {
+//        return Map.of("sasl.username", user, "sasl.password", password, SaslConfigs.SASL_MECHANISM,
+//                ScramMechanism.SCRAM_SHA_512.mechanismName(), CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
+//    }
+
     @Override
     public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                 Map<String, String> additionalConfig) {
@@ -108,7 +114,8 @@ public class PythonTestClient implements KafkaClient {
         List<String> args = new ArrayList<>(List.of(PYTHON_COMMAND, CONSUMER_PATH, "-n", String.valueOf(numOfMessages), "-b", bootstrap, "-t", topicName));
         additionalConfig.forEach((key, value) -> {
             args.add("-X");
-            args.add(key + "=" + value);
+            String data = value.replace("=", "\"");
+            args.add(key + "=" + data);
         });
         Job pythonClientJob = TestClientsJobTemplates.defaultPythonJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, pythonClientJob);

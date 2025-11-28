@@ -40,6 +40,7 @@ public class KafkaSteps {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaSteps.class);
     private static final String TOPIC_COMMAND = "topic";
     private static final String BOOTSTRAP_ARG = "--bootstrap-server=";
+    private static final String TOPIC_ARG = "--topic=";
 
     private KafkaSteps() {
     }
@@ -72,28 +73,13 @@ public class KafkaSteps {
         LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
         List<String> args = new ArrayList<>(
-                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
+                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, TOPIC_ARG + topicName, "--topic-partitions=" + partitions,
                         "--topic-rep-factor=" + replicas));
 
         List<String> topicConfig = new ArrayList<>();
         if (!CompressionType.NONE.equals(compressionType)) {
             topicConfig.add(TopicConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType);
         }
-
-        // Properties adminConfig = new Properties();
-        // if (usernamePasswords != null && !usernamePasswords.isEmpty()) {
-        // if (!usernamePasswords.containsKey(Constants.KROXYLICIOUS_ADMIN_USER)) {
-        // throw new ConfigException("'admin' user not found! It is necessary to manage the topics");
-        // }
-        ////            topicConfig.add("security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name);
-////            topicConfig.add(SaslConfigs.SASL_MECHANISM + "=" + ScramMechanism.SCRAM_SHA_512.mechanismName());
-////            topicConfig.add(SaslConfigs.SASL_JAAS_CONFIG + "='org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
-////                    + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";'");
-        // adminConfig.put("ADDITIONAL_CONFIG", "security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name
-        // + "\n" + "sasl.mechanism=" + ScramMechanism.SCRAM_SHA_512.mechanismName()
-        // + "\n" + "sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
-        // + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";");
-        // }
 
         if (!topicConfig.isEmpty()) {
             args.add("--topic-config=" + String.join(",", topicConfig));
@@ -125,22 +111,12 @@ public class KafkaSteps {
         LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
         List<String> args = new ArrayList<>(
-                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
+                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, TOPIC_ARG + topicName, "--topic-partitions=" + partitions,
                         "--topic-rep-factor=" + replicas));
-
-        // Properties adminConfig = new Properties();
-        // adminConfig.put("ADDITIONAL_CONFIG", "security.protocol=" + SecurityProtocol.SASL_PLAINTEXT.name
-        // + "\n" + "sasl.mechanism=" + ScramMechanism.SCRAM_SHA_512.mechanismName()
-        // + "\n" + "sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + Constants.KROXYLICIOUS_ADMIN_USER
-        // + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";");
 
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getConfigMapForSaslConfig(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME, SecurityProtocol.SASL_PLAINTEXT.name,
                         ScramMechanism.SCRAM_SHA_512.mechanismName(), Constants.KROXYLICIOUS_ADMIN_USER, usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER)));
-
-        // ConfigMap map = new ConfigMapBuilder().withNewMetadata().withName("admin-client-config").endMetadata()
-        // .withData(Map.of("config.properties", properties)).build();
-        // kubeClient().getClient().configMaps().inNamespace(deployNamespace).resource(map).createOr(NonDeletingOperation::update);
 
         Job adminClientJob = TestClientsJobTemplates.authenticationAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
@@ -159,7 +135,7 @@ public class KafkaSteps {
     public static void deleteTopic(String deployNamespace, String topicName, String bootstrap) {
         LOGGER.atDebug().setMessage("Deleting '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-delete";
-        List<String> args = List.of(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--if-exists", "--topic=" + topicName);
+        List<String> args = List.of(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--if-exists", TOPIC_ARG + topicName);
 
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
