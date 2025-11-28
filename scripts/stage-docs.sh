@@ -5,7 +5,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-set -ex
+set -e
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
 # Tmp fix - revert the nounset change made by common to match the expectations of this script.
@@ -116,7 +116,8 @@ fi
 # GitHub sets at least one http...extraheader config option in Git which prevents using the Actions' SSH Key for other repos
 # We have to find these settings and disable them here in the Kroxylicious repo before we can do anything with the website repo
 # Otherwise commits and pushes wil fail
-git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git config --unset-all
+echo "Reconfiguring Git"
+(git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git config --unset-all) || true
 
 echo "Checking out tags/${RELEASE_TAG} in  in $(git remote get-url "${REPOSITORY}")"
 git checkout "tags/${RELEASE_TAG}"
