@@ -60,7 +60,7 @@ services:
       - "9892:9092"
 
   kroxylicious:
-    image: 'quay.io/kroxylicious/proxy:0.18.0-SNAPSHOT'
+    image: 'quay.io/kroxylicious/proxy:0.18.0'
     container_name: kroxylicious
     command: --config /opt/kroxylicious/config/proxy-config.yaml
     environment:
