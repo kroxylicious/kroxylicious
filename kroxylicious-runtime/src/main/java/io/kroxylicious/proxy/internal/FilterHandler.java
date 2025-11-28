@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -75,6 +76,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private @Nullable ChannelHandlerContext ctx;
     private @Nullable PromiseFactory promiseFactory;
+    private static AtomicBoolean deprecationWarningEmitted = new AtomicBoolean(false);
 
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
@@ -521,6 +523,13 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public void clientSaslAuthenticationSuccess(String mechanism,
                                                     String authorizedId) {
+            if (deprecationWarningEmitted.compareAndSet(false, true)) {
+                LOGGER.warn("Deprecated clientSaslAuthenticationSuccess(String mechanism, String authorizedId) was invoked by filter '{}'. Instead call "
+                        + "clientSaslAuthenticationSuccess(String mechanism, Subject subject), ensuring that the Subject contains a {} principal with "
+                        + "name equal to authorizedId",
+                        filterAndInvoker.filterName(),
+                        User.class.getName());
+            }
             clientSaslAuthenticationSuccess(mechanism, new Subject(Set.of(new User(authorizedId))));
         }
 

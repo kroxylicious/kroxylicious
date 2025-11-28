@@ -38,6 +38,21 @@ sealed interface State
         return new RequiringHandshakeRequest();
     }
 
+    default boolean isStarted() {
+        return !(this instanceof State.RequiringHandshakeRequest);
+    }
+
+    default boolean isFinishedSuccessfully() {
+        return this instanceof State.AllowingHandshakeRequest
+                || this instanceof State.DisallowingAuthenticateRequest;
+    }
+
+    default boolean isFinishedUnsuccessfully() {
+        return this instanceof SaslObserverCarrier carrier
+                && carrier.saslObserver().isFinished()
+                && !isFinishedSuccessfully();
+    }
+
     sealed interface ExpectingHandshakeRequestState extends State permits RequiringHandshakeRequest, AllowingHandshakeRequest {
         /**
          * Transition to the next state.
@@ -149,6 +164,11 @@ sealed interface State
      */
     final class AllowingHandshakeRequest implements ExpectingHandshakeRequestState {
         private AllowingHandshakeRequest() {
+        }
+
+        @Override
+        public boolean isFinishedSuccessfully() {
+            return true;
         }
 
         /**

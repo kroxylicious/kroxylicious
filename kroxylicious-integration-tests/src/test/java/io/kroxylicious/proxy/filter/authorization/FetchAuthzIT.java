@@ -38,7 +38,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
-public class FetchAuthzIT extends AuthzIT {
+class FetchAuthzIT extends AuthzIT {
 
     public static final String EXISTING_TOPIC_NAME = "other-topic";
     public static final IntStream API_VERSIONS_WITHOUT_TOPIC_IDS = IntStream.rangeClosed(4, 12);

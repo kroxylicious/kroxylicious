@@ -57,7 +57,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 import static io.kroxylicious.filter.authorization.OffsetFetchGroupBatchingEnforcement.FIRST_VERSION_USING_GROUP_BATCHING;
 import static java.util.stream.Stream.concat;
 
-public class OffsetFetchAuthzIT extends AuthzIT {
+class OffsetFetchAuthzIT extends AuthzIT {
 
     public static final String EXISTING_TOPIC_NAME = "other-topic";
     public static final String GROUP_ID = "groupid";
