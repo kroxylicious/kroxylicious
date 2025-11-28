@@ -38,8 +38,19 @@ sealed interface State
         return new RequiringHandshakeRequest();
     }
 
-    default boolean clientIsAuthenticated() {
-        return false;
+    default boolean isStarted() {
+        return !(this instanceof State.RequiringHandshakeRequest);
+    }
+
+    default boolean isFinishedSuccessfully() {
+        return this instanceof State.AllowingHandshakeRequest
+                || this instanceof State.DisallowingAuthenticateRequest;
+    }
+
+    default boolean isFinishedUnsuccessfully() {
+        return this instanceof SaslObserverCarrier carrier
+                && carrier.saslObserver().isFinished()
+                && !isFinishedSuccessfully();
     }
 
     sealed interface ExpectingHandshakeRequestState extends State permits RequiringHandshakeRequest, AllowingHandshakeRequest {
@@ -156,7 +167,7 @@ sealed interface State
         }
 
         @Override
-        public boolean clientIsAuthenticated() {
+        public boolean isFinishedSuccessfully() {
             return true;
         }
 
@@ -179,11 +190,6 @@ sealed interface State
      */
     final class DisallowingAuthenticateRequest implements State {
         private DisallowingAuthenticateRequest() {
-        }
-
-        @Override
-        public boolean clientIsAuthenticated() {
-            return true;
         }
     }
 
