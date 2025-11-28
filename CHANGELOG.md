@@ -17,6 +17,7 @@ Format `<github issue/pr number>: <short description>`.
 * [#2903](https://github.com/kroxylicious/kroxylicious/pull/2903): Add an ACL Authorizer implementation
 * [#2909](https://github.com/kroxylicious/kroxylicious/pull/2909): Add an Authorizer Filter that can authorize Topic operations
 * [#2904](https://github.com/kroxylicious/kroxylicious/pull/2904): SaslInspection Filter publishes Subject using pluggable SaslSubjectBuilder
+* [#2951](https://github.com/kroxylicious/kroxylicious/pull/2951): Allow SaslInspection to function as a barrier
 
 ### Changes, deprecations and removals
 
