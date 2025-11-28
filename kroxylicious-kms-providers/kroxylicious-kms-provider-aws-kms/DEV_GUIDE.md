@@ -62,7 +62,7 @@ your Kafka client off-EC2.
              # credentialLifetimeFactor: 0.001  you can use a low credentialLifetimeFactor to force Kroxylicious to renew the token frequently
          selector: TemplateKekSelector
          selectorConfig:
-           template: "KEK_$(topicName)"
+           template: "KEK-$(topicName)"
         ```
 11. Run kroxylicious with logs turned up to see the action of the EC2 provider.
     ```bash

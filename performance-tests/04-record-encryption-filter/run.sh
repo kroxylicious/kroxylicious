@@ -21,7 +21,7 @@ ENDPOINT=kroxylicious:9092
 KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious vault
 
 ${CONTAINER_ENGINE} exec vault vault secrets enable transit 1>/dev/null
-${CONTAINER_ENGINE} exec vault vault write -f transit/keys/KEK_${TOPIC} 1>/dev/null
+${CONTAINER_ENGINE} exec vault vault write -f transit/keys/KEK-${TOPIC} 1>/dev/null
 
 setKroxyliciousContainerIdPID
 

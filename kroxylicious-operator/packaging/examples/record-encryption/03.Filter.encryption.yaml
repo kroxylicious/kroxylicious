@@ -18,4 +18,4 @@ spec:
     unresolvedKeyPolicy: REJECT
     selector: TemplateKekSelector
     selectorConfig:
-      template: "KEK_$(topicName)"
+      template: "KEK-$(topicName)"
