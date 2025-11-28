@@ -33,6 +33,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
@@ -54,7 +55,9 @@ import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
+import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.SaslAuthenticateRequestFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -1202,6 +1205,68 @@ class FilterHandlerTest extends FilterHarness {
         // Verify the filtered response arrived at inbound.
         var propagated = channel.readOutbound();
         assertThat(propagated).isEqualTo(requestFrame);
+    }
+
+    @Test
+    void forwardRequestUsingNonSpecificFilterApi() {
+        var filter = new RequestFilter() {
+            @Override
+            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
+                return context.requestFilterResultBuilder().forward(header, request)
+                        .completed();
+            }
+        };
+        buildChannel(filter);
+        var frame = writeRequest(new ApiVersionsRequestData());
+        var propagated = channel.readOutbound();
+        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
+    }
+
+    @Test
+    void forwardRequestUsingDeprecatedNonSpecificFilterApi() {
+        var filter = new RequestFilter() {
+            @Override
+            @SuppressWarnings("removal")
+            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+                return context.requestFilterResultBuilder().forward(header, request)
+                        .completed();
+            }
+        };
+        buildChannel(filter);
+        var frame = writeRequest(new ApiVersionsRequestData());
+        var propagated = channel.readOutbound();
+        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
+    }
+
+    @Test
+    void forwardResponseUsingNonSpecificFilterApi() {
+        var filter = new ResponseFilter() {
+            @Override
+            public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response,
+                                                                    FilterContext context) {
+                return context.forwardResponse(header, response);
+            }
+        };
+        buildChannel(filter);
+        var frame = writeResponse(new ApiVersionsResponseData());
+        var propagated = channel.readInbound();
+        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
+    }
+
+    @Test
+    void forwardResponseUsingDeprecatedNonSpecificFilterApi() {
+        var filter = new ResponseFilter() {
+            @Override
+            @SuppressWarnings("removal")
+            public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response,
+                                                                    FilterContext context) {
+                return context.forwardResponse(header, response);
+            }
+        };
+        buildChannel(filter);
+        var frame = writeResponse(new ApiVersionsResponseData());
+        var propagated = channel.readInbound();
+        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
     private static RawTaggedField createTag(int arbitraryTag, String data) {

@@ -8,13 +8,20 @@ package io.kroxylicious.proxy;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+
 import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
@@ -37,7 +44,12 @@ public class InvocationCountingFilterFactory implements FilterFactory<Invocation
     @NonNull
     @Override
     public Filter createFilter(FilterFactoryContext context, Config initializationData) {
-        return (RequestFilter) (apiKey, header, request, requestFilterContext) -> requestFilterContext.forwardRequest(header, request);
+        return new RequestFilter() {
+            @Override
+            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
+                return context.forwardRequest(header, request);
+            }
+        };
     }
 
     @Override

@@ -75,7 +75,7 @@ public class ProtocolCounterFilter implements
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
         Integer count = requestApisToCount.get(apiKey);
         if (count != null) {
             count = count + 1;
@@ -90,7 +90,7 @@ public class ProtocolCounterFilter implements
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response, FilterContext context) {
         Integer count = responseApisToCount.get(apiKey);
         if (count != null) {
             count = count + 1;

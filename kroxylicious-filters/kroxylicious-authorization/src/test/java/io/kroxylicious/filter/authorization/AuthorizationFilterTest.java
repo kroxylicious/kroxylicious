@@ -88,7 +88,7 @@ class AuthorizationFilterTest {
         Map<Uuid, String> topicNames = Optional.ofNullable(definition.given().topicNames()).orElse(Map.of());
         Subject subject = new Subject(new User(definition.when().subject()));
         FilterContext context = new MockFilterContext(requestHeader, request, subject, topicNames, mockUpstream);
-        CompletionStage<RequestFilterResult> stage = authorizationFilter.onRequest(apiKeys, requestHeader, request, context);
+        CompletionStage<RequestFilterResult> stage = authorizationFilter.onRequest(apiKeys, version, requestHeader, request, context);
         ScenarioDefinition.RequestError expectedRequestError = definition.then().expectedRequestError();
         if (expectedRequestError != null) {
             assertThat(stage).failsWithin(0, TimeUnit.SECONDS).withThrowableThat()
@@ -150,7 +150,8 @@ class AuthorizationFilterTest {
                 MockUpstream.Response response = mockUpstream.respond((RequestHeaderData) forwardedHeader, forwardedMessage);
                 if (definition.then().getHasResponse()) {
                     MockFilterContext responseContext = new MockFilterContext(response.header(), response.message(), subject, topicNames, mockUpstream);
-                    CompletionStage<ResponseFilterResult> filterResultCompletionStage = authorizationFilter.onResponse(apiKeys, response.header(), response.message(),
+                    CompletionStage<ResponseFilterResult> filterResultCompletionStage = authorizationFilter.onResponse(apiKeys, version, response.header(),
+                            response.message(),
                             responseContext);
                     ResponseFilterResult responseResult = assertThat(filterResultCompletionStage).succeedsWithin(Duration.ZERO).actual();
                     if (responseResult.drop()) {

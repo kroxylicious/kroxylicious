@@ -71,7 +71,7 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
 
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
-                                                          RequestHeaderData header,
+                                                          short apiVersion, RequestHeaderData header,
                                                           ApiMessage request,
                                                           FilterContext context) {
         LOGGER.info("Received {} request", apiKey);

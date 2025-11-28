@@ -173,6 +173,7 @@ class SaslInspectionFilterTest {
         // When
         var actualUpstreamHandshakeRequest = filter.onRequest(
                 ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader.requestApiVersion(),
                 downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
 
@@ -201,6 +202,7 @@ class SaslInspectionFilterTest {
 
         var actualUpstreamHandshakeRequest = filter.onRequest(
                 ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader.requestApiVersion(),
                 downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
 
@@ -241,6 +243,7 @@ class SaslInspectionFilterTest {
 
         var actualUpstreamHandshakeRequest = filter.onRequest(
                 ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader.requestApiVersion(),
                 downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
         assertThat(actualUpstreamHandshakeRequest)
@@ -281,6 +284,7 @@ class SaslInspectionFilterTest {
 
         var actualUpstreamHandshakeRequest = filter.onRequest(
                 ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader.requestApiVersion(),
                 downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
         assertThat(actualUpstreamHandshakeRequest)
@@ -347,6 +351,7 @@ class SaslInspectionFilterTest {
 
         var actualUpstreamHandshakeRequest = filter.onRequest(
                 ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader.requestApiVersion(),
                 downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
 
@@ -361,6 +366,7 @@ class SaslInspectionFilterTest {
         // When
         var response = filter.onRequest(
                 ApiKeys.forId(unexpectedSecondDownstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader.requestApiVersion(),
                 downstreamHandshakeRequestHeader,
                 unexpectedSecondDownstreamHandshakeRequest, context);
 
@@ -604,6 +610,7 @@ class SaslInspectionFilterTest {
 
         var actualUpstreamHandshakeRequest = filter.onRequest(
                 ApiKeys.forId(unexpectedHandshake.apiKey()),
+                unexpectedHandshakeHeader.requestApiVersion(),
                 unexpectedHandshakeHeader,
                 unexpectedHandshake, context);
 
@@ -807,6 +814,7 @@ class SaslInspectionFilterTest {
 
         var actualHandshakeRequest = filter.onRequest(
                 ApiKeys.forId(handshakeRequest.apiKey()),
+                version,
                 handshakeRequestHeader,
                 handshakeRequest, context);
 
@@ -875,6 +883,7 @@ class SaslInspectionFilterTest {
 
         return filter.onRequest(
                 ApiKeys.forId(metadataRequest.apiKey()),
+                version,
                 metadataRequestHeader,
                 metadataRequest, context);
     }
