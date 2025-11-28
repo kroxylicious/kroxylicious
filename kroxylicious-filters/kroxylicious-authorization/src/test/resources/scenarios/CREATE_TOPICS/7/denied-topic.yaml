@@ -1,0 +1,58 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "CREATE_TOPICS"
+  apiVersion: 7
+  scenario: "all topics denied, filter shortcircuit responds with error"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "CREATE"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE_CONFIGS"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 19
+    requestApiVersion: 7
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - name: "unauthorized"
+        numPartitions: 14
+        replicationFactor: 996
+        assignments:
+          - partitionIndex: 910
+            brokerIds:
+              - 964
+        configs:
+          - name: "random-string-21"
+            value: "random-string-457"
+    timeoutMs: 314
+    validateOnly: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    topics:
+      - name: "unauthorized"
+        topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+        errorCode: 29
+        errorMessage: "Authorization failed."
+        numPartitions: -1
+        replicationFactor: -1
+        configs: [ ]
