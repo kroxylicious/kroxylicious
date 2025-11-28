@@ -10,6 +10,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.AuthorizerService;
 import io.kroxylicious.proxy.filter.Filter;
@@ -28,6 +31,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @Plugin(configType = AuthorizationConfig.class)
 public class Authorization implements FilterFactory<AuthorizationConfig, Authorizer> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Authorization.class);
+
     private @Nullable AuthorizerService<?> authorizerService = null;
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -35,6 +40,7 @@ public class Authorization implements FilterFactory<AuthorizationConfig, Authori
     public Authorizer initialize(FilterFactoryContext context,
                                  AuthorizationConfig authorizationConfig)
             throws PluginConfigurationException {
+        LOG.warn("Authorization is an experimental Filter not yet recommended for production environments.");
         var configuration = Plugins.requireConfig(this, authorizationConfig);
         this.authorizerService = context.pluginInstance(AuthorizerService.class, configuration.authorizer());
         ((AuthorizerService) authorizerService).initialize(configuration.authorizerConfig());

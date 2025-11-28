@@ -54,7 +54,7 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
     @NonNull
     @Override
     public String sessionId() {
-        throw new UnsupportedOperationException();
+        return "mockSessionId";
     }
 
     @NonNull
