@@ -6,7 +6,7 @@
 
 services:
   kafka-1:
-    image: 'docker.io/apache/kafka:4.0.1'
+    image: 'docker.io/apache/kafka:4.1.1'
     container_name: kafka-1
     environment:
       - KAFKA_ENABLE_KRAFT=yes
@@ -24,7 +24,7 @@ services:
       - "9692:9092"
 
   kafka-2:
-    image: 'docker.io/apache/kafka:4.0.1'
+    image: 'docker.io/apache/kafka:4.1.1'
     container_name: kafka-2
     environment:
       - KAFKA_ENABLE_KRAFT=yes
@@ -42,7 +42,7 @@ services:
       - "9792:9092"
 
   kafka-3:
-    image: 'docker.io/apache/kafka:4.0.1'
+    image: 'docker.io/apache/kafka:4.1.1'
     container_name: kafka-3
     environment:
       - KAFKA_ENABLE_KRAFT=yes
