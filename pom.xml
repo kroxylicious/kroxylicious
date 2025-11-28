@@ -93,6 +93,7 @@
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
         <logcaptor.version>2.12.1</logcaptor.version>
+        <async-profiler.version>4.2</async-profiler.version>
     </properties>
 
     <name>Parent POM</name>

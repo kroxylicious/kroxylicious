@@ -65,6 +65,16 @@ LZ4_NATIVE_LIB=$(native_library_path lz4-java/net/jpountz/util)
 SNAPPY_NATIVE_LIB=$(native_library_path snappy/org/xerial/snappy/native)
 ZSTD_NATIVE_LIB=$(native_library_path zstd-jni)
 ZSTD_FULLY_QUALIFIED=$(ls "${ZSTD_NATIVE_LIB}"/libzstd-jni-*)
+ZSTD_FULLY_QUALIFIED=$(ls "${ZSTD_NATIVE_LIB}"/libzstd-jni-*.so)
+
+ASYNC_PROFILER_FULLY_QUALIFIED="$(native_library_path async-profiler)/libasyncProfiler.so"
+echo "Async profiler available at: ${ASYNC_PROFILER_FULLY_QUALIFIED} use the ASYNC_PROFILER_FLAGS to control its settings"
+
+if [ -n "${ASYNC_PROFILER_ENABLED:-}" ] || [ -n "${ASYNC_PROFILER_FLAGS:-}" ]; then
+  echo "profiler flags${ASYNC_PROFILER_FLAGS:+=${ASYNC_PROFILER_FLAGS}}"
+  JAVA_OPTIONS="-agentpath:${ASYNC_PROFILER_FULLY_QUALIFIED}${ASYNC_PROFILER_FLAGS:+=${ASYNC_PROFILER_FLAGS}} ${JAVA_OPTIONS}"
+fi
+
 NATIVE_LIB_PATH="${NATIVE_LIB_PATH:-${NETTY_NATIVE_LIB}:${LZ4_NATIVE_LIB}:${SNAPPY_NATIVE_LIB}:${ZSTD_NATIVE_LIB}:${LD_LIBRARY_PATH:-}}"
 
 NATIVE_LIB_OPTIONS=${NATIVE_LIB_OPTIONS:-"-Djava.library.path=${NATIVE_LIB_PATH} -Dorg.xerial.snappy.disable.bundled.libs=true -DZstdNativePath=${ZSTD_FULLY_QUALIFIED}"}
