@@ -38,6 +38,10 @@ sealed interface State
         return new RequiringHandshakeRequest();
     }
 
+    default boolean clientIsAuthenticated() {
+        return false;
+    }
+
     sealed interface ExpectingHandshakeRequestState extends State permits RequiringHandshakeRequest, AllowingHandshakeRequest {
         /**
          * Transition to the next state.
@@ -151,6 +155,11 @@ sealed interface State
         private AllowingHandshakeRequest() {
         }
 
+        @Override
+        public boolean clientIsAuthenticated() {
+            return true;
+        }
+
         /**
          * Transition to the next state.
          *
@@ -170,6 +179,11 @@ sealed interface State
      */
     final class DisallowingAuthenticateRequest implements State {
         private DisallowingAuthenticateRequest() {
+        }
+
+        @Override
+        public boolean clientIsAuthenticated() {
+            return true;
         }
     }
 

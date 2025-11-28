@@ -50,6 +50,7 @@ public class SaslInspection implements FilterFactory<Config, Void> {
     };
     private @Nullable Map<String, SaslObserverFactory> observerFactoryMap;
     private @Nullable SaslSubjectBuilder subjectBuilder;
+    private boolean authenticationRequired = false;
 
     @Override
     public Void initialize(FilterFactoryContext context,
@@ -57,6 +58,7 @@ public class SaslInspection implements FilterFactory<Config, Void> {
             throws PluginConfigurationException {
         observerFactoryMap = buildEnabledObserverFactoryMap(context, config);
         subjectBuilder = buildSubjectBuilder(context, config);
+        authenticationRequired = config != null && config.requireAuthentication() != null && config.requireAuthentication();
         return null;
     }
 
@@ -78,7 +80,7 @@ public class SaslInspection implements FilterFactory<Config, Void> {
     public Filter createFilter(FilterFactoryContext context, @Nullable Void unused) {
         Objects.requireNonNull(observerFactoryMap);
         Objects.requireNonNull(subjectBuilder);
-        return new SaslInspectionFilter(observerFactoryMap, subjectBuilder);
+        return new SaslInspectionFilter(observerFactoryMap, subjectBuilder, authenticationRequired);
     }
 
     private Map<String, SaslObserverFactory> buildEnabledObserverFactoryMap(FilterFactoryContext context,

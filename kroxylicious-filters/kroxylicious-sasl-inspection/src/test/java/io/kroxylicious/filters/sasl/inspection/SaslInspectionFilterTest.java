@@ -12,17 +12,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import javax.security.sasl.SaslException;
 
+import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,8 +35,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
@@ -46,6 +51,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
+import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -79,6 +85,8 @@ class SaslInspectionFilterTest {
     @Captor
     private ArgumentCaptor<ResponseHeaderData> responseHeaderDataCaptor;
 
+    CloseOrTerminalStage<RequestFilterResult> requestCloseOrTerminalStage;
+
     @BeforeEach
     void setUp() {
         when(context.forwardRequest(any(RequestHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
@@ -94,56 +102,61 @@ class SaslInspectionFilterTest {
         });
 
         when(context.requestFilterResultBuilder()).then(invocationOnMock -> {
-            var builder = mock(RequestFilterResultBuilder.class);
-            var filterResult = mock(RequestFilterResult.class);
+            var requestBuilder = mock(RequestFilterResultBuilder.class);
+            var requestFilterResult = mock(RequestFilterResult.class);
 
-            var closeOrTerminalStage = mock(CloseOrTerminalStage.class);
-            lenient().when(closeOrTerminalStage.completed()).thenReturn(CompletableFuture.completedStage(filterResult));
-            lenient().when(closeOrTerminalStage.build()).thenReturn(filterResult);
+            var terminalStage = mock(TerminalStage.class);
 
-            when(builder.shortCircuitResponse(apiMessageCaptor.capture())).then(invocation -> {
-                lenient().when(filterResult.shortCircuitResponse()).thenReturn(true);
-                lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
-                lenient().when(closeOrTerminalStage.withCloseConnection()).then(closeInvocation -> {
-                    lenient().when(filterResult.closeConnection()).thenReturn(true);
-                    return closeOrTerminalStage;
+            requestCloseOrTerminalStage = mock(CloseOrTerminalStage.class);
+            lenient().when(requestCloseOrTerminalStage.withCloseConnection()).thenReturn(terminalStage);
+            lenient().when(requestCloseOrTerminalStage.completed()).thenReturn(CompletableFuture.completedStage(requestFilterResult));
+            lenient().when(requestCloseOrTerminalStage.build()).thenReturn(requestFilterResult);
+
+            lenient().when(requestBuilder.shortCircuitResponse(apiMessageCaptor.capture())).then(invocation -> {
+                lenient().when(requestFilterResult.shortCircuitResponse()).thenReturn(true);
+                lenient().when(requestFilterResult.message()).thenReturn(apiMessageCaptor.getValue());
+                lenient().when(requestCloseOrTerminalStage.withCloseConnection()).then(closeInvocation -> {
+                    lenient().when(requestFilterResult.closeConnection()).thenReturn(true);
+                    return requestCloseOrTerminalStage;
                 });
-                return closeOrTerminalStage;
+                return requestCloseOrTerminalStage;
             });
-            return builder;
+
+            lenient().when(requestBuilder.errorResponse(any(), any(), any())).thenReturn(requestCloseOrTerminalStage);
+            return requestBuilder;
         });
 
         when(context.responseFilterResultBuilder()).then(invocationOnMock -> {
-            var builder = mock(ResponseFilterResultBuilder.class);
-            var filterResult = mock(ResponseFilterResult.class);
+            var responseBuilder = mock(ResponseFilterResultBuilder.class);
+            var responseFilterResult = mock(ResponseFilterResult.class);
 
-            var closeOrTerminalStage = mock(CloseOrTerminalStage.class);
-            lenient().when(closeOrTerminalStage.completed()).thenReturn(CompletableFuture.completedStage(filterResult));
-            lenient().when(closeOrTerminalStage.build()).thenReturn(filterResult);
-            lenient().when(closeOrTerminalStage.withCloseConnection()).then(invocation -> {
-                lenient().when(filterResult.closeConnection()).thenReturn(true);
-                return closeOrTerminalStage;
+            var responseCloseOrTerminalStage = mock(CloseOrTerminalStage.class);
+            lenient().when(responseCloseOrTerminalStage.completed()).thenReturn(CompletableFuture.completedStage(responseFilterResult));
+            lenient().when(responseCloseOrTerminalStage.build()).thenReturn(responseFilterResult);
+            lenient().when(responseCloseOrTerminalStage.withCloseConnection()).then(invocation -> {
+                lenient().when(responseFilterResult.closeConnection()).thenReturn(true);
+                return responseCloseOrTerminalStage;
             });
 
-            when(builder.forward(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).then(invocation -> {
-                lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
-                return closeOrTerminalStage;
+            when(responseBuilder.forward(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).then(invocation -> {
+                lenient().when(responseFilterResult.message()).thenReturn(apiMessageCaptor.getValue());
+                return responseCloseOrTerminalStage;
             });
-            return builder;
+            return responseBuilder;
         });
     }
 
     @Test
     @SuppressWarnings("DataFlowIssue")
     void shouldRejectNullConfig() {
-        assertThatThrownBy(() -> new SaslInspectionFilter(null, subjectBuilder))
+        assertThatThrownBy(() -> new SaslInspectionFilter(null, subjectBuilder, false))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void shouldForwardHandshakeUpstream() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -151,7 +164,9 @@ class SaslInspectionFilterTest {
         var expectedUpstreamHandshakeRequest = downstreamHandshakeRequest.duplicate();
 
         // When
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
 
         // Then
@@ -170,14 +185,16 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeResponseDownstreamWhenMechanismsAgree() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
                 .setRequestApiVersion(downstreamHandshakeRequest.highestSupportedVersion());
         var expectedUpstreamHandshakeRequest = downstreamHandshakeRequest.duplicate();
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
 
         assertThat(actualUpstreamHandshakeRequest)
@@ -208,14 +225,16 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeErrorResponseDownstreamWhenClientMechanismUnknownToProxy() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("NOTAMECH");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
                 .setRequestApiVersion(downstreamHandshakeRequest.highestSupportedVersion());
         var expectedUpstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism(SaslInspectionFilter.PROBE_UPSTREAM);
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
         assertThat(actualUpstreamHandshakeRequest)
                 .succeedsWithin(Duration.ofSeconds(1))
@@ -245,14 +264,17 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeErrorResponseDownstreamWhenClientMechanismUnknownToBroker() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory(), "SCRAM-SHA-256", new ScramSha256SaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory(), "SCRAM-SHA-256", new ScramSha256SaslObserverFactory()), subjectBuilder,
+                false);
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
                 .setRequestApiVersion(downstreamHandshakeRequest.highestSupportedVersion());
         var expectedUpstreamHandshakeRequest = downstreamHandshakeRequest.duplicate();
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
         assertThat(actualUpstreamHandshakeRequest)
                 .succeedsWithin(Duration.ofSeconds(1))
@@ -282,7 +304,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldDetectMissingHandshake() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         // Omits handshake
 
@@ -309,14 +331,16 @@ class SaslInspectionFilterTest {
     @Test
     void shouldDetectUnexpectedSecondHandshake() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
                 .setRequestApiVersion(downstreamHandshakeRequest.highestSupportedVersion());
         var expectedUpstreamHandshakeRequest = downstreamHandshakeRequest.duplicate();
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(downstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 downstreamHandshakeRequest, context);
 
         assertThat(actualUpstreamHandshakeRequest)
@@ -328,7 +352,9 @@ class SaslInspectionFilterTest {
         var expectedResponse = new SaslHandshakeResponseData().setErrorCode(Errors.ILLEGAL_SASL_STATE.code());
 
         // When
-        var response = filter.onSaslHandshakeRequest(unexpectedSecondDownstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+        var response = filter.onRequest(
+                ApiKeys.forId(unexpectedSecondDownstreamHandshakeRequest.apiKey()),
+                downstreamHandshakeRequestHeader,
                 unexpectedSecondDownstreamHandshakeRequest, context);
 
         // Then
@@ -346,7 +372,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldDetectMalformedClientInitialResponse() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         doSaslHandshakeRequest("PLAIN", filter);
         doSaslHandshakeResponse("PLAIN", filter);
@@ -385,7 +411,7 @@ class SaslInspectionFilterTest {
         var saslObserverFactory = mock(SaslObserverFactory.class);
         when(saslObserverFactory.createObserver()).thenReturn(saslObserver);
 
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", saslObserverFactory), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", saslObserverFactory), subjectBuilder, false);
 
         doSaslHandshakeRequest("PLAIN", filter);
         doSaslHandshakeResponse("PLAIN", filter);
@@ -420,7 +446,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnAuthenticationErrorResponseDownstreamWhenBrokerSignalsAuthenticationError() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         // When
         doSaslHandshakeRequest("PLAIN", filter);
@@ -555,7 +581,7 @@ class SaslInspectionFilterTest {
         });
 
         // When
-        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()), subjectBuilder, false);
 
         doSaslHandshakeRequest("PLAIN", filter);
         doSaslHandshakeResponse("PLAIN", filter);
@@ -569,7 +595,9 @@ class SaslInspectionFilterTest {
 
         // When
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(unexpectedHandshakeHeader.requestApiVersion(), unexpectedHandshakeHeader,
+        var actualUpstreamHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(unexpectedHandshake.apiKey()),
+                unexpectedHandshakeHeader,
                 unexpectedHandshake, context);
 
         // Then
@@ -585,7 +613,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReportRecentlyExpiredTokenAsFailedAuthentication() {
         // Given
-        var filter = new SaslInspectionFilter(Map.of("OAUTHBEAER", new OauthBearerSaslObserverFactory()), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of("OAUTHBEAER", new OauthBearerSaslObserverFactory()), subjectBuilder, false);
 
         doSaslHandshakeRequest("OAUTHBEAER", filter);
         doSaslHandshakeResponse("OAUTHBEAER", filter);
@@ -612,7 +640,7 @@ class SaslInspectionFilterTest {
         when(subjectBuilder.buildSaslSubject(any())).then(a -> {
             return CompletableFuture.failedStage(oops);
         });
-        var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder, false);
 
         // When
         doSaslHandshakeRequest(observerFactory.mechanismName(), filter);
@@ -644,9 +672,103 @@ class SaslInspectionFilterTest {
 
     }
 
+    static Stream<Arguments> observerFactories() {
+        return Stream.of(
+                Arguments.argumentSet("SASL PLAIN",
+                        new PlainSaslObserverFactory()),
+                Arguments.argumentSet("SASL SCRAM-SHA-256",
+                        new ScramSha256SaslObserverFactory()),
+                Arguments.argumentSet("SASL SCRAM-SHA-512",
+                        new ScramSha512SaslObserverFactory()),
+                Arguments.argumentSet("SASL OAUTHBEARER",
+                        new OauthBearerSaslObserverFactory()));
+    }
+
+    @SuppressWarnings("deprecation")
+    @ParameterizedTest
+    @MethodSource("observerFactories")
+    void shouldNotForwardMetadataWhenAuthnNotPerformedButRequired(SaslObserverFactory observerFactory) {
+        // Given
+        var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder, true);
+
+        // ** and no authentication! **
+
+        // When
+        doMetadataRequest(filter, ApiKeys.METADATA.latestVersion());
+
+        // Then
+        verify(context, never()).clientSaslAuthenticationSuccess(any(), any(Subject.class));
+        verify(context, never()).clientSaslAuthenticationSuccess(any(), any(String.class));
+        verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
+        verify(context, never()).forwardRequest(any(), ArgumentMatchers.assertArg(r -> assertThat(ApiKeys.forId(r.apiKey())).isEqualTo(ApiKeys.METADATA)));
+        verify(requestCloseOrTerminalStage).withCloseConnection();
+
+    }
+
+    @SuppressWarnings("deprecation")
+    @ParameterizedTest
+    @MethodSource("observerFactories")
+    void shouldForwardMetadataWhenAuthnNotPerformedButNotRequired(SaslObserverFactory observerFactory) {
+        // Given
+        var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder, false);
+        // ** no authentication! **
+
+        // When
+        var filterResult = doMetadataRequest(filter, ApiKeys.METADATA.latestVersion());
+
+        // Then
+        verify(context, never()).clientSaslAuthenticationSuccess(any(), any(Subject.class));
+        verify(context, never()).clientSaslAuthenticationSuccess(any(), any(String.class));
+        verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
+        verify(context, times(1)).forwardRequest(any(), ArgumentMatchers.assertArg(r -> assertThat(ApiKeys.forId(r.apiKey())).isEqualTo(ApiKeys.METADATA)));
+        assertThat(filterResult)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> {
+                    assertThat(rfr.drop()).isFalse();
+                    assertThat(rfr.closeConnection()).isFalse();
+                    assertThat(rfr.shortCircuitResponse()).isFalse();
+                    assertThat(ApiKeys.forId(rfr.message().apiKey()))
+                            .isEqualTo(ApiKeys.METADATA);
+                });
+
+    }
+
+    @SuppressWarnings("deprecation")
+    @ParameterizedTest
+    @MethodSource("observerFactories")
+    void shouldForwardMetadataWhenAuthnFailedButNotRequired(SaslObserverFactory observerFactory) {
+        // Given
+        var filter = new SaslInspectionFilter(Map.of(observerFactory.mechanismName(), observerFactory), subjectBuilder, false);
+
+        doSaslHandshakeRequest(observerFactory.mechanismName(), filter);
+        doSaslHandshakeResponse(observerFactory.mechanismName(), filter);
+
+        // ** and failed authentication! (Does handshake, but skips authenticate)
+
+        // When
+        var filterResult = doMetadataRequest(filter, ApiKeys.METADATA.latestVersion());
+
+        // Then
+        verify(context, never()).clientSaslAuthenticationSuccess(any(), any(Subject.class));
+        verify(context, never()).clientSaslAuthenticationSuccess(any(), any(String.class));
+        verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
+        var inOrder = Mockito.inOrder(context);
+        inOrder.verify(context).forwardRequest(any(), ArgumentMatchers.argThat(r -> ApiKeys.forId(r.apiKey()).equals(ApiKeys.SASL_HANDSHAKE)));
+        inOrder.verify(context).forwardRequest(any(), ArgumentMatchers.argThat(r -> ApiKeys.forId(r.apiKey()).equals(ApiKeys.METADATA)));
+        assertThat(filterResult)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> {
+                    assertThat(rfr.drop()).isFalse();
+                    assertThat(rfr.closeConnection()).isFalse();
+                    assertThat(rfr.shortCircuitResponse()).isFalse();
+                    assertThat(ApiKeys.forId(rfr.message().apiKey()))
+                            .isEqualTo(ApiKeys.METADATA);
+                });
+    }
+
     private void doAuthenticateSuccessfully(SaslObserverFactory saslObserverFactory, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {
         // Given
-        var filter = new SaslInspectionFilter(Map.of(saslObserverFactory.mechanismName(), saslObserverFactory), subjectBuilder);
+        var filter = new SaslInspectionFilter(Map.of(saslObserverFactory.mechanismName(), saslObserverFactory), subjectBuilder, false);
 
         // When
         doSaslHandshakeRequest(saslObserverFactory.mechanismName(), filter);
@@ -672,7 +794,9 @@ class SaslInspectionFilterTest {
                 .setRequestApiVersion(version);
         var expectedHandshakeRequest = handshakeRequest.duplicate();
 
-        var actualHandshakeRequest = filter.onSaslHandshakeRequest(handshakeRequestHeader.requestApiVersion(), handshakeRequestHeader,
+        var actualHandshakeRequest = filter.onRequest(
+                ApiKeys.forId(handshakeRequest.apiKey()),
+                handshakeRequestHeader,
                 handshakeRequest, context);
 
         assertThat(actualHandshakeRequest)
@@ -730,6 +854,18 @@ class SaslInspectionFilterTest {
                 .succeedsWithin(Duration.ofSeconds(1))
                 .satisfies(rfr -> assertThat(rfr.message())
                         .isEqualTo(expectedAuthenticateResponse));
+    }
+
+    private CompletionStage<RequestFilterResult> doMetadataRequest(SaslInspectionFilter filter, short version) {
+
+        var metadataRequest = new MetadataRequestData();
+        var metadataRequestHeader = new RequestHeaderData().setRequestApiKey(metadataRequest.apiKey())
+                .setRequestApiVersion(version);
+
+        return filter.onRequest(
+                ApiKeys.forId(metadataRequest.apiKey()),
+                metadataRequestHeader,
+                metadataRequest, context);
     }
 
     private interface SaslInteraction {

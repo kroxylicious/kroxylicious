@@ -70,7 +70,7 @@ class SaslInspectionTest {
         when(insecure.mechanismName()).thenReturn("INSECURE_MECH");
         when(insecure.transmitsCredentialInCleartext()).thenReturn(true);
 
-        factory.initialize(filterFactoryContext, new Config(Set.of("INSECURE_MECH"), null, null));
+        factory.initialize(filterFactoryContext, new Config(Set.of("INSECURE_MECH"), null, null, false));
 
         // When
         var map = factory.getObserverFactoryMap();
@@ -106,7 +106,7 @@ class SaslInspectionTest {
         when(secure.mechanismName()).thenReturn("SECURE_MECH");
         when(insecure.mechanismName()).thenReturn("INSECURE_MECH");
 
-        var config = new Config(Set.of("SECURE_MECH", "UNKNOWN"), null, null);
+        var config = new Config(Set.of("SECURE_MECH", "UNKNOWN"), null, null, false);
 
         // When/Then
         assertThatThrownBy(() -> factory.initialize(filterFactoryContext, config))
@@ -162,7 +162,8 @@ class SaslInspectionTest {
                         DefaultSaslSubjectBuilderService.class.getName(),
                         new DefaultSaslSubjectBuilderService.Config(List.of(new PrincipalAdderConf("saslAuthorizedId",
                                 List.of(new Map("/(.*)/$1/U", null)),
-                                UserFactory.class.getName())))));
+                                UserFactory.class.getName()))),
+                        false));
         Filter filter = factory.createFilter(filterFactoryContext, null);
 
         // Then
