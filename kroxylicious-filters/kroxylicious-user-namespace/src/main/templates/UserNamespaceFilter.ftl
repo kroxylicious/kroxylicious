@@ -6,8 +6,7 @@
 
 -->
 <#macro fieldVersionSet messageSpec versions>
-Set.of(<#list messageSpec.validVersions.intersect(versions) as version> (short) ${version}<#sep>, </#list>)
-</#macro>
+Set.of(<#list messageSpec.validVersions.intersect(versions) as version> (short) ${version}<#sep>, </#list>)</#macro>
 <#macro mapRequestFields messageSpec dataVar fields indent>
     <#local pad = ""?left_pad(4*indent)/>
     <#list fields?filter(field -> field.entityType == 'GROUP_ID' || field.entityType == 'TRANSACTIONAL_ID' || field.entityType == 'TOPIC_NAME')>
@@ -29,9 +28,11 @@ ${pad}// recursively process sub-fields
         <#items as field>
             <#local getter="${field.name?uncap_first}()" />
             <#local elementVar=field.type?remove_beginning("[]")?uncap_first />
-${pad}${dataVar}.${getter}.forEach(${elementVar} -> {
-            <@mapRequestFields messageSpec elementVar field.fields indent + 1 />
-${pad}});
+${pad}if (inVersion(header.requestApiVersion(), <@fieldVersionSet messageSpec field.versions/>) && ${dataVar}.${getter} != null) {
+${pad}    ${dataVar}.${getter}.forEach(${elementVar} -> {
+                <@mapRequestFields messageSpec elementVar field.fields indent + 1 />
+${pad}    });
+${pad}}
         </#items>
     </#list>
 </#macro>
@@ -70,11 +71,11 @@ ${pad}// recursively process sub-fields
             <#local getter="${field.name?uncap_first}" />
             <#local collectionIteratorVar=field.name?uncap_first + "Iterator" />
             <#local elementVar=field.type?remove_beginning("[]")?uncap_first />
-${pad}{
+${pad}if (inVersion(apiVersion, <@fieldVersionSet messageSpec field.versions/>) && ${dataVar}.${getter}() != null) {
 ${pad}    var ${collectionIteratorVar} = ${dataVar}.${getter}().iterator();
 ${pad}    while (${collectionIteratorVar}.hasNext()) {
 ${pad}       var ${elementVar} = ${collectionIteratorVar}.next();
-                <@mapAndFilterResponseFields messageSpec collectionIteratorVar elementVar dataClass field.fields indent + 2 />
+            <@mapAndFilterResponseFields messageSpec collectionIteratorVar elementVar dataClass field.fields indent + 2 />
 ${pad}    }
 ${pad}}
         </#items>

@@ -33,7 +33,6 @@ import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -185,7 +184,6 @@ class UserNamespaceFilterIT {
     }
 
     @Test
-    @Disabled("NPE in the filter - recursion needs to respect the field versioning too")
     void listConsumerGroupOffsets(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd") }) KafkaCluster cluster, Topic topic) {
 
         var configBuilder = buildConfig(cluster);
@@ -221,7 +219,11 @@ class UserNamespaceFilterIT {
                         .actual();
 
                 assertThat(actual)
-                        .containsOnlyKeys("foo");
+                        .extractingByKey(CONSUMER_GROUP_NAME, InstanceOfAssertFactories.map(TopicPartition.class, OffsetAndMetadata.class))
+                        .extractingByKey(new TopicPartition(topic.name(), 0))
+                        .satisfies(oam -> {
+                            assertThat(oam.offset()).isEqualTo(1);
+                        });
             }
         }
     }
@@ -337,6 +339,7 @@ class UserNamespaceFilterIT {
 
         @Override
         public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+            // unused
         }
 
         @Override
