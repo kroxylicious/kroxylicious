@@ -171,7 +171,12 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
     @Nullable
     <C extends InflightState<?>> C popInflightState(ResponseHeaderData header, Class<C> cClass) {
-        InflightState<?> removed = this.inflightState.remove(header.correlationId());
+        return popInflightState(header.correlationId(), cClass);
+    }
+
+    @Nullable
+    <C extends InflightState<?>> C popInflightState(int correlationId, Class<C> cClass) {
+        InflightState<?> removed = this.inflightState.remove(correlationId);
         return cClass.cast(removed);
     }
 
@@ -234,7 +239,12 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                                                 ApiMessage request,
                                                                 FilterContext context,
                                                                 ApiEnforcement<?, ?> enforcement) {
-        return ((ApiEnforcement) enforcement).onRequest(header, request, context, this);
+        return ((ApiEnforcement) enforcement).onRequest(header, request, context, this).whenComplete((requestFilterResult, throwable) -> {
+            if (throwable != null) {
+                // clean up inflight state if completed exceptionally
+                popInflightState(header.correlationId(), InflightState.class);
+            }
+        });
     }
 
     @Override
@@ -257,7 +267,10 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                                                   ApiMessage response,
                                                                   FilterContext context,
                                                                   ApiEnforcement<?, ?> enforcement) {
-        return ((ApiEnforcement) enforcement).onResponse(header, response, context, this);
+        return ((ApiEnforcement) enforcement).onResponse(header, response, context, this).whenComplete((o, throwable) -> {
+            // safety pop in case inflight state wasn't popped due to exception or logical error
+            popInflightState(header.correlationId(), InflightState.class);
+        });
     }
 
     private CompletionStage<ResponseFilterResult> checkCompat(ResponseHeaderData header,
