@@ -43,6 +43,23 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
     public record When(String subject, JsonNode requestHeader, JsonNode request) {}
 
     /**
+     * Expect request future to be completed exceptionally
+     * @param withCauseType the type of the expected cause
+     * @param withCauseMessage the message of the expected cause
+     */
+    public record RequestError(String withCauseType, String withCauseMessage) {
+        public Class<?> getCauseType() {
+            try {
+                return this.getClass().getClassLoader().loadClass(withCauseType);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+    }
+
+    /**
      * @param expectedResponseHeader
      * @param expectedResponse
      * @param expectedErrorResponse in the case that we expect an error response (the message generation is a framework responsibility)
@@ -53,7 +70,8 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
                        @Nullable JsonNode expectedResponse,
                        @Nullable Errors expectedErrorResponse,
                        @Nullable Boolean hasResponse,
-                       @Nullable Boolean expectRequestDropped) {
+                       @Nullable Boolean expectRequestDropped,
+                       @Nullable RequestError expectedRequestError) {
 
         boolean getHasResponse() {
             return hasResponse == null || hasResponse;
