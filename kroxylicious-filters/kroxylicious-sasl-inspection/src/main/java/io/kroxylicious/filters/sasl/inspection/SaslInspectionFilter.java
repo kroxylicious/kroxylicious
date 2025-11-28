@@ -84,7 +84,7 @@ class SaslInspectionFilter
             case SASL_HANDSHAKE -> onSaslHandshakeRequest(header, (SaslHandshakeRequestData) request, context);
             default -> {
                 if (!currentState.isFinishedSuccessfully()) {
-                    String disposition = currentState.isStarted() ? "completed" :  "attempted";
+                    String disposition = currentState.isStarted() ? "completed" : "attempted";
                     String outcome = authenticationRequired ? "closing connection with error" : "forwarding request";
                     LOGGER.atInfo()
                             .setMessage("{}: Client attempted {} request without having {} SASL authentication: {}")

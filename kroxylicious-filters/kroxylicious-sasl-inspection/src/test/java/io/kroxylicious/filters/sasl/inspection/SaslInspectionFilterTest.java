@@ -709,7 +709,8 @@ class SaslInspectionFilterTest {
         verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
         verify(context, never()).forwardRequest(any(), ArgumentMatchers.assertArg(r -> assertThat(ApiKeys.forId(r.apiKey())).isEqualTo(ApiKeys.METADATA)));
         verify(requestCloseOrTerminalStage).withCloseConnection();
-        assertThat(logCaptor.getInfoLogs()).singleElement().isEqualTo("123-session-id-abc: Client attempted METADATA request without having attempted SASL authentication: closing connection with error");
+        assertThat(logCaptor.getInfoLogs()).singleElement()
+                .isEqualTo("123-session-id-abc: Client attempted METADATA request without having attempted SASL authentication: closing connection with error");
     }
 
     @SuppressWarnings("deprecation")
@@ -737,7 +738,8 @@ class SaslInspectionFilterTest {
                     assertThat(ApiKeys.forId(rfr.message().apiKey()))
                             .isEqualTo(ApiKeys.METADATA);
                 });
-        assertThat(logCaptor.getInfoLogs()).singleElement().isEqualTo("123-session-id-abc: Client attempted METADATA request without having attempted SASL authentication: forwarding request");
+        assertThat(logCaptor.getInfoLogs()).singleElement()
+                .isEqualTo("123-session-id-abc: Client attempted METADATA request without having attempted SASL authentication: forwarding request");
     }
 
     @SuppressWarnings("deprecation")
@@ -771,7 +773,8 @@ class SaslInspectionFilterTest {
                     assertThat(ApiKeys.forId(rfr.message().apiKey()))
                             .isEqualTo(ApiKeys.METADATA);
                 });
-        assertThat(logCaptor.getInfoLogs()).contains("123-session-id-abc: Client attempted METADATA request without having completed SASL authentication: forwarding request");
+        assertThat(logCaptor.getInfoLogs())
+                .contains("123-session-id-abc: Client attempted METADATA request without having completed SASL authentication: forwarding request");
     }
 
     private void doAuthenticateSuccessfully(SaslObserverFactory saslObserverFactory, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {
