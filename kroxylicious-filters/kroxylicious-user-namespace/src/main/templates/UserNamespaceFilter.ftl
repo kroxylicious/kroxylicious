@@ -105,6 +105,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
+import javax.annotation.processing.Generated;
+
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'request' && (messageSpec.hasAtLeastOneEntityField || messageSpec.name == 'FindCoordinatorRequest')>
 import org.apache.kafka.common.message.${messageSpec.name}Data;
@@ -135,6 +137,7 @@ import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
 * User nampespace filter.
 * <p>Note: this class is automatically generated from a template</p>
 */
+@Generated("io.kroxylicious.krpccodegen.main.KrpcGenerator")
 public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UserNamespaceFilter.class);
