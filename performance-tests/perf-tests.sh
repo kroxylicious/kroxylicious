@@ -253,6 +253,14 @@ onExit() {
   done
 }
 
+mapfile -t TESTCASES < <( find "${PERF_TESTS_DIR}" -type d -regex '.*/'"${TEST}" | sort )
+if [ ${#TESTCASES[@]} -eq 0 ]; then
+  echo -e "${RED}No test cases matched: find \"${PERF_TESTS_DIR}\" -type d -regex '.*/'\"${TEST}\" exiting ${NOCOLOR}" >&2
+  exit 1
+else
+  echo -e "${GREEN}Found tests ${TESTCASES[*]}"
+fi
+
 trap onExit EXIT
 
 TMP=$(mktemp -d)
@@ -280,7 +288,8 @@ echo -e "${GREEN}Running test cases, number of records = ${NUM_RECORDS}, record 
 
 PRODUCER_RESULTS=()
 CONSUMER_RESULTS=()
-for t in $(find "${PERF_TESTS_DIR}" -type d -regex '.*/'"${TEST}" | sort)
+
+for t in ${TESTCASES}
 do
   TESTNAME=$(basename "$t")
   TEST_TMP=${TMP}/${TESTNAME}
