@@ -67,7 +67,7 @@ jobs:
             "./.git/*" 
             "**/target"
           check_all_files_with_shebangs: "false" # Optional.
-          shellcheck_flags: "--external-sources --severity=Error"
+          shellcheck_flags: "--external-sources --severity=error"
       - name: Save PR number to file
         if: github.event_name == 'pull_request'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
