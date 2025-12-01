@@ -68,9 +68,22 @@ services:
       timeout: 10s
     ports:
       - "9092"
+    environment:
+      "ASYNC_PROFILER_FLAGS": "start,cpu,collapsed=file=/tmp/profiler-results/collapsed-traces-%t.txt,jfr=file=/tmp/profiler-results/jfr-%t.txt,flamegraph=file=/tmp/profiler-results/flamegraph-%t.html"
+    configs:
+      - source: proxy-config
+        target: /opt/kroxylicious/config/config.yaml
     volumes:
-      - ./${KROXYLICIOUS_CONFIG:-unused.yaml}:/opt/kroxylicious/config/config.yaml
+      - type: "bind"
+        source: "/tmp/profiler-results/"
+        target: "/tmp/profiler-results/"
+        read_only: false
+
     networks:
       - perf_network
     depends_on:
       - kafka
+
+configs:
+  proxy-config:
+    file: "proxy-config.yaml"

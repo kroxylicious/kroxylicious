@@ -53,9 +53,16 @@ printf "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}\n"
 printf "VAULT_IMAGE=${VAULT_IMAGE}\n"
 
 
+setupProxyConfig() {
+  local kroxylicious_config=${1}
+  set -x
+  cp ${kroxylicious_config} ${PERF_TESTS_DIR}/proxy-config.yaml
+  set +x
+}
+
 runDockerCompose () {
   #  Docker compose can't see $UID so need to set here before calling it
-  D_UID="$(id -u)" D_GID="$(id -g)" ${CONTAINER_ENGINE} compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
+  D_UID="$(id -u)" D_GID="$(id -g)" ${CONTAINER_ENGINE} compose -f "${PERF_TESTS_DIR}/docker-compose.yaml" "${@}"
 }
 
 doCreateTopic () {
@@ -63,7 +70,7 @@ doCreateTopic () {
   ENDPOINT=$1
   TOPIC=$2
   ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
-      bin/kafka-topics.sh --create --topic "${TOPIC}" --bootstrap-server "${ENDPOINT}" 1>/dev/null
+      bin/kafka-topics.sh --create --if-not-exists  --topic "${TOPIC}" --bootstrap-server "${ENDPOINT}" 1>/dev/null
 }
 
 doDeleteTopic () {
@@ -98,11 +105,11 @@ setupAsyncProfilerKroxy() {
   ensureSysCtlValue kernel.perf_event_paranoid 1
   ensureSysCtlValue kernel.kptr_restrict 0
 
-  mkdir -p /tmp/asprof
-  curl -s -o /tmp/asprof/ap-loader-all.jar "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
-
-  mkdir -p "${LOADER_DIR}"
-  unzip -o -q /tmp/asprof/ap-loader-all.jar -d "${LOADER_DIR}"
+#  mkdir -p /tmp/asprof
+#  curl -s -o /tmp/asprof/ap-loader-all.jar "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
+#
+#  mkdir -p "${LOADER_DIR}"
+#  unzip -o -q /tmp/asprof/ap-loader-all.jar -d "${LOADER_DIR}"
 }
 
 deleteAsyncProfilerKroxy() {
@@ -123,10 +130,10 @@ startAsyncProfilerKroxy() {
 
   echo "TARGETARCH: ${TARGETARCH}"
 
-  ${CONTAINER_ENGINE} exec ${KROXYLICIOUS_CONTAINER_ID} mkdir -p "${LOADER_DIR}/"""{bin,lib} && chmod +r -R "${LOADER_DIR}"
-  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs/libasyncProfiler-3.0-${TARGETARCH}.so" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/lib/libasyncProfiler.so"
+#  ${CONTAINER_ENGINE} exec ${KROXYLICIOUS_CONTAINER_ID} mkdir -p "${LOADER_DIR}/"""{bin,lib} && chmod +r -R "${LOADER_DIR}"
+#  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs/libasyncProfiler-3.0-${TARGETARCH}.so" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/lib/libasyncProfiler.so"
 
-  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler start "${KROXYLICIOUS_PID}"
+#  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler start "${KROXYLICIOUS_PID}"
 }
 
 stopAsyncProfilerKroxy() {
@@ -223,23 +230,23 @@ consumerPerf() {
 
 # expects TEST_NAME, TOPIC, ENDPOINT, PRODUCER_RESULT and CONSUMER_RESULT to be set
 doPerfTest () {
-
+  echo creating topic
   doCreateTopic "${ENDPOINT}" "${TOPIC}"
   warmUp "${ENDPOINT}" "${TOPIC}"
 
-  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ] && [ "$(uname)" != 'Darwin' ]
-  then
-    echo -e "${PURPLE}KROXYLICIOUS_CONTAINER_ID set to $KROXYLICIOUS_CONTAINER_ID${NOCOLOR}"
-    startAsyncProfilerKroxy
-  fi
-
+#  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ] && [ "$(uname)" != 'Darwin' ]
+#  then
+#    echo -e "${PURPLE}KROXYLICIOUS_CONTAINER_ID set to $KROXYLICIOUS_CONTAINER_ID${NOCOLOR}"
+#    startAsyncProfilerKroxy
+#  else
+#
 
   producerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${PRODUCER_RESULT}"
 
-  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ] && [ "$(uname)" != 'Darwin' ]
-  then
-    stopAsyncProfilerKroxy
-  fi
+#  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ] && [ "$(uname)" != 'Darwin' ]
+#  then
+#    stopAsyncProfilerKroxy
+#  fi
 
   consumerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${CONSUMER_RESULT}"
 
@@ -267,7 +274,7 @@ TMP=$(mktemp -d)
 ON_SHUTDOWN+=("rm -rf ${TMP}")
 
 # Bring up Kafka
-ON_SHUTDOWN+=("runDockerCompose down")
+#ON_SHUTDOWN+=("runDockerCompose down")
 
 [[ -n ${PULL_CONTAINERS} ]] && runDockerCompose pull
 
@@ -299,8 +306,8 @@ do
   TOPIC=perf-test-${RANDOM}
 
   echo -e "${GREEN}Running ${TESTNAME} ${NOCOLOR}"
-
-  TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . "${t}"/run.sh
+  echo TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . "${TESTNAME}/run.sh"
+  TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . "${TESTNAME}/run.sh"
 
   PRODUCER_RESULTS+=("${PRODUCER_RESULT}")
   CONSUMER_RESULTS+=("${CONSUMER_RESULT}")
@@ -308,20 +315,26 @@ done
 
 # Summarise results
 
-echo -e "${GREEN}Producer Results for ${COMMIT_ID}${NOCOLOR}"
-
-jq -r -s '(["Name","Sent","Rate rec/s", "Rate Mi/s", "Avg Lat ms", "Max Lat ms", "Percentile50", "Percentile95", "Percentile99", "Percentile999"] | (., map(length*"-"))),
+if [ ${#PRODUCER_RESULTS[@]} -ne 0 ]; then
+  echo -e "${GREEN}Producer Results for ${COMMIT_ID}${NOCOLOR}"
+  jq -r -s '(["Name","Sent","Rate rec/s", "Rate Mi/s", "Avg Lat ms", "Max Lat ms", "Percentile50", "Percentile95", "Percentile99", "Percentile999"] | (., map(length*"-"))),
            (.[] | [ .name, (.values | last | .[]) ]) | @tsv' "${PRODUCER_RESULTS[@]}" | column -t -s $'\t'
+else
+  echo -e "${YELLOW}NO Producer Results for ${COMMIT_ID}${NOCOLOR}"
+fi
 
+if [ ${#CONSUMER_RESULTS[@]} -ne 0 ]; then
 echo -e "${GREEN}Consumer Results for ${COMMIT_ID}${NOCOLOR}"
 
 jq -r -s '(["Name","Consumed Mi","Consumed Mi/s", "Consumed recs", "Consumed rec/s", "Rebalance Time ms", "Fetch Time ms", "Fetch Mi/s", "Fetch rec/s"] | (., map(length*"-"))),
            (.[] | [ .name, (.values  | last | .[]) ]) | @tsv' "${CONSUMER_RESULTS[@]}" | column -t -s $'\t'
-
+else
+  echo -e "${YELLOW}NO Consumer Results for ${COMMIT_ID}${NOCOLOR}"
+fi
 
 # Write output for integration with Kibana in the CI pipeline
 # This maintains the existing interface
-if [[ -n "${KIBANA_OUTPUT_DIR}" && -d "${KIBANA_OUTPUT_DIR}" ]]; then
+if [[ -n "${KIBANA_OUTPUT_DIR:-}" && -d "${KIBANA_OUTPUT_DIR:-}" ]]; then
   for PRODUCER_RESULT in "${PRODUCER_RESULTS[@]}"
   do
     DIR=${KIBANA_OUTPUT_DIR}/$(jq -r '.name' "${PRODUCER_RESULT}")
