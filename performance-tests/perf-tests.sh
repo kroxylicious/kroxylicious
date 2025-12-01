@@ -7,6 +7,7 @@
 
 set -eo pipefail
 PERF_TESTS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+. "${PERF_TESTS_DIR}/common-perf.sh"
 
 TEST=${TEST:-'[0-9][0-9]-.*'}
 RECORD_SIZE=${RECORD_SIZE:-1024}
@@ -27,7 +28,7 @@ NOCOLOR='\033[0m'
 KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
 
 DOCKER_REGISTRY="docker.io"
-if [ "${USE_DOCKER_MIRROR}" == "true" ]
+if [ "${USE_DOCKER_MIRROR:-}" == "true" ]
 then
   DOCKER_REGISTRY="mirror.gcr.io"
 fi
@@ -49,17 +50,6 @@ printf "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}\n"
 printf "KAFKA_IMAGE=${KAFKA_IMAGE}\n"
 printf "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}\n"
 printf "VAULT_IMAGE=${VAULT_IMAGE}\n"
-
-
-setupProxyConfig() {
-  local kroxylicious_config=${1}
-  cp "${kroxylicious_config}" "${PERF_TESTS_DIR}/proxy-config.yaml"
-}
-
-runDockerCompose () {
-  #  Docker compose can't see $UID so need to set here before calling it
-  ${CONTAINER_ENGINE} compose -f "${PERF_TESTS_DIR}/docker-compose.yaml" "${@}"
-}
 
 doCreateTopic () {
   local TOPIC
@@ -218,7 +208,7 @@ ON_SHUTDOWN+=("rm -rf ${TMP}")
 # Bring up Kafka
 #ON_SHUTDOWN+=("runDockerCompose down")
 
-[[ -n ${PULL_CONTAINERS} ]] && runDockerCompose pull
+[[ -n ${PULL_CONTAINERS:-} ]] && runDockerCompose pull
 
 if [ "$(uname)" != 'Darwin' ]; then
   # Kernel/perf-events profiler not supported on macOS
@@ -248,7 +238,6 @@ do
   mkdir -p "${PROFILING_OUTPUT_DIRECTORY}/${TESTNAME}"
 
   echo -e "${GREEN}Running ${TESTNAME} ${NOCOLOR}"
-  echo TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . "${TESTNAME}/run.sh"
   TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . "${TESTNAME}/run.sh"
 
   PRODUCER_RESULTS+=("${PRODUCER_RESULT}")

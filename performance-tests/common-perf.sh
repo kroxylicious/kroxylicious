@@ -6,3 +6,13 @@
 #
 
 set -Eu
+
+runDockerCompose () {
+  #  Docker compose can't see $UID so need to set here before calling it
+  ${CONTAINER_ENGINE} compose -f "${PERF_TESTS_DIR}/docker-compose.yaml" "${@}"
+}
+
+setupProxyConfig() {
+  local kroxylicious_config=${1}
+  cp "${kroxylicious_config}" "${PERF_TESTS_DIR}/proxy-config.yaml"
+}
