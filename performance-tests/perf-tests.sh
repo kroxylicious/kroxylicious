@@ -104,48 +104,11 @@ ensureSysCtlValue() {
 setupAsyncProfilerKroxy() {
   ensureSysCtlValue kernel.perf_event_paranoid 1
   ensureSysCtlValue kernel.kptr_restrict 0
-
-#  mkdir -p /tmp/asprof
-#  curl -s -o /tmp/asprof/ap-loader-all.jar "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
-#
-#  mkdir -p "${LOADER_DIR}"
-#  unzip -o -q /tmp/asprof/ap-loader-all.jar -d "${LOADER_DIR}"
 }
 
 deleteAsyncProfilerKroxy() {
   rm -rf /tmp/asprof
   rm -rf "${LOADER_DIR}"
-}
-
-startAsyncProfilerKroxy() {
-
-  echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
-
-  local TARGETARCH=""
-  case $(uname -m) in
-      aarch64)  TARGETARCH="linux-arm64" ;;
-      x86_64 | i686 | i386)   TARGETARCH="linux-x64" ;;
-      *)        echo -n "Unsupported arch"
-  esac
-
-  echo "TARGETARCH: ${TARGETARCH}"
-
-#  ${CONTAINER_ENGINE} exec ${KROXYLICIOUS_CONTAINER_ID} mkdir -p "${LOADER_DIR}/"""{bin,lib} && chmod +r -R "${LOADER_DIR}"
-#  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs/libasyncProfiler-3.0-${TARGETARCH}.so" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/lib/libasyncProfiler.so"
-
-#  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler start "${KROXYLICIOUS_PID}"
-}
-
-stopAsyncProfilerKroxy() {
-  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler status "${KROXYLICIOUS_PID}"
-
-  echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
-
-  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
-  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
-
-  mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
-  ${CONTAINER_ENGINE} cp "${KROXYLICIOUS_CONTAINER_ID}":/tmp/asprof-results/. "${PROFILING_OUTPUT_DIRECTORY}"
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -234,19 +197,7 @@ doPerfTest () {
   doCreateTopic "${ENDPOINT}" "${TOPIC}"
   warmUp "${ENDPOINT}" "${TOPIC}"
 
-#  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ] && [ "$(uname)" != 'Darwin' ]
-#  then
-#    echo -e "${PURPLE}KROXYLICIOUS_CONTAINER_ID set to $KROXYLICIOUS_CONTAINER_ID${NOCOLOR}"
-#    startAsyncProfilerKroxy
-#  else
-#
-
   producerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${PRODUCER_RESULT}"
-
-#  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ] && [ "$(uname)" != 'Darwin' ]
-#  then
-#    stopAsyncProfilerKroxy
-#  fi
 
   consumerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${CONSUMER_RESULT}"
 
