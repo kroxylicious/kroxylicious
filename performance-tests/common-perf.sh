@@ -6,13 +6,3 @@
 #
 
 set -Eu
-
-setKroxyliciousContainerIdPID () {
-    KROXYLICIOUS_CONTAINER_ID=$(${CONTAINER_ENGINE} container list | grep kroxylicious | awk '{print $1}')
-    KROXYLICIOUS_PID=$(${CONTAINER_ENGINE} top ${KROXYLICIOUS_CONTAINER_ID} | grep io.kroxylicious.app.Kroxylicious | awk '{print $2}')
-}
-
-unsetKroxyliciousContainerIdPID () {
-  unset KROXYLICIOUS_CONTAINER_ID
-  unset KROXYLICIOUS_PID
-}

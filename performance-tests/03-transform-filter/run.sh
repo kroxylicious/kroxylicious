@@ -13,13 +13,10 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 CFG=03-transform-filter/config.yaml
 ENDPOINT=kroxylicious:9092
 
-KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
-
-setKroxyliciousContainerIdPID
+setupProxyConfig "${CFG}"
+runDockerCompose up --detach --wait kroxylicious
 
 ENDPOINT=${ENDPOINT} doPerfTest
-
-unsetKroxyliciousContainerIdPID
 
 runDockerCompose rm -s -f kroxylicious
 

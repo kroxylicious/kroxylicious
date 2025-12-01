@@ -16,8 +16,7 @@ WARM_UP_NUM_RECORDS_POST_BROKER_START=${WARM_UP_NUM_RECORDS_POST_BROKER_START:-1
 WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 COMMIT_ID=${COMMIT_ID:=$(git rev-parse --short HEAD)}
 
-
-PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/results"}
+PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/profiler-results/"}
 
 ON_SHUTDOWN=()
 GREEN='\033[0;32m'
@@ -42,7 +41,6 @@ KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-"quay.io/kroxylicious/kroxylicious:${KR
 VAULT_IMAGE=${VAULT_IMAGE:-"${DOCKER_REGISTRY}/hashicorp/vault:1.21.1"}
 PERF_NETWORK=performance-tests_perf_network
 CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
-LOADER_DIR=${LOADER_DIR:-"/tmp/asprof-extracted"}
 export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE VAULT_IMAGE CONTAINER_ENGINE
 
 printf "KAFKA_VERSION=${KAFKA_VERSION}\n"
@@ -55,14 +53,12 @@ printf "VAULT_IMAGE=${VAULT_IMAGE}\n"
 
 setupProxyConfig() {
   local kroxylicious_config=${1}
-  set -x
-  cp ${kroxylicious_config} ${PERF_TESTS_DIR}/proxy-config.yaml
-  set +x
+  cp "${kroxylicious_config}" "${PERF_TESTS_DIR}/proxy-config.yaml"
 }
 
 runDockerCompose () {
   #  Docker compose can't see $UID so need to set here before calling it
-  D_UID="$(id -u)" D_GID="$(id -g)" ${CONTAINER_ENGINE} compose -f "${PERF_TESTS_DIR}/docker-compose.yaml" "${@}"
+  ${CONTAINER_ENGINE} compose -f "${PERF_TESTS_DIR}/docker-compose.yaml" "${@}"
 }
 
 doCreateTopic () {
@@ -104,11 +100,6 @@ ensureSysCtlValue() {
 setupAsyncProfilerKroxy() {
   ensureSysCtlValue kernel.perf_event_paranoid 1
   ensureSysCtlValue kernel.kptr_restrict 0
-}
-
-deleteAsyncProfilerKroxy() {
-  rm -rf /tmp/asprof
-  rm -rf "${LOADER_DIR}"
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -230,10 +221,9 @@ ON_SHUTDOWN+=("rm -rf ${TMP}")
 [[ -n ${PULL_CONTAINERS} ]] && runDockerCompose pull
 
 if [ "$(uname)" != 'Darwin' ]; then
-  # Async profiler not supported on macOS
+  # Kernel/perf-events profiler not supported on macOS
   setupAsyncProfilerKroxy
 fi
-ON_SHUTDOWN+=("deleteAsyncProfilerKroxy")
 
 runDockerCompose up --detach --wait kafka
 
@@ -255,6 +245,7 @@ do
   PRODUCER_RESULT=${TEST_TMP}/producer.json
   CONSUMER_RESULT=${TEST_TMP}/consumer.json
   TOPIC=perf-test-${RANDOM}
+  mkdir -p "${PROFILING_OUTPUT_DIRECTORY}/${TESTNAME}"
 
   echo -e "${GREEN}Running ${TESTNAME} ${NOCOLOR}"
   echo TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . "${TESTNAME}/run.sh"
