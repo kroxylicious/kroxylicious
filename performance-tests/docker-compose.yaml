@@ -50,14 +50,13 @@ services:
       retries: 5
       timeout: 10s
   kroxylicious:
-    image: ${KROXYLICIOUS_IMAGE}
+    image: ${KROXYLICIOUS_IMAGE:-quay.io/kroxylicious/proxy:0.19.0-SNAPSHOT}
     hostname: kroxylicious
     container_name: kroxylicious
     # this is to enable async_profiler
     security_opt:
       - seccomp:unconfined
     # Set in perf_test.sh
-    user: "${D_UID}:${D_GID}"
     command:
       - "--config"
       - "/opt/kroxylicious/config/config.yaml"
@@ -69,13 +68,14 @@ services:
     ports:
       - "9092"
     environment:
-      "ASYNC_PROFILER_FLAGS": "start,cpu,collapsed=file=/tmp/profiler-results/collapsed-traces-%t.txt,jfr=file=/tmp/profiler-results/jfr-%t.txt,flamegraph=file=/tmp/profiler-results/flamegraph-%t.html"
+      TEST_NAME: "${TESTNAME:-manual}"
+      "ASYNC_PROFILER_FLAGS": "start,cpu,flamegraph,file=/tmp/profiler-results/%{TEST_NAME}/flamegraph-%t.html"
     configs:
       - source: proxy-config
         target: /opt/kroxylicious/config/config.yaml
     volumes:
       - type: "bind"
-        source: "/tmp/profiler-results/"
+        source: "${PROFILING_OUTPUT_DIRECTORY:-/tmp/profiler-results/}"
         target: "/tmp/profiler-results/"
         read_only: false
 
