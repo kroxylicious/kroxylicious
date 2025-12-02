@@ -116,28 +116,17 @@ class KafkaDriver {
         return result;
     }
 
-    @SuppressWarnings({ "BusyWait", "java:S2925" })
-    FindCoordinatorResponseData findCoordinator(CoordinatorType coordinatorType, String key) {
-        do {
+    void findCoordinator(CoordinatorType coordinatorType, String key) {
+        Awaitility.await().untilAsserted(() -> {
             short findCoordinatorVersion = (short) 1;
             FindCoordinatorRequestData request = findCoordinatorRequestData(findCoordinatorVersion, coordinatorType, key);
             FindCoordinatorResponseData response = sendRequest(request, findCoordinatorVersion,
                     FindCoordinatorResponseData.class);
             Errors actual = Errors.forCode(response.errorCode());
-            if (actual == Errors.COORDINATOR_NOT_AVAILABLE) {
-                try {
-                    Thread.sleep(10);
-                }
-                catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                continue;
-            }
             assertThat(actual)
                     .as("FindCoordinator response from %s (errorMessage=%s)", cluster, response.errorMessage())
                     .isEqualTo(Errors.NONE);
-            return response;
-        } while (true);
+        });
     }
 
     JoinGroupResponseData joinGroup(String protocolType, String groupId, String groupInstanceId) {

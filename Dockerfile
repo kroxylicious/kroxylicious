@@ -4,7 +4,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-FROM registry.access.redhat.com/ubi9/openjdk-17:1.23-6.1763035539 AS builder
+FROM registry.access.redhat.com/ubi9/openjdk-17:1.23-6.1764155314 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -40,7 +40,7 @@ RUN set -ex; \
 COPY . .
 RUN mvn -q -B clean package -Pdist -Dquick -DskipContainerImageBuild=true -DskipDocs=true -Dmaven.test.skip
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7-1763362218
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7-1764578379
 
 ARG JAVA_VERSION=17
 ARG KROXYLICIOUS_VERSION
