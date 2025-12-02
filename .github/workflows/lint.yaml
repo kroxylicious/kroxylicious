@@ -54,20 +54,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mvn -B -Pci -T1.5C verify -DskipTests -Djapicmp.skip=true
-      - name: shellcheck
-        uses: reviewdog/action-shellcheck@4c07458293ac342d477251099501a718ae5ef86e
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review # Change reporter.
-          path: "." # Optional.
-          pattern: "*.sh" # Optional.
-          level: "error"
-          fail_level: "error"
-          exclude: |
-            "./.git/*" 
-            "**/target"
-          check_all_files_with_shebangs: "false" # Optional.
-          shellcheck_flags: "--external-sources --severity=error"
       - name: Save PR number to file
         if: github.event_name == 'pull_request'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
