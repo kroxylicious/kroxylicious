@@ -101,7 +101,7 @@ class RecordEncryptionFilterTest {
 
     private static final String UNRESOLVED_TOPIC = "unresolved";
     private static final String ENCRYPTED_TOPIC = "encrypt_me";
-    private static final String KEK_ID_1 = "KEK_ID_1";
+    private static final String KEK_ID_1 = "KEK-ID-1";
     private static final byte[] HELLO_PLAIN_WORLD = "Hello World".getBytes(UTF_8);
     private static final byte[] HELLO_CIPHER_WORLD = "Hello Ciphertext World!".getBytes(UTF_8);
 
