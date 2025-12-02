@@ -69,7 +69,7 @@ services:
       - "9092"
     environment:
       TEST_NAME: "${TESTNAME:-manual}"
-      "ASYNC_PROFILER_FLAGS": "start,cpu,flamegraph,file=/tmp/profiler-results/%{TEST_NAME}/flamegraph-%t.html"
+      "ASYNC_PROFILER_FLAGS": "start,cpu,flamegraph,file=/tmp/profiler-results/%{TEST_NAME}/flamegraph-%t.html,log=/tmp/profiler-results/%{TEST_NAME}/logs-%{t}.log.txt,logLevel=DEBUG"
     configs:
       - source: proxy-config
         target: /opt/kroxylicious/config/config.yaml
