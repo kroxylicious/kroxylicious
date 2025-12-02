@@ -10,7 +10,7 @@ set -euo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/../common-perf.sh"
 
-CFG=03-transform-filter/config.yaml
+CFG="${SCRIPT_DIR}/config.yaml"
 ENDPOINT=kroxylicious:9092
 
 setupProxyConfig "${CFG}"
