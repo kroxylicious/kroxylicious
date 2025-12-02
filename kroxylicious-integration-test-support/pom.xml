@@ -16,7 +16,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.18.0-SNAPSHOT</version>
+        <version>0.19.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>kroxylicious-integration-test-support</artifactId>
@@ -281,14 +281,6 @@
                 <configuration>
                     <!-- disable for packages containing the sundrio generated classes -->
                     <excludePackageNames>io.kroxylicious.proxy.config:io.kroxylicious.proxy.config.admin</excludePackageNames>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-                <configuration>
-                    <!-- Skipped to avoid failures from sundrio generated classes -->
-                    <skip>true</skip>
                 </configuration>
             </plugin>
         </plugins>

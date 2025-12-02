@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -75,6 +76,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private @Nullable ChannelHandlerContext ctx;
     private @Nullable PromiseFactory promiseFactory;
+    private static AtomicBoolean deprecationWarningEmitted = new AtomicBoolean(false);
 
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
@@ -452,13 +454,19 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     @SuppressWarnings("unchecked")
     private void completeInternalResponse(InternalResponseFrame<?> decodedFrame) {
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Completing {} response for request to filter '{}': {}",
-                    channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
-        }
         CompletableFuture<ApiMessage> p = (CompletableFuture<ApiMessage>) decodedFrame
                 .promise();
-        p.complete(decodedFrame.body());
+        boolean newlyCompleted = p.complete(decodedFrame.body());
+        if (LOGGER.isDebugEnabled()) {
+            if (newlyCompleted) {
+                LOGGER.debug("{}: Completed {} response for internal request to filter '{}': {}",
+                        channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
+            }
+            else {
+                LOGGER.trace("{}: {} response for internal request to filter '{}' was already completed: {}",
+                        channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
+            }
+        }
     }
 
     private static <F extends FilterResult> F validateFilterResultNonNull(F f) {
@@ -515,6 +523,13 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public void clientSaslAuthenticationSuccess(String mechanism,
                                                     String authorizedId) {
+            if (deprecationWarningEmitted.compareAndSet(false, true)) {
+                LOGGER.warn("Deprecated clientSaslAuthenticationSuccess(String mechanism, String authorizedId) was invoked by filter '{}'. Instead call "
+                        + "clientSaslAuthenticationSuccess(String mechanism, Subject subject), ensuring that the Subject contains a {} principal with "
+                        + "name equal to authorizedId",
+                        filterAndInvoker.filterName(),
+                        User.class.getName());
+            }
             clientSaslAuthenticationSuccess(mechanism, new Subject(Set.of(new User(authorizedId))));
         }
 

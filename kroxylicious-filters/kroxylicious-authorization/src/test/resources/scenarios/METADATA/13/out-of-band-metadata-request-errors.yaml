@@ -1,0 +1,64 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "METADATA"
+  apiVersion: 13
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "METADATA"
+      expectedRequestVersion: 13
+      expectedRequestHeader:
+        requestApiKey: 3
+        requestApiVersion: 13
+        correlationId: 0
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - topicId: "e8MvPJPGSteB1fKbMEji0w"
+            name: "my-topic"
+        allowAutoTopicCreation: false
+        includeTopicAuthorizedOperations: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 746
+        brokers: []
+        clusterId: "random-string-682"
+        controllerId: 892
+        topics: []
+        # UNKNOWN_SERVER_ERROR
+        errorCode: -1
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "CREATE"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 3
+    requestApiVersion: 13
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - topicId: "e8MvPJPGSteB1fKbMEji0w"
+        name: "my-topic"
+    allowAutoTopicCreation: true
+    includeTopicAuthorizedOperations: false
+then:
+  expectedRequestError:
+    withCauseType: io.kroxylicious.filter.authorization.AuthorizationException
+    withCauseMessage: "Internal metadata request failed with UNKNOWN_SERVER_ERROR"

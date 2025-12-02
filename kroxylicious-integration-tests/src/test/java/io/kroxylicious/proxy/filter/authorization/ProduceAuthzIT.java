@@ -52,7 +52,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ProduceAuthzIT extends AuthzIT {
+class ProduceAuthzIT extends AuthzIT {
 
     private static String topicName = "topic";
     private Path rulesFile;

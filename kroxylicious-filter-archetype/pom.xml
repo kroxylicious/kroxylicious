@@ -11,7 +11,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.18.0-SNAPSHOT</version>
+        <version>0.19.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>kroxylicious-filter-archetype</artifactId>
@@ -101,33 +101,6 @@
                     </delimiters>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>copy-deps</id>
-                        <phase>pre-integration-test</phase>
-                        <goals>
-                            <goal>copy-dependencies</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${project.build.directory}/local-repo</outputDirectory>
-                            <copyPom>true</copyPom>
-                            <addParentPoms>true</addParentPoms>
-                            <useRepositoryLayout>true</useRepositoryLayout>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-archetype-plugin</artifactId>
-                <configuration>
-                    <localRepositoryPath>${project.build.directory}/local-repo</localRepositoryPath>
-                    <skip>${skipITs}</skip>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
     <profiles>
@@ -144,6 +117,19 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-dependency-plugin</artifactId>
                         <executions>
+                            <execution>
+                                <id>copy-deps</id>
+                                <phase>pre-integration-test</phase>
+                                <goals>
+                                    <goal>copy-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.directory}/local-repo</outputDirectory>
+                                    <copyPom>true</copyPom>
+                                    <addParentPoms>true</addParentPoms>
+                                    <useRepositoryLayout>true</useRepositoryLayout>
+                                </configuration>
+                            </execution>
                             <execution>
                                 <id>analyze</id>
                                 <configuration>
@@ -174,6 +160,14 @@
                                 </configuration>
                             </execution>
                         </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-archetype-plugin</artifactId>
+                        <configuration>
+                            <localRepositoryPath>${project.build.directory}/local-repo</localRepositoryPath>
+                            <skip>${skipITs}</skip>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>

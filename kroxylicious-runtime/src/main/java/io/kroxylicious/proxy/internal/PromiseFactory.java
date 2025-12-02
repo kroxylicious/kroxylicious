@@ -74,12 +74,23 @@ class PromiseFactory {
             final String message;
             try {
                 message = exceptionMessageGenerator.call();
-                logger.warn(message);
-                promise.completeExceptionally(new TimeoutException(message));
+
+                boolean newlyCompleted = promise.completeExceptionally(new TimeoutException(message));
+                if (newlyCompleted) {
+                    logger.warn(message);
+                }
+                else {
+                    logger.trace("Promise was already completed before timeout (message on timeout would have been \"{}\")", message);
+                }
             }
             catch (Exception e) {
-                logger.warn("Timeout exceptionMessageGenerator failed with {}. The promise has still been timed out.", e.getMessage(), e);
-                promise.completeExceptionally(new TimeoutException("Promise Timed out"));
+                boolean newlyCompleted = promise.completeExceptionally(new TimeoutException("Promise Timed out"));
+                if (newlyCompleted) {
+                    logger.warn("Timeout exceptionMessageGenerator failed with {}. The promise has still been timed out.", e.getMessage(), e);
+                }
+                else {
+                    logger.trace("Timeout exceptionMessageGenerator failed with {}, but the promise was already complete.", e.getMessage(), e);
+                }
             }
         };
     }

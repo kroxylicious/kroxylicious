@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -84,6 +85,26 @@ class AuthorizationFilterTest {
         Subject subject = new Subject(new User(definition.when().subject()));
         FilterContext context = new MockFilterContext(requestHeader, request, subject, topicNames, mockUpstream);
         CompletionStage<RequestFilterResult> stage = authorizationFilter.onRequest(apiKeys, requestHeader, request, context);
+        ScenarioDefinition.RequestError expectedRequestError = definition.then().expectedRequestError();
+        if (expectedRequestError != null) {
+            assertThat(stage).failsWithin(0, TimeUnit.SECONDS).withThrowableThat()
+                    .havingCause().isInstanceOf(expectedRequestError.getCauseType()).withMessage(expectedRequestError.withCauseMessage());
+        }
+        else {
+            handleRequestForward(definition, stage, mockUpstream, subject, topicNames, authorizationFilter, apiKeys, version);
+        }
+        if (!mockUpstream.isFinished()) {
+            throw new IllegalStateException("test has finished, but mock responses are still queued");
+        }
+        // we expect that any inflight state pushed during a request is always popped on the corresponding response
+        // if it is non-empty then we may have a memory leak
+        assertThat(authorizationFilter.inflightState())
+                .describedAs("inflight state")
+                .isEmpty();
+    }
+
+    private static void handleRequestForward(ScenarioDefinition definition, CompletionStage<RequestFilterResult> stage, MockUpstream mockUpstream, Subject subject,
+                                             Map<Uuid, String> topicNames, AuthorizationFilter authorizationFilter, ApiKeys apiKeys, short version) {
         RequestFilterResult actual = assertThat(stage).succeedsWithin(Duration.ZERO).actual();
         if (actual.drop()) {
             if (!mockUpstream.isFinished()) {
@@ -145,14 +166,6 @@ class AuthorizationFilterTest {
                 }
             }
         }
-        if (!mockUpstream.isFinished()) {
-            throw new IllegalStateException("test has finished, but mock responses are still queued");
-        }
-        // we expect that any inflight state pushed during a request is always popped on the corresponding response
-        // if it is non-empty then we may have a memory leak
-        assertThat(authorizationFilter.inflightState())
-                .describedAs("inflight state")
-                .isEmpty();
     }
 
     private static String toYaml(Object actualBody) {

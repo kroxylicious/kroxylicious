@@ -12,7 +12,7 @@
     <parent>
         <artifactId>kroxylicious-parent</artifactId>
         <groupId>io.kroxylicious</groupId>
-        <version>0.18.0-SNAPSHOT</version>
+        <version>0.19.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-microbenchmarks</artifactId>
@@ -136,14 +136,6 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-                <configuration>
-                    <!-- Microbenchmark code does not currently adhere to spotbugs rules, not investigate further. -->
-                    <skip>true</skip>
-                </configuration>
             </plugin>
         </plugins>
     </build>

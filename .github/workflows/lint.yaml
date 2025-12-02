@@ -29,7 +29,10 @@ concurrency:
 jobs:
   lint:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
     steps:
       - name: 'Check out repository'
         uses: actions/checkout@v6
@@ -64,7 +67,7 @@ jobs:
             "./.git/*" 
             "**/target"
           check_all_files_with_shebangs: "false" # Optional.
-          shellcheck_flags: "--external-sources --severity=Error"
+          shellcheck_flags: "--external-sources --severity=error"
       - name: Save PR number to file
         if: github.event_name == 'pull_request'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt

@@ -75,7 +75,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * </ol>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class AbstractAuthzEquivalenceIT extends BaseIT {
+abstract class AbstractAuthzEquivalenceIT extends BaseIT {
     protected static final ObjectMapper MAPPER = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
     protected static <P> Map<String, String> mapValues(Map<String, P> responsesByUser,
