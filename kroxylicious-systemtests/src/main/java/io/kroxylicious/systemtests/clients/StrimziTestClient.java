@@ -86,7 +86,7 @@ public class StrimziTestClient implements KafkaClient {
     private static String waitForProducer(String namespace, String podName, Duration timeout) {
         String log;
         try {
-            log = await().alias("Consumer waiting to receive messages")
+            log = await().alias("Producer waiting to send records")
                     .ignoreException(KubernetesClientException.class)
                     .atMost(timeout)
                     .until(() -> {
@@ -105,7 +105,7 @@ public class StrimziTestClient implements KafkaClient {
 
     @Override
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig) {
-        LOGGER.atInfo().log("Consuming messages using Strimzi Test Client");
+        LOGGER.atInfo().log("Consuming records using Strimzi Test Client");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
         Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages, additionalConfig).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);

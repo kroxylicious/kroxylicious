@@ -130,6 +130,7 @@ public final class Constants {
     public static final String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
     public static final String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
     public static final String KAFKA_ADMIN_CLIENT_CONFIG_NAME = "admin-client-config";
+    public static final String KAF_CLIENT_CONFIG_NAME = "kaf-client-config";
     /**
      * Image pull policies
      */
@@ -178,4 +179,6 @@ public final class Constants {
     public static final String TRUSTSTORE_TEMP_DIR = CREDENTIALS_TEMP_DIR + TRUSTSTORE_SECRET_NAME + "/";
     public static final String CONFIG_PROP_FILE_NAME = "config.properties";
     public static final String CONFIG_PROP_TEMP_DIR = "/home/strimzi/.admin_client/";
+    public static final String KAF_CONFIG_TEMP_DIR = "$HOME/.kaf/";
+    public static final String KAF_CONFIG_FILE_NAME = "config";
 }

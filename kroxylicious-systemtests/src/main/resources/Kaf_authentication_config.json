@@ -1,0 +1,22 @@
+{
+  "spec": {
+    "volumes": [{
+      "name": "config-volume",
+      "configMap": {
+        "name": "kaf-client-config",
+        "items": [{
+          "key": "config",
+          "path": "config"
+        }]
+      }
+    }],
+    "containers": [{
+      "name": "%NAME%",
+      "volumeMounts": [{
+        "mountPath": "$HOME/.kaf/",
+        "name": "config-volume",
+        "readOnly": true
+      }]
+    }]
+  }
+}

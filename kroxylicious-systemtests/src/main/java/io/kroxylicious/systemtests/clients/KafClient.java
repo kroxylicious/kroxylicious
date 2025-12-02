@@ -27,6 +27,8 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.KafConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
@@ -62,33 +64,40 @@ public class KafClient implements KafkaClient {
     @Override
     public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                 Map<String, String> additionalConfig) {
+        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+                KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
+
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
-        String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json").replace("%NAME%", name) : "";
+        String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("Kaf_authentication_config_openshift.json") :
+                TestUtils.getJsonFileContent("Kaf_authentication_config.json");
+        jsonOverrides = jsonOverrides.replace("%NAME%", name);
 
-        List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
-                "-n", deployNamespace, name,
-                "--image=" + Constants.KAF_CLIENT_IMAGE,
-                "--override-type=strategic",
-                "--overrides=" + jsonOverrides,
-                "--", "-n", String.valueOf(numOfMessages), "-b", bootstrap));
-        recordKey.ifPresent(key -> {
-            executableCommand.add("--key");
-            executableCommand.add(key);
-        });
-        // TODO: add sasl config using yaml files like https://github.com/birdayz/kaf/blob/master/examples/sasl_ssl_scram.yaml
-        executableCommand.addAll(List.of("produce", topicName));
+         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
+             "-n", deployNamespace, name,
+             "--image=" + Constants.KAF_CLIENT_IMAGE,
+             "--override-type=strategic",
+             "--overrides=" + jsonOverrides,
+             "--", "-v", "-n", String.valueOf(numOfMessages), "-b", bootstrap));
+         recordKey.ifPresent(key -> {
+             executableCommand.add("--key");
+             executableCommand.add(key);
+         });
+         executableCommand.addAll(List.of("produce", topicName));
 
-        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
+         KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
     }
 
     @Override
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig) {
+        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+                KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
+
         LOGGER.atInfo().log("Consuming messages using kaf");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
         List<String> args = List.of("-b", bootstrap, "consume", topicName, "--output", "json");
-        Job kafClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
+        Job kafClientJob = TestClientsJobTemplates.authenticationKafkaGoJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, kafClientJob);
         String log = waitForConsumer(podName, numOfMessages, timeout);
         KafkaUtils.deleteJob(kafClientJob);

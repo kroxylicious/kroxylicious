@@ -17,15 +17,21 @@ import java.util.Properties;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.config.SaslConfigs;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.records.KafSaslConfig;
 
 /**
  * The type Kroxylicious config templates.
  */
 public final class KroxyliciousConfigMapTemplates {
+    private static final ObjectMapper OBJECT_MAPPER = new YAMLMapper();
 
     private KroxyliciousConfigMapTemplates() {
     }
@@ -138,10 +144,62 @@ public final class KroxyliciousConfigMapTemplates {
         // @formatter:off
         return new ConfigMapBuilder()
                 .withNewMetadata()
-                .withName(name)
-                .withNamespace(namespace)
+                    .withName(name)
+                    .withNamespace(namespace)
                 .endMetadata()
                 .withData(Map.of(Constants.CONFIG_PROP_FILE_NAME, properties));
         // @formatter:on
+    }
+
+    /**
+     * Gets config map for kaf config.
+     *
+     * @param namespace the namespace
+     * @param name the name
+     * @param bootstrap the bootstrap
+     * @param additionalConfig the additional config
+     * @return  the config map for kaf config
+     */
+    public static ConfigMapBuilder getConfigMapForKafConfig(String namespace, String name, String bootstrap, Map<String, String> additionalConfig) {
+
+        KafSaslConfig kafSaslConfig = null;
+        if (additionalConfig.containsKey(SaslConfigs.SASL_MECHANISM)) {
+            kafSaslConfig = new KafSaslConfig(
+                    additionalConfig.get(SaslConfigs.SASL_MECHANISM),
+                    additionalConfig.get("sasl.username"),
+                    additionalConfig.get("sasl.password"));
+        }
+
+        Map<String, Object> saslConfigMap = OBJECT_MAPPER
+                .convertValue(kafSaslConfig, new TypeReference<>() {
+                });
+
+        String config = """
+                clusters:
+                - name: test
+                  brokers:
+                  - %s
+                  SASL: %s
+                  TLS: %s
+                  security-protocol: %s
+                """.formatted(bootstrap, getSaslConfigMap(saslConfigMap), "null", additionalConfig.getOrDefault(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "\"\""));
+
+        // @formatter:off
+        return new ConfigMapBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withData(Map.of(Constants.KAF_CONFIG_FILE_NAME, config));
+        // @formatter:on
+    }
+
+    private static String getSaslConfigMap(Map<String, Object> saslConfigMap) {
+        if (saslConfigMap == null) {
+            return null;
+        }
+        StringBuilder config = new StringBuilder();
+        saslConfigMap.forEach((key, value) -> config.append("\n    ").append(key).append(": ").append(value));
+        return config.toString();
     }
 }

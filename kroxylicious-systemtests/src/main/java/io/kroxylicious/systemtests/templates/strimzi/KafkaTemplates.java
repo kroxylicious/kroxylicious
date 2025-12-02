@@ -10,7 +10,6 @@ import io.strimzi.api.ResourceAnnotations;
 import io.strimzi.api.kafka.model.common.template.ExternalTrafficPolicy;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.entityoperator.EntityOperatorSpec;
-import io.strimzi.api.kafka.model.kafka.entityoperator.EntityTopicOperatorSpec;
 import io.strimzi.api.kafka.model.kafka.entityoperator.EntityUserOperatorSpec;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerAuthenticationScramSha512Builder;
@@ -105,8 +104,8 @@ public class KafkaTemplates {
      */
     public static KafkaBuilder kafkaPersistentWithAuthentication(String namespaceName, String clusterName, int kafkaReplicas) {
         EntityOperatorSpec entityOperatorSpec = new EntityOperatorSpec();
-        entityOperatorSpec.setTopicOperator(new EntityTopicOperatorSpec());
         entityOperatorSpec.setUserOperator(new EntityUserOperatorSpec());
+
         return kafkaPersistentWithKRaftAnnotations(namespaceName, clusterName, kafkaReplicas)
                 .editSpec()
                 .editKafka()
@@ -130,47 +129,53 @@ public class KafkaTemplates {
     }
 
     private static KafkaBuilder defaultKafka(String namespaceName, String clusterName, int kafkaReplicas, int zkReplicas) {
+        // @formatter:off
         return new KafkaBuilder()
                 .withApiVersion(Constants.KAFKA_API_VERSION_V1BETA2)
                 .withKind(Constants.STRIMZI_KAFKA_KIND)
                 .withNewMetadata()
-                .withName(clusterName)
-                .withNamespace(namespaceName)
+                    .withName(clusterName)
+                    .withNamespace(namespaceName)
                 .endMetadata()
                 .editSpec()
-                .editKafka()
-                .withVersion(Environment.KAFKA_VERSION)
-                .withReplicas(kafkaReplicas)
-                .addToConfig("log.message.format.version", KafkaVersionUtils.getKafkaProtocolVersion(Environment.KAFKA_VERSION))
-                .addToConfig("inter.broker.protocol.version", KafkaVersionUtils.getKafkaProtocolVersion(Environment.KAFKA_VERSION))
-                .addToConfig("offsets.topic.replication.factor", Math.min(kafkaReplicas, 3))
-                .addToConfig("transaction.state.log.min.isr", Math.min(kafkaReplicas, 2))
-                .addToConfig("transaction.state.log.replication.factor", Math.min(kafkaReplicas, 3))
-                .addToConfig("default.replication.factor", Math.min(kafkaReplicas, 3))
-                .addToConfig("min.insync.replicas", Math.min(Math.max(kafkaReplicas - 1, 1), 2))
-                .addToConfig("auto.create.topics.enable", false)
-                .withListeners(new GenericKafkaListenerBuilder()
-                        .withName(Constants.PLAIN_LISTENER_NAME)
-                        .withPort(9092)
-                        .withType(KafkaListenerType.INTERNAL)
-                        .withTls(false)
-                        .build(),
-                        new GenericKafkaListenerBuilder()
-                                .withName(Constants.TLS_LISTENER_NAME)
-                                .withPort(9093)
-                                .withType(KafkaListenerType.INTERNAL)
-                                .withTls(true)
-                                .build())
-                .withNewInlineLogging()
-                .addToLoggers("kafka.root.logger.level", LogLevel.INFO.name())
-                .endInlineLogging()
-                .endKafka()
-                .editZookeeper()
-                .withReplicas(zkReplicas)
-                .withNewInlineLogging()
-                .addToLoggers("zookeeper.root.logger", LogLevel.INFO.name())
-                .endInlineLogging()
-                .endZookeeper()
+                    .editKafka()
+                        .withVersion(Environment.KAFKA_VERSION)
+                        .withReplicas(kafkaReplicas)
+                        .addToConfig("log.message.format.version", KafkaVersionUtils.getKafkaProtocolVersion(Environment.KAFKA_VERSION))
+                        .addToConfig("inter.broker.protocol.version", KafkaVersionUtils.getKafkaProtocolVersion(Environment.KAFKA_VERSION))
+                        .addToConfig("offsets.topic.replication.factor", Math.min(kafkaReplicas, 3))
+                        .addToConfig("transaction.state.log.min.isr", Math.min(kafkaReplicas, 2))
+                        .addToConfig("transaction.state.log.replication.factor", Math.min(kafkaReplicas, 3))
+                        .addToConfig("default.replication.factor", Math.min(kafkaReplicas, 3))
+                        .addToConfig("min.insync.replicas", Math.min(Math.max(kafkaReplicas - 1, 1), 2))
+                        .addToConfig("auto.create.topics.enable", false)
+                        .withListeners(
+                                new GenericKafkaListenerBuilder()
+                                    .withName(Constants.PLAIN_LISTENER_NAME)
+                                    .withPort(9092)
+                                    .withType(KafkaListenerType.INTERNAL)
+                                    .withTls(false)
+                                    .build(),
+                                new GenericKafkaListenerBuilder()
+                                        .withName(Constants.TLS_LISTENER_NAME)
+                                        .withPort(9093)
+                                        .withType(KafkaListenerType.INTERNAL)
+                                        .withTls(true)
+                                        .build())
+                        .withNewInlineLogging()
+                            .addToLoggers("rootLogger.level", LogLevel.INFO.name())
+//                            .addToLoggers("logger.kafka.level", LogLevel.TRACE.name())
+//                            .addToLoggers("logger.orgapachekafka.level", LogLevel.TRACE.name())
+//                            .addToLoggers("logger.authorizer.level", LogLevel.TRACE.name())
+                        .endInlineLogging()
+                    .endKafka()
+                    .editZookeeper()
+                        .withReplicas(zkReplicas)
+                        .withNewInlineLogging()
+                            .addToLoggers("zookeeper.root.logger", LogLevel.INFO.name())
+                        .endInlineLogging()
+                    .endZookeeper()
                 .endSpec();
+        // @formatter:on
     }
 }

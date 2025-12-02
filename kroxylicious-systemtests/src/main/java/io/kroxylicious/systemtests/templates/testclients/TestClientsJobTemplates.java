@@ -243,21 +243,65 @@ public class TestClientsJobTemplates {
     }
 
     /**
-     * Default kafka go consumer job builder.
+     * Default kafka go job builder.
      *
      * @param jobName the job name
      * @param args the args
      * @return the job builder
      */
-    public static JobBuilder defaultKafkaGoConsumerJob(String jobName, List<String> args) {
+    public static JobBuilder defaultKafkaGoJob(String jobName, List<String> args) {
         return baseClientJob(jobName)
                 .editSpec()
                 .withBackoffLimit(3)
                 .editTemplate()
                 .editSpec()
                 .withRestartPolicy(Constants.RESTART_POLICY_ON_FAILURE)
-                .withContainers(ContainerTemplates.baseImageBuilder("kafka-go-consumer", Constants.KAF_CLIENT_IMAGE)
+                .withContainers(ContainerTemplates.baseImageBuilder("kafka-go", Constants.KAF_CLIENT_IMAGE)
                         .withArgs(args)
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    /**
+     * Authentication kafka go job builder.
+     *
+     * @param jobName the job name
+     * @param args the args
+     * @return  the job builder
+     */
+    public static JobBuilder authenticationKafkaGoJob(String jobName, List<String> args) {
+        List<VolumeMount> volumeMounts = new ArrayList<>();
+        List<Volume> volumes = new ArrayList<>();
+        Volume configVolume = new VolumeBuilder()
+                .withName(Constants.KAF_CLIENT_CONFIG_NAME)
+                .withConfigMap(new ConfigMapVolumeSourceBuilder()
+                        .withName(Constants.KAF_CLIENT_CONFIG_NAME)
+                        .addNewItem()
+                        .withKey(Constants.KAF_CONFIG_FILE_NAME)
+                        .withPath(Constants.KAF_CONFIG_FILE_NAME)
+                        .endItem()
+                        .build())
+                .build();
+
+        VolumeMount configMount = new VolumeMountBuilder()
+                .withName(Constants.KAF_CLIENT_CONFIG_NAME)
+                .withMountPath(Constants.KAF_CONFIG_TEMP_DIR)
+                .build();
+        volumeMounts.add(configMount);
+        volumes.add(configVolume);
+
+        return baseClientJob(jobName)
+                .editSpec()
+                .withBackoffLimit(3)
+                .editTemplate()
+                .editSpec()
+                .withRestartPolicy(Constants.RESTART_POLICY_ON_FAILURE)
+                .withVolumes(volumes)
+                .withContainers(ContainerTemplates.baseImageBuilder("kafka-go", Constants.KAF_CLIENT_IMAGE)
+                        .withArgs(args)
+                        .withVolumeMounts(volumeMounts)
                         .build())
                 .endSpec()
                 .endTemplate()

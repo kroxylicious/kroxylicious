@@ -114,7 +114,7 @@ public class ResourceManager {
      */
     @SafeVarargs
     public final void createResourceFromBuilderWithWait(Builder<? extends HasMetadata>... resources) {
-        KubeResourceManager.get().createResourceWithWait(Arrays.stream(resources).map(Builder::build).toList().toArray(new HasMetadata[0]));
+        KubeResourceManager.get().createOrUpdateResourceWithWait(Arrays.stream(resources).map(Builder::build).toList().toArray(new HasMetadata[0]));
     }
 
     /**
@@ -124,7 +124,8 @@ public class ResourceManager {
      */
     @SafeVarargs
     public final void createResourceFromBuilder(Builder<? extends HasMetadata>... resources) {
-        KubeResourceManager.get().createResourceWithWait(Arrays.stream(resources).filter(Objects::nonNull).map(Builder::build).toList().toArray(new HasMetadata[0]));
+        KubeResourceManager.get()
+                .createOrUpdateResourceWithWait(Arrays.stream(resources).filter(Objects::nonNull).map(Builder::build).toList().toArray(new HasMetadata[0]));
     }
 
     @SafeVarargs
