@@ -112,12 +112,13 @@ CONSUMER_RESULTS=()
 for t in "${TESTCASES[@]}"
 do
   TEST_NAME=$(basename "$t")
+  export TEST_NAME
   TEST_TMP=${TMP}/${TEST_NAME}
   mkdir -p "${TEST_TMP}"
   PRODUCER_RESULT=${TEST_TMP}/producer.json
   CONSUMER_RESULT=${TEST_TMP}/consumer.json
   TOPIC=perf-test-${RANDOM}
-  mkdir -p "${PROFILING_OUTPUT_DIRECTORY}/${TEST_NAME}"
+  mkdir -p "${PROFILING_OUTPUT_DIRECTORY}/${TEST_NAME}" && chmod a+w "${PROFILING_OUTPUT_DIRECTORY}/${TEST_NAME}"
 
   echo -e "${GREEN}Running ${TEST_NAME} ${NO_COLOR}"
   TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} "${t}/run.sh"
