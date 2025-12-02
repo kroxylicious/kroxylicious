@@ -59,7 +59,7 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>vault</artifactId>
+            <artifactId>testcontainers-vault</artifactId>
         </dependency>
         <!-- third party dependencies - test -->
         <dependency>
