@@ -1003,6 +1003,23 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <!--AssertJ will throw different exceptions than expected when JUnit 4 is on the classpath -->
+                        <!-- See: https://github.com/kroxylicious/kroxylicious/issues/2801-->
+                        <id>ban-junit-4</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>junit:junit</exclude>
+                                    </excludes>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>project-metadata</id>
                         <goals>
                             <goal>enforce</goal>
