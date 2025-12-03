@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record KafSaslConfig(
                             @JsonProperty String mechanism,
                             @JsonProperty String username,
-                            @JsonProperty String password) {
+                            @JsonProperty String password,
+                            @JsonProperty int version) {
 
 }

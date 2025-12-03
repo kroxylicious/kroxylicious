@@ -3,7 +3,7 @@
     "volumes": [{
       "name": "config-volume",
       "configMap": {
-        "name": "kaf-client-config",
+        "name": "%CONFIGMAP_NAME%",
         "items": [{
           "key": "config",
           "path": "config"
@@ -11,9 +11,9 @@
       }
     }],
     "containers": [{
-      "name": "%NAME%",
+      "name": "%CONTAINER_NAME%",
       "volumeMounts": [{
-        "mountPath": "$HOME/.kaf/",
+        "mountPath": "%MOUNT_PATH%",
         "name": "config-volume",
         "readOnly": true
       }],

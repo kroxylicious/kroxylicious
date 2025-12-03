@@ -167,22 +167,24 @@ public final class KroxyliciousConfigMapTemplates {
             kafSaslConfig = new KafSaslConfig(
                     additionalConfig.get(SaslConfigs.SASL_MECHANISM),
                     additionalConfig.get("sasl.username"),
-                    additionalConfig.get("sasl.password"));
+                    additionalConfig.get("sasl.password"),
+                    1);
         }
 
         Map<String, Object> saslConfigMap = OBJECT_MAPPER
                 .convertValue(kafSaslConfig, new TypeReference<>() {
                 });
 
-        String config = """
-                clusters:
-                - name: test
-                  brokers:
-                  - %s
-                  SASL: %s
-                  TLS: %s
-                  security-protocol: %s
-                """.formatted(bootstrap, getSaslConfigMap(saslConfigMap), "null", additionalConfig.getOrDefault(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "\"\""));
+        String config = "current-cluster: local"
+                + "\n" + "clusters:"
+                + "\n" + "- name: local"
+                + "\n" + "  brokers:"
+                + "\n" + "  - " + bootstrap
+                + "\n" + "  SASL: " + getSaslConfigMap(saslConfigMap)
+                + "\n" + "  TLS: " + "null"
+                + "\n" + "  security-protocol: \"" + additionalConfig.getOrDefault(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "") + "\""
+                + "\n" + "  schema-registry-url: \"\""
+                + "\n" + "  schema-registry-credentials: null";
 
         // @formatter:off
         return new ConfigMapBuilder()
@@ -195,9 +197,6 @@ public final class KroxyliciousConfigMapTemplates {
     }
 
     private static String getSaslConfigMap(Map<String, Object> saslConfigMap) {
-        if (saslConfigMap == null) {
-            return null;
-        }
         StringBuilder config = new StringBuilder();
         saslConfigMap.forEach((key, value) -> config.append("\n    ").append(key).append(": ").append(value));
         return config.toString();

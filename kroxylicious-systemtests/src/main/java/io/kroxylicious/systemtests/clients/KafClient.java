@@ -70,23 +70,25 @@ public class KafClient implements KafkaClient {
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
-        String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("Kaf_authentication_config_openshift.json") :
-                TestUtils.getJsonFileContent("Kaf_authentication_config.json");
-        jsonOverrides = jsonOverrides.replace("%NAME%", name);
+        String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("Kaf_authentication_config_openshift.json")
+                : TestUtils.getJsonFileContent("Kaf_authentication_config.json");
+        jsonOverrides = jsonOverrides.replace("%CONTAINER_NAME%", name)
+                .replace("%MOUNT_PATH%", Constants.KAF_CONFIG_TEMP_DIR)
+                .replace("%CONFIGMAP_NAME%", Constants.KAF_CLIENT_CONFIG_NAME);
 
-         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
-             "-n", deployNamespace, name,
-             "--image=" + Constants.KAF_CLIENT_IMAGE,
-             "--override-type=strategic",
-             "--overrides=" + jsonOverrides,
-             "--", "-v", "-n", String.valueOf(numOfMessages), "-b", bootstrap));
-         recordKey.ifPresent(key -> {
-             executableCommand.add("--key");
-             executableCommand.add(key);
-         });
-         executableCommand.addAll(List.of("produce", topicName));
+        List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
+                "-n", deployNamespace, name,
+                "--image=" + Constants.KAF_CLIENT_IMAGE,
+                "--override-type=strategic",
+                "--overrides=" + jsonOverrides,
+                "--", "-n", String.valueOf(numOfMessages), "-b", bootstrap, "--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME));
+        recordKey.ifPresent(key -> {
+            executableCommand.add("--key");
+            executableCommand.add(key);
+        });
+        executableCommand.addAll(List.of("produce", topicName));
 
-         KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
+        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
     }
 
     @Override
@@ -96,7 +98,8 @@ public class KafClient implements KafkaClient {
 
         LOGGER.atInfo().log("Consuming messages using kaf");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
-        List<String> args = List.of("-b", bootstrap, "consume", topicName, "--output", "json");
+        List<String> args = List.of("-b", bootstrap, "--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME, "consume", topicName, "--output",
+                "json");
         Job kafClientJob = TestClientsJobTemplates.authenticationKafkaGoJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, kafClientJob);
         String log = waitForConsumer(podName, numOfMessages, timeout);
