@@ -1,0 +1,9 @@
+:_mod-docs-content-type: CONCEPT
+
+
+[discrete]
+[id='con-about-authorization-guide-{context}']
+= About this guide
+
+[role="_abstract"]
+This guide covers using the *Kroxylicious Authorization Filter*.
