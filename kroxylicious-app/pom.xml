@@ -277,29 +277,6 @@
                                     <includes>${native.library.include.patterns}</includes>
                                 </configuration>
                             </execution>
-                            <execution>
-                                <id>unpack-async-profiler-native-libs</id>
-                                <phase>prepare-package</phase>
-                                <goals>
-                                    <goal>unpack-dependencies</goal>
-                                </goals>
-                                <configuration>
-                                    <includeArtifactIds>async-profiler</includeArtifactIds>
-                                    <outputDirectory>${project.build.directory}/libs/native/async-profiler</outputDirectory>
-                                    <includes>${native.library.include.patterns}</includes>
-                                    <!-- use file mappers to provide a consistent directory structure -->
-                                    <fileMappers>
-                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
-                                            <pattern>(.*)-(.*)</pattern>
-                                            <replacement>$1/$2</replacement>
-                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
-                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
-                                            <pattern>x64</pattern>
-                                            <replacement>amd64</replacement>
-                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
-                                    </fileMappers>
-                                </configuration>
-                            </execution>
                         </executions>
                     </plugin>
                     <plugin>
@@ -426,6 +403,42 @@
                     <scope>runtime</scope>
                 </dependency>
             </dependencies>
+        </profile>
+        <profile>
+            <id>enable-profiling</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>unpack-async-profiler-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>async-profiler</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/async-profiler</outputDirectory>
+                                    <includes>${native.library.include.patterns}</includes>
+                                    <!-- use file mappers to provide a consistent directory structure -->
+                                    <fileMappers>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>(.*)-(.*)</pattern>
+                                            <replacement>$1/$2</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>x64</pattern>
+                                            <replacement>amd64</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                    </fileMappers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>
