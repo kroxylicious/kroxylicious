@@ -65,7 +65,6 @@ LZ4_NATIVE_LIB=$(native_library_path lz4-java/net/jpountz/util)
 SNAPPY_NATIVE_LIB=$(native_library_path snappy/org/xerial/snappy/native)
 ZSTD_NATIVE_LIB=$(native_library_path zstd-jni)
 ZSTD_FULLY_QUALIFIED=$(ls "${ZSTD_NATIVE_LIB}"/libzstd-jni-*)
-ZSTD_FULLY_QUALIFIED=$(ls "${ZSTD_NATIVE_LIB}"/libzstd-jni-*.so)
 
 ASYNC_PROFILER_FULLY_QUALIFIED="$(native_library_path async-profiler)/libasyncProfiler.so"
 echo "Async profiler available at: ${ASYNC_PROFILER_FULLY_QUALIFIED} use the ASYNC_PROFILER_FLAGS to control its settings"
