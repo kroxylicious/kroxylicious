@@ -88,7 +88,7 @@ TMP=$(mktemp -d)
 ON_SHUTDOWN+=("rm -rf ${TMP}")
 
 # Bring up Kafka
-#ON_SHUTDOWN+=("runDockerCompose down")
+ON_SHUTDOWN+=("runDockerCompose down")
 
 [[ -n ${PULL_CONTAINERS:-} ]] && runDockerCompose pull
 
