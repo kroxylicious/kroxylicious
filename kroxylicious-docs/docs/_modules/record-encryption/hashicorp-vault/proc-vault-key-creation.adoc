@@ -8,7 +8,7 @@
 = Creating HashiCorp Vault keys
 
 [role="_abstract"]
-This procedure describes how to create AES-256 symmetric keys for use with the Record Encryption filter. The process uses the HashiCorp CLI to create a key following your key naming convention, with a 90-day rotation policy.
+This procedure describes how to create AES-256 symmetric keys for use with the Record Encryption filter. The process establishes a naming convention for keys, then uses the HashiCorp CLI to create a key with a 90-day rotation policy following the key naming convention.
 
 .Prerequisites
 
@@ -16,6 +16,10 @@ This procedure describes how to create AES-256 symmetric keys for use with the R
 * Sufficient permissions to create keys.
 
 .Procedure
+
+. Establish a naming convention for keys to keep the filter’s keys separate from those used by other systems.
++
+Here, we use a prefix of KEK- for filter key name. Adjust the instructions if a different naming convention is used.
 
 . Create a symmetric key
 +
