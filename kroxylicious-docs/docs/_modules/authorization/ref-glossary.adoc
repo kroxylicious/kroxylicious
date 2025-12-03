@@ -1,0 +1,8 @@
+:_mod-docs-content-type: REFERENCE
+
+= Glossary
+
+[role="_abstract"]
+Glossary of terms used in the Authorization guide.
+
+TODO:: defintion

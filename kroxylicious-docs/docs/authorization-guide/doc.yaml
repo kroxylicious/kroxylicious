@@ -1,0 +1,6 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: Authorization Guide
+description: Covers using the Authorization filter.
+tags:
+  - filter
+rank: "024"

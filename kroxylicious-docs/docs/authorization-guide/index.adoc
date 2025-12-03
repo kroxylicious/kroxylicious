@@ -1,0 +1,25 @@
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: authorization
+:guide: authorization
+
+[id="using-book-{context}"]
+= Authorization Guide
+
+include::_modules/authorization/con-about-{guide}-guide.adoc[leveloffset=+1]
+
+[role="_abstract"]
+The Authorization filter gives the ability to add authorization checks into a Kafka system which will be enforced by the proxy.
+These authorization checks are performed in addition is any authorization checks made by the broker itself.
+For an action to be allowed, both the authorization filter and broker must decide that the action is allowed.
+
+
+//configuring the sasl inspection filter
+include::_assemblies/assembly-configuring-authorization-filter.adoc[leveloffset=+1]
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]
+
+// glossary
+include::_modules/authorization/ref-glossary.adoc[leveloffset=+1]

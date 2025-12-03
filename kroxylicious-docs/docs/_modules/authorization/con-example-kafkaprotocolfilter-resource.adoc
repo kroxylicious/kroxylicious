@@ -1,0 +1,29 @@
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-authorization-filter.adoc
+
+[id='con-example-kafkaprotocolfilter-resource-{context}']
+= Example `KafkaProtocolFilter` resource
+
+[role="_abstract"]
+If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProcotolFilter` resource to contain the filter configuration.
+
+Here's a complete example of a `KafkaProtocolFilter` resource configured for Authorization:
+
+.Example `KafkaProtocolFilter` resource for record validation
+[source,yaml]
+----
+kind: KafkaProtocolFilter
+metadata:
+  name: my-authorization
+spec:
+  type: Authorization
+  configTemplate:
+    authorizer: AclAuthorizerService # <1>
+    authorizerConfig:
+      aclFile: ${configmap:myconfigmap:acl-rules.txt} # <2>
+----
+<1> Name of the authorizer service implementation.  Currently, this has to be `AclAuthorizerService`.
+<2> Reference to file containing the ACL rules. This may take advantage of a link:{DocRoot}/kroxylicious-operator#assembly-operator-secure-filter-securing/[interpolation reference] to reference rules stored within a Kubernetes `ConfigMap` or `Secret` resource.
