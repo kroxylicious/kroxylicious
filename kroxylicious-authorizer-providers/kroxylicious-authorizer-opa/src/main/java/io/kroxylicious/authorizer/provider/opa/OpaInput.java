@@ -8,47 +8,78 @@ package io.kroxylicious.authorizer.provider.opa;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-// This class maps the input expected by the Opa policy
-// Should it be configurable by users?
 public final class OpaInput {
-    // TODO: extend to multiple subjects
-    @JsonProperty("subject")
-    String subject;
-
     @JsonProperty("actions")
     OpaAction[] actions;
 
-    public OpaInput(String subject, OpaAction[] actions) {
-        this.subject = subject;
-        this.actions = actions;
-    }
+    @JsonProperty("subject")
+    OpaSubject subject;
 
-    public String subject() {
-        return subject;
+    public OpaInput(OpaAction[] actions, OpaSubject subject) {
+        this.actions = actions;
+        this.subject = subject;
     }
 
     public OpaAction[] actions() {
         return actions;
     }
 
+    public OpaSubject subject() {
+        return subject;
+    }
+
     public static final class OpaAction {
-        @JsonProperty("operation")
-        String operation;
+        @JsonProperty("action")
+        String action;
 
-        @JsonProperty("resource")
-        String resource;
+        @JsonProperty("resourceName")
+        String resourceName;
 
-        public OpaAction(String operation, String resource) {
-            this.operation = operation;
-            this.resource = resource;
+        public OpaAction(String action, String resourceName) {
+            this.action = action;
+            this.resourceName = resourceName;
         }
 
-        public String operation() {
-            return operation;
+        public String action() {
+            return action;
         }
 
-        public String resource() {
-            return resource;
+        public String resourceName() {
+            return resourceName;
+        }
+    }
+
+    public static final class OpaSubject {
+        @JsonProperty("principals")
+        OpaPrincipal[] principals;
+
+        public OpaSubject(OpaPrincipal[] principals) {
+            this.principals = principals;
+        }
+
+        public OpaPrincipal[] principals() {
+            return principals;
+        }
+    }
+
+    public static final class OpaPrincipal {
+        @JsonProperty("name")
+        String name;
+
+        @JsonProperty("type")
+        String type;
+
+        public OpaPrincipal(String name, String type) {
+            this.name = name;
+            this.type = type;
+        }
+
+        public String name() {
+            return name;
+        }
+
+        public String type() {
+            return type;
         }
     }
 }
