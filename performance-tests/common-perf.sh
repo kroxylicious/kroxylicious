@@ -24,6 +24,7 @@ runDockerCompose () {
 
 setupProxyConfig() {
   local kroxylicious_config=${1}
+  # `cp` rather than `ln` to make sure its available to the container engine.
   cp "${kroxylicious_config}" "${PERF_TESTS_DIR}/proxy-config.yaml"
 }
 
