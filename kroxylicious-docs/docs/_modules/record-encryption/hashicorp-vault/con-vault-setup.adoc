@@ -48,12 +48,6 @@ the URL looks like this:
 https://myvaultinstance:8200/v1/mytransit
 ----
 
-== Establish the naming convention for keys within Vault hierarchy
-
-Establish a naming convention for keys to keep the filter’s keys separate from those used by other systems.
-Here, we use a prefix of KEK- for filter key name.
-Adjust the instructions if a different naming convention is used.
-
 == Role of the administrator
 
 To use the filter, an administrator or an administrative process must create the encryption keys within Vault, which
