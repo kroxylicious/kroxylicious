@@ -71,7 +71,7 @@ onExit() {
   done
 }
 
-mapfile -t TESTCASES -d " " < <( find "${PERF_TESTS_DIR}" -type d -regex '.*/'"${TEST}" | sort )
+mapfile -t TESTCASES -d " " < <( find "${PERF_TESTS_DIR}" -type d -regextype egrep -regex '.*/'"${TEST}" | sort )
 if [ ${#TESTCASES[@]} -eq 0 ]; then
   echo -e "${RED}No test cases matched: find \"${PERF_TESTS_DIR}\" -type d -regex '.*/'\"${TEST}\" exiting ${NO_COLOR}" >&2
   exit 1
