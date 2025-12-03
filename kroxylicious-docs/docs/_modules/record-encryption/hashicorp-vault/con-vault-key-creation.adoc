@@ -1,4 +1,4 @@
-:_mod-docs-content-type: CONCEPT
+:_mod-docs-content-type: PROCEDURE
 
 // file included in the following:
 //
@@ -8,14 +8,21 @@
 = Creating HashiCorp Vault keys
 
 [role="_abstract"]
-As the administrator, use either the HashiCorp UI or CLI to create AES-256 symmetric keys following your
-key naming convention. The key type must be `aes256-gcm96`, which is Vault's default key type.
+This procedure describes how to create AES-256 symmetric keys for use with the Record Encryption filter. The process uses the HashiCorp CLI to create a key following your key naming convention, with a 90-day rotation policy.
 
-TIP: It is recommended to use a key rotation policy.
+.Prerequisites
 
-If using the Vault CLI, the command will look like:
+* Access to the HashiCorp CLI.
+* Sufficient permissions to create keys.
 
+.Procedure
+
+. Create a symmetric key
++
 [source, shell]
 ----
 vault write -f transit/keys/KEK-trades type=aes256-gcm96 auto_rotate_period=90d
 ----
+* The key type must be `aes256-gcm96`, which is Vault's default key type.
+
+TIP: It is recommended to use a key rotation policy.
