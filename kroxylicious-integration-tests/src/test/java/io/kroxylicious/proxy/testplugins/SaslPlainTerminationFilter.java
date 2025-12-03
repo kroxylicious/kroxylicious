@@ -149,7 +149,7 @@ public class SaslPlainTerminationFilter
 
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
-                                                          RequestHeaderData header,
+                                                          short apiVersion, RequestHeaderData header,
                                                           ApiMessage request,
                                                           FilterContext context) {
         return switch (apiKey) {

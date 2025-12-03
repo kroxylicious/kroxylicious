@@ -36,7 +36,7 @@ public class ShortCircuitErrorResponse implements FilterFactory<ShortCircuitErro
     public enum ResponseMechanism implements RequestFilter {
         ERROR {
             @Override
-            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
                 return context.requestFilterResultBuilder()
                         .errorResponse(header, request, EXCEPTION)
                         .completed();
@@ -44,14 +44,14 @@ public class ShortCircuitErrorResponse implements FilterFactory<ShortCircuitErro
         },
         SHORTCIRCUIT_MESSAGE {
             @Override
-            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
                 final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, request, EXCEPTION);
                 return context.requestFilterResultBuilder().shortCircuitResponse(errorResponseMessage.data()).completed();
             }
         },
         SHORTCIRCUIT_MESSAGE_AND_HEADER {
             @Override
-            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
                 final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, request, EXCEPTION);
                 final ResponseHeaderData responseHeaders = new ResponseHeaderData();
                 responseHeaders.setCorrelationId(header.correlationId());

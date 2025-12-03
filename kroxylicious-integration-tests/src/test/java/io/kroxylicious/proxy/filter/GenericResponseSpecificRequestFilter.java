@@ -30,7 +30,7 @@ public class GenericResponseSpecificRequestFilter implements ResponseFilter, Api
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response, FilterContext context) {
         String requestClientId = clientIdPerCorrelationId.remove(header.correlationId());
         response.unknownTaggedFields().add(new RawTaggedField(CLIENT_ID_TAG, requestClientId.getBytes(StandardCharsets.UTF_8)));
         return context.forwardResponse(header, response);

@@ -46,8 +46,19 @@ class FilterInvokersTest {
 
     public static Stream<Filter> validFilters() {
         ApiVersionsRequestFilter singleSpecificMessageFilter = (apiVersion, header, request, context) -> null;
-        RequestFilter requestFilter = (apiKey, header, body, filterContext) -> null;
-        ResponseFilter responseFilter = (apiKey, header, body, filterContext) -> null;
+        RequestFilter requestFilter = new RequestFilter() {
+            @Override
+            public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
+                return null;
+            }
+        };
+        ResponseFilter responseFilter = new ResponseFilter() {
+            @Override
+            public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response,
+                                                                    FilterContext context) {
+                return null;
+            }
+        };
         return Stream.of(singleSpecificMessageFilter,
                 new SpecificRequestSpecificResponseFilter(),
                 requestFilter,
@@ -60,12 +71,12 @@ class FilterInvokersTest {
     static class GenericRequestGenericResponseFilter implements RequestFilter, ResponseFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
             return null;
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response, FilterContext context) {
             return null;
         }
     }
@@ -97,7 +108,7 @@ class FilterInvokersTest {
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response, FilterContext context) {
 
             return null;
         }
@@ -113,7 +124,7 @@ class FilterInvokersTest {
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response, FilterContext context) {
 
             return null;
         }
@@ -122,7 +133,7 @@ class FilterInvokersTest {
     static class SpecificRequestAndGenericRequestFilter implements ApiVersionsRequestFilter, RequestFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
 
             return null;
         }
@@ -138,7 +149,7 @@ class FilterInvokersTest {
     static class GenericRequestSpecificResponseFilter implements RequestFilter, ApiVersionsResponseFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
 
             return null;
         }

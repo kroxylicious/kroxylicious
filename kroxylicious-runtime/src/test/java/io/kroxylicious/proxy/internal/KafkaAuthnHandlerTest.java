@@ -212,7 +212,8 @@ public class KafkaAuthnHandlerTest {
             }
 
             @Override
-            public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+            public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response,
+                                                                    FilterContext context) {
 
                 return null;
             }
