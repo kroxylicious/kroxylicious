@@ -1,0 +1,65 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "METADATA"
+  apiVersion: 13
+  scenario: "request has empty topics, signalling it requests metadata for no topics. The request is forwarded."
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "METADATA"
+      expectedRequestVersion: 13
+      expectedRequestHeader:
+        requestApiKey: 3
+        requestApiVersion: 13
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics: []
+        allowAutoTopicCreation: true
+        includeTopicAuthorizedOperations: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 746
+        brokers:
+          - nodeId: 179
+            host: "random-string-71"
+            port: 176
+            rack: "random-string-836"
+        clusterId: "random-string-682"
+        controllerId: 892
+        topics: []
+        errorCode: 1003
+  authorizerRules:
+    allowed: []
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 3
+    requestApiVersion: 13
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics: []
+    allowAutoTopicCreation: true
+    includeTopicAuthorizedOperations: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 746
+    brokers:
+        - nodeId: 179
+          host: "random-string-71"
+          port: 176
+          rack: "random-string-836"
+    clusterId: "random-string-682"
+    controllerId: 892
+    topics: []
+    errorCode: 1003

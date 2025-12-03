@@ -8,6 +8,7 @@
 = Setting up Azure resources
 
 [role="_abstract"]
+This procedure describes how to prepare the Azure resources required to use the Kroxylicious Record Encryption filter with Azure Key Vault. This process uses the Azure CLI to create a resource group, provision a key vault, configure a key management user, and establish an authentication method that the filter will use to access the key vault.
 
 .Prerequisites
 
@@ -31,13 +32,7 @@ If using the Azure CLI, you can create a resource group with a command like this
 az group create --name "my-resource-group" --location "eastus"
 ----
 
-. Create a key vault
-+
-There are several methods to create key vault resources in Azure. This step describes how to do this using the Azure CLI. The Microsoft Azure documentation has further instructions on how to create key vaults via the Azure portal, Azure CLI, and Azure PowerShell.
-+
-NOTE: Microsoft's best practice guide for Azure Key Vault recommends having one key vault per application, per environment, per region. For example, if you have Kroxylicious deployed in your `development`, `test`, and `production` environments, and each of those environments is deployed across two different regions, you would create six key vaults for Kroxylicious — one for each Kroxylicious deployment in each environment in each region.
-+
-You can create a key vault with the Azure CLI using a command like this:
+. Create a key vault with the Azure CLI:
 +
 [source,shell]
 ----
@@ -47,6 +42,11 @@ az keyvault create --name ${KEY_VAULT_NAME} --resource-group ${RESOURCE_GROUP_NA
 ----
 * Key vault names must be unique.
 * `RESOURCE_GROUP_NAME` should match the name of the resource group created in the previous section.
++
+There are several methods to create key vault resources in Azure. This step describes how to do this using the Azure CLI. The Microsoft Azure documentation has further instructions on how to create key vaults via the Azure portal, Azure CLI, and Azure PowerShell.
++
+NOTE: Microsoft's best practice guide for Azure Key Vault recommends having one key vault per application, per environment, per region. For example, if you have Kroxylicious deployed in your `development`, `test`, and `production` environments, and each of those environments is deployed across two different regions, you would create six key vaults for Kroxylicious — one for each Kroxylicious deployment in each environment in each region.
++
 
 . Create a key management user.
 +

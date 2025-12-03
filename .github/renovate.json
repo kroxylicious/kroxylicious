@@ -177,6 +177,6 @@
     }
   ],
   "managerFilePatterns": [
-    "/(^|/)(?:docker-)?compose[^/]*\\.ya?ml$/"
+    "/(^|/)(?:\\w+-)?compose[^/]*\\.ya?ml$/"
   ]
 }

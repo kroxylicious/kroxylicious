@@ -20,9 +20,12 @@ filterDefinitions:
     type: SaslInspection
     config:
       enabledMechanisms: [ "OAUTHBEARER" ] # <1>
+      requireAuthentication: true # <2>
 ----
 <1> Restricts the filter to the given SASL mechanism(s).
 Refer to SASL mechanism by its name given in the xref:supported-mechansisms-{context}[supported mechanisms] table.
 If omitted, the SASL mechanisms `SCRAM-SHA-256`, `SCRAM-SHA-512` and `OAUTHBEARER` will be enabled by default.
+<2> If true then successful authentication will be required before the filter will forward any requests other than those strictly required to perform SASL authentication.
+If false then the filter will forward all requests regardless of whether SASL authentication has been attempted or was successful. Defaults to false.
 
 Refer to the {ProxyGuide} for more information about configuring the proxy.

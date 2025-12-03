@@ -11,7 +11,7 @@ podman compose --file compose/kafka-compose.yaml up
 
 To update the image quickly use a command such as 
 ```shell
-mvn -P dist -DskipTests -pl :kroxylicious-app -DskipDocs=true && podman image load -i $(pwd)/kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
+mvn -P dist package -Dquick -pl :kroxylicious-app --also-make  && podman image load -i $(pwd)/kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
 ```
 
 Note the container is not automatically restarted when the image or the config file is updated one has to do so manually e.g.
