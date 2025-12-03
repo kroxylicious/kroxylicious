@@ -23,6 +23,10 @@
 
     <name>Proxy application</name>
     <description>A runnable proxy application. Provides the main() method.</description>
+    <properties>
+        <!-- derived from snappy's resource-config.json -->
+        <native.library.include.patterns>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</native.library.include.patterns>
+    </properties>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
@@ -106,7 +110,12 @@
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>tools.profiler</groupId>
+            <artifactId>async-profiler</artifactId>
+            <version>${async-profiler.version}</version>
+            <scope>runtime</scope>
+        </dependency>
         <!-- third party dependencies - test -->
         <dependency>
             <groupId>org.assertj</groupId>
@@ -199,7 +208,7 @@
                                     <includeArtifactIds>netty-transport-native-epoll,netty-transport-native-unix-common,netty-transport-native-io_uring,netty-transport-native-kqueue</includeArtifactIds>
                                     <outputDirectory>${project.build.directory}/libs/native/netty</outputDirectory>
                                     <!-- derived form snappy's resource-config.json -->
-                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
+                                    <includes>${native.library.include.patterns}</includes>
                                     <fileMappers>
                                         <org.codehaus.plexus.components.io.filemappers.FlattenFileMapper/>
                                     </fileMappers>
@@ -214,8 +223,7 @@
                                 <configuration>
                                     <includeArtifactIds>snappy-java</includeArtifactIds>
                                     <outputDirectory>${project.build.directory}/libs/native/snappy</outputDirectory>
-                                    <!-- derived form snappy's resource-config.json -->
-                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
+                                    <includes>${native.library.include.patterns}</includes>
                                     <!-- when built into the container paths are cases sensitive and the container build variables for arch and platform  are lower case-->
                                     <fileMappers>
                                         <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
@@ -254,8 +262,7 @@
                                 <configuration>
                                     <includeArtifactIds>zstd-jni</includeArtifactIds>
                                     <outputDirectory>${project.build.directory}/libs/native/zstd-jni</outputDirectory>
-                                    <!-- derived form snappy's resource-config.json -->
-                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
+                                    <includes>${native.library.include.patterns}</includes>
                                 </configuration>
                             </execution>
                             <execution>
@@ -267,8 +274,30 @@
                                 <configuration>
                                     <includeArtifactIds>lz4-java</includeArtifactIds>
                                     <outputDirectory>${project.build.directory}/libs/native/lz4-java</outputDirectory>
-                                    <!-- derived form snappy's resource-config.json -->
-                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
+                                    <includes>${native.library.include.patterns}</includes>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-async-profiler-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>async-profiler</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/async-profiler</outputDirectory>
+                                    <includes>${native.library.include.patterns}</includes>
+                                    <!-- use file mappers to provide a consistent directory structure -->
+                                    <fileMappers>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>(.*)-(.*)</pattern>
+                                            <replacement>$1/$2</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>x64</pattern>
+                                            <replacement>amd64</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                    </fileMappers>
                                 </configuration>
                             </execution>
                         </executions>
