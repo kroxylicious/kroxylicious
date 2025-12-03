@@ -198,7 +198,9 @@ public final class KroxyliciousConfigMapTemplates {
 
     private static String getSaslConfigMap(Map<String, Object> saslConfigMap) {
         StringBuilder config = new StringBuilder();
-        saslConfigMap.forEach((key, value) -> config.append("\n    ").append(key).append(": ").append(value));
+        if (saslConfigMap != null) {
+            saslConfigMap.forEach((key, value) -> config.append("\n    ").append(key).append(": ").append(value));
+        }
         return config.toString();
     }
 }

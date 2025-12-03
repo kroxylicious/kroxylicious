@@ -27,7 +27,9 @@ import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.systemtests.AbstractST;
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
+import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
@@ -37,6 +39,7 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 class AuthorizationST extends AbstractST {
     protected static final String BROKER_NODE_NAME = "kafka";
@@ -86,6 +89,8 @@ class AuthorizationST extends AbstractST {
 
     @Test
     void produceAndConsumeMessage(String namespace) {
+        assumeThat(Environment.KAFKA_CLIENT).isNotEqualToIgnoringCase(KafkaClientType.KCAT.name());
+
         int numberOfMessages = 1;
         String user = "bob"; // name shall be always lowercase
         generatePasswordForNewUser(user);
