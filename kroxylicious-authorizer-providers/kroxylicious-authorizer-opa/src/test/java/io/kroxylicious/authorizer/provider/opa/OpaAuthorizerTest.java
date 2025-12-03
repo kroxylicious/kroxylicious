@@ -26,12 +26,30 @@ public class OpaAuthorizerTest {
     @Test
     void builderAllOperationsAndResourceNameEqualAndPrincipalNameEqualWithImplication() {
         // Given
-        EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.of(FakeTopicResource.READ, FakeTopicResource.DESCRIBE);
-        EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
+        EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.of(FakeTopicResource.READ, FakeTopicResource.WRITE, FakeTopicResource.DESCRIBE, FakeTopicResource.ALTER);
+        EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.of(FakeTopicResource.CREATE);
         Subject alice = new Subject(Set.of(new User("alice")));
         Subject bob = new Subject(Set.of(new User("bob")));
+
+        // Create test data: bob owns "my-topic", alice owns "your-topic"
+        String testDataJson = """
+                {
+                    "topics": {
+                        "my-topic": {
+                            "owner": "bob",
+                            "subscribers": []
+                        },
+                        "your-topic": {
+                            "owner": "alice",
+                            "subscribers": []
+                        }
+                    }
+                }
+                """;
+
         var authz = OpaAuthorizer.builder()
                 .withOpaPolicy(OpaAuthorizerTest.class.getResourceAsStream("/policies/base/policy.wasm"))
+                .withData(testDataJson)
                 .build();
 
         // Then

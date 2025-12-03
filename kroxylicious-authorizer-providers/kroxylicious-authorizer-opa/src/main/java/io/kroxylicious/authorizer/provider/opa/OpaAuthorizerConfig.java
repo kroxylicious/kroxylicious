@@ -6,5 +6,8 @@
 
 package io.kroxylicious.authorizer.provider.opa;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public record OpaAuthorizerConfig(
-                                  String opaFile) {}
+                                  String opaFile,
+                                  @Nullable String dataFile) {}
