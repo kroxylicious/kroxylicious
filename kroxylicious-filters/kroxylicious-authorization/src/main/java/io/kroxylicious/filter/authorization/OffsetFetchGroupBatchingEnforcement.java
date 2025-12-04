@@ -7,9 +7,12 @@
 package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetFetchResponseData;
@@ -51,13 +54,13 @@ public class OffsetFetchGroupBatchingEnforcement extends ApiEnforcement<OffsetFe
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         List<Action> actions = request.groups().stream()
-                .flatMap(ofrq -> ofrq.topics().stream())
+                .flatMap(ofrq -> Optional.ofNullable(ofrq.topics()).stream().flatMap(Collection::stream))
                 .map(ofrt -> new Action(TopicResource.DESCRIBE, ofrt.name()))
                 .toList();
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
                     var flattenedDecisions = authorization.partition(request.groups().stream()
-                            .flatMap(g -> g.topics().stream())
+                            .flatMap(g -> Optional.ofNullable(g.topics()).stream().flatMap(Collection::stream))
                             .toList(), TopicResource.DESCRIBE, OffsetFetchRequestData.OffsetFetchRequestTopics::name);
                     if (flattenedDecisions.get(Decision.DENY).isEmpty()) {
                         return context.forwardRequest(header, request);
