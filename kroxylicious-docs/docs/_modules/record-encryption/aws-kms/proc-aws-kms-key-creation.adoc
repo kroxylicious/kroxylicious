@@ -1,0 +1,41 @@
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// assembly-aws-kms.adoc
+
+[id='con-aws-kms-key-creation-{context}']
+= Creating AWS KMS keys
+
+[role="_abstract"]
+This procedure describes how to create a *Symmetric key* with *Encrypt and decrypt* usage for use with the Record Encryption filter. The process uses the AWS CLI to {aws}/kms/latest/developerguide/create-keys.html#create-symmetric-cmk[create] a key and optionally apply a rotation policy.
+
+NOTE: Multi-region keys are supported.
+
+.Prerequisites
+
+* Access to the AWS CLI with sufficient permissions to create and manage keys.
+* xref:con-aws-kms-setup-policy-{context}[An alias-based policy for KEK aliases].
+
+.Procedure
+
+. Create a key and apply the alias
++
+NOTE: It is not possible to make use of keys from other AWS accounts. For more information on this limitation, see the issue for link:{github-issues}/1217[AWS KMS serde improvements^].
++
+[source,shell]
+----
+KEY_ALIAS="KEK-<name>"
+KEY_ID=$(aws kms create-key | jq -r '.KeyMetadata.KeyId')
+# the create key command will produce JSON output including the KeyId
+aws kms create-alias --alias-name alias/${KEY_ALIAS} --target-key-id ${KEY_ID}
+----
+
+. (Optional) Enable a key rotation policy
++
+[source,shell]
+----
+aws kms enable-key-rotation --key-id ${KEY_ID} --rotation-period-in-days 180
+----
+
+
