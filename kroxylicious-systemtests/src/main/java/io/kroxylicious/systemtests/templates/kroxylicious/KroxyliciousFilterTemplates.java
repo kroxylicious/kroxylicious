@@ -121,7 +121,7 @@ public final class KroxyliciousFilterTemplates {
     }
 
     /**
-     * Kroxylicious authorization kafka protocol filter builder.
+     * Kroxylicious authorization filter builder.
      *
      * @param namespace the namespace
      * @param aclFile the acl file
@@ -144,6 +144,12 @@ public final class KroxyliciousFilterTemplates {
                 });
     }
 
+    /**
+     * Kroxylicious sasl inspector filter builder.
+     *
+     * @param namespace the namespace
+     * @return  the kafka protocol filter builder
+     */
     public static KafkaProtocolFilterBuilder kroxyliciousSaslInspectorFilter(String namespace) {
         return baseFilterDeployment(namespace, Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME)
                 .withNewSpec()
