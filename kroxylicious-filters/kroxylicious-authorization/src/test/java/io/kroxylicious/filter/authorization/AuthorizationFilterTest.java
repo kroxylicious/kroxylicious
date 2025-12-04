@@ -42,6 +42,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import nl.altindag.log.LogCaptor;
 
 import static java.util.EnumSet.complementOf;
 import static java.util.EnumSet.copyOf;
@@ -53,6 +54,8 @@ class AuthorizationFilterTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile("scenarios/.*\\.yaml");
+
+    private static final LogCaptor logCaptor = LogCaptor.forClass(AuthorizationFilter.class);
 
     static Stream<Arguments> authorization() throws Exception {
         List<ClassPath.ResourceInfo> resources = ClassPath.from(AuthorizationFilterTest.class.getClassLoader()).getResources().stream()
@@ -96,11 +99,22 @@ class AuthorizationFilterTest {
         if (!mockUpstream.isFinished()) {
             throw new IllegalStateException("test has finished, but mock responses are still queued");
         }
+
+        assertOnlyDenialsLogged();
+
         // we expect that any inflight state pushed during a request is always popped on the corresponding response
         // if it is non-empty then we may have a memory leak
         assertThat(authorizationFilter.inflightState())
                 .describedAs("inflight state")
                 .isEmpty();
+    }
+
+    private static void assertOnlyDenialsLogged() {
+        assertThat(logCaptor.getLogs())
+                .allSatisfy(logMsg -> assertThat(logMsg)
+                        .isNotEmpty()
+                        .startsWith("DENY")
+                        .doesNotContain("[]"));
     }
 
     private static void handleRequestForward(ScenarioDefinition definition, CompletionStage<RequestFilterResult> stage, MockUpstream mockUpstream, Subject subject,
