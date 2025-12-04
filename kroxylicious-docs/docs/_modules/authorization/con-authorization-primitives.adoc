@@ -1,11 +1,18 @@
 :_mod-docs-content-type: CONCEPT
 
 
-[discrete]
 [id='con-authorization-primitives-{context}']
 = Authorization Primitives
 
-[id='authorization-primitives-{context}']
+Kafka clients send Kafka messages to perform operations on resources in Kafka.
+It is required to know the operations and resources to effectively configure authorization checks.
+This section lists these operations and resources, and then list the mapping between the Kafka messages and the operations and resources.
+
+== Resource type and operations
+
+This table lists the resources types and operations enforced by the authorization filter.
+
+[id='authorization-resource-types-and-operations-{context}']
 .Table of authorization primitives
 |===
 |Resource type|Operations
@@ -13,24 +20,650 @@
 |Topic
 |READ, WRITE, CREATE, DELETE ALTER, DESCRIBE, DESCRIBE_CONFIGS, ALTER_CONFIGS
 
+// |Cluster
+// |CREATE, ALTER, DESCRIBE, CLUSTER_ACTION, DESCRIBE_CONFIGS, ALTER_CONFIGS
+
+|===
+
+== Message, operation, and resource mapping
+
+The table below lists the Kafka messages that are used by Kafka clients.  For each message, it shows the operation and
+resource type that will be tested by the authorization filter.
+
+[id='authorization-message-mapping-{context}']
+.Table mapping the message to operation and resource
+|===
+|Message|Operation|Resource|Note
+
+// |PRODUCE (0)
+|PRODUCE (0)
+|Write
+|TransactionalId
+|A transactional producer which has its transactional.id set requires this privilege.
+
+|PRODUCE (0)
+|IdempotentWrite
 |Cluster
-|CREATE, ALTER, DESCRIBE, CLUSTER_ACTION, DESCRIBE_CONFIGS, ALTER_CONFIGS
+|An idempotent produce action requires this privilege.
 
-|===
-
-[id='authorization-protocol-operation-mapping-{context}']
-.Table of protocol, operation, resource mapping
-|===
-|Message|Operation|Resource
-
-|DESCRIBE_TOPIC_PARTITIONS
-|DESCRIBE
+|PRODUCE (0)
+|Write
 |Topic
+|This applies to a normal produce action.
 
-|PRODUCE
-|WRITE
+|FETCH (1)
+|ClusterAction
+|Cluster
+|A follower must have ClusterAction on the Cluster resource in order to fetch partition data.
+
+|FETCH (1)
+|Read
 |Topic
+|Regular Kafka consumers need READ permission on each partition they are fetching.
 
+|LIST_OFFSETS (2)
+|Describe
+|Topic
+|
+
+|METADATA (3)
+|Describe
+|Topic
+|
+
+|METADATA (3)
+|Create
+|Cluster
+|If topic auto-creation is enabled, then the broker-side API will check for the existence of a Cluster +
+level privilege. If it's found then it'll allow creating the topic, otherwise it'll iterate through the +
+Topic level privileges (see the next one).
+
+|METADATA (3)
+|Create
+|Topic
+|This authorizes auto topic creation if enabled but the given user doesn't have a cluster level +
+permission (above).
+
+|LEADER_AND_ISR (4)
+|ClusterAction
+|Cluster
+|
+
+|STOP_REPLICA (5)
+|ClusterAction
+|Cluster
+|
+
+|UPDATE_METADATA (6)
+|ClusterAction
+|Cluster
+|
+
+|CONTROLLED_SHUTDOWN (7)
+|ClusterAction
+|Cluster
+|
+
+|OFFSET_COMMIT (8)
+|Read
+|Group
+|An offset can only be committed if it's authorized to the given group and the topic too (see below). +
+Group access is checked first, then Topic access.
+
+|OFFSET_COMMIT (8)
+|Read
+|Topic
+|Since offset commit is part of the consuming process, it needs privileges for the read action.
+
+|OFFSET_FETCH (9)
+|Describe
+|Group
+|Similarly to OFFSET_COMMIT, the application must have privileges on group and topic level too to be able +
+to fetch. However in this case it requires describe access instead of read. Group access is checked first, +
+then Topic access.
+
+|OFFSET_FETCH (9)
+|Describe
+|Topic
+|
+
+|FIND_COORDINATOR (10)
+|Describe
+|Group
+|The FIND_COORDINATOR request can be of "Group" type in which case it is looking for consumergroup +
+coordinators. This privilege would represent the Group mode.
+
+|FIND_COORDINATOR (10)
+|Describe
+|TransactionalId
+|This applies only on transactional producers and checked when a producer tries to find the transaction +
+coordinator.
+
+|JOIN_GROUP (11)
+|Read
+|Group
+|
+
+|HEARTBEAT (12)
+|Read
+|Group
+|
+
+|LEAVE_GROUP (13)
+|Read
+|Group
+|
+
+|SYNC_GROUP (14)
+|Read
+|Group
+|
+
+|DESCRIBE_GROUPS (15)
+|Describe
+|Group
+|
+
+|LIST_GROUPS (16)
+|Describe
+|Cluster
+|When the broker checks to authorize a list_groups request it first checks for this cluster +
+level authorization. If none found then it proceeds to check the groups individually. This operation +
+doesn't return CLUSTER_AUTHORIZATION_FAILED.
+
+|LIST_GROUPS (16)
+|Describe
+|Group
+|If none of the groups are authorized, then just an empty response will be sent back instead +
+of an error. This operation doesn't return CLUSTER_AUTHORIZATION_FAILED. This is applicable from the +
+2.1 release.
+
+|SASL_HANDSHAKE (17)
+|
+|
+|The SASL handshake is part of the authentication process and therefore it's not possible to +
+apply any kind of authorization here.
+|API_VERSIONS (18)
+|
+|
+|The API_VERSIONS request is part of the Kafka protocol handshake and happens on connection +
+and before any authentication. Therefore it's not possible to control this with authorization.
+
+|CREATE_TOPICS (19)
+|Create
+|Cluster
+|If there is no cluster level authorization then it won't return CLUSTER_AUTHORIZATION_FAILED but +
+fall back to use topic level, which is just below. That'll throw error if there is a problem.
+
+|CREATE_TOPICS (19)
+|Create
+|Topic
+|This is applicable from the 2.0 release.
+
+|DELETE_TOPICS (20)
+|Delete
+|Topic
+|
+
+|DELETE_RECORDS (21)
+|Delete
+|Topic
+|
+
+|INIT_PRODUCER_ID (22)
+|Write
+|TransactionalId
+|
+
+|INIT_PRODUCER_ID (22)
+|IdempotentWrite
+|Cluster
+|
+
+|OFFSET_FOR_LEADER_EPOCH (23)
+|ClusterAction
+|Cluster
+|If there is no cluster level privilege for this operation, then it'll check for topic level one.
+
+|OFFSET_FOR_LEADER_EPOCH (23)
+|Describe
+|Topic
+|This is applicable from the 2.1 release.
+
+|ADD_PARTITIONS_TO_TXN (24)
+|Write
+|TransactionalId
+|This API is only applicable to transactional requests. It first checks for the Write action on the +
+TransactionalId resource, then it checks the Topic in subject (below).
+
+|ADD_PARTITIONS_TO_TXN (24)
+|Write
+|Topic
+|
+
+|ADD_OFFSETS_TO_TXN (25)
+|Write
+|TransactionalId
+|Similarly to ADD_PARTITIONS_TO_TXN this is only applicable to transactional requests. It first checks +
+for Write action on the TransactionalId resource, then it checks whether it can Read on the given group +
+(below).
+
+|ADD_OFFSETS_TO_TXN (25)
+|Read
+|Group
+|
+
+|END_TXN (26)
+|Write
+|TransactionalId
+|
+
+|WRITE_TXN_MARKERS (27)
+|Alter
+|Cluster
+|
+
+|WRITE_TXN_MARKERS (27)
+|ClusterAction
+|Cluster
+|
+
+|TXN_OFFSET_COMMIT (28)
+|Write
+|TransactionalId
+|
+
+|TXN_OFFSET_COMMIT (28)
+|Read
+|Group
+|
+
+|TXN_OFFSET_COMMIT (28)
+|Read
+|Topic
+|
+
+|DESCRIBE_ACLS (29)
+|Describe
+|Cluster
+|
+
+|CREATE_ACLS (30)
+|Alter
+|Cluster
+|
+
+|DELETE_ACLS (31)
+|Alter
+|Cluster
+|
+
+|DESCRIBE_CONFIGS (32)
+|DescribeConfigs
+|Cluster
+|If broker configs are requested, then the broker will check cluster level privileges.
+
+|DESCRIBE_CONFIGS (32)
+|DescribeConfigs
+|Topic
+|If topic configs are requested, then the broker will check topic level privileges.
+
+|ALTER_CONFIGS (33)
+|AlterConfigs
+|Cluster
+|If broker configs are altered, then the broker will check cluster level privileges.
+
+|ALTER_CONFIGS (33)
+|AlterConfigs
+|Topic
+|If topic configs are altered, then the broker will check topic level privileges.
+
+|ALTER_REPLICA_LOG_DIRS (34)
+|Alter
+|Cluster
+|
+
+|DESCRIBE_LOG_DIRS (35)
+|Describe
+|Cluster
+|An empty response will be returned on authorization failure.
+
+|SASL_AUTHENTICATE (36)
+|
+|
+|SASL_AUTHENTICATE is part of the authentication process and therefore it's not possible to +
+apply any kind of authorization here.
+
+|CREATE_PARTITIONS (37)
+|Alter
+|Topic
+|
+
+|CREATE_DELEGATION_TOKEN (38)
+|
+|
+|Creating delegation tokens has special rules, for this please see the +
+Authentication using Delegation Tokens section.
+
+|CREATE_DELEGATION_TOKEN (38)
+|CreateTokens
+|User
+|Allows creating delegation tokens for the User resource.
+
+|RENEW_DELEGATION_TOKEN (39)
+|
+|
+|Renewing delegation tokens has special rules, for this please see the +
+Authentication using Delegation Tokens section.
+
+|EXPIRE_DELEGATION_TOKEN (40)
+|
+|
+|Expiring delegation tokens has special rules, for this please see the +
+Authentication using Delegation Tokens section.
+
+|DESCRIBE_DELEGATION_TOKEN (41)
+|Describe
+|DelegationToken
+|Describing delegation tokens has special rules, for this please see the +
+Authentication using Delegation Tokens section.
+
+|DESCRIBE_DELEGATION_TOKEN (41)
+|DescribeTokens
+|User
+|Allows describing delegation tokens of the User resource.
+
+|DELETE_GROUPS (42)
+|Delete
+|Group
+|
+
+|ELECT_PREFERRED_LEADERS (43)
+|ClusterAction
+|Cluster
+|
+
+|INCREMENTAL_ALTER_CONFIGS (44)
+|AlterConfigs
+|Cluster
+|If broker configs are altered, then the broker will check cluster level privileges.
+
+|INCREMENTAL_ALTER_CONFIGS (44)
+|AlterConfigs
+|Topic
+|If topic configs are altered, then the broker will check topic level privileges.
+
+|ALTER_PARTITION_REASSIGNMENTS (45)
+|Alter
+|Cluster
+|
+
+|LIST_PARTITION_REASSIGNMENTS (46)
+|Describe
+|Cluster
+|
+
+|OFFSET_DELETE (47)
+|Delete
+|Group
+|
+
+|OFFSET_DELETE (47)
+|Read
+|Topic
+|
+
+|DESCRIBE_CLIENT_QUOTAS (48)
+|DescribeConfigs
+|Cluster
+|
+
+|ALTER_CLIENT_QUOTAS (49)
+|AlterConfigs
+|Cluster
+|
+
+|DESCRIBE_USER_SCRAM_CREDENTIALS (50)
+|Describe
+|Cluster
+|
+
+|ALTER_USER_SCRAM_CREDENTIALS (51)
+|Alter
+|Cluster
+|
+
+|VOTE (52)
+|ClusterAction
+|Cluster
+|
+
+|BEGIN_QUORUM_EPOCH (53)
+|ClusterAction
+|Cluster
+|
+
+|END_QUORUM_EPOCH (54)
+|ClusterAction
+|Cluster
+|
+
+|DESCRIBE_QUORUM (55)
+|Describe
+|Cluster
+|
+
+|ALTER_PARTITION (56)
+|ClusterAction
+|Cluster
+|
+
+|UPDATE_FEATURES (57)
+|Alter
+|Cluster
+|
+
+|ENVELOPE (58)
+|ClusterAction
+|Cluster
+|
+
+|FETCH_SNAPSHOT (59)
+|ClusterAction
+|Cluster
+|
+
+|DESCRIBE_CLUSTER (60)
+|Describe
+|Cluster
+|
+
+|DESCRIBE_PRODUCERS (61)
+|Read
+|Topic
+|
+
+|BROKER_REGISTRATION (62)
+|ClusterAction
+|Cluster
+|
+
+|BROKER_HEARTBEAT (63)
+|ClusterAction
+|Cluster
+|
+
+|UNREGISTER_BROKER (64)
+|Alter
+|Cluster
+|
+
+|DESCRIBE_TRANSACTIONS (65)
+|Describe
+|TransactionalId
+|
+
+|LIST_TRANSACTIONS (66)
+|Describe
+|TransactionalId
+|
+
+|ALLOCATE_PRODUCER_IDS (67)
+|ClusterAction
+|Cluster
+|
+
+|CONSUMER_GROUP_HEARTBEAT (68)
+|Read
+|Group
+|
+
+|CONSUMER_GROUP_DESCRIBE (69)
+|Read
+|Group
+|
+
+|CONTROLLER_REGISTRATION (70)
+|ClusterAction
+|Cluster
+|
+
+|GET_TELEMETRY_SUBSCRIPTIONS (71)
+|
+|
+|No authorization check is performed for this request.
+
+|PUSH_TELEMETRY (72)
+|
+|
+|No authorization check is performed for this request.
+|ASSIGN_REPLICAS_TO_DIRS (73)
+|ClusterAction
+|Cluster
+|
+
+|LIST_CONFIG_RESOURCES (74)
+|DescribeConfigs
+|Cluster
+|
+
+|DESCRIBE_TOPIC_PARTITIONS (75)
+|Describe
+|Topic
+|
+
+|SHARE_GROUP_HEARTBEAT (76)
+|Read
+|Group
+|
+
+|SHARE_GROUP_DESCRIBE (77)
+|Describe
+|Group
+|
+
+|SHARE_FETCH (78)
+|Read
+|Group
+|
+
+|SHARE_FETCH (78)
+|Read
+|Topic
+|
+
+|SHARE_ACKNOWLEDGE (79)
+|Read
+|Group
+|
+
+|SHARE_ACKNOWLEDGE (79)
+|Read
+|Topic
+|
+
+|INITIALIZE_SHARE_GROUP_STATE (83)
+|ClusterAction
+|Cluster
+|
+
+|READ_SHARE_GROUP_STATE (84)
+|ClusterAction
+|Cluster
+|
+
+|WRITE_SHARE_GROUP_STATE (85)
+|ClusterAction
+|Cluster
+|
+
+|DELETE_SHARE_GROUP_STATE (86)
+|ClusterAction
+|Cluster
+|
+
+|READ_SHARE_GROUP_STATE_SUMMARY (87)
+|ClusterAction
+|Cluster
+|
+
+|STREAMS_GROUP_HEARTBEAT (88)
+|Read
+|Group
+|
+
+|STREAMS_GROUP_HEARTBEAT (88)
+|Describe
+|Topic
+|Required for all source topics and internal topics used in the topology of the group.
+
+|STREAMS_GROUP_HEARTBEAT (88)
+|Create
+|Topic
+|Required for all internal topics, for the broker to automatically create internal topics. Not required if internal topics exist.
+
+|STREAMS_GROUP_DESCRIBE (89)
+|Describe
+|Group
+|
+
+|STREAMS_GROUP_DESCRIBE (89)
+|Describe
+|Topic
+|Required for all source topics and internal topics used in the topology of the group.
+
+|DESCRIBE_SHARE_GROUP_OFFSETS (90)
+|Describe
+|Group
+|To describe the offset information for a partition in a share group, the application must have privileges on the +
+group and the topic. Group access is checked first, then topic access.
+
+|DESCRIBE_SHARE_GROUP_OFFSETS (90)
+|Describe
+|Topic
+|
+
+|ALTER_SHARE_GROUP_OFFSETS (91)
+|Read
+|Group
+|To alter the offset information for a partition in a share group, the application must have privileges on the +
+group and the topic. Group access is checked first, then topic access.
+
+|ALTER_SHARE_GROUP_OFFSETS (91)
+|Read
+|Topic
+|
+
+|DELETE_SHARE_GROUP_OFFSETS (92)
+|Delete
+|Group
+|To delete the offset information for a topic in a share group, the application must have privileges on the +
+group and the topic. Group access is checked first, then topic access.
+
+|DELETE_SHARE_GROUP_OFFSETS (92)
+|Read
+|Topic
+|
 
 |===
 
