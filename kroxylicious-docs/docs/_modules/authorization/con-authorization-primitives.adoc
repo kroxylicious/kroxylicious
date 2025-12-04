@@ -69,7 +69,7 @@ For each message, it shows the operation and resource type that will be tested.
 |FETCH
 |Read
 |Topic
-|Regular Kafka consumers need READ permission on each partition they are fetching.
+|This applies to a normal fetch (consumer) action.
 
 // LIST_OFFSETS (2)
 |2
@@ -137,7 +137,7 @@ For each message, it shows the operation and resource type that will be tested.
 |OFFSET_FETCH
 |Describe
 |Topic
-|
+|Since offset fetch is part of the consuming process, it needs privileges for the read action.
 
 // FIND_COORDINATOR (10)
 // |10
