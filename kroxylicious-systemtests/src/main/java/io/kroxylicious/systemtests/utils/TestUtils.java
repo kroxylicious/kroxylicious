@@ -109,8 +109,8 @@ public class TestUtils {
     /**
      * Merge json files.
      *
-     * @param baseJson the base json
-     * @param overrideJson the override json
+     * @param baseJson the base json string content
+     * @param overrideJson the override json string content
      * @return  the merged json files string
      */
     public static String mergeJsonFiles(String baseJson, String overrideJson) {
