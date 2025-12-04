@@ -150,7 +150,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     CompletionStage<AuthorizeResult> authorization(FilterContext context, List<Action> actions) {
         return authorizer.authorize(context.authenticatedSubject(), actions)
                 .thenApply(authz -> {
-                    LOG.info("DENY {} to {}", authz.denied(), authz.subject());
+                    if (!authz.denied().isEmpty()) {
+                        LOG.info("DENY {} to {}", authz.denied(), authz.subject());
+                    }
                     return authz;
                 });
     }
