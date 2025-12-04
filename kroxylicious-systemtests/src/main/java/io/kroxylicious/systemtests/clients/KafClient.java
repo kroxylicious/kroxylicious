@@ -70,11 +70,15 @@ public class KafClient implements KafkaClient {
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
-        String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("Kaf_authentication_config_openshift.json")
-                : TestUtils.getJsonFileContent("Kaf_authentication_config.json");
-        jsonOverrides = jsonOverrides.replace("%CONTAINER_NAME%", name)
+
+        String openshiftOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json") : "";
+        String kafOverrides = TestUtils.getJsonFileContent("Kaf_authentication_config.json");
+
+        String jsonOverrides = TestUtils.mergeJsonFiles(kafOverrides, openshiftOverrides)
+                .replace("%CONTAINER_NAME%", name)
                 .replace("%MOUNT_PATH%", Constants.KAF_CONFIG_TEMP_DIR)
-                .replace("%CONFIGMAP_NAME%", Constants.KAF_CLIENT_CONFIG_NAME);
+                .replace("%CONFIGMAP_NAME%", Constants.KAF_CLIENT_CONFIG_NAME)
+                .replace("%CONFIG_NAME%", Constants.KAF_CONFIG_FILE_NAME);
 
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,

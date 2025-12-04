@@ -65,12 +65,6 @@ public class PythonTestClient implements KafkaClient {
         this.deployNamespace = kubeClient().getNamespace();
     }
 
-    // @Override
-    // public Map<String, String> getAdditionalSaslProps(String user, String password) {
-    // return Map.of("sasl.username", user, "sasl.password", password, SaslConfigs.SASL_MECHANISM,
-    // ScramMechanism.SCRAM_SHA_512.mechanismName(), CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
-    // }
-
     @Override
     public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                 Map<String, String> additionalConfig) {
@@ -86,7 +80,7 @@ public class PythonTestClient implements KafkaClient {
 
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using python").addArgument(topicName).log();
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
-        String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json").replace("%NAME%", name) : "";
+        String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json").replace("%CONTAINER_NAME%", name) : "";
 
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,

@@ -35,6 +35,13 @@ public interface KafkaClient {
      */
     KafkaClient inNamespace(String namespace);
 
+    /**
+     * Gets additional sasl props.
+     *
+     * @param user the user
+     * @param password the password
+     * @return  the additional sasl props
+     */
     default Map<String, String> getAdditionalSaslProps(String user, String password) {
         return Map.of("sasl.username", user, "sasl.password", password, SaslConfigs.SASL_MECHANISM,
                 ScramMechanism.SCRAM_SHA_512.mechanismName(), CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);

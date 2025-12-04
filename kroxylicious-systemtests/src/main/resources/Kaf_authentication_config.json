@@ -5,8 +5,8 @@
       "configMap": {
         "name": "%CONFIGMAP_NAME%",
         "items": [{
-          "key": "config",
-          "path": "config"
+          "key": "%CONFIG_NAME%",
+          "path": "%CONFIG_NAME%"
         }]
       }
     }],
