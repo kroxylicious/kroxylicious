@@ -25,7 +25,15 @@ public class KroxyliciousSteps {
     private KroxyliciousSteps() {
     }
 
-    public static Map<String, String> getAdditionalKafkaProps(String namespace, String user, String password) {
+    /**
+     * Gets additional SASL props.
+     *
+     * @param namespace the namespace
+     * @param user the user
+     * @param password the password
+     * @return  the additional SASL props
+     */
+    public static Map<String, String> getAdditionalSaslProps(String namespace, String user, String password) {
         return KafkaClients.getKafkaClient().inNamespace(namespace).getAdditionalSaslProps(user, password);
     }
 

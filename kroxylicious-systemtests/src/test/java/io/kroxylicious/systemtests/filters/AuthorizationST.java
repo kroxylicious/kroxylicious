@@ -105,7 +105,7 @@ class AuthorizationST extends AbstractST {
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
 
-        Map<String, String> additionalKafkaProps = KroxyliciousSteps.getAdditionalKafkaProps(namespace, user, usernamePasswords.get(user));
+        Map<String, String> additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, user, usernamePasswords.get(user));
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, additionalKafkaProps);
 
