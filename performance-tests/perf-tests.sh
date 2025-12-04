@@ -18,6 +18,8 @@ WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 COMMIT_ID=${COMMIT_ID:=$(git rev-parse --short HEAD)}
 KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
 PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/profiler-results/"}
+LOGS_OUTPUT_DIRECTORY=${logs_OUTPUT_DIRECTORY:-"${PERF_TESTS_DIR}/tmp/perf-test/logs"}
+mkdir -p "${LOGS_OUTPUT_DIRECTORY}"
 
 export RECORD_SIZE NUM_RECORDS PRODUCER_PROPERTIES WARM_UP_NUM_RECORDS_POST_BROKER_START WARM_UP_NUM_RECORDS_PRE_TEST COMMIT_ID KROXYLICIOUS_CHECKOUT
 ON_SHUTDOWN=()
@@ -65,10 +67,22 @@ setupAsyncProfilerKroxy() {
 }
 
 onExit() {
-  for cmd in "${ON_SHUTDOWN[@]}"
-  do
-    eval "${cmd}"
-  done
+  local trigger_code=$?
+    for cmd in "${ON_SHUTDOWN[@]}"
+    do
+      eval "${cmd} ${trigger_code}"
+    done
+    echo ${trigger_code} # make sure any of the shutdown commands don't mask the original exit code
+}
+
+dumpLogsOnError() {
+  local exit_code=${1:-"0"}
+  if [ "${exit_code}" -ne 0 ]; then
+    # manually output logs to a file per container.
+    ${CONTAINER_ENGINE} logs broker1 > "${LOGS_OUTPUT_DIRECTORY}/${TEST_NAME}-broker1.log"
+    ${CONTAINER_ENGINE} logs kroxylicious > "${LOGS_OUTPUT_DIRECTORY}/${TEST_NAME}-proxy.log"
+    ${CONTAINER_ENGINE} logs vault > "${LOGS_OUTPUT_DIRECTORY}/${TEST_NAME}-vault.log"
+  fi
 }
 
 mapfile -t TESTCASES -d " " < <( find "${PERF_TESTS_DIR}" -type d -regextype egrep -regex '.*/'"${TEST}" | sort )
@@ -85,10 +99,10 @@ fi
 trap onExit EXIT
 
 TMP=$(mktemp -d)
-ON_SHUTDOWN+=("rm -rf ${TMP}")
+ON_SHUTDOWN+=("dumpLogsOnError")
 
-# Bring up Kafka
 ON_SHUTDOWN+=("runDockerCompose down")
+ON_SHUTDOWN+=("rm -rf ${TMP}")
 
 [[ -n ${PULL_CONTAINERS:-} ]] && runDockerCompose pull
 
