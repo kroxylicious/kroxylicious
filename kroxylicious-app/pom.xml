@@ -110,12 +110,6 @@
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
-        <dependency>
-            <groupId>tools.profiler</groupId>
-            <artifactId>async-profiler</artifactId>
-            <version>${async-profiler.version}</version>
-            <scope>runtime</scope>
-        </dependency>
         <!-- third party dependencies - test -->
         <dependency>
             <groupId>org.assertj</groupId>
@@ -406,6 +400,14 @@
         </profile>
         <profile>
             <id>enable-profiling</id>
+            <dependencies>
+                <dependency>
+                    <groupId>tools.profiler</groupId>
+                    <artifactId>async-profiler</artifactId>
+                    <version>${async-profiler.version}</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <plugin>
