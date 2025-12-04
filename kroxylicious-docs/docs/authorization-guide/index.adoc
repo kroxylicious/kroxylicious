@@ -14,6 +14,7 @@ The Authorization filter gives the ability to add authorization checks into a Ka
 These authorization checks are performed in addition is any authorization checks made by the broker itself.
 For an action to be allowed, both the authorization filter and broker must decide that the action is allowed.
 
+include::_modules/authorization/con-authorization-primitives.adoc[leveloffset=+1]
 
 //configuring the sasl inspection filter
 include::_assemblies/assembly-configuring-authorization-filter.adoc[leveloffset=+1]

@@ -1,0 +1,36 @@
+:_mod-docs-content-type: CONCEPT
+
+
+[discrete]
+[id='con-authorization-primitives-{context}']
+= Authorization Primitives
+
+[id='authorization-primitives-{context}']
+.Table of authorization primitives
+|===
+|Resource type|Operations
+
+|Topic
+|READ, WRITE, CREATE, DELETE ALTER, DESCRIBE, DESCRIBE_CONFIGS, ALTER_CONFIGS
+
+|Cluster
+|CREATE, ALTER, DESCRIBE, CLUSTER_ACTION, DESCRIBE_CONFIGS, ALTER_CONFIGS
+
+|===
+
+[id='authorization-protocol-operation-mapping-{context}']
+.Table of protocol, operation, resource mapping
+|===
+|Message|Operation|Resource
+
+|DESCRIBE_TOPIC_PARTITIONS
+|DESCRIBE
+|Topic
+
+|PRODUCE
+|WRITE
+|Topic
+
+
+|===
+
