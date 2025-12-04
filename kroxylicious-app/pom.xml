@@ -399,7 +399,13 @@
             </dependencies>
         </profile>
         <profile>
-            <id>enable-profiling</id>
+            <id>with-profiling-libs</id>
+            <activation>
+                <property>
+                    <name>withProfilingLibs</name>
+                    <value>!false</value>
+                </property>
+            </activation>
             <dependencies>
                 <dependency>
                     <groupId>tools.profiler</groupId>
