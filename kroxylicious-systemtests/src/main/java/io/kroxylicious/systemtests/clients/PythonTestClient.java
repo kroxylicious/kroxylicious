@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +28,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.PythonTestClientConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
@@ -66,7 +68,7 @@ public class PythonTestClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+    public String produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                 Map<String, String> additionalConfig) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
@@ -97,7 +99,7 @@ public class PythonTestClient implements KafkaClient {
             executableCommand.add(key + "=" + value);
         });
 
-        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase());
+        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase());
     }
 
     @Override
@@ -120,7 +122,15 @@ public class PythonTestClient implements KafkaClient {
     }
 
     private String waitForConsumer(String namespace, String podName, Duration timeout) {
-        DeploymentUtils.waitForPodRunSucceeded(namespace, podName, timeout);
+        try {
+            DeploymentUtils.waitForPodRunSucceeded(namespace, podName, timeout);
+        }
+        catch (ConditionTimeoutException e) {
+            LOGGER.atError().setMessage("Timeout! {}: {}").addArgument(e.getMessage()).addArgument(e.getStackTrace()).log();
+        }
+        catch (KubeClusterException e) {
+            LOGGER.atError().setMessage("Failed to consume messages! {}").addArgument(e.getMessage()).log();
+        }
         return kubeClient().logsInSpecificNamespace(namespace, podName);
     }
 

@@ -63,7 +63,7 @@ public class KafkaUtils {
      * @param podName the pod name
      * @param clientName the client name
      */
-    public static void produceMessagesWithCmd(String deployNamespace, List<String> executableCommand, String message, String podName, String clientName) {
+    public static String produceMessagesWithCmd(String deployNamespace, List<String> executableCommand, String message, String podName, String clientName) {
         LOGGER.atInfo().setMessage("Executing command: {} for running {} producer").addArgument(executableCommand).addArgument(clientName).log();
         ExecResult result = Exec.exec(String.valueOf(message), executableCommand, Duration.ofSeconds(30), true, false, null);
 
@@ -76,6 +76,7 @@ public class KafkaUtils {
             LOGGER.atError().setMessage("error producing messages with {}: {}").addArgument(clientName).addArgument(log).log();
             throw new KubeClusterException("error producing messages with " + clientName + ": " + log);
         }
+        return log;
     }
 
     /**
@@ -121,6 +122,20 @@ public class KafkaUtils {
      */
     public static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {
         List<Pod> pods = await().atMost(timeout).until(() -> kubeClient().listPods(deployNamespace, labelKey, labelValue),
+                p -> !p.isEmpty());
+        return pods.get(pods.size() - 1).getMetadata().getName();
+    }
+
+    /**
+     * Gets pod name by prefix.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param prefix the prefix
+     * @param timeout the timeout
+     * @return  the pod name by prefix
+     */
+    public static String getPodNameByPrefix(String deployNamespace, String prefix, Duration timeout) {
+        List<Pod> pods = await().atMost(timeout).until(() -> kubeClient().listPodsByPrefixInName(deployNamespace, prefix),
                 p -> !p.isEmpty());
         return pods.get(pods.size() - 1).getMetadata().getName();
     }

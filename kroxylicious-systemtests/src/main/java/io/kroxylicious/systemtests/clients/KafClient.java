@@ -27,6 +27,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.KafConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
@@ -62,7 +63,7 @@ public class KafClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+    public String produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                 Map<String, String> additionalConfig) {
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
@@ -92,7 +93,7 @@ public class KafClient implements KafkaClient {
         });
         executableCommand.addAll(List.of("produce", topicName));
 
-        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
+        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
     }
 
     @Override
@@ -102,8 +103,8 @@ public class KafClient implements KafkaClient {
 
         LOGGER.atInfo().log("Consuming messages using kaf");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
-        List<String> args = List.of("-b", bootstrap, "--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME, "consume", topicName, "--output",
-                "json");
+        List<String> args = List.of("-b", bootstrap, "--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME, "consume", topicName,
+                "--output", "json");
         Job kafClientJob = TestClientsJobTemplates.authenticationKafkaGoJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, kafClientJob);
         String log = waitForConsumer(podName, numOfMessages, timeout);
@@ -128,10 +129,11 @@ public class KafClient implements KafkaClient {
         }
         catch (ConditionTimeoutException e) {
             log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-            LOGGER.atInfo().setMessage("Timeout! Received: {}").addArgument(log).log();
-            if (!kubeClient().isPodRunSucceeded(deployNamespace, podName)) {
-                throw new IllegalStateException("Error in consumer: ", e);
-            }
+            LOGGER.atError().setMessage("Timeout! Received: {}").addArgument(log).log();
+        }
+        catch (KubeClusterException e) {
+            log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+            LOGGER.atError().setMessage("Failed to consume messages! {}").addArgument(e.getMessage()).log();
         }
         return log;
     }

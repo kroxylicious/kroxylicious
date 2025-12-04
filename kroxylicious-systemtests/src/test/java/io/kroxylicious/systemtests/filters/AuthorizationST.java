@@ -36,10 +36,12 @@ import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
+import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.junit.jupiter.api.Assertions.assertAll;
 
 class AuthorizationST extends AbstractST {
     protected static final String BROKER_NODE_NAME = "kafka";
@@ -88,7 +90,7 @@ class AuthorizationST extends AbstractST {
     }
 
     @Test
-    void testScramSha512Authentication(String namespace) {
+    void testScramSha512AuthenticationAllowProduceAndConsume(String namespace) {
         // kcat does not support scram-sha-512 authentication: https://github.com/edenhill/kcat/issues/462
         assumeThat(Environment.KAFKA_CLIENT).isNotEqualToIgnoringCase(KafkaClientType.KCAT.name());
 
@@ -118,6 +120,87 @@ class AuthorizationST extends AbstractST {
                 .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+    }
+
+    @Test
+    void testScramSha512AuthenticationDenyProduceAllowConsume(String namespace) {
+        // kcat does not support scram-sha-512 authentication: https://github.com/edenhill/kcat/issues/462
+        assumeThat(Environment.KAFKA_CLIENT).isNotEqualToIgnoringCase(KafkaClientType.KCAT.name());
+
+        int numberOfMessages = 1;
+        String userBob = "bob"; // name shall be always lowercase
+        generatePasswordForNewUser(userBob);
+        String userAlice = "alice";
+        generatePasswordForNewUser(userAlice);
+        aclRules.add(generateDenyAclRule(userBob, topicName));
+        aclRules.add(generateAllowAclRule(userAlice, topicName));
+
+        // start Kroxylicious
+        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortIdentifiesNodeWithAuthorizationFilter(clusterName, usernamePasswords, aclRules);
+        bootstrap = kroxylicious.getBootstrap(clusterName);
+
+        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
+        KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
+
+        Map<String, String> additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        String log = KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, additionalKafkaProps);
+
+        assertThat(log).containsAnyOf("Not authorized to access topics: [" + topicName + "]",
+                "The client is not authorized to access this topic",
+                "Topic authorization failed");
+
+        LOGGER.atInfo().setMessage("Then aren't any messages to be consumed").log();
+        additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), additionalKafkaProps);
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .isEmpty();
+    }
+
+    @Test
+    void testScramSha512AuthenticationAllowProduceDenyConsume(String namespace) {
+        // kcat does not support scram-sha-512 authentication: https://github.com/edenhill/kcat/issues/462
+        assumeThat(Environment.KAFKA_CLIENT).isNotEqualToIgnoringCase(KafkaClientType.KCAT.name());
+
+        int numberOfMessages = 1;
+        String userBob = "bob"; // name shall be always lowercase
+        generatePasswordForNewUser(userBob);
+        String userAlice = "alice";
+        generatePasswordForNewUser(userAlice);
+        aclRules.add(generateAllowAclRule(userBob, topicName));
+        aclRules.add(generateDenyAclRule(userAlice, topicName));
+
+        // start Kroxylicious
+        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortIdentifiesNodeWithAuthorizationFilter(clusterName, usernamePasswords, aclRules);
+        bootstrap = kroxylicious.getBootstrap(clusterName);
+
+        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
+        KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
+
+        Map<String, String> additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, additionalKafkaProps);
+
+        LOGGER.atInfo().setMessage("Then aren't any messages to be consumed").log();
+        additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), additionalKafkaProps);
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        String podName = KafkaUtils.getPodNameByPrefix(namespace, Constants.KAFKA_CONSUMER_CLIENT_LABEL, Duration.ofSeconds(30));
+        String log = kubeClient().logsInSpecificNamespace(namespace, podName);
+        assertAll(() -> {
+            assertThat(log).containsAnyOf("Not authorized to access topics: [" + topicName + "]",
+                    "The client is not authorized to access this topic",
+                    "Topic authorization failed");
+            assertThat(result).withFailMessage("expected messages have not been received!")
+                    .isEmpty();
+        });
     }
 
     private String generateAllowAclRule(String userName, String topicName) {
