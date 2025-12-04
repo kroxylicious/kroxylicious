@@ -108,8 +108,7 @@ public class PythonTestClient implements KafkaClient {
         List<String> args = new ArrayList<>(List.of(PYTHON_COMMAND, CONSUMER_PATH, "-n", String.valueOf(numOfMessages), "-b", bootstrap, "-t", topicName));
         additionalConfig.forEach((key, value) -> {
             args.add("-X");
-            String data = value.replace("=", "\"");
-            args.add(key + "=" + data);
+            args.add(key + "=" + value);
         });
         Job pythonClientJob = TestClientsJobTemplates.defaultPythonJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, pythonClientJob);
