@@ -89,6 +89,7 @@ class AuthorizationST extends AbstractST {
 
     @Test
     void produceAndConsumeMessage(String namespace) {
+        // kcat does not support scram-sha-512 authentication: https://github.com/edenhill/kcat/issues/462
         assumeThat(Environment.KAFKA_CLIENT).isNotEqualToIgnoringCase(KafkaClientType.KCAT.name());
 
         int numberOfMessages = 1;
