@@ -69,7 +69,7 @@ public class PythonTestClient implements KafkaClient {
 
     @Override
     public String produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
-                                Map<String, String> additionalConfig) {
+                                  Map<String, String> additionalConfig) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
         StringBuilder msg = new StringBuilder();
