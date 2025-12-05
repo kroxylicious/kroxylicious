@@ -13,8 +13,15 @@ import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.OffsetFetchRequestData;
+import org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestGroup;
+import org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopic;
+import org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopics;
 import org.apache.kafka.common.message.OffsetFetchResponseData;
+import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseGroup;
+import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponsePartition;
+import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponsePartitions;
 import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopic;
+import org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopics;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -33,8 +40,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * At api version 8 the OffsetFetch API was evolved significantly, introducing an OffsetFetchRequestGroup list at the top level, so that
- * offsets for multiple groups can be retrieved with a single RPC. The generated java types and merge logic are different enough
- * to justify a distinct enforcer implementation.
+ * offsets for multiple groups can be retrieved with a single RPC.
  */
 public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestData, OffsetFetchResponseData> {
     public static final short FIRST_VERSION_USING_GROUP_BATCHING = 8;
@@ -72,7 +78,7 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                                                    OffsetFetchRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        if (header.requestApiVersion() <  FIRST_VERSION_USING_GROUP_BATCHING) {
+        if (header.requestApiVersion() < FIRST_VERSION_USING_GROUP_BATCHING) {
             return onRequestNonBatched(header, request, context, authorizationFilter);
         }
         else {
@@ -93,7 +99,7 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                 .toList();
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
-                    var decisions = authorization.partition(request.topics(), TopicResource.DESCRIBE, OffsetFetchRequestData.OffsetFetchRequestTopic::name);
+                    var decisions = authorization.partition(request.topics(), TopicResource.DESCRIBE, OffsetFetchRequestTopic::name);
                     if (decisions.get(Decision.DENY).isEmpty()) {
                         authorizationFilter.pushInflightState(header, new State(List.of()));
                         return context.forwardRequest(header, request);
@@ -112,7 +118,7 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                                                                                                             FilterContext context,
                                                                                                             AuthorizationFilter authorizationFilter,
                                                                                                             AuthorizeResult authorization,
-                                                                                                            Map<Decision, List<OffsetFetchRequestData.OffsetFetchRequestTopic>> t1) {
+                                                                                                            Map<Decision, List<OffsetFetchRequestTopic>> t1) {
         var allowed = request.topics().stream().filter(t -> authorization.decision(TopicResource.DESCRIBE, t.name()) == Decision.ALLOW).toList();
         authorizationFilter.pushInflightState(header, new State(createDeniedTopicResponsesNonBatched(t1.get(Decision.DENY))));
         request.setTopics(allowed);
@@ -120,7 +126,7 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
     }
 
     private static CompletionStage<RequestFilterResult> denyAllForNonBatched(FilterContext context,
-                                                                             Map<Decision, List<OffsetFetchRequestData.OffsetFetchRequestTopic>> t1) {
+                                                                             Map<Decision, List<OffsetFetchRequestTopic>> t1) {
         var offsetFetchResponseTopics = createDeniedTopicResponsesNonBatched(t1.get(Decision.DENY));
         OffsetFetchResponseData response = new OffsetFetchResponseData();
         response.setTopics(offsetFetchResponseTopics);
@@ -130,7 +136,7 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
     }
 
     private static List<OffsetFetchResponseTopic> createDeniedTopicResponsesNonBatched(
-                                                                                                     List<OffsetFetchRequestData.OffsetFetchRequestTopic> offsetFetchRequestTopics) {
+                                                                                                     List<OffsetFetchRequestTopic> offsetFetchRequestTopics) {
         return offsetFetchRequestTopics.stream().map(x -> new OffsetFetchResponseTopic()
                 .setName(x.name())
                 .setPartitions(x.partitionIndexes().stream()
@@ -141,7 +147,9 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
 
 
     @Override
-    CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header, OffsetFetchResponseData response, FilterContext context,
+    CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
+                                                     OffsetFetchResponseData response,
+                                                     FilterContext context,
                                                      AuthorizationFilter authorizationFilter) {
         var inflightState = authorizationFilter.popInflightState(header, InflightState.class);
         if (inflightState instanceof State state && state.wasAllTopicsRequest()) {
@@ -176,8 +184,9 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                 .thenCompose(authorization -> {
                     var flattenedDecisions = authorization.partition(request.groups().stream()
                             .flatMap(g -> g.topics().stream())
-                            .toList(), TopicResource.DESCRIBE, OffsetFetchRequestData.OffsetFetchRequestTopics::name);
+                            .toList(), TopicResource.DESCRIBE, OffsetFetchRequestTopics::name);
                     if (flattenedDecisions.get(Decision.DENY).isEmpty()) {
+                        authorizationFilter.pushInflightState(header, new State(List.of()));
                         return context.forwardRequest(header, request);
                     }
                     else if (flattenedDecisions.get(Decision.ALLOW).isEmpty()) {
@@ -189,19 +198,21 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                 });
     }
 
-    private static CompletionStage<RequestFilterResult> removeDeniedTopicsForwardAndMergeResultBatched(RequestHeaderData header, OffsetFetchRequestData request,
-                                                                                                       FilterContext context, AuthorizationFilter authorizationFilter,
+    private static CompletionStage<RequestFilterResult> removeDeniedTopicsForwardAndMergeResultBatched(RequestHeaderData header,
+                                                                                                       OffsetFetchRequestData request,
+                                                                                                       FilterContext context,
+                                                                                                       AuthorizationFilter authorizationFilter,
                                                                                                        AuthorizeResult authorization) {
-        List<OffsetFetchResponseData.OffsetFetchResponseGroup> toMerge = new ArrayList<>();
-        List<OffsetFetchRequestData.OffsetFetchRequestGroup> groupsToRemove = new ArrayList<>();
+        List<OffsetFetchResponseGroup> toMerge = new ArrayList<>();
+        List<OffsetFetchRequestGroup> groupsToRemove = new ArrayList<>();
         for (var requestGroup : request.groups()) {
-            Map<Decision, List<OffsetFetchRequestData.OffsetFetchRequestTopics>> partitioned = authorization.partition(requestGroup.topics(),
-                    TopicResource.DESCRIBE, OffsetFetchRequestData.OffsetFetchRequestTopics::name);
+            Map<Decision, List<OffsetFetchRequestTopics>> partitioned = authorization.partition(requestGroup.topics(),
+                    TopicResource.DESCRIBE, OffsetFetchRequestTopics::name);
             var allowed = partitioned.getOrDefault(Decision.ALLOW, List.of());
             var denied = partitioned.getOrDefault(Decision.DENY, List.of());
             if (!denied.isEmpty()) {
-                List<OffsetFetchResponseData.OffsetFetchResponseTopics> offsetFetchResponseTopics = createDeniedResponseTopicsBatched(denied);
-                toMerge.add(new OffsetFetchResponseData.OffsetFetchResponseGroup()
+                List<OffsetFetchResponseTopics> offsetFetchResponseTopics = createDeniedResponseTopicsBatched(denied);
+                toMerge.add(new OffsetFetchResponseGroup()
                         .setGroupId(requestGroup.groupId())
                         .setTopics(offsetFetchResponseTopics));
                 if (allowed.isEmpty()) {
@@ -214,8 +225,8 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
         }
         request.groups().removeAll(groupsToRemove);
         authorizationFilter.pushInflightState(header, (OffsetFetchResponseData response) -> {
-            for (OffsetFetchResponseData.OffsetFetchResponseGroup offsetFetchResponseGroup : toMerge) {
-                OffsetFetchResponseData.OffsetFetchResponseGroup upstreamResponseGroup = response.groups().stream()
+            for (OffsetFetchResponseGroup offsetFetchResponseGroup : toMerge) {
+                OffsetFetchResponseGroup upstreamResponseGroup = response.groups().stream()
                         .filter(group -> group.groupId().equals(offsetFetchResponseGroup.groupId()))
                         .findFirst().orElse(null);
                 if (upstreamResponseGroup != null) {
@@ -234,10 +245,10 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
 
     private static CompletionStage<RequestFilterResult> denyAllTopicsResponseForBatched(OffsetFetchRequestData request, FilterContext context) {
         OffsetFetchResponseData response = new OffsetFetchResponseData();
-        for (OffsetFetchRequestData.OffsetFetchRequestGroup group : request.groups()) {
-            OffsetFetchResponseData.OffsetFetchResponseGroup responseGroup = new OffsetFetchResponseData.OffsetFetchResponseGroup();
+        for (OffsetFetchRequestGroup group : request.groups()) {
+            OffsetFetchResponseGroup responseGroup = new OffsetFetchResponseGroup();
             responseGroup.setGroupId(group.groupId());
-            List<OffsetFetchResponseData.OffsetFetchResponseTopics> denyAll = createDeniedResponseTopicsBatched(group.topics());
+            List<OffsetFetchResponseTopics> denyAll = createDeniedResponseTopicsBatched(group.topics());
             responseGroup.setTopics(denyAll);
             response.groups().add(responseGroup);
         }
@@ -246,8 +257,8 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                 .completed();
     }
 
-    private static List<OffsetFetchResponseData.OffsetFetchResponseTopics> createDeniedResponseTopicsBatched(List<OffsetFetchRequestData.OffsetFetchRequestTopics> denied) {
-        return denied.stream().map(x -> new OffsetFetchResponseData.OffsetFetchResponseTopics()
+    private static List<OffsetFetchResponseTopics> createDeniedResponseTopicsBatched(List<OffsetFetchRequestTopics> denied) {
+        return denied.stream().map(x -> new OffsetFetchResponseTopics()
                         .setName(x.name())
                         .setPartitions(x.partitionIndexes().stream()
                                 .map(OffsetFetchEnforcement::unauthorizedPartitionBatched)
@@ -255,8 +266,8 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                 .toList();
     }
 
-    static OffsetFetchResponseData.OffsetFetchResponsePartitions unauthorizedPartitionBatched(Integer partitionIndex) {
-        return new OffsetFetchResponseData.OffsetFetchResponsePartitions()
+    static OffsetFetchResponsePartitions unauthorizedPartitionBatched(Integer partitionIndex) {
+        return new OffsetFetchResponsePartitions()
                 .setPartitionIndex(partitionIndex)
                 .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
                 .setMetadata(OffsetFetchResponse.NO_METADATA)
@@ -264,8 +275,8 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                 .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
     }
 
-    private static OffsetFetchResponseData.OffsetFetchResponsePartition unauthorizedPartitionNonBatched(int partitionIndex) {
-        return new OffsetFetchResponseData.OffsetFetchResponsePartition()
+    private static OffsetFetchResponsePartition unauthorizedPartitionNonBatched(int partitionIndex) {
+        return new OffsetFetchResponsePartition()
                 .setPartitionIndex(partitionIndex)
                 .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
                 .setMetadata(OffsetFetchResponse.NO_METADATA)
