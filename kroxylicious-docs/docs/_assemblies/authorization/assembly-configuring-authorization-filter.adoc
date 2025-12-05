@@ -37,3 +37,18 @@ endif::[]
 ifdef::include-platform-kubernetes[]
 include::../../_modules/authorization/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
 endif::[]
+. Configure the ACL rules.
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-example-rules-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment use a `ConfigMap` resource. See <<con-example-rules-configmap-resource-{context}>>
+endif::[]
+
+ifdef::include-platform-bare-metal[]
+include::../../_modules/authorization/con-example-rules.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-platform-kubernetes[]
+include::../../_modules/authorization/con-example-rules-configmap-resource.adoc[leveloffset=+1]
+endif::[]

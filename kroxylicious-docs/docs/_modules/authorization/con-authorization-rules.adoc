@@ -51,7 +51,7 @@ The following user predicates are supported:
 
 | `IN`
 | Set inclusion
-| `name in \{"alice", "bob"}`
+| `name in +{"alice", "bob"}+`
 
 | `LIKE`
 | Prefix (note that the wildcard * is only permitted at the end of the prefix.)
@@ -72,7 +72,7 @@ The following resource predicates are supported:
 
 | `IN`
 | Set inclusion
-| `name in \{"topic1", "topic2"}`
+| `name in +{"topic1", "topic2"}+`
 
 | `LIKE`
 | Prefix (note that the wildcard * is only permitted at the end of the prefix.)
@@ -89,7 +89,7 @@ The following resource predicates are supported:
 Rules may specify operations may be specified in the following ways:
 
 * singularly e.g `READ`
-* a set of operations e.g. `\{READ, WRITE}`
+* a set of operations e.g. `+{READ, WRITE}+`
 * wildcard e.g. `*`
 
 Note that the Authorization Filter does not support the keyword `ALL`.
