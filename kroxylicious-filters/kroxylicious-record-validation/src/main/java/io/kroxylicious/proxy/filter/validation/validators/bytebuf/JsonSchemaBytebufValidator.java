@@ -16,42 +16,44 @@ import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.record.Record;
 
 import io.apicurio.registry.resolver.strategy.ArtifactReference;
-import io.apicurio.registry.serde.AbstractKafkaSerDe;
-import io.apicurio.registry.serde.DefaultIdHandler;
+import io.apicurio.registry.serde.BaseSerde;
+import io.apicurio.registry.serde.Default4ByteIdHandler;
 import io.apicurio.registry.serde.IdHandler;
+import io.apicurio.registry.serde.Legacy8ByteIdHandler;
 import io.apicurio.registry.serde.headers.DefaultHeadersHandler;
 import io.apicurio.registry.serde.headers.HeadersHandler;
 import io.apicurio.schema.validation.json.JsonValidationResult;
 import io.apicurio.schema.validation.json.JsonValidator;
 
+import io.kroxylicious.proxy.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
 public class JsonSchemaBytebufValidator implements BytebufValidator {
     private final JsonValidator jsonValidator;
-    private final Long globalId;
+    private final Long contentId;
     private final HeadersHandler keyHeaderHandler;
     private final HeadersHandler valueHeaderHandler;
     private final IdHandler keyIdHandler;
     private final IdHandler valueIdHandler;
 
-    public JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long globalId) {
-        this.globalId = globalId;
-        this.jsonValidator = new JsonValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromGlobalId(globalId)));
+    public JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long contentId, WireFormatVersion wireFormatVersion) {
+        this.contentId = contentId;
+        this.jsonValidator = new JsonValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromContentId(contentId)));
         this.keyHeaderHandler = buildHeaderHandler(true);
-        this.keyIdHandler = buildIdHandler(true);
+        this.keyIdHandler = buildIdHandler(true, wireFormatVersion);
 
         this.valueHeaderHandler = buildHeaderHandler(false);
-        this.valueIdHandler = buildIdHandler(false);
+        this.valueIdHandler = buildIdHandler(false, wireFormatVersion);
     }
 
     @Override
     public CompletionStage<Result> validate(ByteBuffer buffer, Record record, boolean isKey) {
         try {
-            // If the record includes a schema id, validate that it is consistent with the expected globalId.
-            Optional<Long> extractedGlobalId = extractGlobalIdFromRecord(buffer, record, isKey);
-            if (extractedGlobalId.filter(e -> !e.equals(globalId)).isPresent()) {
+            // If the record includes a schema id, validate that it is consistent with the expected contentId.
+            Optional<Long> extractedContentId = extractContentIdFromRecord(buffer, record, isKey);
+            if (extractedContentId.filter(e -> !e.equals(contentId)).isPresent()) {
                 return CompletableFuture
-                        .completedStage(new Result(false, "Unexpected schema id in record (%d), expecting %d".formatted(extractedGlobalId.get(), globalId)));
+                        .completedStage(new Result(false, "Unexpected schema id in record (%d), expecting %d".formatted(extractedContentId.get(), contentId)));
             }
 
             JsonValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer);
@@ -63,22 +65,22 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
         }
     }
 
-    private Optional<Long> extractGlobalIdFromRecord(ByteBuffer buffer, Record kafkaRecord, boolean isKey) {
+    private Optional<Long> extractContentIdFromRecord(ByteBuffer buffer, Record kafkaRecord, boolean isKey) {
         if (kafkaRecord.headers().length > 0) {
             var recordHeaders = new RecordHeaders(kafkaRecord.headers());
             var headerHandler = isKey ? keyHeaderHandler : valueHeaderHandler;
             var ref = headerHandler.readHeaders(recordHeaders);
 
-            if (ref.getGlobalId() != null) {
-                return Optional.of(ref.getGlobalId());
+            if (ref.getContentId() != null) {
+                return Optional.of(ref.getContentId());
             }
         }
 
         var idHandler = isKey ? keyIdHandler : valueIdHandler;
         var minBytes = 1 + idHandler.idSize();
-        if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == AbstractKafkaSerDe.MAGIC_BYTE) {
+        if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == BaseSerde.MAGIC_BYTE) {
             buffer.get(); // ignore magic
-            return Optional.of(idHandler.readId(buffer).getGlobalId());
+            return Optional.of(idHandler.readId(buffer).getContentId());
         }
         return Optional.empty();
     }
@@ -89,8 +91,11 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
         return handler;
     }
 
-    private static DefaultIdHandler buildIdHandler(boolean isKey) {
-        var handler = new DefaultIdHandler();
+    private static IdHandler buildIdHandler(boolean isKey, WireFormatVersion wireFormatVersion) {
+        IdHandler handler = switch (wireFormatVersion) {
+            case V2 -> new Legacy8ByteIdHandler();
+            case V3 -> new Default4ByteIdHandler();
+        };
         handler.configure(Map.of(), isKey);
         return handler;
     }
