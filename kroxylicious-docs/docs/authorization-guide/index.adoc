@@ -14,6 +14,9 @@ include::_assemblies/authorization/assembly-authorization-overview.adoc[leveloff
 // authorization model
 include::_modules/authorization/con-authorization-model.adoc[leveloffset=+1]
 
+// authorization rules
+include::_modules/authorization/con-authorization-rules.adoc[leveloffset=+1]
+
 //configuring the authorization filter
 include::_assemblies/authorization/assembly-configuring-authorization-filter.adoc[leveloffset=+1]
 
