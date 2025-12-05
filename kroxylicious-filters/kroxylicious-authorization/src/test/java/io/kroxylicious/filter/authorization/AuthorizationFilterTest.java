@@ -124,8 +124,8 @@ class AuthorizationFilterTest {
                                 .doesNotContain("[]");
                     }
                     else {
-                        //false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
-                        //noinspection ResultOfMethodCallIgnored
+                        // false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
+                        // noinspection ResultOfMethodCallIgnored
                         fail("unexpected event logged: %s", event.getFormattedMessage());
                     }
                 });
@@ -175,7 +175,8 @@ class AuthorizationFilterTest {
                     throw new IllegalStateException("mock upstream still has responses queued, but filter short circuit responded");
                 }
                 if (definition.then().expectedErrorResponse() != null) {
-                    assertThat(actual).isInstanceOfSatisfying(MockFilterContext.ErrorRequestFilterResult.class, result -> assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception()));
+                    assertThat(actual).isInstanceOfSatisfying(MockFilterContext.ErrorRequestFilterResult.class,
+                            result -> assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception()));
                 }
                 else {
                     if (definition.then().expectedResponseHeader() != null) {
