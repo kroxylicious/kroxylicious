@@ -79,6 +79,7 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
         boolean wasAllTopicsRequest() {
             return deniedTopics == null;
         }
+
         @Override
         public OffsetFetchResponseData merge(OffsetFetchResponseData response) {
             response.topics().addAll(Objects.requireNonNull(deniedTopics));
@@ -115,8 +116,8 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                     if (batched) {
                         var flattenedDecisions = authorization.partition(
                                 request.groups().stream()
-                                    .flatMap(g -> g.topics().stream())
-                                    .toList(),
+                                        .flatMap(g -> g.topics().stream())
+                                        .toList(),
                                 TopicResource.DESCRIBE,
                                 OffsetFetchRequestTopics::name);
                         if (flattenedDecisions.get(Decision.DENY).isEmpty()) {
@@ -212,7 +213,6 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                 .setCommittedLeaderEpoch(RecordBatch.NO_PARTITION_LEADER_EPOCH)
                 .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
     }
-
 
     @Override
     CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
