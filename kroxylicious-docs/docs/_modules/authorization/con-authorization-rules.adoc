@@ -1,0 +1,95 @@
+:_mod-docs-content-type: CONCEPT
+
+
+[id='con-authorization-rules-{context}']
+= Authorization Rules
+
+The authorization rules define who is allowed to do what.
+The basic form of a rule is as follows:
+
+[source]
+----
+<allow|deny> User with <principal predicate> to <operation> <resource type> with <resource predicate>;
+----
+where:
+
+* `<allow|deny>` indicates whether to allow or deny the action.
+* `<user predicate>` matches the user performing the action.
+* `<resource type>` and `<resource predicate>` identifies the resource.
+* `<operation>` identifies the operation(s) to be performed on the resource.
+
+`<resource type>` before be declared before use.
+This is done with a `from` statement in the following form:
+
+[source]
+----
+from <package> import <element> [as <alias>][,... , <elementn> [as <aliasn>]];
+----
+where:
+
+* <package> is `io.kroxylicious.filter.authorization`
+* <element> is the `ResourceType` implementation `TopicResource`.
+* <alias> is an optional alias for the resource type.
+
+Rules files must end with the statement `otherwise deny`.
+[source]
+----
+...
+otherwise deny;
+----
+
+== User Predicates
+
+The following user predicates are supported:
+
+|===
+|Predicate|Description|Example
+
+| `=`
+| Equality
+| `name = "alice"`
+
+| `IN`
+| Set inclusion
+| `name in \{"alice", "bob"}`
+
+| `LIKE`
+| Prefix (note that the wildcard * is only permitted at the end of the prefix.)
+| `name like "bob*"`
+
+|===
+
+== Resource Predicates
+
+The following resource predicates are supported:
+
+|===
+|Predicate|Description|Example
+
+| `=`
+| Equality
+| `name = "mytopic"`
+
+| `IN`
+| Set inclusion
+| `name in \{"topic1", "topic2"}`
+
+| `LIKE`
+| Prefix (note that the wildcard * is only permitted at the end of the prefix.)
+| `name like "finance*"`
+
+| `MATCHING`
+| Regular expression match
+| `name like "a+"`
+
+|===
+
+== Operations
+
+Rules may specify operations may be specified in the following ways:
+
+* singularly e.g `READ`
+* a set of operations e.g. `\{READ, WRITE}`
+* wildcard e.g. `*`
+
+Note that the Authorization Filter does not support the keyword `ALL`.
