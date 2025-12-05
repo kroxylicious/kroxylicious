@@ -38,7 +38,21 @@ public class OpaAuthorizer implements Authorizer {
     private final ObjectMapper mapper = new ObjectMapper();
 
     private OpaAuthorizer(OpaPolicy policy, String dataJson) {
+        validateData(dataJson);
         this.policy = policy.data(dataJson);
+    }
+
+    private void validateData(String data) {
+        // TODO: more proper validation should happen on the data
+        try {
+            var opaData = mapper.readValue(data, OpaData.class);
+            if (opaData.topics().size() <= 0) {
+                throw new IllegalArgumentException("OPA data should have at least one configured topic");
+            }
+        }
+        catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Failed to validate configuration data for OPA", e);
+        }
     }
 
     @Override
