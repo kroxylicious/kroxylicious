@@ -6,32 +6,23 @@
 
 package kroxylicious.abac
 
+default allow := false
+
 # METADATA
 # entrypoint: true
-result := {
-	"allowed": [action |
-		some action in input.actions
-		action_allowed(action)
-	],
-	"denied": [action |
-		some action in input.actions
-		not action_allowed(action)
-	]
-}
-
-action_allowed(action) if {
+allow if {
 	user_is_admin
-	action.action in {"create", "delete"}
+	action_allowed_for_admin
 }
 
-action_allowed(action) if {
-	user_is_owner(action)
-	action.action in {"read", "write", "describe", "describe_configs", "alter", "alter_configs"}
+allow if {
+	user_is_owner
+	action_allowed_for_owner
 }
 
-action_allowed(action) if {
-	user_is_subscriber(action)
-	action.action in {"read", "describe"}
+allow if {
+	user_is_subscriber
+	action_allowed_for_subscriber
 }
 
 user_is_admin if {
@@ -42,21 +33,25 @@ user_is_admin if {
 	]) > 0
 }
 
-user_is_owner(action) if {
+user_is_owner if {
 	count([p |
 		some p in input.subject.principals
 		p.type == "User"
-		p.name == data.topics[action.resourceName].owner
+		p.name == data.topics[input.resourceName].owner
 	]) > 0
 }
 
-user_is_subscriber(action) if {
+user_is_subscriber if {
 	count([p |
 		some p in input.subject.principals
 		p.type == "User"
 		count([s |
-			some s in data.topics[action.resourceName].subscribers
+			some s in data.topics[input.resourceName].subscribers
 			s == p.name
 		]) > 0
 	]) > 0
 }
+
+action_allowed_for_admin if input.action in {"create", "delete"}
+action_allowed_for_owner if input.action in {"read", "write", "describe", "describe_configs", "alter", "alter_configs"}
+action_allowed_for_subscriber if input.action in {"read", "describe"}
