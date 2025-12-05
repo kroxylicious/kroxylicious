@@ -98,11 +98,73 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
             authorizationFilter.pushInflightState(header, new State(null));
             return context.forwardRequest(header, request);
         }
+        List<Action> actions = topicActions(request, batched);
+
+        return authorizationFilter.authorization(context, actions)
+                .thenCompose(authorization -> {
+                    if (batched) {
+                        return onBatchedRequest(header, request, context, authorizationFilter, authorization);
+                    }
+                    else {
+                        return onNonBatchedRequest(header, request, context, authorizationFilter, authorization);
+                    }
+                });
+    }
+
+    private static CompletionStage<RequestFilterResult> onNonBatchedRequest(RequestHeaderData header,
+                                                                            OffsetFetchRequestData request,
+                                                                            FilterContext context,
+                                                                            AuthorizationFilter authorizationFilter,
+                                                                            AuthorizeResult authorization) {
+        var decisions = authorization.partition(request.topics(),
+                TopicResource.DESCRIBE,
+                OffsetFetchRequestTopic::name);
+        var denied = decisions.get(Decision.DENY);
+        var allowed = decisions.get(Decision.ALLOW);
+        if (denied.isEmpty()) {
+            authorizationFilter.pushInflightState(header, new State(List.of()));
+            return context.forwardRequest(header, request);
+        }
+        else if (allowed.isEmpty()) {
+            return denyAllForNonBatched(context, decisions);
+        }
+        else {
+            return removeDeniedTopicsAndForwardNonBatched(header, request, context, authorizationFilter,
+                    allowed,
+                    denied);
+        }
+    }
+
+    private static CompletionStage<RequestFilterResult> onBatchedRequest(RequestHeaderData header,
+                                                                         OffsetFetchRequestData request,
+                                                                         FilterContext context,
+                                                                         AuthorizationFilter authorizationFilter,
+                                                                         AuthorizeResult authorization) {
+        var flattenedDecisions = authorization.partition(
+                request.groups().stream()
+                        .flatMap(g -> g.topics().stream())
+                        .toList(),
+                TopicResource.DESCRIBE,
+                OffsetFetchRequestTopics::name);
+        if (flattenedDecisions.get(Decision.DENY).isEmpty()) {
+            authorizationFilter.pushInflightState(header, new State(List.of()));
+            return context.forwardRequest(header, request);
+        }
+        else if (flattenedDecisions.get(Decision.ALLOW).isEmpty()) {
+            return denyAllTopicsResponseForBatched(request, context);
+        }
+        else {
+            return removeDeniedTopicsAndForwardBatched(header, request, context, authorizationFilter, authorization);
+        }
+    }
+
+    private static List<Action> topicActions(OffsetFetchRequestData request, boolean batched) {
         List<Action> actions;
         if (batched) {
             actions = request.groups().stream()
                     .flatMap(ofrq -> ofrq.topics().stream())
                     .map(ofrt -> new Action(TopicResource.DESCRIBE, ofrt.name()))
+                    .distinct()
                     .toList();
         }
         else {
@@ -110,47 +172,7 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                     .map(ofrd -> new Action(TopicResource.DESCRIBE, ofrd.name()))
                     .toList();
         }
-
-        return authorizationFilter.authorization(context, actions)
-                .thenCompose(authorization -> {
-                    if (batched) {
-                        var flattenedDecisions = authorization.partition(
-                                request.groups().stream()
-                                        .flatMap(g -> g.topics().stream())
-                                        .toList(),
-                                TopicResource.DESCRIBE,
-                                OffsetFetchRequestTopics::name);
-                        if (flattenedDecisions.get(Decision.DENY).isEmpty()) {
-                            authorizationFilter.pushInflightState(header, new State(List.of()));
-                            return context.forwardRequest(header, request);
-                        }
-                        else if (flattenedDecisions.get(Decision.ALLOW).isEmpty()) {
-                            return denyAllTopicsResponseForBatched(request, context);
-                        }
-                        else {
-                            return removeDeniedTopicsAndForwardBatched(header, request, context, authorizationFilter, authorization);
-                        }
-                    }
-                    else {
-                        var decisions = authorization.partition(request.topics(),
-                                TopicResource.DESCRIBE,
-                                OffsetFetchRequestTopic::name);
-                        var denied = decisions.get(Decision.DENY);
-                        var allowed = decisions.get(Decision.ALLOW);
-                        if (denied.isEmpty()) {
-                            authorizationFilter.pushInflightState(header, new State(List.of()));
-                            return context.forwardRequest(header, request);
-                        }
-                        else if (allowed.isEmpty()) {
-                            return denyAllForNonBatched(context, decisions);
-                        }
-                        else {
-                            return removeDeniedTopicsAndForwardNonBatched(header, request, context, authorizationFilter,
-                                    allowed,
-                                    denied);
-                        }
-                    }
-                });
+        return actions;
     }
 
     private static CompletionStage<RequestFilterResult> removeDeniedTopicsAndForwardNonBatched(RequestHeaderData header,
