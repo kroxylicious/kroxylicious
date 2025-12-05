@@ -7,12 +7,14 @@
 package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,12 +27,12 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.StrimziTestClientConsumerRecord;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -60,11 +62,21 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, @NonNull CompressionType compressionType,
-                                int numOfMessages) {
+    public Map<String, String> getAdditionalSaslProps(String user, String password) {
+        String jaasConfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\" algorithm=SHA-512;".formatted(user,
+                password);
+        Map<String, String> additionalProps = new HashMap<>(KafkaClient.super.getAdditionalSaslProps(user, password));
+        additionalProps.putIfAbsent(SaslConfigs.SASL_JAAS_CONFIG, jaasConfig);
+        return additionalProps;
+    }
+
+    @Override
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                Map<String, String> additionalConfig) {
         LOGGER.atInfo().log("Producing messages using Strimzi Test Client");
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
-        Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey, compressionType).build();
+        Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey,
+                additionalConfig).build();
         KafkaUtils.produceMessages(deployNamespace, topicName, name, testClientJob);
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         String log = waitForProducer(deployNamespace, podName, Duration.ofSeconds(60));
@@ -75,7 +87,7 @@ public class StrimziTestClient implements KafkaClient {
     private static String waitForProducer(String namespace, String podName, Duration timeout) {
         String log;
         try {
-            log = await().alias("Consumer waiting to receive messages")
+            log = await().alias("Producer waiting to send records")
                     .ignoreException(KubernetesClientException.class)
                     .atMost(timeout)
                     .until(() -> {
@@ -83,7 +95,7 @@ public class StrimziTestClient implements KafkaClient {
                             return kubeClient().logsInSpecificNamespace(namespace, podName);
                         }
                         return null;
-                    }, m -> m != null && m.contains("Sending message:"));
+                    }, m -> m != null && (m.contains("All messages successfully sent") || m.contains("Unable to correctly send all messages")));
         }
         catch (ConditionTimeoutException e) {
             log = kubeClient().logsInSpecificNamespace(namespace, podName);
@@ -93,10 +105,10 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     @Override
-    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
-        LOGGER.atInfo().log("Consuming messages using Strimzi Test Client");
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig) {
+        LOGGER.atInfo().log("Consuming records using Strimzi Test Client");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
-        Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
+        Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages, additionalConfig).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
         KafkaUtils.deleteJob(testClientJob);
@@ -106,7 +118,15 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     private String waitForConsumer(String namespace, String podName, Duration timeout) {
-        DeploymentUtils.waitForPodRunSucceeded(namespace, podName, timeout);
+        try {
+            DeploymentUtils.waitForPodRunSucceeded(namespace, podName, timeout);
+        }
+        catch (ConditionTimeoutException e) {
+            LOGGER.atError().setMessage("Timeout! {}: {}").addArgument(e.getMessage()).addArgument(e.getStackTrace()).log();
+        }
+        catch (KubeClusterException e) {
+            LOGGER.atError().setMessage("Failed to consume messages! {}").addArgument(e.getMessage()).log();
+        }
         return kubeClient().logsInSpecificNamespace(namespace, podName);
     }
 

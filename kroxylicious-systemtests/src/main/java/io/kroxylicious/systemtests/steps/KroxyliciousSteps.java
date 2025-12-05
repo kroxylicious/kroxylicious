@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.steps;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.kafka.common.record.CompressionType;
 
@@ -22,6 +23,18 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class KroxyliciousSteps {
 
     private KroxyliciousSteps() {
+    }
+
+    /**
+     * Gets additional SASL props.
+     *
+     * @param namespace the namespace
+     * @param user the user
+     * @param password the password
+     * @return  the additional SASL props
+     */
+    public static Map<String, String> getAdditionalSaslProps(String namespace, String user, String password) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).getAdditionalSaslProps(user, password);
     }
 
     /**
@@ -53,6 +66,21 @@ public class KroxyliciousSteps {
     }
 
     /**
+     * Produce messages.
+     *
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param numberOfMessages the number of messages
+     * @param additionalConfig the additional config
+     */
+    public static void produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages,
+                                       Map<String, String> additionalConfig) {
+        KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, null, numberOfMessages, additionalConfig);
+    }
+
+    /**
      * Consume messages.
      *
      * @param namespace the namespace
@@ -60,10 +88,26 @@ public class KroxyliciousSteps {
      * @param bootstrap the bootstrap
      * @param numberOfMessages the number of messages
      * @param timeout the timeout
-     * @return the list of ConsumerRecords
+     * @return  the list of ConsumerRecords
      */
     public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
-        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout);
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, Map.of());
+    }
+
+    /**
+     * Consume messages.
+     *
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numberOfMessages the number of messages
+     * @param timeout the timeout
+     * @param additionalConfig the additional config
+     * @return  the list of ConsumerRecords
+     */
+    public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout,
+                                                       Map<String, String> additionalConfig) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig);
     }
 
     /**

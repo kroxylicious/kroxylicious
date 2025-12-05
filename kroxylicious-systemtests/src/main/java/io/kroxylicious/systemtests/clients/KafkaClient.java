@@ -8,8 +8,14 @@ package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.ScramMechanism;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -30,6 +36,18 @@ public interface KafkaClient {
     KafkaClient inNamespace(String namespace);
 
     /**
+     * Gets additional sasl props.
+     *
+     * @param user the user
+     * @param password the password
+     * @return  the additional sasl props
+     */
+    default Map<String, String> getAdditionalSaslProps(String user, String password) {
+        return Map.of("sasl.username", user, "sasl.password", password, SaslConfigs.SASL_MECHANISM,
+                ScramMechanism.SCRAM_SHA_512.mechanismName(), CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
+    }
+
+    /**
      * Produce messages.
      *
      * @param topicName the topic name
@@ -39,7 +57,7 @@ public interface KafkaClient {
      * @throws KubeClusterException the kube cluster exception
      */
     default void produceMessages(String topicName, String bootstrap, String message, int numOfMessages) throws KubeClusterException {
-        produceMessages(topicName, bootstrap, message, null, CompressionType.NONE, numOfMessages);
+        produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of());
     }
 
     /**
@@ -54,7 +72,7 @@ public interface KafkaClient {
      */
     default void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages)
             throws KubeClusterException {
-        produceMessages(topicName, bootstrap, message, messageKey, CompressionType.NONE, numOfMessages);
+        produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, Map.of());
     }
 
     /**
@@ -69,7 +87,7 @@ public interface KafkaClient {
      */
     default void produceMessages(String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numOfMessages)
             throws KubeClusterException {
-        produceMessages(topicName, bootstrap, message, null, compressionType, numOfMessages);
+        produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType.name));
     }
 
     /**
@@ -79,11 +97,11 @@ public interface KafkaClient {
      * @param bootstrap the bootstrap
      * @param message the message
      * @param messageKey optional record key for the message. <code>null</code> means don't specify a key
-     * @param compressionType the compression type
      * @param numOfMessages the num of messages
+     * @param additionalConfig the additional config
      * @throws KubeClusterException the kube cluster exception
      */
-    void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, @NonNull CompressionType compressionType, int numOfMessages)
+    void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
             throws KubeClusterException;
 
     /**
@@ -93,7 +111,22 @@ public interface KafkaClient {
      * @param bootstrap the bootstrap
      * @param numOfMessages the num of messages
      * @param timeout the timeout
-     * @return the list of ConsumerRecords
+     * @return  the list of ConsumerRecords
+     * @throws KubeClusterException the kube cluster exception
      */
-    List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout);
+    default List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) throws KubeClusterException {
+        return consumeMessages(topicName, bootstrap, numOfMessages, timeout, Map.of());
+    }
+
+    /**
+     * Consume messages.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numOfMessages the num of messages
+     * @param timeout the timeout
+     * @param additionalConfig the additional config
+     * @return  the list of ConsumerRecords
+     */
+    List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig);
 }

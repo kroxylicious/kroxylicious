@@ -35,7 +35,7 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(TestVisualSeparatorExtension.class)
 @ExtendWith(KroxyliciousExtension.class)
-class AbstractST {
+public class AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractST.class);
 
     /**

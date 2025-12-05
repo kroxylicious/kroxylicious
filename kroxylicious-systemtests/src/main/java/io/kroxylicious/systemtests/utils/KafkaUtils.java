@@ -97,7 +97,7 @@ public class KafkaUtils {
      * @param clientJob the client job
      */
     public static void deleteJob(Job clientJob) {
-        kubeClient().getClient().batch().v1().jobs().resource(clientJob).withTimeout(30, TimeUnit.SECONDS).delete();
+        kubeClient().getClient().batch().v1().jobs().resource(clientJob).withGracePeriod(10).withTimeout(30, TimeUnit.SECONDS).delete();
     }
 
     /**
@@ -121,6 +121,20 @@ public class KafkaUtils {
      */
     public static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {
         List<Pod> pods = await().atMost(timeout).until(() -> kubeClient().listPods(deployNamespace, labelKey, labelValue),
+                p -> !p.isEmpty());
+        return pods.get(pods.size() - 1).getMetadata().getName();
+    }
+
+    /**
+     * Gets pod name by prefix.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param prefix the prefix
+     * @param timeout the timeout
+     * @return  the pod name by prefix
+     */
+    public static String getPodNameByPrefix(String deployNamespace, String prefix, Duration timeout) {
+        List<Pod> pods = await().atMost(timeout).until(() -> kubeClient().listPodsByPrefixInName(deployNamespace, prefix),
                 p -> !p.isEmpty());
         return pods.get(pods.size() - 1).getMetadata().getName();
     }

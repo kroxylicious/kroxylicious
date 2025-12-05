@@ -24,10 +24,13 @@ public final class Constants {
     public static final String KROXYLICIOUS_PROXY_SIMPLE_NAME = "simple";
     public static final String KROXYLICIOUS_INGRESS_CLUSTER_IP = "cluster-ip";
     public static final String KROXYLICIOUS_ENCRYPTION_FILTER_NAME = "encryption";
+    public static final String KROXYLICIOUS_AUTHORIZATION_FILTER_NAME = "authorization";
+    public static final String KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME = "sasl-inspector";
     public static final String KROXYLICIOUS_TLS_CLIENT_CA_CERT = "my-cluster-clients-ca-cert";
     public static final String KROXYLICIOUS_TLS_CA_NAME = "ca.pem";
     public static final String KROXYLICIOUS_OPERATOR_SUBSCRIPTION_NAME = Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME + "-v" + Environment.KROXYLICIOUS_OPERATOR_VERSION
             + "-sub";
+    public static final String KROXYLICIOUS_ADMIN_USER = "admin";
 
     /**
      * Strimzi cluster operator deployment name
@@ -126,6 +129,8 @@ public final class Constants {
     public static final String KAFKA_CONSUMER_CLIENT_LABEL = "kafka-consumer-client";
     public static final String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
     public static final String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
+    public static final String KAFKA_ADMIN_CLIENT_CONFIG_NAME = "admin-client-config";
+    public static final String KAF_CLIENT_CONFIG_NAME = "kaf-client-config";
     /**
      * Image pull policies
      */
@@ -172,4 +177,8 @@ public final class Constants {
     public static final String CREDENTIALS_TEMP_DIR = "/opt/kroxylicious/secure/secret/";
     public static final String KEYSTORE_TEMP_DIR = CREDENTIALS_TEMP_DIR + KEYSTORE_SECRET_NAME + "/";
     public static final String TRUSTSTORE_TEMP_DIR = CREDENTIALS_TEMP_DIR + TRUSTSTORE_SECRET_NAME + "/";
+    public static final String CONFIG_PROP_FILE_NAME = "config.properties";
+    public static final String CONFIG_PROP_TEMP_DIR = "/home/strimzi/.admin_client/";
+    public static final String KAF_CONFIG_TEMP_DIR = "/tmp/.kaf/";
+    public static final String KAF_CONFIG_FILE_NAME = "config";
 }

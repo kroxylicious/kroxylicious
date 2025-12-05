@@ -9,13 +9,13 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.record.CompressionType;
+import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,12 +28,12 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.PythonTestClientConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
@@ -68,8 +68,8 @@ public class PythonTestClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, @NonNull CompressionType compressionType,
-                                int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                Map<String, String> additionalConfig) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
         StringBuilder msg = new StringBuilder();
@@ -82,28 +82,36 @@ public class PythonTestClient implements KafkaClient {
 
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using python").addArgument(topicName).log();
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
-        String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json").replace("%NAME%", name) : "";
+        String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json").replace("%CONTAINER_NAME%", name) : "";
 
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
                 "--image=" + Constants.PYTHON_CLIENT_IMAGE,
                 "--override-type=strategic",
                 "--overrides=" + jsonOverrides,
-                "--", PYTHON_COMMAND, PRODUCER_PATH, "-b", bootstrap, "-t", topicName, "-X", ProducerConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType.name));
+                "--", PYTHON_COMMAND, PRODUCER_PATH, "-b", bootstrap, "-t", topicName));
         recordKey.ifPresent(key -> {
             executableCommand.add("-k");
             executableCommand.add(key);
+        });
+        additionalConfig.forEach((key, value) -> {
+            executableCommand.add("-X");
+            executableCommand.add(key + "=" + value);
         });
 
         KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase());
     }
 
     @Override
-    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig) {
         LOGGER.atInfo().log("Consuming messages using python");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
         // Running consumer with parameters to get the latest N number of messages received to avoid consuming twice the same messages
-        List<String> args = List.of(PYTHON_COMMAND, CONSUMER_PATH, "-n", String.valueOf(numOfMessages), "-b", bootstrap, "-t", topicName);
+        List<String> args = new ArrayList<>(List.of(PYTHON_COMMAND, CONSUMER_PATH, "-n", String.valueOf(numOfMessages), "-b", bootstrap, "-t", topicName));
+        additionalConfig.forEach((key, value) -> {
+            args.add("-X");
+            args.add(key + "=" + value);
+        });
         Job pythonClientJob = TestClientsJobTemplates.defaultPythonJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, pythonClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
@@ -114,7 +122,15 @@ public class PythonTestClient implements KafkaClient {
     }
 
     private String waitForConsumer(String namespace, String podName, Duration timeout) {
-        DeploymentUtils.waitForPodRunSucceeded(namespace, podName, timeout);
+        try {
+            DeploymentUtils.waitForPodRunSucceeded(namespace, podName, timeout);
+        }
+        catch (ConditionTimeoutException e) {
+            LOGGER.atError().setMessage("Timeout! {}: {}").addArgument(e.getMessage()).addArgument(e.getStackTrace()).log();
+        }
+        catch (KubeClusterException e) {
+            LOGGER.atError().setMessage("Failed to consume messages! {}").addArgument(e.getMessage()).log();
+        }
         return kubeClient().logsInSpecificNamespace(namespace, podName);
     }
 

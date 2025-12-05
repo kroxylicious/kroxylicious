@@ -27,6 +27,7 @@ import io.skodjob.testframe.clients.KubeClient;
 import io.skodjob.testframe.clients.cmdClient.Kubectl;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.user.KafkaUser;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -141,6 +142,7 @@ public class TestLogCollector {
                 Constants.JOB,
                 Kafka.RESOURCE_SINGULAR,
                 KafkaNodePool.RESOURCE_SINGULAR,
+                KafkaUser.RESOURCE_SINGULAR,
                 Constants.KROXYLICIOUS_KAFKA_PROXY_INGRESS_KIND,
                 Constants.KROXYLICIOUS_KAFKA_PROXY_KIND,
                 Constants.KROXYLICIOUS_KAFKA_SERVICE_KIND,
