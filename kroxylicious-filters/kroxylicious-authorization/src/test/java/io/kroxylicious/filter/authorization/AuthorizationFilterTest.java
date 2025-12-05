@@ -48,6 +48,7 @@ import static java.util.EnumSet.complementOf;
 import static java.util.EnumSet.copyOf;
 import static java.util.EnumSet.of;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 class AuthorizationFilterTest {
 
@@ -100,8 +101,7 @@ class AuthorizationFilterTest {
             throw new IllegalStateException("test has finished, but mock responses are still queued");
         }
 
-        assertOnlyDenialsLogged();
-
+        assertOutcomeLogged();
         // we expect that any inflight state pushed during a request is always popped on the corresponding response
         // if it is non-empty then we may have a memory leak
         assertThat(authorizationFilter.inflightState())
@@ -109,12 +109,26 @@ class AuthorizationFilterTest {
                 .isEmpty();
     }
 
-    private static void assertOnlyDenialsLogged() {
-        assertThat(logCaptor.getLogs())
-                .allSatisfy(logMsg -> assertThat(logMsg)
-                        .isNotEmpty()
-                        .startsWith("DENY")
-                        .doesNotContain("[]"));
+    private static void assertOutcomeLogged() {
+        assertThat(logCaptor.getLogEvents())
+                .isNotEmpty()
+                .allSatisfy(event -> {
+                    if ("INFO".equalsIgnoreCase(event.getLevel())) {
+                        assertThat(event.getFormattedMessage())
+                                .startsWith("DENY")
+                                .doesNotContain("[]");
+                    }
+                    else if ("DEBUG".equalsIgnoreCase(event.getLevel())) {
+                        assertThat(event.getFormattedMessage())
+                                .containsAnyOf("ALLOW", "NON-AUTHORIZABLE")
+                                .doesNotContain("[]");
+                    }
+                    else {
+                        //false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
+                        //noinspection ResultOfMethodCallIgnored
+                        fail("unexpected event logged: %s", event.getFormattedMessage());
+                    }
+                });
     }
 
     private static void handleRequestForward(ScenarioDefinition definition, CompletionStage<RequestFilterResult> stage, MockUpstream mockUpstream, Subject subject,
@@ -161,9 +175,7 @@ class AuthorizationFilterTest {
                     throw new IllegalStateException("mock upstream still has responses queued, but filter short circuit responded");
                 }
                 if (definition.then().expectedErrorResponse() != null) {
-                    assertThat(actual).isInstanceOfSatisfying(MockFilterContext.ErrorRequestFilterResult.class, result -> {
-                        assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception());
-                    });
+                    assertThat(actual).isInstanceOfSatisfying(MockFilterContext.ErrorRequestFilterResult.class, result -> assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception()));
                 }
                 else {
                     if (definition.then().expectedResponseHeader() != null) {
