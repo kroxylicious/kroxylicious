@@ -10,18 +10,17 @@ include::_assets/attributes.adoc[]
 include::_modules/authorization/con-about-{guide}-guide.adoc[leveloffset=+1]
 
 [role="_abstract"]
-The Authorization filter gives the ability to add authorization checks into a Kafka system which will be enforced by the proxy.
+The Authorization filter provides the ability for the proxy to enforce an authorization policy about Kafka resources.
 These authorization checks are performed in addition to any authorization checks made by the broker itself.
 For an action to be allowed, both the authorization filter and broker must decide that the action is allowed.
 
 In general, the Authorization filter will make access decisions in the same manner as Kafka itself.
-This means it will apply the same authorizer checks that Kafka enforces itself and generate error responses in the same way.
-Indeed, from the client's perspective, it will be impossible for it to distinguish between the proxy and kafka cluster itself.
+From the client's perspective, it will be impossible for it to distinguish between authorization enforced on the proxy and authorization enforced on the kafka cluster itself.
 
-In order to use the authorization filter, the proxy must be configured in such a way that it knows the authenticated principal.
+In order to use the authorization filter, the proxy must be configured in such a way that it knows the authenticated subject.
 If your applications are using TLS client authentication this may be as achieved using TODO: link to configuring subject builder
 within the virtual cluster.  If your applications are authenticating using SASL, configure a TODO: link SASL Inspection Filter
-to extract the authenticated principal from the client/broker SASL negotiation.
+to build a subject from the successful client/broker SASL authentication.
 
 // authorization primitives
 include::_modules/authorization/con-authorization-primitives.adoc[leveloffset=+1]
