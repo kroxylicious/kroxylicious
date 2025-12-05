@@ -51,7 +51,7 @@ class AuthorizationST extends AbstractST {
     private String bootstrap;
     private KroxyliciousOperator kroxyliciousOperator;
     private static Kroxylicious kroxylicious;
-    private Map<String, String> usernamePasswords = new HashMap<>();
+    private final Map<String, String> usernamePasswords = new HashMap<>();
     List<String> aclRules;
 
     @BeforeAll
@@ -74,7 +74,6 @@ class AuthorizationST extends AbstractST {
         kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         kroxyliciousOperator.deploy();
 
-        usernamePasswords = new HashMap<>();
         generatePasswordForNewUser(Constants.KROXYLICIOUS_ADMIN_USER);
     }
 
