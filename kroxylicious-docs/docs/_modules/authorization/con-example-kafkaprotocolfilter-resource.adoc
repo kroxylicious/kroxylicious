@@ -23,7 +23,7 @@ spec:
   configTemplate:
     authorizer: AclAuthorizerService # <1>
     authorizerConfig:
-      aclFile: ${configmap:myconfigmap:acl-rules.txt} # <2>
+      aclFile: ${configmap:acl-rules:acl-rules.txt} # <2>
 ----
 <1> Name of the authorizer service implementation.  Currently, this has to be `AclAuthorizerService`.
 <2> Reference to file containing the ACL rules. This may take advantage of a link:{DocRoot}/kroxylicious-operator#assembly-operator-secure-filter-securing/[interpolation reference] to reference rules stored within a Kubernetes `ConfigMap` or `Secret` resource.
