@@ -1,8 +1,8 @@
 :_mod-docs-content-type: CONCEPT
 
 
-[id='con-authorization-primitives-{context}']
-= Authorization Primitives
+[id='con-authorization-model-{context}']
+= Authorization Model
 
 Kafka clients send Kafka messages to perform operations on resources in Kafka.
 It is required to know the operations and resources to effectively configure authorization checks.

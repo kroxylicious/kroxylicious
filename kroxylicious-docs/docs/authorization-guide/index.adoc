@@ -23,7 +23,7 @@ within the virtual cluster.  If your applications are authenticating using SASL,
 to build a subject from the successful client/broker SASL authentication.
 
 // authorization primitives
-include::_modules/authorization/con-authorization-primitives.adoc[leveloffset=+1]
+include::_modules/authorization/con-authorization-model.adoc[leveloffset=+1]
 
 //configuring the authorization filter
 include::_assemblies/assembly-configuring-authorization-filter.adoc[leveloffset=+1]
