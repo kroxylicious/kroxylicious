@@ -1,0 +1,69 @@
+:_mod-docs-content-type: CONCEPT
+
+
+[id='con-authorization-model-{context}']
+= Authorization Model
+
+In Kafka, clients perform operations on resources in Kafka.
+
+The tables below lists the resource types and the operations that apply to them.
+
+== Resource type and operations
+
+This table lists the resources types and operations enforced by the authorization filter.
+
+[id='authorization-resource-types-and-operations-{context}']
+.Table of authorization resource types and operation
+|===
+|Resource type|Operations|Typical use-case
+
+.8+|Topic
+|READ
+|Required for a consuming client to fetch record.
+
+|WRITE
+|Required for a producing client to produce records.
+|CREATE
+.3+|Required for an admin client to create, delete or alter topics.
+
+|DELETE
+
+|ALTER
+
+|DESCRIBE
+|Required for an admin client to perform the describe operations that refer to topic resources.
+
+|DESCRIBE_CONFIGS
+|Required for an admin client to perform describe config operations that refer to topic configuration.
+
+|ALTER_CONFIGS
+|Required for an admin client to perform alter config operations that relate to topic configuration.
+
+// |Cluster
+// |CREATE, ALTER, DESCRIBE, CLUSTER_ACTION, DESCRIBE_CONFIGS, ALTER_CONFIGS
+
+|===
+
+== Implied Operations
+
+In the authorization model, having permissions to some, _higher_, operations implies permissions on other, _lower_, operations.
+
+[id='authorization-implied-operations-{context}']
+.Table of implied operations
+|===
+|Resource type|Operation|Implied Operation
+
+.5+|Topic
+|READ
+.4+|DESCRIBE
+
+|WRITE
+
+|DELETE
+
+|ALTER
+
+|ALTER_CONFIGS
+|DESCRIBE_CONFIG
+
+|===

@@ -10,7 +10,7 @@
 [role="_abstract"]
 If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
 
-Here's a complete example of a `filterDefinitions` entry configured for Oauth Bearer validation:
+Here's a complete example of a `filterDefinitions` entry configured for SASL inspection:
 
 .Example `filterDefinitions` configuration
 [source, yaml]

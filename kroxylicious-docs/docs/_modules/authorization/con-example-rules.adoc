@@ -1,0 +1,24 @@
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-authorization-filter.adoc
+
+[id='con-example-rules-{context}']
+= Example ACL Rules
+
+[role="_abstract"]
+If your instance of the Kroxylicious Proxy runs directly on an operating system, provide a file containing the rules
+and reference it from the proxy configuration.
+
+Here's a complete example of an ACL rules file. Name the file `acl-rules.txt`.
+
+.Example ACL rules file
+[source]
+----
+from io.kroxylicious.filter.authorization import TopicResource as Topic;
+deny User with name = "alice" to * Topic with name = "foobar";
+allow User with name = "alice" to * Topic with name like "foo*";
+allow User with name = "bob" to * Topic with name = "foobar";
+otherwise deny;
+----
