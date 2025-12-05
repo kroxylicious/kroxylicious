@@ -58,6 +58,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
             @Override
             CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header, ApiVersionsResponseData response, FilterContext context,
                                                              AuthorizationFilter authorizationFilter) {
+                AuthorizationFilter.nonAuthorizableRequest(context);
                 return authorizationFilter.checkCompat(header, response, context);
             }
         });
@@ -150,9 +151,25 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     CompletionStage<AuthorizeResult> authorization(FilterContext context, List<Action> actions) {
         return authorizer.authorize(context.authenticatedSubject(), actions)
                 .thenApply(authz -> {
-                    LOG.info("DENY {} to {}", authz.denied(), authz.subject());
+                    if (!authz.denied().isEmpty()) {
+                        LOG.info("DENY {} to {}", authz.denied(), authz.subject());
+                    }
+                    else if (!authz.allowed().isEmpty()) {
+                        LOG.debug("ALLOW {} to {}", authz.allowed(), authz.subject());
+                    }
+                    else if (actions.isEmpty()) {
+                        LOG.debug("ALLOW {} no authorizable actions", authz.subject());
+                    }
                     return authz;
                 });
+    }
+
+    static void nonAuthorizableRequest(FilterContext context) {
+        LOG.debug("NON-AUTHORIZABLE request from {}", context.authenticatedSubject());
+    }
+
+    static void nonAuthorizableResponse(FilterContext context) {
+        LOG.debug("NON-AUTHORIZABLE response from {}", context.authenticatedSubject());
     }
 
     <R> void pushInflightState(RequestHeaderData header, InflightState<R> inflightState) {
