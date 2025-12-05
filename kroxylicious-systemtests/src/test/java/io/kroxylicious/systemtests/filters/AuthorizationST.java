@@ -146,8 +146,10 @@ class AuthorizationST extends AbstractST {
 
         Map<String, String> additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
-        String log = KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, additionalKafkaProps);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, additionalKafkaProps);
 
+        String podName = KafkaUtils.getPodNameByPrefix(namespace, Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(30));
+        String log = kubeClient().logsInSpecificNamespace(namespace, podName);
         assertThat(log).containsAnyOf("Not authorized to access topics: [" + topicName + "]",
                 "The client is not authorized to access this topic",
                 "Topic authorization failed");

@@ -62,7 +62,7 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
-    public String produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                   Map<String, String> additionalConfig) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
@@ -95,7 +95,7 @@ public class KcatClient implements KafkaClient {
             executableCommand.add(key + "=" + value);
         });
 
-        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.KCAT.name().toLowerCase());
+        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.KCAT.name().toLowerCase());
     }
 
     @Override

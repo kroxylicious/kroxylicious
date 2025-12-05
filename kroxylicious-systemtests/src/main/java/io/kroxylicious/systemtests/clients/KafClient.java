@@ -63,7 +63,7 @@ public class KafClient implements KafkaClient {
     }
 
     @Override
-    public String produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                   Map<String, String> additionalConfig) {
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
@@ -93,7 +93,7 @@ public class KafClient implements KafkaClient {
         });
         executableCommand.addAll(List.of("produce", topicName));
 
-        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
+        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
     }
 
     @Override

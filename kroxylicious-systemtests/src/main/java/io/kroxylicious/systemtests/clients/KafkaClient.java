@@ -56,8 +56,8 @@ public interface KafkaClient {
      * @param numOfMessages the num of messages
      * @throws KubeClusterException the kube cluster exception
      */
-    default String produceMessages(String topicName, String bootstrap, String message, int numOfMessages) throws KubeClusterException {
-        return produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of());
+    default void produceMessages(String topicName, String bootstrap, String message, int numOfMessages) throws KubeClusterException {
+        produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of());
     }
 
     /**
@@ -70,9 +70,9 @@ public interface KafkaClient {
      * @param numOfMessages the num of messages
      * @throws KubeClusterException the kube cluster exception
      */
-    default String produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages)
+    default void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages)
             throws KubeClusterException {
-        return produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, Map.of());
+        produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, Map.of());
     }
 
     /**
@@ -85,9 +85,9 @@ public interface KafkaClient {
      * @param numOfMessages the num of messages
      * @throws KubeClusterException the kube cluster exception
      */
-    default String produceMessages(String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numOfMessages)
+    default void produceMessages(String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numOfMessages)
             throws KubeClusterException {
-        return produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType.name));
+        produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType.name));
     }
 
     /**
@@ -101,7 +101,7 @@ public interface KafkaClient {
      * @param additionalConfig the additional config
      * @throws KubeClusterException the kube cluster exception
      */
-    String produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
+    void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
             throws KubeClusterException;
 
     /**

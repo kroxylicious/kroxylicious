@@ -68,7 +68,7 @@ public class PythonTestClient implements KafkaClient {
     }
 
     @Override
-    public String produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                   Map<String, String> additionalConfig) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
@@ -99,7 +99,7 @@ public class PythonTestClient implements KafkaClient {
             executableCommand.add(key + "=" + value);
         });
 
-        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase());
+        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase());
     }
 
     @Override

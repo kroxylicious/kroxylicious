@@ -71,7 +71,7 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     @Override
-    public String produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                   Map<String, String> additionalConfig) {
         LOGGER.atInfo().log("Producing messages using Strimzi Test Client");
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
@@ -82,7 +82,6 @@ public class StrimziTestClient implements KafkaClient {
         String log = waitForProducer(deployNamespace, podName, Duration.ofSeconds(60));
         KafkaUtils.deleteJob(testClientJob);
         LOGGER.atInfo().setMessage("client producer log: {}").addArgument(log).log();
-        return log;
     }
 
     private static String waitForProducer(String namespace, String podName, Duration timeout) {
