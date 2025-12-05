@@ -42,17 +42,21 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import nl.altindag.log.LogCaptor;
 
 import static java.util.EnumSet.complementOf;
 import static java.util.EnumSet.copyOf;
 import static java.util.EnumSet.of;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 class AuthorizationFilterTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile("scenarios/.*\\.yaml");
+
+    private static final LogCaptor logCaptor = LogCaptor.forClass(AuthorizationFilter.class);
 
     static Stream<Arguments> authorization() throws Exception {
         List<ClassPath.ResourceInfo> resources = ClassPath.from(AuthorizationFilterTest.class.getClassLoader()).getResources().stream()
@@ -96,11 +100,35 @@ class AuthorizationFilterTest {
         if (!mockUpstream.isFinished()) {
             throw new IllegalStateException("test has finished, but mock responses are still queued");
         }
+
+        assertOutcomeLogged();
         // we expect that any inflight state pushed during a request is always popped on the corresponding response
         // if it is non-empty then we may have a memory leak
         assertThat(authorizationFilter.inflightState())
                 .describedAs("inflight state")
                 .isEmpty();
+    }
+
+    private static void assertOutcomeLogged() {
+        assertThat(logCaptor.getLogEvents())
+                .isNotEmpty()
+                .allSatisfy(event -> {
+                    if ("INFO".equalsIgnoreCase(event.getLevel())) {
+                        assertThat(event.getFormattedMessage())
+                                .startsWith("DENY")
+                                .doesNotContain("[]");
+                    }
+                    else if ("DEBUG".equalsIgnoreCase(event.getLevel())) {
+                        assertThat(event.getFormattedMessage())
+                                .containsAnyOf("ALLOW", "NON-AUTHORIZABLE")
+                                .doesNotContain("[]");
+                    }
+                    else {
+                        // false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
+                        // noinspection ResultOfMethodCallIgnored
+                        fail("unexpected event logged: %s", event.getFormattedMessage());
+                    }
+                });
     }
 
     private static void handleRequestForward(ScenarioDefinition definition, CompletionStage<RequestFilterResult> stage, MockUpstream mockUpstream, Subject subject,
@@ -147,9 +175,8 @@ class AuthorizationFilterTest {
                     throw new IllegalStateException("mock upstream still has responses queued, but filter short circuit responded");
                 }
                 if (definition.then().expectedErrorResponse() != null) {
-                    assertThat(actual).isInstanceOfSatisfying(MockFilterContext.ErrorRequestFilterResult.class, result -> {
-                        assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception());
-                    });
+                    assertThat(actual).isInstanceOfSatisfying(MockFilterContext.ErrorRequestFilterResult.class,
+                            result -> assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception()));
                 }
                 else {
                     if (definition.then().expectedResponseHeader() != null) {
@@ -203,7 +230,8 @@ class AuthorizationFilterTest {
                 ApiKeys.DESCRIBE_CONFIGS,
                 ApiKeys.ALTER_CONFIGS,
                 ApiKeys.INCREMENTAL_ALTER_CONFIGS,
-                ApiKeys.CONSUMER_GROUP_DESCRIBE);
+                ApiKeys.CONSUMER_GROUP_DESCRIBE,
+                ApiKeys.DESCRIBE_GROUPS);
         EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.PRODUCE,
                 ApiKeys.FETCH,
                 ApiKeys.OFFSET_COMMIT,

@@ -54,6 +54,7 @@ class Passthrough<Q extends ApiMessage, S extends ApiMessage> extends ApiEnforce
                                                    Q request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
+        AuthorizationFilter.nonAuthorizableRequest(context);
         return context.forwardRequest(header, request);
     }
 
@@ -62,7 +63,7 @@ class Passthrough<Q extends ApiMessage, S extends ApiMessage> extends ApiEnforce
                                                      S response,
                                                      FilterContext context,
                                                      AuthorizationFilter authorizationFilter) {
-
+        AuthorizationFilter.nonAuthorizableResponse(context);
         return context.forwardResponse(header, response);
     }
 }

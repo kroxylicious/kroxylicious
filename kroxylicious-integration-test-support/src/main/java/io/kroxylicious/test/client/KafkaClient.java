@@ -6,7 +6,6 @@
 
 package io.kroxylicious.test.client;
 
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -223,13 +222,15 @@ public final class KafkaClient implements AutoCloseable {
 
     private static class TrustingTrustManager implements X509TrustManager {
 
+        @SuppressWarnings("java:S4830")
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType) {
             // we are trust all - nothing to do.
         }
 
+        @SuppressWarnings("java:S4830")
         @Override
-        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+        public void checkServerTrusted(X509Certificate[] chain, String authType) {
             // we are trust all - nothing to do.
         }
 
