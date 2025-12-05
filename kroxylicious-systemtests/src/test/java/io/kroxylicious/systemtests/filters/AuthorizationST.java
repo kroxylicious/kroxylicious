@@ -73,14 +73,15 @@ class AuthorizationST extends AbstractST {
 
         kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         kroxyliciousOperator.deploy();
+
+        usernamePasswords = new HashMap<>();
+        generatePasswordForNewUser(Constants.KROXYLICIOUS_ADMIN_USER);
     }
 
     @BeforeEach
     void beforeEach() {
         bootstrap = null;
-        usernamePasswords = new HashMap<>();
         aclRules = new ArrayList<>();
-        generatePasswordForNewUser(Constants.KROXYLICIOUS_ADMIN_USER);
         aclRules.add(generateAllowAclRule(Constants.KROXYLICIOUS_ADMIN_USER, "*"));
     }
 
