@@ -64,7 +64,7 @@ public class KafClient implements KafkaClient {
 
     @Override
     public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
-                                  Map<String, String> additionalConfig) {
+                                Map<String, String> additionalConfig) {
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
 

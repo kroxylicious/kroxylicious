@@ -72,7 +72,7 @@ public class StrimziTestClient implements KafkaClient {
 
     @Override
     public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
-                                  Map<String, String> additionalConfig) {
+                                Map<String, String> additionalConfig) {
         LOGGER.atInfo().log("Producing messages using Strimzi Test Client");
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
         Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey,

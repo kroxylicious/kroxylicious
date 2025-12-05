@@ -76,7 +76,7 @@ public class KroxyliciousSteps {
      * @param additionalConfig the additional config
      */
     public static void produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages,
-                                         Map<String, String> additionalConfig) {
+                                       Map<String, String> additionalConfig) {
         KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, null, numberOfMessages, additionalConfig);
     }
 
