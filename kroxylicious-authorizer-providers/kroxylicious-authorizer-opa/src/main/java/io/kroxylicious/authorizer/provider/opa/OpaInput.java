@@ -9,44 +9,31 @@ package io.kroxylicious.authorizer.provider.opa;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public final class OpaInput {
-    @JsonProperty("actions")
-    OpaAction[] actions;
+    @JsonProperty("action")
+    String action;
+
+    @JsonProperty("resourceName")
+    String resourceName;
 
     @JsonProperty("subject")
     OpaSubject subject;
 
-    public OpaInput(OpaAction[] actions, OpaSubject subject) {
-        this.actions = actions;
+    public OpaInput(String action, String resourceName, OpaSubject subject) {
+        this.action = action;
+        this.resourceName = resourceName;
         this.subject = subject;
     }
 
-    public OpaAction[] actions() {
-        return actions;
+    public String action() {
+        return action;
+    }
+
+    public String resourceName() {
+        return resourceName;
     }
 
     public OpaSubject subject() {
         return subject;
-    }
-
-    public static final class OpaAction {
-        @JsonProperty("action")
-        String action;
-
-        @JsonProperty("resourceName")
-        String resourceName;
-
-        public OpaAction(String action, String resourceName) {
-            this.action = action;
-            this.resourceName = resourceName;
-        }
-
-        public String action() {
-            return action;
-        }
-
-        public String resourceName() {
-            return resourceName;
-        }
     }
 
     public static final class OpaSubject {

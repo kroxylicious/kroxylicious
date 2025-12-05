@@ -8,13 +8,13 @@ package io.kroxylicious.authorizer.provider.opa;
 
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,57 +43,38 @@ public class OpaAuthorizer implements Authorizer {
 
     @Override
     public CompletionStage<AuthorizeResult> authorize(Subject subject, List<Action> actions) {
-        if (actions.isEmpty()) {
-            return CompletableFuture.completedStage(
-                    new AuthorizeResult(subject, List.of(), List.of()));
-        }
-
         var principals = subject.principals().stream()
                 .map(p -> new OpaInput.OpaPrincipal(p.name(), getPrincipalType(p)))
                 .toArray(OpaInput.OpaPrincipal[]::new);
         var opaSubject = new OpaInput.OpaSubject(principals);
-        var opaActions = actions.stream()
-                .map(action -> new OpaInput.OpaAction(operationName(action), action.resourceName()))
-                .toArray(OpaInput.OpaAction[]::new);
 
-        var input = new OpaInput(opaActions, opaSubject);
+        var allowedActions = new ArrayList<Action>();
+        var deniedActions = new ArrayList<Action>();
 
-        var inputNode = mapper.valueToTree(input);
+        for (var action : actions) {
+            var input = new OpaInput(operationName(action), action.resourceName(), opaSubject);
+            var inputNode = mapper.valueToTree(input);
 
-        var resultStr = policy.evaluate(inputNode);
+            var resultStr = policy.evaluate(inputNode);
 
-        try {
-            var results = mapper.readValue(resultStr, OpaResult[].class);
-            var result = results.length > 0 && results[0].result() != null ? results[0].result() : new OpaResult.OpaResultData();
+            try {
+                var results = mapper.readValue(resultStr, OpaResult[].class);
+                var allow = results.length > 0 && results[0].result() != null && results[0].result();
 
-            var allowedResults = result.allowed() != null
-                    ? java.util.Arrays.stream(result.allowed())
-                            .filter(java.util.Objects::nonNull)
-                            .collect(Collectors.toSet())
-                    : Set.<OpaResult.OpaActionResult> of();
-            var deniedResults = result.denied() != null
-                    ? java.util.Arrays.stream(result.denied())
-                            .filter(java.util.Objects::nonNull)
-                            .collect(Collectors.toSet())
-                    : Set.<OpaResult.OpaActionResult> of();
-
-            var allowedActions = actions.stream()
-                    .filter(action -> allowedResults.stream()
-                            .anyMatch(r -> operationName(action).equals(r.action())
-                                    && action.resourceName().equals(r.resourceName())))
-                    .collect(Collectors.toUnmodifiableList());
-            var deniedActions = actions.stream()
-                    .filter(action -> deniedResults.stream()
-                            .anyMatch(r -> operationName(action).equals(r.action())
-                                    && action.resourceName().equals(r.resourceName())))
-                    .collect(Collectors.toUnmodifiableList());
-
-            return CompletableFuture.completedStage(
-                    new AuthorizeResult(subject, allowedActions, deniedActions));
+                if (allow) {
+                    allowedActions.add(action);
+                }
+                else {
+                    deniedActions.add(action);
+                }
+            }
+            catch (JsonProcessingException e) {
+                throw new RuntimeException("Failed to parse result: " + resultStr, e);
+            }
         }
-        catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to parse result: " + resultStr, e);
-        }
+
+        return CompletableFuture.completedStage(
+                new AuthorizeResult(subject, allowedActions, deniedActions));
     }
 
     private static String getPrincipalType(Principal principal) {

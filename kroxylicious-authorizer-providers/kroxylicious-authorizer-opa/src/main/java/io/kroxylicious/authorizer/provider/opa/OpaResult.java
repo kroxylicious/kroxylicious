@@ -13,54 +13,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public final class OpaResult {
     @JsonProperty("result")
     @Nullable
-    OpaResultData result;
+    Boolean result;
 
     public OpaResult() {
     }
 
-    public OpaResultData result() {
+    public Boolean result() {
         return result;
-    }
-
-    public static final class OpaResultData {
-        @JsonProperty("allowed")
-        @Nullable
-        OpaActionResult[] allowed;
-
-        @JsonProperty("denied")
-        @Nullable
-        OpaActionResult[] denied;
-
-        public OpaResultData() {
-        }
-
-        public OpaActionResult[] allowed() {
-            return allowed;
-        }
-
-        public OpaActionResult[] denied() {
-            return denied;
-        }
-    }
-
-    public static final class OpaActionResult {
-        @JsonProperty("action")
-        @Nullable
-        String action;
-
-        @JsonProperty("resourceName")
-        @Nullable
-        String resourceName;
-
-        public OpaActionResult() {
-        }
-
-        public String action() {
-            return action;
-        }
-
-        public String resourceName() {
-            return resourceName;
-        }
     }
 }
