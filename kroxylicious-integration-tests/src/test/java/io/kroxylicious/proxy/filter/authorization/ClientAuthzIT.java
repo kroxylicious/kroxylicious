@@ -27,6 +27,8 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.AlterConfigOp;
 import org.apache.kafka.clients.admin.Config;
 import org.apache.kafka.clients.admin.ConfigEntry;
+import org.apache.kafka.clients.admin.ConsumerGroupDescription;
+import org.apache.kafka.clients.admin.MemberDescription;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
@@ -95,6 +97,7 @@ class ClientAuthzIT extends AuthzIT {
     public static final IntegerSerializer INTEGER_SERIALIZER = new IntegerSerializer();
     public static final StringDeserializer STRING_DESERIALIZER = new StringDeserializer();
     public static final IntegerDeserializer INTEGER_DESERIALIZER = new IntegerDeserializer();
+    public static final int UUID_STRING_LENGTH = 36;
 
     @Name("kafkaClusterWithAuthz")
     static Admin kafkaClusterWithAuthzAdmin;
@@ -348,6 +351,24 @@ class ClientAuthzIT extends AuthzIT {
                 outcome = Fail.of(e);
             }
             return trace("alterConfigs", outcome);
+        }
+
+        public Outcome<ConsumerGroupDescription> describeConsumerGroup(String groupId) {
+            Outcome<ConsumerGroupDescription> outcome;
+            try {
+                outcome = new Success<>(admin
+                        .describeConsumerGroups(List.of(groupId))
+                        .all()
+                        .get().get(groupId));
+            }
+            catch (ExecutionException e) {
+                outcome = Fail.of(e);
+            }
+            catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            trace("describeConsumerGroup", outcome.map(ClientAuthzIT::cleanConsumerGroupDescription));
+            return outcome;
         }
     }
 
@@ -651,6 +672,7 @@ class ClientAuthzIT extends AuthzIT {
             String setupUser = ALICE;
             String producerUser = ALICE;
             String consumerUser = ALICE;
+            String adminUser = ALICE;
 
             try (var setup = clientFactory.newAdmin(setupUser, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "setup"))) {
                 setup.createTopic(topicA);
@@ -720,6 +742,12 @@ class ClientAuthzIT extends AuthzIT {
                         assertThat(transactionalProducer.sendOffsetsToTransaction(offsets, metadata).value()).isNull();
                         transactionalProducer.commitTransaction();
 
+                    }
+
+                    try (var admin = clientFactory.newAdmin(adminUser, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "admin"))) {
+                        ConsumerGroupDescription actual = admin.describeConsumerGroup(GROUP_2).value();
+                        assertThat(actual.groupId()).isEqualTo(GROUP_2);
+                        assertThat(actual.members()).hasSize(1);
                     }
                 }
                 setup.deleteTopic(topicA);
@@ -919,6 +947,33 @@ class ClientAuthzIT extends AuthzIT {
                     cleanNodes(topicPartitionInfo.elr()),
                     cleanNodes(topicPartitionInfo.lastKnownElr()));
         }
+    }
+
+    static ConsumerGroupDescription cleanConsumerGroupDescription(ConsumerGroupDescription groupDescription) {
+        return new ConsumerGroupDescription(
+                groupDescription.groupId(),
+                groupDescription.isSimpleConsumerGroup(),
+                groupDescription.members().stream().map(ClientAuthzIT::cleanGroupMember).toList(),
+                groupDescription.partitionAssignor(),
+                groupDescription.type(),
+                groupDescription.groupState(),
+                cleanNode(groupDescription.coordinator()),
+                groupDescription.authorizedOperations(),
+                groupDescription.groupEpoch(),
+                groupDescription.targetAssignmentEpoch());
+    }
+
+    private static MemberDescription cleanGroupMember(MemberDescription memberDescription) {
+        return new MemberDescription(
+                memberDescription.consumerId().substring(0,
+                        memberDescription.consumerId().length() - UUID_STRING_LENGTH),
+                memberDescription.groupInstanceId(),
+                memberDescription.clientId(),
+                memberDescription.host(),
+                memberDescription.assignment(),
+                memberDescription.targetAssignment(),
+                memberDescription.memberEpoch(),
+                memberDescription.upgraded());
     }
 
     static List<Node> cleanNodes(List<Node> nodes) {
