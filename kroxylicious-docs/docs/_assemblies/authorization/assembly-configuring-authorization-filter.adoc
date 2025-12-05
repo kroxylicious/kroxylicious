@@ -31,9 +31,9 @@ ifdef::include-platform-kubernetes[]
 endif::[]
 
 ifdef::include-platform-bare-metal[]
-include::../_modules/authorization/con-example-proxy-config.adoc[leveloffset=+1]
+include::../../_modules/authorization/con-example-proxy-config.adoc[leveloffset=+1]
 endif::[]
 
 ifdef::include-platform-kubernetes[]
-include::../_modules/authorization/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
+include::../../_modules/authorization/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
 endif::[]
