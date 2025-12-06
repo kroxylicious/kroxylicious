@@ -25,6 +25,7 @@
 
     <modules>
         <module>kroxylicious-authorizer-acl</module>
+        <module>kroxylicious-authorizer-opa</module>
     </modules>
 
 </project>

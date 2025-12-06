@@ -72,6 +72,7 @@
         <apicurio-registry.version>2.6.13.Final</apicurio-registry.version>
         <apicurio-common.version>0.1.18.Final</apicurio-common.version>
         <jose4j.version>0.9.6</jose4j.version>
+        <opa.version>1.0.2</opa.version>
 
         <!-- Test dependencies -->
         <strimzi.version>0.48.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
@@ -309,6 +310,11 @@
                 <groupId>org.bitbucket.b_c</groupId>
                 <artifactId>jose4j</artifactId>
                 <version>${jose4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.styra.opa</groupId>
+                <artifactId>opa-java-wasm</artifactId>
+                <version>${opa.version}</version>
             </dependency>
 
             <!-- third party dependencies - test -->
