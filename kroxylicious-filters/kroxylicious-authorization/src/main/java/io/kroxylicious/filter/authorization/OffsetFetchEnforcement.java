@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.authorization;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -29,10 +30,13 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.requests.OffsetFetchResponse;
 
 import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestData, OffsetFetchResponseData> {
     /*
@@ -102,25 +106,6 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
         return context.forwardRequest(header, request);
     }
 
-    private static OffsetFetchResponsePartition unauthorizedPartitionNonBatched(int partitionIndex) {
-        return new OffsetFetchResponsePartition()
-                .setPartitionIndex(partitionIndex)
-                .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
-                .setMetadata(OffsetFetchResponse.NO_METADATA)
-                .setCommittedLeaderEpoch(RecordBatch.NO_PARTITION_LEADER_EPOCH)
-                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
-    }
-
-    static OffsetFetchResponsePartitions unauthorizedPartitionBatched(Integer partitionIndex) {
-        // this looks almost identical to the above method: the difference is plural vs singular of the type names in the method signature
-        return new OffsetFetchResponsePartitions()
-                .setPartitionIndex(partitionIndex)
-                .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
-                .setMetadata(OffsetFetchResponse.NO_METADATA)
-                .setCommittedLeaderEpoch(RecordBatch.NO_PARTITION_LEADER_EPOCH)
-                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
-    }
-
     @Override
     CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
                                                      OffsetFetchResponseData response,
@@ -131,7 +116,55 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
             context.forwardResponse(header, response);
         }
 
-        var actions = Stream.concat(
+        var actions = topicActions(response);
+        return authorizationFilter.authorization(context, actions)
+                .thenCompose(authorization -> {
+                    @Nullable
+                    List<OffsetFetchResponseTopic> topLevelTopics = response.topics();
+                    if (topLevelTopics != null) {
+                        applyTopLevelTopicAuthz(state, authorization, topLevelTopics);
+                    }
+                    @Nullable
+                    List<OffsetFetchResponseGroup> groups = response.groups();
+                    if (groups != null) {
+                        for (var group : groups) {
+                            @Nullable
+                            List<OffsetFetchResponseTopics> groupLevelTopics = group.topics();
+                            if (groupLevelTopics != null) {
+                                applyGroupScopedTopicAuthz(state, authorization, group, groupLevelTopics);
+                            }
+                        }
+                    }
+                    return context.forwardResponse(header, response);
+                });
+
+    }
+
+    private static void applyTopLevelTopicAuthz(RequestKind state,
+                                                AuthorizeResult authorization,
+                                                List<OffsetFetchResponseTopic> topLevelTopics) {
+        var partition = authorization.partition(topLevelTopics,
+                TopicResource.DESCRIBE,
+                OffsetFetchResponseTopic::name);
+        var denied = partition.get(Decision.DENY);
+        if (state.topLevelAllTopics()) {
+            // client asked for all topics => we filter out the denied ones
+            topLevelTopics.removeAll(denied);
+        }
+        else {
+            // client queried for specific topics, => we must include error codes for those
+            for (var t : topLevelTopics) {
+                if (denied.contains(t)) {
+                    t.setPartitions(t.partitions().stream()
+                            .map(p -> OffsetFetchEnforcement.unauthorizedTopLevelPartition(p.partitionIndex()))
+                            .toList());
+                }
+            }
+        }
+    }
+
+    private static List<Action> topicActions(OffsetFetchResponseData response) {
+        return Stream.concat(
                 Optional.ofNullable(response.topics()).stream() // the non-batched case
                         .flatMap(Collection::stream)
                         .map(OffsetFetchResponseTopic::name),
@@ -142,50 +175,48 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                         .distinct())
                 .map(topicName -> new Action(TopicResource.DESCRIBE, topicName))
                 .toList();
-        return authorizationFilter.authorization(context, actions)
-                .thenCompose(authorization -> {
-                    if (response.topics() != null) {
-                        var partition = authorization.partition(response.topics(),
-                                TopicResource.DESCRIBE,
-                                OffsetFetchResponseTopic::name);
-                        var denied = partition.get(Decision.DENY);
-                        if (state.topLevelAllTopics()) { // client asked for all topics => we filter out the denied ones
-                            response.topics().removeAll(denied);
-                        }
-                        else { // client queried for specific topics, => we must include error codes for those
-                            for (var t : response.topics()) {
-                                if (denied.contains(t)) {
-                                    t.setPartitions(t.partitions().stream()
-                                            .map(p -> OffsetFetchEnforcement.unauthorizedPartitionNonBatched(p.partitionIndex()))
-                                            .toList());
-                                }
-                            }
-                        }
-                    }
-                    if (response.groups() != null) {
-                        for (var group : response.groups()) {
-                            if (group.topics() != null) {
-                                var denied = authorization.partition(group.topics(),
-                                        TopicResource.DESCRIBE,
-                                        OffsetFetchResponseTopics::name).get(Decision.DENY);
-                                if (state.isGroupWithAllTopics(group)) { // client asked for all topics => we filter out the denied ones
-                                    group.topics().removeAll(denied);
-                                }
-                                else { // client queried for specific topics, => we must include error codes for those
-                                    for (var t : group.topics()) {
-                                        if (denied.contains(t)) {
-                                            t.setPartitions(t.partitions().stream()
-                                                    .map(p -> OffsetFetchEnforcement.unauthorizedPartitionBatched(p.partitionIndex()))
-                                                    .toList());
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    return context.forwardResponse(header, response);
-                });
+    }
 
+    private static void applyGroupScopedTopicAuthz(RequestKind state,
+                                                   AuthorizeResult authorization,
+                                                   OffsetFetchResponseGroup group,
+                                                   List<OffsetFetchResponseTopics> groupScopedTopics) {
+        var denied = authorization.partition(groupScopedTopics,
+                TopicResource.DESCRIBE,
+                OffsetFetchResponseTopics::name).get(Decision.DENY);
+        if (state.isGroupWithAllTopics(group)) {
+            // client asked for all topics => we filter out the denied ones
+            groupScopedTopics.removeAll(denied);
+        }
+        else {
+            // client queried for specific topics, => we must include error codes for those
+            for (var t : groupScopedTopics) {
+                if (denied.contains(t)) {
+                    t.setPartitions(t.partitions().stream()
+                            .map(p -> OffsetFetchEnforcement.unauthorizedGroupScopedPartition(p.partitionIndex()))
+                            .toList());
+                }
+            }
+        }
+    }
+
+    private static OffsetFetchResponsePartition unauthorizedTopLevelPartition(int partitionIndex) {
+        return new OffsetFetchResponsePartition()
+                .setPartitionIndex(partitionIndex)
+                .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
+                .setMetadata(OffsetFetchResponse.NO_METADATA)
+                .setCommittedLeaderEpoch(RecordBatch.NO_PARTITION_LEADER_EPOCH)
+                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
+    }
+
+    private static OffsetFetchResponsePartitions unauthorizedGroupScopedPartition(Integer partitionIndex) {
+        // this looks almost identical to the above method: the difference is plural vs singular of the type names in the method signature
+        return new OffsetFetchResponsePartitions()
+                .setPartitionIndex(partitionIndex)
+                .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
+                .setMetadata(OffsetFetchResponse.NO_METADATA)
+                .setCommittedLeaderEpoch(RecordBatch.NO_PARTITION_LEADER_EPOCH)
+                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
     }
 
 }
