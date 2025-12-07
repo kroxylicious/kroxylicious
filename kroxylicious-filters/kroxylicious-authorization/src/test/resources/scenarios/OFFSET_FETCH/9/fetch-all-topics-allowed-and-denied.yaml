@@ -20,33 +20,53 @@ given:
         clientId: "clientId"
       expectedRequest:
         groups:
-          - groupId: "random-string-220"
-            memberId: "random-string-641"
+          - groupId: "with-all-topics"
+            memberId: "member-641"
             memberEpoch: 990
             topics: null
+          - groupId: "with-specific-topics"
+            memberId: "member-747"
+            memberEpoch: 990
+            topics:
+              - name: "my-topic"
+                partitionIndexes:
+                  - 639
+              - name: "unauthorized"
+                partitionIndexes:
+                  - 546
         requireStable: false
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
         throttleTimeMs: 712
         groups:
-          - groupId: "random-string-750"
+          - groupId: "with-all-topics"
+            errorCode: 162
             topics:
               - name: "my-topic"
                 partitions:
-                  - partitionIndex: 65
+                  - partitionIndex: 639
+                    committedOffset: 845
+                    committedLeaderEpoch: 240
+                    metadata: "random-string-576"
+                    errorCode: 1010
+          - groupId: "with-specific-topics"
+            errorCode: 162
+            topics:
+              - name: "my-topic"
+                partitions:
+                  - partitionIndex: 639
                     committedOffset: 845
                     committedLeaderEpoch: 240
                     metadata: "random-string-576"
                     errorCode: 1010
               - name: "unauthorized"
                 partitions:
-                  - partitionIndex: 65
+                  - partitionIndex: 546
                     committedOffset: 845
                     committedLeaderEpoch: 240
                     metadata: "random-string-576"
                     errorCode: 1010
-            errorCode: 162
   authorizerRules:
     allowed:
       - subject: "alice"
@@ -63,10 +83,20 @@ when:
     clientId: "clientId"
   request:
     groups:
-      - groupId: "random-string-220"
-        memberId: "random-string-641"
+      - groupId: "with-all-topics"
+        memberId: "member-641"
         memberEpoch: 990
         topics: null
+      - groupId: "with-specific-topics"
+        memberId: "member-747"
+        memberEpoch: 990
+        topics:
+          - name: "my-topic"
+            partitionIndexes:
+              - 639
+          - name: "unauthorized"
+            partitionIndexes:
+              - 546
     requireStable: false
 then:
   expectedResponseHeader:
@@ -74,13 +104,30 @@ then:
   expectedResponse:
     throttleTimeMs: 712
     groups:
-      - groupId: "random-string-750"
+      - groupId: "with-all-topics"
         topics:
           - name: "my-topic"
             partitions:
-              - partitionIndex: 65
+              - partitionIndex: 639
                 committedOffset: 845
                 committedLeaderEpoch: 240
                 metadata: "random-string-576"
                 errorCode: 1010
+        errorCode: 162
+      - groupId: "with-specific-topics"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 639
+                committedOffset: 845
+                committedLeaderEpoch: 240
+                metadata: "random-string-576"
+                errorCode: 1010
+          - name: "unauthorized"
+            partitions:
+              - partitionIndex: 546
+                committedOffset: -1
+                committedLeaderEpoch: -1
+                metadata: ""
+                errorCode: 29
         errorCode: 162

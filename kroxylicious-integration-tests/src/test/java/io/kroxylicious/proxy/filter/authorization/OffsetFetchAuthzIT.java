@@ -45,6 +45,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
@@ -191,6 +192,7 @@ class OffsetFetchAuthzIT extends AuthzIT {
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonResponse) {
+            sortArray(jsonResponse, "topics", "name");
             return prettyJsonString(jsonResponse);
         }
 
@@ -242,6 +244,10 @@ class OffsetFetchAuthzIT extends AuthzIT {
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonResponse) {
+            ArrayNode groups = (ArrayNode) jsonResponse.path("groups");
+            for (var group : groups) {
+                sortArray((ObjectNode) group, "topics", "name");
+            }
             return prettyJsonString(jsonResponse);
         }
 

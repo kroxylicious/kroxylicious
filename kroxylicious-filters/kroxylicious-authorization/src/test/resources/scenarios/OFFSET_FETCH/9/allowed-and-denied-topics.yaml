@@ -31,6 +31,9 @@ given:
               - name: "my-topic"
                 partitionIndexes:
                   - 639
+              - name: "unauthorized"
+                partitionIndexes:
+                  - 639
         requireStable: false
       upstreamResponseHeader:
         correlationId: 1
@@ -45,6 +48,13 @@ given:
                     committedOffset: 845
                     committedLeaderEpoch: 240
                     metadata: "random-string-576"
+                    errorCode: 1010
+              - name: "unauthorized"
+                partitions:
+                  - partitionIndex: 639
+                    committedOffset: 846
+                    committedLeaderEpoch: 241
+                    metadata: "random-string-577"
                     errorCode: 1010
             errorCode: 162
   authorizerRules:

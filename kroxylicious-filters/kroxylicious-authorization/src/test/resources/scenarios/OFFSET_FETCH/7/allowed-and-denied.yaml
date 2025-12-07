@@ -28,6 +28,9 @@ given:
           - name: "my-topic"
             partitionIndexes:
               - 808
+          - name: "unauthorized"
+            partitionIndexes:
+              - 808
         requireStable: false
       upstreamResponseHeader:
         correlationId: 1
@@ -40,6 +43,13 @@ given:
                 committedOffset: 970
                 committedLeaderEpoch: 485
                 metadata: "random-string-122"
+                errorCode: 162
+          - name: "unauthorized"
+            partitions:
+              - partitionIndex: 808
+                committedOffset: 971
+                committedLeaderEpoch: 486
+                metadata: "random-string-123"
                 errorCode: 162
         errorCode: 17
   authorizerRules:

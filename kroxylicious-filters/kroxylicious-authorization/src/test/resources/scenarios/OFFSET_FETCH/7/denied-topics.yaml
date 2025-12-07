@@ -10,7 +10,34 @@ metadata:
   apiVersion: 7
   scenario: "if all topics in request are denied, we shortcircuit respond"
 given:
-  mockedUpstreamResponses: []
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_FETCH"
+      expectedRequestVersion: 7
+      expectedRequestHeader:
+        requestApiKey: 9
+        requestApiVersion: 7
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-487"
+        topics:
+          - name: "unauthorized"
+            partitionIndexes:
+              - 808
+        requireStable: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        topics:
+          - name: "unauthorized"
+            partitions:
+              - partitionIndex: 808
+                committedOffset: 971
+                committedLeaderEpoch: 486
+                metadata: "random-string-123"
+                errorCode: 162
+        errorCode: 0
   authorizerRules:
     allowed:
       - subject: "alice"
