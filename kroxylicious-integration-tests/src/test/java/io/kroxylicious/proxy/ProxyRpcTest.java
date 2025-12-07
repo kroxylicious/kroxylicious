@@ -72,7 +72,7 @@ public class ProxyRpcTest {
     static NettyLeakDetectorExtension nettyLeakDetectorExtension = new NettyLeakDetectorExtension(false, true, false, true);
 
     @BeforeAll
-    public static void beforeAll() {
+    static void beforeAll() {
         NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder("filter-3", FixedClientIdFilterFactory.class.getName());
         mockTester = mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap)
                 .addToFilterDefinitions(filterDefinitionBuilder.withConfig("clientId", "fixed").build())
@@ -85,7 +85,7 @@ public class ProxyRpcTest {
     }
 
     @AfterAll
-    public static void afterAll() {
+    static void afterAll() {
         if (mockTester != null) {
             mockTester.close();
         }
