@@ -73,7 +73,7 @@
                             <goal>resources</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.build.outputDirectory}/../generated-sources</outputDirectory>
+                            <outputDirectory>${project.build.directory}/generated-sources</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
@@ -165,7 +165,7 @@
                         <configuration>
                             <skip>${skipDocs}</skip>
                             <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
-                            <script>${project.build.outputDirectory}/../generated-sources/webify.java</script>
+                            <script>${project.build.directory}/generated-sources/webify.java</script>
                             <args>
                                 <arg>--project-version=${project.version}</arg>
                                 <arg>--src-dir=${project.build.directory}/docs/embedded/</arg>
