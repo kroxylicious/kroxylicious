@@ -11,6 +11,7 @@
 //DEPS com.fasterxml.jackson.core:jackson-core:2.18.3
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.18.3
 //DEPS com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.3
+
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -20,7 +21,6 @@ import java.nio.file.PathMatcher;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -107,7 +107,7 @@ public class webify implements Callable<Integer> {
                 title: Documentation
                 permalink: /documentation/${project.version}/
                 ---
-                        """.replace("${project.version}", this.projectVersion);
+                       \s""".replace("${project.version}", this.projectVersion);
     }
 
     private void walk(List<PathMatcher> omitGlobs,
@@ -139,7 +139,7 @@ public class webify implements Callable<Integer> {
                             relPath = "html/" + relFilePath.getParent().toString();
                             Files.createDirectories(outFilePath.getParent());
                             Files.writeString(outFilePath.getParent().resolve("index.html"),
-                                    guideFrontMatter(dataDocObject, "html/" + relFilePath.getParent().toString()),
+                                    guideFrontMatter(dataDocObject, "html/" + relFilePath.getParent()),
                                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                         }
                         else {
@@ -165,7 +165,7 @@ public class webify implements Callable<Integer> {
             });
         }
 
-        Collections.sort(resultDocsList, Comparator.nullsLast(Comparator.comparing(node -> node.get("rank").asText(null))));
+        resultDocsList.sort(Comparator.nullsLast(Comparator.comparing(node -> node.get("rank").asText(null))));
 
         var resultRootObject = this.mapper.createObjectNode();
         var resultDocsArray = resultRootObject.putArray("docs");
