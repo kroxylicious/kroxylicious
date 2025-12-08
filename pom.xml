@@ -49,7 +49,7 @@
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.20.0</jackson.version>
         <re2j.version>1.8</re2j.version>
-        <junit.version>5.14.0</junit.version>
+        <junit.version>5.14.1</junit.version>
         <kafka.version>4.1.1</kafka.version>
         <kroxy.extension.version>0.13.0</kroxy.extension.version>
         <log4j.version>2.25.2</log4j.version>
