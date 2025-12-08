@@ -20,13 +20,13 @@ NOTE: Multi-region keys are supported.
 
 .Procedure
 
-. Create a key and apply the alias
 . Create a key and apply the alias:
 +
 [source,shell]
 ----
 KEY_ALIAS="KEK-<name>"
-@@ -27,8 +31,8 @@ KEY_ID=$(aws kms create-key | jq -r '.KeyMetadata.KeyId')
+KEY_ID=$(aws kms create-key | jq -r '.KeyMetadata.KeyId')
+# the create key command will produce JSON output including the KeyId
 aws kms create-alias --alias-name alias/${KEY_ALIAS} --target-key-id ${KEY_ID}
 ----
 +
@@ -34,9 +34,6 @@ NOTE:  You cannot use keys from other AWS accounts. For more information on this
 
 . (Optional) Enable a key rotation policy:
 +
-[source,shell]
-----
-aws kms enable-key-rotation --key-id ${KEY_ID} --rotation-period-in-days 180
 [source,shell]
 ----
 aws kms enable-key-rotation --key-id ${KEY_ID} --rotation-period-in-days 180

@@ -52,9 +52,6 @@ az keyvault key create --vault-name ${KEY_VAULT_NAME} --name ${KEY_NAME} --kty $
 [source,shell]
 ----
 az keyvault key rotation-policy update --vault-name ${VAULT_NAME} --name ${KEY_NAME} --value path/to/my_policy.json
-[source,shell]
-----
-az keyvault key rotation-policy update --vault-name ${VAULT_NAME} --name ${KEY_NAME} --value path/to/my_policy.json
 ----
 +
 TIP: It is recommended to use a key rotation policy.
