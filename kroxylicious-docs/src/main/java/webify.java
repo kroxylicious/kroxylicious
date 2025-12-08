@@ -47,6 +47,8 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
+@SuppressWarnings("java:S101") // lowercase name to match jbang conventions
+                               // https://www.jbang.dev/documentation/jbang/latest/faq.html#:~:text=Why%20is%20JBang%20scripting%20examples%20using%20lower%20case%20class%20names%20%3F
 @Command(name = "webify", mixinStandardHelpOptions = true, version = "webify 0.1", description = "Converts Asciidoc standalone HTML output into content ready for kroxylicious.io")
 public class webify implements Callable<Integer> {
 
