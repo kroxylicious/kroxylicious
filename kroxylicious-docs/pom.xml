@@ -20,6 +20,9 @@
     <artifactId>kroxylicious-docs</artifactId>
     <name>Kroxylicious documentation</name>
     <description>User-facing documentation for the Kroxylicuous project.</description>
+    <properties>
+        <jsoup.version>1.21.2</jsoup.version>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -29,7 +32,7 @@
         <dependency>
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
-            <version>1.21.2</version>
+            <version>${jsoup.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -51,7 +54,30 @@
 
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>${project.build.sourceDirectory}</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>update-jbang-deps</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/../generated-sources</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.asciidoctor</groupId>
                 <artifactId>asciidoctor-maven-plugin</artifactId>
@@ -139,7 +165,7 @@
                         <configuration>
                             <skip>${skipDocs}</skip>
                             <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
-                            <script>${project.build.sourceDirectory}/webify.java</script>
+                            <script>${project.build.outputDirectory}/../generated-sources/webify.java</script>
                             <args>
                                 <arg>--project-version=${project.version}</arg>
                                 <arg>--src-dir=${project.build.directory}/docs/embedded/</arg>
