@@ -23,6 +23,9 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 import org.jsoup.Jsoup;
@@ -31,6 +34,7 @@ import org.jsoup.nodes.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature;
@@ -190,15 +194,17 @@ public class webify implements Callable<Integer> {
                             Path relFilePath)
             throws IOException {
         var dataDocObject = (ObjectNode) this.mapper.readTree(filePath.toFile());
+        return buildDocNode(dataDocObject);
+    }
+
+    private ObjectNode buildDocNode(ObjectNode dataDocObject) {
         var resultDocObject = this.mapper.createObjectNode();
-        var dataDocFields = dataDocObject.fields();
-        while (dataDocFields.hasNext()) {
-            var entry = dataDocFields.next();
-            if ("$schema".equals(entry.getKey())) {
-                continue;
+        Set<Map.Entry<String, JsonNode>> dataDoc = dataDocObject.properties();
+        dataDoc.forEach(dataDocEntry -> {
+            if (!"$schema".equals(dataDocEntry.getKey())) {
+                resultDocObject.set(dataDocEntry.getKey(), dataDocEntry.getValue());
             }
-            resultDocObject.put(entry.getKey(), entry.getValue());
-        }
+        });
         return resultDocObject;
     }
 
