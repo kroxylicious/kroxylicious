@@ -8,25 +8,26 @@
 = Creating HashiCorp Vault keys
 
 [role="_abstract"]
-This procedure describes how to create AES-256 symmetric keys for use with the Record Encryption filter. The process establishes a naming convention for keys, then uses the HashiCorp CLI to create a key with a 90-day rotation policy following the key naming convention.
+This procedure describes how to create AES-256 symmetric keys for use with the Record Encryption filter. The procedure establishes a naming convention for keys, then uses the HashiCorp CLI to create a key with an optional rotation policy.
 
 .Prerequisites
 
-* Access to the HashiCorp CLI.
-* Sufficient permissions to create keys.
+* Access to the HashiCorp Vault CLI with permissions to create keys.
+* Familiarity with basic HashiCorp Vault Transit Engine key management operations.
 
 .Procedure
 
-. Establish a naming convention for keys to keep the filter’s keys separate from those used by other systems.
+. Establish a naming convention for keys to ensure that the filter’s keys remain separate from those used by other systems.
 +
-Here, we use a prefix of KEK- for filter key name. Adjust the instructions if a different naming convention is used.
+In this example, a `KEK-` prefix is used for filter key names. Adjust the naming convention as needed.
 
-. Create a symmetric key
+. Create a symmetric key:
 +
 [source, shell]
 ----
 vault write -f transit/keys/KEK-trades type=aes256-gcm96 auto_rotate_period=90d
 ----
-* The key type must be `aes256-gcm96`, which is Vault's default key type.
+* The key type must be `aes256-gcm96`, which is the default type for the Transit Engine.
+* (Optional) The `auto_rotate_period` parameter enables automatic 90-day key rotation. Adjust the rotation period if required.
 
 TIP: It is recommended to use a key rotation policy.

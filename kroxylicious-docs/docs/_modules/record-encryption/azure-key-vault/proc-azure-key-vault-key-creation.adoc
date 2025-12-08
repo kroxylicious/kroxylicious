@@ -8,27 +8,28 @@
 = Creating Azure Key Vault keys
 
 [role="_abstract"]
-This procedure describes how to create a `key` with `wrapKey` and `unwrapKey` operations enabled for use with the Record Encryption filter. The process uses the Azure CLI to create a key and optionally apply a rotation policy.
+This procedure describes how to create a `key` with `wrapKey` and `unwrapKey` operations enabled for use with the Record Encryption filter. The procedure uses the Azure CLI to create a key and, optionally, apply a rotation policy.
 
 .Prerequisites
 
 * Access to the Azure CLI.
-* A user with the _Key Vault Crypto Officer_ role (or otherwise sufficient RBAC permissions to manage keys in Azure Key Vault).
+* A user with the _Key Vault Crypto Officer_ role or equivalent RBAC permissions to manage keys in Azure Key Vault.
+* Familiarity with basic Azure Key Vault key management operations.
 
 .Procedure
 
-. Establish a naming convention for keys within key vault for easy identification and use with the Record Encryption filter. Always use separate key vaults per application, per environment, per region; this keeps the filter’s keys separate from those used by other systems.
+. Establish a naming convention for keys within key vault for easy identification and use with the Record Encryption filter. Use separate key vaults per application, environment, and region. This ensures separation between the filter’s keys and those used by other systems.
 
-. Select a key type
+. Select a key type.
 +
-NOTE: The key types available to you in Azure Key Vault will depend on your Azure Key Vault service tier. See the _About keys_ page in the Azure Key Vault docs for more details.
+NOTE: Available key types depend on your Azure Key Vault service tier. See the Azure Key Vault documentation for background information on key types.
 +
 The filter accepts the following key types and their associated wrapping algorithms:
 
 * *Symmetric Keys (`oct` or `oct-HSM`):* Uses the quantum-resistant `A256GCM` (256-bit AES GCM) wrapping algorithm, which requires a Managed HSM subscription.
 * *Asymmetric Keys (`RSA` or `RSA-HSM`):* Uses the `RSA-OAEP-256` (RSAES-OAEP with SHA-256 hash and MGF1/SHA-256 mask) wrapping algorithm, which is not quantum-resistant. This wrapping algorithm does not require a Managed HSM subscription to use (however, `RSA-HSM` is not available without a premium Azure Key Vault subscription).
 
-. Create a key with the Azure CLI
+. Create a key with the Azure CLI:
 +
 [source,shell]
 ----
@@ -40,15 +41,20 @@ az keyvault key create --vault-name ${KEY_VAULT_NAME} --name ${KEY_NAME} --kty $
 * Change `KEY_TYPE` if you want to use a key type other than RSA.
 * The `wrapKey` and `unwrapKey` operations must be enabled.
 
-. (Optional) Configure a key rotation policy
+. (Optional) Enable a key rotation policy.
 +
-When the key is created, it is recommended to use a key rotation policy.
 
-.. Save your policy to a JSON file. An example JSON file can be found in the Azure CLI docs.
 
-.. When you've prepared your policy, apply it with a command like this:
+.. Save your policy to a JSON file. You can refer to an example policy in the Azure CLI documentation.
+
+.. Apply the rotation policy:
 +
 [source,shell]
 ----
 az keyvault key rotation-policy update --vault-name ${VAULT_NAME} --name ${KEY_NAME} --value path/to/my_policy.json
+[source,shell]
 ----
+az keyvault key rotation-policy update --vault-name ${VAULT_NAME} --name ${KEY_NAME} --value path/to/my_policy.json
+----
++
+TIP: It is recommended to use a key rotation policy.
