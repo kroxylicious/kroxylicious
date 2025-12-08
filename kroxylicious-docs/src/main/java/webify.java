@@ -235,7 +235,8 @@ public class webify implements Callable<Integer> {
         // Remove the toc from the doc
         toc.remove();
         // Drop the "Table of Content" title
-        toc.getElementById("toctitle").remove();
+        Optional.ofNullable(toc.getElementById("toctitle")).ifPresent(Node::remove);
+
         // Write the two nodes
         writeRaw(toc, tocPath);
         writeRaw(doc, toclessPath);
