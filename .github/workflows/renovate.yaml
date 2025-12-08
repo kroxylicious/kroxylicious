@@ -40,7 +40,7 @@ jobs:
       - name: "Set actor from Kroxylicious secret"
         if: env.KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET == 'true'
         run: |
-          WHOAMI=$(curl --fail --silent -L \
+          WHOAMI=$(curl --fail --silent --proto "=https" --location \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${EFFECTIVE_TOKEN}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
