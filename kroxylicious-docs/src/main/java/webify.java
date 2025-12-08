@@ -1,3 +1,9 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 21+
 //DEPS org.jsoup:jsoup:1.20.1
@@ -5,59 +11,63 @@
 //DEPS com.fasterxml.jackson.core:jackson-core:2.18.3
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.18.3
 //DEPS com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.3
-
-/*
- * Copyright Kroxylicious Authors.
- *
- * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
- */
-
-import static java.lang.System.*;
-
-import java.io.*;
-import java.nio.file.*;
-import java.util.*;
+import java.io.IOException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.Callable;
 
-import org.jsoup.*;
-import org.jsoup.nodes.*;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Node;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature;
-import com.fasterxml.jackson.databind.node.*;
-
-@Command(name = "webify", mixinStandardHelpOptions = true, version = "webify 0.1",
-        description = "Converts Asciidoc standalone HTML output into content ready for kroxylicious.io")
+@Command(name = "webify", mixinStandardHelpOptions = true, version = "webify 0.1", description = "Converts Asciidoc standalone HTML output into content ready for kroxylicious.io")
 public class webify implements Callable<Integer> {
 
-    @Option(names = {"--project-version"}, required = true, description = "The kroxy version.")
+    @Option(names = { "--project-version" }, required = true, description = "The kroxy version.")
     private String projectVersion;
 
-    @Option(names = {"--src-dir"}, required = true, description = "The source directory containing Asciidoc standalone HTML.")
+    @Option(names = { "--src-dir" }, required = true, description = "The source directory containing Asciidoc standalone HTML.")
     private Path srcDir;
 
-    @Option(names = {"--dest-dir"}, required = true, description = "The output directory ready for copying to the website.")
+    @Option(names = { "--dest-dir" }, required = true, description = "The output directory ready for copying to the website.")
     private Path destdir;
 
-    @Option(names = {"--tocify-omit"}, description = "Glob matching file(s) to omit from the HTML output.")
+    @Option(names = { "--tocify-omit" }, description = "Glob matching file(s) to omit from the HTML output.")
     private List<String> omitGlobs = List.of();
 
-    @Option(names = {"--tocify"}, description = "Glob matching HTML files within --src-dir to tocify.")
+    @Option(names = { "--tocify" }, description = "Glob matching HTML files within --src-dir to tocify.")
     private String tocifyGlob;
 
-    @Option(names = {"--tocify-toc-file"}, description = "The name to give to output TOC files")
+    @Option(names = { "--tocify-toc-file" }, description = "The name to give to output TOC files")
     private String tocifyTocName;
 
-    @Option(names = {"--tocify-tocless-file"}, description = "The name to give to output TOC-less files")
+    @Option(names = { "--tocify-tocless-file" }, description = "The name to give to output TOC-less files")
     private String tocifyToclessName;
 
-    @Option(names = {"--datafy"}, description = "Glob matching data yamls")
+    @Option(names = { "--datafy" }, description = "Glob matching data yamls")
     private String datafyGlob;
+
+    private final Logger logger = LoggerFactory.getLogger(webify.class);
 
     private Path outdir;
     private Path dataDestPath;
@@ -72,10 +82,8 @@ public class webify implements Callable<Integer> {
         System.exit(exitCode);
     }
 
-
     @Override
     public Integer call() throws Exception {
-        System.out.println(this);
         this.outdir = this.destdir.resolve("documentation").resolve(this.projectVersion).resolve("html");
         this.dataDestPath = this.destdir.resolve("_data/documentation").resolve(this.projectVersion.replace(".", "_") + ".yaml");
 
@@ -94,17 +102,18 @@ public class webify implements Callable<Integer> {
 
     String docIndexFrontMatter() {
         return """
----
-layout: released-documentation
-title: Documentation
-permalink: /documentation/${project.version}/
----
-        """.replace("${project.version}", this.projectVersion);
+                ---
+                layout: released-documentation
+                title: Documentation
+                permalink: /documentation/${project.version}/
+                ---
+                        """.replace("${project.version}", this.projectVersion);
     }
 
     private void walk(List<PathMatcher> omitGlobs,
                       PathMatcher tocifyGlob,
-                      PathMatcher datafyGlob) throws IOException {
+                      PathMatcher datafyGlob)
+            throws IOException {
         var resultDocsList = new ArrayList<ObjectNode>();
         try (var stream = Files.walk(this.srcDir)) {
             stream.forEach((Path filePath) -> {
@@ -161,7 +170,7 @@ permalink: /documentation/${project.version}/
         var resultRootObject = this.mapper.createObjectNode();
         var resultDocsArray = resultRootObject.putArray("docs");
         resultDocsArray.addAll(resultDocsList);
-        System.out.println(mapper.writeValueAsString(resultRootObject));
+        logger.info(mapper.writeValueAsString(resultRootObject));
         Files.createDirectories(dataDestPath.getParent());
         Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
@@ -169,15 +178,17 @@ permalink: /documentation/${project.version}/
     String guideFrontMatter(ObjectNode dataDocObject, String relPath) throws IOException {
         return "---\n" + this.mapper.writeValueAsString(this.mapper.createObjectNode()
                 .put("layout", "guide")
-                .<ObjectNode>setAll(dataDocObject)
+                .<ObjectNode> setAll(dataDocObject)
                 .put("version", this.projectVersion)
                 .put("permalink", "/documentation/${project.version}/${relPath}/"
                         .replace("${project.version}", this.projectVersion)
-                        .replace("${relPath}", relPath))) + "---\n";
+                        .replace("${relPath}", relPath)))
+                + "---\n";
     }
 
     ObjectNode readMetadata(Path filePath,
-                             Path relFilePath) throws IOException {
+                            Path relFilePath)
+            throws IOException {
         var dataDocObject = (ObjectNode) this.mapper.readTree(filePath.toFile());
         var resultDocObject = this.mapper.createObjectNode();
         var dataDocFields = dataDocObject.fields();
@@ -192,23 +203,25 @@ permalink: /documentation/${project.version}/
     }
 
     void tocify(Path filePath,
-                Path outFilePath) throws IOException {
+                Path outFilePath)
+            throws IOException {
         var outDir = outFilePath.getParent();
         Files.createDirectories(outDir);
         if (!splitOutToc(filePath,
                 outDir.resolve(this.tocifyTocName),
                 outDir.resolve(this.tocifyToclessName))) {
-            System.out.println("copying " + filePath + " to " + outFilePath);
+            logger.info("copying {} to {}", filePath, outFilePath);
             Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
     static boolean splitOutToc(Path sourcePath,
                                Path tocPath,
-                               Path toclessPath) throws IOException {
+                               Path toclessPath)
+            throws IOException {
         // Parse the SOURCE
         Document doc = Jsoup.parse(sourcePath, "UTF-8");
-        // Find the toc by it's ID
+        // Find the toc by its ID
         var toc = doc.getElementById("toc");
         if (toc == null) {
             return false;
@@ -222,9 +235,10 @@ permalink: /documentation/${project.version}/
         writeRaw(doc, toclessPath);
         return true;
     }
-    
+
     static void writeRaw(Node node,
-                         Path path) throws IOException {
+                         Path path)
+            throws IOException {
         // Jekyll/Liquid doesn't have a way of {% include ... %} which
         // *prevents* the included file processing as a liquid template
         // Bracketing with {% raw %}/{% endraw %} is about the best we can do
@@ -235,6 +249,6 @@ permalink: /documentation/${project.version}/
             writer.append(node.toString());
             writer.append("\n{% endraw %}\n");
             writer.flush();
-        }    
+        }
     }
 }
