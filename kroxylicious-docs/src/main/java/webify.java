@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -127,53 +128,7 @@ public class webify implements Callable<Integer> {
             throws IOException {
         var resultDocsList = new ArrayList<ObjectNode>();
         try (var stream = Files.walk(this.srcDir)) {
-            stream.forEach((Path filePath) -> {
-                try {
-                    if (!Files.isRegularFile(filePath)) {
-                        return;
-                    }
-                    var relFilePath = this.srcDir.relativize(filePath);
-                    var outFilePath = this.outdir.resolve(relFilePath);
-                    var omitable = omitGlobs.stream().anyMatch(glob -> glob.matches(relFilePath));
-                    var tocifiable = tocifyGlob.matches(relFilePath);
-                    var datafiable = datafyGlob.matches(relFilePath);
-                    if (omitable && !tocifiable && !datafiable) {
-                        return;
-                    }
-                    else if (!omitable && tocifiable && !datafiable) {
-                        tocify(filePath, outFilePath);
-                    }
-                    else if (!omitable && !tocifiable && datafiable) {
-                        var dataDocObject = readMetadata(filePath, relFilePath);
-                        String relPath;
-                        if (!dataDocObject.has("path")) {
-                            relPath = "html/" + relFilePath.getParent().toString();
-                            Files.createDirectories(outFilePath.getParent());
-                            Files.writeString(outFilePath.getParent().resolve("index.html"),
-                                    guideFrontMatter(dataDocObject, "html/" + relFilePath.getParent()),
-                                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-                        }
-                        else {
-                            relPath = dataDocObject.get("path").textValue().replace("${project.version}", this.projectVersion);
-                        }
-                        dataDocObject.put("path", relPath);
-                        resultDocsList.add(dataDocObject);
-                    }
-                    else if (!omitable && !tocifiable && !datafiable) {
-                        Files.createDirectories(outFilePath.getParent());
-                        Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
-                    }
-                    else {
-                        throw new IOException((filePath + " matched multiple globs: "
-                                + (omitable ? "--tocify-omit " : "")
-                                + (tocifiable ? "--tocify " : "")
-                                + (datafiable ? "--datafy " : "")).trim());
-                    }
-                }
-                catch (Exception e) {
-                    throw new RuntimeException(filePath.toString(), e);
-                }
-            });
+            stream.forEach(new docConverter(omitGlobs, tocifyGlob, datafyGlob, resultDocsList));
         }
 
         resultDocsList.sort(Comparator.nullsLast(Comparator.comparing(node -> node.get("rank").asText(null))));
@@ -182,7 +137,7 @@ public class webify implements Callable<Integer> {
         var resultDocsArray = resultRootObject.putArray("docs");
         resultDocsArray.addAll(resultDocsList);
         logger.info(mapper.writeValueAsString(resultRootObject));
-        Files.createDirectories(dataDestPath.getParent());
+        Files.createDirectories(Objects.requireNonNull(dataDestPath.getParent()));
         Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
@@ -263,6 +218,69 @@ public class webify implements Callable<Integer> {
             writer.append(node.toString());
             writer.append("\n{% endraw %}\n");
             writer.flush();
+        }
+    }
+
+    private class docConverter implements Consumer<Path> {
+        private final List<PathMatcher> omitGlobs;
+        private final PathMatcher tocifyGlob;
+        private final PathMatcher datafyGlob;
+        private final List<ObjectNode> resultDocsList;
+
+        docConverter(List<PathMatcher> omitGlobs, PathMatcher tocifyGlob, PathMatcher datafyGlob, List<ObjectNode> resultDocsList) {
+            this.omitGlobs = omitGlobs;
+            this.tocifyGlob = tocifyGlob;
+            this.datafyGlob = datafyGlob;
+            this.resultDocsList = resultDocsList;
+        }
+
+        @Override
+        public void accept(Path filePath) {
+            try {
+                if (!Files.isRegularFile(filePath)) {
+                    return;
+                }
+                var relFilePath = webify.this.srcDir.relativize(filePath);
+                var outFilePath = webify.this.outdir.resolve(relFilePath);
+                var omitable = omitGlobs.stream().anyMatch(glob -> glob.matches(relFilePath));
+                var tocifiable = tocifyGlob.matches(relFilePath);
+                var datafiable = datafyGlob.matches(relFilePath);
+                if (omitable && !tocifiable && !datafiable) {
+                    return;
+                }
+                else if (!omitable && tocifiable && !datafiable) {
+                    webify.this.tocify(filePath, outFilePath);
+                }
+                else if (!omitable && !tocifiable && datafiable) {
+                    var dataDocObject = webify.this.readMetadata(filePath, relFilePath);
+                    String relPath;
+                    if (!dataDocObject.has("path")) {
+                        relPath = "html/" + relFilePath.getParent().toString();
+                        Files.createDirectories(outFilePath.getParent());
+                        Files.writeString(outFilePath.getParent().resolve("index.html"),
+                                webify.this.guideFrontMatter(dataDocObject, "html/" + relFilePath.getParent()),
+                                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                    }
+                    else {
+                        relPath = dataDocObject.get("path").textValue().replace("${project.version}", webify.this.projectVersion);
+                    }
+                    dataDocObject.put("path", relPath);
+                    resultDocsList.add(dataDocObject);
+                }
+                else if (!omitable && !tocifiable && !datafiable) {
+                    Files.createDirectories(outFilePath.getParent());
+                    Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
+                }
+                else {
+                    throw new IOException((filePath + " matched multiple globs: "
+                            + (omitable ? "--tocify-omit " : "")
+                            + (tocifiable ? "--tocify " : "")
+                            + (datafiable ? "--datafy " : "")).trim());
+                }
+            }
+            catch (Exception e) {
+                throw new RuntimeException(filePath.toString(), e);
+            }
         }
     }
 }
