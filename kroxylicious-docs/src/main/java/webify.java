@@ -11,7 +11,6 @@
 //DEPS com.fasterxml.jackson.core:jackson-core:2.18.3
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.18.3
 //DEPS com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.3
-
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -98,10 +97,17 @@ public class webify implements Callable<Integer> {
 
         walk(omitGlobs, tocifyGlob, datafyGlob);
 
-        Files.writeString(outdir.getParent().resolve("index.md"),
-                docIndexFrontMatter(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-
-        return 0;
+        Path parentDir = outdir.getParent();
+        // If condition to keep spotbugs happy
+        if (parentDir != null && Files.exists(parentDir)) {
+            Files.writeString(parentDir.resolve("index.md"),
+                    docIndexFrontMatter(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            return 0;
+        }
+        else {
+            logger.warn("could not find a parent directory for {}", outdir);
+            return 1;
+        }
     }
 
     String docIndexFrontMatter() {
