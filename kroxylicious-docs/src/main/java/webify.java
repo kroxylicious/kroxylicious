@@ -92,23 +92,24 @@ public class webify implements Callable<Integer> {
         this.outdir = this.destdir.resolve("documentation").resolve(this.projectVersion).resolve("html");
         this.dataDestPath = this.destdir.resolve("_data/documentation").resolve(this.projectVersion.replace(".", "_") + ".yaml");
 
-        FileSystem fs = FileSystems.getDefault();
-        var tocifyGlob = fs.getPathMatcher("glob:" + this.tocifyGlob);
-        var omitGlobs = this.omitGlobs.stream().map(glob -> fs.getPathMatcher("glob:" + glob)).toList();
-        var datafyGlob = fs.getPathMatcher("glob:" + this.datafyGlob);
+        try (FileSystem fs = FileSystems.getDefault()) {
+            PathMatcher tocifyGlob = fs.getPathMatcher("glob:" + this.tocifyGlob);
+            List<PathMatcher> omitGlobs = this.omitGlobs.stream().map(glob -> fs.getPathMatcher("glob:" + glob)).toList();
+            PathMatcher datafyGlob = fs.getPathMatcher("glob:" + this.datafyGlob);
 
-        walk(omitGlobs, tocifyGlob, datafyGlob);
+            walk(omitGlobs, tocifyGlob, datafyGlob);
 
-        Path parentDir = outdir.getParent();
-        // If condition to keep spotbugs happy
-        if (parentDir != null && Files.exists(parentDir)) {
-            Files.writeString(parentDir.resolve("index.md"),
-                    docIndexFrontMatter(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            return 0;
-        }
-        else {
-            logger.warn("could not find a parent directory for {}", outdir);
-            return 1;
+            Path parentDir = outdir.getParent();
+            // If condition to keep spotbugs happy
+            if (parentDir != null && Files.exists(parentDir)) {
+                Files.writeString(parentDir.resolve("index.md"),
+                        docIndexFrontMatter(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                return 0;
+            }
+            else {
+                logger.warn("could not find a parent directory for {}", outdir);
+                return 1;
+            }
         }
     }
 
