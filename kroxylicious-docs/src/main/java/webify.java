@@ -153,8 +153,7 @@ public class webify implements Callable<Integer> {
                 + "---\n";
     }
 
-    ObjectNode readMetadata(Path filePath,
-                            Path relFilePath)
+    ObjectNode readMetadata(Path filePath)
             throws IOException {
         var dataDocObject = (ObjectNode) this.mapper.readTree(filePath.toFile());
         return buildDocNode(dataDocObject);
@@ -247,6 +246,8 @@ public class webify implements Callable<Integer> {
                 var tocifiable = tocifyGlob.matches(relFilePath);
                 var datafiable = datafyGlob.matches(relFilePath);
                 if (omitable && !tocifiable && !datafiable) {
+                    // exit early when there is nothing to be done.
+                    // noinspection UnnecessaryReturnStatement
                     return;
                 }
                 else if (!omitable && tocifiable && !datafiable) {
@@ -255,7 +256,7 @@ public class webify implements Callable<Integer> {
                 else {
                     Path outputDirectory = Objects.requireNonNull(outFilePath.getParent());
                     if (!omitable && !tocifiable && datafiable) {
-                        var dataDocObject = webify.this.readMetadata(filePath, relFilePath);
+                        var dataDocObject = webify.this.readMetadata(filePath);
                         String relPath;
                         if (!dataDocObject.has("path")) {
                             Path relFilePathParent = Objects.requireNonNull(relFilePath.getParent());
