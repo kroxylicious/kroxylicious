@@ -11,6 +11,8 @@
 //DEPS com.fasterxml.jackson.core:jackson-core:2.18.3
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.18.3
 //DEPS com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.3
+//DEPS org.slf4j:slf4j-api:2.0.0
+//DEPS org.slf4j:slf4j-simple:2.0.0
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -110,6 +112,16 @@ public class webify implements Callable<Integer> {
                 logger.warn("could not find a parent directory for {}", outdir);
                 return 1;
             }
+        }
+        catch (UnsupportedOperationException ex) {
+            // Only certain filesystem implementations are actually closeable (waves at ZipFileSystem) the rest tell us to get stuffed.
+            logger.debug(ex.getMessage(), ex);
+            return 0;
+
+        }
+        catch (Exception ex) {
+            logger.error(ex.getMessage(), ex);
+            return 2;
         }
     }
 
