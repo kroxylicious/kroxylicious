@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
+import io.kroxylicious.proxy.LifecycleException;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
@@ -43,6 +44,8 @@ class AuthzFailsClosedIT extends AuthzIT {
                 return; // stupid conflicting code warnings
             }
         })
+                .isInstanceOf(LifecycleException.class)
+                .cause()
                 .isInstanceOf(PluginConfigurationException.class).hasMessageMatching(
                         "Exception initializing filter factory authz with config AuthorizationConfig.*?: "
                                 + "io.kroxylicious.authorizer.provider.acl.AclAuthorizerService "
