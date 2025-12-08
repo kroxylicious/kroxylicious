@@ -9,7 +9,7 @@ The basic form of a rule is as follows:
 
 [source]
 ----
-<allow|deny> User with <principal predicate> to <operation> <resource type> with <resource predicate>;
+<allow|deny> User with <user predicate> to <operation> <resource type> with <resource predicate>;
 ----
 where:
 
@@ -80,7 +80,7 @@ The following resource predicates are supported:
 
 | `MATCHING`
 | Regular expression match
-| `name like "a+"`
+| `name matching "a+"`
 
 |===
 
