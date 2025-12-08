@@ -75,6 +75,8 @@ class KafkaProxyTest {
                 """;
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             assertThatThrownBy(kafkaProxy::startup)
+                    .isInstanceOf(LifecycleException.class)
+                    .cause()
                     .isInstanceOf(PluginConfigurationException.class)
                     .hasMessageContaining("Exception initializing filter factory filter1 with config null");
         }
@@ -125,7 +127,9 @@ class KafkaProxyTest {
     @MethodSource
     void detectsConflictingPorts(String config, String expectedMessage) throws Exception {
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-            assertThatThrownBy(kafkaProxy::startup).hasMessageContaining(expectedMessage);
+            assertThatThrownBy(kafkaProxy::startup).isInstanceOf(LifecycleException.class)
+                    .cause()
+                    .hasMessageContaining(expectedMessage);
         }
     }
 
