@@ -6,13 +6,13 @@
 
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 21+
-//DEPS org.jsoup:jsoup:1.20.1
-//DEPS info.picocli:picocli:4.6.3
-//DEPS com.fasterxml.jackson.core:jackson-core:2.18.3
-//DEPS com.fasterxml.jackson.core:jackson-databind:2.18.3
-//DEPS com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.3
-//DEPS org.slf4j:slf4j-api:2.0.0
-//DEPS org.slf4j:slf4j-simple:2.0.0
+//DEPS org.jsoup:jsoup:1.21.2
+//DEPS info.picocli:picocli:4.7.7
+//DEPS com.fasterxml.jackson.core:jackson-core:2.20.0
+//DEPS com.fasterxml.jackson.core:jackson-databind:2.20.0
+//DEPS com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.20.0
+//DEPS org.slf4j:slf4j-api:2.0.17
+//DEPS org.slf4j:slf4j-simple:2.0.17
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
