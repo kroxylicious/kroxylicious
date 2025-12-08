@@ -270,7 +270,7 @@ public class webify implements Callable<Integer> {
                         dataDocObject.put("path", relPath);
                         resultDocsList.add(dataDocObject);
                     }
-                    else if (!omitable && !tocifiable && !datafiable) {
+                    else if (!omitable && !tocifiable) {
                         Files.createDirectories(outputDirectory);
                         Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
                     }
