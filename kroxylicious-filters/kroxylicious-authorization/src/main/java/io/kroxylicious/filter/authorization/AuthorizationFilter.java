@@ -285,10 +285,10 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                                                   ApiMessage response,
                                                                   FilterContext context,
                                                                   ApiEnforcement<?, ?> enforcement) {
-        return ((ApiEnforcement) enforcement).onResponse(header, response, context, this).whenComplete((o, throwable) -> {
-            // safety pop in case inflight state wasn't popped due to exception or logical error
-            popInflightState(header.correlationId(), InflightState.class);
-        });
+        return ((ApiEnforcement) enforcement).onResponse(header, response, context, this)
+                .whenComplete((o, throwable) ->
+                // safety pop in case inflight state wasn't popped due to exception or logical error
+                popInflightState(header.correlationId(), InflightState.class));
     }
 
     private CompletionStage<ResponseFilterResult> checkCompat(ResponseHeaderData header,
