@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -217,7 +218,7 @@ public class webify implements Callable<Integer> {
     void tocify(Path filePath,
                 Path outFilePath)
             throws IOException {
-        var outDir = outFilePath.getParent();
+        var outDir = Objects.requireNonNull(outFilePath.getParent());
         Files.createDirectories(outDir);
         if (!splitOutToc(filePath,
                 outDir.resolve(this.tocifyTocName),
