@@ -73,9 +73,13 @@ public class MockUpstream {
         short version = mockDefinition.expectedRequestVersion();
         assertThat(requestHeader.requestApiVersion()).isEqualTo(version);
         JsonNode actualHeader = RequestHeaderDataJsonConverter.write(requestHeader, key.requestHeaderVersion(version));
-        assertThat(toYaml(actualHeader)).isEqualTo(toYaml(mockDefinition.expectedRequestHeader()));
+        assertThat(toYaml(actualHeader))
+                .as("Header of request forwarded to broker")
+                .isEqualTo(toYaml(mockDefinition.expectedRequestHeader()));
         JsonNode actualBody = KafkaApiMessageConverter.requestConverterFor(key.messageType).writer().apply(request, version);
-        assertThat(toYaml(actualBody)).isEqualTo(toYaml(mockDefinition.expectedRequest()));
+        assertThat(toYaml(actualBody))
+                .as("Body of request forwarded to broker")
+                .isEqualTo(toYaml(mockDefinition.expectedRequest()));
         if (mockDefinition.upstreamResponse() == null || mockDefinition.upstreamResponseHeader() == null) {
             return null;
         }
