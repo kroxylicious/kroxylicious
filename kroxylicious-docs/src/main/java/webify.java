@@ -90,7 +90,7 @@ public class webify implements Callable<Integer> {
     }
 
     @Override
-    public Integer call() throws Exception {
+    public Integer call() {
         this.outdir = this.destdir.resolve("documentation").resolve(this.projectVersion).resolve("html");
         this.dataDestPath = this.destdir.resolve("_data/documentation").resolve(this.projectVersion.replace(".", "_") + ".yaml");
 
