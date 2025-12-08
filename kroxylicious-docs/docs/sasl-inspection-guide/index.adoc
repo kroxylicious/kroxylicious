@@ -11,7 +11,8 @@ include::_modules/sasl-inspection/con-about-{guide}-guide.adoc[leveloffset=+1]
 
 [role="_abstract"]
 This filter inspects the SASL exchange between Kafka Client and Broker and extracts the *authenticated principal*.
-If the client's authentication with the broker is successful, the filter makes the authenticated principal available to the other filters in the chain, so that they may know on whose behalf they are acting.
+If the client's authentication with the broker is successful, the filter uses the SASL subject builder to construct a subject containing the authenticated principal.
+The subject is made available to the other filters in the chain, so that they may know on whose behalf they are acting.
 
 NOTE: The SASL Inspection Filter plays no part in deciding if the authentication is successful or not.
 That role remains the exclusive responsibility of the broker.
