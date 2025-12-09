@@ -58,7 +58,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
      *
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
-    public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> allowedAndDeniedAlgorithms, String jwsRecordHeaderKey,
+    public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> algorithms, String jwsRecordHeaderKey,
                                         boolean isContentDetached, boolean requireJwsRecordHeader) {
         this.jws = new JsonWebSignature();
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
@@ -66,7 +66,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
         this.isContentDetached = isContentDetached;
         this.requireJwsRecordHeader = requireJwsRecordHeader;
 
-        AlgorithmConstraints algorithmConstraints = extractAlgorithmConstraints(allowedAndDeniedAlgorithms);
+        AlgorithmConstraints algorithmConstraints = extractAlgorithmConstraints(algorithms);
         jws.setAlgorithmConstraints(algorithmConstraints);
     }
 
@@ -143,12 +143,12 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
      *     <li>If both {@link AllowDeny#allowed()} and {@link AllowDeny#denied()} are filled: only allow the algorithms in {@link AllowDeny#allowed()}.</li>
      * </ul>
      *
-     * @param allowedAndDeniedAlgorithms An {@link AllowDeny} containing {@link AlgorithmIdentifiers}.
+     * @param algorithms An {@link AllowDeny} containing {@link AlgorithmIdentifiers}.
      * @return The {@link AlgorithmConstraints} equivalent of the passed {@link AllowDeny}.
      */
-    private static AlgorithmConstraints extractAlgorithmConstraints(AllowDeny<String> allowedAndDeniedAlgorithms) {
-        String[] allowedAlgorithms = Optional.ofNullable(allowedAndDeniedAlgorithms.allowed()).orElse(List.of()).toArray(new String[0]);
-        String[] deniedAlgorithms = Optional.ofNullable(allowedAndDeniedAlgorithms.denied()).orElse(Set.of()).toArray(new String[0]);
+    private static AlgorithmConstraints extractAlgorithmConstraints(AllowDeny<String> algorithms) {
+        String[] allowedAlgorithms = Optional.ofNullable(algorithms.allowed()).orElse(List.of()).toArray(new String[0]);
+        String[] deniedAlgorithms = Optional.ofNullable(algorithms.denied()).orElse(Set.of()).toArray(new String[0]);
 
         AlgorithmConstraints.ConstraintType constraintType = AlgorithmConstraints.ConstraintType.PERMIT;
         String[] algorithms = allowedAlgorithms;
