@@ -307,7 +307,6 @@ class ProxyChannelStateMachineTest {
     void inClientActiveShouldCaptureHaProxyState() {
         // Given
         stateMachineInClientActive();
-        var dp = mock(DelegatingDecodePredicate.class);
 
         // When
         proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
@@ -317,7 +316,6 @@ class ProxyChannelStateMachineTest {
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.HaProxy.class))
                 .extracting(ProxyChannelState.HaProxy::haProxyMessage)
                 .isSameAs(HA_PROXY_MESSAGE);
-        verifyNoInteractions(dp);
     }
 
     @Test
@@ -325,7 +323,6 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInClientActive();
         var msg = metadataRequest();
-        var dp = mock(DelegatingDecodePredicate.class);
 
         // When
         proxyChannelStateMachine.onClientRequest(msg);
@@ -333,7 +330,6 @@ class ProxyChannelStateMachineTest {
         // Then
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.SelectingServer.class);
-        verifyNoInteractions(dp);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
         verifyNoMoreInteractions(frontendHandler);
@@ -344,7 +340,6 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInHaProxy();
         var msg = apiVersionsRequest();
-        var dp = new DelegatingDecodePredicate();
 
         // When
         proxyChannelStateMachine.onClientRequest(msg);
@@ -361,7 +356,6 @@ class ProxyChannelStateMachineTest {
     void inHaProxyShouldCloseOnHaProxyMsg() {
         // Given
         stateMachineInHaProxy();
-        var dp = new DelegatingDecodePredicate();
 
         // When
         proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
@@ -377,7 +371,6 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInHaProxy();
         var msg = metadataRequest();
-        var dp = mock(DelegatingDecodePredicate.class);
 
         // When
         proxyChannelStateMachine.onClientRequest(msg);
@@ -385,7 +378,6 @@ class ProxyChannelStateMachineTest {
         // Then
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.SelectingServer.class);
-        verifyNoInteractions(dp);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
         verifyNoMoreInteractions(frontendHandler);
@@ -409,7 +401,6 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInApiVersionsState();
         var msg = metadataRequest();
-        DelegatingDecodePredicate dp = mock(DelegatingDecodePredicate.class);
 
         // When
         proxyChannelStateMachine.onClientRequest(msg);
@@ -423,7 +414,6 @@ class ProxyChannelStateMachineTest {
     void inApiVersionsShouldCloseOnHaProxyMessage() {
         // Given
         stateMachineInApiVersionsState();
-        var dp = mock(DelegatingDecodePredicate.class);
 
         // When
         proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
@@ -432,7 +422,6 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).inClosed(null);
         verifyNoInteractions(backendHandler);
-        verifyNoInteractions(dp);
     }
 
     @Test
@@ -561,7 +550,6 @@ class ProxyChannelStateMachineTest {
     void inForwardingShouldForwardClientRequests() {
         // Given
         var serverCtx = mock(ChannelHandlerContext.class);
-        DelegatingDecodePredicate dp = mock(DelegatingDecodePredicate.class);
         var forwarding = stateMachineInForwarding();
         var msg = metadataRequest();
 
@@ -571,7 +559,6 @@ class ProxyChannelStateMachineTest {
         // Then
         assertThat(proxyChannelStateMachine.state()).isSameAs(forwarding);
         verifyNoInteractions(frontendHandler);
-        verifyNoInteractions(dp);
         verifyNoInteractions(serverCtx);
         verify(backendHandler).forwardToServer(msg);
     }
@@ -580,7 +567,6 @@ class ProxyChannelStateMachineTest {
     void inForwardingShouldForwardServerResponses() {
         // Given
         var serverCtx = mock(ChannelHandlerContext.class);
-        DelegatingDecodePredicate dp = mock(DelegatingDecodePredicate.class);
         var forwarding = stateMachineInForwarding();
         var msg = metadataResponse();
 
@@ -590,7 +576,6 @@ class ProxyChannelStateMachineTest {
         // Then
         assertThat(proxyChannelStateMachine.state()).isSameAs(forwarding);
         verify(frontendHandler).forwardToClient(msg);
-        verifyNoInteractions(dp);
         verifyNoInteractions(serverCtx);
         verifyNoInteractions(backendHandler);
     }
