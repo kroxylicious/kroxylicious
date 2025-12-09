@@ -51,7 +51,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
     private final JsonWebSignature jws;
     private final JsonWebKeySet trustedJsonWebKeySet;
     private final boolean isContentDetached;
-    private final boolean failOnMissingJwsRecordHeader;
+    private final boolean requireJwsRecordHeader;
 
     /**
      * Constructor for {@link JwsSignatureBytebufValidator}.
@@ -59,12 +59,12 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
     public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> allowedAndDeniedAlgorithms, String jwsRecordHeaderKey,
-                                        boolean isContentDetached, boolean failOnMissingJwsRecordHeader) {
+                                        boolean isContentDetached, boolean requireJwsRecordHeader) {
         this.jws = new JsonWebSignature();
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
         this.jwsRecordHeaderKey = jwsRecordHeaderKey;
         this.isContentDetached = isContentDetached;
-        this.failOnMissingJwsRecordHeader = failOnMissingJwsRecordHeader;
+        this.requireJwsRecordHeader = requireJwsRecordHeader;
 
         AlgorithmConstraints algorithmConstraints = extractAlgorithmConstraints(allowedAndDeniedAlgorithms);
         jws.setAlgorithmConstraints(algorithmConstraints);
@@ -75,7 +75,7 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
         Objects.requireNonNull(record);
 
         if (record.headers().length == 0 || new RecordHeaders(record.headers()).lastHeader(jwsRecordHeaderKey) == null) {
-            if (!failOnMissingJwsRecordHeader) {
+            if (!requireJwsRecordHeader) {
                 String message = String.format("Returning valid result even though JWS record header is missing (because of config): %s", jwsRecordHeaderKey);
                 return CompletableFuture.completedStage(new Result(true, message));
             }

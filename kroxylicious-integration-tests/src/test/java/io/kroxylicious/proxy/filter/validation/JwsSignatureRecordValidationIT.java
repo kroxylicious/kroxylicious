@@ -202,7 +202,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
     }
 
     private static ConfigurationBuilder createFilterDef(KafkaCluster cluster, Topic topic, boolean multiKeyJwks, boolean contentDetached,
-                                                        boolean failOnMissingJwsRecordHeader) {
+                                                        boolean requireJwsRecordHeader) {
         String className = RecordValidation.class.getName();
 
         Map<String, Object> jwsConfig;
@@ -210,11 +210,11 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         if (multiKeyJwks) {
             jwsConfig = Map.of("trustedJsonWebKeySet", RSA_AND_ECDSA_VERIFY_JWKS.toJson(), "algorithms", Map.of("allowed", List.of("ES256", "RS256")),
                     "jwsRecordHeaderKey",
-                    JWS_HEADER_NAME, "contentDetached", contentDetached, "failOnMissingJwsRecordHeader", failOnMissingJwsRecordHeader);
+                    JWS_HEADER_NAME, "contentDetached", contentDetached, "requireJwsRecordHeader", requireJwsRecordHeader);
         }
         else {
             jwsConfig = Map.of("trustedJsonWebKeySet", ECDSA_VERIFY_JWKS.toJson(), "algorithms", Map.of("allowed", List.of("ES256")), "jwsRecordHeaderKey",
-                    JWS_HEADER_NAME, "contentDetached", contentDetached, "failOnMissingJwsRecordHeader", failOnMissingJwsRecordHeader);
+                    JWS_HEADER_NAME, "contentDetached", contentDetached, "requireJwsRecordHeader", requireJwsRecordHeader);
         }
 
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",

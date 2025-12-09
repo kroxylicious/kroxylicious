@@ -39,7 +39,7 @@ public class JwsSignatureValidationConfig {
     private final AllowDeny<String> allowedAndDeniedAlgorithms;
     private final String jwsRecordHeaderKey;
     private final Boolean isContentDetached;
-    private final Boolean failOnMissingJwsRecordHeader;
+    private final Boolean requireJwsRecordHeader;
 
     /**
      * Construct JwsSignatureValidationConfig
@@ -50,14 +50,14 @@ public class JwsSignatureValidationConfig {
                                         @JsonProperty(value = "algorithms") @Nullable AllowDeny<String> nullableAlgorithms,
                                         @JsonProperty(value = "jwsRecordHeaderKey", defaultValue = "kroxylicious.io/jws") @Nullable String nullablejwsRecordHeaderKey,
                                         @JsonProperty(value = "contentDetached", defaultValue = "false") @Nullable Boolean nullableIsContentDetached,
-                                        @JsonProperty(value = "failOnMissingJwsRecordHeader", defaultValue = "true") @Nullable Boolean nullableFailOnMissingJwsRecordHeader) {
+                                        @JsonProperty(value = "requireJwsRecordHeader", defaultValue = "true") @Nullable Boolean nullableRequireJwsRecordHeader) {
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
 
         this.allowedAndDeniedAlgorithms = nullableAlgorithms != null ? nullableAlgorithms : new AllowDeny<>(List.of(), Set.of());
 
         this.jwsRecordHeaderKey = nullablejwsRecordHeaderKey != null ? nullablejwsRecordHeaderKey : "kroxylicious.io/jws";
         this.isContentDetached = nullableIsContentDetached != null && nullableIsContentDetached;
-        this.failOnMissingJwsRecordHeader = nullableFailOnMissingJwsRecordHeader == null || nullableFailOnMissingJwsRecordHeader;
+        this.requireJwsRecordHeader = nullableRequireJwsRecordHeader == null || nullableRequireJwsRecordHeader;
     }
 
     public JsonWebKeySet getJsonWebKeySet() {
@@ -76,8 +76,8 @@ public class JwsSignatureValidationConfig {
         return isContentDetached;
     }
 
-    public boolean getFailOnMissingJwsRecordHeader() {
-        return failOnMissingJwsRecordHeader;
+    public boolean getRequireJwsRecordHeader() {
+        return requireJwsRecordHeader;
     }
 
     /**
@@ -117,7 +117,7 @@ public class JwsSignatureValidationConfig {
                 .allMatch(key -> that.trustedJsonWebKeySet.findJsonWebKey(key.getKeyId(), key.getKeyType(), key.getUse(), key.getAlgorithm()) != null);
 
         return hasSameAmountOfKeys && allKeysFound && jwsRecordHeaderKey.equals(that.jwsRecordHeaderKey) && isContentDetached == that.isContentDetached
-                && failOnMissingJwsRecordHeader == that.failOnMissingJwsRecordHeader;
+                && requireJwsRecordHeader == that.requireJwsRecordHeader;
     }
 
     @Override
@@ -142,7 +142,7 @@ public class JwsSignatureValidationConfig {
                 deniedAlgorithms,
                 jwsRecordHeaderKey,
                 isContentDetached,
-                failOnMissingJwsRecordHeader);
+                requireJwsRecordHeader);
     }
 
     @Override
