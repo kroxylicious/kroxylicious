@@ -8,7 +8,7 @@
 = Creating AWS KMS keys
 
 [role="_abstract"]
-This procedure describes how to create a *Symmetric key* with *Encrypt and decrypt* usage for use with the Record Encryption filter. The process uses the AWS CLI to {aws}/kms/latest/developerguide/create-keys.html#create-symmetric-cmk[create] a key and optionally apply a rotation policy.
+This procedure describes how to create a *Symmetric key* with *encrypt and decrypt* usage for the Record Encryption filter. The procedure uses the AWS CLI to create a key and, optionally, apply a rotation policy.
 
 NOTE: Multi-region keys are supported.
 
