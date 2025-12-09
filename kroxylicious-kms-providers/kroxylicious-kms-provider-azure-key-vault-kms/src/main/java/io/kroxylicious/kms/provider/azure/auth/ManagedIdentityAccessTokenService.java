@@ -19,6 +19,9 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -49,6 +52,7 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
 
     private final ManagedIdentityCredentialsConfig managedIdentityCredentialsConfig;
     private final Clock clock;
+    private static final Logger LOG = LoggerFactory.getLogger(ManagedIdentityAccessTokenService.class);
 
     private final HttpClient httpClient;
 
@@ -71,7 +75,7 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
     public CompletionStage<BearerToken> getBearerToken() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(
-                        managedIdentityCredentialsConfig.identityServiceURL().toString()
+                        managedIdentityCredentialsConfig.identityServiceURL()
                                 + "/metadata/identity/oauth2/token?api-version=2018-02-01&resource="
                                 + URLEncoder.encode(managedIdentityCredentialsConfig.targetResource(), StandardCharsets.UTF_8)))
                 .header("Metadata", "true")
@@ -91,17 +95,20 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
 
     private static AccessTokenResponse getAccessTokenResponse(HttpResponse<String> r) {
         if (r.statusCode() != 200) {
+            LOG.warn("GET Managed Identity token failed. Received unexpected status code {}", r.statusCode());
             throw new UnexpectedHttpStatusCodeException(r);
         }
         else {
             String body = r.body();
             if (body == null || body.isEmpty()) {
+                LOG.warn("GET Managed Identity token failed. Received empty body");
                 throw new MalformedResponseBodyException("response body is null or empty");
             }
             try {
                 return MAPPER.readValue(body, AccessTokenResponse.class);
             }
             catch (JsonProcessingException e) {
+                LOG.warn("GET Managed Identity token failed. Failed to parse access token response");
                 throw new MalformedResponseBodyException("failed to decode response body", e);
             }
         }

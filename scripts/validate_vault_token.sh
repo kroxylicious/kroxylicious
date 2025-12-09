@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-KEK_PATH=${1:-transit/keys/KEK_testkey}
+KEK_PATH=${1:-transit/keys/KEK-testkey}
 
 echo -n "Testing ability to read key"
 

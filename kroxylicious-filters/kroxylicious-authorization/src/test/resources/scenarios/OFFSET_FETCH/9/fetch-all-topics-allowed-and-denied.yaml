@@ -8,11 +8,7 @@
 metadata:
   apiKeys: "OFFSET_FETCH"
   apiVersion: 9
-  scenario: |
-    request contains some allowed topics and some denied
-    allowed topics are forwarded upstream
-    denied topics are not forwarded upstream
-    denied topic errors are augmented into response to client
+  scenario: "fetch all topics where some topics allowed but others are denied"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "OFFSET_FETCH"
@@ -24,8 +20,12 @@ given:
         clientId: "clientId"
       expectedRequest:
         groups:
-          - groupId: "group"
-            memberId: "random-string-641"
+          - groupId: "with-all-topics"
+            memberId: "member-641"
+            memberEpoch: 990
+            topics: null
+          - groupId: "with-specific-topics"
+            memberId: "member-747"
             memberEpoch: 990
             topics:
               - name: "my-topic"
@@ -33,30 +33,40 @@ given:
                   - 639
               - name: "unauthorized"
                 partitionIndexes:
-                  - 639
+                  - 546
         requireStable: false
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
         throttleTimeMs: 712
         groups:
-          - groupId: "group"
+          - groupId: "with-all-topics"
+            errorCode: 162
             topics:
               - name: "my-topic"
                 partitions:
-                  - partitionIndex: 65
+                  - partitionIndex: 639
+                    committedOffset: 845
+                    committedLeaderEpoch: 240
+                    metadata: "random-string-576"
+                    errorCode: 1010
+          - groupId: "with-specific-topics"
+            errorCode: 162
+            topics:
+              - name: "my-topic"
+                partitions:
+                  - partitionIndex: 639
                     committedOffset: 845
                     committedLeaderEpoch: 240
                     metadata: "random-string-576"
                     errorCode: 1010
               - name: "unauthorized"
                 partitions:
-                  - partitionIndex: 639
-                    committedOffset: 846
-                    committedLeaderEpoch: 241
-                    metadata: "random-string-577"
+                  - partitionIndex: 546
+                    committedOffset: 845
+                    committedLeaderEpoch: 240
+                    metadata: "random-string-576"
                     errorCode: 1010
-            errorCode: 162
   authorizerRules:
     allowed:
       - subject: "alice"
@@ -73,8 +83,12 @@ when:
     clientId: "clientId"
   request:
     groups:
-      - groupId: "group"
-        memberId: "random-string-641"
+      - groupId: "with-all-topics"
+        memberId: "member-641"
+        memberEpoch: 990
+        topics: null
+      - groupId: "with-specific-topics"
+        memberId: "member-747"
         memberEpoch: 990
         topics:
           - name: "my-topic"
@@ -82,7 +96,7 @@ when:
               - 639
           - name: "unauthorized"
             partitionIndexes:
-              - 639
+              - 546
     requireStable: false
 then:
   expectedResponseHeader:
@@ -90,18 +104,28 @@ then:
   expectedResponse:
     throttleTimeMs: 712
     groups:
-      - groupId: "group"
+      - groupId: "with-all-topics"
         topics:
           - name: "my-topic"
             partitions:
-              - partitionIndex: 65
+              - partitionIndex: 639
+                committedOffset: 845
+                committedLeaderEpoch: 240
+                metadata: "random-string-576"
+                errorCode: 1010
+        errorCode: 162
+      - groupId: "with-specific-topics"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 639
                 committedOffset: 845
                 committedLeaderEpoch: 240
                 metadata: "random-string-576"
                 errorCode: 1010
           - name: "unauthorized"
             partitions:
-              - partitionIndex: 639
+              - partitionIndex: 546
                 committedOffset: -1
                 committedLeaderEpoch: -1
                 metadata: ""

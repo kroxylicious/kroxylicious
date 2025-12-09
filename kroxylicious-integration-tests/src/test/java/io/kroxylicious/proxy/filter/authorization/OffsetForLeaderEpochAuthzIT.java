@@ -24,6 +24,7 @@ import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
 import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData.OffsetForLeaderTopic;
 import org.apache.kafka.common.message.OffsetForLeaderEpochResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
@@ -92,7 +93,8 @@ class OffsetForLeaderEpochAuthzIT extends AuthzIT {
     List<Arguments> shouldEnforceAccessToTopics() {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.OFFSET_FOR_LEADER_EPOCH),
                 AuthorizationFilter.maxSupportedApiVersion(ApiKeys.OFFSET_FOR_LEADER_EPOCH))
-                .mapToObj(apiVersion -> Arguments.argumentSet("api version before batching version " + apiVersion, new OffsetFetchEquivalence((short) apiVersion)));
+                .mapToObj(apiVersion -> Arguments.argumentSet("api version before batching version " + apiVersion,
+                        new OffsetForLeaderEpochEquivalence((short) apiVersion)));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.OFFSET_FOR_LEADER_EPOCH.oldestVersion(), ApiKeys.OFFSET_FOR_LEADER_EPOCH.latestVersion(true))
                 .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.OFFSET_FOR_LEADER_EPOCH, (short) version))
@@ -111,9 +113,9 @@ class OffsetForLeaderEpochAuthzIT extends AuthzIT {
         }
     }
 
-    class OffsetFetchEquivalence extends Equivalence<OffsetForLeaderEpochRequestData, OffsetForLeaderEpochResponseData> {
+    class OffsetForLeaderEpochEquivalence extends Equivalence<OffsetForLeaderEpochRequestData, OffsetForLeaderEpochResponseData> {
 
-        OffsetFetchEquivalence(short apiVersion) {
+        OffsetForLeaderEpochEquivalence(short apiVersion) {
             super(apiVersion);
         }
 
@@ -150,6 +152,12 @@ class OffsetForLeaderEpochAuthzIT extends AuthzIT {
             OffsetForLeaderTopic topicC = createOffsetForLeaderTopic(EXISTING_TOPIC_NAME, 0, 20);
             offsetForLeaderEpochRequestData.topics().addAll(List.of(topicA, topicB, topicC));
             return offsetForLeaderEpochRequestData;
+        }
+
+        @Override
+        public boolean needsRetry(OffsetForLeaderEpochResponseData response) {
+            return response.topics() != null && response.topics().stream().anyMatch(topicResult -> topicResult.partitions() != null
+                    && topicResult.partitions().stream().anyMatch(epochEndOffset -> Errors.forCode(epochEndOffset.errorCode()) == Errors.NOT_LEADER_OR_FOLLOWER));
         }
     }
 
