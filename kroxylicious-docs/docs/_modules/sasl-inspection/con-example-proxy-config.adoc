@@ -29,7 +29,7 @@ Refer to SASL mechanism by its name given in the xref:supported-mechansisms-{con
 If omitted, the SASL mechanisms `SCRAM-SHA-256`, `SCRAM-SHA-512` and `OAUTHBEARER` will be enabled by default.
 <2> If true then successful authentication will be required before the filter will forward any requests other than those strictly required to perform SASL authentication.
 If false then the filter will forward all requests regardless of whether SASL authentication has been attempted or was successful. Defaults to false.
-<3> The name of a plugin class implementing `io.kroxylicious.proxy.authentication.SaslSubjectBuilderService}`.
+<3> The name of a plugin class implementing `io.kroxylicious.proxy.authentication.SaslSubjectBuilderService`.
 If omitted, a default subject builder is used that creates a principal with name matching the SASL authorized id.
 <4> Subject builder configuration.
 
