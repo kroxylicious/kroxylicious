@@ -8,12 +8,10 @@ package io.kroxylicious.proxy.internal;
 
 import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -129,7 +127,7 @@ class KafkaProxyInitializerTest {
     @Test
     void shouldInitialisePlainChannel() {
         // Given
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
         // When
         kafkaProxyInitializer.initChannel(channel);
 
@@ -144,7 +142,7 @@ class KafkaProxyInitializerTest {
         // Given
         final EndpointBindingResolver bindingResolver = mock(EndpointBindingResolver.class);
         when(bindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
         when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
         kafkaProxyInitializer.initChannel(channel);
@@ -162,7 +160,7 @@ class KafkaProxyInitializerTest {
         // Given
         final EndpointBindingResolver bindingResolver = mock(EndpointBindingResolver.class);
         when(bindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
         when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
         kafkaProxyInitializer.initChannel(channel);
@@ -181,7 +179,7 @@ class KafkaProxyInitializerTest {
         // Given
         when(vcb.endpointGateway())
                 .thenReturn(virtualClusterModel.gateways().values().iterator().next());
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
@@ -201,7 +199,7 @@ class KafkaProxyInitializerTest {
         // Given
         virtualClusterModel = buildVirtualCluster(false, true);
         when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
@@ -222,7 +220,7 @@ class KafkaProxyInitializerTest {
         // Given
         virtualClusterModel = buildVirtualCluster(true, false);
         when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
@@ -237,35 +235,13 @@ class KafkaProxyInitializerTest {
         Mockito.verifyNoMoreInteractions(channelPipeline);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = { true, false })
-    void shouldAddAuthnHandlersOnBindingComplete(boolean tls) {
-        // Given
-        virtualClusterModel = buildVirtualCluster(false, false);
-        when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
-        final AuthenticateCallbackHandler plainHandler = mock(AuthenticateCallbackHandler.class);
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of(KafkaAuthnHandler.SaslMechanism.PLAIN, plainHandler));
-
-        // When
-        kafkaProxyInitializer.addHandlers(channel, vcb);
-
-        // Then
-        final InOrder orderedVerifier = inOrder(channelPipeline);
-        verifyErrorHandlerRemoved(orderedVerifier);
-        verifyEncoderAndOrdererAdded(orderedVerifier);
-        orderedVerifier.verify(channelPipeline).addLast(any(KafkaAuthnHandler.class));
-        verifyFrontendHandlerAdded(orderedVerifier);
-        verifyErrorHandlerAdded(orderedVerifier);
-        Mockito.verifyNoMoreInteractions(channelPipeline);
-    }
-
     @Test
     void shouldCreateFilters() {
         // Given
         final FilterChainFactory fcf = mock(FilterChainFactory.class);
         when(vcb.upstreamTarget()).thenReturn(new HostPort("upstream.broker.kafka", 9090));
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
-        final KafkaProxyInitializer.InitalizerNetFilter initalizerNetFilter = new KafkaProxyInitializer.InitalizerNetFilter(mock(SaslDecodePredicate.class),
+        final KafkaProxyInitializer.InitalizerNetFilter initalizerNetFilter = new KafkaProxyInitializer.InitalizerNetFilter(
                 channel,
                 vcb,
                 pfr,
@@ -286,7 +262,7 @@ class KafkaProxyInitializerTest {
     @Test
     void shouldInitialiseTlsChannel() {
         // Given
-        kafkaProxyInitializer = createKafkaProxyInitializer(true, (endpoint, sniHostname) -> bindingStage, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(true, (endpoint, sniHostname) -> bindingStage);
 
         // When
         kafkaProxyInitializer.initChannel(channel);
@@ -301,7 +277,7 @@ class KafkaProxyInitializerTest {
         // Given
         var endpointBindingResolver = mock(EndpointBindingResolver.class);
         var embeddedChannel = new EmbeddedChannel(acceptingSocketChannel, DefaultChannelId.newInstance(), true, false);
-        kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver);
         kafkaProxyInitializer.initChannel(embeddedChannel);
         when(endpointBindingResolver.resolve(any(), eq("chat4.leancloud.cn"))).thenReturn(CompletableFuture.failedStage(new EndpointResolutionException("not resolved")));
 
@@ -344,15 +320,13 @@ class KafkaProxyInitializerTest {
     }
 
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
-                                                              EndpointBindingResolver bindingResolver,
-                                                              Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
+                                                              EndpointBindingResolver bindingResolver) {
         return new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                authnMechanismHandlers,
                 new ApiVersionsServiceImpl());
     }
 

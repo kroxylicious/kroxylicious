@@ -7,9 +7,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +56,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
 
     private final boolean haproxyProtocol;
-    private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
     private final boolean tls;
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
@@ -73,12 +70,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
-                                 Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
                                  ApiVersionsServiceImpl apiVersionsService) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
-        this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.tls = tls;
         this.bindingResolver = bindingResolver;
         this.filterChainFactory = filterChainFactory;
@@ -198,7 +193,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
         }
 
-        var dp = new SaslDecodePredicate(!authnHandlers.isEmpty());
+        var dp = new DelegatingDecodePredicate();
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
 
@@ -214,12 +209,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
 
-        if (!authnHandlers.isEmpty()) {
-            LOGGER.debug("Adding authn handler for handlers {}", authnHandlers);
-            pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers));
-        }
-
-        final NetFilter netFilter = new InitalizerNetFilter(dp,
+        final NetFilter netFilter = new InitalizerNetFilter(
                 ch,
                 binding,
                 pfr,
@@ -263,7 +253,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @VisibleForTesting
     static class InitalizerNetFilter implements NetFilter {
 
-        private final SaslDecodePredicate decodePredicate;
         private final Channel ch;
         private final EndpointGateway gateway;
         private final EndpointBinding binding;
@@ -274,8 +263,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
         private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
 
-        InitalizerNetFilter(SaslDecodePredicate decodePredicate,
-                            Channel ch,
+        InitalizerNetFilter(Channel ch,
                             EndpointBinding binding,
                             PluginFactoryRegistry pfr,
                             FilterChainFactory filterChainFactory,
@@ -283,7 +271,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                             EndpointReconciler endpointReconciler,
                             ApiVersionsIntersectFilter apiVersionsIntersectFilter,
                             ApiVersionsDowngradeFilter apiVersionsDowngradeFilter) {
-            this.decodePredicate = decodePredicate;
             this.ch = ch;
             this.gateway = binding.endpointGateway();
             this.binding = binding;
@@ -297,8 +284,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         @Override
         public void selectServer(NetFilter.NetFilterContext context) {
-            List<FilterAndInvoker> apiVersionFilters = decodePredicate.isAuthenticationOffloadEnabled() ? List.of()
-                    : FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
+            List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
             List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
