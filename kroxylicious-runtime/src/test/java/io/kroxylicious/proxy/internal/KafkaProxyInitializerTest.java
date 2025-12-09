@@ -383,6 +383,7 @@ class KafkaProxyInitializerTest {
     private void verifyEncoderAndOrdererAdded(InOrder orderedVerifyer) {
         orderedVerifyer.verify(channelPipeline).addLast(eq("requestDecoder"), any(ByteToMessageDecoder.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseEncoder"), any(MessageToByteEncoder.class));
+        orderedVerifyer.verify(channelPipeline).addLast(eq("saslV0Rejecter"), any(SaslV0RejectionHandler.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
     }
 }

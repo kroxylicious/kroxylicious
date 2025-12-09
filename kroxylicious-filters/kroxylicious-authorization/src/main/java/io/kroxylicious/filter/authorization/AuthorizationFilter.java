@@ -78,7 +78,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
         apiEnforcement.put(ApiKeys.FETCH, new FetchEnforcement());
         apiEnforcement.put(ApiKeys.OFFSET_COMMIT, new OffsetCommitEnforcement());
-        apiEnforcement.put(ApiKeys.OFFSET_FETCH, new CompositeEnforcement<>(List.of(new OffsetFetchNonBatchingEnforcement(), new OffsetFetchGroupBatchingEnforcement())));
+        apiEnforcement.put(ApiKeys.OFFSET_FETCH, new OffsetFetchEnforcement());
         apiEnforcement.put(ApiKeys.OFFSET_DELETE, new OffsetDeleteEnforcement());
         apiEnforcement.put(ApiKeys.OFFSET_FOR_LEADER_EPOCH, new OffsetForLeaderEpochEnforcement());
 
@@ -285,10 +285,10 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                                                   ApiMessage response,
                                                                   FilterContext context,
                                                                   ApiEnforcement<?, ?> enforcement) {
-        return ((ApiEnforcement) enforcement).onResponse(header, response, context, this).whenComplete((o, throwable) -> {
-            // safety pop in case inflight state wasn't popped due to exception or logical error
-            popInflightState(header.correlationId(), InflightState.class);
-        });
+        return ((ApiEnforcement) enforcement).onResponse(header, response, context, this)
+                .whenComplete((o, throwable) ->
+                // safety pop in case inflight state wasn't popped due to exception or logical error
+                popInflightState(header.correlationId(), InflightState.class));
     }
 
     private CompletionStage<ResponseFilterResult> checkCompat(ResponseHeaderData header,

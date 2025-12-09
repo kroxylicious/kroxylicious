@@ -162,8 +162,12 @@ class AuthorizationFilterTest {
                                 KafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(responseResult.message(), version));
                         ApiMessage header = Objects.requireNonNull(responseResult.header());
                         String actualHeader = toYaml(ResponseHeaderDataJsonConverter.write((ResponseHeaderData) header, apiKeys.responseHeaderVersion(version)));
-                        assertThat(actualMessage).isEqualTo(toYaml(definition.then().expectedResponse()));
-                        assertThat(actualHeader).isEqualTo(toYaml(definition.then().expectedResponseHeader()));
+                        assertThat(actualMessage)
+                                .as("Body of response to client")
+                                .isEqualTo(toYaml(definition.then().expectedResponse()));
+                        assertThat(actualHeader)
+                                .as("Header of response to client")
+                                .isEqualTo(toYaml(definition.then().expectedResponseHeader()));
                     }
                 }
                 else {

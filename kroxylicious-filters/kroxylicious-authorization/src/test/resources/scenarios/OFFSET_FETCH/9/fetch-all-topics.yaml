@@ -8,7 +8,7 @@
 metadata:
   apiKeys: "OFFSET_FETCH"
   apiVersion: 9
-  scenario: "if all topics in request are denied we shortcircuit respond"
+  scenario: "fetch all topics"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "OFFSET_FETCH"
@@ -23,26 +23,23 @@ given:
           - groupId: "random-string-220"
             memberId: "random-string-641"
             memberEpoch: 990
-            topics:
-              - name: "unauthorized"
-                partitionIndexes:
-                  - 639
+            topics: null
         requireStable: false
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
-        throttleTimeMs: 0
+        throttleTimeMs: 712
         groups:
-          - groupId: "random-string-220"
+          - groupId: "random-string-750"
             topics:
-              - name: "unauthorized"
+              - name: "my-topic"
                 partitions:
-                  - partitionIndex: 639
-                    committedOffset: 846
-                    committedLeaderEpoch: 241
-                    metadata: "random-string-577"
+                  - partitionIndex: 65
+                    committedOffset: 845
+                    committedLeaderEpoch: 240
+                    metadata: "random-string-576"
                     errorCode: 1010
-            errorCode: 0
+            errorCode: 162
   authorizerRules:
     allowed:
       - subject: "alice"
@@ -62,24 +59,21 @@ when:
       - groupId: "random-string-220"
         memberId: "random-string-641"
         memberEpoch: 990
-        topics:
-          - name: "unauthorized"
-            partitionIndexes:
-              - 639
+        topics: null
     requireStable: false
 then:
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
-    throttleTimeMs: 0
+    throttleTimeMs: 712
     groups:
-      - groupId: "random-string-220"
+      - groupId: "random-string-750"
         topics:
-          - name: "unauthorized"
+          - name: "my-topic"
             partitions:
-              - partitionIndex: 639
-                committedOffset: -1
-                committedLeaderEpoch: -1
-                metadata: ""
-                errorCode: 29
-        errorCode: 0
+              - partitionIndex: 65
+                committedOffset: 845
+                committedLeaderEpoch: 240
+                metadata: "random-string-576"
+                errorCode: 1010
+        errorCode: 162

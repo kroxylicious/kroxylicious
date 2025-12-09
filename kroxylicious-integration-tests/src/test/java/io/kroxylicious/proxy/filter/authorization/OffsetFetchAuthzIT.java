@@ -10,11 +10,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -46,6 +45,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
@@ -54,10 +54,11 @@ import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
 import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
-import static io.kroxylicious.filter.authorization.OffsetFetchGroupBatchingEnforcement.FIRST_VERSION_USING_GROUP_BATCHING;
-import static java.util.stream.Stream.concat;
+import static io.kroxylicious.filter.authorization.OffsetFetchEnforcement.FIRST_VERSION_USING_GROUP_BATCHING;
 
 class OffsetFetchAuthzIT extends AuthzIT {
+
+    public static final short FIRST_VERSION_SUPPORTING_ALL_TOPICS = 2;
 
     public static final String EXISTING_TOPIC_NAME = "other-topic";
     public static final String GROUP_ID = "groupid";
@@ -144,17 +145,31 @@ class OffsetFetchAuthzIT extends AuthzIT {
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {
-        Stream<Arguments> supportedVersionsBeforeGroupBatching = IntStream.range(AuthorizationFilter.minSupportedApiVersion(ApiKeys.OFFSET_FETCH),
-                FIRST_VERSION_USING_GROUP_BATCHING)
-                .mapToObj(apiVersion -> Arguments.argumentSet("api version before batching version " + apiVersion, new OffsetFetchEquivalence((short) apiVersion)));
-        Stream<Arguments> supportedVersionsWithGroupBatching = IntStream.rangeClosed(8, AuthorizationFilter.maxSupportedApiVersion(ApiKeys.OFFSET_FETCH)).mapToObj(
-                apiVersion -> Arguments.argumentSet("api version with batching version " + apiVersion, new OffsetFetchEquivalenceGroupBatching((short) apiVersion)));
-        Stream<Arguments> unsupportedVersions = IntStream.rangeClosed(ApiKeys.OFFSET_FETCH.oldestVersion(), ApiKeys.OFFSET_FETCH.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.OFFSET_FETCH, (short) version))
-                .mapToObj(
-                        apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion, new UnsupportedApiVersion<>(ApiKeys.OFFSET_FETCH, (short) apiVersion)));
-        Stream<Arguments> allSupported = concat(supportedVersionsBeforeGroupBatching, supportedVersionsWithGroupBatching);
-        return concat(allSupported, unsupportedVersions).toList();
+        var result = new ArrayList<Arguments>();
+        for (short apiVersion = AuthorizationFilter.minSupportedApiVersion(ApiKeys.OFFSET_FETCH); apiVersion <= AuthorizationFilter
+                .maxSupportedApiVersion(ApiKeys.OFFSET_FETCH); apiVersion++) {
+            if (AuthorizationFilter.isApiVersionSupported(ApiKeys.OFFSET_FETCH, apiVersion)) {
+                if (apiVersion < FIRST_VERSION_USING_GROUP_BATCHING) {
+                    if (apiVersion >= FIRST_VERSION_SUPPORTING_ALL_TOPICS) {
+                        result.add(Arguments.argumentSet("api version " + apiVersion + " (before batching), all topics",
+                                new OffsetFetchEquivalence(apiVersion, true)));
+                    }
+                    result.add(Arguments.argumentSet("api version " + apiVersion + " (before batching), given topics",
+                            new OffsetFetchEquivalence(apiVersion, false)));
+                }
+                else {
+                    result.add(Arguments.argumentSet("api version " + apiVersion + " (with batching), all topics",
+                            new OffsetFetchEquivalenceGroupBatching(apiVersion, true)));
+                    result.add(Arguments.argumentSet("api version " + apiVersion + " (with batching), given topics",
+                            new OffsetFetchEquivalenceGroupBatching(apiVersion, false)));
+                }
+            }
+            else {
+                result.add(Arguments.argumentSet("unsupported version " + apiVersion, new UnsupportedApiVersion<>(ApiKeys.OFFSET_FETCH, (short) apiVersion)));
+            }
+
+        }
+        return result;
     }
 
     @ParameterizedTest
@@ -168,12 +183,16 @@ class OffsetFetchAuthzIT extends AuthzIT {
 
     class OffsetFetchEquivalence extends Equivalence<OffsetFetchRequestData, OffsetFetchResponseData> {
 
-        OffsetFetchEquivalence(short apiVersion) {
+        private final boolean allTopics;
+
+        OffsetFetchEquivalence(short apiVersion, boolean allTopics) {
             super(apiVersion);
+            this.allTopics = allTopics;
         }
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonResponse) {
+            sortArray(jsonResponse, "topics", "name");
             return prettyJsonString(jsonResponse);
         }
 
@@ -204,19 +223,31 @@ class OffsetFetchAuthzIT extends AuthzIT {
             OffsetFetchRequestTopic topicB = createOffsetFetchTopic(BOB_TO_DESCRIBE_TOPIC_NAME, 0, 20);
             OffsetFetchRequestTopic topicC = createOffsetFetchTopic(EXISTING_TOPIC_NAME, 0, 20);
             fetchRequestData.setGroupId(GROUP_ID);
-            fetchRequestData.setTopics(List.of(topicA, topicB, topicC));
+            if (allTopics) {
+                fetchRequestData.setTopics(null);
+            }
+            else {
+                fetchRequestData.setTopics(List.of(topicA, topicB, topicC));
+            }
             return fetchRequestData;
         }
     }
 
     class OffsetFetchEquivalenceGroupBatching extends Equivalence<OffsetFetchRequestData, OffsetFetchResponseData> {
 
-        OffsetFetchEquivalenceGroupBatching(short apiVersion) {
+        private final boolean allTopics;
+
+        OffsetFetchEquivalenceGroupBatching(short apiVersion, boolean allTopics) {
             super(apiVersion);
+            this.allTopics = allTopics;
         }
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonResponse) {
+            ArrayNode groups = (ArrayNode) jsonResponse.path("groups");
+            for (var group : groups) {
+                sortArray((ObjectNode) group, "topics", "name");
+            }
             return prettyJsonString(jsonResponse);
         }
 
@@ -248,7 +279,12 @@ class OffsetFetchAuthzIT extends AuthzIT {
             OffsetFetchRequestTopics topicC = createOffsetFetchTopics(EXISTING_TOPIC_NAME, 0, 20);
             OffsetFetchRequestData.OffsetFetchRequestGroup group = new OffsetFetchRequestData.OffsetFetchRequestGroup();
             group.setGroupId(GROUP_ID);
-            group.topics().addAll(List.of(topicA, topicB, topicC));
+            if (allTopics) {
+                group.setTopics(null);
+            }
+            else {
+                group.topics().addAll(List.of(topicA, topicB, topicC));
+            }
             fetchRequestData.setGroups(List.of(group));
             return fetchRequestData;
         }
