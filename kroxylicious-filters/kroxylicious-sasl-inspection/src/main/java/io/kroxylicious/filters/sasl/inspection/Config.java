@@ -8,6 +8,10 @@ package io.kroxylicious.filters.sasl.inspection;
 
 import java.util.Set;
 
+import io.kroxylicious.proxy.authentication.SaslSubjectBuilderService;
+import io.kroxylicious.proxy.plugin.PluginImplConfig;
+import io.kroxylicious.proxy.plugin.PluginImplName;
+
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -25,6 +29,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * SASL authentication has been attempted or was successful. Defaults to false.
  */
 public record Config(@Nullable Set<String> enabledMechanisms,
-                     @Nullable String subjectBuilder,
-                     @Nullable Object subjectBuilderConfig,
+                     @Nullable @PluginImplName(SaslSubjectBuilderService.class) String subjectBuilder,
+                     @Nullable @PluginImplConfig(implNameProperty = "subjectBuilder")  Object subjectBuilderConfig,
                      @Nullable Boolean requireAuthentication) {}
