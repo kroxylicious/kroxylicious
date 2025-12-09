@@ -7,12 +7,18 @@
 package io.kroxylicious.proxy.filter.validation;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 import io.apicurio.registry.resolver.config.SchemaResolverConfig;
 
+import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.filter.validation.config.BytebufValidation;
 import io.kroxylicious.proxy.filter.validation.config.RecordValidationRule;
+import io.kroxylicious.proxy.filter.validation.config.SchemaValidationConfig;
 import io.kroxylicious.proxy.filter.validation.config.ValidationConfig;
 import io.kroxylicious.proxy.filter.validation.validators.bytebuf.BytebufValidator;
 import io.kroxylicious.proxy.filter.validation.validators.bytebuf.BytebufValidators;
@@ -61,11 +67,41 @@ class ProduceRequestValidatorBuilder {
         valueRule.getSyntacticallyCorrectJsonConfig().ifPresent(config -> validators.add(BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique())));
         valueRule.getSchemaValidationConfig().ifPresent(
                 config -> validators.add(BytebufValidators.jsonSchemaValidator(
-                        Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
+                        buildSchemaResolverConfig(config),
                         config.apicurioContentId(),
                         config.wireFormatVersion())));
 
         return BytebufValidators.chainOf(validators);
+    }
+
+    private static Map<String, Object> buildSchemaResolverConfig(SchemaValidationConfig config) {
+        Map<String, Object> resolverConfig = new HashMap<>();
+        resolverConfig.put(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString());
+
+        Tls tls = config.tls();
+        if (tls != null) {
+            addTlsConfig(resolverConfig, tls);
+        }
+
+        return resolverConfig;
+    }
+
+    private static void addTlsConfig(Map<String, Object> resolverConfig, Tls tls) {
+        TrustProvider trustProvider = tls.trust();
+        if (trustProvider instanceof TrustStore trustStore) {
+            resolverConfig.put(SchemaResolverConfig.TLS_TRUSTSTORE_LOCATION, trustStore.storeFile());
+            if (trustStore.storePasswordProvider() != null) {
+                resolverConfig.put(SchemaResolverConfig.TLS_TRUSTSTORE_PASSWORD, trustStore.storePasswordProvider().getProvidedPassword());
+            }
+            if (trustStore.storeType() != null) {
+                resolverConfig.put(SchemaResolverConfig.TLS_TRUSTSTORE_TYPE, trustStore.storeType());
+            }
+        }
+        else if (trustProvider instanceof InsecureTls insecureTls && insecureTls.insecure()) {
+            resolverConfig.put(SchemaResolverConfig.TLS_TRUST_ALL, true);
+            resolverConfig.put(SchemaResolverConfig.TLS_VERIFY_HOST, false);
+        }
+        // PlatformTrustProvider: Platform trust is the default behavior, no additional config needed
     }
 
 }

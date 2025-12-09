@@ -17,6 +17,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
+import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustStore;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ValidationConfigTest {
@@ -126,7 +130,8 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null), false,
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, null),
+                        false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, false, true), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, false, true)));
@@ -160,6 +165,57 @@ class ValidationConfigTest {
                 new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null, false, true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, false, true), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, false, true)));
+        assertEquals(expected, deserialised);
+    }
+
+    @Test
+    void testDecodeSchemaValidationWithTlsTrustStore() throws JsonProcessingException, MalformedURLException {
+        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
+                rules:
+                - topicNames:
+                  - one
+                  valueRule:
+                    schemaValidationConfig:
+                        apicurioContentId: 1
+                        apicurioRegistryUrl: https://secure-registry.example.com
+                        tls:
+                          trust:
+                            storeFile: /path/to/truststore.p12
+                            storeType: PKCS12
+                """);
+
+        Tls expectedTls = new Tls(null, new TrustStore("/path/to/truststore.p12", null, "PKCS12"), null, null);
+        SchemaValidationConfig expectedSchemaConfig = new SchemaValidationConfig(
+                URI.create("https://secure-registry.example.com").toURL(), 1L, null, expectedTls);
+        TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
+                new BytebufValidation(null, expectedSchemaConfig, true, false));
+        ValidationConfig expected = new ValidationConfig(List.of(ruleOne), null);
+        assertEquals(expected, deserialised);
+    }
+
+    @Test
+    void testDecodeSchemaValidationWithInsecureTls() throws JsonProcessingException, MalformedURLException {
+        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
+                rules:
+                - topicNames:
+                  - one
+                  valueRule:
+                    schemaValidationConfig:
+                        apicurioContentId: 1
+                        apicurioRegistryUrl: https://secure-registry.example.com
+                        tls:
+                          trust:
+                            insecure: true
+                """);
+
+        Tls expectedTls = new Tls(null, new InsecureTls(true), null, null);
+        SchemaValidationConfig expectedSchemaConfig = new SchemaValidationConfig(
+                URI.create("https://secure-registry.example.com").toURL(), 1L, null, expectedTls);
+        TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
+                new BytebufValidation(null, expectedSchemaConfig, true, false));
+        ValidationConfig expected = new ValidationConfig(List.of(ruleOne), null);
         assertEquals(expected, deserialised);
     }
 }
