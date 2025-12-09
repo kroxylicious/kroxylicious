@@ -36,7 +36,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class JwsSignatureValidationConfig {
     private final JsonWebKeySet trustedJsonWebKeySet;
-    private final AllowDeny<String> allowedAndDeniedAlgorithms;
+    private final AllowDeny<String> algorithms;
     private final String jwsRecordHeaderKey;
     private final Boolean isContentDetached;
     private final Boolean requireJwsRecordHeader;
@@ -53,7 +53,7 @@ public class JwsSignatureValidationConfig {
                                         @JsonProperty(value = "requireJwsRecordHeader", defaultValue = "true") @Nullable Boolean nullableRequireJwsRecordHeader) {
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
 
-        this.allowedAndDeniedAlgorithms = nullableAlgorithms != null ? nullableAlgorithms : new AllowDeny<>(List.of(), Set.of());
+        this.algorithms = nullableAlgorithms != null ? nullableAlgorithms : new AllowDeny<>(List.of(), Set.of());
 
         this.jwsRecordHeaderKey = nullablejwsRecordHeaderKey != null ? nullablejwsRecordHeaderKey : "kroxylicious.io/jws";
         this.isContentDetached = nullableIsContentDetached != null && nullableIsContentDetached;
@@ -64,8 +64,8 @@ public class JwsSignatureValidationConfig {
         return trustedJsonWebKeySet;
     }
 
-    public AllowDeny<String> getAllowedAndDeniedAlgorithms() {
-        return allowedAndDeniedAlgorithms;
+    public AllowDeny<String> getAlgorithms() {
+        return algorithms;
     }
 
     public String getjwsRecordHeaderKey() {
@@ -99,13 +99,13 @@ public class JwsSignatureValidationConfig {
         }
         JwsSignatureValidationConfig that = (JwsSignatureValidationConfig) o;
 
-        ArrayList<String> thisAllowedAlgorithms = new ArrayList<>(Optional.ofNullable(allowedAndDeniedAlgorithms.allowed()).orElse(List.of()));
+        ArrayList<String> thisAllowedAlgorithms = new ArrayList<>(Optional.ofNullable(algorithms.allowed()).orElse(List.of()));
         thisAllowedAlgorithms.sort(null);
-        Set<String> thisDeniedAlgorithms = Optional.ofNullable(allowedAndDeniedAlgorithms.denied()).orElse(Set.of());
+        Set<String> thisDeniedAlgorithms = Optional.ofNullable(algorithms.denied()).orElse(Set.of());
 
-        ArrayList<String> thatAllowedAlgorithms = new ArrayList<>(Optional.ofNullable(that.allowedAndDeniedAlgorithms.allowed()).orElse(List.of()));
+        ArrayList<String> thatAllowedAlgorithms = new ArrayList<>(Optional.ofNullable(that.algorithms.allowed()).orElse(List.of()));
         thatAllowedAlgorithms.sort(null);
-        Set<String> thatDeniedAlgorithms = Optional.ofNullable(that.allowedAndDeniedAlgorithms.denied()).orElse(Set.of());
+        Set<String> thatDeniedAlgorithms = Optional.ofNullable(that.algorithms.denied()).orElse(Set.of());
 
         if (!thisDeniedAlgorithms.equals(thatDeniedAlgorithms) || !thisAllowedAlgorithms.equals(thatAllowedAlgorithms)) {
             return false;
@@ -122,10 +122,10 @@ public class JwsSignatureValidationConfig {
 
     @Override
     public int hashCode() {
-        List<String> allowedAlgorithms = new ArrayList<>(Optional.ofNullable(allowedAndDeniedAlgorithms.allowed()).orElse(List.of()));
+        List<String> allowedAlgorithms = new ArrayList<>(Optional.ofNullable(algorithms.allowed()).orElse(List.of()));
         allowedAlgorithms.sort(null);
 
-        Set<String> deniedAlgorithms = Optional.ofNullable(allowedAndDeniedAlgorithms.denied()).orElse(Set.of());
+        Set<String> deniedAlgorithms = Optional.ofNullable(algorithms.denied()).orElse(Set.of());
 
         List<String> jsonWebKeys = trustedJsonWebKeySet.getJsonWebKeys().stream()
                 .map(k -> String.join("|",
@@ -150,7 +150,7 @@ public class JwsSignatureValidationConfig {
         // Probably best to keep this primitive in order to not leak sensitive information
         return "JwsSignatureValidationConfig{" +
                 "trustedJsonWebKeySet=" + trustedJsonWebKeySet +
-                ", allowedAndDeniedAlgorithms='" + allowedAndDeniedAlgorithms + '\'' +
+                ", algorithms='" + algorithms + '\'' +
                 ", jwsRecordHeaderKey='" + jwsRecordHeaderKey + '\'' +
                 ", isContentDetached='" + isContentDetached + '\'' +
                 '}';
