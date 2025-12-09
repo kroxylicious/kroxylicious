@@ -151,13 +151,13 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
         String[] deniedAlgorithms = Optional.ofNullable(algorithms.denied()).orElse(Set.of()).toArray(new String[0]);
 
         AlgorithmConstraints.ConstraintType constraintType = AlgorithmConstraints.ConstraintType.PERMIT;
-        String[] algorithms = allowedAlgorithms;
+        String[] newAlgorithms = allowedAlgorithms;
 
         if (allowedAlgorithms.length == 0 && deniedAlgorithms.length > 0) {
             constraintType = AlgorithmConstraints.ConstraintType.BLOCK;
-            algorithms = deniedAlgorithms;
+            newAlgorithms = deniedAlgorithms;
         }
 
-        return new AlgorithmConstraints(constraintType, algorithms);
+        return new AlgorithmConstraints(constraintType, newAlgorithms);
     }
 }
