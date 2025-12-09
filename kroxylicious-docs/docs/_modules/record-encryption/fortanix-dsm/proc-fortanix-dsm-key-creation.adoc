@@ -35,4 +35,4 @@ sdkms-cli  --api-endpoint https://<region>.smartkey.io create-key --obj-type AES
 ----
 * Specify the key operations as `ENCRYPT,DECRYPT,APPMANAGEABLE`. These are the minimal permissions required for record encryption to function.
 
-TIP: It is recommended to use a key rotation policy.
+. (Optional) Enable a key rotation policy. Details can be found in the Fortanix DSM documentation.
