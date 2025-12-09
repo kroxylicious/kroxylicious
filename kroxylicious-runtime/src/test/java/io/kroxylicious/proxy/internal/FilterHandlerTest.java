@@ -35,6 +35,7 @@ import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -60,7 +61,6 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
-import io.kroxylicious.proxy.internal.KafkaAuthnHandler.SaslMechanism;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 
@@ -1227,7 +1227,7 @@ class FilterHandlerTest extends FilterHarness {
         // Given
         SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setSessionLifetimeMs(10_000);
         buildChannel((SaslAuthenticateRequestFilter) (apiVersion, header, request, context) -> {
-            context.clientSaslAuthenticationSuccess(SaslMechanism.SCRAM_SHA_512.name(), AUTHORIZATION_ID);
+            context.clientSaslAuthenticationSuccess(ScramMechanism.SCRAM_SHA_512.mechanismName(), AUTHORIZATION_ID);
             return context.requestFilterResultBuilder().shortCircuitResponse(responseData).completed();
         });
 
@@ -1242,7 +1242,7 @@ class FilterHandlerTest extends FilterHarness {
                 .isNotEmpty()
                 .hasValueSatisfying(saslContext -> {
                     assertThat(saslContext.authorizationId()).isEqualTo(AUTHORIZATION_ID);
-                    assertThat(saslContext.mechanismName()).isEqualTo(SaslMechanism.SCRAM_SHA_512.name());
+                    assertThat(saslContext.mechanismName()).isEqualTo(ScramMechanism.SCRAM_SHA_512.mechanismName());
                 });
     }
 
@@ -1251,7 +1251,7 @@ class FilterHandlerTest extends FilterHarness {
         // Given
         SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setSessionLifetimeMs(10_000);
         buildChannel((SaslAuthenticateRequestFilter) (apiVersion, header, request, context) -> {
-            context.clientSaslAuthenticationSuccess(SaslMechanism.SCRAM_SHA_512.name(), new Subject(new User(AUTHORIZATION_ID)));
+            context.clientSaslAuthenticationSuccess(ScramMechanism.SCRAM_SHA_512.mechanismName(), new Subject(new User(AUTHORIZATION_ID)));
             return context.requestFilterResultBuilder().shortCircuitResponse(responseData).completed();
         });
 
@@ -1266,7 +1266,7 @@ class FilterHandlerTest extends FilterHarness {
                 .isNotEmpty()
                 .hasValueSatisfying(saslContext -> {
                     assertThat(saslContext.authorizationId()).isEqualTo(AUTHORIZATION_ID);
-                    assertThat(saslContext.mechanismName()).isEqualTo(SaslMechanism.SCRAM_SHA_512.name());
+                    assertThat(saslContext.mechanismName()).isEqualTo(ScramMechanism.SCRAM_SHA_512.mechanismName());
                 });
     }
 
@@ -1275,7 +1275,7 @@ class FilterHandlerTest extends FilterHarness {
         // Given
         SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setErrorMessage("the doors are closed");
         buildChannel((SaslAuthenticateRequestFilter) (apiVersion, header, request, context) -> {
-            context.clientSaslAuthenticationFailure(SaslMechanism.SCRAM_SHA_512.name(), null, new SaslAuthenticationException("the doors re closed"));
+            context.clientSaslAuthenticationFailure(ScramMechanism.SCRAM_SHA_512.mechanismName(), null, new SaslAuthenticationException("the doors re closed"));
             return context.requestFilterResultBuilder().shortCircuitResponse(responseData).completed();
         });
 
