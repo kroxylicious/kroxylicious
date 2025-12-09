@@ -22,6 +22,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -56,6 +59,7 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
 
     private final Oauth2ClientCredentialsConfig oauth2ClientCredentialsConfig;
     private final Clock clock;
+    private static final Logger LOG = LoggerFactory.getLogger(OauthClientCredentialsTokenService.class);
 
     private final HttpClient httpClient;
 
@@ -115,17 +119,20 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
 
     private static AccessTokenResponse getAccessTokenResponse(HttpResponse<String> r) {
         if (r.statusCode() != 200) {
+            LOG.warn("GET Microsoft Identity Platform OAuth 2.0 token failed. Received unexpected response code {}", r.statusCode());
             throw new UnexpectedHttpStatusCodeException(r);
         }
         else {
             String body = r.body();
             if (body == null || body.isEmpty()) {
+                LOG.warn("GET Microsoft Identity Platform OAuth 2.0 token failed. Received empty response body");
                 throw new MalformedResponseBodyException("response body is null or empty");
             }
             try {
                 return MAPPER.readValue(body, AccessTokenResponse.class);
             }
             catch (JsonProcessingException e) {
+                LOG.warn("GET Microsoft Identity Platform OAuth 2.0 token failed. Error parsing response body");
                 throw new MalformedResponseBodyException("failed to decode response body", e);
             }
         }
