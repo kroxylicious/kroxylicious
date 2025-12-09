@@ -1,0 +1,17 @@
+:_mod-docs-content-type: SNIPPET
+
+== Replacement matchers
+
+The replacement matcher is in this form:
+
+[source]
+----
+/<matching regular expression>/<replacement>/<flags>
+----
+where:
+
+* `<matching regular expression>` is the regular expression to test the field value.
+* `<replacement>` defines the replacement value to be used if the regular expression is matched.
+The replacement can refer to groups defined in the regular expression (`$1` for first matching group etc)
+* `flags` (optional) can be either `L` or `U` for lower or upper-casing respectively.
+
