@@ -112,7 +112,8 @@ jwsSignatureValidation:
           - ES256
           - RS256
     jwsRecordHeaderKey: kroxylicious.io/jws                       # <3>
-    contentDetached: true                                         # <4>
+    requireJwsRecordHeader: false                                 # <4>
+    contentDetached: true                                         # <5>
 ----
 <1> Set of https://datatracker.ietf.org/doc/html/rfc7517[JSON Web Keys (JWK)] to use for verifying JWS Signatures.
 <2> List of `allowed` and `denied` https://datatracker.ietf.org/doc/html/rfc7518#section-3.1[JSON Web Algorithms (JWA)].
@@ -121,7 +122,8 @@ jwsSignatureValidation:
     * If only `denied` is filled: allow all algorithms except the ones in `denied`.
     * If both `allowed` and `denied` are filled: only allow the algorithms in `allowed`.
 <3> Key of the Kafka record header containing the JWS. The default is `kroxylicious.io/jws`.
-<4> If `true`, the validator decodes the buffer into a UTF-8 string and uses that as the JWS Payload (see https://datatracker.ietf.org/doc/html/rfc7515#appendix-F[RFC 7515 Appendix F (Detached Content)]). The default is `false`.
+<4> If `true`, require the JWS Kafka record header to be present and valid. If `false`, only require the header to be valid _if it is present_ i.e. skip validation if the header is missing. The default is `true`.
+<5> If `true`, the validator decodes the buffer into a UTF-8 string and uses that as the JWS Payload (see https://datatracker.ietf.org/doc/html/rfc7515#appendix-F[RFC 7515 Appendix F (Detached Content)]). The default is `false`.
 
 ifdef::include-platform-bare-metal[]
 include::../_modules/record-validation/con-example-proxy-config.adoc[leveloffset=+1]
