@@ -32,7 +32,6 @@ import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -121,7 +120,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @Test
     void toClientActive() {
         // Given
-        buildFrontendHandler(false, false, selectServerThrows(new AssertionError()));
+        buildFrontendHandler(false, selectServerThrows(new AssertionError()));
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
 
         // When
@@ -139,7 +138,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @MethodSource("clientException")
     void toClientActiveThenException(Throwable clientException) {
         // Given
-        buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), false);
+        buildHandlerInClientActiveState(selectServerThrows(new AssertionError()), false);
 
         // When
         handler.exceptionCaught(inboundCtx, clientException);
@@ -152,7 +151,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @Test
     void toClientActiveThenUnexpectedMessage() {
         // Given
-        buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), false);
+        buildHandlerInClientActiveState(selectServerThrows(new AssertionError()), false);
 
         // When
         inboundChannel.writeInbound("unexpected");
@@ -165,7 +164,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @Test
     void toClientActiveThenInactive() {
         // Given
-        buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), false);
+        buildHandlerInClientActiveState(selectServerThrows(new AssertionError()), false);
 
         // When
         inboundChannel.close();
@@ -178,7 +177,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @ParameterizedTest
     @MethodSource("bool")
     void clientActiveToHaProxy(boolean sni) {
-        buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), sni);
+        buildHandlerInClientActiveState(selectServerThrows(new AssertionError()), sni);
 
         // When
         inboundChannel.writeInbound(HA_PROXY_MESSAGE);
@@ -194,14 +193,14 @@ class ProxyChannelStateMachineEndToEndTest {
 
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
-    void clientActiveToConnectingWithoutSaslOffload(
-                                                    boolean sni,
-                                                    boolean haProxy,
-                                                    ApiKeys firstMessage) {
+    void clientActiveToConnecting(
+                                  boolean sni,
+                                  boolean haProxy,
+                                  ApiKeys firstMessage) {
         // Given
         // Keeps the statemachine from automatically progressing so we can assert intermediate state
         activateOutboundChannelAutomatically = false;
-        buildHandlerInClientActiveState(false, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS), sni);
+        buildHandlerInClientActiveState(selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS), sni);
 
         if (haProxy) {
             proxyChannelStateMachine.forceState(
@@ -231,10 +230,8 @@ class ProxyChannelStateMachineEndToEndTest {
         assertHandlerInConnectingState(haProxy, List.of(firstMessage));
     }
 
-    private void buildHandlerInClientActiveState(
-                                                 boolean saslOffloadConfigured,
-                                                 Answer<Void> filterSelectServerBehaviour, boolean sni) {
-        buildFrontendHandler(saslOffloadConfigured, false, filterSelectServerBehaviour);
+    private void buildHandlerInClientActiveState(Answer<Void> filterSelectServerBehaviour, boolean sni) {
+        buildFrontendHandler(false, filterSelectServerBehaviour);
 
         hClientConnect(handler);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
@@ -245,53 +242,10 @@ class ProxyChannelStateMachineEndToEndTest {
 
     @ParameterizedTest
     @MethodSource("booleanXboolean")
-    @Disabled("While we figure out authentication offload")
-    void clientActiveToConnectingWithSaslOffload(
-                                                 boolean sni,
-                                                 boolean haProxy) {
+    void filterNotCallingInitiateConnectIsAnError(boolean sni,
+                                                  boolean haProxy) {
         // Given
-        buildHandlerInClientActiveState(true, selectServerCallsInitiateConnect(sni, haProxy, true), sni);
-
-        if (haProxy) {
-            proxyChannelStateMachine.forceState(
-                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
-                    handler,
-                    backendHandler);
-        }
-
-        int apiVersionsCorrId = writeInboundApiVersionsRequest();
-        assertNextClientResponseIsApiVersionsError(apiVersionsCorrId, Errors.NONE);
-        assertHandlerInApiVersionsState(haProxy);
-
-        // When
-        int saslHandshakeCorrId = writeSaslPlainHandshake();
-
-        // Then
-        // TODO how is this case supposed to work?
-        // frontend returns the ApiVersions response and transitions to AWAITING_AUTHN
-        // Then the AuthnHandler does its thing? And we end up with the AuthnEvent, which triggers SELECT_SERVER
-        // Then the following request (e.g. METADATA) gets buffered??
-        assertThat(true).isFalse();
-        inboundChannel.checkException();
-        assertThat(inboundChannel.isOpen()).isTrue();
-        assertClientResponse(
-                saslHandshakeCorrId,
-                SaslHandshakeResponseData.class,
-                SaslHandshakeResponseData::errorCode,
-                Errors.NONE);
-
-        assertThat(inboundChannel.config().isAutoRead()).isFalse();
-        assertThat(inboundChannel.isWritable()).isTrue();
-
-        assertHandlerInConnectingState(haProxy, List.of(ApiKeys.API_VERSIONS));
-    }
-
-    @ParameterizedTest
-    @MethodSource("booleanXboolean")
-    void filterNotCallingInitiateConnectIsAnErrorWithoutSaslOffload(boolean sni,
-                                                                    boolean haProxy) {
-        // Given
-        buildHandlerInClientActiveState(false, selectServerDoesNotCallInitiateConnect(sni, haProxy), sni);
+        buildHandlerInClientActiveState(selectServerDoesNotCallInitiateConnect(sni, haProxy), sni);
 
         if (haProxy) {
             proxyChannelStateMachine.forceState(
@@ -311,38 +265,11 @@ class ProxyChannelStateMachineEndToEndTest {
 
     @ParameterizedTest
     @MethodSource("booleanXboolean")
-    void filterNotCallingInitiateConnectIsAnErrorWithSaslOffload(
-                                                                 boolean sni,
-                                                                 boolean haProxy) {
+    void filterCallingInitiateConnectTwiceIsAnError(
+                                                    boolean sni,
+                                                    boolean haProxy) {
         // Given
-        buildHandlerInClientActiveState(true, selectServerDoesNotCallInitiateConnect(sni, haProxy), sni);
-
-        if (haProxy) {
-            proxyChannelStateMachine.forceState(
-                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
-                    handler,
-                    backendHandler);
-        }
-
-        int apiVersionsCorrId = writeInboundApiVersionsRequest();
-        assertNextClientResponseIsApiVersionsError(apiVersionsCorrId, Errors.NONE);
-        assertHandlerInApiVersionsState(haProxy);
-
-        // When
-        writeSaslPlainHandshake();
-
-        // Then
-        inboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse();
-    }
-
-    @ParameterizedTest
-    @MethodSource("booleanXboolean")
-    void filterCallingInitiateConnectTwiceIsAnErrorWithoutSaslOffload(
-                                                                      boolean sni,
-                                                                      boolean haProxy) {
-        // Given
-        buildHandlerInClientActiveState(false, selectServerCallsInitiateConnectTwice(sni, haProxy), sni);
+        buildHandlerInClientActiveState(selectServerCallsInitiateConnectTwice(sni, haProxy), sni);
 
         if (haProxy) {
             proxyChannelStateMachine.forceState(
@@ -361,38 +288,11 @@ class ProxyChannelStateMachineEndToEndTest {
 
     @ParameterizedTest
     @MethodSource("booleanXboolean")
-    void filterCallingInitiateConnectTwiceIsAnErrorWithSaslOffload(
-                                                                   boolean sni,
-                                                                   boolean haProxy) {
+    void filterThrowingIsAnError(
+                                 boolean sni,
+                                 boolean haProxy) {
         // Given
-        buildHandlerInClientActiveState(true, selectServerCallsInitiateConnectTwice(sni, haProxy), sni);
-
-        if (haProxy) {
-            proxyChannelStateMachine.forceState(
-                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
-                    handler,
-                    backendHandler);
-        }
-
-        int apiVersionsCorrId = writeInboundApiVersionsRequest();
-        assertNextClientResponseIsApiVersionsError(apiVersionsCorrId, Errors.NONE);
-        assertHandlerInApiVersionsState(haProxy);
-
-        // When
-        writeSaslPlainHandshake();
-
-        // Then
-        inboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse();
-    }
-
-    @ParameterizedTest
-    @MethodSource("booleanXboolean")
-    void filterThrowingIsAnErrorWithoutSaslOffload(
-                                                   boolean sni,
-                                                   boolean haProxy) {
-        // Given
-        buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), sni);
+        buildHandlerInClientActiveState(selectServerThrows(new AssertionError()), sni);
 
         if (haProxy) {
             proxyChannelStateMachine.forceState(
@@ -409,35 +309,6 @@ class ProxyChannelStateMachineEndToEndTest {
         assertNextClientResponseIsApiVersionsError(corrId, Errors.UNKNOWN_SERVER_ERROR);
 
         assertEverythingClosed();
-    }
-
-    @ParameterizedTest
-    @MethodSource("booleanXboolean")
-    @Disabled("While we figure out authentication offload")
-    void filterThrowingIsAnErrorWithSaslOffload(
-                                                boolean sni,
-                                                boolean haProxy) {
-        // Given
-        buildHandlerInClientActiveState(true, selectServerThrows(new AssertionError()), sni);
-
-        if (haProxy) {
-            proxyChannelStateMachine.forceState(
-                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
-                    handler,
-                    backendHandler);
-        }
-
-        int apiVersionsCorrId = writeInboundApiVersionsRequest();
-        assertNextClientResponseIsApiVersionsError(apiVersionsCorrId, Errors.NONE);
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.ApiVersions.class);
-
-        // When
-        writeSaslPlainHandshake();
-
-        // Then
-        inboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse();
-
     }
 
     @ParameterizedTest
@@ -642,7 +513,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
     private KafkaProxyFrontendHandler handler(
                                               NetFilter filter,
-                                              SaslDecodePredicate dp,
+                                              DelegatingDecodePredicate dp,
                                               EndpointBinding endpointBinding) {
         return new KafkaProxyFrontendHandler(filter, dp, new DefaultSubjectBuilder(List.of()), endpointBinding, proxyChannelStateMachine) {
             @Override
@@ -674,13 +545,12 @@ class ProxyChannelStateMachineEndToEndTest {
         };
     }
 
-    void buildFrontendHandler(boolean saslOffloadConfigured,
-                              boolean tlsConfigured,
+    void buildFrontendHandler(boolean tlsConfigured,
                               Answer<Void> filterSelectServerBehaviour) {
         this.inboundChannel = new EmbeddedChannel();
         this.correlationId = 0;
 
-        var dp = new SaslDecodePredicate(saslOffloadConfigured);
+        var dp = new DelegatingDecodePredicate();
         NetFilter filter = mock(NetFilter.class);
         doAnswer(filterSelectServerBehaviour).when(filter).selectServer(any());
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
@@ -960,7 +830,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                                           boolean haProxy,
                                                                           boolean tlsConfigured,
                                                                           ApiKeys firstMessage) {
-        buildFrontendHandler(false, tlsConfigured, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
+        buildFrontendHandler(tlsConfigured, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
 
         hClientConnect(handler);
         if (sni) {

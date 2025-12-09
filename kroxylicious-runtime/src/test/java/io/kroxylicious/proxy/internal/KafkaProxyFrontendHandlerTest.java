@@ -67,7 +67,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -124,11 +123,9 @@ class KafkaProxyFrontendHandlerTest {
         boolean[] tf = { true, false };
         for (boolean sslConfigured : tf) {
             for (boolean haProxyConfigured : tf) {
-                for (boolean saslOffloadConfigured : tf) {
-                    for (boolean sendApiVersions : tf) {
-                        for (boolean sendSasl : tf) {
-                            result.add(Arguments.of(sslConfigured, haProxyConfigured, saslOffloadConfigured, sendApiVersions, sendSasl));
-                        }
+                for (boolean sendApiVersions : tf) {
+                    for (boolean sendSasl : tf) {
+                        result.add(Arguments.of(sslConfigured, haProxyConfigured, sendApiVersions, sendSasl));
                     }
                 }
             }
@@ -151,7 +148,7 @@ class KafkaProxyFrontendHandlerTest {
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
-        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new DelegatingDecodePredicate(), endpointBinding);
         givenHandlerIsConnecting(handler, "initial");
         writeInboundApiVersionsRequest("post-connecting");
 
@@ -171,7 +168,7 @@ class KafkaProxyFrontendHandlerTest {
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
-        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new DelegatingDecodePredicate(), endpointBinding);
         givenHandlerIsConnected(handler);
         writeInboundApiVersionsRequest("post-connected");
 
@@ -191,7 +188,7 @@ class KafkaProxyFrontendHandlerTest {
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
-        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new DelegatingDecodePredicate(), endpointBinding);
         givenHandlerIsConnecting(handler, "initial");
 
         // When
@@ -214,7 +211,7 @@ class KafkaProxyFrontendHandlerTest {
         when(virtualClusterListenerModel.getDownstreamSslContext()).thenReturn(Optional.empty());
         when(virtualClusterModel.gateways()).thenReturn(Map.of("default", virtualClusterListenerModel));
 
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new DelegatingDecodePredicate(), endpointBinding);
         ChannelPipeline pipeline = inboundChannel.pipeline();
         pipeline.addLast(throwOnReadHandler(new DecoderException(new FrameOversizedException(5, 6))));
         pipeline.addLast(handler);
@@ -241,7 +238,7 @@ class KafkaProxyFrontendHandlerTest {
         when(virtualClusterListenerModel.getDownstreamSslContext()).thenReturn(Optional.of(SslContextBuilder.forClient().build()));
         when(virtualClusterModel.gateways()).thenReturn(Map.of("default", virtualClusterListenerModel));
 
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new DelegatingDecodePredicate(), endpointBinding);
         ChannelPipeline pipeline = inboundChannel.pipeline();
         pipeline.addLast(throwOnReadHandler(new DecoderException(new FrameOversizedException(5, 6))));
         pipeline.addLast(handler);
@@ -266,7 +263,7 @@ class KafkaProxyFrontendHandlerTest {
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
-        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new DelegatingDecodePredicate(), endpointBinding);
         givenHandlerIsConnected(handler);
 
         // When
@@ -282,7 +279,7 @@ class KafkaProxyFrontendHandlerTest {
                 .setClientSoftwareName(clientSoftwareName).setClientSoftwareVersion("1.0.0"));
     }
 
-    KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, EndpointBinding endpointBinding) {
+    KafkaProxyFrontendHandler handler(NetFilter filter, DelegatingDecodePredicate dp, EndpointBinding endpointBinding) {
         return new KafkaProxyFrontendHandler(filter, dp, new DefaultSubjectBuilder(List.of()), endpointBinding, proxyChannelStateMachine) {
 
             @Override
@@ -316,7 +313,6 @@ class KafkaProxyFrontendHandlerTest {
      *
      * @param sslConfigured         Whether SSL is configured
      * @param haProxyConfigured
-     * @param saslOffloadConfigured
      * @param sendApiVersions
      * @param sendSasl
      */
@@ -324,11 +320,10 @@ class KafkaProxyFrontendHandlerTest {
     @MethodSource("provideArgsForExpectedFlow")
     void expectedFlow(boolean sslConfigured,
                       boolean haProxyConfigured,
-                      boolean saslOffloadConfigured,
                       boolean sendApiVersions,
                       boolean sendSasl) {
 
-        var dp = new SaslDecodePredicate(saslOffloadConfigured);
+        var dp = new DelegatingDecodePredicate();
         ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
         var filter = mock(NetFilter.class);
         VirtualClusterModel virtualCluster = mock(VirtualClusterModel.class);
@@ -363,12 +358,8 @@ class KafkaProxyFrontendHandlerTest {
                 assertNull(ctx.clientSoftwareName());
                 assertNull(ctx.clientSoftwareVersion());
             }
-            if (saslOffloadConfigured && sendSasl) {
-                assertEquals("alice", ctx.authorizedId());
-            }
-            else {
-                assertNull(ctx.authorizedId());
-            }
+
+            assertNull(ctx.authorizedId());
 
             connectionInitiated(ctx);
             return null;
@@ -398,45 +389,26 @@ class KafkaProxyFrontendHandlerTest {
             assertThat(proxyChannelStateMachine.state())
                     .as("state in (ApiVersions, Connecting)")
                     .isInstanceOfAny(ProxyChannelState.ApiVersions.class, ProxyChannelState.Connecting.class);
-            if (saslOffloadConfigured) {
-                // when offloading SASL, we do not connect to a backend server until after SASL auth. The ApiVersions response is generated in the proxy.
-                verify(filter, never()).selectServer(handler);
-            }
-            else {
-                // We transition directly through selecting server, so can't observe the state.
-                assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
-                // should cause connection to the backend cluster when not offloading SASL
-                handleConnect(filter, handler);
-            }
+
+            // We transition directly through selecting server, so can't observe the state.
+            assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
+            // should cause connection to the backend cluster
+            handleConnect(filter, handler);
         }
 
         if (sendSasl) {
-            if (saslOffloadConfigured) {
-                // Simulate the KafkaAuthnHandler having done SASL offload
-                inboundChannel.pipeline().fireUserEventTriggered(new AuthenticationEvent("alice", Map.of()));
+            // Simulate the client doing SaslHandshake and SaslAuthentication,
+            writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData());
+            if (!sendApiVersions) {
+                // client doesn't send api versions, so the next frame drives selectServer
+                handleConnect(filter, handler);
 
-                // If the pipeline is configured for SASL offload (KafkaAuthnHandler)
-                // then we assume it DOESN'T propagate the SASL frames down the pipeline
-                // and therefore no backend connection happens
-                verify(filter, never()).selectServer(handler);
             }
-            else {
-                // Simulate the client doing SaslHandshake and SaslAuthentication,
-                writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData());
-                if (!sendApiVersions) {
-                    // client doesn't send api versions, so the next frame drives selectServer
-                    handleConnect(filter, handler);
-
-                }
-                writeRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData());
-            }
+            writeRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData());
         }
 
         // Simulate a Metadata request
         writeRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData());
-        if (sendSasl && saslOffloadConfigured) {
-            handleConnect(filter, handler);
-        }
 
     }
 
@@ -451,7 +423,7 @@ class KafkaProxyFrontendHandlerTest {
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
 
-        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new DelegatingDecodePredicate(), endpointBinding);
         initialiseInboundChannel(handler);
         final RequestHeaderData header = new RequestHeaderData();
         final int correlationId = 1234;
@@ -482,7 +454,7 @@ class KafkaProxyFrontendHandlerTest {
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(model);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
-        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new DelegatingDecodePredicate(), endpointBinding);
         initialiseInboundChannel(handler);
         final RequestHeaderData header = new RequestHeaderData();
         final int correlationId = 1234;
@@ -595,8 +567,7 @@ class KafkaProxyFrontendHandlerTest {
 
     @Test
     void transitionsFromStart() {
-        boolean saslOffloadConfigured = false;
-        var dp = new SaslDecodePredicate(saslOffloadConfigured);
+        var dp = new DelegatingDecodePredicate();
         var filter = mock(NetFilter.class);
         var virtualCluster = mock(VirtualClusterModel.class);
         var virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);

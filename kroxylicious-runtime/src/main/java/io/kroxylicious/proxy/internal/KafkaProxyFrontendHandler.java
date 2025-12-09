@@ -85,7 +85,7 @@ public class KafkaProxyFrontendHandler
     private final VirtualClusterModel virtualClusterModel;
     private final EndpointBinding endpointBinding;
     private final NetFilter netFilter;
-    private final SaslDecodePredicate dp;
+    private final DelegatingDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
     private final TransportSubjectBuilder subjectBuilder;
 
@@ -131,7 +131,7 @@ public class KafkaProxyFrontendHandler
 
     KafkaProxyFrontendHandler(
                               NetFilter netFilter,
-                              SaslDecodePredicate dp,
+                              DelegatingDecodePredicate dp,
                               TransportSubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
                               ProxyChannelStateMachine proxyChannelStateMachine) {
@@ -245,7 +245,7 @@ public class KafkaProxyFrontendHandler
     public void channelRead(
                             ChannelHandlerContext ctx,
                             Object msg) {
-        proxyChannelStateMachine.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(msg);
     }
 
     /**
