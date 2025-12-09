@@ -16,4 +16,4 @@ To prepare {aws}/kms/latest/developerguide/overview.html[AWS Key Management Serv
 You'll need a privileged AWS user that is capable of creating users and policies to perform the set-up.
 
 include::../_modules/record-encryption/aws-kms/con-aws-kms-setup.adoc[leveloffset=+1]
-include::../_modules/record-encryption/aws-kms/con-aws-kms-key-creation.adoc[leveloffset=+1]
+include::../_modules/record-encryption/aws-kms/proc-aws-kms-key-creation.adoc[leveloffset=+1]

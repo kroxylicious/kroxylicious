@@ -16,4 +16,4 @@ To use HashiCorp Vault with the Record Encryption filter, use the following setu
 
 include::../_modules/record-encryption/hashicorp-vault/con-vault-setup.adoc[leveloffset=+1]
 
-include::../_modules/record-encryption/hashicorp-vault/con-vault-key-creation.adoc[leveloffset=+1]
+include::../_modules/record-encryption/hashicorp-vault/proc-vault-key-creation.adoc[leveloffset=+1]

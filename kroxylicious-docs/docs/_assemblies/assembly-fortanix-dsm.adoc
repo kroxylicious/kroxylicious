@@ -15,4 +15,4 @@ To prepare Fortanix Data Security Manager (DSM) for use with the Record Encrypti
 * Create Fortanix DSM keys.
 
 include::../_modules/record-encryption/fortanix-dsm/con-fortanix-dsm-setup.adoc[leveloffset=+1]
-include::../_modules/record-encryption/fortanix-dsm/con-fortanix-dsm-key-creation.adoc[leveloffset=+1]
+include::../_modules/record-encryption/fortanix-dsm/proc-fortanix-dsm-key-creation.adoc[leveloffset=+1]
