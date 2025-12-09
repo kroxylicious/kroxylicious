@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.validation;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 import io.apicurio.registry.resolver.config.SchemaResolverConfig;
@@ -22,6 +23,10 @@ import io.kroxylicious.filter.validation.validators.request.ProduceRequestValida
 import io.kroxylicious.filter.validation.validators.request.RoutingProduceRequestValidator;
 import io.kroxylicious.filter.validation.validators.topic.TopicValidator;
 import io.kroxylicious.filter.validation.validators.topic.TopicValidators;
+import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.config.tls.TrustStore;
 
 /**
  * Builds from configuration objects to a ProduceRequestValidator
@@ -74,6 +79,33 @@ class ProduceRequestValidatorBuilder {
     }
 
     private static Map<String, Object> buildSchemaResolverConfig(SchemaValidationConfig config) {
-        return Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString());
+        Map<String, Object> resolverConfig = new HashMap<>();
+        resolverConfig.put(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString());
+
+        Tls tls = config.tls();
+        if (tls != null) {
+            addTlsConfig(resolverConfig, tls);
+        }
+
+        return resolverConfig;
     }
+
+    private static void addTlsConfig(Map<String, Object> resolverConfig, Tls tls) {
+        TrustProvider trustProvider = tls.trust();
+        if (trustProvider instanceof TrustStore trustStore) {
+            resolverConfig.put(SchemaResolverConfig.TLS_TRUSTSTORE_LOCATION, trustStore.storeFile());
+            if (trustStore.storePasswordProvider() != null) {
+                resolverConfig.put(SchemaResolverConfig.TLS_TRUSTSTORE_PASSWORD, trustStore.storePasswordProvider().getProvidedPassword());
+            }
+            if (trustStore.storeType() != null) {
+                resolverConfig.put(SchemaResolverConfig.TLS_TRUSTSTORE_TYPE, trustStore.storeType());
+            }
+        }
+        else if (trustProvider instanceof InsecureTls insecureTls && insecureTls.insecure()) {
+            resolverConfig.put(SchemaResolverConfig.TLS_TRUST_ALL, true);
+            resolverConfig.put(SchemaResolverConfig.TLS_VERIFY_HOST, false);
+        }
+        // PlatformTrustProvider: Platform trust is the default behavior, no additional config needed
+    }
+
 }
