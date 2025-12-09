@@ -46,7 +46,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     public static final int SOURCE_PORT = 18466;
     public static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             SOURCE_ADDRESS, "1.0.0.1", SOURCE_PORT, 9090);
-    public static final SaslDecodePredicate NO_SASL_DECODE_PREDICATE = new SaslDecodePredicate(false);
+    public static final DelegatingDecodePredicate DELEGATING_PREDICATE = new DelegatingDecodePredicate();
     @Mock
     NetFilter netFilter;
 
@@ -72,7 +72,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         handler = new KafkaProxyFrontendHandler(
                 netFilter,
-                NO_SASL_DECODE_PREDICATE,
+                DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
                 proxyChannelStateMachine);
@@ -106,7 +106,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelRead(clientCtx, msg);
 
         // Then
-        verify(proxyChannelStateMachine).onClientRequest(NO_SASL_DECODE_PREDICATE, msg);
+        verify(proxyChannelStateMachine).onClientRequest(msg);
         verifyNoInteractions(netFilter);
     }
 

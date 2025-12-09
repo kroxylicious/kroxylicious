@@ -16,7 +16,7 @@ import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class SaslDecodePredicateTest {
+class DelegatingDecodePredicateTest {
 
     private static final DecodePredicate TARGET_NOTHING = new DecodePredicate() {
         @Override
@@ -42,30 +42,17 @@ class SaslDecodePredicateTest {
         }
     };
 
-    private SaslDecodePredicate predicate;
+    private DelegatingDecodePredicate predicate;
 
     @Test
-    void testApiVersionAlwaysDecoded_SaslNotHandledAndBeforeDelegateSet() {
-        givenSaslHandlingDisabled();
+    void testApiVersionAlwaysDecoded_BeforeDelegateSet() {
+        givenPredicate();
         assertPredicateTargetsRequestKey(ApiKeys.API_VERSIONS);
     }
 
     @Test
-    void testApiVersionAlwaysDecoded_SaslHandledAndBeforeDelegateSet() {
-        givenSaslHandlingEnabled();
-        assertPredicateTargetsRequestKey(ApiKeys.API_VERSIONS);
-    }
-
-    @Test
-    void testApiVersionAlwaysDecoded_SaslNotHandledAndDelegateSet() {
-        givenSaslHandlingDisabled();
-        givenDelegateTargetsNothing();
-        assertPredicateTargetsRequestKey(ApiKeys.API_VERSIONS);
-    }
-
-    @Test
-    void testApiVersionAlwaysDecoded_SaslHandledAndDelegateSet() {
-        givenSaslHandlingEnabled();
+    void testApiVersionAlwaysDecoded_DelegateSet() {
+        givenPredicate();
         givenDelegateTargetsNothing();
         assertPredicateTargetsRequestKey(ApiKeys.API_VERSIONS);
     }
@@ -73,49 +60,29 @@ class SaslDecodePredicateTest {
     @ParameterizedTest
     @EnumSource(ApiKeys.class)
     void testAllRequestKeysDecodedBeforeDelegateSet(ApiKeys keys) {
-        givenSaslHandlingDisabled();
-        assertPredicateTargetsRequestKey(keys);
-        givenSaslHandlingEnabled();
+        givenPredicate();
         assertPredicateTargetsRequestKey(keys);
     }
 
     @ParameterizedTest
     @EnumSource(ApiKeys.class)
     void testAllResponseKeysDecodedBeforeDelegateSet(ApiKeys keys) {
-        givenSaslHandlingDisabled();
-        assertPredicateTargetsResponseKey(keys);
-        givenSaslHandlingEnabled();
+        givenPredicate();
         assertPredicateTargetsResponseKey(keys);
     }
 
-    @Test
-    void testSaslRequestKeysTargetedForDecodeWithOffloadingAuth() {
-        givenSaslHandlingEnabled();
-        givenDelegateTargetsNothing();
-        assertPredicateTargetsRequestKey(ApiKeys.SASL_AUTHENTICATE);
-        assertPredicateTargetsRequestKey(ApiKeys.SASL_HANDSHAKE);
-    }
-
-    @EnumSource(value = ApiKeys.class, mode = EnumSource.Mode.EXCLUDE, names = { "SASL_AUTHENTICATE", "SASL_HANDSHAKE", "API_VERSIONS" })
+    @EnumSource(value = ApiKeys.class, mode = EnumSource.Mode.EXCLUDE, names = { "API_VERSIONS" })
     @ParameterizedTest
-    void testNonSaslKeysNotTargetedForDecodeWithOffloadingAuthWhenPredicateDeniesThem(ApiKeys apiKeys) {
-        givenSaslHandlingEnabled();
+    void testAllKeysCanBeDeniedByDelegate(ApiKeys apiKeys) {
+        givenPredicate();
         givenDelegateTargetsNothing();
         assertPredicateDoesNotTargetRequestKey(apiKeys);
     }
 
     @EnumSource(value = ApiKeys.class, mode = EnumSource.Mode.EXCLUDE, names = { "API_VERSIONS" })
     @ParameterizedTest
-    void testAllKeysCanBeDeniedByDelegateWhenNotOffloadingAuth(ApiKeys apiKeys) {
-        givenSaslHandlingDisabled();
-        givenDelegateTargetsNothing();
-        assertPredicateDoesNotTargetRequestKey(apiKeys);
-    }
-
-    @EnumSource(value = ApiKeys.class, mode = EnumSource.Mode.EXCLUDE, names = { "API_VERSIONS" })
-    @ParameterizedTest
-    void testAllKeysCanBeTargetedByDelegateWhenNotOffloadingAuth(ApiKeys apiKeys) {
-        givenSaslHandlingDisabled();
+    void testAllKeysCanBeTargetedByDelegate(ApiKeys apiKeys) {
+        givenPredicate();
         givenDelegateTargetsAll();
         assertPredicateTargetsRequestKey(apiKeys);
     }
@@ -132,16 +99,8 @@ class SaslDecodePredicateTest {
         this.predicate.setDelegate(predicate);
     }
 
-    private void givenSaslHandlingDisabled() {
-        givenPredicateWithHandleSasl(false);
-    }
-
-    private void givenSaslHandlingEnabled() {
-        givenPredicateWithHandleSasl(true);
-    }
-
-    private void givenPredicateWithHandleSasl(boolean handleSasl) {
-        predicate = new SaslDecodePredicate(handleSasl);
+    private void givenPredicate() {
+        predicate = new DelegatingDecodePredicate();
     }
 
     private void assertPredicateTargetsRequestKey(ApiKeys key) {
