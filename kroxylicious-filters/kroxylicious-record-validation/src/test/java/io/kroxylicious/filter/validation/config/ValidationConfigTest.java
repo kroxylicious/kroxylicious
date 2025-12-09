@@ -30,6 +30,7 @@ import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
 import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ValidationConfigTest {
@@ -142,8 +143,8 @@ class ValidationConfigTest {
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, true, false), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo),
                 new RecordValidationRule(null, new BytebufValidation(null, null, null, true, false)));
-        assertEquals(expected, deserialised);
-        assertEquals(getJwsConfigHashCode(expected), getJwsConfigHashCode(deserialised));
+        assertThat(expected).isEqualTo(deserialised);
+        assertThat(getJwsConfigHashCode(expected)).isEqualTo(getJwsConfigHashCode(deserialised));
     }
 
     @Test
@@ -190,8 +191,8 @@ class ValidationConfigTest {
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, null, false, true)));
-        assertEquals(expected, deserialised);
-        assertEquals(getJwsConfigHashCode(expected), getJwsConfigHashCode(deserialised));
+        assertThat(expected).isEqualTo(deserialised);
+        assertThat(getJwsConfigHashCode(expected)).isEqualTo(getJwsConfigHashCode(deserialised));
     }
 
     private static int getJwsConfigHashCode(ValidationConfig config) {
