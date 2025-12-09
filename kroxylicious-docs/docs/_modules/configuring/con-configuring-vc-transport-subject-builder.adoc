@@ -1,0 +1,65 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-configuring-vc-transport-subject-builders-{context}']
+= Configuring the transport subject builder
+
+[role="_abstract"]
+Some filters require the verified identity of the client, derived from successful authentication.
+This identity is called the authenticated subject.
+
+For applications that use TLS client authentication, the virtual cluster can build the authenticated subject from information in the TLS client certificate presented to the proxy.
+
+The transport subject builder controls how certificate information is turned into principals within the authenticated subject. 
+For example, you can build a principal from parts of the X500 principal. 
+A typical use case is mapping a distinguished name such as `CN=myapp,OU=dev,O=kroxylicious.io,C=US` to `myapp`.
+
+NOTE: For applications that use SASL authentication, see {SASLInspectionGuide} for information on building the authenticated subject from a successful client–broker SASL authentication.
+
+== Configuration
+
+The following example shows configuration for the transport subject builder:
+
+[source,yaml]
+----
+# ...
+virtualClusters:
+  - name: my-cluster-proxy
+    # ...
+    subjectBuilder:
+      type: DefaultTransportSubjectBuilderService
+      config:
+        addPrincipals:
+          - from: <field name>
+            map:
+              - replaceMatch: <match replace flags 1>
+              - # ... 
+              - replaceMatch: <match replace flags n>
+              - else: identity|anonymous
+            principalFactory: <principal factory>
+        # - from: ...
+----
+include::../../_snippets/snip-subject-builder-common-params.adoc[]
+
+== Supported fields
+
+|===
+|Field name|Description
+
+|clientTlsSubject
+|X500 Principal
+
+|clientTlsSanRfc822Name
+|Email address from the Subject Alternate Names
+
+|clientTlsSanDirName
+|DirName from the Subject Alternate Names
+
+|clientTlsSanDnsName
+|DNSName from the Subject Alternate Names
+
+|clientTlsSanUri
+|URI from the Subject Alternate Names
+|===
+
+include::../../_snippets/snip-subject-builder-replacement-matchers.adoc[]
+
