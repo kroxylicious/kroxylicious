@@ -30,5 +30,5 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public record Config(@Nullable Set<String> enabledMechanisms,
                      @Nullable @PluginImplName(SaslSubjectBuilderService.class) String subjectBuilder,
-                     @Nullable @PluginImplConfig(implNameProperty = "subjectBuilder")  Object subjectBuilderConfig,
+                     @Nullable @PluginImplConfig(implNameProperty = "subjectBuilder") Object subjectBuilderConfig,
                      @Nullable Boolean requireAuthentication) {}

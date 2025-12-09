@@ -59,32 +59,36 @@ class VirtualClusterSubjectBuilderIT extends AbstractTlsIT {
                 argumentSet("unmappedClientTlsSubject",
                         builder.withConfig(Map.of("addPrincipals", List.of(
                                 Map.of("from", CLIENT_TLS_SUBJECT,
-                                        "principalFactory", UserFactory.class.getName())))).build(),
+                                        "principalFactory", UserFactory.class.getName()))))
+                                .build(),
                         (ThrowingConsumer<String>) input -> assertThat(input).contains("CN=client,OU=Dev,O=kroxylicious.io,L=null,ST=null,C=US")),
                 argumentSet("mappedClientTlsSubject",
                         builder.withConfig(Map.of("addPrincipals", List.of(
                                 Map.of("from", CLIENT_TLS_SUBJECT,
                                         "map", List.of(Map.of("replaceMatch", "/CN=(.*),OU=Dev.*/$1/L")),
-                                        "principalFactory", UserFactory.class.getName())))).build(),
+                                        "principalFactory", UserFactory.class.getName()))))
+                                .build(),
                         (ThrowingConsumer<String>) input -> assertThat(input).isEqualTo("Subject[principals=[User[name=client]]]")),
                 argumentSet("elseAnonymous",
                         builder.withConfig(Map.of("addPrincipals", List.of(
                                 Map.of("from", CLIENT_TLS_SUBJECT,
                                         "map", List.of(Map.of("replaceMatch", "/willNotMatch/$1/L"), Map.of("else", "anonymous")),
-                                        "principalFactory", UserFactory.class.getName())))).build(),
+                                        "principalFactory", UserFactory.class.getName()))))
+                                .build(),
                         (ThrowingConsumer<String>) input -> assertThat(input).isEqualTo("Subject[principals=[]]")),
                 argumentSet("elseIdentity",
                         builder.withConfig(Map.of("addPrincipals", List.of(
                                 Map.of("from", CLIENT_TLS_SUBJECT,
                                         "map", List.of(Map.of("replaceMatch", "/willNotMatch/$1/L"), Map.of("else", "identity")),
-                                        "principalFactory", UserFactory.class.getName())))).build(),
+                                        "principalFactory", UserFactory.class.getName()))))
+                                .build(),
                         (ThrowingConsumer<String>) input -> assertThat(input).contains("CN=client,OU=Dev,O=kroxylicious.io,L=null,ST=null,C=US")),
                 argumentSet("clientTlsSanDnsName",
                         builder.withConfig(Map.of("addPrincipals", List.of(
                                 Map.of("from", CLIENT_TLS_SAN_DNS_NAME,
-                                        "principalFactory", UserFactory.class.getName())))).build(),
-                        (ThrowingConsumer<String>) input -> assertThat(input).isEqualTo("Subject[principals=[User[name=client]]]"))
-        );
+                                        "principalFactory", UserFactory.class.getName()))))
+                                .build(),
+                        (ThrowingConsumer<String>) input -> assertThat(input).isEqualTo("Subject[principals=[User[name=client]]]")));
     }
 
     @ParameterizedTest

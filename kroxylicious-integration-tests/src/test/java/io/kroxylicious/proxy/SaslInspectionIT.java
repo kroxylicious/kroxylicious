@@ -298,7 +298,7 @@ class SaslInspectionIT extends BaseIT {
     @Test
     void shouldProvideSubjectContainingMappedPrincipal(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                              Topic topic) {
+                                                       Topic topic) {
 
         String mechanism = "SCRAM-SHA-256";
         String clientLoginModule = "org.apache.kafka.common.security.scram.ScramLoginModule";
@@ -307,7 +307,7 @@ class SaslInspectionIT extends BaseIT {
 
         var subjectBuilderConfig = new DefaultSaslSubjectBuilderService.Config(List.of(
                 new PrincipalAdderConf(DefaultSaslSubjectBuilderService.SASL_AUTHORIZED_ID,
-                        List.of(new io.kroxylicious.proxy.internal.subject.Map( "/(.*)/$1/U", null)), UserFactory.class.getName())));
+                        List.of(new io.kroxylicious.proxy.internal.subject.Map("/(.*)/$1/U", null)), UserFactory.class.getName())));
 
         var expectedUpperCasedUserName = username.toUpperCase(Locale.ROOT);
         assertClientsCanAccessCluster(cluster, topic, mechanism, subjectBuilderConfig, 2, clientLoginModule, username, password, headers -> {
@@ -317,7 +317,6 @@ class SaslInspectionIT extends BaseIT {
         });
     }
 
-    
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
                                                                     String password) {
         var config = buildProxyConfig(cluster, Set.of(mechanism), null);
@@ -427,7 +426,8 @@ class SaslInspectionIT extends BaseIT {
         }
     }
 
-    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, @Nullable Set<String> enableMechanisms, @Nullable DefaultSaslSubjectBuilderService.Config subjectBuilderConfig) {
+    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, @Nullable Set<String> enableMechanisms,
+                                                         @Nullable DefaultSaslSubjectBuilderService.Config subjectBuilderConfig) {
         var saslInspection = buildSaslInspector(enableMechanisms, subjectBuilderConfig);
         var counter = new NamedFilterDefinitionBuilder(
                 ProtocolCounter.class.getName(),
@@ -445,7 +445,8 @@ class SaslInspectionIT extends BaseIT {
                 .addToDefaultFilters(saslInspection.name(), counter.name(), lawyer.name());
     }
 
-    private static NamedFilterDefinition buildSaslInspector(@Nullable Set<String> enableMechanisms, @Nullable DefaultSaslSubjectBuilderService.Config subjectBuilderConfig) {
+    private static NamedFilterDefinition buildSaslInspector(@Nullable Set<String> enableMechanisms,
+                                                            @Nullable DefaultSaslSubjectBuilderService.Config subjectBuilderConfig) {
         var saslInspectorBuilder = new NamedFilterDefinitionBuilder(
                 SaslInspection.class.getName(),
                 SaslInspection.class.getName());
