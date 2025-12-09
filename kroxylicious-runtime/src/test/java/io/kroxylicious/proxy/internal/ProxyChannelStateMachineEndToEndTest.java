@@ -68,6 +68,7 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static org.apache.kafka.common.security.plain.internals.PlainSaslServer.PLAIN_MECHANISM;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.awaitility.Awaitility.await;
@@ -499,7 +500,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
     private int writeSaslPlainHandshake() {
         return writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData()
-                .setMechanism(KafkaAuthnHandler.SaslMechanism.PLAIN.mechanismName()));
+                .setMechanism(PLAIN_MECHANISM));
     }
 
     private void writeSaslAuthenticate(byte[] authBytes) {
@@ -862,7 +863,7 @@ class ProxyChannelStateMachineEndToEndTest {
                     .setClientSoftwareName(CLIENT_SOFTWARE_NAME)
                     .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION), correlationId++);
             case SASL_HANDSHAKE -> decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData()
-                    .setMechanism(KafkaAuthnHandler.SaslMechanism.PLAIN.mechanismName()), correlationId++);
+                    .setMechanism(PLAIN_MECHANISM), correlationId++);
             case SASL_AUTHENTICATE -> decodedRequestFrame(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData()
                     .setAuthBytes("pa55word".getBytes(StandardCharsets.UTF_8)), correlationId++);
             case METADATA -> decodedRequestFrame(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData(), correlationId++);
