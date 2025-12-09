@@ -14,7 +14,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -66,7 +65,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
             assertThat(records)
                     .singleElement()
-                    .satisfies(record -> isJwsHeaderMatching(record, VALID_JWS_USING_ECDSA_JWK));
+                    .satisfies(record -> hasJwsHeaderWithValue(record, VALID_JWS_USING_ECDSA_JWK));
         }
     }
 
@@ -106,7 +105,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
             assertThat(records)
                     .singleElement()
-                    .satisfies(record -> isJwsHeaderMatching(record, VALID_JWS_USING_RSA_JWK));
+                    .satisfies(record -> hasJwsHeaderWithValue(record, VALID_JWS_USING_RSA_JWK));
         }
     }
 
@@ -129,7 +128,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
             assertThat(records)
                     .singleElement()
-                    .satisfies(record -> isJwsHeaderMatching(record, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED));
+                    .satisfies(record -> hasJwsHeaderWithValue(record, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED));
         }
     }
 
@@ -197,8 +196,11 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         }
     }
 
-    private static void isJwsHeaderMatching(ConsumerRecord<String, String> record, byte[] value) {
-        assertThat(new RecordHeaders(record.headers()).lastHeader(JWS_HEADER_NAME).value()).isEqualTo(value);
+    private static void hasJwsHeaderWithValue(ConsumerRecord<String, String> record, byte[] value) {
+        assertThat(record.headers()).anySatisfy(header -> {
+            assertThat(header.key()).isEqualTo(JWS_HEADER_NAME);
+            assertThat(header.value()).isEqualTo(value);
+        });
     }
 
     private static ConfigurationBuilder createFilterDef(KafkaCluster cluster, Topic topic, boolean multiKeyJwks, boolean contentDetached,
