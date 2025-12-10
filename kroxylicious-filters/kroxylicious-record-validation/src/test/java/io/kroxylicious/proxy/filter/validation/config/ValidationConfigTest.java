@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.kroxylicious.proxy.config.tls.AllowDeny;
@@ -30,10 +31,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ValidationConfigTest {
+    ObjectReader validationConfigReader = new ObjectMapper(new YAMLFactory()).readerFor(ValidationConfig.class);
+
     @Test
     void testDecodeDefaultValues() throws JsonProcessingException {
-        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
+        ValidationConfig deserialised = validationConfigReader.readValue("""
                 defaultRule:
                   valueRule: {}
                 rules:
@@ -56,8 +58,7 @@ class ValidationConfigTest {
 
     @Test
     void testDecodeNonDefaultValues() throws JsonProcessingException {
-        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
+        ValidationConfig deserialised = validationConfigReader.readValue("""
                 defaultRule:
                   valueRule:
                     allowNulls: false
@@ -86,8 +87,7 @@ class ValidationConfigTest {
 
     @Test
     void testDecodeDefaultValuesSchemaValidation() throws JsonProcessingException {
-        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
+        ValidationConfig deserialised = validationConfigReader.readValue("""
                 defaultRule:
                   valueRule: {}
                 rules:
@@ -110,8 +110,7 @@ class ValidationConfigTest {
 
     @Test
     void testDecodeNonDefaultValuesSchemaValidation() throws JsonProcessingException, MalformedURLException {
-        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
+        ValidationConfig deserialised = validationConfigReader.readValue("""
                 defaultRule:
                   valueRule:
                     allowNulls: false
@@ -144,8 +143,7 @@ class ValidationConfigTest {
 
     @Test
     void testDecodeInvalidValuesSchemaValidation() throws JsonProcessingException {
-        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
+        ValidationConfig deserialised = validationConfigReader.readValue("""
                 defaultRule:
                   valueRule:
                     allowNulls: false
@@ -174,8 +172,7 @@ class ValidationConfigTest {
 
     @Test
     void testDecodeDefaultValuesJwsSignatureValidation() throws JsonProcessingException {
-        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
+        ValidationConfig deserialised = validationConfigReader.readValue("""
                 defaultRule:
                   valueRule: {}
                 rules:
@@ -203,8 +200,7 @@ class ValidationConfigTest {
 
     @Test
     void testDecodeNonDefaultValuesJwsSignatureValidation() throws JsonProcessingException {
-        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue(
+        ValidationConfig deserialised = validationConfigReader.readValue(
                 """
                         defaultRule:
                           valueRule:
