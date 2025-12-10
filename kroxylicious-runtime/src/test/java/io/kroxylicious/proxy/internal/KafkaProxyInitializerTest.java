@@ -48,6 +48,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -75,7 +76,10 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyInitializerTest {
 
-    public static final long TEN_SECONDDS_MILLIS = Duration.ofSeconds(10).toMillis();
+    private static final Duration CONFIGURED_IDLE_DURATION = Duration.ofSeconds(11);
+    private static final long CONFIGURED_IDLE_DURATION_MILLIS = CONFIGURED_IDLE_DURATION.toMillis();
+    private static final long DEFAULT_IDLE_DURATION_MILLIS = Duration.ofSeconds(10).toMillis();
+
     @Mock(strictness = Mock.Strictness.LENIENT)
     private SocketChannel channel;
 
@@ -99,6 +103,7 @@ class KafkaProxyInitializerTest {
     private CompletionStage<EndpointBinding> bindingStage;
     private VirtualClusterModel virtualClusterModel;
     private FilterChainFactory filterChainFactory;
+    private NettySettings proxyNettySettings;
 
     @BeforeEach
     void setUp() {
@@ -106,6 +111,7 @@ class KafkaProxyInitializerTest {
         pfr = new ServiceBasedPluginFactoryRegistry();
         bindingStage = CompletableFuture.completedStage(endpointBinding);
         filterChainFactory = new FilterChainFactory(pfr, List.of());
+        proxyNettySettings = null; // use defaults
         final InetSocketAddress localhost = new InetSocketAddress(0);
         ChannelId channelId = DefaultChannelId.newInstance();
         when(channel.id()).thenReturn(channelId);
@@ -128,8 +134,9 @@ class KafkaProxyInitializerTest {
     }
 
     @Test
-    void shouldRegisterIdleStateHandler() {
+    void shouldRegisterIdleStateHandlerWithConfiguredDuration() {
         // Given
+        proxyNettySettings = new NettySettings(Optional.empty(), Optional.empty(), Optional.of(CONFIGURED_IDLE_DURATION));
         kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
 
         // When
@@ -139,9 +146,28 @@ class KafkaProxyInitializerTest {
         verify(channelPipeline).addFirst(eq("preSessionIdleHandler"), argThat(
                 argument -> assertThat(argument).isInstanceOfSatisfying(IdleStateHandler.class,
                         actualIdleStateHandler -> {
-                            assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(TEN_SECONDDS_MILLIS);
-                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isEqualTo(TEN_SECONDDS_MILLIS);
-                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isEqualTo(TEN_SECONDDS_MILLIS);
+                            assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(CONFIGURED_IDLE_DURATION_MILLIS);
+                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isEqualTo(CONFIGURED_IDLE_DURATION_MILLIS);
+                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isEqualTo(CONFIGURED_IDLE_DURATION_MILLIS);
+                        })));
+    }
+
+    @Test
+    void shouldRegisterIdleStateHandlerWithDefaultDuration() {
+        // Given
+        proxyNettySettings = null;
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline).addFirst(eq("preSessionIdleHandler"), argThat(
+                argument -> assertThat(argument).isInstanceOfSatisfying(IdleStateHandler.class,
+                        actualIdleStateHandler -> {
+                            assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(DEFAULT_IDLE_DURATION_MILLIS);
+                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isEqualTo(DEFAULT_IDLE_DURATION_MILLIS);
+                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isEqualTo(DEFAULT_IDLE_DURATION_MILLIS);
                         })));
     }
 
@@ -325,7 +351,8 @@ class KafkaProxyInitializerTest {
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                new ApiVersionsServiceImpl());
+                new ApiVersionsServiceImpl(),
+                Optional.ofNullable(proxyNettySettings));
     }
 
     private void assertErrorHandlerAdded() {
