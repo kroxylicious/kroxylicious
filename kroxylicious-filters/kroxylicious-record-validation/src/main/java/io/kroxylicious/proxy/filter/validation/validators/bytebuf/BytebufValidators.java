@@ -66,9 +66,10 @@ public class BytebufValidators {
      * get validator that validates if a record contains a valid JWS (JSON Web Signature) Signature
      * @return validator
      */
-    public static BytebufValidator jwsSignatureValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> algorithms, String jwsRecordHeaderKey,
-                                                         boolean isContentDetached, boolean requireJwsRecordHeader) {
-        return new JwsSignatureBytebufValidator(trustedJsonWebKeySet, algorithms, jwsRecordHeaderKey, isContentDetached, requireJwsRecordHeader);
+    public static BytebufValidator jwsSignatureValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> algorithms,
+                                                         JwsSignatureBytebufValidator.JwsHeaderOptions headerOptions,
+                                                         JwsSignatureBytebufValidator.JwsContentOptions contentOptions) {
+        return new JwsSignatureBytebufValidator(trustedJsonWebKeySet, algorithms, headerOptions, contentOptions);
     }
 
     /**

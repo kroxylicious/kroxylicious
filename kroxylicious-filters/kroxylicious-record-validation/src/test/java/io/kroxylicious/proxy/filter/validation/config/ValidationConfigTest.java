@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.filter.validation.validators.bytebuf.JwsSignatureBytebufValidator;
 
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
 import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
@@ -191,7 +192,7 @@ class ValidationConfigTest {
                 """.formatted(ECDSA_VERIFY_JWKS.toJson()));
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, false, true), true,
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null), true,
                         false));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, true, false), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo),
@@ -222,9 +223,11 @@ class ValidationConfigTest {
                                     allowed:
                                         - ES256
                                         - RS256
-                                jwsRecordHeaderKey: kroxylicious.io/jws
-                                contentDetached: true
-                                requireJwsRecordHeader: false
+                                recordHeader:
+                                  key: kroxylicious.io/jws
+                                  required: true
+                                content:
+                                  detached: false
                             allowNulls: false
                             allowEmpty: true
                         - topicNames:
@@ -239,7 +242,8 @@ class ValidationConfigTest {
                         new JwsSignatureValidationConfig(RSA_AND_ECDSA_VERIFY_JWKS,
                                 new AllowDeny<>(List.of(AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256),
                                         Collections.emptySet()),
-                                "kroxylicious.io/jws", true, false),
+                                new JwsSignatureBytebufValidator.JwsHeaderOptions("kroxylicious.io/jws", true),
+                                new JwsSignatureBytebufValidator.JwsContentOptions(false)),
                         false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);

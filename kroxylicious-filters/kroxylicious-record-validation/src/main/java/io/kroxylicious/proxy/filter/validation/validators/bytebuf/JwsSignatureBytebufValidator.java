@@ -26,6 +26,8 @@ import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.lang.JoseException;
 import org.jose4j.lang.UnresolvableKeyException;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
@@ -42,29 +44,53 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @see <a href="https://datatracker.ietf.org/doc/html/rfc7517">RFC 7517 (JWK)</a>
  * @see <a href="https://datatracker.ietf.org/doc/html/rfc7518">RFC 7518 (JWA)</a>
  */
+@SuppressWarnings("java:S5411") // Need to use Boolean for config JSON serialization
 public class JwsSignatureBytebufValidator implements BytebufValidator {
+    public record JwsHeaderOptions(@JsonProperty(value = "key", defaultValue = "kroxylicious.io/jws") @Nullable String key,
+                                   @JsonProperty(value = "required", defaultValue = "true") @Nullable Boolean requireJwsRecordHeader) {
+        public static final JwsHeaderOptions DEFAULT = new JwsHeaderOptions("kroxylicious.io/jws", true);
+
+        public JwsHeaderOptions {
+            if (key == null) {
+                key = DEFAULT.key();
+            }
+            if (requireJwsRecordHeader == null) {
+                requireJwsRecordHeader = DEFAULT.requireJwsRecordHeader();
+            }
+        }
+    }
+
+    public record JwsContentOptions(@JsonProperty(value = "detached", defaultValue = "false") @Nullable Boolean isContentDetached) {
+        public static final JwsContentOptions DEFAULT = new JwsContentOptions(false);
+
+        public JwsContentOptions {
+            if (isContentDetached == null) {
+                isContentDetached = DEFAULT.isContentDetached();
+            }
+        }
+    }
+
     private static final String DEFAULT_ERROR_MESSAGE = "JWS Signature could not be successfully verified";
-    private final String jwsRecordHeaderKey;
 
     private static final VerificationJwkSelector jwkSelector = new VerificationJwkSelector();
 
     private final JsonWebSignature jws;
     private final JsonWebKeySet trustedJsonWebKeySet;
-    private final boolean isContentDetached;
-    private final boolean requireJwsRecordHeader;
+
+    private final JwsHeaderOptions headerOptions;
+    private final JwsContentOptions contentOptions;
 
     /**
      * Constructor for {@link JwsSignatureBytebufValidator}.
      *
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
-    public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> algorithms, String jwsRecordHeaderKey,
-                                        boolean isContentDetached, boolean requireJwsRecordHeader) {
+    public JwsSignatureBytebufValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> algorithms, JwsHeaderOptions headerOptions,
+                                        JwsContentOptions contentOptions) {
         this.jws = new JsonWebSignature();
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
-        this.jwsRecordHeaderKey = jwsRecordHeaderKey;
-        this.isContentDetached = isContentDetached;
-        this.requireJwsRecordHeader = requireJwsRecordHeader;
+        this.headerOptions = headerOptions;
+        this.contentOptions = contentOptions;
 
         AlgorithmConstraints algorithmConstraints = extractAlgorithmConstraints(algorithms);
         jws.setAlgorithmConstraints(algorithmConstraints);
@@ -73,22 +99,24 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
     @Override
     public CompletionStage<Result> validate(ByteBuffer buffer, Record record, boolean isKey) {
         Objects.requireNonNull(record);
+        Objects.requireNonNull(headerOptions.requireJwsRecordHeader());
+        Objects.requireNonNull(contentOptions.isContentDetached());
 
-        if (record.headers().length == 0 || new RecordHeaders(record.headers()).lastHeader(jwsRecordHeaderKey) == null) {
-            if (!requireJwsRecordHeader) {
-                String message = String.format("Returning valid result even though JWS record header is missing (because of config): %s", jwsRecordHeaderKey);
+        if (record.headers().length == 0 || new RecordHeaders(record.headers()).lastHeader(headerOptions.key()) == null) {
+            if (!headerOptions.requireJwsRecordHeader()) {
+                String message = String.format("Returning valid result even though JWS record header is missing (because of config): %s", headerOptions.key());
                 return CompletableFuture.completedStage(new Result(true, message));
             }
 
-            String message = DEFAULT_ERROR_MESSAGE + ": valid " + jwsRecordHeaderKey + " JWS record header could not be found";
+            String message = DEFAULT_ERROR_MESSAGE + ": valid " + headerOptions.key() + " JWS record header could not be found";
             return CompletableFuture.completedStage(new Result(false, message));
         }
 
-        byte[] jwsHeaderValue = new RecordHeaders(record.headers()).lastHeader(jwsRecordHeaderKey).value();
+        byte[] jwsHeaderValue = new RecordHeaders(record.headers()).lastHeader(headerOptions.key()).value();
         String jwsHeaderValueString = new String(jwsHeaderValue, StandardCharsets.UTF_8);
 
         String payload = null;
-        if (isContentDetached) {
+        if (contentOptions.isContentDetached()) {
             payload = new String(StandardCharsets.UTF_8.decode(buffer).array());
         }
 
