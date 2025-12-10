@@ -17,7 +17,6 @@ From the client's perspective, it will be impossible for it to distinguish betwe
 
 In order to use the authorization filter, the proxy must be able to determine the authenticated subject.
 The authenticated subject is the verified identity of the client, derived from its successful authentication.
-If your applications use TLS client authentication, configure a TODO: link to subject builder
-within the virtual cluster.
-If your applications use SASL authentication, configure a TODO: link SASL Inspection Filter
-to build a subject from the successful client/broker SASL authentication.
+
+* If your applications use TLS client authentication, configure a TODO: link to subject builder within the virtual cluster to build a subject based on the client-certificate.
+* If your applications use SASL authentication, configure the link:{DocRoot}/sasl-inspection-guide/[SASL inspection filter] which will build a subject from the successful client/broker SASL authentication.
