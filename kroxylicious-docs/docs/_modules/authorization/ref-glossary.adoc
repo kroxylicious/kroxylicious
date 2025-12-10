@@ -8,7 +8,7 @@ Glossary of terms used in the Authorization guide.
 Subject:: The identity of the client for the purposes of applying policies within the proxy. Whether this is the same as the broker's notion of subject depends on how authentication is configured in the proxy. 
 Principal:: A component of a subject. 
 Resource:: An entity which an authorizer can control access to. Resources are identified by a type and a name. Examples include Kafka topics and consumer groups (where the group id is treated as the resource name).
-Operations:: The things that can be done to resources of a particular type. For example, a Kafka topc resource has operations which include describe, read and write.
+Operations:: The things that can be done to resources of a particular type. For example, a Kafka topic resource has operations which include describe, read and write.
 Action:: A resource and an operation such as "read the topic called invoices".
 Authorizer:: A component that makes an authorization decision, usually based on some kind of access policy.
 Decision:: The outcome of the authorization of a particular action. This is either "allow" or "deny".

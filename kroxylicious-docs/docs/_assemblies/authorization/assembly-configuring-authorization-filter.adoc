@@ -8,7 +8,7 @@
 = Configuring the Authorization filter
 
 [role="_abstract"]
-This procedure describes how to set up the Authorization Filter by configuring it in Kroxylicious.
+This procedure describes how to set up the Authorization filter by configuring it in Kroxylicious.
 
 .Prerequisites
 

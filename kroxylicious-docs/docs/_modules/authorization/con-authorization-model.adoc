@@ -42,7 +42,7 @@ This table lists the resource types and operations enforced by the authorization
 
 |===
 
-== Implied Operations
+== Implied operation permissions
 
 In the authorization model, some operations imply permission to perform other operations.
 This table lists the higher-level operations and the implied lower-level operations they include.
