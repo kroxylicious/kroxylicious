@@ -12,7 +12,6 @@ If your instance of the Kroxylicious Proxy runs directly on an operating system,
 
 Here's a complete example of a `filterDefinitions` entry configured for SASL inspection:
 
-.Example `filterDefinitions` configuration
 [source, yaml]
 ----
 filterDefinitions:

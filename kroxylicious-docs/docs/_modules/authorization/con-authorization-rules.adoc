@@ -2,9 +2,9 @@
 
 
 [id='con-authorization-rules-{context}']
-= Authorization Rules
+= Authorization rules
 
-The authorization rules define who is allowed to do what.
+The authorization rules define which users can perform specific operations on specific Kafka resources.
 The basic form of a rule is as follows:
 
 [source]
@@ -18,8 +18,8 @@ where:
 * `<resource type>` and `<resource predicate>` identifies the resource.
 * `<operation>` identifies the operation(s) to be performed on the resource.
 
-`<resource type>` before be declared before use.
-This is done with a `from` statement in the following form:
+`<resource type>` must be declared before use.
+This is achieved using a `from` statement in the following format:
 
 [source]
 ----
@@ -28,8 +28,15 @@ from <package> import <element> [as <alias>][,... , <elementn> [as <aliasn>]];
 where:
 
 * <package> is `io.kroxylicious.filter.authorization`
-* <element> is the `ResourceType` implementation `TopicResource`.
+* <element> is a `ResourceType` implementation. 
 * <alias> is an optional alias for the resource type.
+
+For example, `TopicResource` is the implementation that represents Kafka topics:
+
+[source]
+----
+from io.kroxylicious.filter.authorization import TopicResource;
+----
 
 Rules files must end with the statement `otherwise deny`.
 [source]
@@ -38,7 +45,7 @@ Rules files must end with the statement `otherwise deny`.
 otherwise deny;
 ----
 
-== User Predicates
+== User predicates
 
 The following user predicates are supported:
 
@@ -46,7 +53,7 @@ The following user predicates are supported:
 |Predicate|Description|Example
 
 | `=`
-| Equality
+| Equals
 | `name = "alice"`
 
 | `IN`
@@ -75,7 +82,7 @@ The following resource predicates are supported:
 | `name in +{"topic1", "topic2"}+`
 
 | `LIKE`
-| Prefix (note that the wildcard * is only permitted at the end of the prefix.)
+| Prefix (wildcard * is permitted only at the end)
 | `name like "finance*"`
 
 | `MATCHING`
@@ -86,10 +93,10 @@ The following resource predicates are supported:
 
 == Operations
 
-Rules may specify operations may be specified in the following ways:
+Operations in rules can be specified in the following ways:
 
-* singularly e.g `READ`
-* a set of operations e.g. `+{READ, WRITE}+`
-* wildcard e.g. `*`
+* As a single operation, for example `READ`
+* As a set of operations, for example `+{READ, WRITE}+`
+* As a wildcard that matches any operation, for example `*`
 
-Note that the Authorization Filter does not support the keyword `ALL`.
+NOTE: The Authorization filter does not support the keyword `ALL`.

@@ -12,7 +12,6 @@ If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProcot
 
 Here's a complete example of a `KafkaProtocolFilter` resource configured for SASL inspection:
 
-.Example `KafkaProtocolFilter` resource for record validation
 [source,yaml]
 ----
 kind: KafkaProtocolFilter

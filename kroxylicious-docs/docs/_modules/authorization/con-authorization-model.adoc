@@ -6,14 +6,12 @@
 
 In Kafka, clients perform operations on resources in Kafka.
 
-The tables below lists the resource types and the operations that apply to them.
+The following tables list the resource types and the operations that apply to them.
 
-== Resource type and operations
+== Resource types and operations
 
-This table lists the resources types and operations enforced by the authorization filter.
+This table lists the resource types and operations enforced by the authorization filter:
 
-[id='authorization-resource-types-and-operations-{context}']
-.Table of authorization resource types and operation
 |===
 |Resource type|Operations|Typical use-case
 
@@ -46,10 +44,9 @@ This table lists the resources types and operations enforced by the authorizatio
 
 == Implied Operations
 
-In the authorization model, having permissions to some, _higher_, operations implies permissions on other, _lower_, operations.
+In the authorization model, some operations imply permission to perform other operations.
+This table lists the higher-level operations and the implied lower-level operations they include.
 
-[id='authorization-implied-operations-{context}']
-.Table of implied operations
 |===
 |Resource type|Operation|Implied Operation
 

@@ -10,7 +10,7 @@
 [role="_abstract"]
 If your instance of Kroxylicious runs on Kubernetes, you must use a `ConfigMap` resource to contain the ACL rules.
 
-Here's a complete example of a `ConfigMap` resource configured for Authorization:
+Here's a complete example of a `ConfigMap` resource configured for authorization:
 
 .Example `ConfigMap` resource containing the ACL rules
 [source,yaml]
@@ -22,8 +22,8 @@ metadata:
 data:
   acl-rules.txt: |
     from io.kroxylicious.filter.authorization import TopicResource as Topic;
-    deny User with name = "alice" to * Topic with name = "foobar";
-    allow User with name = "alice" to * Topic with name like "foo*";
-    allow User with name = "bob" to * Topic with name = "foobar";
+    deny User with name = "alice" to * Topic with name = "payments-received";
+    allow User with name = "alice" to * Topic with name like "payments-*";
+    allow User with name = "bob" to * Topic with name = "payments-received";
     otherwise deny;
 ----

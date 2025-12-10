@@ -22,12 +22,12 @@ endif::OpenShiftOnly[]
 
 .Procedure
 
-. Configure a `Authorization` type filter.
+. Configure an `Authorization` type filter.
 ifdef::include-platform-bare-metal[]
 * In a standalone proxy deployment. See <<con-example-proxy-config-{context}>>
 endif::[]
 ifdef::include-platform-kubernetes[]
-* In a Kubernetes deployment using a `KafkaProcotolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
+* In a Kubernetes deployment using a `KafkaProtocolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
 endif::[]
 . Configure the ACL rules.
 ifdef::include-platform-bare-metal[]
