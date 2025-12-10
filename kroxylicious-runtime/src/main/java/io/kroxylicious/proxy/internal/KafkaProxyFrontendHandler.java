@@ -85,7 +85,7 @@ public class KafkaProxyFrontendHandler
     private final VirtualClusterModel virtualClusterModel;
     private final EndpointBinding endpointBinding;
     private final NetFilter netFilter;
-    private final SaslDecodePredicate dp;
+    private final DelegatingDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
     private final TransportSubjectBuilder subjectBuilder;
 
@@ -94,7 +94,6 @@ public class KafkaProxyFrontendHandler
     @Nullable
     List<Object> bufferedMsgs;
     private boolean pendingClientFlushes;
-    private @Nullable AuthenticationEvent authentication;
     private @Nullable String sniHostname;
 
     // Flag if we receive a channelReadComplete() prior to outbound connection activation
@@ -131,7 +130,7 @@ public class KafkaProxyFrontendHandler
 
     KafkaProxyFrontendHandler(
                               NetFilter netFilter,
-                              SaslDecodePredicate dp,
+                              DelegatingDecodePredicate dp,
                               TransportSubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
                               ProxyChannelStateMachine proxyChannelStateMachine) {
@@ -155,7 +154,6 @@ public class KafkaProxyFrontendHandler
                 + ", proxyChannelState=" + this.proxyChannelStateMachine.currentState()
                 + ", number of bufferedMsgs=" + (bufferedMsgs == null ? 0 : bufferedMsgs.size())
                 + ", pendingClientFlushes=" + pendingClientFlushes
-                + ", authentication=" + authentication
                 + ", sniHostname='" + sniHostname + '\''
                 + ", pendingReadComplete=" + pendingReadComplete
                 + ", blocked=" + progressionLatch
@@ -188,9 +186,6 @@ public class KafkaProxyFrontendHandler
         else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent
                 && handshakeCompletionEvent.isSuccess()) {
             this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder, this::onTransportSubjectBuilt);
-        }
-        else if (event instanceof AuthenticationEvent authenticationEvent) {
-            this.authentication = authenticationEvent;
         }
         super.userEventTriggered(ctx, event);
     }
@@ -245,7 +240,7 @@ public class KafkaProxyFrontendHandler
     public void channelRead(
                             ChannelHandlerContext ctx,
                             Object msg) {
-        proxyChannelStateMachine.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(msg);
     }
 
     /**
@@ -424,7 +419,7 @@ public class KafkaProxyFrontendHandler
     @Override
     public @Nullable String authorizedId() {
         proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
-        return authentication != null ? authentication.authorizationId() : null;
+        return null;
     }
 
     /**

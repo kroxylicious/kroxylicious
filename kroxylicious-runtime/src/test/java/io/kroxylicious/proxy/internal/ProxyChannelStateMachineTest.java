@@ -54,7 +54,6 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
@@ -308,17 +307,15 @@ class ProxyChannelStateMachineTest {
     void inClientActiveShouldCaptureHaProxyState() {
         // Given
         stateMachineInClientActive();
-        var dp = mock(SaslDecodePredicate.class);
 
         // When
-        proxyChannelStateMachine.onClientRequest(dp, HA_PROXY_MESSAGE);
+        proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.HaProxy.class))
                 .extracting(ProxyChannelState.HaProxy::haProxyMessage)
                 .isSameAs(HA_PROXY_MESSAGE);
-        verifyNoInteractions(dp);
     }
 
     @Test
@@ -326,15 +323,13 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInClientActive();
         var msg = metadataRequest();
-        var dp = mock(SaslDecodePredicate.class);
 
         // When
-        proxyChannelStateMachine.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(msg);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.SelectingServer.class);
-        verifyNoInteractions(dp);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
         verifyNoMoreInteractions(frontendHandler);
@@ -345,10 +340,9 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInHaProxy();
         var msg = apiVersionsRequest();
-        var dp = new SaslDecodePredicate(false);
 
         // When
-        proxyChannelStateMachine.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(msg);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -362,10 +356,9 @@ class ProxyChannelStateMachineTest {
     void inHaProxyShouldCloseOnHaProxyMsg() {
         // Given
         stateMachineInHaProxy();
-        var dp = new SaslDecodePredicate(false);
 
         // When
-        proxyChannelStateMachine.onClientRequest(dp, HA_PROXY_MESSAGE);
+        proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -378,15 +371,13 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInHaProxy();
         var msg = metadataRequest();
-        var dp = mock(SaslDecodePredicate.class);
 
         // When
-        proxyChannelStateMachine.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(msg);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.SelectingServer.class);
-        verifyNoInteractions(dp);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
         verifyNoMoreInteractions(frontendHandler);
@@ -410,10 +401,9 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInApiVersionsState();
         var msg = metadataRequest();
-        SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
 
         // When
-        proxyChannelStateMachine.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(msg);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.SelectingServer.class);
@@ -424,47 +414,33 @@ class ProxyChannelStateMachineTest {
     void inApiVersionsShouldCloseOnHaProxyMessage() {
         // Given
         stateMachineInApiVersionsState();
-        var dp = mock(SaslDecodePredicate.class);
 
         // When
-        proxyChannelStateMachine.onClientRequest(dp, HA_PROXY_MESSAGE);
+        proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).inClosed(null);
         verifyNoInteractions(backendHandler);
-        verifyNoInteractions(dp);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = { true, false })
-    void inClientActiveShouldTransitionToApiVersionsOrSelectingServer(boolean handlingSasl) {
+    @Test
+    void inClientActiveShouldTransitionToApiVersionsOrSelectingServer() {
         // Given
         stateMachineInClientActive();
         var msg = apiVersionsRequest();
 
         // When
         proxyChannelStateMachine.onClientRequest(
-                new SaslDecodePredicate(handlingSasl),
                 msg);
 
         // Then
-        if (handlingSasl) {
-            var stateAssert = assertThat(proxyChannelStateMachine.state())
-                    .asInstanceOf(InstanceOfAssertFactories.type(ApiVersions.class));
-            stateAssert
-                    .extracting(ApiVersions::clientSoftwareName).isEqualTo("mykafkalib");
-            stateAssert
-                    .extracting(ApiVersions::clientSoftwareVersion).isEqualTo("1.0.0");
-        }
-        else {
-            var stateAssert = assertThat(proxyChannelStateMachine.state())
-                    .asInstanceOf(InstanceOfAssertFactories.type(SelectingServer.class));
-            stateAssert
-                    .extracting(SelectingServer::clientSoftwareName).isEqualTo("mykafkalib");
-            stateAssert
-                    .extracting(SelectingServer::clientSoftwareVersion).isEqualTo("1.0.0");
-        }
+        var stateAssert = assertThat(proxyChannelStateMachine.state())
+                .asInstanceOf(InstanceOfAssertFactories.type(SelectingServer.class));
+        stateAssert
+                .extracting(SelectingServer::clientSoftwareName).isEqualTo("mykafkalib");
+        stateAssert
+                .extracting(SelectingServer::clientSoftwareVersion).isEqualTo("1.0.0");
         verify(frontendHandler).bufferMsg(msg);
     }
 
@@ -549,7 +525,7 @@ class ProxyChannelStateMachineTest {
 
         // When
         DecodedRequestFrame<MetadataRequestData> msg = metadataRequest();
-        proxyChannelStateMachine.onClientRequest(new SaslDecodePredicate(false), msg);
+        proxyChannelStateMachine.onClientRequest(msg);
 
         // Then
         verify(frontendHandler).bufferMsg(msg);
@@ -574,17 +550,15 @@ class ProxyChannelStateMachineTest {
     void inForwardingShouldForwardClientRequests() {
         // Given
         var serverCtx = mock(ChannelHandlerContext.class);
-        SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
         var forwarding = stateMachineInForwarding();
         var msg = metadataRequest();
 
         // When
-        proxyChannelStateMachine.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(msg);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isSameAs(forwarding);
         verifyNoInteractions(frontendHandler);
-        verifyNoInteractions(dp);
         verifyNoInteractions(serverCtx);
         verify(backendHandler).forwardToServer(msg);
     }
@@ -593,7 +567,6 @@ class ProxyChannelStateMachineTest {
     void inForwardingShouldForwardServerResponses() {
         // Given
         var serverCtx = mock(ChannelHandlerContext.class);
-        SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
         var forwarding = stateMachineInForwarding();
         var msg = metadataResponse();
 
@@ -603,7 +576,6 @@ class ProxyChannelStateMachineTest {
         // Then
         assertThat(proxyChannelStateMachine.state()).isSameAs(forwarding);
         verify(frontendHandler).forwardToClient(msg);
-        verifyNoInteractions(dp);
         verifyNoInteractions(serverCtx);
         verifyNoInteractions(backendHandler);
     }

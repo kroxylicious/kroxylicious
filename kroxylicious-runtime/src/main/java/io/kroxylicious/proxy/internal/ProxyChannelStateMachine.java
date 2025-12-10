@@ -358,17 +358,15 @@ public class ProxyChannelStateMachine {
 
     /**
      * The proxy has received something from the client. The current state of the session determines what happens to it.
-     * @param dp the decode predicate to be used if the session is still being negotiated
      * @param msg the RPC received from the downstream client
      */
     void onClientRequest(
-                         SaslDecodePredicate dp,
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
         if (state() instanceof Forwarding) { // post-backend connection
             messageFromClient(msg);
         }
-        else if (!onClientRequestBeforeForwarding(dp, msg)) {
+        else if (!onClientRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
         }
     }
@@ -515,20 +513,19 @@ public class ProxyChannelStateMachine {
 
     /**
      * handle a message received from the client prior to connecting to the upstream node
-     * @param dp DecodePredicate to cope with SASL offload
      * @param msg Message received from the downstream client.
      * @return <code>false</code> for unsupported message types
      */
-    private boolean onClientRequestBeforeForwarding(SaslDecodePredicate dp, Object msg) {
+    private boolean onClientRequestBeforeForwarding(Object msg) {
         Objects.requireNonNull(frontendHandler).bufferMsg(msg);
         if (state() instanceof ProxyChannelState.ClientActive clientActive) {
-            return onClientRequestInClientActiveState(dp, msg, clientActive);
+            return onClientRequestInClientActiveState(msg, clientActive);
         }
         else if (state() instanceof ProxyChannelState.HaProxy haProxy) {
-            return onClientRequestInHaProxyState(dp, msg, haProxy);
+            return onClientRequestInHaProxyState(msg, haProxy);
         }
         else if (state() instanceof ProxyChannelState.ApiVersions apiVersions) {
-            return onClientRequestInApiVersionsState(dp, msg, apiVersions);
+            return onClientRequestInApiVersionsState(msg, apiVersions);
         }
         else if (state() instanceof ProxyChannelState.SelectingServer) {
             return msg instanceof RequestFrame;
@@ -540,22 +537,19 @@ public class ProxyChannelStateMachine {
 
     @SuppressWarnings({ "java:S1172", "java:S1135" })
     // We keep dp as we should need it and it gives consistency with the other onClientRequestIn methods (sue me)
-    private boolean onClientRequestInApiVersionsState(SaslDecodePredicate dp, Object msg, ProxyChannelState.ApiVersions apiVersions) {
+    private boolean onClientRequestInApiVersionsState(Object msg, ProxyChannelState.ApiVersions apiVersions) {
         if (msg instanceof RequestFrame) {
-            // TODO if dp.isAuthenticationOffloadEnabled() then we need to forward to that handler
-            // TODO we only do the connection once we know the authenticated identity
             toSelectingServer(apiVersions.toSelectingServer());
             return true;
         }
         return false;
     }
 
-    private boolean onClientRequestInHaProxyState(SaslDecodePredicate dp, Object msg, ProxyChannelState.HaProxy haProxy) {
-        return transitionClientRequest(dp, msg, haProxy::toApiVersions, haProxy::toSelectingServer);
+    private boolean onClientRequestInHaProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
+        return transitionClientRequest(msg, haProxy::toApiVersions, haProxy::toSelectingServer);
     }
 
     private boolean transitionClientRequest(
-                                            SaslDecodePredicate dp,
                                             Object msg,
                                             Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.ApiVersions> apiVersionsFactory,
                                             Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.SelectingServer> selectingServerFactory) {
@@ -563,12 +557,7 @@ public class ProxyChannelStateMachine {
             // We know it's an API Versions request even if the compiler doesn't
             @SuppressWarnings("unchecked")
             DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
-            if (dp.isAuthenticationOffloadEnabled()) {
-                toApiVersions(apiVersionsFactory.apply(apiVersionsFrame), apiVersionsFrame);
-            }
-            else {
-                toSelectingServer(selectingServerFactory.apply(apiVersionsFrame));
-            }
+            toSelectingServer(selectingServerFactory.apply(apiVersionsFrame));
             return true;
         }
         else if (msg instanceof RequestFrame) {
@@ -578,13 +567,13 @@ public class ProxyChannelStateMachine {
         return false;
     }
 
-    private boolean onClientRequestInClientActiveState(SaslDecodePredicate dp, Object msg, ProxyChannelState.ClientActive clientActive) {
+    private boolean onClientRequestInClientActiveState(Object msg, ProxyChannelState.ClientActive clientActive) {
         if (msg instanceof HAProxyMessage haProxyMessage) {
             toHaProxy(clientActive.toHaProxy(haProxyMessage));
             return true;
         }
         else {
-            return transitionClientRequest(dp, msg, clientActive::toApiVersions, clientActive::toSelectingServer);
+            return transitionClientRequest(msg, clientActive::toApiVersions, clientActive::toSelectingServer);
         }
     }
 
