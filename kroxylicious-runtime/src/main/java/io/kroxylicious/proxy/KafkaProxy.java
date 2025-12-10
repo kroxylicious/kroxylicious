@@ -262,16 +262,21 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     private Map<ApiKeys, Short> getApiKeyMaxVersionOverride(Configuration config) {
-        Map<String, Number> apiKeyIdMaxVersion = config.development()
-                .map(m -> m.get("apiKeyIdMaxVersionOverride"))
-                .filter(Map.class::isInstance)
-                .map(Map.class::cast)
-                .orElse(Map.of());
+        Map<String, Number> apiKeyIdMaxVersion = extractApiVersionOverrides(config);
 
         return apiKeyIdMaxVersion.entrySet()
                 .stream()
                 .collect(Collectors.toMap(e -> ApiKeys.valueOf(e.getKey()),
                         e -> e.getValue().shortValue()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Number> extractApiVersionOverrides(Configuration config) {
+        return config.development()
+                .map(m -> m.get("apiKeyIdMaxVersionOverride"))
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .orElse(Map.of());
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {
@@ -283,6 +288,7 @@ public final class KafkaProxy implements AutoCloseable {
                 .childOption(ChannelOption.TCP_NODELAY, true);
     }
 
+    @SuppressWarnings("resource") // suppressing resource as ExecutorService is not closeable in Java 17 (our runtime target)
     private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {
         return Optional.ofNullable(managementConfiguration)
                 .map(mc -> {
@@ -292,19 +298,20 @@ public final class KafkaProxy implements AutoCloseable {
                             .childHandler(new ManagementInitializer(meterRegistries, mc));
                     LOGGER.info("Binding management endpoint: {}:{}", mc.getEffectiveBindAddress(), mc.getEffectivePort());
 
+                    // The commonPool ignores all attempts to close/shut it down. So use try-with-resources to keep the code scanners happy.
                     var future = new CompletableFuture<Void>();
-                    metricsBootstrap.bind(managementConfiguration.getEffectiveBindAddress(), managementConfiguration.getEffectivePort())
-                            .addListener((ChannelFutureListener) channelFuture -> ForkJoinPool.commonPool().execute(() -> {
-                                // we complete on a separate thread so that any chained work won't get run on the Netty thread.
-                                if (channelFuture.cause() != null) {
-                                    future.completeExceptionally(channelFuture.cause());
-                                }
-                                else {
-                                    future.complete(null);
-                                }
-                            }));
-                    return future;
-                }).orElseGet(() -> CompletableFuture.completedFuture(null));
+                        metricsBootstrap.bind(managementConfiguration.getEffectiveBindAddress(), managementConfiguration.getEffectivePort())
+                                .addListener((ChannelFutureListener) channelFuture -> ForkJoinPool.commonPool().execute(() -> {
+                                    // we complete on a separate thread so that any chained work won't get run on the Netty thread.
+                                    if (channelFuture.cause() != null) {
+                                        future.completeExceptionally(channelFuture.cause());
+                                    }
+                                    else {
+                                        future.complete(null);
+                                    }
+                                }));
+                        return future;
+                    }).orElseGet(() -> CompletableFuture.completedFuture(null));
     }
 
     /**
