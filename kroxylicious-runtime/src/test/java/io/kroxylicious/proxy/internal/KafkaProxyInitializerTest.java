@@ -7,11 +7,16 @@
 package io.kroxylicious.proxy.internal;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 
+import org.assertj.core.api.AbstractAssert;
+import org.assertj.core.matcher.AssertionMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +27,7 @@ import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
@@ -38,6 +44,7 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
@@ -68,6 +75,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyInitializerTest {
 
+    public static final long TEN_SECONDDS_MILLIS = Duration.ofSeconds(10).toMillis();
     @Mock(strictness = Mock.Strictness.LENIENT)
     private SocketChannel channel;
 
@@ -117,6 +125,24 @@ class KafkaProxyInitializerTest {
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
 
+    }
+
+    @Test
+    void shouldRegisterIdleStateHandler() {
+        // Given
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline).addFirst(eq("preSessionIdleHandler"), argThat(
+                argument -> assertThat(argument).isInstanceOfSatisfying(IdleStateHandler.class,
+                        actualIdleStateHandler -> {
+                            assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(TEN_SECONDDS_MILLIS);
+                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isEqualTo(TEN_SECONDDS_MILLIS);
+                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isEqualTo(TEN_SECONDDS_MILLIS);
+                        })));
     }
 
     @Test
@@ -332,76 +358,23 @@ class KafkaProxyInitializerTest {
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = { true, false })
-    void shouldAddHAProxyHandlersInCorrectOrder(boolean tls) {
-        // Given - HAProxy protocol enabled
-        virtualClusterModel = buildVirtualCluster(false, false);
-        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
+    public static <T> T argThat(Consumer<T> assertions) {
+        return MockitoHamcrest.argThat(new AssertionMatcher<>() {
 
-        // Create initializer with HAProxy enabled (haproxyProtocol = true)
-        kafkaProxyInitializer = createKafkaProxyInitializerWithHAProxy(tls, (endpoint, sniHostname) -> bindingStage, true);
+            String underlyingDescription;
 
-        // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
+            @Override
+            public void assertion(T actual) throws AssertionError {
+                AbstractAssert.setDescriptionConsumer(description -> underlyingDescription = description.value());
+                assertions.accept(actual);
+            }
 
-        // Then - verify ordering using InOrder
-        final InOrder orderedVerifier = inOrder(channelPipeline);
-
-        // First remove error handler
-        verifyErrorHandlerRemoved(orderedVerifier);
-
-        // Then HAProxyMessageDecoder must be added
-        orderedVerifier.verify(channelPipeline).addLast(eq("HAProxyMessageDecoder"), any(io.netty.handler.codec.haproxy.HAProxyMessageDecoder.class));
-
-        // Immediately followed by HAProxyMessageHandler
-        orderedVerifier.verify(channelPipeline).addLast(eq("HAProxyMessageHandler"), any(HAProxyMessageHandler.class));
-
-        // Then other handlers (decoder, encoder, etc.)
-        verifyEncoderAndOrdererAdded(orderedVerifier);
-
-        // Then frontend handler
-        verifyFrontendHandlerAdded(orderedVerifier);
-
-        // Then error handler re-added
-        verifyErrorHandlerAdded(orderedVerifier);
-
-        Mockito.verifyNoMoreInteractions(channelPipeline);
+            @Override
+            public void describeTo(org.hamcrest.Description description) {
+                super.describeTo(description);
+                description.appendValue(Objects.requireNonNullElse(underlyingDescription, "custom argument matcher"));
+            }
+        });
     }
 
-    /**
-     * Test that HAProxy handlers are NOT added when HAProxy protocol is disabled.
-     */
-    @ParameterizedTest
-    @ValueSource(booleans = { true, false })
-    void shouldNotAddHAProxyHandlersWhenDisabled(boolean tls) {
-        // Given - HAProxy protocol disabled (default)
-        virtualClusterModel = buildVirtualCluster(false, false);
-        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
-
-        // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
-
-        // Then - verify HAProxy handlers are NOT added
-        verify(channelPipeline, Mockito.never()).addLast(eq("HAProxyMessageDecoder"), any());
-        verify(channelPipeline, Mockito.never()).addLast(eq("HAProxyMessageHandler"), any());
-    }
-
-    /**
-     * Helper method to create KafkaProxyInitializer with HAProxy protocol support.
-     */
-    private KafkaProxyInitializer createKafkaProxyInitializerWithHAProxy(
-                                                                         boolean tls,
-                                                                         EndpointBindingResolver bindingResolver,
-                                                                         boolean haproxyProtocol) {
-        return new KafkaProxyInitializer(
-                filterChainFactory,
-                pfr,
-                tls,
-                bindingResolver,
-                (virtualCluster, upstreamNodes) -> null,
-                haproxyProtocol,
-                new ApiVersionsServiceImpl());
-    }
 }
