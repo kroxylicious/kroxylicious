@@ -113,7 +113,7 @@ public class ConfigParser implements PluginFactoryRegistry {
                 .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY)
                 .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
-                .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT);
+                .setDefaultPropertyInclusion(JsonInclude.Include.NON_DEFAULT);
     }
 
     private static class PluginModule extends SimpleModule {
@@ -188,6 +188,8 @@ public class ConfigParser implements PluginFactoryRegistry {
                 // for properties annotated @PluginConfig
                 throw new PluginDiscoveryException(annotated + " lacked the @" + PluginImplConfig.class.getName() + " annotation");
             }
+            // TODO revisit the use of `getTypeContext` in light of https://github.com/FasterXML/jackson-databind/issues/4141#issuecomment-1753440738
+            //  and https://github.com/FasterXML/jackson-databind/issues/4141#issuecomment-1756037995
             var ctors = ((AnnotatedClass) af.getTypeContext()).getConstructors();
             for (var ctor : ctors) {
                 pluginImplName = findPluginReferenceAnnotation(ctor, pcAnno.implNameProperty());
