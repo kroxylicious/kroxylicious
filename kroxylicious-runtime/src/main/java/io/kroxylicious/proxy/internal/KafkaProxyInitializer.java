@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -304,11 +305,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             }
             filters.addAll(brokerAddressFilters);
 
-            var target = binding.upstreamTarget();
-            if (target == null) {
-                // This condition should never happen.
-                throw new IllegalStateException("A target address for binding %s is not known.".formatted(binding));
-            }
+            var target = Objects.requireNonNull(binding.upstreamTarget(), "A target address for binding %s is not known.".formatted(binding));
 
             context.initiateConnect(target, filters);
         }
