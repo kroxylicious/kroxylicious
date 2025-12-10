@@ -144,9 +144,9 @@ class AuthorizationST extends AbstractST {
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
 
-        Map<String, String> additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
+        Map<String, String> bobKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, additionalKafkaProps);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, bobKafkaProps);
 
         String podName = KafkaUtils.getPodNameByPrefix(namespace, Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(30));
         String log = kubeClient().logsInSpecificNamespace(namespace, podName);
@@ -155,8 +155,8 @@ class AuthorizationST extends AbstractST {
                 "Topic authorization failed");
 
         LOGGER.atInfo().setMessage("Then aren't any messages to be consumed").log();
-        additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), additionalKafkaProps);
+        Map<String, String> aliceKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), aliceKafkaProps);
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
@@ -185,13 +185,13 @@ class AuthorizationST extends AbstractST {
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);
 
-        Map<String, String> additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
+        Map<String, String> bobKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, additionalKafkaProps);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, bobKafkaProps);
 
         LOGGER.atInfo().setMessage("Then aren't any messages to be consumed").log();
-        additionalKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), additionalKafkaProps);
+        Map<String, String> aliceKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), aliceKafkaProps);
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         String podName = KafkaUtils.getPodNameByPrefix(namespace, Constants.KAFKA_CONSUMER_CLIENT_LABEL, Duration.ofSeconds(30));

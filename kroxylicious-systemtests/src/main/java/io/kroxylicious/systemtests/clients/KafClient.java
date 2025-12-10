@@ -86,7 +86,9 @@ public class KafClient implements KafkaClient {
                 "--image=" + Constants.KAF_CLIENT_IMAGE,
                 "--override-type=strategic",
                 "--overrides=" + jsonOverrides,
-                "--", "-n", String.valueOf(numOfMessages), "-b", bootstrap, "--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME));
+                "--", "-n", String.valueOf(numOfMessages)));
+        executableCommand.addAll(List.of("-b", bootstrap));
+        executableCommand.addAll(List.of("--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME));
         recordKey.ifPresent(key -> {
             executableCommand.add("--key");
             executableCommand.add(key);

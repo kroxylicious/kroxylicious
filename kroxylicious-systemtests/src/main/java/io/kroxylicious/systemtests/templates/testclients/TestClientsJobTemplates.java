@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
@@ -317,8 +318,8 @@ public class TestClientsJobTemplates {
 
     private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message,
                                                            @Nullable String messageKey, Map<String, String> additionalKafkaProps) {
-        List<String> additionalConfig = new ArrayList<>();
-        additionalKafkaProps.forEach((key, value) -> additionalConfig.add(key + "=" + value));
+        String additionalConfigVar = additionalKafkaProps.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("\n"));
 
         List<EnvVar> envVars = new ArrayList<>(List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
@@ -329,7 +330,7 @@ public class TestClientsJobTemplates {
                 envVar(PRODUCER_ACKS_VAR, "all"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
                 envVar(CLIENT_TYPE_VAR, "KafkaProducer"),
-                envVar(ADDITIONAL_CONFIG_VAR, String.join("\n", additionalConfig))));
+                envVar(ADDITIONAL_CONFIG_VAR, additionalConfigVar)));
         if (messageKey != null) {
             envVars.add(envVar(MESSAGE_KEY_VAR, messageKey));
         }
@@ -338,8 +339,9 @@ public class TestClientsJobTemplates {
     }
 
     private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages, Map<String, String> additionalKafkaProps) {
-        List<String> additionalConfig = new ArrayList<>();
-        additionalKafkaProps.forEach((key, value) -> additionalConfig.add(key + "=" + value));
+        String additionalConfigVar = additionalKafkaProps.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("\n"));
+
         return List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(TOPIC_VAR, topicName),
@@ -348,6 +350,6 @@ public class TestClientsJobTemplates {
                 envVar(LOG_LEVEL_VAR, "INFO"),
                 envVar(CLIENT_TYPE_VAR, "KafkaConsumer"),
                 envVar(OUTPUT_FORMAT_VAR, "json"),
-                envVar(ADDITIONAL_CONFIG_VAR, String.join("\n", additionalConfig)));
+                envVar(ADDITIONAL_CONFIG_VAR, additionalConfigVar));
     }
 }

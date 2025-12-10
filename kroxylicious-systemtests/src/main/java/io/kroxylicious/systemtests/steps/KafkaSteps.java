@@ -41,6 +41,9 @@ public class KafkaSteps {
     private static final String TOPIC_COMMAND = "topic";
     private static final String BOOTSTRAP_ARG = "--bootstrap-server=";
     private static final String TOPIC_ARG = "--topic=";
+    private static final String TOPIC_PARTITIONS_ARG = "--topic-partitions=";
+    private static final String TOPIC_REP_FACTOR_ARG = "--topic-rep-factor=";
+    private static final String TOPIC_CONFIG_ARG = "--topic-config=";
 
     private KafkaSteps() {
     }
@@ -73,8 +76,8 @@ public class KafkaSteps {
         LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
         List<String> args = new ArrayList<>(
-                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, TOPIC_ARG + topicName, "--topic-partitions=" + partitions,
-                        "--topic-rep-factor=" + replicas));
+                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, TOPIC_ARG + topicName, TOPIC_PARTITIONS_ARG + partitions,
+                        TOPIC_REP_FACTOR_ARG + replicas));
 
         List<String> topicConfig = new ArrayList<>();
         if (!CompressionType.NONE.equals(compressionType)) {
@@ -82,7 +85,7 @@ public class KafkaSteps {
         }
 
         if (!topicConfig.isEmpty()) {
-            args.add("--topic-config=" + String.join(",", topicConfig));
+            args.add(TOPIC_CONFIG_ARG + String.join(",", topicConfig));
         }
 
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
@@ -111,8 +114,8 @@ public class KafkaSteps {
         LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
         List<String> args = new ArrayList<>(
-                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, TOPIC_ARG + topicName, "--topic-partitions=" + partitions,
-                        "--topic-rep-factor=" + replicas));
+                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, TOPIC_ARG + topicName, TOPIC_PARTITIONS_ARG + partitions,
+                        TOPIC_REP_FACTOR_ARG + replicas));
 
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getConfigMapForSaslConfig(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME, SecurityProtocol.SASL_PLAINTEXT.name,
