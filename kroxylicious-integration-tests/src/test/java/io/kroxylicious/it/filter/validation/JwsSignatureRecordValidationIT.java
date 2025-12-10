@@ -40,9 +40,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
-    // Copied from JwsSignatureBytebufValidator
-    private static final String DEFAULT_ERROR_MESSAGE = "JWS Signature could not be successfully verified";
-
     private static final byte[] INVALID_JWS = "This is a non JWS value".getBytes(StandardCharsets.UTF_8);
     private static final String RANDOM_STRING = "random string";
     private static final String EMPTY_STRING = "";
@@ -141,7 +138,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
                     EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, INVALID_JWS))));
             assertThatFutureFails(result, InvalidRecordException.class,
-                    DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: A JWS Compact Serialization must have exactly 3 parts");
+                    "A JWS Compact Serialization must have exactly 3 parts");
         }
     }
 
@@ -154,7 +151,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
                     EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, INVALID_JWS))));
             assertThatFutureFails(result, InvalidRecordException.class,
-                    DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: A JWS Compact Serialization must have exactly 3 parts");
+                    "A JWS Compact Serialization must have exactly 3 parts");
         }
     }
 
@@ -167,7 +164,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
                     EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_MISSING_ECDSA_JWK))));
             assertThatFutureFails(result, InvalidRecordException.class,
-                    DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: Could not select a valid JWK that matches the algorithm constraints");
+                    "Could not select a valid JWK that matches the algorithm constraints");
         }
     }
 
@@ -180,7 +177,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
                     EMPTY_STRING, VALID_JWS_USING_RSA_JWK_PAYLOAD, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK))));
             assertThatFutureFails(result, InvalidRecordException.class,
-                    DEFAULT_ERROR_MESSAGE + ": Jose4j threw an exception: Could not select a valid JWK that matches the algorithm constraints");
+                    "Could not select a valid JWK that matches the algorithm constraints");
         }
     }
 
@@ -192,7 +189,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
                     EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED))));
-            assertThatFutureFails(result, InvalidRecordException.class, DEFAULT_ERROR_MESSAGE + ": JWS Signature was invalid");
+            assertThatFutureFails(result, InvalidRecordException.class, "JWS Signature was invalid");
         }
     }
 
