@@ -32,43 +32,43 @@ public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
 
     @Override
     public TemplateModel wrap(Object obj) throws TemplateModelException {
-        if (obj instanceof TemplateModel) {
-            return (TemplateModel) obj;
+        if (obj instanceof TemplateModel tm) {
+            return tm;
         }
-        else if (obj instanceof MessageSpec) {
-            return new MessageSpecModel(this, (MessageSpec) obj);
+        else if (obj instanceof MessageSpec ms) {
+            return new MessageSpecModel(this, ms);
         }
-        else if (obj instanceof FieldSpec) {
-            return new FieldSpecModel(this, (FieldSpec) obj);
+        else if (obj instanceof FieldSpec fs) {
+            return new FieldSpecModel(this, fs);
         }
-        else if (obj instanceof FieldType) {
-            return new FieldTypeModel(this, (FieldType) obj);
+        else if (obj instanceof FieldType ft) {
+            return new FieldTypeModel(this, ft);
         }
-        else if (obj instanceof StructSpec) {
-            return new StructSpecModel(this, (StructSpec) obj);
+        else if (obj instanceof StructSpec ss) {
+            return new StructSpecModel(this, ss);
         }
-        else if (obj instanceof Versions) {
-            return new VersionsModel(this, (Versions) obj);
+        else if (obj instanceof Versions v) {
+            return new VersionsModel(this, v);
         }
         return super.wrap(obj);
     }
 
     @Override
     public Object unwrap(TemplateModel tm) throws TemplateModelException {
-        if (tm instanceof MessageSpecModel) {
-            return ((MessageSpecModel) tm).spec;
+        if (tm instanceof MessageSpecModel msm) {
+            return msm.spec;
         }
-        else if (tm instanceof FieldSpecModel) {
-            return ((FieldSpecModel) tm).spec;
+        else if (tm instanceof FieldSpecModel fsm) {
+            return fsm.spec;
         }
-        else if (tm instanceof StructSpecModel) {
-            return ((StructSpecModel) tm).spec;
+        else if (tm instanceof StructSpecModel ssm) {
+            return ssm.spec;
         }
-        else if (tm instanceof FieldTypeModel) {
-            return ((FieldTypeModel) tm).fieldType;
+        else if (tm instanceof FieldTypeModel ftm) {
+            return ftm.fieldType;
         }
-        else if (tm instanceof VersionsModel) {
-            return ((VersionsModel) tm).versions;
+        else if (tm instanceof VersionsModel vm) {
+            return vm.versions;
         }
         else {
             return super.unwrap(tm);
@@ -77,25 +77,25 @@ public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
 
     @Override
     public Object tryUnwrapTo(TemplateModel tm, Class<?> targetClass) throws TemplateModelException {
-        if (tm instanceof MessageSpecModel
-                && targetClass.isInstance(((MessageSpecModel) tm).spec)) {
-            return ((MessageSpecModel) tm).spec;
+        if (tm instanceof MessageSpecModel msm
+                && targetClass.isInstance(msm.spec)) {
+            return msm.spec;
         }
-        else if (tm instanceof FieldSpecModel
-                && targetClass.isInstance(((FieldSpecModel) tm).spec)) {
-            return ((FieldSpecModel) tm).spec;
+        else if (tm instanceof FieldSpecModel fsm
+                && targetClass.isInstance(fsm.spec)) {
+            return fsm.spec;
         }
-        else if (tm instanceof StructSpecModel
-                && targetClass.isInstance(((StructSpecModel) tm).spec)) {
-            return ((StructSpecModel) tm).spec;
+        else if (tm instanceof StructSpecModel ssm
+                && targetClass.isInstance(ssm.spec)) {
+            return ssm.spec;
         }
-        else if (tm instanceof FieldTypeModel
-                && targetClass.isInstance(((FieldTypeModel) tm).fieldType)) {
-            return ((FieldTypeModel) tm).fieldType;
+        else if (tm instanceof FieldTypeModel ftm
+                && targetClass.isInstance(ftm.fieldType)) {
+            return ftm.fieldType;
         }
-        else if (tm instanceof VersionsModel
-                && targetClass.isInstance(((VersionsModel) tm).versions)) {
-            return ((VersionsModel) tm).versions;
+        else if (tm instanceof VersionsModel vm
+                && targetClass.isInstance(vm.versions)) {
+            return vm.versions;
         }
         else {
             return super.tryUnwrapTo(tm, targetClass);
