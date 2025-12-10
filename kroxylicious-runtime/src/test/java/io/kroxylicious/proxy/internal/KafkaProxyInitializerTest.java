@@ -7,11 +7,16 @@
 package io.kroxylicious.proxy.internal;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 
+import org.assertj.core.api.AbstractAssert;
+import org.assertj.core.matcher.AssertionMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +27,7 @@ import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
@@ -38,6 +44,7 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
@@ -73,6 +80,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyInitializerTest {
 
+    public static final long TEN_SECONDDS_MILLIS = Duration.ofSeconds(10).toMillis();
     @Mock(strictness = Mock.Strictness.LENIENT)
     private SocketChannel channel;
 
@@ -122,6 +130,24 @@ class KafkaProxyInitializerTest {
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
 
+    }
+
+    @Test
+    void shouldRegisterIdleStateHandler() {
+        // Given
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline).addFirst(eq("preSessionIdleHandler"), argThat(
+                argument -> assertThat(argument).isInstanceOfSatisfying(IdleStateHandler.class,
+                        actualIdleStateHandler -> {
+                            assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(TEN_SECONDDS_MILLIS);
+                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isEqualTo(TEN_SECONDDS_MILLIS);
+                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isEqualTo(TEN_SECONDDS_MILLIS);
+                        })));
     }
 
     @Test
@@ -360,4 +386,24 @@ class KafkaProxyInitializerTest {
         orderedVerifyer.verify(channelPipeline).addLast(eq("saslV0Rejecter"), any(SaslV0RejectionHandler.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
     }
+
+    public static <T> T argThat(Consumer<T> assertions) {
+        return MockitoHamcrest.argThat(new AssertionMatcher<>() {
+
+            String underlyingDescription;
+
+            @Override
+            public void assertion(T actual) throws AssertionError {
+                AbstractAssert.setDescriptionConsumer(description -> underlyingDescription = description.value());
+                assertions.accept(actual);
+            }
+
+            @Override
+            public void describeTo(org.hamcrest.Description description) {
+                super.describeTo(description);
+                description.appendValue(Objects.requireNonNullElse(underlyingDescription, "custom argument matcher"));
+            }
+        });
+    }
+
 }

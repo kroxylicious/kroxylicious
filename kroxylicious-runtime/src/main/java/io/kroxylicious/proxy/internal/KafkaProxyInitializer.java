@@ -22,6 +22,7 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
@@ -91,8 +92,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         else {
             initPlainChannel(ch);
         }
+        addIdleHandlerToPipeline(ch.pipeline());
         addLoggingErrorHandler(ch.pipeline());
     }
+
 
     private void initPlainChannel(Channel ch) {
         ch.pipeline().addLast("plainResolver", new ChannelInboundHandlerAdapter() {
@@ -248,6 +251,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private static void addLoggingErrorHandler(ChannelPipeline pipeline) {
         pipeline.addLast(LOGGING_INBOUND_ERROR_HANDLER_NAME, LOGGING_INBOUND_ERROR_HANDLER);
+    }
+
+    private static void addIdleHandlerToPipeline(ChannelPipeline pipeline) {
+        pipeline.addFirst("preSessionIdleHandler", new IdleStateHandler(10, 10, 10));
     }
 
     @VisibleForTesting
