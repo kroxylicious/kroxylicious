@@ -122,8 +122,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
 
         private static int resolveThreadCount(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
-            return Optional.ofNullable(configuration.network())
-                    .map(settingsSupplier)
+            return getNettySettings(configuration, settingsSupplier)
                     .flatMap(NettySettings::workerThreadCount)
                     .orElse(Runtime.getRuntime().availableProcessors());
         }
@@ -218,10 +217,12 @@ public final class KafkaProxy implements AutoCloseable {
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
+            Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings)
+            );
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -242,6 +243,11 @@ public final class KafkaProxy implements AutoCloseable {
             shutdown();
             throw new LifecycleException("Startup completed exceptionally", e);
         }
+    }
+
+    private static Optional<NettySettings> getNettySettings(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
+        return Optional.ofNullable(configuration.network())
+                .map(settingsSupplier);
     }
 
     private void enableNettyMetrics(final EventGroupConfig... eventGroups) {
