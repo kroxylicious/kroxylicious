@@ -40,6 +40,8 @@ This table lists the resource types and operations enforced by the authorization
 // |Cluster
 // |CREATE, ALTER, DESCRIBE, CLUSTER_ACTION, DESCRIBE_CONFIGS, ALTER_CONFIGS
 
+NOTE: Other Kafka resource types will be included in a future release.
+
 |===
 
 == Implied operation permissions
