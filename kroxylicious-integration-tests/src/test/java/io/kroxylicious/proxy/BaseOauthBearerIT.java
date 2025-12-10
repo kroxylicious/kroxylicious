@@ -37,7 +37,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 @ExtendWith(NettyLeakDetectorExtension.class)
 @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 @RestoreSystemProperties
-public class BaseOauthBearerIT {
+public class BaseOauthBearerIT extends BaseIT {
     private static final int OAUTH_SERVER_PORT = 28089;
 
     // This token is expired

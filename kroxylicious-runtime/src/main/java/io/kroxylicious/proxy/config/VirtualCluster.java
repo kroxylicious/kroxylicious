@@ -24,6 +24,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param logNetwork if true, network will be logged
  * @param logFrames if true, kafka rpcs will be logged
  * @param filters filers.
+ * @param subjectBuilder subject builder configuration (optional)
  */
 @SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
 public record VirtualCluster(@JsonProperty(required = true) String name,
@@ -36,7 +37,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
 
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
 
-    @SuppressWarnings({ "removal", "java:S2789" }) // S2789 - checking for null tls is the intent
+    @SuppressWarnings("java:S2789") // S2789 - checking for null tls is the intent
     public VirtualCluster {
         Objects.requireNonNull(name);
         Objects.requireNonNull(targetCluster);

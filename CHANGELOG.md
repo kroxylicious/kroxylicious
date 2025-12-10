@@ -6,6 +6,9 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#3035](https://github.com/kroxylicious/kroxylicious/issues/3035): fix(sasl inspector): Fix config parsing error if SaslInspector with subject builder
+
 ## 0.18.0
 
 * [#2922](https://github.com/kroxylicious/kroxylicious/pull/2922): build(deps): bump kafka.version from 4.1.0 to 4.1.1
