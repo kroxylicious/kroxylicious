@@ -69,15 +69,14 @@ public class Kroxylicious {
                 KroxyliciousFilterTemplates.kroxyliciousRecordEncryptionFilter(deploymentNamespace, testKmsFacade, experimentalKmsConfig));
     }
 
-    private void createAuthorizationFilterConfigMap(String clusterName, Map<String, String> usernamePassword, List<String> aclRules) {
+    private void deployAuthorizationResources(String clusterName, Map<String, String> usernamePassword, List<String> aclRules) {
         LOGGER.info("Deploy Kroxylicious with authorization filter in {} namespace", deploymentNamespace);
         String passwordSuffix = "-password";
 
         usernamePassword.forEach((user, password) -> resourceManager.createResourceFromBuilderWithWait(
                 KroxyliciousSecretTemplates.createPasswordSecret(Constants.KAFKA_DEFAULT_NAMESPACE, user + passwordSuffix, password),
-                KroxyliciousSecretTemplates.createPasswordSecret(deploymentNamespace, user + passwordSuffix, password),
-                KafkaUserTemplates.kafkaUserWithSecret(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, user, user + passwordSuffix),
-                KafkaUserTemplates.kafkaUserWithSecret(deploymentNamespace, clusterName, user, user + passwordSuffix)));
+                KafkaUserTemplates.kafkaUserWithSecret(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, user, user + passwordSuffix)
+        ));
 
         resourceManager.createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getAclRulesConfigMap(deploymentNamespace, "acl-rules", aclRules),
@@ -299,7 +298,7 @@ public class Kroxylicious {
      * @param clusterName the cluster name
      */
     public void deployPortIdentifiesNodeWithAuthorizationFilter(String clusterName, Map<String, String> usernamePassword, List<String> aclRules) {
-        createAuthorizationFilterConfigMap(clusterName, usernamePassword, aclRules);
+        deployAuthorizationResources(clusterName, usernamePassword, aclRules);
         deployPortIdentifiesNodeWithFilters(clusterName,
                 List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_AUTHORIZATION_FILTER_NAME));
     }
