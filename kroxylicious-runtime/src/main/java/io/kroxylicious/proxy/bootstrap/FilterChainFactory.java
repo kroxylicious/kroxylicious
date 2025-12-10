@@ -11,7 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -43,7 +42,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class FilterChainFactory implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterChainFactory.class);
-    private static final Map<Class<?>, AtomicBoolean> DEPRECATION_CHECKED = new ConcurrentHashMap<>();
 
     /**
      * Manages the lifesystem of a filter instance, initializing it on construction and closing it in {@link #close()}
@@ -89,14 +87,11 @@ public class FilterChainFactory implements AutoCloseable {
          */
         private void maybeWarnAboutDeprecations(Filter filter) throws NoSuchMethodException {
             Class<? extends Filter> filterClass = filter.getClass();
-            AtomicBoolean checked = DEPRECATION_CHECKED.computeIfAbsent(filterClass, k -> new AtomicBoolean(false));
-            if (checked.compareAndSet(false, true)) {
-                if (filter instanceof RequestFilter) {
-                    warnIfMethodNotDefault(filterClass, "onRequest", RequestHeaderData.class);
-                }
-                if (filter instanceof ResponseFilter) {
-                    warnIfMethodNotDefault(filterClass, "onResponse", ResponseHeaderData.class);
-                }
+            if (filter instanceof RequestFilter) {
+                warnIfMethodNotDefault(filterClass, "onRequest", RequestHeaderData.class);
+            }
+            if (filter instanceof ResponseFilter) {
+                warnIfMethodNotDefault(filterClass, "onResponse", ResponseHeaderData.class);
             }
         }
 
