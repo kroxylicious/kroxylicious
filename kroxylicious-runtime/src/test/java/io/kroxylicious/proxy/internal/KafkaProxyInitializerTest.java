@@ -316,6 +316,7 @@ class KafkaProxyInitializerTest {
         assertThatCode(embeddedChannel::checkException).doesNotThrowAnyException();
     }
 
+    @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
         return new KafkaProxyInitializer(filterChainFactory,
@@ -356,6 +357,20 @@ class KafkaProxyInitializerTest {
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseEncoder"), any(MessageToByteEncoder.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("saslV0Rejecter"), any(SaslV0RejectionHandler.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    private KafkaProxyInitializer.InitalizerNetFilter buildInitalizerNetFilter(FilterChainFactory fcf) {
+        ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
+        return new KafkaProxyInitializer.InitalizerNetFilter(
+                channel,
+                vcb,
+                pfr,
+                fcf,
+                List.of(),
+                (virtualCluster1, upstreamNodes) -> null,
+                new ApiVersionsIntersectFilter(apiVersionsService),
+                new ApiVersionsDowngradeFilter(apiVersionsService));
     }
 
     public static <T> T argThat(Consumer<T> assertions) {
