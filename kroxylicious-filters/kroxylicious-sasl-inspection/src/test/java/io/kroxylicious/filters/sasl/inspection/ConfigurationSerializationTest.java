@@ -16,10 +16,10 @@ import io.kroxylicious.proxy.config.ConfigParser;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ConfigurationSerializationTest {
+class ConfigurationSerializationTest {
 
     @Test
-    public void deserializeEmpty() throws IOException {
+    void deserializeEmpty() throws IOException {
         Config config = parseConfig("{}");
         assertThat(config.enabledMechanisms()).isNull();
         assertThat(config.requireAuthentication()).isNull();
@@ -28,7 +28,7 @@ public class ConfigurationSerializationTest {
     }
 
     @Test
-    public void deserializeEnabledMechanisms() throws IOException {
+    void deserializeEnabledMechanisms() throws IOException {
         String configYaml = """
                 enabledMechanisms:
                   - PLAIN
@@ -39,7 +39,7 @@ public class ConfigurationSerializationTest {
 
     @CsvSource({ "true", "false" })
     @ParameterizedTest
-    public void deserializeRequireAuthentication(boolean requireAuthentication) throws IOException {
+    void deserializeRequireAuthentication(boolean requireAuthentication) throws IOException {
         String configYaml = """
                 requireAuthentication: %s
                 """.formatted(requireAuthentication);
@@ -48,7 +48,7 @@ public class ConfigurationSerializationTest {
     }
 
     @Test
-    public void deserializeSubjectBuilder() throws IOException {
+    void deserializeSubjectBuilder() throws IOException {
         String configYaml = """
                 subjectBuilder: MockSubjectBuilderService
                 """;
@@ -58,7 +58,7 @@ public class ConfigurationSerializationTest {
 
     // covers the plugin annotations on io.kroxylicious.filters.sasl.inspection.Config
     @Test
-    public void deserializeSubjectBuilderConfig() throws IOException {
+    void deserializeSubjectBuilderConfig() throws IOException {
         String configYaml = """
                 subjectBuilder: MockSubjectBuilderService
                 subjectBuilderConfig:

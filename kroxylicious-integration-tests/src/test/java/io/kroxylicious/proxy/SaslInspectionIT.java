@@ -278,6 +278,12 @@ class SaslInspectionIT extends BaseIT {
         }
     }
 
+    /**
+     * Verifies that filters actually receive the default subject created by the SaslInspection default subject builder implementation.
+     *
+     * @param cluster cluster
+     * @param topic topic
+     */
     @Test
     void shouldProvideSubject(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
@@ -295,6 +301,12 @@ class SaslInspectionIT extends BaseIT {
         });
     }
 
+    /**
+     * Verifies that filters actually receive a customized subject created by a configured subject builder implementation.
+     *
+     * @param cluster cluster
+     * @param topic topic
+     */
     @Test
     void shouldProvideSubjectContainingMappedPrincipal(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,

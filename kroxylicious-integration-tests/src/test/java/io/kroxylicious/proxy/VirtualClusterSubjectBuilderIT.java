@@ -47,8 +47,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 /**
- * Tests the ability of the virtual cluster to config and use a subject builder
- * to build a subject from a client cert presented by the Kafka client.
+ * Tests the ability to configure a transport subject build on the virtual cluster,
+ * verifying that a filter actually receives the expected subject.
  */
 @ExtendWith(KafkaClusterExtension.class)
 class VirtualClusterSubjectBuilderIT extends AbstractTlsIT {
@@ -121,7 +121,6 @@ class VirtualClusterSubjectBuilderIT extends AbstractTlsIT {
                         .hasStringValueSatisfying(expected);
             });
         }
-
     }
 
     private ConfigurationBuilder constructMutualTlsBuilder(KafkaCluster cluster, TransportSubjectBuilderConfig subjectBuilderConfig) {
