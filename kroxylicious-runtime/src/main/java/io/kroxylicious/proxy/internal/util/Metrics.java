@@ -81,7 +81,7 @@ public class Metrics {
         // unused
     }
 
-    public static MeterProvider<Counter> clientToProxyMessageCounterProvider(String clusterName, Integer nodeId) {
+    public static MeterProvider<Counter> clientToProxyMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
         return buildCounterMeterProvider(CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME,
                 "Count of the number of requests received by the proxy from the client.",
                 clusterName, nodeId);
