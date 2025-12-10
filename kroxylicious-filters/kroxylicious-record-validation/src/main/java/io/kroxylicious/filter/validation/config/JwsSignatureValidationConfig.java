@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.filter.validation.validators.bytebuf.JwsSignatureBytebufValidator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -37,9 +38,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class JwsSignatureValidationConfig {
     private final JsonWebKeySet trustedJsonWebKeySet;
     private final AllowDeny<String> algorithms;
-    private final String jwsRecordHeaderKey;
-    private final Boolean isContentDetached;
-    private final Boolean requireJwsRecordHeader;
+    private final JwsSignatureBytebufValidator.JwsHeaderOptions headerOptions;
+    private final JwsSignatureBytebufValidator.JwsContentOptions contentOptions;
 
     /**
      * Construct JwsSignatureValidationConfig
@@ -48,16 +48,14 @@ public class JwsSignatureValidationConfig {
     @JsonCreator
     public JwsSignatureValidationConfig(@JsonProperty(value = "trustedJsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet trustedJsonWebKeySet,
                                         @JsonProperty(value = "algorithms") @Nullable AllowDeny<String> nullableAlgorithms,
-                                        @JsonProperty(value = "jwsRecordHeaderKey", defaultValue = "kroxylicious.io/jws") @Nullable String nullablejwsRecordHeaderKey,
-                                        @JsonProperty(value = "contentDetached", defaultValue = "false") @Nullable Boolean nullableIsContentDetached,
-                                        @JsonProperty(value = "requireJwsRecordHeader", defaultValue = "true") @Nullable Boolean nullableRequireJwsRecordHeader) {
+                                        @JsonProperty(value = "recordHeader") @Nullable JwsSignatureBytebufValidator.JwsHeaderOptions nullableHeaderOptions,
+                                        @JsonProperty(value = "content") @Nullable JwsSignatureBytebufValidator.JwsContentOptions nullableContentOptions) {
         this.trustedJsonWebKeySet = trustedJsonWebKeySet;
 
         this.algorithms = nullableAlgorithms != null ? nullableAlgorithms : new AllowDeny<>(List.of(), Set.of());
 
-        this.jwsRecordHeaderKey = nullablejwsRecordHeaderKey != null ? nullablejwsRecordHeaderKey : "kroxylicious.io/jws";
-        this.isContentDetached = nullableIsContentDetached != null && nullableIsContentDetached;
-        this.requireJwsRecordHeader = nullableRequireJwsRecordHeader == null || nullableRequireJwsRecordHeader;
+        this.headerOptions = nullableHeaderOptions != null ? nullableHeaderOptions : JwsSignatureBytebufValidator.JwsHeaderOptions.DEFAULT;
+        this.contentOptions = nullableContentOptions != null ? nullableContentOptions : JwsSignatureBytebufValidator.JwsContentOptions.DEFAULT;
     }
 
     public JsonWebKeySet getJsonWebKeySet() {
@@ -68,16 +66,12 @@ public class JwsSignatureValidationConfig {
         return algorithms;
     }
 
-    public String getjwsRecordHeaderKey() {
-        return jwsRecordHeaderKey;
+    public JwsSignatureBytebufValidator.JwsHeaderOptions getHeaderOptions() {
+        return headerOptions;
     }
 
-    public boolean getIsContentDetached() {
-        return isContentDetached;
-    }
-
-    public boolean getRequireJwsRecordHeader() {
-        return requireJwsRecordHeader;
+    public JwsSignatureBytebufValidator.JwsContentOptions getContentOptions() {
+        return contentOptions;
     }
 
     /**
@@ -116,8 +110,7 @@ public class JwsSignatureValidationConfig {
         boolean allKeysFound = keyList.stream()
                 .allMatch(key -> that.trustedJsonWebKeySet.findJsonWebKey(key.getKeyId(), key.getKeyType(), key.getUse(), key.getAlgorithm()) != null);
 
-        return hasSameAmountOfKeys && allKeysFound && jwsRecordHeaderKey.equals(that.jwsRecordHeaderKey) && isContentDetached == that.isContentDetached
-                && requireJwsRecordHeader == that.requireJwsRecordHeader;
+        return hasSameAmountOfKeys && allKeysFound && headerOptions.equals(that.headerOptions) && contentOptions.equals(that.contentOptions);
     }
 
     @Override
@@ -140,9 +133,8 @@ public class JwsSignatureValidationConfig {
                 jsonWebKeys,
                 allowedAlgorithms,
                 deniedAlgorithms,
-                jwsRecordHeaderKey,
-                isContentDetached,
-                requireJwsRecordHeader);
+                headerOptions,
+                contentOptions);
     }
 
     @Override
@@ -151,8 +143,8 @@ public class JwsSignatureValidationConfig {
         return "JwsSignatureValidationConfig{" +
                 "trustedJsonWebKeySet=" + trustedJsonWebKeySet +
                 ", algorithms='" + algorithms + '\'' +
-                ", jwsRecordHeaderKey='" + jwsRecordHeaderKey + '\'' +
-                ", isContentDetached='" + isContentDetached + '\'' +
+                ", headerOptions='" + headerOptions + '\'' +
+                ", contentOptions='" + contentOptions + '\'' +
                 '}';
     }
 

@@ -111,9 +111,11 @@ jwsSignatureValidation:
       allowed:
           - ES256
           - RS256
-    jwsRecordHeaderKey: kroxylicious.io/jws                       # <3>
-    requireJwsRecordHeader: false                                 # <4>
-    contentDetached: true                                         # <5>
+    recordHeader:
+      key: kroxylicious.io/jws                                    # <3>
+      required: true                                              # <4>
+    content:
+      detached: false                                             # <5>
 ----
 <1> Set of https://datatracker.ietf.org/doc/html/rfc7517[JSON Web Keys (JWK)] to use for verifying JWS Signatures.
 <2> List of `allowed` and `denied` https://datatracker.ietf.org/doc/html/rfc7518#section-3.1[JSON Web Algorithms (JWA)].
