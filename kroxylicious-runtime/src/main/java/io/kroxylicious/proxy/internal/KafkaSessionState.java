@@ -11,7 +11,11 @@ package io.kroxylicious.proxy.internal;
  */
 public enum KafkaSessionState {
     /**
-     * Prior to any M_TLS or SASL authentication happening.
+     * The proxy has seen a connection, but it is not yet connected ready for RPCs.
+     */
+    ESTABLISHING,
+    /**
+     * The proxy has established connections to both client and broker. It is still prior to any M_TLS or SASL authentication happening.
      */
     NOT_AUTHENTICATED,
     /**
@@ -19,7 +23,11 @@ public enum KafkaSessionState {
      */
     AUTHENTICATED,
     /**
-     * The
+     * The client has been Authorized to perform actions.
      */
-    AUTHORIZED
+    AUTHORIZED,
+    /**
+     * The session is being torn down by the proxy.
+     */
+    TERMINATING
 }

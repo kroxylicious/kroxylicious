@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -28,5 +29,16 @@ class KafkaSessionTest {
                     assertThat(s.sessionId()).isEqualTo(kafkaSession.sessionId());
                     assertThat(s.currentState()).isEqualTo(target);
                 });
+    }
+
+    @Test
+    void shouldAllocateSessionId() {
+        // Given
+
+        // When
+        KafkaSession kafkaSession = new KafkaSession(null, KafkaSessionState.NOT_AUTHENTICATED);
+
+        // Then
+        assertThat(kafkaSession.sessionId()).isNotNull();
     }
 }
