@@ -108,7 +108,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         addLoggingErrorHandler(ch.pipeline());
     }
 
-
     private void initPlainChannel(Channel ch) {
         ch.pipeline().addLast("plainResolver", new ChannelInboundHandlerAdapter() {
             @Override
