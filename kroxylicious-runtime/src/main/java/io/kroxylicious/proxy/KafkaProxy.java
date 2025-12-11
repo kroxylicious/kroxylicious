@@ -297,7 +297,6 @@ public final class KafkaProxy implements AutoCloseable {
                             .childHandler(new ManagementInitializer(meterRegistries, mc));
                     LOGGER.info("Binding management endpoint: {}:{}", mc.getEffectiveBindAddress(), mc.getEffectivePort());
 
-                    // The commonPool ignores all attempts to close/shut it down. So use try-with-resources to keep the code scanners happy.
                     var future = new CompletableFuture<Void>();
                     metricsBootstrap.bind(managementConfiguration.getEffectiveBindAddress(), managementConfiguration.getEffectivePort())
                             .addListener((ChannelFutureListener) channelFuture -> ForkJoinPool.commonPool().execute(() -> {
