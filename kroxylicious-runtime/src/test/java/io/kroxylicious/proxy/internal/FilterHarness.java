@@ -102,7 +102,6 @@ public abstract class FilterHarness {
         var handlers = Stream.concat(filterHandlers, channelProcessors);
 
         channel = new EmbeddedChannel(handlers.toArray(ChannelHandler[]::new));
-        channelStateMachine.allocateSessionId();
     }
 
     /**

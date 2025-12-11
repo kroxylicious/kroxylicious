@@ -119,7 +119,7 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
         VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
-        kafkaSession = new KafkaSession(KafkaSessionState.NOT_AUTHENTICATED);
+        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
 
         // Connection metrics
         clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
@@ -262,11 +262,6 @@ public class ProxyChannelStateMachine {
         else {
             illegalState("Client activation while not in the start state");
         }
-    }
-
-    @VisibleForTesting
-    void allocateSessionId() {
-        // TODO No Op?
     }
 
     /**
@@ -489,6 +484,7 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
+        kafkaSession = kafkaSession.in(KafkaSessionState.NOT_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).inForwarding();
         proxyToServerConnectionToken.acquire();
     }
@@ -560,6 +556,7 @@ public class ProxyChannelStateMachine {
         }
 
         setState(new Closed());
+        kafkaSession = kafkaSession.in(KafkaSessionState.TERMINATING);
         // Close the server connection
         if (backendHandler != null) {
             backendHandler.inClosed();
