@@ -10,9 +10,8 @@
 [role="_abstract"]
 If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProcotolFilter` resource to contain the filter configuration.
 
-Here's a complete example of a `KafkaProtocolFilter` resource configured for Oauth Bearer validation:
+Here's a complete example of a `KafkaProtocolFilter` resource configured for SASL inspection:
 
-.Example `KafkaProtocolFilter` resource for record validation
 [source,yaml]
 ----
 kind: KafkaProtocolFilter

@@ -1,0 +1,145 @@
+:_mod-docs-content-type: CONCEPT
+
+
+[id='con-authorization-rules-{context}']
+= Authorization rules
+
+The authorization rules define which principals can perform specific operations on specific Kafka resources.
+
+== Outline of a rule file
+
+The following example shows the overall outline of a rule file.
+The sections that follow give more details.
+
+[source]
+----
+// Comment
+from io.kroxylicious.filter.authorization import TopicResource as Topic;
+
+deny User with name = "alice" to * Topic with name = "payments-received";
+allow User with name = "alice" to * Topic with name like "payments-*";
+
+otherwise deny;
+----
+
+== Comments
+
+Both line and block comments are supported.  Line comments are preceded by `//`.
+Block comments are bracketed by `/* ... */` markers.
+Comments are ignored.
+
+== Imports
+
+Resource types must be imported before use. This is achieved using a `from` / `import` statement.
+
+[source]
+----
+from <package> import <element> [as <alias>][,... , <elementn> [as <aliasn>]];
+----
+where:
+
+* <package> is `io.kroxylicious.filter.authorization`
+* <element> is a `ResourceType` implementation name.
+* <alias> is an optional alias for the resource type.
+
+For example, `TopicResource` is the implementation that represents Kafka topics.
+To declare it use a `import` statement like this.
+
+[source]
+----
+from io.kroxylicious.filter.authorization import TopicResource;
+----
+
+To declare it with an alias, use an `import` statement like this:
+
+[source]
+----
+from io.kroxylicious.filter.authorization import TopicResource as Topic;
+----
+
+== Rules
+
+The basic form of a rule is as follows:
+
+[source]
+----
+<allow|deny> User with <user predicate> to <operation> <resource type> with <resource predicate>;
+----
+where:
+
+* `<allow|deny>` indicates whether to allow or deny the action.
+* `<user predicate>` matches the user principal performing the action.
+* `<resource type>` identifies the resource type being acted upon. This can either be the name of the resource type name or an alias for it.
+* `<resource predicate>` identifies the resource.
+* `<operation>` identifies the operation(s) to be performed on the resource.
+
+Rules must be ordered so that any `deny` rules precede the `allow` rules.
+
+When rules are evaluated, they are considered from top to bottom, with the first matching rule taking precedence.
+
+== Otherwise deny
+
+Rules files must end with the statement `otherwise deny`.
+This stipulation means that all rules files have deny-by-default semantics.
+
+[source]
+----
+...
+otherwise deny;
+----
+
+== User predicates
+
+The following User predicates are supported:
+
+|===
+|Predicate|Description|Example
+
+| `=`
+| Equals
+| `name = "alice"`
+
+| `IN`
+| Set inclusion
+| `name in +{"alice", "bob"}+`
+
+| `LIKE`
+| Prefix (note that the wildcard * is only permitted at the end of the prefix.)
+| `name like "bob*"`
+
+|===
+
+== Resource Predicates
+
+The following resource predicates are supported:
+
+|===
+|Predicate|Description|Example
+
+| `=`
+| Equality
+| `name = "mytopic"`
+
+| `IN`
+| Set inclusion
+| `name in +{"topic1", "topic2"}+`
+
+| `LIKE`
+| Prefix (wildcard * is permitted only at the end)
+| `name like "finance*"`
+
+| `MATCHING`
+| Regular expression match
+| `name matching "a+"`
+
+|===
+
+== Operations
+
+Operations in rules can be specified in the following ways:
+
+* As a single operation, for example `READ`
+* As a set of operations, for example `+{READ, WRITE}+`
+* As a wildcard that matches any operation, for example `*`
+
+NOTE: The Authorization filter does not support the keyword `ALL`.

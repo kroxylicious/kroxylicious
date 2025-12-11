@@ -1,0 +1,27 @@
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: authorization
+:guide: authorization
+
+[id="using-book-{context}"]
+= Authorization Guide
+
+include::_modules/authorization/con-about-{guide}-guide.adoc[leveloffset=+1]
+
+include::_assemblies/authorization/assembly-authorization-overview.adoc[leveloffset=+1]
+
+// authorization model
+include::_modules/authorization/con-authorization-model.adoc[leveloffset=+1]
+
+// authorization rules
+include::_modules/authorization/con-authorization-rules.adoc[leveloffset=+1]
+
+//configuring the authorization filter
+include::_assemblies/authorization/assembly-configuring-authorization-filter.adoc[leveloffset=+1]
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]
+
+// glossary
+include::_modules/authorization/ref-glossary.adoc[leveloffset=+1]
