@@ -6,17 +6,32 @@
 
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.UncheckedIOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.common.config.SaslConfigs;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.records.KafSaslConfig;
 
 /**
  * The type Kroxylicious config templates.
  */
 public final class KroxyliciousConfigMapTemplates {
+    private static final ObjectMapper OBJECT_MAPPER = new YAMLMapper();
 
     private KroxyliciousConfigMapTemplates() {
     }
@@ -71,5 +86,121 @@ public final class KroxyliciousConfigMapTemplates {
         else {
             return null;
         }
+    }
+
+    /**
+     * Gets acl rules config map.
+     *
+     * @param namespace the namespace
+     * @param name the name
+     * @param aclRules the acl rules
+     * @return  the acl rules config map
+     */
+    public static ConfigMapBuilder getAclRulesConfigMap(String namespace, String name, List<String> aclRules) {
+        // @formatter:off
+        return new ConfigMapBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withData(Map.of(name, generateAclRules(aclRules)));
+        // @formatter:on
+    }
+
+    private static String generateAclRules(List<String> aclRules) {
+        StringBuilder aclRule = new StringBuilder("from io.kroxylicious.filter.authorization import TopicResource as Topic;");
+        aclRules.sort(Collections.reverseOrder()); // deny should be always first, then allow sentences
+        aclRules.forEach(rule -> aclRule.append("\n").append(rule));
+        aclRule.append("\n").append("otherwise deny;");
+        return aclRule.toString();
+    }
+
+    /**
+     * Gets config map for sasl config.
+     *
+     * @param namespace the namespace
+     * @param name the name
+     * @param securityProtocol the security protocol
+     * @param saslMechanism the sasl mechanism
+     * @return  the config map for additional config
+     */
+    public static ConfigMapBuilder getConfigMapForSaslConfig(String namespace, String name, String securityProtocol, String saslMechanism, String username,
+                                                             String usernamePassword) {
+        Properties adminConfig = new Properties();
+        adminConfig.put("ADDITIONAL_CONFIG", CommonClientConfigs.SECURITY_PROTOCOL_CONFIG + "=" + securityProtocol
+                + "\n" + SaslConfigs.SASL_MECHANISM + "=" + saslMechanism
+                + "\n" + SaslConfigs.SASL_JAAS_CONFIG + "=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + username +
+                "\" password=\"" + usernamePassword + "\";");
+
+        String properties;
+        try (StringWriter writer = new StringWriter()) {
+            adminConfig.store(writer, "admin config");
+            properties = writer.toString();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        // @formatter:off
+        return new ConfigMapBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withData(Map.of(Constants.CONFIG_PROP_FILE_NAME, properties));
+        // @formatter:on
+    }
+
+    /**
+     * Gets config map for kaf config.
+     *
+     * @param namespace the namespace
+     * @param name the name
+     * @param bootstrap the bootstrap
+     * @param additionalConfig the additional config
+     * @return  the config map for kaf config
+     */
+    public static ConfigMapBuilder getConfigMapForKafConfig(String namespace, String name, String bootstrap, Map<String, String> additionalConfig) {
+
+        KafSaslConfig kafSaslConfig = null;
+        if (additionalConfig.containsKey(SaslConfigs.SASL_MECHANISM)) {
+            kafSaslConfig = new KafSaslConfig(
+                    additionalConfig.get(SaslConfigs.SASL_MECHANISM),
+                    additionalConfig.get("sasl.username"),
+                    additionalConfig.get("sasl.password"),
+                    1);
+        }
+
+        Map<String, Object> saslConfigMap = OBJECT_MAPPER
+                .convertValue(kafSaslConfig, new TypeReference<>() {
+                });
+
+        String config = "current-cluster: local"
+                + "\n" + "clusters:"
+                + "\n" + "- name: local"
+                + "\n" + "  brokers:"
+                + "\n" + "  - " + bootstrap
+                + "\n" + "  SASL: " + getSaslConfigMap(saslConfigMap)
+                + "\n" + "  TLS: " + "null"
+                + "\n" + "  security-protocol: \"" + additionalConfig.getOrDefault(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "") + "\""
+                + "\n" + "  schema-registry-url: \"\""
+                + "\n" + "  schema-registry-credentials: null";
+
+        // @formatter:off
+        return new ConfigMapBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withData(Map.of(Constants.KAF_CONFIG_FILE_NAME, config));
+        // @formatter:on
+    }
+
+    private static String getSaslConfigMap(Map<String, Object> saslConfigMap) {
+        StringBuilder config = new StringBuilder();
+        if (saslConfigMap != null) {
+            saslConfigMap.forEach((key, value) -> config.append("\n    ").append(key).append(": ").append(value));
+        }
+        return config.toString();
     }
 }

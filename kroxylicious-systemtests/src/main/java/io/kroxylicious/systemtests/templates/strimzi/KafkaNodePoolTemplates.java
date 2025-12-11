@@ -20,6 +20,9 @@ import io.kroxylicious.systemtests.Constants;
  */
 public class KafkaNodePoolTemplates {
 
+    private KafkaNodePoolTemplates() {
+    }
+
     /**
      * Default kafka node pool kafka node pool builder.
      *

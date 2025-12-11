@@ -88,4 +88,24 @@ public class KroxyliciousSecretTemplates {
                 .withData(Map.of(certificateName, encoded, "password", password));
         // @formatter:on
     }
+
+    /**
+     * Create password secret builder.
+     *
+     * @param namespace the namespace
+     * @param secretName the secret name
+     * @param secretPassword the secret password
+     * @return  the secret builder
+     */
+    public static SecretBuilder createPasswordSecret(String namespace, String secretName, String secretPassword) {
+        // @formatter:off
+        return new SecretBuilder()
+                .withKind(Constants.SECRET)
+                .withNewMetadata()
+                    .withName(secretName)
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withStringData(Map.of("password", secretPassword));
+        // @formatter:on
+    }
 }
