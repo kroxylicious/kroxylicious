@@ -28,6 +28,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.KcatConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -62,8 +63,8 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
-                                Map<String, String> additionalConfig) {
+    public ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                      Map<String, String> additionalConfig) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
         StringBuilder msg = new StringBuilder();
@@ -95,7 +96,7 @@ public class KcatClient implements KafkaClient {
             executableCommand.add(key + "=" + value);
         });
 
-        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.KCAT.name().toLowerCase());
+        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.KCAT.name().toLowerCase());
     }
 
     @Override

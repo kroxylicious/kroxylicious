@@ -12,10 +12,15 @@ import java.util.Map;
 
 import org.apache.kafka.common.record.CompressionType;
 
+import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
+import io.kroxylicious.systemtests.executor.ExecResult;
+import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
  * The type Kroxylicious steps.
@@ -38,6 +43,17 @@ public class KroxyliciousSteps {
     }
 
     /**
+     * Gets consumer log.
+     *
+     * @param namespace the namespace
+     * @return  the consumer log
+     */
+    public static String getConsumerLog(String namespace) {
+        String podName = KafkaUtils.getPodNameByPrefix(namespace, Constants.KAFKA_CONSUMER_CLIENT_LABEL, Duration.ofSeconds(30));
+        return kubeClient().logsInSpecificNamespace(namespace, podName);
+    }
+
+    /**
      * Produce messages.
      *
      * @param namespace the namespace
@@ -45,9 +61,10 @@ public class KroxyliciousSteps {
      * @param bootstrap the bootstrap
      * @param message the message
      * @param numberOfMessages the number of messages
+     * @return  the exec result
      */
-    public static void produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages) {
-        KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, numberOfMessages);
+    public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, numberOfMessages);
     }
 
     /**
@@ -59,10 +76,11 @@ public class KroxyliciousSteps {
      * @param message the message
      * @param compressionType the compression type
      * @param numberOfMessages the number of messages
+     * @return
      */
-    public static void produceMessages(String namespace, String topicName, String bootstrap, String message, @NonNull CompressionType compressionType,
+    public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, @NonNull CompressionType compressionType,
                                        int numberOfMessages) {
-        KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, compressionType, numberOfMessages);
+        return KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, compressionType, numberOfMessages);
     }
 
     /**
@@ -74,10 +92,11 @@ public class KroxyliciousSteps {
      * @param message the message
      * @param numberOfMessages the number of messages
      * @param additionalConfig the additional config
+     * @return
      */
-    public static void produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages,
-                                       Map<String, String> additionalConfig) {
-        KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, null, numberOfMessages, additionalConfig);
+    public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages,
+                                             Map<String, String> additionalConfig) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, null, numberOfMessages, additionalConfig);
     }
 
     /**

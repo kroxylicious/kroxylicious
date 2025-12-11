@@ -27,6 +27,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.StrimziTestClientConsumerRecord;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -43,6 +44,8 @@ import static org.awaitility.Awaitility.await;
  */
 public class StrimziTestClient implements KafkaClient {
     private static final String RECEIVED_MESSAGE_MARKER = "Received message:";
+    private static final String MESSAGES_SUCCESSFULLY_SENT_MARKER = "All messages successfully sent";
+    private static final String MESSAGES_FAILED_MARKER = "Unable to correctly send all messages";
     private static final Logger LOGGER = LoggerFactory.getLogger(StrimziTestClient.class);
     private static final TypeReference<StrimziTestClientConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
@@ -71,8 +74,8 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
-                                Map<String, String> additionalConfig) {
+    public ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                      Map<String, String> additionalConfig) {
         LOGGER.atInfo().log("Producing messages using Strimzi Test Client");
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
         Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey,
@@ -82,6 +85,19 @@ public class StrimziTestClient implements KafkaClient {
         String log = waitForProducer(deployNamespace, podName, Duration.ofSeconds(60));
         KafkaUtils.deleteJob(testClientJob);
         LOGGER.atInfo().setMessage("client producer log: {}").addArgument(log).log();
+
+        return getExecResult(log);
+    }
+
+    private ExecResult getExecResult(String log) {
+        ExecResult result;
+        if (log.contains(MESSAGES_SUCCESSFULLY_SENT_MARKER)) {
+            result = new ExecResult(0, log, null);
+        }
+        else {
+            result = new ExecResult(1, log, log);
+        }
+        return result;
     }
 
     private static String waitForProducer(String namespace, String podName, Duration timeout) {
@@ -95,11 +111,11 @@ public class StrimziTestClient implements KafkaClient {
                             return kubeClient().logsInSpecificNamespace(namespace, podName);
                         }
                         return null;
-                    }, m -> m != null && (m.contains("All messages successfully sent") || m.contains("Unable to correctly send all messages")));
+                    }, m -> m != null && (m.contains(MESSAGES_SUCCESSFULLY_SENT_MARKER) || m.contains(MESSAGES_FAILED_MARKER)));
         }
         catch (ConditionTimeoutException e) {
             log = kubeClient().logsInSpecificNamespace(namespace, podName);
-            LOGGER.atInfo().setMessage("Timeout! Unable to produce the messages: {}").addArgument(log).log();
+            LOGGER.atError().setMessage("Timeout! Unable to produce the messages: {}").addArgument(log).log();
         }
         return log;
     }

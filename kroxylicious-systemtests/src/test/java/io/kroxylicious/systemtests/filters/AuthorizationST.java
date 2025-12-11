@@ -30,13 +30,13 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
-import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -146,13 +146,16 @@ class AuthorizationST extends AbstractST {
 
         Map<String, String> bobKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userBob, usernamePasswords.get(userBob));
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, bobKafkaProps);
+        ExecResult producerResult = KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, bobKafkaProps);
+        // depending on the client, error is written on stdout instead of stderr
+        String logError = producerResult.out().concat(producerResult.err());
 
-        String podName = KafkaUtils.getPodNameByPrefix(namespace, Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(30));
-        String log = kubeClient().logsInSpecificNamespace(namespace, podName);
-        assertThat(log).containsAnyOf("Not authorized to access topics: [" + topicName + "]",
-                "The client is not authorized to access this topic",
-                "Topic authorization failed");
+        assertAll(() -> {
+            assertThat(producerResult.isSuccess() && producerResult.err().isEmpty()).isFalse();
+            assertThat(logError).containsAnyOf("Not authorized to access topics: [" + topicName + "]",
+                    "The client is not authorized to access this topic",
+                    "Topic authorization failed");
+        });
 
         LOGGER.atInfo().setMessage("Then aren't any messages to be consumed").log();
         Map<String, String> aliceKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
@@ -194,8 +197,7 @@ class AuthorizationST extends AbstractST {
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), aliceKafkaProps);
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        String podName = KafkaUtils.getPodNameByPrefix(namespace, Constants.KAFKA_CONSUMER_CLIENT_LABEL, Duration.ofSeconds(30));
-        String log = kubeClient().logsInSpecificNamespace(namespace, podName);
+        String log = KroxyliciousSteps.getConsumerLog(namespace);
         assertAll(() -> {
             assertThat(log).containsAnyOf("Not authorized to access topics: [" + topicName + "]",
                     "The client is not authorized to access this topic",

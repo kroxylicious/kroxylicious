@@ -18,6 +18,7 @@ import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -31,7 +32,7 @@ public interface KafkaClient {
      * Sets the namespace where the kafka client will be deployed in kubernetes.
      *
      * @param namespace the namespace
-     * @return the kafka client
+     * @return  the kafka client
      */
     KafkaClient inNamespace(String namespace);
 
@@ -54,10 +55,11 @@ public interface KafkaClient {
      * @param bootstrap the bootstrap
      * @param message the message
      * @param numOfMessages the num of messages
+     * @return  the exec result
      * @throws KubeClusterException the kube cluster exception
      */
-    default void produceMessages(String topicName, String bootstrap, String message, int numOfMessages) throws KubeClusterException {
-        produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of());
+    default ExecResult produceMessages(String topicName, String bootstrap, String message, int numOfMessages) throws KubeClusterException {
+        return produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of());
     }
 
     /**
@@ -68,11 +70,12 @@ public interface KafkaClient {
      * @param message the message
      * @param messageKey optional record key for the message. <code>null</code> means don't specify a key
      * @param numOfMessages the num of messages
+     * @return  the exec result
      * @throws KubeClusterException the kube cluster exception
      */
-    default void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages)
+    default ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages)
             throws KubeClusterException {
-        produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, Map.of());
+        return produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, Map.of());
     }
 
     /**
@@ -83,11 +86,12 @@ public interface KafkaClient {
      * @param message the message
      * @param compressionType the compression type
      * @param numOfMessages the num of messages
+     * @return  the exec result
      * @throws KubeClusterException the kube cluster exception
      */
-    default void produceMessages(String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numOfMessages)
+    default ExecResult produceMessages(String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numOfMessages)
             throws KubeClusterException {
-        produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType.name));
+        return produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType.name));
     }
 
     /**
@@ -99,9 +103,10 @@ public interface KafkaClient {
      * @param messageKey optional record key for the message. <code>null</code> means don't specify a key
      * @param numOfMessages the num of messages
      * @param additionalConfig the additional config
+     * @return  the exec result
      * @throws KubeClusterException the kube cluster exception
      */
-    void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
+    ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
             throws KubeClusterException;
 
     /**

@@ -62,20 +62,21 @@ public class KafkaUtils {
      * @param message the message
      * @param podName the pod name
      * @param clientName the client name
+     * @return  the exec result
      */
-    public static void produceMessagesWithCmd(String deployNamespace, List<String> executableCommand, String message, String podName, String clientName) {
+    public static ExecResult produceMessagesWithCmd(String deployNamespace, List<String> executableCommand, String message, String podName, String clientName) {
         LOGGER.atInfo().setMessage("Executing command: {} for running {} producer").addArgument(executableCommand).addArgument(clientName).log();
         ExecResult result = Exec.exec(String.valueOf(message), executableCommand, Duration.ofSeconds(30), true, false, null);
 
-        String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         if (result.isSuccess()) {
-            LOGGER.atInfo().setMessage("{} client produce log: {}").addArgument(clientName).addArgument(log).log();
+            LOGGER.atInfo().setMessage("{} client produce log: {}").addArgument(clientName).addArgument(result.out()).log();
             deletePod(deployNamespace, podName);
         }
         else {
-            LOGGER.atError().setMessage("error producing messages with {}: {}").addArgument(clientName).addArgument(log).log();
-            throw new KubeClusterException("error producing messages with " + clientName + ": " + log);
+            LOGGER.atError().setMessage("error producing messages with {}: {}").addArgument(clientName).addArgument(result.err()).log();
+            throw new KubeClusterException("error producing messages with " + clientName + ": " + result.err());
         }
+        return result;
     }
 
     /**
@@ -161,7 +162,7 @@ public class KafkaUtils {
         if (podName.isEmpty() || podName.isBlank()) {
             throw new KubeClusterException.NotFound("Kafka cluster name not found!");
         }
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(1).delete();
         DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofMinutes(5));
         return !Objects.equals(podUid, getPodUid(deployNamespace, podName));
     }

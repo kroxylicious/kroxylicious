@@ -27,6 +27,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.KafConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
@@ -63,8 +64,8 @@ public class KafClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
-                                Map<String, String> additionalConfig) {
+    public ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                      Map<String, String> additionalConfig) {
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
 
@@ -95,7 +96,7 @@ public class KafClient implements KafkaClient {
         });
         executableCommand.addAll(List.of("produce", topicName));
 
-        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
+        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
     }
 
     @Override
