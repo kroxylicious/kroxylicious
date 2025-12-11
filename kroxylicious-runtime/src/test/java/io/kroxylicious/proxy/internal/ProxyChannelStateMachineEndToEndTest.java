@@ -207,7 +207,7 @@ class ProxyChannelStateMachineEndToEndTest {
             proxyChannelStateMachine.forceState(
                     new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
                     handler,
-                    backendHandler, new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                    backendHandler, new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED));
         }
 
         // When
@@ -252,7 +252,7 @@ class ProxyChannelStateMachineEndToEndTest {
             proxyChannelStateMachine.forceState(
                     new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
                     handler,
-                    backendHandler, new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                    backendHandler, new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED));
         }
 
         // When
@@ -276,7 +276,7 @@ class ProxyChannelStateMachineEndToEndTest {
             proxyChannelStateMachine.forceState(
                     new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
                     handler,
-                    backendHandler, new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                    backendHandler, new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED));
         }
 
         // When
@@ -299,7 +299,7 @@ class ProxyChannelStateMachineEndToEndTest {
             proxyChannelStateMachine.forceState(
                     new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
                     handler,
-                    backendHandler, new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                    backendHandler, new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED));
         }
 
         // When
@@ -843,7 +843,7 @@ class ProxyChannelStateMachineEndToEndTest {
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
                 handler,
-                backendHandler, new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                backendHandler, new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED));
 
         inboundChannel.config().setAutoRead(false);
 
