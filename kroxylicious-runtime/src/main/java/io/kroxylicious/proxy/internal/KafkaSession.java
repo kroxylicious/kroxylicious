@@ -6,10 +6,8 @@
 
 package io.kroxylicious.proxy.internal;
 
-public record KafkaSession(String sessionId, SessionState currentState) {
-    public enum SessionState {
-        PRE_AUTHENTICATION,
-        AUTHENTICATED,
-        AUTHORIZED
+public record KafkaSession(String sessionId, KafkaSessionState currentState) {
+    public KafkaSession in(KafkaSessionState newState) {
+        return new KafkaSession(this.sessionId, newState);
     }
 }
