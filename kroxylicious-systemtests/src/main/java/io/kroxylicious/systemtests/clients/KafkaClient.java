@@ -79,6 +79,37 @@ public interface KafkaClient {
     }
 
     /**
+     * Produce messages without wait.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param messageKey the message key
+     * @param numOfMessages the num of messages
+     * @throws KubeClusterException the kube cluster exception
+     */
+    default void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages)
+            throws KubeClusterException {
+        produceMessagesWithoutWait(topicName, bootstrap, message, messageKey, numOfMessages, Map.of());
+    }
+
+    /**
+     * Produce messages without wait.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param messageKey the message key
+     * @param numOfMessages the num of messages
+     * @param additionalConfig the additional config
+     * @throws KubeClusterException the kube cluster exception
+     */
+    default void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
+            throws KubeClusterException {
+        produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, additionalConfig);
+    }
+
+    /**
      * Produce messages.
      *
      * @param topicName the topic name

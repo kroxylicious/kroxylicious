@@ -69,9 +69,10 @@ public class PythonTestClient implements KafkaClient {
     }
 
     @Override
-    public ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
-                                      Map<String, String> additionalConfig) {
-        final Optional<String> recordKey = Optional.ofNullable(messageKey);
+    public void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                                 Map<String, String> additionalConfig) {
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
+        List<String> executableCommand = getExecutableCommand(topicName, name, bootstrap, messageKey, additionalConfig);
 
         StringBuilder msg = new StringBuilder();
         for (int i = 0; i < numOfMessages; i++) {
@@ -81,8 +82,14 @@ public class PythonTestClient implements KafkaClient {
                     .append("\n");
         }
 
+        KafkaUtils.produceMessagesWithCmdWithoutWait(executableCommand, String.valueOf(msg), KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase());
+    }
+
+    private List<String> getExecutableCommand(String topicName, String name, String bootstrap, @Nullable String messageKey,
+                                              Map<String, String> additionalConfig) {
+        final Optional<String> recordKey = Optional.ofNullable(messageKey);
+
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using python").addArgument(topicName).log();
-        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
         String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json").replace("%CONTAINER_NAME%", name) : "";
 
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
@@ -99,6 +106,22 @@ public class PythonTestClient implements KafkaClient {
             executableCommand.add("-X");
             executableCommand.add(key + "=" + value);
         });
+        return executableCommand;
+    }
+
+    @Override
+    public ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                      Map<String, String> additionalConfig) {
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
+        List<String> executableCommand = getExecutableCommand(topicName, name, bootstrap, messageKey, additionalConfig);
+
+        StringBuilder msg = new StringBuilder();
+        for (int i = 0; i < numOfMessages; i++) {
+            msg.append(message)
+                    .append(" - ")
+                    .append(i)
+                    .append("\n");
+        }
 
         return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase());
     }

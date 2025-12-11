@@ -80,6 +80,18 @@ public class KafkaUtils {
     }
 
     /**
+     * Produce messages with cmd without wait.
+     *
+     * @param executableCommand the executable command
+     * @param message the message
+     * @param clientName the client name
+     */
+    public static void produceMessagesWithCmdWithoutWait(List<String> executableCommand, String message, String clientName) {
+        LOGGER.atInfo().setMessage("Executing command: {} for running {} producer without waiting for it").addArgument(executableCommand).addArgument(clientName).log();
+        Exec.execWithoutWait(String.valueOf(message), executableCommand);
+    }
+
+    /**
      * Create job
      *
      * @param namespace the namespace
@@ -162,7 +174,7 @@ public class KafkaUtils {
         if (podName.isEmpty() || podName.isBlank()) {
             throw new KubeClusterException.NotFound("Kafka cluster name not found!");
         }
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(1).delete();
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
         DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofMinutes(5));
         return !Objects.equals(podUid, getPodUid(deployNamespace, podName));
     }

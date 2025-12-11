@@ -148,7 +148,7 @@ class KroxyliciousST extends AbstractST {
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 1);
 
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
+        KroxyliciousSteps.produceMessagesWithoutWait(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
         LOGGER.atInfo().setMessage("And a kafka broker is restarted").log();
         KafkaSteps.restartKafkaBroker(clusterName);
 

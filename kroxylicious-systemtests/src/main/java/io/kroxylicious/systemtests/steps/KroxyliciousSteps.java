@@ -76,7 +76,7 @@ public class KroxyliciousSteps {
      * @param message the message
      * @param compressionType the compression type
      * @param numberOfMessages the number of messages
-     * @return
+     * @return  the exec result
      */
     public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, @NonNull CompressionType compressionType,
                                              int numberOfMessages) {
@@ -92,11 +92,24 @@ public class KroxyliciousSteps {
      * @param message the message
      * @param numberOfMessages the number of messages
      * @param additionalConfig the additional config
-     * @return
+     * @return  the exec result
      */
     public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages,
                                              Map<String, String> additionalConfig) {
         return KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, null, numberOfMessages, additionalConfig);
+    }
+
+    /**
+     * Produce messages without wait.
+     *
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param numberOfMessages the number of messages
+     */
+    public static void produceMessagesWithoutWait(String namespace, String topicName, String bootstrap, String message, int numberOfMessages) {
+        KafkaClients.getKafkaClient().inNamespace(namespace).produceMessagesWithoutWait(topicName, bootstrap, message, null, numberOfMessages);
     }
 
     /**
@@ -138,7 +151,7 @@ public class KroxyliciousSteps {
      * @param kafkaNamespace the namespace in which the broker is operating
      * @param numberOfMessages the number of messages
      * @param timeout maximum time to wait for the expectedMessage to appear
-     * @return the list of consumer records
+     * @return  the list of consumer records
      */
     public static List<ConsumerRecord> consumeMessageFromKafkaCluster(String clientNamespace, String topicName, String kafkaClusterName,
                                                                       String kafkaNamespace, int numberOfMessages,

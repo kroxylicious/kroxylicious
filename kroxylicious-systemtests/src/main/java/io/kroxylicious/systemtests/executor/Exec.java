@@ -132,7 +132,7 @@ public class Exec {
      * @return the pid
      */
     public static long execWithoutWait(String... command) {
-        return execWithoutWait(Arrays.asList(command));
+        return execWithoutWait(null, Arrays.asList(command));
     }
 
     /**
@@ -183,12 +183,13 @@ public class Exec {
     /**
      * Exec without wait exec result.
      *
+     * @param input the input
      * @param command the command
-     * @return the pid
+     * @return  the pid
      */
-    public static long execWithoutWait(List<String> command) {
+    public static long execWithoutWait(String input, List<String> command) {
         Exec executor = new Exec();
-        return executor.executeWithoutWait(command, null);
+        return executor.executeWithoutWait(input, command, null);
     }
 
     /**
@@ -359,7 +360,7 @@ public class Exec {
      * @param dir the dir
      * @return the pid
      */
-    public long executeWithoutWait(List<String> commands, File dir) {
+    public long executeWithoutWait(String input, List<String> commands, File dir) {
         LOGGER.debug("Running command - {}", String.join(" ", commands.toArray(new String[0])));
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
@@ -367,9 +368,16 @@ public class Exec {
         builder.directory(dir);
         try {
             process = builder.start();
+            if (input != null) {
+                OutputStream outputStream = process.getOutputStream();
+                LOGGER.debug("With stdin {}", input);
+                outputStream.write(input.getBytes(Charset.defaultCharset()));
+                // Close subprocess' stdin
+                outputStream.close();
+            }
         }
         catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
         return process.pid();
     }
