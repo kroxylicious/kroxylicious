@@ -39,6 +39,7 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
@@ -102,6 +103,7 @@ public class ConfigParser implements PluginFactoryRegistry {
         return new ObjectMapper(yamlFactory)
                 .registerModule(new ParameterNamesModule())
                 .registerModule(new Jdk8Module())
+                .registerModule(new JavaTimeModule())
                 .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))
                 .setVisibility(PropertyAccessor.ALL, Visibility.NONE)
                 .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
@@ -111,7 +113,7 @@ public class ConfigParser implements PluginFactoryRegistry {
                 .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY)
                 .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
-                .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT);
+                .setDefaultPropertyInclusion(JsonInclude.Include.NON_DEFAULT);
     }
 
     private static class PluginModule extends SimpleModule {
@@ -186,6 +188,8 @@ public class ConfigParser implements PluginFactoryRegistry {
                 // for properties annotated @PluginConfig
                 throw new PluginDiscoveryException(annotated + " lacked the @" + PluginImplConfig.class.getName() + " annotation");
             }
+            // TODO revisit the use of `getTypeContext` in light of https://github.com/FasterXML/jackson-databind/issues/4141#issuecomment-1753440738
+            // and https://github.com/FasterXML/jackson-databind/issues/4141#issuecomment-1756037995
             var ctors = ((AnnotatedClass) af.getTypeContext()).getConstructors();
             for (var ctor : ctors) {
                 pluginImplName = findPluginReferenceAnnotation(ctor, pcAnno.implNameProperty());

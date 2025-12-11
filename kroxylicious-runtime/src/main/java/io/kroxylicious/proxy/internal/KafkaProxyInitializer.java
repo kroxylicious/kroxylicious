@@ -5,8 +5,12 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,10 +26,12 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -47,6 +53,8 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
@@ -62,15 +70,19 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private final Optional<NettySettings> proxyNettySettings;
     private final Counter clientToProxyErrorCounter;
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
-                                 ApiVersionsServiceImpl apiVersionsService) {
+                                 ApiVersionsServiceImpl apiVersionsService,
+                                 Optional<NettySettings> proxyNettySettings) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
@@ -78,6 +90,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.bindingResolver = bindingResolver;
         this.filterChainFactory = filterChainFactory;
         this.apiVersionsService = apiVersionsService;
+        this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
     }
 
@@ -91,6 +104,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         else {
             initPlainChannel(ch);
         }
+        addIdleHandlerToPipeline(ch.pipeline());
         addLoggingErrorHandler(ch.pipeline());
     }
 
@@ -250,6 +264,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast(LOGGING_INBOUND_ERROR_HANDLER_NAME, LOGGING_INBOUND_ERROR_HANDLER);
     }
 
+    private void addIdleHandlerToPipeline(ChannelPipeline pipeline) {
+        long idleSeconds = getIdleSeconds();
+        pipeline.addFirst("preSessionIdleHandler", new IdleStateHandler(idleSeconds, idleSeconds, idleSeconds, TimeUnit.SECONDS));
+    }
+
+    @NonNull
+    private Long getIdleSeconds() {
+        return proxyNettySettings.flatMap(NettySettings::idleTimeout).map(Duration::getSeconds).orElse(10L);
+    }
+
     @VisibleForTesting
     static class InitalizerNetFilter implements NetFilter {
 
@@ -297,11 +321,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             }
             filters.addAll(brokerAddressFilters);
 
-            var target = binding.upstreamTarget();
-            if (target == null) {
-                // This condition should never happen.
-                throw new IllegalStateException("A target address for binding %s is not known.".formatted(binding));
-            }
+            var target = Objects.requireNonNull(binding.upstreamTarget(), "A target address for binding %s is not known.".formatted(binding));
 
             context.initiateConnect(target, filters);
         }

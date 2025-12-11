@@ -54,8 +54,7 @@ public interface NetFilter {
         SocketAddress localAddress();
 
         /**
-         * The authorized id, or null if there is no authentication configured for this listener.
-         * @return
+         * @return The authorized id, or null if there is no authentication configured for this listener.
          */
         @Nullable
         String authorizedId();
@@ -63,17 +62,20 @@ public interface NetFilter {
         /**
          * @return The name of the client software, if known via ApiVersions request. Otherwise, null.
          */
+        @Nullable
         String clientSoftwareName();
 
         /**
          * @return The version of the client software, if known via ApiVersions request. Otherwise, null.
          */
+        @Nullable
         String clientSoftwareVersion();
 
         /**
          * @return The <a href="https://en.wikipedia.org/wiki/Server_Name_Indication">SNI</a>
-         * hostname which the client used during TLS handshake.
+         * hostname which the client used during TLS handshake. Or {@code null} if TLS is unused
          */
+        @Nullable
         String sniHostname();
 
         /**

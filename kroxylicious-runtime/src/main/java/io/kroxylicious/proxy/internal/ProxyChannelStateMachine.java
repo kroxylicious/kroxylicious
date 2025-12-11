@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Function;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -38,6 +37,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
@@ -122,12 +122,14 @@ public class ProxyChannelStateMachine {
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
-    @Nullable
-    private String sessionId;
+    @NonNull
+    private KafkaSession kafkaSession;
 
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
         VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
+        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+
         // Connection metrics
         clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
@@ -178,9 +180,10 @@ public class ProxyChannelStateMachine {
      * Sonar will complain if one uses this in prod code listen to it.
      */
     @VisibleForTesting
-    void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler) {
+    void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler, KafkaSession kafkaSession) {
         LOGGER.info("Forcing state to {} with {} and {}", state, frontendHandler, backendHandler);
         this.state = state;
+        this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
         this.backendHandler = backendHandler;
     }
@@ -257,10 +260,9 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
-            allocateSessionId(); // this is just keeping the tooling happy it should never be null at this point
             LOGGER.atDebug()
                     .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
-                    .addArgument(sessionId)
+                    .addArgument(kafkaSession.sessionId())
                     .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
                     .addArgument(this.frontendHandler.remotePort())
                     .log();
@@ -269,11 +271,6 @@ public class ProxyChannelStateMachine {
         else {
             illegalState("Client activation while not in the start state");
         }
-    }
-
-    @VisibleForTesting
-    void allocateSessionId() {
-        this.sessionId = UUID.randomUUID().toString();
     }
 
     /**
@@ -472,7 +469,11 @@ public class ProxyChannelStateMachine {
      * @return Return the session ID which connects a frontend channel with a backend channel
      */
     public String sessionId() {
-        return Objects.requireNonNull(sessionId);
+        return kafkaSession.sessionId();
+    }
+
+    public void onSessionAuthenticated() {
+        this.kafkaSession = this.kafkaSession.in(KafkaSessionState.AUTHENTICATED);
     }
 
     @SuppressWarnings("java:S5738")
@@ -497,7 +498,7 @@ public class ProxyChannelStateMachine {
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()
                 .setMessage("{}: Upstream connection to {} established for client at {}:{}")
-                .addArgument(sessionId)
+                .addArgument(kafkaSession.sessionId())
                 .addArgument(connecting.remote())
                 .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
                 .addArgument(this.frontendHandler.remotePort())
@@ -507,6 +508,7 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
+        kafkaSession = kafkaSession.in(KafkaSessionState.NOT_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).inForwarding();
         proxyToServerConnectionToken.acquire();
     }
@@ -535,8 +537,6 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    @SuppressWarnings({ "java:S1172", "java:S1135" })
-    // We keep dp as we should need it and it gives consistency with the other onClientRequestIn methods (sue me)
     private boolean onClientRequestInApiVersionsState(Object msg, ProxyChannelState.ApiVersions apiVersions) {
         if (msg instanceof RequestFrame) {
             toSelectingServer(apiVersions.toSelectingServer());
@@ -546,12 +546,11 @@ public class ProxyChannelStateMachine {
     }
 
     private boolean onClientRequestInHaProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
-        return transitionClientRequest(msg, haProxy::toApiVersions, haProxy::toSelectingServer);
+        return transitionClientRequest(msg, haProxy::toSelectingServer);
     }
 
     private boolean transitionClientRequest(
                                             Object msg,
-                                            Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.ApiVersions> apiVersionsFactory,
                                             Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.SelectingServer> selectingServerFactory) {
         if (isMessageApiVersionsRequest(msg)) {
             // We know it's an API Versions request even if the compiler doesn't
@@ -573,19 +572,12 @@ public class ProxyChannelStateMachine {
             return true;
         }
         else {
-            return transitionClientRequest(msg, clientActive::toApiVersions, clientActive::toSelectingServer);
+            return transitionClientRequest(msg, clientActive::toSelectingServer);
         }
     }
 
     private void toHaProxy(ProxyChannelState.HaProxy haProxy) {
         setState(haProxy);
-    }
-
-    private void toApiVersions(
-                               ProxyChannelState.ApiVersions apiVersions,
-                               DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-        setState(apiVersions);
-        Objects.requireNonNull(frontendHandler).inApiVersions(apiVersionsFrame);
     }
 
     private void toSelectingServer(ProxyChannelState.SelectingServer selectingServer) {
@@ -599,6 +591,7 @@ public class ProxyChannelStateMachine {
         }
 
         setState(new Closed());
+        kafkaSession = kafkaSession.in(KafkaSessionState.TERMINATING);
         // Close the server connection
         if (backendHandler != null) {
             backendHandler.inClosed();

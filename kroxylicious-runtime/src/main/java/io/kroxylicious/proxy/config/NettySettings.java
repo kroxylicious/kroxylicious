@@ -6,8 +6,9 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.time.Duration;
 import java.util.Optional;
 
-public record NettySettings(Optional<Integer> workerThreadCount, Optional<Integer> shutdownQuietPeriodSeconds) {
+public record NettySettings(Optional<Integer> workerThreadCount, Optional<Integer> shutdownQuietPeriodSeconds, Optional<Duration> idleTimeout) {
 
 }
