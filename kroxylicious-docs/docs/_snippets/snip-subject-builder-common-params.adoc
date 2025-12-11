@@ -7,7 +7,7 @@ where:
 * `else` defines the behavior when none of the replacement matchers match the field value.
 `identity` generates a principal based on the original (unmapped) field value.
 `anonymous` generates an anonymous principal.
-* `<principal factory>` the name of a `PrincipalFactory` implementation. Currently `UserFactory` is the only `PrincipalFactory` supported value.
+* `<principal factory>` the name of a `PrincipalFactory` implementation. Currently, only `UserFactory` is supported.
 
 Field values are tested against the replacement matchers in the order they are configured.
 The first matcher that matches the field value generates the principal.
