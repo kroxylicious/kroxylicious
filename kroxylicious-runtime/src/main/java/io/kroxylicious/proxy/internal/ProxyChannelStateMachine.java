@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -37,6 +38,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
@@ -119,8 +121,8 @@ public class ProxyChannelStateMachine {
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
-    @Nullable
-    private KafkaSession kafkaSession;
+    @NonNull
+    private AtomicReference<KafkaSession> kafkaSessionHolder = new AtomicReference<>();
 
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
@@ -175,9 +177,10 @@ public class ProxyChannelStateMachine {
      * Sonar will complain if one uses this in prod code listen to it.
      */
     @VisibleForTesting
-    void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler) {
+    void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler, KafkaSession kafkaSession) {
         LOGGER.info("Forcing state to {} with {} and {}", state, frontendHandler, backendHandler);
         this.state = state;
+        this.kafkaSessionHolder.set(kafkaSession);
         this.frontendHandler = frontendHandler;
         this.backendHandler = backendHandler;
     }
@@ -257,7 +260,7 @@ public class ProxyChannelStateMachine {
             allocateSessionId(); // this is just keeping the tooling happy it should never be null at this point
             LOGGER.atDebug()
                     .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
-                    .addArgument(Objects.requireNonNull(kafkaSession).sessionId())
+                    .addArgument(kafkaSessionHolder.get().sessionId())
                     .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
                     .addArgument(this.frontendHandler.remotePort())
                     .log();
@@ -270,7 +273,7 @@ public class ProxyChannelStateMachine {
 
     @VisibleForTesting
     void allocateSessionId() {
-        kafkaSession = new KafkaSession(UUID.randomUUID().toString(), KafkaSession.SessionState.PRE_AUTHENTICATION);
+        kafkaSessionHolder.set(new KafkaSession(UUID.randomUUID().toString(), io.kroxylicious.proxy.internal.KafkaSession.SessionState.PRE_AUTHENTICATION));
     }
 
     /**
@@ -457,7 +460,7 @@ public class ProxyChannelStateMachine {
      * @return Return the session ID which connects a frontend channel with a backend channel
      */
     public String sessionId() {
-        return Objects.requireNonNull(kafkaSession).sessionId();
+        return kafkaSessionHolder.get().sessionId();
     }
 
     @SuppressWarnings("java:S5738")
@@ -482,7 +485,7 @@ public class ProxyChannelStateMachine {
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()
                 .setMessage("{}: Upstream connection to {} established for client at {}:{}")
-                .addArgument(Objects.requireNonNull(kafkaSession).sessionId())
+                .addArgument(kafkaSessionHolder.get().sessionId())
                 .addArgument(connecting.remote())
                 .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
                 .addArgument(this.frontendHandler.remotePort())
