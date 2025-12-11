@@ -221,8 +221,7 @@ public final class KafkaProxy implements AutoCloseable {
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings)
-            );
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -300,18 +299,18 @@ public final class KafkaProxy implements AutoCloseable {
 
                     // The commonPool ignores all attempts to close/shut it down. So use try-with-resources to keep the code scanners happy.
                     var future = new CompletableFuture<Void>();
-                        metricsBootstrap.bind(managementConfiguration.getEffectiveBindAddress(), managementConfiguration.getEffectivePort())
-                                .addListener((ChannelFutureListener) channelFuture -> ForkJoinPool.commonPool().execute(() -> {
-                                    // we complete on a separate thread so that any chained work won't get run on the Netty thread.
-                                    if (channelFuture.cause() != null) {
-                                        future.completeExceptionally(channelFuture.cause());
-                                    }
-                                    else {
-                                        future.complete(null);
-                                    }
-                                }));
-                        return future;
-                    }).orElseGet(() -> CompletableFuture.completedFuture(null));
+                    metricsBootstrap.bind(managementConfiguration.getEffectiveBindAddress(), managementConfiguration.getEffectivePort())
+                            .addListener((ChannelFutureListener) channelFuture -> ForkJoinPool.commonPool().execute(() -> {
+                                // we complete on a separate thread so that any chained work won't get run on the Netty thread.
+                                if (channelFuture.cause() != null) {
+                                    future.completeExceptionally(channelFuture.cause());
+                                }
+                                else {
+                                    future.complete(null);
+                                }
+                            }));
+                    return future;
+                }).orElseGet(() -> CompletableFuture.completedFuture(null));
     }
 
     /**
