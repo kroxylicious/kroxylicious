@@ -79,7 +79,7 @@ public class KroxyliciousSteps {
      * @return
      */
     public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, @NonNull CompressionType compressionType,
-                                       int numberOfMessages) {
+                                             int numberOfMessages) {
         return KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, compressionType, numberOfMessages);
     }
 
