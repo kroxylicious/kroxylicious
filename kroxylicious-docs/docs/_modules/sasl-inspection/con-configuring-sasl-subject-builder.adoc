@@ -5,14 +5,12 @@
 
 [role="_abstract"]
 
-By default, the SASL Inspection filter creates an authenticated subject containing a principal containing the SASL authorized id.
-This behavior can be changed by providing alternative subject builder configuration.
+By default, the SASL Inspection filter creates an authenticated subject with a principal that contains the SASL authorized ID. 
+You can change this behavior by providing an alternative subject builder configuration.
 
 == Configuration
 
-The configuration for the SASL subject builder looks like this:
-
-.Example SASL subject builder configuration
+The following example shows configuration for the SASL subject builder:
 
 [source,yaml]
 ----
@@ -23,10 +21,10 @@ subjectBuilderConfig:
       - from: <field name>
         map:
           - replaceMatch: <match replace flags 1>
-          - ...
+          - # ... 
           - replaceMatch: <match replace flags n>
           - else: identity|anonymous
-        principalFactory: <principal factory factory>
+        principalFactory: <principal factory>
 ----
 
 include::../../_snippets/snip-subject-builder-common-params.adoc[]
@@ -37,7 +35,7 @@ include::../../_snippets/snip-subject-builder-common-params.adoc[]
 |Field name|Description
 
 |saslAuthorizedId
-|SASL authorized id
+|The SASL authorized ID returned by the SASL authentication exchange.
 
 |===
 

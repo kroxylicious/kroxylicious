@@ -4,23 +4,20 @@
 = Configuring the transport subject builder
 
 [role="_abstract"]
+Some filters require the verified identity of the client, derived from successful authentication.
+This identity is called the authenticated subject.
 
-Some filters need to know the verified identity of the client, derived from its successful authentication.
-This is called the authenticated subject.
+For applications that use TLS client authentication, the virtual cluster can build the authenticated subject from information in the TLS client certificate presented to the proxy.
 
-For applications using TLS client authentication, the virtual cluster can build the authenticated subject from information within TLS client certificate presented by application to the proxy.
+The transport subject builder controls how certificate information is turned into principals within the authenticated subject. 
+For example, you can build a principal from parts of the X500 principal. 
+A typical use case is mapping a distinguished name such as `CN=myapp,OU=dev,O=kroxylicious.io,C=US` to `myapp`.
 
-The transport subject builder can be configured to control how the information is turned into principals within the authenticated subject.
-For instance, it is possible build a principal from parts of the X500 Principal.
-A typical use-case might be mapping a distinguished name such as `CN=myapp,OU=dev,O=kroxylicious.io,C=US` into `myapp`.
-
-NOTE: For applications using SASL authentication, see {SASLInspectionGuide} for a way to build the authenticated subject from a successful client/broker SASL authentication.
+NOTE: For applications that use SASL authentication, see {SASLInspectionGuide} for information on building the authenticated subject from a successful client–broker SASL authentication.
 
 == Configuration
 
-The configuration for the transport subject builder looks like this:
-
-.Example transport subject builder configuration
+The following example shows configuration for the transport subject builder:
 
 [source,yaml]
 ----
@@ -35,10 +32,10 @@ virtualClusters:
           - from: <field name>
             map:
               - replaceMatch: <match replace flags 1>
-              - ...
+              - # ... 
               - replaceMatch: <match replace flags n>
               - else: identity|anonymous
-            principalFactory: <principal factory factory>
+            principalFactory: <principal factory>
         # - from: ...
 ----
 include::../../_snippets/snip-subject-builder-common-params.adoc[]

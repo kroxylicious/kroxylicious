@@ -2,17 +2,17 @@
 
 where:
 
-* `<field name>` identifies the field within the certificate to be extracted.  Supported fields are listed below.
-* `<match replace flags 1>`...`<match replace flags n>` series of replace-matcher used to match and map the field value into its replacement value.
-* `else` defines the behavior if none of the replace-matcher match the field value.
-`identity` generates a principal based on the (unmapped) field value.
-`anonymous` generated an anonymous principal.
+* <field name> identifies the certificate field to extract. Valid field names are listed in the **Supported fields** table.
+* `<match replace flags 1>`...`<match replace flags n>` define a set of replacement matchers used to match and transform the field value.
+* `else` defines the behavior when none of the replacement matchers match the field value.
+`identity` generates a principal based on the original (unmapped) field value.
+`anonymous` generates an anonymous principal.
 * `<principal factory>` the name of a `PrincipalFactory` implementation. Currently `UserFactory` is the only `PrincipalFactory` supported value.
 
-Field values are tested against the replace-matchers in the order they appear in the configuration.
-The first replace-matcher to match the field value generates the principal.
-After a successful match, the remaining replace-matchers for this field are ignored.
+Field values are tested against the replacement matchers in the order they are configured.
+The first matcher that matches the field value generates the principal.
+After a successful match, remaining matchers for that field are ignored.
 
-If no replace-matcher matches, the outcome is defined by the `else` clause.
-If there is no match and no `else` cause, no principal is generated for this field.
+If no matcher matches, the outcome is defined by the `else` clause.
+If there is no match and no `else` cause is provided, no principal is generated for this field.
 

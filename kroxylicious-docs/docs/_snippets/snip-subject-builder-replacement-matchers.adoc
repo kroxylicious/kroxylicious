@@ -2,7 +2,8 @@
 
 == Replacement matchers
 
-The replacement matcher is in this form:
+Replacement matchers control how field values are matched and transformed.
+A replacement matcher is defined using this format:
 
 [source]
 ----
@@ -10,8 +11,8 @@ The replacement matcher is in this form:
 ----
 where:
 
-* `<matching regular expression>` is the regular expression to test the field value.
-* `<replacement>` defines the replacement value to be used if the regular expression is matched.
-The replacement can refer to groups defined in the regular expression (`$1` for first matching group etc)
+* `<matching regular expression>` is the regular expression used to test the field value.
+* `<replacement>` defines the replacement value to use when the regular expression is matched.
+The replacement can refer to groups defined in the regular expression using `$1` for the first matching group and so on.
 * `flags` (optional) can be either `L` or `U` for lower or upper-casing respectively.
 
