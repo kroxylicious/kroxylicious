@@ -86,6 +86,7 @@ class ProxyChannelStateMachineTest {
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
     private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("", Optional.empty()), false, false,
             List.of());
+    public static final KafkaSession TEST_KAFKA_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
     private ProxyChannelStateMachine proxyChannelStateMachine;
     private KafkaProxyBackendHandler backendHandler;
@@ -793,7 +794,7 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.ClientActive(),
                 frontendHandler,
                 null,
-                new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInHaProxy() {
@@ -801,7 +802,7 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
                 frontendHandler,
                 null,
-                new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInApiVersionsState() {
@@ -809,7 +810,7 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.ApiVersions(null, null, null),
                 frontendHandler,
                 null,
-                new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInSelectingServer() {
@@ -817,7 +818,7 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.SelectingServer(null, null, null),
                 frontendHandler,
                 null,
-                new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInConnecting() {
@@ -825,7 +826,7 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.Connecting(null, null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 backendHandler,
-                new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                TEST_KAFKA_SESSION);
     }
 
     private ProxyChannelState.Forwarding stateMachineInForwarding() {
@@ -834,7 +835,7 @@ class ProxyChannelStateMachineTest {
                 forwarding,
                 frontendHandler,
                 backendHandler,
-                new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                TEST_KAFKA_SESSION);
         return forwarding;
     }
 
@@ -842,7 +843,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Closed(),
                 frontendHandler,
-                backendHandler, new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
+                backendHandler, TEST_KAFKA_SESSION);
     }
 
     private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {
