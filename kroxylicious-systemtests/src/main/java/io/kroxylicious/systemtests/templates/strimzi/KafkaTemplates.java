@@ -25,6 +25,9 @@ import io.kroxylicious.systemtests.utils.KafkaVersionUtils;
  */
 public class KafkaTemplates {
 
+    private KafkaTemplates() {
+    }
+
     /**
      * Kafka persistent kafka builder.
      *

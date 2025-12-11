@@ -18,6 +18,9 @@ import io.kroxylicious.systemtests.Constants;
  */
 public class KafkaUserTemplates {
 
+    private KafkaUserTemplates() {
+    }
+
     private static KafkaUserBuilder baseUser(String namespaceName, String clusterName, String name) {
         return new KafkaUserBuilder()
                 .withNewMetadata()
