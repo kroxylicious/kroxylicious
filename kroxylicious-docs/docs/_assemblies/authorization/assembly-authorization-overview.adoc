@@ -1,0 +1,24 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// kroxylicious-authorization/index.adoc
+
+[id='assembly-authorization-overview-{context}']
+= Authorization overview
+
+[role="_abstract"]
+The Authorization filter provides the ability for the proxy to enforce an authorization policy about Kafka resources.
+These authorization checks are performed in addition to any authorization checks made by the broker itself.
+For an action to be allowed, both the authorization filter and broker must decide that the action is allowed.
+
+In general, the Authorization filter makes access decisions in the same manner as Kafka itself.
+A client cannot distinguish between authorization enforced on the proxy and authorization enforced on the kafka cluster itself.
+
+In order to use the Authorization filter, the proxy must be able to determine the authenticated subject.
+The authenticated subject is the verified identity of the client, derived from its successful authentication.
+
+ifndef::OpenShiftOnly[]
+* If your applications use TLS client authentication, configure the link:{DocRoot}/kroxylicious-proxy/[transport subject builder within the virtual cluster] to build a subject based on the client-certificate.
+endif::OpenShiftOnly[]
+* If your applications use SASL authentication, configure the link:{DocRoot}/sasl-inspection-guide/[SASL inspection filter] to build the authenticated subject from the successful SASL exchange between the client and the broker.
