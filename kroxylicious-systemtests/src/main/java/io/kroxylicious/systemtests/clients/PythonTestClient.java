@@ -47,6 +47,7 @@ public class PythonTestClient implements KafkaClient {
     private static final String RECEIVED_MESSAGE_MARKER = "Received:";
     private static final String PYTHON_COMMAND = "python3";
     private static final String BASE_PATH = "/usr/src";
+    private static final String PYTHON_TAG = "-python-";
     private static final String CONFLUENT_PYTHON_PATH = BASE_PATH + "/confluent-kafka-python";
     private static final String PRODUCER_PATH = CONFLUENT_PYTHON_PATH + "/Producer.py";
     private static final String CONSUMER_PATH = CONFLUENT_PYTHON_PATH + "/Consumer.py";
@@ -71,7 +72,7 @@ public class PythonTestClient implements KafkaClient {
     @Override
     public void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                            Map<String, String> additionalConfig) {
-        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + PYTHON_TAG + TestUtils.getRandomPodNameSuffix();
         List<String> executableCommand = getExecutableCommand(topicName, name, bootstrap, messageKey, additionalConfig);
 
         StringBuilder msg = new StringBuilder();
@@ -112,7 +113,7 @@ public class PythonTestClient implements KafkaClient {
     @Override
     public ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                       Map<String, String> additionalConfig) {
-        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + PYTHON_TAG + TestUtils.getRandomPodNameSuffix();
         List<String> executableCommand = getExecutableCommand(topicName, name, bootstrap, messageKey, additionalConfig);
 
         StringBuilder msg = new StringBuilder();
@@ -129,7 +130,7 @@ public class PythonTestClient implements KafkaClient {
     @Override
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig) {
         LOGGER.atInfo().log("Consuming messages using python");
-        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
+        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + PYTHON_TAG + TestUtils.getRandomPodNameSuffix();
         // Running consumer with parameters to get the latest N number of messages received to avoid consuming twice the same messages
         List<String> args = new ArrayList<>(List.of(PYTHON_COMMAND, CONSUMER_PATH, "-n", String.valueOf(numOfMessages), "-b", bootstrap, "-t", topicName));
         additionalConfig.forEach((key, value) -> {
