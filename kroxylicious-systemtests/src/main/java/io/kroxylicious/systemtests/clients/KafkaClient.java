@@ -104,7 +104,8 @@ public interface KafkaClient {
      * @param additionalConfig the additional config
      * @throws KubeClusterException the kube cluster exception
      */
-    default void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
+    default void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                            Map<String, String> additionalConfig)
             throws KubeClusterException {
         produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, additionalConfig);
     }

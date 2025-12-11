@@ -78,7 +78,7 @@ public class StrimziTestClient implements KafkaClient {
 
     @Override
     public void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
-                                      Map<String, String> additionalConfig) {
+                                           Map<String, String> additionalConfig) {
         this.marker = SENDING_MESSAGE_MARKER;
         produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, additionalConfig);
     }

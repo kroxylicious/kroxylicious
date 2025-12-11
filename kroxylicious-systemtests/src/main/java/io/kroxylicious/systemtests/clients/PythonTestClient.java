@@ -70,7 +70,7 @@ public class PythonTestClient implements KafkaClient {
 
     @Override
     public void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
-                                                 Map<String, String> additionalConfig) {
+                                           Map<String, String> additionalConfig) {
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
         List<String> executableCommand = getExecutableCommand(topicName, name, bootstrap, messageKey, additionalConfig);
 
