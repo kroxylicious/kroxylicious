@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Function;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -115,11 +114,13 @@ public class ProxyChannelStateMachine {
     Timer.Sample serverBackpressureTimer;
 
     @NonNull
-    private KafkaSession kafkaSession = new KafkaSession(null, KafkaSessionState.NOT_AUTHENTICATED);
+    private KafkaSession kafkaSession;
 
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
         VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
+        kafkaSession = new KafkaSession(KafkaSessionState.NOT_AUTHENTICATED);
+
         // Connection metrics
         clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
@@ -250,7 +251,6 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
-            allocateSessionId(); // this is just keeping the tooling happy it should never be null at this point
             LOGGER.atDebug()
                     .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
                     .addArgument(kafkaSession.sessionId())
@@ -266,7 +266,7 @@ public class ProxyChannelStateMachine {
 
     @VisibleForTesting
     void allocateSessionId() {
-        kafkaSession = new KafkaSession(UUID.randomUUID().toString(), KafkaSessionState.NOT_AUTHENTICATED);
+        // TODO No Op?
     }
 
     /**
