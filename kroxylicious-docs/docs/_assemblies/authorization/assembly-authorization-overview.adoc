@@ -12,11 +12,11 @@ The Authorization filter provides the ability for the proxy to enforce an author
 These authorization checks are performed in addition to any authorization checks made by the broker itself.
 For an action to be allowed, both the authorization filter and broker must decide that the action is allowed.
 
-In general, the Authorization filter will make access decisions in the same manner as Kafka itself.
-From the client's perspective, it will be impossible for it to distinguish between authorization enforced on the proxy and authorization enforced on the kafka cluster itself.
+In general, the Authorization filter makes access decisions in the same manner as Kafka itself.
+A client cannot distinguish between authorization enforced on the proxy and authorization enforced on the kafka cluster itself.
 
-In order to use the authorization filter, the proxy must be able to determine the authenticated subject.
+In order to use the Authorization filter, the proxy must be able to determine the authenticated subject.
 The authenticated subject is the verified identity of the client, derived from its successful authentication.
 
 * If your applications use TLS client authentication, configure a TODO: link to subject builder within the virtual cluster to build a subject based on the client-certificate.
-* If your applications use SASL authentication, configure the link:{DocRoot}/sasl-inspection-guide/[SASL inspection filter] which will build a subject from the successful client/broker SASL authentication.
+* If your applications use SASL authentication, configure the link:{DocRoot}/sasl-inspection-guide/[SASL inspection filter] to build the authenticated subject from the successful SASL exchange between the client and the broker.
