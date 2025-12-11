@@ -17,7 +17,7 @@ This table lists the resource types and operations enforced by the authorization
 
 .8+|Topic
 |READ
-|Required for a consuming client to fetch record.
+|Required for a consuming client to fetch records.
 
 |WRITE
 |Required for a producing client to produce records.

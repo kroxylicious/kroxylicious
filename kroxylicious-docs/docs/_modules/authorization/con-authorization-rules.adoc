@@ -24,7 +24,7 @@ otherwise deny;
 
 == Comments
 
-Both line and block comments are supported.  Line comments are proceeded by `//`.
+Both line and block comments are supported.  Line comments are preceded by `//`.
 Block comments are bracketed by `/* ... */` markers.
 Comments are ignored.
 
@@ -73,14 +73,14 @@ where:
 * `<resource predicate>` identifies the resource.
 * `<operation>` identifies the operation(s) to be performed on the resource.
 
-Rules must be ordered so that any `deny` rules proceed the `allow` rules.
+Rules must be ordered so that any `deny` rules precede the `allow` rules.
 
 When rules are evaluated, they are considered from top to bottom, with the first matching rule taking precedence.
 
 == Otherwise deny
 
 Rules files must end with the statement `otherwise deny`.
-This stipulation means that all rules files are have deny-by-default semantics.
+This stipulation means that all rules files have deny-by-default semantics.
 
 [source]
 ----
