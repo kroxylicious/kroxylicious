@@ -71,9 +71,7 @@ public class SaslInspection implements FilterFactory<Config, Void> {
         }
         else {
             SaslSubjectBuilderService subjectBuilderFactory = context.pluginInstance(SaslSubjectBuilderService.class, config.subjectBuilder());
-
-            Object config1 = config.subjectBuilderConfig();
-            subjectBuilderFactory.initialize(config1);
+            subjectBuilderFactory.initialize(config.subjectBuilderConfig());
             return subjectBuilderFactory.build();
         }
     }
