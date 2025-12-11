@@ -193,7 +193,7 @@ class ProxyChannelStateMachineEndToEndTest {
             proxyChannelStateMachine.forceState(
                     new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
                     handler,
-                    backendHandler);
+                    backendHandler, new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
         }
 
         // When
@@ -695,7 +695,7 @@ class ProxyChannelStateMachineEndToEndTest {
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
                 handler,
-                backendHandler);
+                backendHandler, new KafkaSession("testSession", KafkaSession.SessionState.PRE_AUTHENTICATION));
 
         inboundChannel.config().setAutoRead(false);
 
