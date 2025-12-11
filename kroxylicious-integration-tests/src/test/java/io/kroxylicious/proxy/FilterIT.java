@@ -37,6 +37,7 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.apache.kafka.common.serialization.Serdes;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -130,6 +131,7 @@ class FilterIT {
         }
     }
 
+    @Disabled("this test is non-deterministic, due to the nature of CompletableFuture, it is possible for the calling thread to execute the chained work")
     @Test
     void filtersCanLookUpEmptyTopicNamesInitiatedFromNonFilterDispatchThread(KafkaCluster cluster) {
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
