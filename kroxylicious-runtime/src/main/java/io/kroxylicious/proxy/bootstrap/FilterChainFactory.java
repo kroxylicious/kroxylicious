@@ -43,7 +43,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class FilterChainFactory implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterChainFactory.class);
 
-    private record ClassDescription(boolean onRequestNonDefault, boolean onResponseNonDefault) {}
+    private record ClassDescription(boolean overridesDeprecatedOnRequest, boolean overridesDeprecatedOnResponse) {}
 
     private static final ConcurrentHashMap<Class<?>, ClassDescription> CLASS_DESCRIPTIONS = new ConcurrentHashMap<>();
 
@@ -91,10 +91,10 @@ public class FilterChainFactory implements AutoCloseable {
          */
         private void maybeWarnAboutDeprecations(Filter filter) {
             ClassDescription description = inspectFilterForDeprecations(filter);
-            if (description.onRequestNonDefault) {
+            if (description.overridesDeprecatedOnRequest) {
                 logDeprecation(filter.getClass(), "onRequest", RequestHeaderData.class);
             }
-            if (description.onResponseNonDefault) {
+            if (description.overridesDeprecatedOnResponse) {
                 logDeprecation(filter.getClass(), "onResponse", ResponseHeaderData.class);
             }
         }

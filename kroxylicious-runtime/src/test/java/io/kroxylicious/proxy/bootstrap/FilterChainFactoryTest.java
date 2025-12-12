@@ -30,6 +30,7 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
 import io.kroxylicious.proxy.internal.filter.FlakyConfig;
 import io.kroxylicious.proxy.internal.filter.FlakyFactory;
@@ -77,6 +78,9 @@ class FilterChainFactoryTest {
                             else if (instanceName.endsWith(FlakyFactory.class.getSimpleName())) {
                                 return new FlakyFactory();
                             }
+                            else if (instanceName.endsWith(DeprecatedMethodsFilterFactory.class.getSimpleName())) {
+                                return new DeprecatedMethodsFilterFactory();
+                            }
                             throw new RuntimeException("Unknown FilterFactory: " + instanceName);
                         }
 
@@ -121,7 +125,7 @@ class FilterChainFactoryTest {
     }
 
     @Test
-    void testCreateFilter() {
+    void createFilter() {
         final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(
                 List.of(new NamedFilterDefinition("myFilterDef", TestFilterFactory.class.getName(), config)));
         listAssert.first().extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilterFactory.TestFilterImpl.class, testFilterImpl -> {
@@ -131,15 +135,25 @@ class FilterChainFactoryTest {
             assertThat(testFilterImpl.getContext().filterDispatchExecutor()).isSameAs(filterDispatchExecutor);
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
-        assertThat(logCaptor.getWarnLogs())
-                .contains("FilterDefinition with name 'myFilterDef' and type io.kroxylicious.proxy.internal.filter.TestFilterFactory "
-                        + "created a Filter instance of type class io.kroxylicious.proxy.internal.filter.TestFilterFactory$TestFilterImpl which implements the deprecated"
-                        + " onRequest(ApiKeys, RequestHeaderData, ApiMessage, FilterContext) method. This Filter implementation must be updated as the method will be "
-                        + "removed in a future release.")
-                .contains("FilterDefinition with name 'myFilterDef' and type io.kroxylicious.proxy.internal.filter.TestFilterFactory "
-                        + "created a Filter instance of type class io.kroxylicious.proxy.internal.filter.TestFilterFactory$TestFilterImpl which implements the deprecated"
-                        + " onResponse(ApiKeys, ResponseHeaderData, ApiMessage, FilterContext) method. This Filter implementation must be updated as the method will be "
-                        + "removed in a future release.");
+    }
+
+    @Test
+    void reportsUseOfFiltersWithMethodsOverridingDeprecatedApi() {
+        var nameFilterDefinitions = List.of(new NamedFilterDefinition("myFilterDef", DeprecatedMethodsFilterFactory.class.getName(), null));
+        try (var filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions)) {
+            var context = new NettyFilterContext(eventLoop, pfr);
+            filterChainFactory.createFilters(context, nameFilterDefinitions);
+            assertThat(logCaptor.getWarnLogs())
+                    .contains("FilterDefinition with name 'myFilterDef' and type io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory "
+                            + "created a Filter instance of type class io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory$TestFilterImpl which implements the deprecated"
+                            + " onRequest(ApiKeys, RequestHeaderData, ApiMessage, FilterContext) method. This Filter implementation must be updated as the method will be "
+                            + "removed in a future release.")
+                    .contains("FilterDefinition with name 'myFilterDef' and type io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory "
+                            + "created a Filter instance of type class io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory$TestFilterImpl which implements the deprecated"
+                            + " onResponse(ApiKeys, ResponseHeaderData, ApiMessage, FilterContext) method. This Filter implementation must be updated as the method will be "
+                            + "removed in a future release.");
+
+        }
     }
 
     @ParameterizedTest
