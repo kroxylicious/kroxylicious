@@ -5,12 +5,12 @@
  */
 package io.kroxylicious.proxy.bootstrap;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -42,6 +42,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class FilterChainFactory implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterChainFactory.class);
+
+    private record ClassDescription(boolean onRequestNonDefault, boolean onResponseNonDefault) {}
+
+    private static final ConcurrentHashMap<Class<?>, ClassDescription> CLASS_DESCRIPTIONS = new ConcurrentHashMap<>();
 
     /**
      * Manages the lifesystem of a filter instance, initializing it on construction and closing it in {@link #close()}
@@ -85,27 +89,41 @@ public class FilterChainFactory implements AutoCloseable {
         /**
          * Logging about deprecated method usage must be done reflectively as we do not want to add a Logger to the interface.
          */
-        private void maybeWarnAboutDeprecations(Filter filter) throws NoSuchMethodException {
-            Class<? extends Filter> filterClass = filter.getClass();
-            if (filter instanceof RequestFilter) {
-                warnIfMethodNotDefault(filterClass, "onRequest", RequestHeaderData.class);
+        private void maybeWarnAboutDeprecations(Filter filter) {
+            ClassDescription description = inspectFilterForDeprecations(filter);
+            if (description.onRequestNonDefault) {
+                logDeprecation(filter.getClass(), "onRequest", RequestHeaderData.class);
             }
-            if (filter instanceof ResponseFilter) {
-                warnIfMethodNotDefault(filterClass, "onResponse", ResponseHeaderData.class);
+            if (description.onResponseNonDefault) {
+                logDeprecation(filter.getClass(), "onResponse", ResponseHeaderData.class);
             }
         }
 
-        private void warnIfMethodNotDefault(Class<? extends Filter> filterClass, String methodName, Class<? extends ApiMessage> headerType) throws NoSuchMethodException {
-            Method method = filterClass.getMethod(methodName, ApiKeys.class,
-                    headerType,
-                    ApiMessage.class,
-                    FilterContext.class);
-            if (!method.isDefault()) {
-                LOGGER.warn(
-                        "FilterDefinition with name '{}' and type {} created a Filter instance of type {} which implements the deprecated {}(ApiKeys, {}, ApiMessage, FilterContext) "
-                                + "method. This Filter implementation must be updated as the method will be removed in a future release.",
-                        filterDefinition.name(), filterDefinition.type(), filterClass, methodName, headerType.getSimpleName());
-            }
+        private ClassDescription inspectFilterForDeprecations(Filter filter) {
+            return CLASS_DESCRIPTIONS.computeIfAbsent(filter.getClass(), clazz -> {
+                try {
+                    boolean isOnRequestDeprecated = filter instanceof RequestFilter && !clazz.getMethod("onRequest", ApiKeys.class,
+                            RequestHeaderData.class,
+                            ApiMessage.class,
+                            FilterContext.class).isDefault();
+                    boolean isOnResponseDeprecated = filter instanceof ResponseFilter && !clazz.getMethod("onResponse", ApiKeys.class,
+                            ResponseHeaderData.class,
+                            ApiMessage.class,
+                            FilterContext.class).isDefault();
+                    return new ClassDescription(isOnRequestDeprecated, isOnResponseDeprecated);
+                }
+                catch (Exception e) {
+                    LOGGER.warn("Exception while inspecting Filter implementation for deprecations {}", filterDefinition.name(), e);
+                    return new ClassDescription(false, false);
+                }
+            });
+        }
+
+        private void logDeprecation(Class<? extends Filter> filterClass, String methodName, Class<? extends ApiMessage> headerType) {
+            LOGGER.warn(
+                    "FilterDefinition with name '{}' and type {} created a Filter instance of type {} which implements the deprecated {}(ApiKeys, {}, ApiMessage, FilterContext) "
+                            + "method. This Filter implementation must be updated as the method will be removed in a future release.",
+                    filterDefinition.name(), filterDefinition.type(), filterClass, methodName, headerType.getSimpleName());
         }
 
         public void close() {
