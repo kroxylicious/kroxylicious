@@ -2,7 +2,7 @@
 
 where:
 
-* <field name> identifies the certificate field to extract. Valid field names are listed in the **Supported fields** table.
+* `<field name>` identifies the certificate field to extract. Valid field names are listed in the **Supported fields** table.
 * `<match replace flags 1>`...`<match replace flags n>` define a set of replacement matchers used to match and transform the field value.
 * `else` defines the behavior when none of the replacement matchers match the field value.
 `identity` generates a principal based on the original (unmapped) field value.

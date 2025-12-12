@@ -14,5 +14,5 @@ where:
 * `<matching regular expression>` is the regular expression used to test the field value.
 * `<replacement>` defines the replacement value to use when the regular expression is matched.
 The replacement can refer to groups defined in the regular expression using `$1` for the first matching group and so on.
-* `flags` (optional) can be either `L` or `U` for lower or upper-casing respectively.
+* `<flags>` (optional) can be either `L` or `U` for lower or upper-casing respectively.
 
