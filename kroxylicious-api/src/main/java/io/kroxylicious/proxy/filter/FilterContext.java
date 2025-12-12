@@ -127,7 +127,7 @@ public interface FilterContext {
      * {@link TopicNameMappingException} or a name. All failure modes should complete the stage with a TopicNameMapping, with the
      * TopicNameMapping used to convey the reason for failure, rather than failing the Stage.
      * <h4>Chained Computation stages</h4>
-     * <p>Default and asynchronous default computation stages chained to the returned
+     * <p>Asynchronous default computation stages chained to the returned
      * {@link java.util.concurrent.CompletionStage} are guaranteed to be executed by the thread
      * associated with the connection. See {@link io.kroxylicious.proxy.filter} for more details.
      * </p>
