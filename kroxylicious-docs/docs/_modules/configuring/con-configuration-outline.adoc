@@ -25,6 +25,9 @@ virtualClusters: # <6>
     gateways: # <8>
     - name: ...
       # ...
+    subjectBuilder: # <9>
+      # ...
+
 # ...
 ----
 <1> A list of named filter definitions.
@@ -35,5 +38,4 @@ virtualClusters: # <6>
 <6> List of virtual clusters specified by name, with cluster-specific configurations.
 <7> Configuration of the actual Kafka cluster that is proxied by the 'my-cluster-proxy' virtual cluster.
 <8> Configuration of the gateways for this virtual cluster.
-
-
+<9> (Optional) Configuration for the transport subject builder.

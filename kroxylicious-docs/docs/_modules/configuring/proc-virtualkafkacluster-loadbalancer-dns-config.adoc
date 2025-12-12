@@ -7,7 +7,7 @@
 
 [id='proc-virtualkafkacluster-loadbalancer-dns-config-{context}']
 
-= Configuring DNS  for load balancer ingress
+= Configuring DNS for load balancer ingress
 
 [role="_abstract"]
 
