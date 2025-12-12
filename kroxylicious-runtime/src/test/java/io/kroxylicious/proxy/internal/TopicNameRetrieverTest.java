@@ -30,12 +30,13 @@ import io.kroxylicious.proxy.filter.metadata.TopicLevelMetadataErrorException;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -77,16 +78,10 @@ class TopicNameRetrieverTest {
 
     @Test
     void retrieveEmptyTopicNamesMapping() {
-        when(eventExecutor.inEventLoop()).thenReturn(false);
-        doAnswer(invocation -> {
-            Runnable runnable = invocation.getArgument(0);
-            runnable.run();
-            return null;
-        }).when(eventExecutor).execute(any());
         // when
-        CompletionStage<TopicNameMapping> topicNames = getTopicNamesMapping(Set.of());
+        CompletableFuture<TopicNameMapping> topicNames = toCompletableFuture(getTopicNamesMapping(Set.of()));
         // then
-        assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
+        assertThat(topicNames).succeedsWithin(Duration.ZERO)
                 .satisfies(topicNamesMapping -> {
                     assertThat(topicNamesMapping.anyFailures()).isFalse();
                     assertThat(topicNamesMapping.topicNames()).isEmpty();
@@ -95,20 +90,18 @@ class TopicNameRetrieverTest {
         verify(filterContext, never()).sendRequest(any(), any());
     }
 
-    @Test
-    void retrieveEmptyTopicNamesMappingInFilterDispatchThread() {
-        when(eventExecutor.inEventLoop()).thenReturn(true);
-        // when
-        CompletionStage<TopicNameMapping> topicNames = getTopicNamesMapping(Set.of());
-        // then
-        assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
-                .satisfies(topicNamesMapping -> {
-                    assertThat(topicNamesMapping.anyFailures()).isFalse();
-                    assertThat(topicNamesMapping.topicNames()).isEmpty();
-                    assertThat(topicNamesMapping.failures()).isEmpty();
-                });
-        verify(filterContext, never()).sendRequest(any(), any());
-        verify(eventExecutor, never()).execute(any());
+    @NonNull
+    private static CompletableFuture<TopicNameMapping> toCompletableFuture(CompletionStage<TopicNameMapping> topicNames) {
+        CompletableFuture<TopicNameMapping> future = new CompletableFuture<>();
+        topicNames.whenComplete((topicName, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+            }
+            else {
+                future.complete(topicName);
+            }
+        });
+        return future;
     }
 
     @Test

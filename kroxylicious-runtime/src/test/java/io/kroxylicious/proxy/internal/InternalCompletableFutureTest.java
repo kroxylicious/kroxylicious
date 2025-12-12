@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -54,6 +55,16 @@ class InternalCompletableFutureTest {
         assertThat(result).isCompleted();
         assertThat(actualThread).hasValue(threadOfExecutor);
 
+    }
+
+    // this is illustrating a limitation of our internal stages, they do not compose nicely because toCompletableFuture throws
+    // an exception. This is to discourage users from joining or otherwise blocking. However CompletableFuture often relies on it
+    // internally.
+    @Test
+    void canNotCompose() {
+        CompletionStage<Object> stage = InternalCompletableFuture.completedFuture(executor, null).minimalCompletionStage();
+        CompletableFuture<Object> thenCompose = CompletableFuture.completedFuture(null).thenCompose(f -> stage);
+        assertThat(thenCompose).failsWithin(Duration.ofSeconds(2));
     }
 
     @Test
