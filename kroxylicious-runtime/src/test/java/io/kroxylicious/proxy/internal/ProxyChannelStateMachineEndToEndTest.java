@@ -69,6 +69,7 @@ import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.apache.kafka.common.security.plain.internals.PlainSaslServer.PLAIN_MECHANISM;
@@ -317,8 +318,9 @@ class ProxyChannelStateMachineEndToEndTest {
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Connecting.class);
 
         assertThat(handler.bufferedMsgs)
-                .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
-                .isEqualTo(List.of(firstRequest));
+                .asInstanceOf(InstanceOfAssertFactories.list(DecodedRequestFrame.class))
+                .singleElement()
+                .isEqualTo(firstRequest);
 
         assertThat(inboundChannel.config().isAutoRead())
                 .describedAs("Client autoread should be off while connecting to server")
@@ -416,8 +418,8 @@ class ProxyChannelStateMachineEndToEndTest {
                 .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION));
     }
 
-    private int writeSaslPlainHandshake() {
-        return writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData()
+    private void writeSaslPlainHandshake() {
+        writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData()
                 .setMechanism(PLAIN_MECHANISM));
     }
 
@@ -443,8 +445,9 @@ class ProxyChannelStateMachineEndToEndTest {
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
                 proxyChannelStateMachine) {
+            @NonNull
             @Override
-            Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
+            Bootstrap configureBootstrap(@NonNull KafkaProxyBackendHandler capturedBackendHandler, @NonNull Channel inboundChannel) {
                 ProxyChannelStateMachineEndToEndTest.this.backendHandler = capturedBackendHandler;
                 newOutboundChannel();
                 Bootstrap bootstrap = new Bootstrap();
@@ -456,8 +459,9 @@ class ProxyChannelStateMachineEndToEndTest {
                 return bootstrap;
             }
 
+            @NonNull
             @Override
-            ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
+            ChannelFuture initConnection(@NonNull String remoteHost, int remotePort, @NonNull Bootstrap bootstrap) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
                 // of a handler creating an outgoing connection and ends up
                 // trying to re-register the outbound channel => IllegalStateException
@@ -566,12 +570,12 @@ class ProxyChannelStateMachineEndToEndTest {
                 });
     }
 
-    private void assertNextClientResponseIsApiVersionsError(int corrId, Errors error) {
+    private void assertNextClientResponseIsApiVersionsError(int corrId) {
         assertClientResponse(
                 corrId,
                 ApiVersionsResponseData.class,
                 ApiVersionsResponseData::errorCode,
-                error);
+                Errors.UNKNOWN_SERVER_ERROR);
     }
 
     private void assertNextClientResponseIsSaslAuthenticateError(int corrId) {
@@ -728,7 +732,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
     private void assertNextClientResponseIsErrorFor(DecodedRequestFrame<ApiMessage> requestFrame) {
         switch (requestFrame.apiKey()) {
-            case API_VERSIONS -> assertNextClientResponseIsApiVersionsError(requestFrame.correlationId(), Errors.UNKNOWN_SERVER_ERROR);
+            case API_VERSIONS -> assertNextClientResponseIsApiVersionsError(requestFrame.correlationId());
             case SASL_HANDSHAKE -> assertNextClientResponseIsSaslHandshakeError(requestFrame.correlationId());
             case SASL_AUTHENTICATE -> assertNextClientResponseIsSaslAuthenticateError(requestFrame.correlationId());
             case METADATA -> assertNextClientResponseIsMetadataError(requestFrame.correlationId());
