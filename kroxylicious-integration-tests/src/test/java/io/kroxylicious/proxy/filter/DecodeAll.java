@@ -34,12 +34,12 @@ public class DecodeAll implements FilterFactory<Void, Void> {
 
     private static class DecodeAllFilter implements RequestFilter, ResponseFilter {
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
             return context.forwardRequest(header, request);
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response, FilterContext context) {
             return context.forwardResponse(header, response);
         }
     }

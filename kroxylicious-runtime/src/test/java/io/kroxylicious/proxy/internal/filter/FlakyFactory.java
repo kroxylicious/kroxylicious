@@ -67,7 +67,7 @@ public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
         }
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
             throw new IllegalStateException("not implemented!");
         }
 

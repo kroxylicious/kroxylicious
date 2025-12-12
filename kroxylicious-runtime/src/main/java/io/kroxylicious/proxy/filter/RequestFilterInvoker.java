@@ -16,7 +16,7 @@ record RequestFilterInvoker(RequestFilter filter) implements FilterInvoker {
 
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, FilterContext filterContext) {
-        return filter.onRequest(apiKey, header, body, filterContext);
+        return filter.onRequest(apiKey, apiVersion, header, body, filterContext);
     }
 
     @Override

@@ -24,7 +24,7 @@ public class GenericRequestSpecificResponseFilter implements RequestFilter, ApiV
     Map<Integer, String> clientIdPerCorrelationId = new HashMap<>();
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
         String clientId = header.clientId();
         clientIdPerCorrelationId.put(header.correlationId(), clientId);
         return context.forwardRequest(header, request);

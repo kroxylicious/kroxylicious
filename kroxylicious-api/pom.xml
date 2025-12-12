@@ -76,6 +76,16 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-annotations</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -156,6 +166,9 @@
                             <!-- The following filter exclusions relate to RPCs that were renamed in kafka-clients 4.1 -->
                             <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesResponseFilter</exclude>
                             <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesRequestFilter</exclude>
+                            <!-- The following methods become deprecated and are given a default implementation at 0.19.0 which throws UnsupportedOperationException -->
+                            <exclude>io.kroxylicious.proxy.filter.RequestFilter#onRequest(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
+                            <exclude>io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
                         </excludes>
                         <!-- see documentation -->
                     </parameter>

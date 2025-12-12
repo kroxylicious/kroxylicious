@@ -210,6 +210,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          short apiVersion,
                                                           RequestHeaderData header,
                                                           ApiMessage request,
                                                           FilterContext context) {
@@ -267,6 +268,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
+                                                            short apiVersion,
                                                             ResponseHeaderData header,
                                                             ApiMessage response,
                                                             FilterContext context) {

@@ -75,7 +75,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<TopicIdToName
         }
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
             List<String> list = UnknownTaggedFields.unknownTaggedFieldsToStrings(request, TOPIC_ID_TAG).toList();
             if (list.isEmpty()) {
                 return context.requestFilterResultBuilder().errorResponse(header, request, new InvalidRequestException("no topic id tag")).withCloseConnection()
@@ -101,7 +101,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<TopicIdToName
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response, FilterContext context) {
             TopicNameMapping topicNames = correlated.remove(header.correlationId());
             if (topicNames == null) {
                 return context.forwardResponse(header, response);

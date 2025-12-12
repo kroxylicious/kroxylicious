@@ -50,7 +50,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, FilterContext context) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, FilterContext context) {
         if (!constructionContext.filterDispatchExecutor().isInFilterDispatchThread()) {
             return CompletableFuture.failedFuture(new IllegalStateException("onRequest method was not invoked by dispatch thread! "
                     + "The framework is breaking a threading guarantee"));
@@ -65,7 +65,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response, FilterContext context) {
         if (!constructionContext.filterDispatchExecutor().isInFilterDispatchThread()) {
             return CompletableFuture.failedFuture(new IllegalStateException("onResponse was not invoked by dispatch thread! "
                     + "The framework is breaking a threading guarantee"));

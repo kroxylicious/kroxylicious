@@ -117,7 +117,6 @@ class ConfigurationTest {
                 .hasMessageContaining("Missing required creator property 'advertisedBrokerAddressPattern'");
     }
 
-    @SuppressWarnings("deprecation")
     static Stream<Arguments> fluentApiConfigYamlFidelity() {
         NamedFilterDefinition filter = new NamedFilterDefinitionBuilder("filter-1", ExampleFilterFactory.class.getSimpleName())
                 .withConfig("examplePlugin", "ExamplePluginInstance",
