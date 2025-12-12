@@ -10,8 +10,8 @@ include::_assets/attributes.adoc[]
 include::_modules/sasl-inspection/con-about-{guide}-guide.adoc[leveloffset=+1]
 
 [role="_abstract"]
-This filter inspects the SASL exchange between Kafka Client and Broker and extracts the *authenticated principal*.
-If the client's authentication with the broker is successful, the filter uses the SASL subject builder to construct an authenticated subject containing the principal.
+This filter inspects the SASL exchange between Kafka Client and Broker and extracts the authorization ID.
+If the client's authentication with the broker is successful, the filter uses the SASL subject builder to construct an authenticated subject.
 The subject is made available to the other filters in the chain, so that they may know on whose behalf they are acting.
 
 NOTE: The SASL Inspection Filter plays no part in deciding if the authentication is successful or not.
@@ -49,7 +49,7 @@ For the `OAUTHBEARER` inspection, only JWT tokens that use using signatures (JWS
 JWT tokens that use encryption (JWE) are not supported.
 Unsigned JWT tokens are supported but not recommended for production use.
 
-If an attempted is made to use a unsupported token type, the authentication will fail with a SASL error.
+If an attempted is made to use an unsupported token type, the authentication will fail with a SASL error.
 
 .Sequence diagram showing the SASL inspection filter extracting an authenticated principal from an SASL negotiation.
 image::{realimagesdir}/sasl-inspection-seq.svg["Sequence diagram showing SASL inspection."]
