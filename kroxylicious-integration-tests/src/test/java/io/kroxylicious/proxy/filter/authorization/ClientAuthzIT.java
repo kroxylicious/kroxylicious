@@ -367,8 +367,7 @@ class ClientAuthzIT extends AuthzIT {
             catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            trace("describeConsumerGroup", outcome.map(ClientAuthzIT::cleanConsumerGroupDescription));
-            return outcome;
+            return trace("describeConsumerGroup", outcome.map(ClientAuthzIT::cleanConsumerGroupDescription));
         }
     }
 
