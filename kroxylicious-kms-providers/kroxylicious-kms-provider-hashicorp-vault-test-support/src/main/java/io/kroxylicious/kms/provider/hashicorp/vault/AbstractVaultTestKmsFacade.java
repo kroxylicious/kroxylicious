@@ -112,11 +112,17 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
     }
 
     protected void enableTransit() {
-        var engine = new EnableEngineRequest("transit");
-        var body = encodeJson(engine);
-        var request = createVaultPost(getVaultUrl().resolve("v1/sys/mounts/transit"), HttpRequest.BodyPublishers.ofString(body));
-
-        sendRequestExpectingNoContentResponse(request);
+        String expectedMountPath = "transit";
+        if (!sendRequestExpectingOk(createVaultGet(getVaultUrl().resolve("/v1/sys/mounts/" + expectedMountPath + "/")))) {
+            LOGGER.atInfo().addArgument(expectedMountPath).log("Transit engine not found at: {}. Attempting to enable it.");
+            var engine = new EnableEngineRequest("transit");
+            var body = encodeJson(engine);
+            var request = createVaultPost(getVaultUrl().resolve("v1/sys/mounts/" + expectedMountPath), HttpRequest.BodyPublishers.ofString(body));
+            sendRequestExpectingNoContentResponse(request);
+        }
+        else {
+            LOGGER.atInfo().addArgument(expectedMountPath).log("Transit engine found at: {}. Continuing.");
+        }
     }
 
     protected void createPolicy(String policyName, InputStream policyStream) {
@@ -133,7 +139,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         String body = encodeJson(token);
         var request = createVaultPost(getVaultUrl().resolve("v1/auth/token/create-orphan"), HttpRequest.BodyPublishers.ofString(body));
 
-        return sendRequest("dummy", request, VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF).auth().clientToken();
+        return sendRequestForKey("dummy", request, VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF).auth().clientToken();
     }
 
     protected abstract URI getVaultUrl();
@@ -166,14 +172,14 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         @Override
         public void generateKek(String keyId) {
             var request = createVaultPost(getVaultUrl().resolve(KEYS_PATH.formatted(encode(keyId, UTF_8))), HttpRequest.BodyPublishers.noBody());
-            sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
+            sendRequestForKey(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
         }
 
         @Override
         public void deleteKek(String keyId) {
             var update = createVaultPost(getVaultUrl().resolve((KEYS_PATH + "/config").formatted(encode(keyId, UTF_8))),
                     HttpRequest.BodyPublishers.ofString(encodeJson(new UpdateKeyConfigRequest(true))));
-            sendRequest(keyId, update, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
+            sendRequestForKey(keyId, update, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
 
             var delete = createVaultDelete(getVaultUrl().resolve(KEYS_PATH.formatted(encode(keyId, UTF_8))));
             sendRequestExpectingNoContentResponse(delete);
@@ -182,13 +188,13 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         @Override
         public VaultResponse.ReadKeyData read(String keyId) {
             var request = createVaultGet(getVaultUrl().resolve(KEYS_PATH.formatted(encode(keyId, UTF_8))));
-            return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
+            return sendRequestForKey(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
         }
 
         @Override
         public void rotateKek(String keyId) {
             var request = createVaultPost(getVaultUrl().resolve((KEYS_PATH + "/rotate").formatted(encode(keyId, UTF_8))), HttpRequest.BodyPublishers.noBody());
-            sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
+            sendRequestForKey(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
         }
     }
 
@@ -218,7 +224,24 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
                 .header("Accept", "application/json");
     }
 
-    private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
+    private boolean sendRequestExpectingOk(HttpRequest request) {
+        try {
+            HttpResponse<String> response = vaultClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                return true;
+            }
+            else {
+                LOGGER.atWarn().addArgument(response.statusCode()).addArgument(response.uri()).addArgument(response.body())
+                        .log("Received unexpected status code: {} from: {}. Response body: {}");
+                return false;
+            }
+        }
+        catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private <R> R sendRequestForKey(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
         try {
             HttpResponse<byte[]> response = vaultClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
             if (response.statusCode() == 404) {
@@ -244,8 +267,10 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
     private void sendRequestExpectingNoContentResponse(HttpRequest request) {
         try {
-            var response = vaultClient.send(request, HttpResponse.BodyHandlers.discarding());
+            var response = vaultClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 204) {
+                LOGGER.atWarn().addArgument(response.statusCode()).addArgument(response.uri()).addArgument(response.body())
+                        .log("Received unexpected status code: {} from: {}. Response body: {}");
                 throw new IllegalStateException("Unexpected response : %d to request %s".formatted(response.statusCode(), request.uri()));
             }
         }
