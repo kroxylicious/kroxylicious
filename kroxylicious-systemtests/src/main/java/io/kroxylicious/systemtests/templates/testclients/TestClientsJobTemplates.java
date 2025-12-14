@@ -109,39 +109,25 @@ public class TestClientsJobTemplates {
      * Authentication admin client job builder.
      *
      * @param jobName the job name
-     * @param args the args
+     * @param args the admin client arguments
+     * @param additionalConfig the additional config (SASL/SSL properties)
      * @return  the job builder
      */
-    public static JobBuilder authenticationAdminClientJob(String jobName, List<String> args) {
-        List<VolumeMount> volumeMounts = new ArrayList<>();
-        List<Volume> volumes = new ArrayList<>();
-        Volume configVolume = new VolumeBuilder()
-                .withName(Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME)
-                .withConfigMap(new ConfigMapVolumeSourceBuilder()
-                        .withName(Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME)
-                        .addNewItem()
-                        .withKey(Constants.CONFIG_PROP_FILE_NAME)
-                        .withPath(Constants.CONFIG_PROP_FILE_NAME)
-                        .endItem()
-                        .build())
-                .build();
-
-        VolumeMount configMount = new VolumeMountBuilder()
-                .withName(Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME)
-                .withMountPath(Constants.CONFIG_PROP_TEMP_DIR)
-                .build();
-        volumeMounts.add(configMount);
-        volumes.add(configVolume);
+    public static JobBuilder authenticationAdminClientJob(String jobName, List<String> args, String additionalConfig) {
+        // Firstly configure admin client with additional configuration, then run the actual admin-client command from arguments
+        String command = "admin-client configure common --from-env && admin-client " + String.join(" ", args);
 
         return baseClientJob(jobName)
                 .editSpec()
                 .editTemplate()
                 .editSpec()
-                .withVolumes(volumes)
                 .withContainers(ContainerTemplates.baseImageBuilder("admin", Environment.TEST_CLIENTS_IMAGE)
-                        .withCommand("admin-client")
-                        .withArgs(args)
-                        .withVolumeMounts(volumeMounts)
+                        .withCommand("sh")
+                        .withArgs("-c", command)
+                        .addNewEnv()
+                        .withName("ADDITIONAL_CONFIG")
+                        .withValue(additionalConfig)
+                        .endEnv()
                         .build())
                 .endSpec()
                 .endTemplate()

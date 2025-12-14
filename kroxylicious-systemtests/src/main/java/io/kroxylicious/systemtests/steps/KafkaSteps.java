@@ -11,8 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.ScramMechanism;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -22,8 +24,6 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
@@ -117,11 +117,13 @@ public class KafkaSteps {
                 List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, TOPIC_ARG + topicName, TOPIC_PARTITIONS_ARG + partitions,
                         TOPIC_REP_FACTOR_ARG + replicas));
 
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                KroxyliciousConfigMapTemplates.getConfigMapForSaslConfig(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_CONFIG_NAME, SecurityProtocol.SASL_PLAINTEXT.name,
-                        ScramMechanism.SCRAM_SHA_512.mechanismName(), Constants.KROXYLICIOUS_ADMIN_USER, usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER)));
+        // Build SASL configuration string for admin client to be passed as additional config env variable
+        String additionalConfig = CommonClientConfigs.SECURITY_PROTOCOL_CONFIG + "=" + SecurityProtocol.SASL_PLAINTEXT.name + "\n" +
+                SaslConfigs.SASL_MECHANISM + "=" + ScramMechanism.SCRAM_SHA_512.mechanismName() + "\n" +
+                SaslConfigs.SASL_JAAS_CONFIG + "=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" +
+                Constants.KROXYLICIOUS_ADMIN_USER + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";";
 
-        Job adminClientJob = TestClientsJobTemplates.authenticationAdminClientJob(name, args).build();
+        Job adminClientJob = TestClientsJobTemplates.authenticationAdminClientJob(name, args, additionalConfig).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofMinutes(5));
