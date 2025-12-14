@@ -236,8 +236,12 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
                 return false;
             }
         }
-        catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
         }
     }
 
