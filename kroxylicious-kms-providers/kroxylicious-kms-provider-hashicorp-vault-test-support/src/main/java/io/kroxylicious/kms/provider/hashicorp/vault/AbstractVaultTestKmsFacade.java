@@ -16,6 +16,9 @@ import java.net.http.HttpResponse;
 import java.util.Objects;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,6 +41,9 @@ import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVaultTestKmsFacade.class);
+
     private static final TypeReference<CreateTokenResponse> VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF = new TypeReference<>() {
     };
     private static final TypeReference<VaultResponse<VaultResponse.ReadKeyData>> VAULT_RESPONSE_READ_KEY_DATA_TYPEREF = new TypeReference<>() {
@@ -61,7 +67,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         startVault();
 
         // enable transit engine
-        enableTransit();
+        withRetry(this::enableTransit, 3);
 
         // create policy
         var policyName = "kroxylicious_encryption_filter_policy";
@@ -75,6 +81,34 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         // (https://developer.hashicorp.com/vault/docs/concepts/tokens#token-hierarchies-and-orphan-tokens)
         // but no functional impact. A child token would work too.
         kmsVaultToken = createOrphanToken("kroxylicious_encryption_filter", true, Set.of(policyName));
+    }
+
+    private void withRetry(Runnable r, int maxAttempts) {
+        var done = false;
+        int remaining = maxAttempts;
+        RuntimeException last = null;
+        do {
+            try {
+                r.run();
+                done = true;
+            }
+            catch (RuntimeException e) {
+                remaining--;
+                last = e;
+                LOGGER.warn("Failed to execute command (remaining %d/%d attempts)".formatted(remaining, maxAttempts), e);
+                try {
+                    Thread.sleep(5000);
+                }
+                catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("Interrupted whilst retrying command", ie);
+                }
+            }
+        } while (!done && remaining > 0);
+
+        if (!done) {
+            throw new IllegalStateException("Task failed after " + maxAttempts + " attempts.", last);
+        }
     }
 
     protected void enableTransit() {
