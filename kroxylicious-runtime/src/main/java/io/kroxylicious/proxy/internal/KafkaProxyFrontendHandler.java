@@ -7,10 +7,12 @@ package io.kroxylicious.proxy.internal;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
@@ -40,6 +42,7 @@ import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -78,6 +81,7 @@ public class KafkaProxyFrontendHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
     public static final int DEFAULT_IDLE_TIME_SECONDS = 31;
+    public static final long DEFAULT_IDLE_SECONDS = 31L;
 
     private final boolean logNetwork;
     private final boolean logFrames;
@@ -92,6 +96,9 @@ public class KafkaProxyFrontendHandler
     private final List<NamedFilterDefinition> namedFilterDefinitions;
     private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
     private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
+
+    private final Optional<NettySettings> proxyNettySettings;
+    private final long idleTimeSeconds;
 
     private @Nullable ChannelHandlerContext clientCtx;
     @VisibleForTesting
@@ -122,6 +129,7 @@ public class KafkaProxyFrontendHandler
                 .orElse(null);
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     KafkaProxyFrontendHandler(
                               PluginFactoryRegistry pfr,
                               FilterChainFactory filterChainFactory,
@@ -131,7 +139,8 @@ public class KafkaProxyFrontendHandler
                               DelegatingDecodePredicate dp,
                               TransportSubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
-                              ProxyChannelStateMachine proxyChannelStateMachine) {
+                              ProxyChannelStateMachine proxyChannelStateMachine,
+                              Optional<NettySettings> proxyNettySettings) {
         this.endpointBinding = endpointBinding;
         this.pfr = pfr;
         this.filterChainFactory = filterChainFactory;
@@ -143,8 +152,10 @@ public class KafkaProxyFrontendHandler
         this.subjectBuilder = Objects.requireNonNull(subjectBuilder);
         this.virtualClusterModel = endpointBinding.endpointGateway().virtualCluster();
         this.proxyChannelStateMachine = proxyChannelStateMachine;
+        this.proxyNettySettings = proxyNettySettings;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
+        idleTimeSeconds = getIdleSeconds(this.proxyNettySettings);
     }
 
     @Override
@@ -613,7 +624,7 @@ public class KafkaProxyFrontendHandler
         ChannelPipeline channelPipeline = Objects.requireNonNull(clientCtx).pipeline();
         channelPipeline.remove(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER);
         channelPipeline.addFirst("authenticatedSessionIdleHandler",
-                new IdleStateHandler(DEFAULT_IDLE_TIME_SECONDS, DEFAULT_IDLE_TIME_SECONDS, DEFAULT_IDLE_TIME_SECONDS));
+                new IdleStateHandler(idleTimeSeconds, idleTimeSeconds, idleTimeSeconds, TimeUnit.SECONDS));
     }
 
     protected String remoteHost() {
@@ -635,4 +646,10 @@ public class KafkaProxyFrontendHandler
             return -1;
         }
     }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private long getIdleSeconds(Optional<NettySettings> nettySettings) {
+        return nettySettings.flatMap(NettySettings::authenticatedIdleTimeout).map(Duration::getSeconds).orElse(DEFAULT_IDLE_SECONDS);
+    }
+
 }

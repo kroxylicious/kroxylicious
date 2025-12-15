@@ -6,7 +6,10 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +29,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.timeout.IdleStateHandler;
 
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
@@ -53,6 +57,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     public static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             SOURCE_ADDRESS, "1.0.0.1", SOURCE_PORT, 9090);
     public static final DelegatingDecodePredicate DELEGATING_PREDICATE = new DelegatingDecodePredicate();
+    public static final NettySettings NETTY_SETTINGS = new NettySettings(Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(Duration.ofSeconds(33)));
     @Mock
     PluginFactoryRegistry pfr;
     @Mock
@@ -92,7 +97,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 pfr, filterChainFactory, virtualCluster.getFilters(), endpointReconciler, new ApiVersionsServiceImpl(), DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
-                proxyChannelStateMachine);
+                proxyChannelStateMachine,
+                Optional.empty());
     }
 
     @Test
@@ -170,7 +176,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     }
 
     @Test
-    void shouldAddAuthenticatedSessionIdleHandlerWhenSessionAuthenticated() throws Exception {
+    void shouldAddAuthenticatedSessionIdleHandlerWithDefaultTimeoutsWhenSessionAuthenticated() throws Exception {
         // Given
         handler.channelActive(clientCtx);
         ChannelPipeline channelPipeline = mock(ChannelPipeline.class);
@@ -184,8 +190,32 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         verify(channelPipeline).addFirst(eq("authenticatedSessionIdleHandler"), handlerCaptor.capture());
         assertThat(handlerCaptor.getValue())
                 .isInstanceOfSatisfying(IdleStateHandler.class,
-                        idleStateHandler ->
-                                assertThat(idleStateHandler.getAllIdleTimeInMillis()).isEqualTo(31_000L));
+                        idleStateHandler -> assertThat(idleStateHandler.getAllIdleTimeInMillis()).isEqualTo(31_000L));
+    }
+
+    @Test
+    void shouldAddAuthenticatedSessionIdleHandlerWithConfiguredTimeoutsWhenSessionAuthenticated() throws Exception {
+        // Given
+        handler = new KafkaProxyFrontendHandler(
+                netFilter,
+                DELEGATING_PREDICATE,
+                new DefaultSubjectBuilder(List.of()),
+                endpointBinding,
+                proxyChannelStateMachine,
+                Optional.of(NETTY_SETTINGS));
+        handler.channelActive(clientCtx);
+        ChannelPipeline channelPipeline = mock(ChannelPipeline.class);
+        when(clientCtx.pipeline()).thenReturn(channelPipeline);
+        ArgumentCaptor<? extends ChannelHandler> handlerCaptor = ArgumentCaptor.forClass(ChannelHandler.class);
+
+        // When
+        handler.onSessionAuthenticated();
+
+        // Then
+        verify(channelPipeline).addFirst(eq("authenticatedSessionIdleHandler"), handlerCaptor.capture());
+        assertThat(handlerCaptor.getValue())
+                .isInstanceOfSatisfying(IdleStateHandler.class,
+                        idleStateHandler -> assertThat(idleStateHandler.getAllIdleTimeInMillis()).isEqualTo(33_000L));
     }
 
 }

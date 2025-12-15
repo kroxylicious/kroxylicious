@@ -444,7 +444,7 @@ class ProxyChannelStateMachineEndToEndTest {
                 dp,
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
-                proxyChannelStateMachine) {
+                proxyChannelStateMachine, Optional.empty()) {
             @NonNull
             @Override
             Bootstrap configureBootstrap(@NonNull KafkaProxyBackendHandler capturedBackendHandler, @NonNull Channel inboundChannel) {

@@ -60,6 +60,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<NettySettings> proxyNettySettings;
     private final Counter clientToProxyErrorCounter;
+    private final long idleSeconds;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
@@ -79,6 +80,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
+        idleSeconds = getIdleSeconds(this.proxyNettySettings);
     }
 
     @Override
@@ -223,7 +225,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 dp,
                 virtualCluster.subjectBuilder(pfr),
                 binding,
-                proxyChannelStateMachine);
+                proxyChannelStateMachine, proxyNettySettings);
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);
@@ -254,7 +256,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     private void addIdleHandlerToPipeline(ChannelPipeline pipeline) {
-        long idleSeconds = getIdleSeconds(proxyNettySettings);
         pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(idleSeconds, idleSeconds, idleSeconds, TimeUnit.SECONDS));
     }
 
