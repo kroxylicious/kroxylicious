@@ -22,10 +22,8 @@ include::../_modules/record-encryption/azure-key-vault/proc-azure-key-vault-key-
 [role="_additional-resources"]
 .Additional resources
 
-* https://learn.microsoft.com/en-us/azure/key-vault/general/overview
-* https://learn.microsoft.com/en-us/azure/key-vault/keys/about-keys
-* https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-access-policy
-* https://learn.microsoft.com/en-us/azure/key-vault/general/best-practices
-* https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/overview
-* https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/privileged
-* https://learn.microsoft.com/en-us/azure/role-based-access-control/scope-overview
+* link:https://learn.microsoft.com/en-us/azure/key-vault/general/overview[Azure Key Vault overview^]
+* link:https://learn.microsoft.com/en-us/azure/key-vault/general/best-practices[Azure Key Vault security best practices^]
+* link:https://learn.microsoft.com/en-us/azure/key-vault/keys/about-keys[Azure Key Vault keys^]
+* link:https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-access-policy[Azure Key Vault access control using RBAC^]
+* link:https://learn.microsoft.com/en-us/azure/role-based-access-control/scope-overview[Azure role-based access control scopes^]

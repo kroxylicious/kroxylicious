@@ -27,7 +27,7 @@ ifdef::include-platform-bare-metal[]
 * In a standalone proxy deployment. See <<con-example-proxy-config-{context}>>
 endif::[]
 ifdef::include-platform-kubernetes[]
-* In a Kubernetes deployment using a `KafkaProcotolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
+* In a Kubernetes deployment using a `KafkaProtocolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
 endif::[]
 
 Note: OauthBearer config follows https://kafka.apache.org/documentation/#security_ssl[kafka's properties]

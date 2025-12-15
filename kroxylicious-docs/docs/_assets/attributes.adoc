@@ -117,14 +117,44 @@
 
 // We have a development document (docs/index.adoc) that sits one level higher than the guides, so we need a way to override DocRoot.
 ifndef::DocRoot[:DocRoot: ..]
-:ProxyGuide: link:{DocRoot}/kroxylicious-proxy/[Kroxylicious Proxy guide]
-:DeveloperGuide: link:{DocRoot}/developer-guide/[Kroxylicious Developer guide]
-:DeveloperQuickstart: link:{DocRoot}/developer-quick-start/[Kroxylicious Developer Quickstart]
-:OperatorGuide: link:{DocRoot}/kroxylicious-operator/[Kroxylicious Operator for Kubernetes guide]
+//proxy and developer guides
+:ProxyGuideUrl: {DocRoot}/kroxylicious-proxy/
+:ProxyGuideText: Kroxylicious Proxy guide
+:ProxyGuide: link:{ProxyGuideUrl}[{ProxyGuideText}]
 
-:AuthorizationGuide: link:{DocRoot}/authorization-guide/[Authorization guide]
-:MultiTenancyGuide: link:{DocRoot}/multi-tenancy-guide/[Kroxylicious Multi-Tenancy guide]
-:OauthBearerValidationGuide: link:{DocRoot}/oauth-bearer-validation/[Kroxylicious Oauth Bearer Validation guide]
-:RecordEncryptionGuide: link:{DocRoot}/record-encryption-guide/[Kroxylicious Record Encryption guide]
-:RecordValidationGuide: link:{DocRoot}/record-validation-guide/[Kroxylicious Record Validation guide]
-:SASLInspectionGuide: link:{DocRoot}/sasl-inspection-guide/[SASL inspection guide]
+:DeveloperGuideUrl: {DocRoot}/developer-guide/
+:DeveloperGuideText: Kroxylicious Developer guide
+:DeveloperGuide: link:{DeveloperGuideUrl}[{DeveloperGuideText}]
+
+:DeveloperQuickstartUrl: {DocRoot}/developer-quick-start/
+:DeveloperQuickstartText: Kroxylicious Developer Quickstart
+:DeveloperQuickstart: link:{DeveloperQuickstartUrl}[{DeveloperQuickstartText}]
+
+:OperatorGuideUrl: {DocRoot}/kroxylicious-operator/
+:OperatorGuideText: Kroxylicious Operator for Kubernetes guide
+:OperatorGuide: link:{OperatorGuideUrl}[{OperatorGuideText}]
+
+//Filter guides
+:AuthorizationGuideUrl: {DocRoot}/authorization-guide/
+:AuthorizationGuideText: Authorization guide
+:AuthorizationGuide: link:{AuthorizationGuideUrl}[{AuthorizationGuideText}]
+
+:MultiTenancyGuideUrl: {DocRoot}/multi-tenancy-guide/
+:MultiTenancyGuideText: Kroxylicious Multi-Tenancy guide
+:MultiTenancyGuide: link:{MultiTenancyGuideUrl}[{MultiTenancyGuideText}]
+
+:OauthBearerValidationGuideUrl: {DocRoot}/oauth-bearer-validation/
+:OauthBearerValidationGuideText: Kroxylicious OAuth Bearer Validation guide
+:OauthBearerValidationGuide: link:{OauthBearerValidationGuideUrl}[{OauthBearerValidationGuideText}]
+
+:RecordEncryptionGuideUrl: {DocRoot}/record-encryption-guide/
+:RecordEncryptionGuideText: Kroxylicious Record Encryption guide
+:RecordEncryptionGuide: link:{RecordEncryptionGuideUrl}[{RecordEncryptionGuideText}]
+
+:RecordValidationGuideUrl: {DocRoot}/record-validation-guide/
+:RecordValidationGuideText: Kroxylicious Record Validation guide
+:RecordValidationGuide: link:{RecordValidationGuideUrl}[{RecordValidationGuideText}]
+
+:SASLInspectionGuideUrl: {DocRoot}/sasl-inspection-guide/
+:SASLInspectionGuideText: SASL inspection guide
+:SASLInspectionGuide: link:{SASLInspectionGuideUrl}[{SASLInspectionGuideText}]

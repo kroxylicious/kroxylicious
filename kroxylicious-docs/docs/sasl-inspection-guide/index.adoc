@@ -17,13 +17,13 @@ The subject is made available to the other filters in the chain, so that they ma
 NOTE: The SASL Inspection Filter plays no part in deciding if the authentication is successful or not.
 That role remains the exclusive responsibility of the broker.
 
-To use this filter, the Kafka Cluster's listener must be configured to authenticate using SASL, and it must use a SASL mechanism that enabled by this filter.
-If the Kafka Client is configured to use a SASL mechanism that is not supported by the proxy, or the proxy and Kafka Cluster do not have the same mechanism available
+To use this filter, the Kafka Cluster's listener must be configured to authenticate using SASL, and it must use a SASL mechanism that is enabled by this filter.
+If the Kafka Client is configured to use a SASL mechanism that is not supported by the proxy, or the proxy and Kafka Cluster do not have the same mechanism available,
 the client will be disconnected with an unsupported SASL mechanism error.
 
 This filter supports the following SASL mechanisms:
 
-[id='supported-mechansisms-{context}']
+[id='supported-mechanisms-{context}']
 .Table of supported SASL mechanisms
 |===
 |SASL mechanism|Enabled by default
@@ -45,11 +45,11 @@ Mechanisms that transmit credentials in plain text are disabled by default.
 This is done to avoid the plain-text passwords existing in the proxy's memory.
 To use such a mechanism, you must enable it in the filter's configuration.
 
-For the `OAUTHBEARER` inspection, only JWT tokens that use using signatures (JWS) are supported.
+For the `OAUTHBEARER` inspection, only JWT tokens that use signatures (JWS) are supported.
 JWT tokens that use encryption (JWE) are not supported.
 Unsigned JWT tokens are supported but not recommended for production use.
 
-If an attempted is made to use a unsupported token type, the authentication will fail with a SASL error.
+If an attempt is made to use an unsupported token type, the authentication will fail with a SASL error.
 
 .Sequence diagram showing the SASL inspection filter extracting an authenticated principal from an SASL negotiation.
 image::{realimagesdir}/sasl-inspection-seq.svg["Sequence diagram showing SASL inspection."]

@@ -19,6 +19,6 @@ In order to use the Authorization filter, the proxy must be able to determine th
 The authenticated subject is the verified identity of the client, derived from its successful authentication.
 
 ifndef::OpenShiftOnly[]
-* If your applications use TLS client authentication, configure the link:{DocRoot}/kroxylicious-proxy/[transport subject builder within the virtual cluster] to build a subject based on the client-certificate.
+* If your applications use TLS client authentication, configure the link:{ProxyGuideUrl}[transport subject builder within the virtual cluster] to build a subject based on the client certificate.
 endif::OpenShiftOnly[]
-* If your applications use SASL authentication, configure the link:{DocRoot}/sasl-inspection-guide/[SASL inspection filter] to build the authenticated subject from the successful SASL exchange between the client and the broker.
+* If your applications use SASL authentication, configure the link:{SASLInspectionGuideUrl}[SASL inspection filter] to build the authenticated subject from the successful SASL exchange between the client and the broker.
