@@ -49,7 +49,7 @@ For the `OAUTHBEARER` inspection, only JWT tokens that use signatures (JWS) are 
 JWT tokens that use encryption (JWE) are not supported.
 Unsigned JWT tokens are supported but not recommended for production use.
 
-If an attempt is made to use a unsupported token type, the authentication will fail with a SASL error.
+If an attempt is made to use an unsupported token type, the authentication will fail with a SASL error.
 
 .Sequence diagram showing the SASL inspection filter extracting an authenticated principal from an SASL negotiation.
 image::{realimagesdir}/sasl-inspection-seq.svg["Sequence diagram showing SASL inspection."]
