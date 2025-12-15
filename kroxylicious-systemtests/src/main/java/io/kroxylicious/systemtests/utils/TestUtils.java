@@ -88,7 +88,7 @@ public class TestUtils {
      * @return the random pod name
      */
     public static String getRandomPodNameSuffix() {
-        return MobyNamesGenerator.getRandomName().replace("_", "-");
+        return MobyNamesGenerator.getRandomName(1).replace("_", "-");
     }
 
     /**
