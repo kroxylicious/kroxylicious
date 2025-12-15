@@ -8,7 +8,7 @@
 = Example `KafkaProtocolFilter` resource
 
 [role="_abstract"]
-If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProcotolFilter` resource to contain the filter configuration.
+If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProtocolFilter` resource to contain the filter configuration.
 
 Here's a complete example of a `KafkaProtocolFilter` resource configured for SASL inspection:
 
@@ -25,13 +25,14 @@ spec:
     subjectBuilder: <class name> # <3>
     subjectBuilderConfig: <object providing configuration for the subject builder> # <4>
 ----
-<1> Restricts the filter to the given SASL mechanism(s).
-Refer to SASL mechanism by its name given in the xref:supported-mechansisms-{context}[supported mechanisms] table.
-If omitted, the SASL mechanisms `SCRAM-SHA-256`, `SCRAM-SHA-512` and `OAUTHBEARER` will be enabled by default.
-<2> If true then successful authentication will be required before the filter will forward any requests other than those strictly required to perform SASL authentication.
-If false then the filter will forward all requests regardless of whether SASL authentication has been attempted or was successful. Defaults to false.
+<1> Restricts the filter to the given SASL mechanisms.
+Refer to the SASL mechanism names listed in the xref:supported-mechanisms-{context}[supported mechanisms] table.
+If this property is omitted, the filter enables `SCRAM-SHA-256`, `SCRAM-SHA-512` and `OAUTHBEARER` by default.
+<2> If `true`, successful authentication is required before the filter forwards any requests other than those strictly required to perform SASL authentication.
+If `false`, the filter forwards all requests regardless of whether SASL authentication has been attempted or was successful. 
+The default value is `false`.
 <3> The name of a plugin class implementing `io.kroxylicious.proxy.authentication.SaslSubjectBuilderService`.
-If omitted, a default subject builder is used that creates a principal with name matching the SASL authorized id.
+If omitted, a default subject builder creates a principal with the name matching the SASL authorized ID.
 <4> Subject builder configuration.
 
 Refer to the {OperatorGuide} for more information about configuration on Kubernetes.
