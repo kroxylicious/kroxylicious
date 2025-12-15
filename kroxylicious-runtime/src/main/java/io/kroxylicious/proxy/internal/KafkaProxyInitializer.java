@@ -41,8 +41,6 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
@@ -50,6 +48,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private static final ChannelInboundHandlerAdapter LOGGING_INBOUND_ERROR_HANDLER = new LoggingInboundErrorHandler();
     @VisibleForTesting
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
+    public static final String PRE_SESSION_IDLE_HANDLER = "preSessionIdleHandler";
 
     private final boolean haproxyProtocol;
     private final boolean tls;
@@ -255,13 +254,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     private void addIdleHandlerToPipeline(ChannelPipeline pipeline) {
-        long idleSeconds = getIdleSeconds();
-        pipeline.addFirst("preSessionIdleHandler", new IdleStateHandler(idleSeconds, idleSeconds, idleSeconds, TimeUnit.SECONDS));
+        long idleSeconds = getIdleSeconds(proxyNettySettings);
+        pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(idleSeconds, idleSeconds, idleSeconds, TimeUnit.SECONDS));
     }
 
-    @NonNull
-    private Long getIdleSeconds() {
-        return proxyNettySettings.flatMap(NettySettings::idleTimeout).map(Duration::getSeconds).orElse(10L);
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private long getIdleSeconds(Optional<NettySettings> nettySettings) {
+        return nettySettings.flatMap(NettySettings::unAuthenticatedIdleTimeout).map(Duration::getSeconds).orElse(11L);
     }
 
     @Sharable

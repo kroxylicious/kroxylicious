@@ -451,6 +451,7 @@ public class ProxyChannelStateMachine {
 
     public void onSessionAuthenticated() {
         this.kafkaSession = this.kafkaSession.in(KafkaSessionState.AUTHENTICATED);
+        frontendHandler.onSessionAuthenticated();
     }
 
     @SuppressWarnings("java:S5738")

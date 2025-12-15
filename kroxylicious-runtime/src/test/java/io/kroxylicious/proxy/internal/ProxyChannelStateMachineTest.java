@@ -88,7 +88,10 @@ class ProxyChannelStateMachineTest {
     public static final KafkaSession TEST_KAFKA_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
     private ProxyChannelStateMachine proxyChannelStateMachine;
+
+    @Mock
     private KafkaProxyBackendHandler backendHandler;
+
     @Mock(strictness = Mock.Strictness.LENIENT)
     private KafkaProxyFrontendHandler frontendHandler;
     private SimpleMeterRegistry simpleMeterRegistry;
@@ -96,7 +99,6 @@ class ProxyChannelStateMachineTest {
     @BeforeEach
     void setUp() {
         proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
-        backendHandler = mock(KafkaProxyBackendHandler.class);
         simpleMeterRegistry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(simpleMeterRegistry);
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
@@ -159,6 +161,7 @@ class ProxyChannelStateMachineTest {
                         .isCloseTo(1.0, CLOSE_ENOUGH));
     }
 
+    @SuppressWarnings("DataFlowIssue")
     @Test
     void shouldCountProxyToServerConnections() {
         // Given
@@ -402,6 +405,7 @@ class ProxyChannelStateMachineTest {
         verify(frontendHandler).bufferMsg(msg);
     }
 
+    @SuppressWarnings("DataFlowIssue")
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
     void inSelectingServerShouldTransitionToConnectingWhenOnInitiateConnectCalled(boolean configureSsl) throws SSLException {
@@ -703,6 +707,18 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.clientToProxyBackpressureTimer).isNull();
     }
 
+    @Test
+    void shouldNotifyFrontendHandlerThatAuthenticationHasCompleted() {
+        // Given
+        stateMachineInForwarding();
+
+        // When
+        proxyChannelStateMachine.onSessionAuthenticated();
+
+        // Then
+        verify(frontendHandler).onSessionAuthenticated();
+    }
+
     public Stream<Arguments> clientErrorStates() {
         return Stream.of(
                 argumentSet("STARTING TLS on", (Runnable) () -> {
@@ -787,7 +803,8 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Closed(),
                 frontendHandler,
-                backendHandler, TEST_KAFKA_SESSION);
+                backendHandler,
+                TEST_KAFKA_SESSION);
     }
 
     private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {
