@@ -76,9 +76,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyInitializerTest {
 
-    private static final Duration CONFIGURED_IDLE_DURATION = Duration.ofSeconds(11);
+    private static final Duration CONFIGURED_IDLE_DURATION = Duration.ofSeconds(12);
     private static final long CONFIGURED_IDLE_DURATION_MILLIS = CONFIGURED_IDLE_DURATION.toMillis();
-    private static final long DEFAULT_IDLE_DURATION_MILLIS = Duration.ofSeconds(10).toMillis();
+    private static final long DEFAULT_IDLE_DURATION_MILLIS = Duration.ofSeconds(11).toMillis();
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private SocketChannel channel;
@@ -136,7 +136,7 @@ class KafkaProxyInitializerTest {
     @Test
     void shouldRegisterIdleStateHandlerWithConfiguredDuration() {
         // Given
-        proxyNettySettings = new NettySettings(Optional.empty(), Optional.empty(), Optional.of(CONFIGURED_IDLE_DURATION));
+        proxyNettySettings = new NettySettings(Optional.empty(), Optional.empty(), Optional.of(CONFIGURED_IDLE_DURATION), Optional.empty());
         kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
 
         // When

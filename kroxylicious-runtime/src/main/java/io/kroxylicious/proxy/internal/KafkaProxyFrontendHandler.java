@@ -34,6 +34,7 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import io.netty.handler.timeout.IdleStateHandler;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
@@ -75,6 +76,8 @@ public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
+
+    public static final int DEFAULT_IDLE_TIME_SECONDS = 31;
 
     private final boolean logNetwork;
     private final boolean logFrames;
@@ -606,6 +609,13 @@ public class KafkaProxyFrontendHandler
         return channel != null ? channel.id() : null;
     }
 
+    public void onSessionAuthenticated() {
+        ChannelPipeline channelPipeline = Objects.requireNonNull(clientCtx).pipeline();
+        channelPipeline.remove(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER);
+        channelPipeline.addFirst("authenticatedSessionIdleHandler",
+                new IdleStateHandler(DEFAULT_IDLE_TIME_SECONDS, DEFAULT_IDLE_TIME_SECONDS, DEFAULT_IDLE_TIME_SECONDS));
+    }
+
     protected String remoteHost() {
         SocketAddress socketAddress = clientCtx().channel().remoteAddress();
         if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
@@ -625,5 +635,4 @@ public class KafkaProxyFrontendHandler
             return -1;
         }
     }
-
 }
