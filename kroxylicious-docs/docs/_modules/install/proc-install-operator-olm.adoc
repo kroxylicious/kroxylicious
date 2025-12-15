@@ -22,7 +22,7 @@ Use automatic upgrades only on version-specific channels.
 
 .Prerequisites
 
-* xref:install-prereqs-{context}[Deployment prerequisites].
+* xref:con-install-prereqs-{context}[Deployment prerequisites].
 
 .Procedure
 
@@ -60,5 +60,5 @@ A single instance of the operator will watch and manage proxies created througho
 +
 The status will show as *Succeeded*.
 
-. Use the proxy operator xref:assembly-operator-deploying-a-proxy-{context}[to deploy a proxy].
+. Use the proxy operator xref:assembly-operator-deploy-a-proxy-{context}[to deploy a proxy].
 

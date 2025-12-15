@@ -25,4 +25,4 @@ spec:
       aclFile: ${configmap:acl-rules:acl-rules.txt}
 ----
 * `authorizer` is the name of the authorizer service implementation.  Currently, this must be `AclAuthorizerService`.
-* `aclFile` is the reference file containing the ACL rules. You can use an link:{DocRoot}/kroxylicious-operator#assembly-operator-secure-filter-securing/[interpolation reference] to reference rules stored within a Kubernetes `ConfigMap` or `Secret` resource.
+* `aclFile` is the reference file containing the ACL rules. You can use an link:{OperatorGuideUrl}#assembly-operator-secure-proxy-securing[interpolation reference] to reference rules stored within a Kubernetes `ConfigMap` or `Secret` resource.
