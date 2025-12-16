@@ -16,4 +16,4 @@ After a successful match, remaining matchers for that field are ignored.
 If no matcher matches, the outcome is defined by the `else` clause.
 If there is no match and no `else` cause is provided, no principal is generated for this field.
 
-NOTE: Currently, the subject builder is restricted to producing a subject containing at most one User principal.
+NOTE: Currently, the subject builder is restricted to producing a subject containing at most one user principal.
