@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.extensions;
 
 import java.lang.reflect.Parameter;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,7 +24,6 @@ import org.slf4j.LoggerFactory;
 
 import io.skodjob.testframe.resources.KubeResourceManager;
 
-import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.logs.TestLogCollector;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
@@ -106,7 +106,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     @Override
     public void beforeEach(ExtensionContext extensionContext) {
         ResourceManager.setTestContext(extensionContext);
-        final String k8sNamespace = Constants.KAFKA_DEFAULT_NAMESPACE + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        final String k8sNamespace = extensionContext.getRequiredTestClass().getSimpleName().toLowerCase(Locale.ROOT) + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
         extensionContext.getStore(junitNamespace).put(K8S_NAMESPACE_KEY, k8sNamespace);
         NamespaceUtils.createNamespaceAndPrepare(k8sNamespace);
     }
