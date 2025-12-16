@@ -89,7 +89,7 @@ class FilterHandlerTest extends FilterHarness {
                 .completed();
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
@@ -109,7 +109,7 @@ class FilterHandlerTest extends FilterHarness {
                 .completed();
         buildChannel(filter);
         writeRequest(new ApiVersionsRequestData());
-        DecodedResponseFrame<?> propagated = channel.readInbound();
+        DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertEquals(responseData, propagated.body(), "expected ApiVersionsResponseData to be forwarded");
     }
 
@@ -120,7 +120,7 @@ class FilterHandlerTest extends FilterHarness {
                 .completed();
         buildChannel(filter);
         InternalRequestFrame<ApiVersionsRequestData> request = writeInternalRequest(new ApiVersionsRequestData(), filter);
-        DecodedResponseFrame<?> propagated = channel.readInbound();
+        DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertEquals(responseData, propagated.body(), "expected ApiVersionsResponseData to be forwarded");
         assertThat(propagated).isInstanceOfSatisfying(InternalResponseFrame.class, internalResponse -> {
             assertThat(internalResponse.recipient()).isSameAs(request.recipient());
@@ -136,7 +136,7 @@ class FilterHandlerTest extends FilterHarness {
                 .completed();
         buildChannel(filter);
         writeRequest(new ProduceRequestData().setAcks((short) 0));
-        DecodedResponseFrame<?> propagated = channel.readInbound();
+        DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertNull(propagated, "no message should have been propagated");
     }
 
@@ -147,7 +147,7 @@ class FilterHandlerTest extends FilterHarness {
                 .completed();
         buildChannel(filter);
         writeRequest(new ProduceRequestData().setAcks((short) 1));
-        DecodedResponseFrame<?> propagated = channel.readInbound();
+        DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertEquals(responseData, propagated.body(), "expected ProduceResponseData to be forwarded");
     }
 
@@ -205,7 +205,7 @@ class FilterHandlerTest extends FilterHarness {
         CompletableFuture.runAsync(() -> requestFutureMap.get(req1).complete(null)).join();
         channel.runPendingTasks();
 
-        DecodedRequestFrame<?> outboundRequest1 = channel.readOutbound();
+        DecodedRequestFrame<?> outboundRequest1 = channel.readInbound();
 
         assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
 
@@ -213,7 +213,7 @@ class FilterHandlerTest extends FilterHarness {
         CompletableFuture.runAsync(() -> requestFutureMap.get(req2).complete(null)).join();
         channel.runPendingTasks();
 
-        DecodedRequestFrame<?> outboundRequest2 = channel.readOutbound();
+        DecodedRequestFrame<?> outboundRequest2 = channel.readInbound();
 
         assertThat(channel.isOpen()).isTrue();
         assertThat(outboundRequest2).extracting(DecodedRequestFrame::body).isEqualTo(req2);
@@ -229,7 +229,7 @@ class FilterHandlerTest extends FilterHarness {
                             test.writeRequest(deferredApiRequest1);
                         },
                         (Consumer<FilterHandlerTest>) test -> {
-                            DecodedRequestFrame<?> outboundRequest = test.channel.readOutbound();
+                            DecodedRequestFrame<?> outboundRequest = test.channel.readInbound();
                             assertThat(outboundRequest)
                                     .extracting(DecodedRequestFrame::body)
                                     .isEqualTo(deferredApiRequest1);
@@ -243,9 +243,9 @@ class FilterHandlerTest extends FilterHarness {
                         },
                         (Consumer<FilterHandlerTest>) test -> {
                             List<DecodedRequestFrame<?>> requests = new ArrayList<>();
-                            requests.add(test.channel.readOutbound());
-                            requests.add(test.channel.readOutbound());
-                            requests.add(test.channel.readOutbound());
+                            requests.add(test.channel.readInbound());
+                            requests.add(test.channel.readInbound());
+                            requests.add(test.channel.readInbound());
                             assertThat(requests)
                                     .extracting(DecodedRequestFrame::body)
                                     .asInstanceOf(InstanceOfAssertFactories.list(ApiVersionsRequestData.class))
@@ -266,9 +266,9 @@ class FilterHandlerTest extends FilterHarness {
                         },
                         (Consumer<FilterHandlerTest>) test -> {
                             List<OpaqueRequestFrame> requests = new ArrayList<>();
-                            requests.add(test.channel.readOutbound());
-                            requests.add(test.channel.readOutbound());
-                            requests.add(test.channel.readOutbound());
+                            requests.add(test.channel.readInbound());
+                            requests.add(test.channel.readInbound());
+                            requests.add(test.channel.readInbound());
                             List<Byte> expected = List.of((byte) 1, (byte) 2, (byte) 3);
                             assertThat(requests)
                                     .extracting(OpaqueRequestFrame::buf)
@@ -285,18 +285,18 @@ class FilterHandlerTest extends FilterHarness {
                             test.writeRequest(deferredApiRequest3);
                         },
                         (Consumer<FilterHandlerTest>) test -> {
-                            DecodedRequestFrame<?> request1 = test.channel.readOutbound();
+                            DecodedRequestFrame<?> request1 = test.channel.readInbound();
                             assertThat(request1)
                                     .extracting(DecodedRequestFrame::body)
                                     .isEqualTo(deferredApiRequest1);
 
-                            OpaqueRequestFrame request2 = test.channel.readOutbound();
+                            OpaqueRequestFrame request2 = test.channel.readInbound();
                             assertThat(request2)
                                     .extracting(OpaqueRequestFrame::buf)
                                     .extracting(ByteBuf::readByte)
                                     .isEqualTo((byte) 2);
 
-                            DecodedRequestFrame<?> request3 = test.channel.readOutbound();
+                            DecodedRequestFrame<?> request3 = test.channel.readInbound();
                             assertThat(request3)
                                     .extracting(DecodedRequestFrame::body)
                                     .isEqualTo(deferredApiRequest3);
@@ -317,14 +317,14 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         // Nothing should be propagated yet, as the first request is awaiting the future
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertThat(propagated).isNull();
 
         // complete first's future, now expect both requests to flow.
         firstFuture.complete(null);
         channel.runPendingTasks();
 
-        DecodedRequestFrame<?> outboundRequest1 = channel.readOutbound();
+        DecodedRequestFrame<?> outboundRequest1 = channel.readInbound();
         assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(first);
 
         requestAssertions.accept(this);
@@ -340,8 +340,8 @@ class FilterHandlerTest extends FilterHarness {
                             test.writeResponse(deferredApiResponse1);
                         },
                         (Consumer<FilterHandlerTest>) test -> {
-                            DecodedResponseFrame<?> inboundResponse = test.channel.readInbound();
-                            assertThat(inboundResponse)
+                            DecodedResponseFrame<?> brokerResponseFrame = test.channel.readOutbound();
+                            assertThat(brokerResponseFrame)
                                     .extracting(DecodedResponseFrame::body)
                                     .isEqualTo(deferredApiResponse1);
 
@@ -354,9 +354,9 @@ class FilterHandlerTest extends FilterHarness {
                         },
                         (Consumer<FilterHandlerTest>) test -> {
                             List<DecodedResponseFrame<?>> responses = new ArrayList<>();
-                            responses.add(test.channel.readInbound());
-                            responses.add(test.channel.readInbound());
-                            responses.add(test.channel.readInbound());
+                            responses.add(test.channel.readOutbound());
+                            responses.add(test.channel.readOutbound());
+                            responses.add(test.channel.readOutbound());
                             assertThat(responses)
                                     .extracting(DecodedResponseFrame::body)
                                     .asInstanceOf(InstanceOfAssertFactories.list(ApiVersionsResponseData.class))
@@ -377,9 +377,9 @@ class FilterHandlerTest extends FilterHarness {
                         },
                         (Consumer<FilterHandlerTest>) test -> {
                             List<OpaqueResponseFrame> responses = new ArrayList<>();
-                            responses.add(test.channel.readInbound());
-                            responses.add(test.channel.readInbound());
-                            responses.add(test.channel.readInbound());
+                            responses.add(test.channel.readOutbound());
+                            responses.add(test.channel.readOutbound());
+                            responses.add(test.channel.readOutbound());
                             List<Byte> expected = List.of((byte) 1, (byte) 2, (byte) 3);
                             assertThat(responses)
                                     .extracting(OpaqueResponseFrame::buf)
@@ -396,18 +396,18 @@ class FilterHandlerTest extends FilterHarness {
                             test.writeResponse(deferredApiResponse3);
                         },
                         (Consumer<FilterHandlerTest>) test -> {
-                            DecodedResponseFrame<?> response1 = test.channel.readInbound();
+                            DecodedResponseFrame<?> response1 = test.channel.readOutbound();
                             assertThat(response1)
                                     .extracting(DecodedResponseFrame::body)
                                     .isEqualTo(deferredApiResponse1);
 
-                            OpaqueResponseFrame response2 = test.channel.readInbound();
+                            OpaqueResponseFrame response2 = test.channel.readOutbound();
                             assertThat(response2)
                                     .extracting(OpaqueResponseFrame::buf)
                                     .extracting(ByteBuf::readByte)
                                     .isEqualTo((byte) 2);
 
-                            DecodedResponseFrame<?> response3 = test.channel.readInbound();
+                            DecodedResponseFrame<?> response3 = test.channel.readOutbound();
                             assertThat(response3)
                                     .extracting(DecodedResponseFrame::body)
                                     .isEqualTo(deferredApiResponse3);
@@ -429,15 +429,15 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         // Nothing should be propagated yet, as the first response is awaiting the future
-        var propagated = channel.readInbound();
+        var propagated = channel.readOutbound();
         assertThat(propagated).isNull();
 
         // complete first's future, now expect both response to flow.
         firstFuture.complete(null);
         channel.runPendingTasks();
 
-        DecodedResponseFrame<?> inboundResponse1 = channel.readInbound();
-        assertThat(inboundResponse1).extracting(DecodedResponseFrame::body).isEqualTo(first);
+        DecodedResponseFrame<?> clientResponseFrame = channel.readOutbound();
+        assertThat(clientResponseFrame).extracting(DecodedResponseFrame::body).isEqualTo(first);
 
         responseAssertions.accept(this);
     }
@@ -539,7 +539,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         if (forwardExpected) {
             assertThat(propagated).isEqualTo(frame);
         }
@@ -575,7 +575,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
-        var propagated = channel.readInbound();
+        var propagated = channel.readOutbound();
         if (forwardExpected) {
             assertThat(propagated).isEqualTo(frame);
         }
@@ -669,7 +669,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
-        var propagated = channel.readInbound();
+        var propagated = channel.readOutbound();
         assertThat(propagated).isNull();
         assertThat(seen).containsExactly(frame1.body());
 
@@ -693,7 +693,7 @@ class FilterHandlerTest extends FilterHarness {
         };
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
@@ -727,12 +727,12 @@ class FilterHandlerTest extends FilterHarness {
 
         assertThat(channel.isOpen()).isEqualTo(!withClose);
 
-        var propagatedOutbound = channel.readOutbound();
-        assertThat(propagatedOutbound).isNull();
+        var brokerRequestFrame = channel.readInbound();
+        assertThat(brokerRequestFrame).isNull();
 
-        var propagatedInbound = channel.readInbound();
-        assertThat(propagatedInbound).isNotNull();
-        assertThat(((DecodedResponseFrame<?>) propagatedInbound).body()).isEqualTo(shortCircuitResponse);
+        var clientResponseFrame = channel.readOutbound();
+        assertThat(clientResponseFrame).isNotNull();
+        assertThat(((DecodedResponseFrame<?>) clientResponseFrame).body()).isEqualTo(shortCircuitResponse);
     }
 
     @Test
@@ -740,7 +740,7 @@ class FilterHandlerTest extends FilterHarness {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
-        var propagated = channel.readInbound();
+        var propagated = channel.readOutbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
@@ -761,7 +761,7 @@ class FilterHandlerTest extends FilterHarness {
         };
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
-        var propagated = channel.readInbound();
+        var propagated = channel.readOutbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
@@ -799,7 +799,7 @@ class FilterHandlerTest extends FilterHarness {
         var requestFrame = writeRequest(new ApiVersionsRequestData());
 
         // verify filter has sent the send request.
-        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        InternalRequestFrame<?> propagatedOobRequest = channel.readInbound();
         assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
         assertThat(propagatedOobRequest.header()).isNotNull();
 
@@ -813,7 +813,7 @@ class FilterHandlerTest extends FilterHarness {
         assertThat(snoopedOobRequestResponseFuture).isCompletedWithValueMatching(r -> Objects.equals(r, responseFrame.body()));
 
         // verify the filter has forwarded the request showing the that OOB request future completed.
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertThat(propagated).isEqualTo(requestFrame);
     }
 
@@ -833,7 +833,7 @@ class FilterHandlerTest extends FilterHarness {
 
         // trigger filter
         writeRequest(new ApiVersionsRequestData());
-        channel.readOutbound();
+        channel.readInbound();
 
         var snoopedOobRequestResponseFuture = toCompletableFuture(snoopedOobRequestResponseStage.get());
 
@@ -929,7 +929,7 @@ class FilterHandlerTest extends FilterHarness {
         writeRequest(new ApiVersionsRequestData());
 
         // verify the header
-        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        InternalRequestFrame<?> propagatedOobRequest = channel.readInbound();
         assertThat(propagatedOobRequest.header()).isNotNull();
         headerConsumer.accept(propagatedOobRequest.header());
 
@@ -958,11 +958,11 @@ class FilterHandlerTest extends FilterHarness {
         var requestFrame = writeRequest(new ApiVersionsRequestData());
 
         // verify filter has sent the send request.
-        InternalRequestFrame<?> propagatedAsyncRequest = channel.readOutbound();
+        InternalRequestFrame<?> propagatedAsyncRequest = channel.readInbound();
         assertThat(propagatedAsyncRequest.body()).isEqualTo(oobRequestBody);
 
         // verify the filter has forwarded the request showing the that OOB request future completed.
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertThat(propagated).isEqualTo(requestFrame);
     }
 
@@ -983,7 +983,7 @@ class FilterHandlerTest extends FilterHarness {
         writeRequest(new ApiVersionsRequestData());
 
         // verify filter has sent the send request.
-        InternalRequestFrame<?> propagatedAsyncRequest = channel.readOutbound();
+        InternalRequestFrame<?> propagatedAsyncRequest = channel.readInbound();
         assertThat(propagatedAsyncRequest.body()).isEqualTo(oobRequestBody);
 
         // verify async request response future is in the expected state
@@ -1029,7 +1029,7 @@ class FilterHandlerTest extends FilterHarness {
         Thread eventloopThread = obtainEventLoop();
 
         // verify filter has sent the send request.
-        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        InternalRequestFrame<?> propagatedOobRequest = channel.readInbound();
         assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
 
         // mimic the broker sending the response
@@ -1048,7 +1048,7 @@ class FilterHandlerTest extends FilterHarness {
                 .hasValue(eventloopThread);
 
         // Verify the filtered request arrived at outcome.
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertThat(propagated).isEqualTo(requestFrame);
     }
 
@@ -1085,7 +1085,7 @@ class FilterHandlerTest extends FilterHarness {
         var requestFrame = writeRequest(new ApiVersionsRequestData());
 
         // verify filter has sent the send first request.
-        InternalRequestFrame<?> propagatedFirstRequest = channel.readOutbound();
+        InternalRequestFrame<?> propagatedFirstRequest = channel.readInbound();
         assertThat(propagatedFirstRequest.body()).isEqualTo(firstRequestBody);
         assertThat(propagatedFirstRequest.header()).isNotNull();
 
@@ -1099,7 +1099,7 @@ class FilterHandlerTest extends FilterHarness {
         assertThat(snoopedFirstRequestResponseFuture).isCompletedWithValueMatching(r -> Objects.equals(r, firstResponseFrame.body()));
 
         // verify filter has sent the send second request.
-        InternalRequestFrame<?> propagatedSecondRequest = channel.readOutbound();
+        InternalRequestFrame<?> propagatedSecondRequest = channel.readInbound();
         assertThat(propagatedSecondRequest.body()).isEqualTo(secondRequestBody);
         assertThat(propagatedSecondRequest.header()).isNotNull();
 
@@ -1113,7 +1113,7 @@ class FilterHandlerTest extends FilterHarness {
         assertThat(snoopedSecondRequestResponseFuture).isCompletedWithValueMatching(r -> Objects.equals(r, secondResponseFrame.body()));
 
         // verify the filter has forwarded the request showing the that OOB request future completed.
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertThat(propagated).isEqualTo(requestFrame);
     }
 
@@ -1136,7 +1136,7 @@ class FilterHandlerTest extends FilterHarness {
         writeRequest(new ApiVersionsRequestData());
 
         // verify filter has sent the out-of-band request.
-        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        InternalRequestFrame<?> propagatedOobRequest = channel.readInbound();
         assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
         // and ensure that it carries the expected mark added by the intercepting filter
         assertThat(propagatedOobRequest.body().unknownTaggedFields()).containsExactly(MARK);
@@ -1164,7 +1164,7 @@ class FilterHandlerTest extends FilterHarness {
         var requestFrame = writeRequest(new ApiVersionsRequestData());
 
         // verify filter has sent the out-of-band request.
-        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        InternalRequestFrame<?> propagatedOobRequest = channel.readInbound();
         assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
 
         // mimic the broker sending the out-of-band response
@@ -1172,7 +1172,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         // Verify the filtered response arrived at inbound.
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertThat(propagated).isEqualTo(requestFrame);
     }
 
@@ -1187,7 +1187,7 @@ class FilterHandlerTest extends FilterHarness {
         };
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
@@ -1203,7 +1203,7 @@ class FilterHandlerTest extends FilterHarness {
         };
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
@@ -1218,7 +1218,7 @@ class FilterHandlerTest extends FilterHarness {
         };
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
-        var propagated = channel.readInbound();
+        var propagated = channel.readOutbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
@@ -1234,7 +1234,7 @@ class FilterHandlerTest extends FilterHarness {
         };
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
-        var propagated = channel.readInbound();
+        var propagated = channel.readOutbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
@@ -1269,7 +1269,7 @@ class FilterHandlerTest extends FilterHarness {
         writeRequest(new SaslAuthenticateRequestData().setAuthBytes("Let me IN!".getBytes(UTF_8)));
 
         // Then
-        DecodedResponseFrame<?> propagated = channel.readInbound();
+        DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertThat(propagated.body()).isEqualTo(responseData);
 
         assertThat(clientSubjectManager.clientSaslContext())
@@ -1293,7 +1293,7 @@ class FilterHandlerTest extends FilterHarness {
         writeRequest(new SaslAuthenticateRequestData().setAuthBytes("Let me IN!".getBytes(UTF_8)));
 
         // Then
-        DecodedResponseFrame<?> propagated = channel.readInbound();
+        DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertThat(propagated.body()).isEqualTo(responseData);
 
         assertThat(clientSubjectManager.clientSaslContext())
@@ -1317,7 +1317,7 @@ class FilterHandlerTest extends FilterHarness {
         writeRequest(new SaslAuthenticateRequestData().setAuthBytes("Let me IN!".getBytes(UTF_8)));
 
         // Then
-        DecodedResponseFrame<?> propagated = channel.readInbound();
+        DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertThat(propagated.body()).isEqualTo(responseData);
 
         assertThat(clientSubjectManager.clientSaslContext())

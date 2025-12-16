@@ -174,11 +174,17 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
 
+        // Create ProxyChannelStateMachine early so it can be used by HAProxyMessageHandler
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId());
+
         // Add handler here
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {
-            LOGGER.debug("Adding haproxy handler");
+            LOGGER.debug("Adding haproxy handlers");
             pipeline.addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
+            // HAProxyMessageHandler intercepts HAProxyMessage and forwards it to the state machine,
+            // preventing it from propagating to filters that only expect Kafka protocol messages
+            pipeline.addLast("HAProxyMessageHandler", new HAProxyMessageHandler(proxyChannelStateMachine));
         }
 
         var dp = new DelegatingDecodePredicate();
@@ -197,7 +203,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
 
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId());
         var frontendHandler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,

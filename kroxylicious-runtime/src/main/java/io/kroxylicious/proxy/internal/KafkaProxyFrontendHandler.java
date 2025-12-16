@@ -29,7 +29,6 @@ import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
@@ -65,6 +64,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
@@ -96,6 +96,8 @@ public class KafkaProxyFrontendHandler
     List<Object> bufferedMsgs;
     private boolean pendingClientFlushes;
     private @Nullable String sniHostname;
+
+    private @Nullable List<FilterAndInvoker> filters;
 
     // Flag if we receive a channelReadComplete() prior to outbound connection activation
     // so we can perform the channelReadComplete()/outbound flush & auto_read
@@ -142,6 +144,7 @@ public class KafkaProxyFrontendHandler
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
+        this.filters = null;
     }
 
     @Override
@@ -267,14 +270,17 @@ public class KafkaProxyFrontendHandler
     void inClientActive() {
         Channel clientChannel = clientCtx().channel();
         LOGGER.trace("{}: channelActive", clientChannel.id());
-        // Initially the channel is not auto reading
-        clientChannel.config().setAutoRead(false);
-        clientChannel.read();
         this.clientSubjectManager = new ClientSubjectManager();
         this.progressionLatch = 2; // we require two events before unblocking
         if (!this.endpointBinding.endpointGateway().isUseTls()) {
             this.clientSubjectManager.subjectFromTransport(null, this.subjectBuilder, this::onTransportSubjectBuilt);
         }
+
+        // install filters before first read
+        addFiltersToPipeline(getFilters(), clientCtx().pipeline(), clientCtx().channel());
+        // Initially the channel is not auto reading
+        clientChannel.config().setAutoRead(false);
+        clientChannel.read();
     }
 
     private void onTransportSubjectBuilt() {
@@ -295,6 +301,15 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link SelectingServer} state.
      */
     void inSelectingServer() {
+        var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
+        initiateConnect(target, getFilters());
+    }
+
+    @NonNull
+    private List<FilterAndInvoker> getFilters() {
+        if (this.filters != null) {
+            return this.filters;
+        }
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
@@ -310,9 +325,8 @@ public class KafkaProxyFrontendHandler
         List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)",
                 new BrokerAddressFilter(endpointBinding.endpointGateway(), endpointReconciler));
         filterAndInvokers.addAll(brokerAddressFilters);
-
-        var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
-        initiateConnect(target, filterAndInvokers);
+        this.filters = filterAndInvokers;
+        return filterAndInvokers;
     }
 
     /**
@@ -359,7 +373,6 @@ public class KafkaProxyFrontendHandler
      */
     void inConnecting(
                       HostPort remote,
-                      List<FilterAndInvoker> filters,
                       KafkaProxyBackendHandler backendHandler) {
         final Channel inboundChannel = clientCtx().channel();
         // Start the upstream connection attempt.
@@ -380,7 +393,7 @@ public class KafkaProxyFrontendHandler
         if (logFrames) {
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger", LogLevel.INFO));
         }
-        addFiltersToPipeline(filters, pipeline, inboundChannel);
+        // addFiltersToPipeline(filters, pipeline, inboundChannel);
 
         var encoderListener = buildMetricsMessageListenerForEncode();
         var decoderListener = buildMetricsMessageListenerForDecode();
@@ -526,9 +539,6 @@ public class KafkaProxyFrontendHandler
      * @param msg the RPC to buffer.
      */
     void bufferMsg(Object msg) {
-        if (msg instanceof HAProxyMessage) {
-            return;
-        }
         if (bufferedMsgs == null) {
             bufferedMsgs = new ArrayList<>();
         }
@@ -546,7 +556,7 @@ public class KafkaProxyFrontendHandler
             // TODO configurable timeout
             // Handler name must be unique, but filters are allowed to appear multiple times
             String handlerName = "filter-" + ++num + "-" + protocolFilter.filterName();
-            pipeline.addFirst(
+            pipeline.addBefore(clientCtx().name(),
                     handlerName,
                     new FilterHandler(
                             protocolFilter,

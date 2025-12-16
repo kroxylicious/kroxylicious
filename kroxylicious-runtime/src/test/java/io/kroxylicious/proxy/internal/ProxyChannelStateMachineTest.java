@@ -459,7 +459,7 @@ class ProxyChannelStateMachineTest {
         // Then
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.Connecting.class);
-        verify(frontendHandler).inConnecting(eq(brokerAddress), eq(filters), notNull(KafkaProxyBackendHandler.class));
+        verify(frontendHandler).inConnecting(eq(brokerAddress), notNull(KafkaProxyBackendHandler.class));
         assertThat(proxyChannelStateMachine).extracting("backendHandler").isNotNull();
     }
 

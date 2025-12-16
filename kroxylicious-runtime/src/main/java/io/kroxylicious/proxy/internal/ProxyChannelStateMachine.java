@@ -478,7 +478,7 @@ public class ProxyChannelStateMachine {
                               VirtualClusterModel virtualClusterModel) {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
-        Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), filters, backendHandler);
+        Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()
                 .setMessage("{}: Upstream connection to {} established for client at {}:{}")

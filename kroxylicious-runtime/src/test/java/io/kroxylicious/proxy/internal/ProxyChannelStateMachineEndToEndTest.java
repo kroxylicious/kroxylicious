@@ -64,6 +64,7 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -124,6 +125,7 @@ class ProxyChannelStateMachineEndToEndTest {
         // Given
         buildFrontendHandler(false);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
+        activateOutboundChannelAutomatically = false;
 
         // When
         hClientConnect(handler);
@@ -177,23 +179,6 @@ class ProxyChannelStateMachineEndToEndTest {
     }
 
     @ParameterizedTest
-    @MethodSource("bool")
-    void clientActiveToHaProxy(boolean sni) {
-        buildHandlerInClientActiveState(sni);
-
-        // When
-        inboundChannel.writeInbound(HA_PROXY_MESSAGE);
-
-        // Then
-        inboundChannel.checkException();
-        assertThat(inboundChannel.config().isAutoRead()).isFalse();
-        assertThat(inboundChannel.isWritable()).isTrue();
-
-        assertHandlerInHaProxyState();
-
-    }
-
-    @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void clientActiveToConnecting(
                                   boolean sni,
@@ -234,6 +219,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
     private void buildHandlerInClientActiveState(boolean sni) {
         buildFrontendHandler(false);
+        activateOutboundChannelAutomatically = false;
 
         hClientConnect(handler);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
@@ -449,7 +435,7 @@ class ProxyChannelStateMachineEndToEndTest {
         return new KafkaProxyFrontendHandler(pfr,
                 new FilterChainFactory(pfr, List.of()),
                 List.of(),
-                null,
+                mock(EndpointReconciler.class),
                 new ApiVersionsServiceImpl(),
                 dp,
                 new DefaultSubjectBuilder(List.of()),

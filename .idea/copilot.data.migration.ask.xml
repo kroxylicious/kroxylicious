@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AskMigrationStateService">
+    <pendingSelectedModel>
+      <entry key="chat-panel" value="Gemini 3 Pro (Preview)" />
+      <entry key="edit-panel" value="GPT-4.1" />
+      <entry key="agent-panel" value="Gemini 3 Pro (Preview)" />
+    </pendingSelectedModel>
+  </component>
+</project>
