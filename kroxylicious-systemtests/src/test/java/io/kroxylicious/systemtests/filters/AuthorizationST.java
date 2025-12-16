@@ -86,7 +86,9 @@ class AuthorizationST extends AbstractST {
 
     @AfterAll
     void cleanUp() {
-        kroxyliciousOperator.delete();
+        if (kroxyliciousOperator != null) {
+            kroxyliciousOperator.delete();
+        }
     }
 
     @Test
