@@ -28,7 +28,7 @@ spec:
 where:
 
 * `enabledMechanisms` restricts the filter to the given SASL mechanism(s).
-Refer to SASL mechanism by its name given in the xref:supported-mechanisms--{context}[supported mechanisms] table.
+Refer to SASL mechanism by its name given in the xref:supported-mechanisms-{context}[supported mechanisms] table.
 If omitted, the SASL mechanisms `SCRAM-SHA-256`, `SCRAM-SHA-512` and `OAUTHBEARER` will be enabled by default.
 *  if `requireAuthentication` is true, a successful authentication is required before the filter forwards any requests other than those strictly required to perform SASL authentication.
 If false then the filter will forward all requests regardless of whether SASL authentication has been attempted or was successful. Defaults to false.

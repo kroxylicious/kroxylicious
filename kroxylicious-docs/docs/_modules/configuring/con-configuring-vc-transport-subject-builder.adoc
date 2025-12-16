@@ -13,7 +13,7 @@ The transport subject builder controls how certificate information is turned int
 For example, you can build a principal from parts of the X500 principal. 
 A typical use case is mapping a distinguished name such as `CN=myapp,OU=dev,O=kroxylicious.io,C=US` to `myapp`.
 
-NOTE: For applications that use SASL authentication, see {SASLInspectionGuide} for information on building the authenticated subject from a successful client–broker SASL authentication.
+NOTE: For applications that use SASL authentication, see the {SASLInspectionGuide} for information on building the authenticated subject from a successful client–broker SASL authentication.
 
 == Configuration
 
