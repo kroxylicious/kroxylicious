@@ -1,0 +1,43 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-configuring-sasl-subject-builder-{context}']
+= Configuring SASL subject builder
+
+[role="_abstract"]
+
+By default, the SASL Inspection filter creates an authenticated subject with a principal that contains the SASL authorized ID. 
+You can change this behavior by providing an alternative subject builder configuration.
+
+== Configuration
+
+The following example shows configuration for the SASL subject builder:
+
+[source,yaml]
+----
+# ...
+subjectBuilder: DefaultSaslSubjectBuilderService
+subjectBuilderConfig:
+    addPrincipals:
+      - from: <field name>
+        map:
+          - replaceMatch: <match replace flags 1>
+          - # ... 
+          - replaceMatch: <match replace flags n>
+          - else: identity|anonymous
+        principalFactory: <principal factory>
+----
+
+include::../../_snippets/snip-subject-builder-common-params.adoc[]
+
+== Supported fields
+
+|===
+|Field name|Description
+
+|saslAuthorizedId
+|The SASL authorized ID returned by the SASL authentication exchange.
+
+|===
+
+include::../../_snippets/snip-subject-builder-replacement-matchers.adoc[]
+
