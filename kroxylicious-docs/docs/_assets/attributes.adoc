@@ -144,17 +144,17 @@ ifndef::DocRoot[:DocRoot: ..]
 :MultiTenancyGuide: link:{MultiTenancyGuideUrl}[{MultiTenancyGuideText}]
 
 :OauthBearerValidationGuideUrl: {DocRoot}/oauth-bearer-validation/
-:OauthBearerValidationGuideText: Kroxylicious OAuth Bearer Validation guide
+:OauthBearerValidationGuideText: OAuth Bearer Validation guide
 :OauthBearerValidationGuide: link:{OauthBearerValidationGuideUrl}[{OauthBearerValidationGuideText}]
 
 :RecordEncryptionGuideUrl: {DocRoot}/record-encryption-guide/
-:RecordEncryptionGuideText: Kroxylicious Record Encryption guide
+:RecordEncryptionGuideText: Record Encryption guide
 :RecordEncryptionGuide: link:{RecordEncryptionGuideUrl}[{RecordEncryptionGuideText}]
 
 :RecordValidationGuideUrl: {DocRoot}/record-validation-guide/
-:RecordValidationGuideText: Kroxylicious Record Validation guide
+:RecordValidationGuideText: Record Validation guide
 :RecordValidationGuide: link:{RecordValidationGuideUrl}[{RecordValidationGuideText}]
 
 :SASLInspectionGuideUrl: {DocRoot}/sasl-inspection-guide/
-:SASLInspectionGuideText: SASL inspection guide
+:SASLInspectionGuideText: SASL Inspection guide
 :SASLInspectionGuide: link:{SASLInspectionGuideUrl}[{SASLInspectionGuideText}]
