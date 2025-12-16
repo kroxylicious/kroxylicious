@@ -48,6 +48,7 @@ public class ResourceManager {
     static {
         var shcLogger = LoggerFactory.getLogger(StandardHttpClient.class);
         LOGGER.warn("#3065: Debug enabled for {} : {}", shcLogger.getName(), shcLogger.isDebugEnabled());
+        shcLogger.debug("#3065: Debug log test");
 
         // Belt and brace - log the creates/deletes the resource manager thinks it is making.
         KubeResourceManager.get().addCreateCallback(hm -> {
