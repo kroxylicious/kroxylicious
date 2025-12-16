@@ -430,7 +430,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         String className = RecordValidation.class.getName();
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
                 List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
-                        Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioContentId", contentId)))))
+                        Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioId", contentId)))))
                 .build();
         return proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)
@@ -443,7 +443,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
                 List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
                         Map.of("schemaValidationConfig",
-                                Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioContentId", contentId, "wireFormatVersion", wireFormatVersion)))))
+                                Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioId", contentId, "wireFormatVersion", wireFormatVersion)))))
                 .build();
         return proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)

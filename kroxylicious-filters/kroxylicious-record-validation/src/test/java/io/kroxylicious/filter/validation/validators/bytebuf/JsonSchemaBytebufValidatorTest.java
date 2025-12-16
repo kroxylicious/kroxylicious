@@ -85,12 +85,6 @@ class JsonSchemaBytebufValidatorTest {
                                 .withBody(JSON_SCHEMA)));
 
         registryServer.stubFor(
-                get(urlEqualTo("/apis/registry/v3/ids/globalIds/1?dereference=false"))
-                        .willReturn(WireMock.aResponse()
-                                .withHeader("Content-Type", "application/json")
-                                .withBody(JSON_SCHEMA)));
-
-        registryServer.stubFor(
                 get(urlEqualTo("/apis/registry/v3/ids/contentIds/1/references"))
                         .willReturn(WireMock.aResponse()
                                 .withHeader("Content-Type", "application/json")
@@ -261,6 +255,44 @@ class JsonSchemaBytebufValidatorTest {
         // V2 wire format uses 8-byte global IDs
         var value = asV2SchemaIdPrefixBuf(CONTENT_ID, VALID_JSON);
         Record record = record(RECORD_KEY, value);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V2);
+        var future = validator.validate(record.value(), record, false);
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
+    }
+
+    @Test
+    void v2ValueWithCorrectGlobalIdInHeaderPassesValidation() {
+        // V2 mode should read globalId from headers (not contentId)
+        Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(CONTENT_ID)) };
+        Record record = record(RECORD_KEY, VALID_JSON, headers);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V2);
+        var future = validator.validate(record.value(), record, false);
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
+    }
+
+    @Test
+    void v2ValueWithWrongGlobalIdInHeaderRejected() {
+        // V2 mode should reject wrong globalId in headers
+        Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(CONTENT_ID + 1)) };
+        Record record = record(RECORD_KEY, VALID_JSON, headers);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V2);
+        var future = validator.validate(record.value(), record, false);
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
+    }
+
+    @Test
+    void v2ValueWithContentIdInHeaderFallsBackToMagicByte() {
+        // V2 mode should ignore contentId header (only reads globalId)
+        // If contentId header is present but no globalId, it should fall back to magic byte detection
+        Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_CONTENT_ID, toByteArray(CONTENT_ID)) };
+        var value = asV2SchemaIdPrefixBuf(CONTENT_ID, VALID_JSON);
+        Record record = record(RECORD_KEY, value, headers);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V2);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
