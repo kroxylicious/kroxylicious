@@ -5,12 +5,6 @@
  */
 package io.kroxylicious.proxy.filter.validation;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.security.KeyPair;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -93,33 +87,17 @@ class JsonSchemaRecordValidationTlsIT extends RecordValidationBaseIT {
 
     @BeforeAll
     static void init() throws Exception {
-        // Generate self-signed certificates for TLS
-        KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
-        X509Certificate certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
+        // Generate certificates and keystores using CertificateGenerator
+        CertificateGenerator.Keys keys = CertificateGenerator.generate();
 
-        // Create PKCS12 keystore for the registry server
-        File keystoreFile = File.createTempFile("registry-keystore", ".p12");
-        keystoreFile.deleteOnExit();
-        String keystorePassword = "changeit";
-        KeyStore keyStore = KeyStore.getInstance("PKCS12");
-        keyStore.load(null, null);
-        keyStore.setKeyEntry("registry", keyPair.getPrivate(), keystorePassword.toCharArray(), new Certificate[]{ certificate });
-        try (FileOutputStream fos = new FileOutputStream(keystoreFile)) {
-            keyStore.store(fos, keystorePassword.toCharArray());dd
-        }
+        // Use the generated JKS keystore for the registry server
+        CertificateGenerator.KeyStore jksKeystore = keys.jksServerKeystore();
 
-        // Create truststore for the client (Kroxylicious)
-        File truststoreFile = File.createTempFile("registry-truststore", ".p12");
-        truststoreFile.deleteOnExit();
-        trustStorePassword = "changeit";
-        trustStoreType = "PKCS12";
-        KeyStore trustStore = KeyStore.getInstance(trustStoreType);
-        trustStore.load(null, null);
-        trustStore.setCertificateEntry("registry-cert", certificate);
-        try (FileOutputStream fos = new FileOutputStream(truststoreFile)) {
-            trustStore.store(fos, trustStorePassword.toCharArray());
-        }
-        trustStorePath = truststoreFile.getAbsolutePath();
+        // Use the generated PKCS12 truststore for the client (Kroxylicious)
+        CertificateGenerator.TrustStore pkcs12Truststore = keys.pkcs12ClientTruststore();
+        trustStorePath = pkcs12Truststore.path().toString();
+        trustStorePassword = pkcs12Truststore.password();
+        trustStoreType = pkcs12Truststore.type();
 
         // Start Apicurio Registry with TLS enabled
         DockerImageName dockerImageName = DockerImageName.parse("quay.io/apicurio/apicurio-registry:3.0.7");
@@ -127,12 +105,13 @@ class JsonSchemaRecordValidationTlsIT extends RecordValidationBaseIT {
         registryContainer = new GenericContainer<>(dockerImageName)
                 .withEnv(Map.of(
                         "QUARKUS_HTTP_SSL_PORT", String.valueOf(APICURIO_REGISTRY_HTTPS_PORT),
-                        "QUARKUS_HTTP_SSL_CERTIFICATE_KEY_STORE_FILE", "/opt/keystore.p12",
-                        "QUARKUS_HTTP_SSL_CERTIFICATE_KEY_STORE_PASSWORD", keystorePassword,
-                        "QUARKUS_HTTP_SSL_CERTIFICATE_KEY_STORE_FILE_TYPE", "PKCS12",
+                        "QUARKUS_HTTP_SSL_CERTIFICATE_KEY_STORE_FILE", "/opt/keystore.jks",
+                        "QUARKUS_HTTP_SSL_CERTIFICATE_KEY_STORE_PASSWORD", jksKeystore.storePassword(),
+                        "QUARKUS_HTTP_SSL_CERTIFICATE_KEY_STORE_FILE_TYPE", CertificateGenerator.JKS,
+                        "QUARKUS_HTTP_SSL_CERTIFICATE_KEY_STORE_KEY_PASSWORD", jksKeystore.keyPassword(),
                         "QUARKUS_HTTP_INSECURE_REQUESTS", "disabled"))
                 .withExposedPorts(APICURIO_REGISTRY_HTTPS_PORT)
-                .withCopyFileToContainer(MountableFile.forHostPath(keystoreFile.getAbsolutePath()), "/opt/keystore.p12")
+                .withCopyFileToContainer(MountableFile.forHostPath(jksKeystore.path().toString()), "/opt/keystore.jks")
                 .waitingFor(Wait.forHttps(APICURIO_REGISTRY_API + "/system/info")
                         .forStatusCode(200)
                         .allowInsecure());

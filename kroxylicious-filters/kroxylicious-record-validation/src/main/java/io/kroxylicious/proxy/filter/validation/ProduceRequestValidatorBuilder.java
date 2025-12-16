@@ -13,6 +13,7 @@ import java.util.Map;
 import io.apicurio.registry.resolver.config.SchemaResolverConfig;
 
 import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustStore;
@@ -87,8 +88,27 @@ class ProduceRequestValidatorBuilder {
     }
 
     private static void addTlsConfig(Map<String, Object> resolverConfig, Tls tls) {
+        // Fail if unsupported TLS options are configured
+        if (tls.key() != null) {
+            throw new IllegalArgumentException("TLS client authentication (key) is not supported by the schema registry client");
+        }
+        if (tls.cipherSuites() != null) {
+            throw new IllegalArgumentException("Custom cipher suites are not supported by the schema registry client");
+        }
+        if (tls.protocols() != null) {
+            throw new IllegalArgumentException("Custom TLS protocols are not supported by the schema registry client");
+        }
+
         TrustProvider trustProvider = tls.trust();
+        if (trustProvider == null) {
+            // No trust provider configured, use platform defaults
+            return;
+        }
+
         if (trustProvider instanceof TrustStore trustStore) {
+            if (trustStore.isPemType()) {
+                throw new IllegalArgumentException("PEM trust store type is not supported by the schema registry client");
+            }
             resolverConfig.put(SchemaResolverConfig.TLS_TRUSTSTORE_LOCATION, trustStore.storeFile());
             if (trustStore.storePasswordProvider() != null) {
                 resolverConfig.put(SchemaResolverConfig.TLS_TRUSTSTORE_PASSWORD, trustStore.storePasswordProvider().getProvidedPassword());
@@ -101,7 +121,12 @@ class ProduceRequestValidatorBuilder {
             resolverConfig.put(SchemaResolverConfig.TLS_TRUST_ALL, true);
             resolverConfig.put(SchemaResolverConfig.TLS_VERIFY_HOST, false);
         }
-        // PlatformTrustProvider: Platform trust is the default behavior, no additional config needed
+        else if (trustProvider instanceof PlatformTrustProvider) {
+            // Platform trust is the default behavior, no additional config needed
+        }
+        else {
+            throw new IllegalArgumentException("Unsupported TrustProvider type: " + trustProvider.getClass().getName());
+        }
     }
 
 }
