@@ -5,12 +5,22 @@
 #
 
 FROM registry.access.redhat.com/ubi9/openjdk-17:1.23-6.1764765564 AS builder
-
 ARG TARGETOS
 ARG TARGETARCH
 
 USER root
 WORKDIR /opt/kroxylicious
+
+# obtain a baseline set of maven dependencies in a cacheable layer
+ENV BASELINE_KROXYLICIOUS_VERSION=v0.18.0
+RUN microdnf -y update \
+    && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y git \
+    && microdnf clean all \
+    && git clone --depth 1 --branch ${BASELINE_KROXYLICIOUS_VERSION} https://github.com/kroxylicious/kroxylicious && cd kroxylicious \
+    && mvn -q -B clean package -Pdist -Dquick -DskipContainerImageBuild=true -DskipDocs=true -Dmaven.test.skip \
+    && rm -rf ~/.m2/repository/io/kroxylicious \
+    && cd .. \
+    && rm -rf ./kroxylicious
 
 # Download Tini
 ENV TINI_VERSION=v0.19.0

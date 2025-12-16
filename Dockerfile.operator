@@ -12,6 +12,17 @@ ARG TARGETARCH
 USER root
 WORKDIR /opt/kroxylicious
 
+# obtain a baseline set of maven dependencies in a cacheable layer
+ENV BASELINE_KROXYLICIOUS_VERSION=v0.18.0
+RUN microdnf -y update \
+    && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y git \
+    && microdnf clean all \
+    && git clone --depth 1 --branch ${BASELINE_KROXYLICIOUS_VERSION} https://github.com/kroxylicious/kroxylicious && cd kroxylicious \
+    && mvn -q -B clean package -Pdist -Dquick -DskipContainerImageBuild=true -DskipDocs=true -Dmaven.test.skip \
+    && rm -rf ~/.m2/repository/io/kroxylicious \
+    && cd .. \
+    && rm -rf ./kroxylicious
+
 # Download Tini
 ENV TINI_VERSION=v0.19.0
 ENV TINI_SHA256_AMD64=93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c
