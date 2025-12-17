@@ -1,0 +1,15 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// assembly-kms-key-creation.adoc
+
+[id='assembly-key-creation-aws-kms-{context}']
+= Creating keys in AWS KMS
+
+[role="_abstract"]
+To create a key in AWS Key Management Service for use with the Record Encryption filter, use the following procedure.
+
+You'll need a privileged AWS user that is capable of creating keys.
+
+include::../../../_modules/record-encryption/aws-kms/proc-aws-kms-key-creation.adoc[leveloffset=+1]

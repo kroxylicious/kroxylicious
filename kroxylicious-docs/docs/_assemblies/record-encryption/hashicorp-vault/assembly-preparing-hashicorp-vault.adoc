@@ -2,7 +2,7 @@
 
 // file included in the following:
 //
-// assembly-record-encryption-filter.adoc
+// assembly-kms-preparing.adoc
 
 [id='assembly-preparing-hashicorp-vault-{context}']
 = Preparing HashiCorp Vault
@@ -15,5 +15,3 @@ To use HashiCorp Vault with the Record Encryption filter, use the following setu
 * Obtain a Vault token that includes the filter policy.
 
 include::../../../_modules/record-encryption/hashicorp-vault/con-vault-setup.adoc[leveloffset=+1]
-
-include::../../../_modules/record-encryption/hashicorp-vault/proc-vault-key-creation.adoc[leveloffset=+1]
