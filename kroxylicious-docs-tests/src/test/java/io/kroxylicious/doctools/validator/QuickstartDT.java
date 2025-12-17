@@ -26,7 +26,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 import org.asciidoctor.Attributes;
 import org.asciidoctor.ast.StructuralNode;
@@ -52,7 +51,7 @@ class QuickstartDT {
 
     private static final FileAttribute<Set<PosixFilePermission>> OWNER_RWX = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
 
-    private static Stream<Arguments> quickstarts() {
+    private static List<Arguments> quickstarts() {
         try (var blockExtractor = new BlockExtractor()) {
 
             Assertions.assertThat(Utils.OPERATOR_ZIP).exists();
@@ -65,7 +64,7 @@ class QuickstartDT {
             var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quickstart").resolve("index.adoc");
             var quickstarts = List.of(new Quickstart("record-encryption-quickstart(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")),
                     new Quickstart("record-encryption-quickstart(localstack)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "localstack")));
-            return quickstarts.stream().map(q -> extractCodeBlocks(blockExtractor, q));
+            return quickstarts.stream().map(q -> extractCodeBlocks(blockExtractor, q)).toList();
         }
     }
 
