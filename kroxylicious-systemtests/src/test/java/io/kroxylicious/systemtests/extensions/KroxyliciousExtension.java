@@ -89,9 +89,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         String testMethodName = extensionContext.getRequiredTestMethod().getName();
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
-            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
-                logCollector.collectLogs(testClassName, testMethodName);
-            });
+            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> logCollector.collectLogs(testClassName, testMethodName));
         }
         finally {
             if (Environment.SYNC_RESOURCES_DELETION) {
@@ -106,7 +104,9 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     @Override
     public void beforeEach(ExtensionContext extensionContext) {
         ResourceManager.setTestContext(extensionContext);
-        final String k8sNamespace = extensionContext.getRequiredTestClass().getSimpleName().toLowerCase(Locale.ROOT) + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        String simpleName = extensionContext.getRequiredTestClass().getSimpleName().replace("ST", "");
+        String namespacePrefix = String.join("-", simpleName.split("(?=\\p{Upper})")).toLowerCase(Locale.ROOT) + "-st";
+        final String k8sNamespace = namespacePrefix + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
         extensionContext.getStore(junitNamespace).put(K8S_NAMESPACE_KEY, k8sNamespace);
         NamespaceUtils.createNamespaceAndPrepare(k8sNamespace);
     }

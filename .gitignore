@@ -42,6 +42,7 @@ dependency-reduced-pom.xml
 .idea/**/dynamic.xml
 .idea/**/uiDesigner.xml
 .idea/**/dbnavigator.xml
+.idea/remote-targets.xml
 
  # Gradle
 .idea/**/gradle.xml
