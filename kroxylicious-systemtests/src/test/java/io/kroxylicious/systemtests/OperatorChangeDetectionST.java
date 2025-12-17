@@ -73,7 +73,7 @@ class OperatorChangeDetectionST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
     private static Kroxylicious kroxylicious;
     private static CertManager certManager;
-    private final String kafkaClusterName = "my-cluster";
+    private final String kafkaClusterName = "operator-change-detection-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
 
     @Test
@@ -133,7 +133,7 @@ class OperatorChangeDetectionST extends AbstractST {
     void shouldUpdateDeploymentWhenDownstreamTlsCertUpdated(String namespace) {
         // Given
         var issuer = certManager.issuer(namespace);
-        var cert = certManager.certFor(namespace, "my-cluster-cluster-ip." + namespace + ".svc.cluster.local");
+        var cert = certManager.certFor(namespace, "operator-change-detection-cluster-ip." + namespace + ".svc.cluster.local");
 
         resourceManager.createOrUpdateResourceWithWait(issuer, cert);
 
@@ -159,7 +159,7 @@ class OperatorChangeDetectionST extends AbstractST {
     void shouldUpdateDeploymentWhenDownstreamTrustUpdated(String namespace) {
         // Given
         var issuer = certManager.issuer(namespace);
-        var cert = certManager.certFor(namespace, "my-cluster-cluster-ip." + namespace + ".svc.cluster.local");
+        var cert = certManager.certFor(namespace, "operator-change-detection-cluster-ip." + namespace + ".svc.cluster.local");
 
         resourceManager.createOrUpdateResourceWithWait(issuer, cert);
 

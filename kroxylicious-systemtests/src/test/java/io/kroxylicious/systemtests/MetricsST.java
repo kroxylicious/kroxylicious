@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
  */
 class MetricsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsST.class);
-    private final String clusterName = "my-cluster";
+    private final String clusterName = "metrics-st-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String RECORD_VALUE = "Hello-world";
     private MetricsCollector kroxyliciousCollector;

@@ -40,7 +40,7 @@ import static org.assertj.core.api.BDDAssumptions.given;
 class KroxyliciousST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousST.class);
     private static Kroxylicious kroxylicious;
-    private final String clusterName = "my-cluster";
+    private final String clusterName = "kroxylicious-st-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
     private KroxyliciousOperator kroxyliciousOperator;

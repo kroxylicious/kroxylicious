@@ -49,7 +49,7 @@ class RecordEncryptionST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryptionST.class);
     private static final String MESSAGE = "Hello-world";
     private static final String KEK_PREFIX = "KEK-";
-    private final String clusterName = "my-cluster";
+    private final String clusterName = "record-encryption-cluster";
     private String bootstrap;
     private TestKekManager testKekManager;
     private KroxyliciousOperator kroxyliciousOperator;

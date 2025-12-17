@@ -47,7 +47,7 @@ class AuthorizationST extends AbstractST {
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationST.class);
     private static final String MESSAGE = "Hello-world";
-    private final String clusterName = "my-cluster";
+    private final String clusterName = "authorization-st-cluster";
     private String bootstrap;
     private KroxyliciousOperator kroxyliciousOperator;
     private static Kroxylicious kroxylicious;
