@@ -89,7 +89,8 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         String testMethodName = extensionContext.getRequiredTestMethod().getName();
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
-            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> logCollector.collectLogs(testClassName, testMethodName));
+            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException"))
+                    .ifPresent(e -> logCollector.collectLogs(testClassName, testMethodName));
         }
         finally {
             if (Environment.SYNC_RESOURCES_DELETION) {
