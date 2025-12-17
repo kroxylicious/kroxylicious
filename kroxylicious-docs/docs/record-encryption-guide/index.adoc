@@ -51,3 +51,6 @@ include::_assemblies/assembly-operations-record-encryption-filter.adoc[leveloffs
 
 //trademark notices
 include::_assets/trademarks.adoc[leveloffset=+1]
+
+// glossary
+include::_modules/record-encryption/ref-glossary.adoc[leveloffset=+1]
