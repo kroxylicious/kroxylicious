@@ -2,7 +2,7 @@
 
 // file included in the following:
 //
-// assembly-hashicorp-vault.adoc
+// assembly-preparing-hashicorp-vault.adoc
 
 [id='con-vault-setup-{context}']
 = Enable the Transit Engine

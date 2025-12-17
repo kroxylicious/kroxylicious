@@ -2,9 +2,9 @@
 
 // file included in the following:
 //
-// assembly-hashicorp-vault.adoc
+// assembly-preparing-hashicorp-vault.adoc
 
-[id='con-vault-key-creation-{context}']
+[id='proc-vault-key-creation-{context}']
 = Creating HashiCorp Vault keys
 
 [role="_abstract"]

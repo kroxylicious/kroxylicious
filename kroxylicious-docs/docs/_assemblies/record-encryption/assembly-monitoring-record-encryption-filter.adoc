@@ -10,4 +10,4 @@
 [role="_abstract"]
 This section describes how to monitor the Record Encryption filter.
 
-include::../_modules/record-encryption/con-metrics.adoc[leveloffset=+1]
+include::../../_modules/record-encryption/con-metrics.adoc[leveloffset=+1]

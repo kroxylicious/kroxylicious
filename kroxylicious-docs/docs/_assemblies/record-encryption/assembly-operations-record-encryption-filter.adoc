@@ -11,4 +11,4 @@
 
 This section documents the operational aspects of using the record encryption filter.
 
-include::../_modules/record-encryption/con-lost-kek.adoc[leveloffset=+1]
+include::../../_modules/record-encryption/con-lost-kek.adoc[leveloffset=+1]

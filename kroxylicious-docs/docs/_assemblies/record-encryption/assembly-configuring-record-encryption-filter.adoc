@@ -46,22 +46,22 @@ ifdef::include-platform-kubernetes[]
 * In a Kubernetes deployment using a `KafkaProtocolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
 endif::[]
 
-include::../_modules/record-encryption/hashicorp-vault/con-vault-plugin-configuration.adoc[leveloffset=+1]
+include::../../_modules/record-encryption/hashicorp-vault/con-vault-plugin-configuration.adoc[leveloffset=+1]
 
-include::../_modules/record-encryption/aws-kms/con-aws-kms-plugin-configuration.adoc[leveloffset=+1]
+include::../../_modules/record-encryption/aws-kms/con-aws-kms-plugin-configuration.adoc[leveloffset=+1]
 
-include::../_modules/record-encryption/azure-key-vault/con-azure-key-vault-plugin-configuration.adoc[leveloffset=+1]
+include::../../_modules/record-encryption/azure-key-vault/con-azure-key-vault-plugin-configuration.adoc[leveloffset=+1]
 
 ifdef::include-fortanix-dsm-kms[]
-include::../_modules/record-encryption/fortanix-dsm/con-fortanix-dsm-plugin-configuration.adoc[leveloffset=+1]
+include::../../_modules/record-encryption/fortanix-dsm/con-fortanix-dsm-plugin-configuration.adoc[leveloffset=+1]
 endif::[]
 
-include::../_modules/record-encryption/con-record-encryption-filter-config.adoc[leveloffset=+1]
+include::../../_modules/record-encryption/con-record-encryption-filter-config.adoc[leveloffset=+1]
 
 ifdef::include-platform-bare-metal[]
-include::../_modules/record-encryption/con-example-proxy-config.adoc[leveloffset=+1]
+include::../../_modules/record-encryption/con-example-proxy-config.adoc[leveloffset=+1]
 endif::[]
 
 ifdef::include-platform-kubernetes[]
-include::../_modules/record-encryption/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
+include::../../_modules/record-encryption/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
 endif::[]
