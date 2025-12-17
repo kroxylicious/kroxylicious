@@ -57,7 +57,7 @@ jobs:
       - name: 'Set up Docker Buildx'
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
       - name: 'Cache Maven packages'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
@@ -75,7 +75,7 @@ jobs:
           minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
           minikube image ls | grep --fixed-strings ${KROXYLICIOUS_IMAGE}
       - name: Cache SonarCloud packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         if: github.ref_name == 'main' || env.SONAR_TOKEN_SET == 'true'
         with:
           path: ~/.sonar/cache
