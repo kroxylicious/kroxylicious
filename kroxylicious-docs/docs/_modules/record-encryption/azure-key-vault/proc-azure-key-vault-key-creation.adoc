@@ -2,9 +2,9 @@
 
 // file included in the following:
 //
-// assembly-azure-key-vault.adoc
+// assembly-preparing-azure-key-vault.adoc
 
-[id='con-azure-key-vault-key-creation-{context}']
+[id='proc-azure-key-vault-key-creation-{context}']
 = Creating Azure Key Vault keys
 
 [role="_abstract"]

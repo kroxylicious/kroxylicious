@@ -2,9 +2,9 @@
 
 // file included in the following:
 //
-// assembly-fortanix-dsm.adoc
+// assembly-preparing-fortanix-dsm.adoc
 
-[id='con-fortanix-dsm-key-creation-{context}']
+[id='proc-fortanix-dsm-key-creation-{context}']
 = Creating Fortanix DSM keys
 
 [role="_abstract"]

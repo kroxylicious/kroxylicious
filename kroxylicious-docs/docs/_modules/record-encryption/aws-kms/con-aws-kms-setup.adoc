@@ -2,7 +2,7 @@
 
 // file included in the following:
 //
-// assembly-aws-kms.adoc
+// assembly-preparing-aws-kms.adoc
 
 [id='con-aws-kms-setup-{context}']
 = Establish an aliasing convention for keys within AWS KMS

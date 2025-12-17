@@ -2,9 +2,9 @@
 
 // file included in the following:
 //
-// assembly-aws-kms.adoc
+// assembly-preparing-aws-kms.adoc
 
-[id='con-aws-kms-key-creation-{context}']
+[id='proc-aws-kms-key-creation-{context}']
 = Creating AWS KMS keys
 
 [role="_abstract"]
