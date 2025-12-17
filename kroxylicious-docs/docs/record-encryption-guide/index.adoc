@@ -43,6 +43,9 @@ include::_assemblies/record-encryption/assembly-kms-preparing.adoc[leveloffset=+
 //configuring the record encryption filter
 include::_assemblies/record-encryption/assembly-configuring-record-encryption-filter.adoc[leveloffset=+1]
 
+// key creation (might be done by a KMS key manager)
+include::_assemblies/record-encryption/assembly-kms-key-creation.adoc[leveloffset=+1]
+
 //monitoring the record encryption filter
 include::_assemblies/record-encryption/assembly-monitoring-record-encryption-filter.adoc[leveloffset=+1]
 

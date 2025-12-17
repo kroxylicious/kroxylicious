@@ -1,0 +1,18 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// record-encryption-guide/index.adoc
+
+[id='assembly-kms-key-creation-{context}']
+= Creating Keys
+
+[role="_abstract"]
+This section assumes that you already have a supported KMS instance up and running and have configured the Record Encryption filter.
+It describes how to create the keys in the KMS that will be used to encrypt records sent to the topics.
+
+include::hashicorp-vault/assembly-key-creation-hashicorp-vault.adoc[leveloffset=+1]
+include::aws-kms/assembly-key-creation-aws-kms.adoc[leveloffset=+1]
+include::azure-key-vault/assembly-key-creation-azure-key-vault.adoc[leveloffset=+1]
+ifdef::include-fortanix-dsm-kms[]
+include::fortanix-dsm/assembly-key-creation-fortanix-dsm.adoc[leveloffset=+1]
+endif::[]
+

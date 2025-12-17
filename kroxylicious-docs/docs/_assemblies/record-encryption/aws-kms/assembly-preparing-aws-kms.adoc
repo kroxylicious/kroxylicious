@@ -2,7 +2,7 @@
 
 // file included in the following:
 //
-// assembly-record-encryption-filter.adoc
+// assembly-kms-preparing.adoc
 
 [id='assembly-preparing-aws-kms-{context}']
 = Preparing AWS KMS
@@ -11,9 +11,9 @@
 To prepare {aws}/kms/latest/developerguide/overview.html[AWS Key Management Service] for use with the Record Encryption filter, use the following setup:
 
 * Establish an AWS KMS aliasing convention for keys
-* Create AWS KMS keys
+* Create a policies giving permissions to the key aliases
+* Create a user for use by the filter and attach the policies to it.
 
 You'll need a privileged AWS user that is capable of creating users and policies to perform the set-up.
 
 include::../../../_modules/record-encryption/aws-kms/con-aws-kms-setup.adoc[leveloffset=+1]
-include::../../../_modules/record-encryption/aws-kms/proc-aws-kms-key-creation.adoc[leveloffset=+1]

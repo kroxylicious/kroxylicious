@@ -2,20 +2,17 @@
 
 // file included in the following:
 //
-// assembly-kms-preparing.adoc
+// assembly-kms-key-creation.adoc
 
-[id='assembly-preparing-azure-key-vault-{context}']
-= Preparing Azure Key Vault
+[id='assembly-key-creation-azure-key-vault-{context}']
+= Creating keys in Azure Key Vault
 
 [role="_abstract"]
-To prepare Azure Key Vault for use with the Record Encryption filter, use the following setup:
+To create a key in Azure Key Vault for use with the Record Encryption filter, use the following procedure.
 
-* Setup Azure resources
-* Establish a naming convention for keys
+You'll need a privileged Azure user that is capable of creating key resources to perform the set-up.
 
-You'll need a privileged Azure user that is capable of creating users and resources to perform the set-up.
-
-include::../../../_modules/record-encryption/azure-key-vault/proc-azure-key-vault-setup.adoc[leveloffset=+1]
+include::../../../_modules/record-encryption/azure-key-vault/proc-azure-key-vault-key-creation.adoc[leveloffset=+1]
 
 [role="_additional-resources"]
 .Additional resources
