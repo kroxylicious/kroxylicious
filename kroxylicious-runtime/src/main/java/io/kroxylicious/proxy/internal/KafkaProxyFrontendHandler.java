@@ -82,7 +82,6 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter {
 
-    private static final String NET_FILTER_INVOKED_IN_WRONG_STATE = "NetFilterContext invoked in wrong session state";
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */

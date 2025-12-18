@@ -158,7 +158,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     @Test
-    void testMessageHandledAfterConnectedBeforeOutboundActive() throws Exception {
+    void testMessageHandledAfterConnectedBeforeOutboundActive() {
         // Given
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
         when(virtualClusterModel.getClusterName()).thenReturn("cluster");
@@ -334,7 +334,6 @@ class KafkaProxyFrontendHandlerTest {
                       boolean sendSasl) {
 
         var dp = new DelegatingDecodePredicate();
-        // ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
 
         VirtualClusterModel virtualCluster = mock(VirtualClusterModel.class);
         when(virtualCluster.getClusterName()).thenReturn("cluster");
@@ -373,7 +372,7 @@ class KafkaProxyFrontendHandlerTest {
             // We transition directly through selecting server, so can't observe the state.
             assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
             // should cause connection to the backend cluster
-            handleConnect(handler);
+            handleConnect();
         }
 
         if (sendSasl) {
@@ -381,7 +380,7 @@ class KafkaProxyFrontendHandlerTest {
             writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData());
             if (!sendApiVersions) {
                 // client doesn't send api versions, so the next frame drives selectServer
-                handleConnect(handler);
+                handleConnect();
 
             }
             writeRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData());
@@ -470,7 +469,7 @@ class KafkaProxyFrontendHandlerTest {
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
     }
 
-    private void handleConnect(KafkaProxyFrontendHandler handler) {
+    private void handleConnect() {
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
         assertFalse(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound not yet active");
@@ -522,10 +521,6 @@ class KafkaProxyFrontendHandlerTest {
         givenHandlerIsConnecting(handler, "initial");
     }
 
-    private void connectionInitiated(NetFilter.NetFilterContext connectContext) {
-        connectContext.initiateConnect(new HostPort(CLUSTER_HOST, CLUSTER_PORT), List.of());
-    }
-
     private void givenHandlerIsConnecting(KafkaProxyFrontendHandler handler, String initialClientSoftwareName) {
         initialiseInboundChannel(handler);
         writeInboundApiVersionsRequest(initialClientSoftwareName);
@@ -547,7 +542,6 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void transitionsFromStart() {
         var dp = new DelegatingDecodePredicate();
-        var filter = mock(NetFilter.class);
         var virtualCluster = mock(VirtualClusterModel.class);
         var virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualCluster);
@@ -568,8 +562,4 @@ class KafkaProxyFrontendHandlerTest {
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
     }
 
-    private void getNetFilter(NetFilter.NetFilterContext netFilterContext) {
-        connectContext.set(netFilterContext);
-        netFilterContext.initiateConnect(new HostPort(CLUSTER_HOST, CLUSTER_PORT), List.of());
-    }
 }

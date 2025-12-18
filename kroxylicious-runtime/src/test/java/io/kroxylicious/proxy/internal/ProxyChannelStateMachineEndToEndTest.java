@@ -565,28 +565,6 @@ class ProxyChannelStateMachineEndToEndTest {
         };
     }
 
-    private static Answer<Void> selectServerCallsInitiateConnectTwice(
-                                                                      boolean sni,
-                                                                      boolean haProxy) {
-        return invocation -> {
-            NetFilter.NetFilterContext context = invocation.getArgument(0);
-            netFilterContextAssertions(context, sni, haProxy, true);
-            context.initiateConnect(CLUSTER_HOST_PORT, List.of());
-            context.initiateConnect(CLUSTER_HOST_PORT, List.of());
-            return null;
-        };
-    }
-
-    private static Answer<Void> selectServerDoesNotCallInitiateConnect(
-                                                                       boolean sni,
-                                                                       boolean haProxy) {
-        return invocation -> {
-            NetFilter.NetFilterContext context = invocation.getArgument(0);
-            netFilterContextAssertions(context, sni, haProxy, true);
-            return null;
-        };
-    }
-
     private static Answer<Void> selectServerThrows(Throwable exception) {
         return invocation -> {
             throw exception;
