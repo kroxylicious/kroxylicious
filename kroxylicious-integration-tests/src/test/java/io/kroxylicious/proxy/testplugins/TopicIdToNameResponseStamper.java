@@ -85,19 +85,31 @@ public class TopicIdToNameResponseStamper implements FilterFactory<TopicIdToName
             Set<Uuid> uuids = Arrays.stream(list.getFirst().split(",")).filter(s -> !s.isEmpty()).map(Uuid::fromString).collect(Collectors.toSet());
             CompletionStage<TopicNameMapping> topicNameLookup;
             if (asyncTopicNameLookup) {
-                // this is to demonstrate that the composed future executes chained work in the filter dispatch thread
-                topicNameLookup = CompletableFuture.supplyAsync(() -> null).thenCompose(o -> context.topicNames(uuids));
+                topicNameLookup = CompletableFuture.supplyAsync(() -> null).thenCompose(o -> getTopicNames(context, uuids));
             }
             else {
-                topicNameLookup = context.topicNames(uuids);
+                topicNameLookup = getTopicNames(context, uuids);
             }
-            return topicNameLookup.thenCompose(topicNames -> {
-                if (!filterDispatchExecutor.isInFilterDispatchThread()) {
-                    throw new IllegalStateException("work chained to topicNames future should execute in filter dispatch thread");
-                }
+            // must switch back as the supplyAsync initiated stage can be completed on another thread
+            return filterDispatchExecutor.completeOnFilterDispatchThread(topicNameLookup).thenCompose(topicNames -> {
+                assertOnFilterDispatchThread();
                 correlated.put(header.correlationId(), topicNames);
                 return context.forwardRequest(header, request);
             });
+        }
+
+        private CompletionStage<TopicNameMapping> getTopicNames(FilterContext context, Set<Uuid> uuids) {
+            return context.topicNames(uuids).thenApply(topicNameMapping -> {
+                // demonstrates that work chained directly to the topicNames result is executed in the dispatch thread
+                assertOnFilterDispatchThread();
+                return topicNameMapping;
+            });
+        }
+
+        private void assertOnFilterDispatchThread() {
+            if (!filterDispatchExecutor.isInFilterDispatchThread()) {
+                throw new IllegalStateException("work chained to topicNames future should execute in filter dispatch thread");
+            }
         }
 
         @Override
