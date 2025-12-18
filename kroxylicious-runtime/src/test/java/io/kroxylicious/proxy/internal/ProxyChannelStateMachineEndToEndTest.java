@@ -109,7 +109,7 @@ class ProxyChannelStateMachineEndToEndTest {
     }
 
     @AfterEach
-    public void closeChannel() {
+    void closeChannel() {
         if (inboundChannel != null) {
             inboundChannel.finishAndReleaseAll();
         }
@@ -121,7 +121,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @Test
     void toClientActive() {
         // Given
-        buildFrontendHandler(false, selectServerThrows(new AssertionError()));
+        buildFrontendHandler(false);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
 
         // When
@@ -139,7 +139,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @MethodSource("clientException")
     void toClientActiveThenException(Throwable clientException) {
         // Given
-        buildHandlerInClientActiveState(selectServerThrows(new AssertionError()), false);
+        buildHandlerInClientActiveState(false);
 
         // When
         handler.exceptionCaught(inboundCtx, clientException);
@@ -152,7 +152,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @Test
     void toClientActiveThenUnexpectedMessage() {
         // Given
-        buildHandlerInClientActiveState(selectServerThrows(new AssertionError()), false);
+        buildHandlerInClientActiveState(false);
 
         // When
         inboundChannel.writeInbound("unexpected");
@@ -165,7 +165,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @Test
     void toClientActiveThenInactive() {
         // Given
-        buildHandlerInClientActiveState(selectServerThrows(new AssertionError()), false);
+        buildHandlerInClientActiveState(false);
 
         // When
         inboundChannel.close();
@@ -178,7 +178,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @ParameterizedTest
     @MethodSource("bool")
     void clientActiveToHaProxy(boolean sni) {
-        buildHandlerInClientActiveState(selectServerThrows(new AssertionError()), sni);
+        buildHandlerInClientActiveState(sni);
 
         // When
         inboundChannel.writeInbound(HA_PROXY_MESSAGE);
@@ -201,7 +201,7 @@ class ProxyChannelStateMachineEndToEndTest {
         // Given
         // Keeps the statemachine from automatically progressing so we can assert intermediate state
         activateOutboundChannelAutomatically = false;
-        buildHandlerInClientActiveState(selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS), sni);
+        buildHandlerInClientActiveState(sni);
 
         if (haProxy) {
             proxyChannelStateMachine.forceState(
@@ -231,8 +231,8 @@ class ProxyChannelStateMachineEndToEndTest {
         assertHandlerInConnectingState(haProxy, List.of(firstMessage));
     }
 
-    private void buildHandlerInClientActiveState(Answer<Void> filterSelectServerBehaviour, boolean sni) {
-        buildFrontendHandler(false, filterSelectServerBehaviour);
+    private void buildHandlerInClientActiveState(boolean sni) {
+        buildFrontendHandler(false);
 
         hClientConnect(handler);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
@@ -483,8 +483,7 @@ class ProxyChannelStateMachineEndToEndTest {
         };
     }
 
-    void buildFrontendHandler(boolean tlsConfigured,
-                              Answer<Void> filterSelectServerBehaviour) {
+    void buildFrontendHandler(boolean tlsConfigured) {
         this.inboundChannel = new EmbeddedChannel();
         this.correlationId = 0;
 
@@ -535,17 +534,9 @@ class ProxyChannelStateMachineEndToEndTest {
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
     }
 
-    private static Answer<Void> selectServerCallsInitiateConnect(boolean sni,
-                                                                 boolean haProxy,
-                                                                 boolean apiVersions) {
+    private static Answer<Void> selectServerCallsInitiateConnect() {
         return invocation -> {
             return null;
-        };
-    }
-
-    private static Answer<Void> selectServerThrows(Throwable exception) {
-        return invocation -> {
-            throw exception;
         };
     }
 
@@ -723,7 +714,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                                           boolean haProxy,
                                                                           boolean tlsConfigured,
                                                                           ApiKeys firstMessage) {
-        buildFrontendHandler(tlsConfigured, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
+        buildFrontendHandler(tlsConfigured);
 
         hClientConnect(handler);
         if (sni) {
