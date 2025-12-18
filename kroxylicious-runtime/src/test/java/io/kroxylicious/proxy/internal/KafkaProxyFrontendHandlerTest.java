@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -45,7 +44,6 @@ import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -77,7 +75,6 @@ class KafkaProxyFrontendHandlerTest {
     EmbeddedChannel outboundChannel;
 
     int corrId = 0;
-    private final AtomicReference<NetFilter.NetFilterContext> connectContext = new AtomicReference<>();
     private KafkaProxyBackendHandler backendHandler;
     private ProxyChannelStateMachine proxyChannelStateMachine;
 

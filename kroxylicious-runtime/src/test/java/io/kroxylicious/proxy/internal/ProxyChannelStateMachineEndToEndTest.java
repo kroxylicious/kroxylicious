@@ -58,7 +58,6 @@ import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
@@ -75,7 +74,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -491,8 +489,6 @@ class ProxyChannelStateMachineEndToEndTest {
         this.correlationId = 0;
 
         var dp = new DelegatingDecodePredicate();
-        NetFilter filter = mock(NetFilter.class);
-        doAnswer(filterSelectServerBehaviour).when(filter).selectServer(any());
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
         when(virtualClusterModel.getClusterName()).thenReturn("cluster");
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
@@ -539,28 +535,10 @@ class ProxyChannelStateMachineEndToEndTest {
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
     }
 
-    private static void netFilterContextAssertions(
-                                                   NetFilter.NetFilterContext context,
-                                                   boolean sni,
-                                                   boolean haProxy,
-                                                   boolean apiVersions) {
-        assertThat(context.sniHostname()).isEqualTo(sni ? SNI_HOSTNAME : null);
-        assertThat(context.authorizedId()).isNull();
-        assertThat(context.clientHost()).isEqualTo(haProxy ? HA_PROXY_MESSAGE.sourceAddress() : "embedded"); // hard-coded for EmbeddedChannel
-        assertThat(context.clientPort()).isEqualTo(haProxy ? HA_PROXY_MESSAGE.sourcePort() : -1); // hard-coded for EmbeddedChannel
-        assertThat(context.clientSoftwareName()).isEqualTo(apiVersions ? CLIENT_SOFTWARE_NAME : null);
-        assertThat(context.clientSoftwareVersion()).isEqualTo(apiVersions ? CLIENT_SOFTWARE_VERSION : null);
-        assertThat(context.localAddress()).hasToString("embedded"); // hard-coded for EmbeddedChannel
-        assertThat(context.srcAddress()).hasToString("embedded"); // hard-coded for EmbeddedChannel
-    }
-
     private static Answer<Void> selectServerCallsInitiateConnect(boolean sni,
                                                                  boolean haProxy,
                                                                  boolean apiVersions) {
         return invocation -> {
-            NetFilter.NetFilterContext context = invocation.getArgument(0);
-            netFilterContextAssertions(context, sni, haProxy, apiVersions);
-            context.initiateConnect(CLUSTER_HOST_PORT, List.of());
             return null;
         };
     }

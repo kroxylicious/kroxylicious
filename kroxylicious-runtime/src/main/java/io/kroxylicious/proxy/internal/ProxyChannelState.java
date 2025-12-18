@@ -6,14 +6,12 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.List;
 import java.util.Objects;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
-import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -155,9 +153,7 @@ sealed interface ProxyChannelState permits
     }
 
     /**
-     * A channel to the server is now required, but
-     * {@link io.kroxylicious.proxy.filter.NetFilter#selectServer(NetFilter.NetFilterContext)}
-     * has not yet been called.
+     * A channel to the server is now required.
      * @param haProxyMessage
      * @param clientSoftwareName
      * @param clientSoftwareVersion
@@ -168,10 +164,8 @@ sealed interface ProxyChannelState permits
             implements ProxyChannelState {
 
         /**
-         * Transition to {@link Connecting}, because the NetFilter
-         * has invoked
-         * {@link io.kroxylicious.proxy.filter.NetFilter.NetFilterContext#initiateConnect(HostPort, List)}.
-         * @return The Connecting2 state
+         * Transition to {@link Connecting}
+         * @return The Connecting state
          */
         public Connecting toConnecting(HostPort remote) {
             return new Connecting(haProxyMessage, clientSoftwareName,
