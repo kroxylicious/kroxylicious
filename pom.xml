@@ -1052,6 +1052,36 @@
             </properties>
         </profile>
         <profile>
+            <id>webdocs</id>
+            <activation>
+                <property>
+                    <name>webdocs</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>aggregate-javadocs</id>
+                                <goals>
+                                    <goal>aggregate</goal>
+                                </goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <outputDirectory>${maven.multiModuleProjectDirectory}/target/webdocs/${project.artifactId}</outputDirectory>
+                                    <sourceFileExcludes>**/package-info.java</sourceFileExcludes>
+                                    <excludePackageNames>io.kroxylicious.authorizer.provider.acl.parser</excludePackageNames>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>qa</id>
             <activation>
                 <property>
