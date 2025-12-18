@@ -106,7 +106,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     public void beforeEach(ExtensionContext extensionContext) {
         ResourceManager.setTestContext(extensionContext);
         String simpleName = extensionContext.getRequiredTestClass().getSimpleName().replace("ST", "");
-        String namespacePrefix = String.join("-", simpleName.split("(?=\\p{Upper})")).toLowerCase(Locale.ROOT) + "-st";
+        String namespacePrefix = String.join("-", simpleName.substring(0, 12).split("(?=\\p{Upper})")).toLowerCase(Locale.ROOT) + "-st";
         final String k8sNamespace = namespacePrefix + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
         extensionContext.getStore(junitNamespace).put(K8S_NAMESPACE_KEY, k8sNamespace);
         NamespaceUtils.createNamespaceAndPrepare(k8sNamespace);
