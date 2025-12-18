@@ -76,7 +76,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private @Nullable ChannelHandlerContext ctx;
     private @Nullable PromiseFactory promiseFactory;
-    private static AtomicBoolean deprecationWarningEmitted = new AtomicBoolean(false);
+    private static final AtomicBoolean deprecationWarningEmitted = new AtomicBoolean(false);
 
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
@@ -106,31 +106,31 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
         this.ctx = ctx;
         this.promiseFactory = new PromiseFactory(ctx.executor(), timeoutMs, TimeUnit.MILLISECONDS, LOGGER.getName());
-        super.channelActive(ctx);
+        super.handlerAdded(ctx);
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof InternalResponseFrame<?> decodedFrame) {
             // jump the queue, let responses to asynchronous requests flow back to their sender
             if (decodedFrame.isRecipient(filterAndInvoker.filter())) {
                 completeInternalResponse(decodedFrame);
             }
             else {
-                readDecodedResponse(decodedFrame);
+                handleDecodedResponse(decodedFrame, promise);
             }
         }
         else if (msg instanceof DecodedResponseFrame<?> decodedFrame) {
-            if (readFuture.isDone()) {
-                readFuture = readDecodedResponse(decodedFrame);
+            if (writeFuture.isDone()) {
+                writeFuture = handleDecodedResponse(decodedFrame, promise);
             }
             else {
-                readFuture = readFuture.thenCompose(ignored -> {
+                writeFuture = writeFuture.thenCompose(ignored -> {
                     if (ctx.channel().isOpen()) {
-                        return readDecodedResponse(decodedFrame);
+                        return handleDecodedResponse(decodedFrame, promise);
                     }
                     else {
                         return CompletableFuture.completedFuture(null);
@@ -140,9 +140,9 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
         else {
             if (msg instanceof OpaqueResponseFrame orf) {
-                readFuture = readFuture.whenComplete((a, b) -> {
+                writeFuture = writeFuture.whenComplete((a, b) -> {
                     if (ctx.channel().isOpen()) {
-                        ctx.fireChannelRead(msg);
+                        ctx.write(msg, promise);
                     }
                     else {
                         orf.releaseBuffer();
@@ -150,7 +150,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                 });
             }
             else {
-                throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message reading from upstream: " + msgDescriptor(msg));
+                throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to downstream: " + msgDescriptor(msg));
             }
         }
     }
@@ -175,19 +175,19 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof InternalRequestFrame<?> decodedFrame) {
             // jump the queue, internal request must flow!
-            writeDecodedRequest(decodedFrame, promise);
+            handleDecodedRequest(decodedFrame);
         }
         else if (msg instanceof DecodedRequestFrame<?> decodedFrame) {
-            if (writeFuture.isDone()) {
-                writeFuture = writeDecodedRequest(decodedFrame, promise);
+            if (readFuture.isDone()) {
+                readFuture = handleDecodedRequest(decodedFrame);
             }
             else {
-                writeFuture = writeFuture.thenCompose(ignored -> {
+                readFuture = readFuture.thenCompose(ignored -> {
                     if (ctx.channel().isOpen()) {
-                        return writeDecodedRequest(decodedFrame, promise);
+                        return handleDecodedRequest(decodedFrame);
                     }
                     else {
                         return CompletableFuture.completedFuture(null);
@@ -197,9 +197,9 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
         else {
             if (msg instanceof OpaqueRequestFrame || msg == Unpooled.EMPTY_BUFFER) {
-                writeFuture = writeFuture.whenComplete((unused, throwable) -> {
+                readFuture = readFuture.whenComplete((unused, throwable) -> {
                     if (ctx.channel().isOpen()) {
-                        ctx.write(msg, promise);
+                        ctx.fireChannelRead(msg);
                     }
                     else if (msg instanceof OpaqueRequestFrame orf) {
                         orf.releaseBuffer();
@@ -214,23 +214,24 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
-    private CompletableFuture<Void> readDecodedResponse(DecodedResponseFrame<?> decodedFrame) {
+    private CompletableFuture<Void> handleDecodedResponse(DecodedResponseFrame<?> decodedFrame, ChannelPromise promise) {
         var filterContext = new InternalFilterContext(decodedFrame);
 
         final var future = dispatchDecodedResponseFrame(decodedFrame, filterContext);
         boolean defer = !future.isDone();
         if (defer) {
-            return configureResponseFilterChain(decodedFrame, handleDeferredStage(decodedFrame, future))
+            return configureResponseFilterChain(decodedFrame, promise, handleDeferredStage(decodedFrame, future))
                     .whenComplete(this::deferredResponseCompleted)
                     .thenApply(responseFilterResult -> null);
         }
         else {
-            return configureResponseFilterChain(decodedFrame, future)
+            return configureResponseFilterChain(decodedFrame, promise, future)
                     .thenApply(responseFilterResult -> null);
         }
     }
 
-    private CompletableFuture<ResponseFilterResult> dispatchDecodedResponseFrame(DecodedResponseFrame<?> decodedFrame, InternalFilterContext filterContext) {
+    private CompletableFuture<ResponseFilterResult> dispatchDecodedResponseFrame(DecodedResponseFrame<?> decodedFrame,
+                                                                                 InternalFilterContext filterContext) {
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Dispatching upstream {} response to filter '{}': {}",
@@ -242,23 +243,31 @@ public class FilterHandler extends ChannelDuplexHandler {
                 : stage.toCompletableFuture();
     }
 
-    private CompletableFuture<ResponseFilterResult> configureResponseFilterChain(DecodedResponseFrame<?> decodedFrame, CompletableFuture<ResponseFilterResult> future) {
+    private CompletableFuture<ResponseFilterResult> configureResponseFilterChain(DecodedResponseFrame<?> decodedFrame,
+                                                                                 ChannelPromise promise,
+                                                                                 CompletableFuture<ResponseFilterResult> future) {
         return future.thenApply(FilterHandler::validateFilterResultNonNull)
-                .thenApply(fr -> handleResponseFilterResult(decodedFrame, fr))
+                .thenApply(fr -> handleResponseFilterResult(decodedFrame, fr, promise))
                 .exceptionally(t -> handleFilteringException(t, decodedFrame));
     }
 
-    private CompletableFuture<Void> writeDecodedRequest(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise) {
+    /**
+     * Handle a decoded request frame through the filter chain.
+     * If the promise is null, propagate inbound (fireChannelRead), else write upstream.
+     * @param decodedFrame the decoded frame
+     * @return a future that completes when processing is complete
+     */
+    private CompletableFuture<Void> handleDecodedRequest(DecodedRequestFrame<?> decodedFrame) {
         var filterContext = new InternalFilterContext(decodedFrame);
         final var future = dispatchDecodedRequest(decodedFrame, filterContext);
         boolean defer = !future.isDone();
         if (defer) {
-            return configureRequestFilterChain(decodedFrame, promise, handleDeferredStage(decodedFrame, future))
+            return configureRequestFilterChain(decodedFrame, handleDeferredStage(decodedFrame, future))
                     .whenComplete(this::deferredRequestCompleted)
                     .thenApply(requestFilterResult -> null);
         }
         else {
-            return configureRequestFilterChain(decodedFrame, promise, future)
+            return configureRequestFilterChain(decodedFrame, future)
                     .thenApply(requestFilterResult -> null);
         }
     }
@@ -274,14 +283,15 @@ public class FilterHandler extends ChannelDuplexHandler {
                 : stage.toCompletableFuture();
     }
 
-    private CompletableFuture<RequestFilterResult> configureRequestFilterChain(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise,
+    private CompletableFuture<RequestFilterResult> configureRequestFilterChain(DecodedRequestFrame<?> decodedFrame,
                                                                                CompletableFuture<RequestFilterResult> future) {
         return future.thenApply(FilterHandler::validateFilterResultNonNull)
-                .thenApply(fr -> handleRequestFilterResult(decodedFrame, promise, fr))
+                .thenApply(fr -> handleRequestFilterResult(decodedFrame, fr))
                 .exceptionally(t -> handleFilteringException(t, decodedFrame));
     }
 
-    private ResponseFilterResult handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame, ResponseFilterResult responseFilterResult) {
+    private ResponseFilterResult handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame, ResponseFilterResult responseFilterResult,
+                                                            @Nullable ChannelPromise promise) {
         if (responseFilterResult.drop()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter '{}' drops {} response",
@@ -294,7 +304,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         if (message != null) {
             ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header()
                     : (ResponseHeaderData) Objects.requireNonNull(responseFilterResult.header());
-            forwardResponse(decodedFrame, header, message);
+            forwardResponse(decodedFrame, header, message, promise);
         }
 
         if (responseFilterResult.closeConnection()) {
@@ -303,7 +313,8 @@ public class FilterHandler extends ChannelDuplexHandler {
         return responseFilterResult;
     }
 
-    private RequestFilterResult handleRequestFilterResult(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise, RequestFilterResult requestFilterResult) {
+    private RequestFilterResult handleRequestFilterResult(DecodedRequestFrame<?> decodedFrame,
+                                                          RequestFilterResult requestFilterResult) {
         if (requestFilterResult.drop()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter '{}' drops {} request",
@@ -315,9 +326,10 @@ public class FilterHandler extends ChannelDuplexHandler {
         if (requestFilterResult.message() != null) {
             if (requestFilterResult.shortCircuitResponse()) {
                 forwardShortCircuitResponse(decodedFrame, requestFilterResult);
+                inboundChannel.read();
             }
             else {
-                forwardRequest(decodedFrame, requestFilterResult, promise);
+                forwardRequest(decodedFrame, requestFilterResult);
             }
         }
 
@@ -369,7 +381,8 @@ public class FilterHandler extends ChannelDuplexHandler {
         inboundChannel.flush();
     }
 
-    private void forwardRequest(DecodedRequestFrame<?> decodedFrame, RequestFilterResult requestFilterResult, ChannelPromise promise) {
+    private void forwardRequest(DecodedRequestFrame<?> decodedFrame,
+                                RequestFilterResult requestFilterResult) {
         var header = requestFilterResult.header() == null ? decodedFrame.header() : requestFilterResult.header();
         ApiMessage message = requestFilterResult.message();
         if (decodedFrame.body() != message) {
@@ -387,10 +400,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Filter '{}' forwarding request: {}", channelDescriptor(), filterDescriptor(), decodedFrame);
         }
-        ctx.write(decodedFrame, promise);
+
+        ctx.fireChannelRead(decodedFrame);
     }
 
-    private void forwardResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message) {
+    private void forwardResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message, @Nullable ChannelPromise promise) {
         // check it's a response
         String name = message.getClass().getName();
         if (!name.endsWith("ResponseData")) {
@@ -407,9 +421,10 @@ public class FilterHandler extends ChannelDuplexHandler {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
             }
-            ctx.fireChannelRead(responseFrame);
-            // required to flush the message back to the client
-            ctx.fireChannelReadComplete();
+            ctx.write(responseFrame, promise != null ? promise : ctx.voidPromise());
+            if (promise == null) {
+                ctx.flush();
+            }
         }
         else {
             if (decodedFrame.body() != message) {
@@ -421,7 +436,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
             }
-            ctx.fireChannelRead(decodedFrame);
+            ctx.write(decodedFrame, promise != null ? promise : ctx.voidPromise());
         }
     }
 
@@ -429,7 +444,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         if (decodedFrame.hasResponse()) {
             var header = requestFilterResult.header() == null ? new ResponseHeaderData() : Objects.requireNonNull((ResponseHeaderData) requestFilterResult.header());
             header.setCorrelationId(decodedFrame.correlationId());
-            forwardResponse(decodedFrame, header, Objects.requireNonNull(requestFilterResult.message()));
+            forwardResponse(decodedFrame, header, Objects.requireNonNull(requestFilterResult.message()), null);
         }
         else {
             if (LOGGER.isDebugEnabled()) {

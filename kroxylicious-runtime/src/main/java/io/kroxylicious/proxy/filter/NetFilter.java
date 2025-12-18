@@ -26,6 +26,10 @@ public interface NetFilter {
      */
     void selectServer(NetFilterContext context);
 
+    default List<FilterAndInvoker> getFilterAndInvokerCollection() {
+        return List.of();
+    }
+
     interface NetFilterContext {
         /**
          * @return The source host of the client, taking into account source host information

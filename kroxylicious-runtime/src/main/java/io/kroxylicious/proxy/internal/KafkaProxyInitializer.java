@@ -45,7 +45,10 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
@@ -262,6 +265,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         private final EndpointReconciler endpointReconciler;
         private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
         private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
+        private List<FilterAndInvoker> cachedFilters = List.of();
 
         InitalizerNetFilter(Channel ch,
                             EndpointBinding binding,
@@ -284,26 +288,36 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         @Override
         public void selectServer(NetFilter.NetFilterContext context) {
+            LOGGER.info("{}: Selecting NetFilter.NetFilter context: {}", ch, context);
+            // var filters = getFilterAndInvokerCollection();
+
+            HostPort target = binding.upstreamTarget();
+            if (target == null) {
+                // This condition should never happen.
+                throw new IllegalStateException("A target address for binding %s is not known.".formatted(binding));
+            }
+
+            context.initiateConnect(target, cachedFilters);
+        }
+
+        @NonNull
+        public ArrayList<FilterAndInvoker> getFilterAndInvokerCollection() {
             List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
             List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)", new BrokerAddressFilter(gateway, endpointReconciler));
+            // List<FilterAndInvoker> shortCircuitFilters = FilterAndInvoker.build("ShortCircuit (internal)", new ShortCircuitFilter());
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
             filters.addAll(filterChain);
             if (binding.restrictUpstreamToMetadataDiscovery()) {
                 filters.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
             }
+            // filters.addAll(shortCircuitFilters);
             filters.addAll(brokerAddressFilters);
-
-            var target = binding.upstreamTarget();
-            if (target == null) {
-                // This condition should never happen.
-                throw new IllegalStateException("A target address for binding %s is not known.".formatted(binding));
-            }
-
-            context.initiateConnect(target, filters);
+            cachedFilters = filters;
+            return filters;
         }
     }
 

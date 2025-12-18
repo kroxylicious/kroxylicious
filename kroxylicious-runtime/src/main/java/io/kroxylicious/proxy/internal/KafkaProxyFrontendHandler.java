@@ -275,6 +275,7 @@ public class KafkaProxyFrontendHandler
         if (!this.endpointBinding.endpointGateway().isUseTls()) {
             this.clientSubjectManager.subjectFromTransport(null, this.subjectBuilder, this::onTransportSubjectBuilt);
         }
+        addFiltersToPipeline(netFilter.getFilterAndInvokerCollection(), clientCtx().pipeline(), clientCtx().channel());
     }
 
     private void onTransportSubjectBuilt() {
@@ -505,7 +506,7 @@ public class KafkaProxyFrontendHandler
         if (logFrames) {
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger", LogLevel.INFO));
         }
-        addFiltersToPipeline(filters, pipeline, inboundChannel);
+        // addFiltersToPipeline(filters, pipeline, inboundChannel);
 
         var encoderListener = buildMetricsMessageListenerForEncode();
         var decoderListener = buildMetricsMessageListenerForDecode();
@@ -668,7 +669,7 @@ public class KafkaProxyFrontendHandler
             // TODO configurable timeout
             // Handler name must be unique, but filters are allowed to appear multiple times
             String handlerName = "filter-" + (++num) + "-" + protocolFilter.filterName();
-            pipeline.addFirst(
+            pipeline.addBefore(clientCtx().name(),
                     handlerName,
                     new FilterHandler(
                             protocolFilter,
