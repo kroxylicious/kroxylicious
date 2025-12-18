@@ -97,7 +97,7 @@ public class KafkaProxyFrontendHandler
     private final TransportSubjectBuilder subjectBuilder;
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
-    private final List<NamedFilterDefinition> filters;
+    private final List<NamedFilterDefinition> namedFilterDefinitions;
     private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
     private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
 
@@ -143,7 +143,7 @@ public class KafkaProxyFrontendHandler
     KafkaProxyFrontendHandler(
                               PluginFactoryRegistry pfr,
                               FilterChainFactory filterChainFactory,
-                              List<NamedFilterDefinition> filters,
+                              List<NamedFilterDefinition> namedFilterDefinitions,
                               EndpointReconciler endpointReconciler,
                               ApiVersionsServiceImpl apiVersionsService,
                               DelegatingDecodePredicate dp,
@@ -153,7 +153,7 @@ public class KafkaProxyFrontendHandler
         this.endpointBinding = endpointBinding;
         this.pfr = pfr;
         this.filterChainFactory = filterChainFactory;
-        this.filters = filters;
+        this.namedFilterDefinitions = namedFilterDefinitions;
         this.endpointReconciler = endpointReconciler;
         this.apiVersionsIntersectFilter = new ApiVersionsIntersectFilter(apiVersionsService);
         this.apiVersionsDowngradeFilter = new ApiVersionsDowngradeFilter(apiVersionsService);
@@ -327,26 +327,22 @@ public class KafkaProxyFrontendHandler
      */
     void inSelectingServer() {
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
+        var filterAndInvokers = new ArrayList<>(apiVersionFilters);
+        filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
 
         NettyFilterContext filterContext = new NettyFilterContext(clientCtx.channel().eventLoop(), pfr);
-        List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filters);
+        List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
+        filterAndInvokers.addAll(filterChain);
+
+        if (endpointBinding.restrictUpstreamToMetadataDiscovery()) {
+            filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
+        }
         List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)",
                 new BrokerAddressFilter(endpointBinding.endpointGateway(), endpointReconciler));
-        var filters1 = new ArrayList<>(apiVersionFilters);
-        filters1.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
-        filters1.addAll(filterChain);
-        if (endpointBinding.restrictUpstreamToMetadataDiscovery()) {
-            filters1.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
-        }
-        filters1.addAll(brokerAddressFilters);
+        filterAndInvokers.addAll(brokerAddressFilters);
 
-        var target = endpointBinding.upstreamTarget();
-        if (target == null) {
-            // This condition should never happen.
-            throw new IllegalStateException("A target address for binding %s is not known.".formatted(endpointBinding));
-        }
-
-        initiateConnect(target, filters1);
+        var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
+        initiateConnect(target, filterAndInvokers);
     }
 
     /**
