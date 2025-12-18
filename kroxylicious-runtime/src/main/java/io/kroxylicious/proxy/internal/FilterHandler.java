@@ -108,7 +108,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         this.ctx = ctx;
-        this.promiseFactory = new PromiseFactory(ctx.executor(), timeoutMs, TimeUnit.MILLISECONDS, LOGGER.getName());
+        this.promiseFactory = new PromiseFactory(ctx.channel().eventLoop(), timeoutMs, TimeUnit.MILLISECONDS, LOGGER.getName());
         super.channelActive(ctx);
     }
 
@@ -238,8 +238,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
         var stage = filterAndInvoker.invoker().onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
                 decodedFrame.header(), decodedFrame.body(), filterContext);
-        return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<ResponseFilterResult>) stage).getUnderlyingCompletableFuture()
-                : stage.toCompletableFuture();
+        return stage.toCompletableFuture();
     }
 
     private CompletableFuture<ResponseFilterResult> configureResponseFilterChain(DecodedResponseFrame<?> decodedFrame, CompletableFuture<ResponseFilterResult> future) {
@@ -270,8 +269,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
         var stage = filterAndInvoker.invoker().onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
                 decodedFrame.body(), filterContext);
-        return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<RequestFilterResult>) stage).getUnderlyingCompletableFuture()
-                : stage.toCompletableFuture();
+        return stage.toCompletableFuture();
     }
 
     private CompletableFuture<RequestFilterResult> configureRequestFilterChain(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise,

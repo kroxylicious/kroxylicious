@@ -8,12 +8,13 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.netty.channel.EventLoop;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -22,27 +23,27 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  */
 class PromiseFactory {
 
-    private final ScheduledExecutorService executorService;
+    private final EventLoop eventLoop;
     private final long timeout;
     private final TimeUnit timeoutUnit;
     private final Logger logger;
 
     /**
      *
-     * @param executorService Used to schedule background tasks such as timeouts.
+     * @param eventLoop Used to schedule background tasks such as timeouts.
      * @param timeout Factory wide limit on how long to wait for a given future to complete.
      * @param timeoutUnit Defines the unit for the timeout period
      * @param loggerName Which logger should the factory use when logging events.
      */
-    PromiseFactory(ScheduledExecutorService executorService, long timeout, TimeUnit timeoutUnit, String loggerName) {
-        this.executorService = executorService;
+    PromiseFactory(EventLoop eventLoop, long timeout, TimeUnit timeoutUnit, String loggerName) {
+        this.eventLoop = eventLoop;
         this.timeout = timeout;
         this.timeoutUnit = timeoutUnit;
         this.logger = LoggerFactory.getLogger(loggerName);
     }
 
     <T> CompletableFuture<T> newPromise() {
-        return new InternalCompletableFuture<>(executorService);
+        return new InternalCompletableFuture<>(eventLoop);
     }
 
     /**
@@ -63,7 +64,7 @@ class PromiseFactory {
      * @param <T> the type of the result of the future.
      */
     <T> CompletableFuture<T> wrapWithTimeLimit(CompletableFuture<T> promise, Callable<String> exceptionMessageGenerator) {
-        var timeoutFuture = executorService.schedule(timeoutTask(promise, exceptionMessageGenerator), timeout, timeoutUnit);
+        var timeoutFuture = eventLoop.schedule(timeoutTask(promise, exceptionMessageGenerator), timeout, timeoutUnit);
         promise.whenComplete((p, throwable) -> timeoutFuture.cancel(false));
         return promise;
     }
