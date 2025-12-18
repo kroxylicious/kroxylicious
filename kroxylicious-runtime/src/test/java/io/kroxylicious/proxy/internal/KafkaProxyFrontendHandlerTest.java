@@ -43,7 +43,9 @@ import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -61,8 +63,10 @@ import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRA
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class KafkaProxyFrontendHandlerTest {
@@ -77,6 +81,8 @@ class KafkaProxyFrontendHandlerTest {
     int corrId = 0;
     private KafkaProxyBackendHandler backendHandler;
     private ProxyChannelStateMachine proxyChannelStateMachine;
+    private PluginFactoryRegistry pfr;
+    private FilterChainFactory fcf;
 
     private void writeRequest(short apiVersion, ApiMessage body) {
         int downstreamCorrelationId = corrId++;
@@ -102,6 +108,8 @@ class KafkaProxyFrontendHandlerTest {
         inboundChannel = new EmbeddedChannel();
         corrId = 0;
         proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
+        this.pfr = mock(PluginFactoryRegistry.class);
+        this.fcf =  mock(FilterChainFactory.class);
     }
 
     @AfterEach
@@ -278,10 +286,10 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(DelegatingDecodePredicate dp, EndpointBinding endpointBinding) {
-        var pfr = mock(PluginFactoryRegistry.class);
+        var namedFilterDefs = List.<NamedFilterDefinition>of();
         return new KafkaProxyFrontendHandler(pfr,
-                new FilterChainFactory(pfr, List.of()),
-                List.of(),
+                fcf,
+                namedFilterDefs,
                 null,
                 new ApiVersionsServiceImpl(),
                 dp,
@@ -480,6 +488,7 @@ class KafkaProxyFrontendHandlerTest {
         assertTrue(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound now active");
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Forwarding.class);
+        verify(fcf).createFilters(any(FilterFactoryContext.class), any(List.class));
     }
 
     private List<String> outboundClientSoftwareNames() {
