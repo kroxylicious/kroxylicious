@@ -73,7 +73,7 @@ class OperatorChangeDetectionST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
     private static Kroxylicious kroxylicious;
     private static CertManager certManager;
-    private final String kafkaClusterName = "operator-change-detection-cluster";
+    private final String kafkaClusterName = "optr-cd-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
 
     @Test
