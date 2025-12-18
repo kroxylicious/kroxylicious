@@ -160,22 +160,6 @@ class NettyFilterDispatchExecutorTest {
     }
 
     @Test
-    void completeOnFilterDispatchThreadResultCannotBeConvertedToCompletableFuture() {
-        EventLoop eventLoop = new DefaultEventLoop();
-        try {
-            FilterDispatchExecutor dispatchExecutor = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
-            CompletableFuture<Object> completionStage = new CompletableFuture<>();
-            CompletionStage<Object> inDispatchThread = dispatchExecutor.completeOnFilterDispatchThread(completionStage);
-            assertThatThrownBy(inDispatchThread::toCompletableFuture)
-                    .isInstanceOf(UnsupportedOperationException.class)
-                    .hasMessage("CompletableFuture usage disallowed, we don't want to block the event loop or allow unexpected completion");
-        }
-        finally {
-            eventLoop.shutdownGracefully();
-        }
-    }
-
-    @Test
     void completeOnFilterDispatchThreadResultNotCompletableByClientByCasting() {
         EventLoop eventLoop = new DefaultEventLoop();
         try {

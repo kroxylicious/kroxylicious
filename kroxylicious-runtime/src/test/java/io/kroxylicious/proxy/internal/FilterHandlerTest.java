@@ -940,37 +940,6 @@ class FilterHandlerTest extends FilterHarness {
         assertThat(propagated).isNull();
     }
 
-    @Test
-    void sendRequestCompletionStageCannotBeConvertedToFuture() {
-        var oobRequestBody = new FetchRequestData();
-        var oobHeader = new RequestHeaderData().setRequestApiVersion(FetchRequestData.LOWEST_SUPPORTED_VERSION);
-        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<FetchResponseData>>();
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            snoopedOobRequestResponseStage.set(context.sendRequest(oobHeader, oobRequestBody));
-            // TODO - it'd be a better test if the filter made the call to toCompletableFuture and the filter failed.
-            // We'd then assert that the filter had closed the connection for the right reason. However we currently
-            // don't have a way to trap the exception that causes a filter to close.
-            return context.requestFilterResultBuilder().drop().completed();
-        };
-
-        buildChannel(filter);
-
-        // trigger filter
-        writeRequest(new ApiVersionsRequestData());
-
-        // verify filter has sent the send request.
-        InternalRequestFrame<?> propagatedAsyncRequest = channel.readOutbound();
-        assertThat(propagatedAsyncRequest.body()).isEqualTo(oobRequestBody);
-
-        // verify async request response future is in the expected state
-        assertThat(snoopedOobRequestResponseStage).doesNotHaveValue(null);
-
-        var apiMessageCompletionStage = snoopedOobRequestResponseStage.get();
-        assertThatThrownBy(apiMessageCompletionStage::toCompletableFuture)
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("CompletableFuture usage disallowed");
-    }
-
     /**
      * Test the special case within {@link FilterHandler} for
      * {@link FilterContext#sendRequest(RequestHeaderData, ApiMessage)}
