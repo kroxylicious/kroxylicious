@@ -330,7 +330,7 @@ public class KafkaProxyFrontendHandler
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
 
-        NettyFilterContext filterContext = new NettyFilterContext(clientCtx.channel().eventLoop(), pfr);
+        NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
         List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
         filterAndInvokers.addAll(filterChain);
 
@@ -397,7 +397,7 @@ public class KafkaProxyFrontendHandler
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
                     this.proxyChannelStateMachine.sessionId(), remote, filters);
         }
-        this.proxyChannelStateMachine.onNetFilterInitiateConnect(remote, filters, virtualClusterModel);
+        this.proxyChannelStateMachine.onInitiateConnect(remote, filters, virtualClusterModel);
     }
 
     /**
@@ -510,7 +510,7 @@ public class KafkaProxyFrontendHandler
 
         if (pendingReadComplete) {
             pendingReadComplete = false;
-            channelReadComplete(Objects.requireNonNull(this.clientCtx));
+            channelReadComplete(this.clientCtx());
         }
 
         // once buffered message has been forwarded we enable auto-read to start accepting further messages

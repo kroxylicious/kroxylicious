@@ -165,7 +165,7 @@ class ProxyChannelStateMachineTest {
         stateMachineInSelectingServer();
 
         // When
-        proxyChannelStateMachine.onNetFilterInitiateConnect(HostPort.parse("localhost:9090"), List.of(), VIRTUAL_CLUSTER_MODEL);
+        proxyChannelStateMachine.onInitiateConnect(HostPort.parse("localhost:9090"), List.of(), VIRTUAL_CLUSTER_MODEL);
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
@@ -445,7 +445,7 @@ class ProxyChannelStateMachineTest {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void inSelectingServerShouldTransitionToConnectingWhenOnNetFilterInitiateConnectCalled(boolean configureSsl) throws SSLException {
+    void inSelectingServerShouldTransitionToConnectingWhenOnInitiateConnectCalled(boolean configureSsl) throws SSLException {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateMachineInSelectingServer();
@@ -454,7 +454,7 @@ class ProxyChannelStateMachineTest {
         doReturn(configureSsl ? Optional.of(SslContextBuilder.forClient().build()) : Optional.empty()).when(vc).getUpstreamSslContext();
 
         // When
-        proxyChannelStateMachine.onNetFilterInitiateConnect(brokerAddress, filters, vc);
+        proxyChannelStateMachine.onInitiateConnect(brokerAddress, filters, vc);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -464,7 +464,7 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inClientActiveShouldCloseWhenOnNetFilterInitiateConnectCalled() {
+    void inClientActiveShouldCloseWhenOnInitiateConnectCalled() {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateMachineInClientActive();
@@ -472,7 +472,7 @@ class ProxyChannelStateMachineTest {
         var vc = mock(VirtualClusterModel.class);
 
         // When
-        proxyChannelStateMachine.onNetFilterInitiateConnect(brokerAddress, filters, vc);
+        proxyChannelStateMachine.onInitiateConnect(brokerAddress, filters, vc);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -482,7 +482,7 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inConnectingShouldCloseWhenOnNetFilterInitiateConnect() {
+    void inConnectingShouldCloseWhenOnInitiateConnect() {
         // Given
         stateMachineInConnecting();
 
@@ -490,7 +490,7 @@ class ProxyChannelStateMachineTest {
         var vc = mock(VirtualClusterModel.class);
 
         // When
-        proxyChannelStateMachine.onNetFilterInitiateConnect(BROKER_ADDRESS, filters, vc);
+        proxyChannelStateMachine.onInitiateConnect(BROKER_ADDRESS, filters, vc);
 
         // Then
         assertThat(proxyChannelStateMachine.state())

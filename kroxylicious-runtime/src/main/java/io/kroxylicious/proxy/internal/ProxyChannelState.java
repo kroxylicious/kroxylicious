@@ -174,8 +174,7 @@ sealed interface ProxyChannelState permits
     }
 
     /**
-     * The NetFilter has determined the server to connect to,
-     * but the channel to it is not yet active.
+     * The connection has started but the channel to it is not yet active.
      *
      * @param haProxyMessage
      * @param clientSoftwareName

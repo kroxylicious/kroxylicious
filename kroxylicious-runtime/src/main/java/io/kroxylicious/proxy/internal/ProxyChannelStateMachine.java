@@ -97,7 +97,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  */
 @SuppressWarnings("java:S1133")
 public class ProxyChannelStateMachine {
-    private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "NetFilter called NetFilterContext.initiateConnect() more than once";
+    private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "onInitiateConnect called more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
 
     // Connection metrics
@@ -159,7 +159,7 @@ public class ProxyChannelStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualClusterModel)}
+     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort, List, VirtualClusterModel)}
      * has been called
      */
     @VisibleForTesting
@@ -274,12 +274,12 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * Notify the statemachine that the netfilter has chosen an outbound peer.
+     * Notify the statemachine that the connection to the backend has started.
      * @param peer the upstream host to connect to.
      * @param filters the set of filters to be applied to the session
      * @param virtualClusterModel the virtual cluster the client is connecting too
      */
-    void onNetFilterInitiateConnect(
+    void onInitiateConnect(
                                     HostPort peer,
                                     List<FilterAndInvoker> filters,
                                     VirtualClusterModel virtualClusterModel) {
