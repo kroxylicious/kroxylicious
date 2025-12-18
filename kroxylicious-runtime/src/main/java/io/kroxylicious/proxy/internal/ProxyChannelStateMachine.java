@@ -162,7 +162,7 @@ public class ProxyChannelStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualClusterModel, NetFilter)}
+     * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualClusterModel)}
      * has been called
      */
     @VisibleForTesting
@@ -281,18 +281,16 @@ public class ProxyChannelStateMachine {
      * @param peer the upstream host to connect to.
      * @param filters the set of filters to be applied to the session
      * @param virtualClusterModel the virtual cluster the client is connecting too
-     * @param netFilter the netFilter which selected the upstream peer.
      */
     void onNetFilterInitiateConnect(
                                     HostPort peer,
                                     List<FilterAndInvoker> filters,
-                                    VirtualClusterModel virtualClusterModel,
-                                    NetFilter netFilter) {
+                                    VirtualClusterModel virtualClusterModel) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
             toConnecting(selectingServerState.toConnecting(peer), filters, virtualClusterModel);
         }
         else {
-            illegalState(DUPLICATE_INITIATE_CONNECT_ERROR + " : netFilter='" + netFilter + "'");
+            illegalState(DUPLICATE_INITIATE_CONNECT_ERROR);
         }
     }
 
@@ -372,16 +370,6 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * ensure the state machine is in the connecting state.
-     * @param msg to be logged if in another state.
-     */
-    void assertIsConnecting(String msg) {
-        if (!(state instanceof ProxyChannelState.Connecting)) {
-            illegalState(msg);
-        }
-    }
-
-    /**
      * ensure the state machine is in the selecting server state.
      *
      * @return the SelectingServer state
@@ -429,7 +417,7 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     void onServerException(@Nullable Throwable cause) {
         LOGGER.atWarn()
-                .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                .setCause(cause)
                 .addArgument(cause != null ? cause.getMessage() : "")
                 .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
         proxyToServerErrorCounter.increment();

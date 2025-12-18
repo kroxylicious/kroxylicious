@@ -56,6 +56,8 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -239,77 +241,6 @@ class ProxyChannelStateMachineEndToEndTest {
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
-    }
-
-    @ParameterizedTest
-    @MethodSource("booleanXboolean")
-    void filterNotCallingInitiateConnectIsAnError(boolean sni,
-                                                  boolean haProxy) {
-        // Given
-        buildHandlerInClientActiveState(selectServerDoesNotCallInitiateConnect(sni, haProxy), sni);
-
-        if (haProxy) {
-            proxyChannelStateMachine.forceState(
-                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
-                    handler,
-                    backendHandler);
-        }
-
-        // When
-
-        writeInboundApiVersionsRequest();
-
-        // Then
-        inboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse();
-    }
-
-    @ParameterizedTest
-    @MethodSource("booleanXboolean")
-    void filterCallingInitiateConnectTwiceIsAnError(
-                                                    boolean sni,
-                                                    boolean haProxy) {
-        // Given
-        buildHandlerInClientActiveState(selectServerCallsInitiateConnectTwice(sni, haProxy), sni);
-
-        if (haProxy) {
-            proxyChannelStateMachine.forceState(
-                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
-                    handler,
-                    backendHandler);
-        }
-
-        // When
-        writeInboundApiVersionsRequest();
-
-        // Then
-        inboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse();
-    }
-
-    @ParameterizedTest
-    @MethodSource("booleanXboolean")
-    void filterThrowingIsAnError(
-                                 boolean sni,
-                                 boolean haProxy) {
-        // Given
-        buildHandlerInClientActiveState(selectServerThrows(new AssertionError()), sni);
-
-        if (haProxy) {
-            proxyChannelStateMachine.forceState(
-                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
-                    handler,
-                    backendHandler);
-        }
-
-        // When
-        int corrId = writeInboundApiVersionsRequest();
-
-        // Then
-        inboundChannel.checkException();
-        assertNextClientResponseIsApiVersionsError(corrId, Errors.UNKNOWN_SERVER_ERROR);
-
-        assertEverythingClosed();
     }
 
     @ParameterizedTest
@@ -513,10 +444,18 @@ class ProxyChannelStateMachineEndToEndTest {
     }
 
     private KafkaProxyFrontendHandler handler(
-                                              NetFilter filter,
                                               DelegatingDecodePredicate dp,
                                               EndpointBinding endpointBinding) {
-        return new KafkaProxyFrontendHandler(filter, dp, new DefaultSubjectBuilder(List.of()), endpointBinding, proxyChannelStateMachine) {
+        var pfr = mock(PluginFactoryRegistry.class);
+        return new KafkaProxyFrontendHandler(pfr,
+                new FilterChainFactory(pfr, List.of()),
+                List.of(),
+                null,
+                new ApiVersionsServiceImpl(),
+                dp,
+                new DefaultSubjectBuilder(List.of()),
+                endpointBinding,
+                proxyChannelStateMachine) {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
                 ProxyChannelStateMachineEndToEndTest.this.backendHandler = capturedBackendHandler;
@@ -560,6 +499,7 @@ class ProxyChannelStateMachineEndToEndTest {
         EndpointGateway endpointGateway = mock(EndpointGateway.class);
         when(endpointGateway.virtualCluster()).thenReturn(virtualClusterModel);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
+        when(endpointBinding.upstreamTarget()).thenReturn(new HostPort(CLUSTER_HOST, CLUSTER_PORT));
         final Optional<SslContext> sslContext;
         try {
             sslContext = Optional.ofNullable(tlsConfigured ? SslContextBuilder.forClient().build() : null);
@@ -569,7 +509,7 @@ class ProxyChannelStateMachineEndToEndTest {
         }
         when(virtualClusterModel.getUpstreamSslContext()).thenReturn(sslContext);
 
-        this.handler = handler(filter, dp, endpointBinding);
+        this.handler = handler(dp, endpointBinding);
         this.inboundCtx = mock(ChannelHandlerContext.class);
         when(inboundCtx.channel()).thenReturn(inboundChannel);
         when(inboundCtx.pipeline()).thenReturn(inboundChannel.pipeline());
@@ -812,10 +752,6 @@ class ProxyChannelStateMachineEndToEndTest {
         return List.of(
                 Arguments.of(new DecoderException(new FrameOversizedException(1, 2))),
                 Arguments.of(new RuntimeException("boom!")));
-    }
-
-    static List<Arguments> booleanXboolean() {
-        return crossProduct(bool(), bool());
     }
 
     static List<Arguments> booleanXbooleanXapiKey() {

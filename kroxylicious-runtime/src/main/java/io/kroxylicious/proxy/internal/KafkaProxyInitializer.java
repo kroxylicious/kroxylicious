@@ -5,9 +5,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,23 +22,14 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
-import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
-import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
-import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
-import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
-import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -209,18 +197,17 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
 
-        final NetFilter netFilter = new InitalizerNetFilter(
-                ch,
-                binding,
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId());
+        var frontendHandler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
                 virtualCluster.getFilters(),
                 endpointReconciler,
-                new ApiVersionsIntersectFilter(apiVersionsService),
-                new ApiVersionsDowngradeFilter(apiVersionsService));
-
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId());
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster.subjectBuilder(pfr), binding, proxyChannelStateMachine);
+                apiVersionsService,
+                dp,
+                virtualCluster.subjectBuilder(pfr),
+                binding,
+                proxyChannelStateMachine);
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);
@@ -248,63 +235,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private static void addLoggingErrorHandler(ChannelPipeline pipeline) {
         pipeline.addLast(LOGGING_INBOUND_ERROR_HANDLER_NAME, LOGGING_INBOUND_ERROR_HANDLER);
-    }
-
-    @VisibleForTesting
-    static class InitalizerNetFilter implements NetFilter {
-
-        private final Channel ch;
-        private final EndpointGateway gateway;
-        private final EndpointBinding binding;
-        private final PluginFactoryRegistry pfr;
-        private final FilterChainFactory filterChainFactory;
-        private final List<NamedFilterDefinition> filterDefinitions;
-        private final EndpointReconciler endpointReconciler;
-        private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
-        private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
-
-        InitalizerNetFilter(Channel ch,
-                            EndpointBinding binding,
-                            PluginFactoryRegistry pfr,
-                            FilterChainFactory filterChainFactory,
-                            List<NamedFilterDefinition> filterDefinitions,
-                            EndpointReconciler endpointReconciler,
-                            ApiVersionsIntersectFilter apiVersionsIntersectFilter,
-                            ApiVersionsDowngradeFilter apiVersionsDowngradeFilter) {
-            this.ch = ch;
-            this.gateway = binding.endpointGateway();
-            this.binding = binding;
-            this.pfr = pfr;
-            this.filterChainFactory = filterChainFactory;
-            this.filterDefinitions = filterDefinitions;
-            this.endpointReconciler = endpointReconciler;
-            this.apiVersionsIntersectFilter = apiVersionsIntersectFilter;
-            this.apiVersionsDowngradeFilter = apiVersionsDowngradeFilter;
-        }
-
-        @Override
-        public void selectServer(NetFilter.NetFilterContext context) {
-            List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
-
-            NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
-            List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
-            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)", new BrokerAddressFilter(gateway, endpointReconciler));
-            var filters = new ArrayList<>(apiVersionFilters);
-            filters.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
-            filters.addAll(filterChain);
-            if (binding.restrictUpstreamToMetadataDiscovery()) {
-                filters.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
-            }
-            filters.addAll(brokerAddressFilters);
-
-            var target = binding.upstreamTarget();
-            if (target == null) {
-                // This condition should never happen.
-                throw new IllegalStateException("A target address for binding %s is not known.".formatted(binding));
-            }
-
-            context.initiateConnect(target, filters);
-        }
     }
 
     @Sharable
