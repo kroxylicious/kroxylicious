@@ -417,7 +417,7 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     void onServerException(@Nullable Throwable cause) {
         LOGGER.atWarn()
-                .setCause(cause)
+                .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .addArgument(cause != null ? cause.getMessage() : "")
                 .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
         proxyToServerErrorCounter.increment();
