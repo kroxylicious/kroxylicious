@@ -280,9 +280,9 @@ public class ProxyChannelStateMachine {
      * @param virtualClusterModel the virtual cluster the client is connecting too
      */
     void onInitiateConnect(
-                                    HostPort peer,
-                                    List<FilterAndInvoker> filters,
-                                    VirtualClusterModel virtualClusterModel) {
+                           HostPort peer,
+                           List<FilterAndInvoker> filters,
+                           VirtualClusterModel virtualClusterModel) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
             toConnecting(selectingServerState.toConnecting(peer), filters, virtualClusterModel);
         }

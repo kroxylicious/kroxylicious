@@ -109,7 +109,7 @@ class KafkaProxyFrontendHandlerTest {
         corrId = 0;
         proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
         this.pfr = mock(PluginFactoryRegistry.class);
-        this.fcf =  mock(FilterChainFactory.class);
+        this.fcf = mock(FilterChainFactory.class);
     }
 
     @AfterEach
@@ -286,7 +286,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(DelegatingDecodePredicate dp, EndpointBinding endpointBinding) {
-        var namedFilterDefs = List.<NamedFilterDefinition>of();
+        var namedFilterDefs = List.<NamedFilterDefinition> of();
         return new KafkaProxyFrontendHandler(pfr,
                 fcf,
                 namedFilterDefs,
