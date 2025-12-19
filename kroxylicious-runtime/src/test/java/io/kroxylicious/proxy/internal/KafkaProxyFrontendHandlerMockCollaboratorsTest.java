@@ -6,37 +6,35 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.net.InetSocketAddress;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Answers;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.local.LocalAddress;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 
-import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
+import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,7 +46,19 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
             SOURCE_ADDRESS, "1.0.0.1", SOURCE_PORT, 9090);
     public static final DelegatingDecodePredicate DELEGATING_PREDICATE = new DelegatingDecodePredicate();
     @Mock
-    NetFilter netFilter;
+    PluginFactoryRegistry pfr;
+    @Mock
+    Channel ch;
+    @Mock
+    FilterChainFactory filterChainFactory;
+    @Mock
+    List<NamedFilterDefinition> filters;
+    @Mock
+    EndpointReconciler endpointReconciler;
+    @Mock
+    ApiVersionsIntersectFilter apiVersionsIntersectFilter;
+    @Mock
+    ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
 
     @Mock
     VirtualClusterModel virtualCluster;
@@ -71,8 +81,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         when(endpointGateway.virtualCluster()).thenReturn(virtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         handler = new KafkaProxyFrontendHandler(
-                netFilter,
-                DELEGATING_PREDICATE,
+                pfr, filterChainFactory, virtualCluster.getFilters(), endpointReconciler, new ApiVersionsServiceImpl(), DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
                 proxyChannelStateMachine);
@@ -87,7 +96,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         verify(proxyChannelStateMachine).onClientActive(handler);
-        verifyNoInteractions(netFilter);
     }
 
     @Test
@@ -107,153 +115,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         verify(proxyChannelStateMachine).onClientRequest(msg);
-        verifyNoInteractions(netFilter);
-    }
-
-    @Test
-    void inSelectingServer() {
-        // Given
-
-        // When
-        handler.inSelectingServer();
-
-        // Then
-        verify(netFilter).selectServer(handler);
-        verify(proxyChannelStateMachine).assertIsConnecting(anyString());
-    }
-
-    @Test
-    void shouldReturnClientHostFromChannelInSelectingServer() throws Exception {
-        // Given
-        handler.channelActive(clientCtx);
-        final Channel channel = mock(Channel.class);
-        when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
-        when(channel.remoteAddress()).thenReturn(new LocalAddress("127.0.0.1"));
-
-        // When
-        final String actualClientHost = handler.clientHost();
-
-        // Then
-        assertThat(actualClientHost).isEqualTo("local:127.0.0.1");
-    }
-
-    @Test
-    void shouldReturnClientHostFromChannelSocketAddressInSelectingServer() throws Exception {
-        // Given
-        handler.channelActive(clientCtx);
-        final Channel channel = mock(Channel.class);
-        when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
-        when(channel.remoteAddress()).thenReturn(new InetSocketAddress(SOURCE_ADDRESS, SOURCE_PORT));
-
-        // When
-        final String actualClientHost = handler.clientHost();
-
-        // Then
-        assertThat(actualClientHost).isEqualTo(SOURCE_ADDRESS);
-    }
-
-    @Test
-    void shouldReturnClientHostFromHaProxyInSelectingServer() throws Exception {
-        // Given
-        handler.channelActive(clientCtx);
-        final Channel channel = mock(Channel.class);
-        when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(HA_PROXY_MESSAGE, "SnappyKafka", "0.1.5"));
-
-        // When
-        final String actualClientHost = handler.clientHost();
-
-        // Then
-        assertThat(actualClientHost).isEqualTo(SOURCE_ADDRESS);
-        verifyNoInteractions(channel);
-    }
-
-    @Test
-    void shouldCloseConnectionOnClientHostOutsideOfSelectingServer() throws Exception {
-        // Given
-        handler.channelActive(clientCtx);
-        final Channel channel = mock(Channel.class);
-        when(clientCtx.channel()).thenReturn(channel);
-        final ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
-        when(proxyChannelStateMachine.enforceInSelectingServer(messageCaptor.capture())).thenAnswer(invocation -> {
-            throw new IllegalStateException(messageCaptor.getValue());
-        });
-
-        // When
-        assertThatThrownBy(() -> handler.clientHost()).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("NetFilterContext invoked in wrong session state");
-
-        // Then
-        verify(proxyChannelStateMachine).enforceInSelectingServer(anyString());
-    }
-
-    @Test
-    void shouldReturnUnknownClientPortFromChannelInSelectingServer() throws Exception {
-        // Given
-        handler.channelActive(clientCtx);
-        final Channel channel = mock(Channel.class);
-        when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
-        when(channel.remoteAddress()).thenReturn(new LocalAddress("127.0.0.1"));
-
-        // When
-        final int actualClientPort = handler.clientPort();
-
-        // Then
-        assertThat(actualClientPort).isEqualTo(-1);
-    }
-
-    @Test
-    void shouldReturnClientPortFromHaProxyInSelectingServer() throws Exception {
-        // Given
-        handler.channelActive(clientCtx);
-        final Channel channel = mock(Channel.class);
-        when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(HA_PROXY_MESSAGE, "SnappyKafka", "0.1.5"));
-
-        // When
-        final int actualClientPort = handler.clientPort();
-
-        // Then
-        assertThat(actualClientPort).isEqualTo(SOURCE_PORT);
-        verifyNoInteractions(channel);
-    }
-
-    @Test
-    void shouldReturnClientPortFromChannelSocketAddressInSelectingServer() throws Exception {
-        // Given
-        handler.channelActive(clientCtx);
-        final Channel channel = mock(Channel.class);
-        when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
-        when(channel.remoteAddress()).thenReturn(new InetSocketAddress(SOURCE_ADDRESS, SOURCE_PORT));
-
-        // When
-        final int actualClientPort = handler.clientPort();
-
-        // Then
-        assertThat(actualClientPort).isEqualTo(SOURCE_PORT);
-    }
-
-    @Test
-    void shouldCloseConnectionOnClientPortOutsideOfSelectingServer() throws Exception {
-        // Given
-        handler.channelActive(clientCtx);
-        final Channel channel = mock(Channel.class);
-        when(clientCtx.channel()).thenReturn(channel);
-        final ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
-        when(proxyChannelStateMachine.enforceInSelectingServer(messageCaptor.capture())).thenAnswer(invocation -> {
-            throw new IllegalStateException(messageCaptor.getValue());
-        });
-
-        // When
-        assertThatThrownBy(() -> handler.clientPort()).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("NetFilterContext invoked in wrong session state");
-
-        // Then
-        verify(proxyChannelStateMachine).enforceInSelectingServer(messageCaptor.capture());
     }
 
     @Test

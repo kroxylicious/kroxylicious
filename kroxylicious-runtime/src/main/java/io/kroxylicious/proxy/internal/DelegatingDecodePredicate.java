@@ -25,9 +25,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *     <li>We want the proxy to avoid deserializing requests and responses "when it doesn't have to".
  *     So when there isn't a filter which is interested in that request/response API, or API version
  *     And when the proxy infra itself doesn't need to.</li>
- *     <li>But it doesn't know, until it's got to the invoking the {@link io.kroxylicious.proxy.filter.NetFilter NetFilter}
- *     impl and that having called back on the {@link io.kroxylicious.proxy.filter.NetFilter.NetFilterContext NetFilterContext},
- *     what protocol filters are to be used.</li>
+ *     <li>But it doesn't know which protocol filters are to be used until the backend connection is initiated.</li>
  *     <li>But it's the {@link io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder KafkaRequestDecoder}
  *     which needs to know about decodability, and that sits in front of the {@link KafkaProxyFrontendHandler},
  *     so there's a cyclic dependency.</li>
