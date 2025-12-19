@@ -11,6 +11,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.junit.AssumptionViolatedException;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -92,7 +93,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         String testMethodName = extensionContext.getRequiredTestMethod().getName();
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
-            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException"))
+            exception.filter(t -> !(t instanceof AssumptionViolatedException))
                     .ifPresent(e -> logCollector.collectLogs(testClassName, testMethodName));
         }
         finally {
