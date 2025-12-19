@@ -172,7 +172,7 @@ class QuickstartDT {
         try {
             var tempFile = Files.createTempFile("quickstart", ".sh", OWNER_RWX);
             try (var writer = new PrintWriter(Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8))) {
-                writer.println("#!/usr/bin/env sh");
+                writer.println("#!/usr/bin/env bash");
                 writer.println("set -e -v -o pipefail");
                 shellBlocks.forEach(block -> {
                     try (var reader = new BufferedReader(new StringReader(block.content()))) {
