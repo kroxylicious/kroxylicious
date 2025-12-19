@@ -161,7 +161,6 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
     </#list>
 
     private final UserNamespace.Config config;
-    private final Map<ApiKeys, Short> responseApiKeyMap = new HashMap<>();
 
     UserNamespaceFilter(UserNamespace.Config config) {
         this.config = config;
@@ -188,20 +187,12 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
     @Override
     public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
-        boolean should = doShouldHandleResponse(apiKey, apiVersion);
-        if (should) {
-            responseApiKeyMap.put(apiKey, apiVersion);
-        }
-        return should;
-    }
-
-    private static boolean doShouldHandleResponse(ApiKeys apiKey, short apiVersion) {
         // Find coordinator uses identifies entities using a key type
         if (apiKey == FIND_COORDINATOR) {
             return true;
         }
         return switch (apiKey) {
-<#list messageSpecs as messageSpec>
+        <#list messageSpecs as messageSpec>
                 <#if messageSpec.type?c_lower_case == 'response' && messageSpec.hasAtLeastOneEntityField>
                     <#assign specName>
                         <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${
@@ -218,7 +209,9 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         return versions.contains(apiVersions);
     }
 
+    @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          short apiVersion,
                                                           RequestHeaderData header,
                                                           ApiMessage request,
                                                           FilterContext context) {
@@ -296,11 +289,12 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         return mappedName.startsWith(authId + "-");
     }
 
+    @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
+                                                            short apiVersion,
                                                             ResponseHeaderData header,
                                                             ApiMessage response,
                                                             FilterContext context) {
-        var apiVersion = Objects.requireNonNull(responseApiKeyMap.get(apiKey)); // Workaround for https://github.com/kroxylicious/kroxylicious/issues/2916
         var authzId = context.clientSaslContext().map(ClientSaslContext::authorizationId);
         authzId.ifPresent(aid -> {
             switch (apiKey) {

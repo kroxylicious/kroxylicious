@@ -68,7 +68,7 @@ class UserNamespaceFilterIT {
     /**
      * Group isolation - describe groups.
      * <br/>
-     * Alice and Bob both consumer from the same topic using distinct own group names.
+     * Alice and Bob both consume from the same topic using distinct own group names.
      * Test uses describeConsumerGroups to ensure that Alice only sees her group and Bob only sees his.
      * @param cluster broker
      * @param topic topic
@@ -115,7 +115,6 @@ class UserNamespaceFilterIT {
             else {
                 verifyConsumerGroupsWithList(aliceAdmin, Set.of("AliceGroup"));
                 verifyConsumerGroupsWithList(bobAdmin, Set.of("BobGroup"));
-
             }
         }
     }
