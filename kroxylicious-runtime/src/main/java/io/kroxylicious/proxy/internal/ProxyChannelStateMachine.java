@@ -24,7 +24,6 @@ import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
@@ -67,8 +66,6 @@ import static org.slf4j.LoggerFactory.getLogger;
  *  ╰───┤
  *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any other KRPC request
  *     {@link ProxyChannelState.SelectingServer SelectingServer} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *      │
- *      ↓ netFilter.{@link NetFilter#selectServer(NetFilter.NetFilterContext) selectServer} calls frontend.{@link KafkaProxyFrontendHandler#initiateConnect(HostPort, List) initiateConnect}
  *     {@link ProxyChannelState.Connecting Connecting} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *      │
  *      ↓
@@ -100,7 +97,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  */
 @SuppressWarnings("java:S1133")
 public class ProxyChannelStateMachine {
-    private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "NetFilter called NetFilterContext.initiateConnect() more than once";
+    private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "onInitiateConnect called more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
 
     // Connection metrics
@@ -162,7 +159,7 @@ public class ProxyChannelStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualClusterModel, NetFilter)}
+     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort, List, VirtualClusterModel)}
      * has been called
      */
     @VisibleForTesting
@@ -277,22 +274,20 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * Notify the statemachine that the netfilter has chosen an outbound peer.
+     * Notify the statemachine that the connection to the backend has started.
      * @param peer the upstream host to connect to.
      * @param filters the set of filters to be applied to the session
      * @param virtualClusterModel the virtual cluster the client is connecting too
-     * @param netFilter the netFilter which selected the upstream peer.
      */
-    void onNetFilterInitiateConnect(
-                                    HostPort peer,
-                                    List<FilterAndInvoker> filters,
-                                    VirtualClusterModel virtualClusterModel,
-                                    NetFilter netFilter) {
+    void onInitiateConnect(
+                           HostPort peer,
+                           List<FilterAndInvoker> filters,
+                           VirtualClusterModel virtualClusterModel) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
             toConnecting(selectingServerState.toConnecting(peer), filters, virtualClusterModel);
         }
         else {
-            illegalState(DUPLICATE_INITIATE_CONNECT_ERROR + " : netFilter='" + netFilter + "'");
+            illegalState(DUPLICATE_INITIATE_CONNECT_ERROR);
         }
     }
 
@@ -368,16 +363,6 @@ public class ProxyChannelStateMachine {
         }
         else if (!onClientRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
-        }
-    }
-
-    /**
-     * ensure the state machine is in the connecting state.
-     * @param msg to be logged if in another state.
-     */
-    void assertIsConnecting(String msg) {
-        if (!(state instanceof ProxyChannelState.Connecting)) {
-            illegalState(msg);
         }
     }
 

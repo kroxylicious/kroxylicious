@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.extensions;
 
 import java.lang.reflect.Parameter;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,11 +24,12 @@ import org.slf4j.LoggerFactory;
 
 import io.skodjob.testframe.resources.KubeResourceManager;
 
-import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.logs.TestLogCollector;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * The type Kroxylicious extension.
@@ -36,6 +38,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousExtension.class);
     private static final String K8S_NAMESPACE_KEY = "namespace";
     private static final String EXTENSION_STORE_NAME = "io.kroxylicious.systemtests";
+    private static final int MAX_NAMESPACE_PREFIX_LENGTH = 12;
     private final ExtensionContext.Namespace junitNamespace;
     private final TestLogCollector logCollector = TestLogCollector.getInstance();
 
@@ -89,9 +92,8 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         String testMethodName = extensionContext.getRequiredTestMethod().getName();
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
-            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
-                logCollector.collectLogs(testClassName, testMethodName);
-            });
+            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException"))
+                    .ifPresent(e -> logCollector.collectLogs(testClassName, testMethodName));
         }
         finally {
             if (Environment.SYNC_RESOURCES_DELETION) {
@@ -106,9 +108,22 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     @Override
     public void beforeEach(ExtensionContext extensionContext) {
         ResourceManager.setTestContext(extensionContext);
-        final String k8sNamespace = Constants.KAFKA_DEFAULT_NAMESPACE + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        final String k8sNamespace = generateNamespaceName(extensionContext);
         extensionContext.getStore(junitNamespace).put(K8S_NAMESPACE_KEY, k8sNamespace);
         NamespaceUtils.createNamespaceAndPrepare(k8sNamespace);
+    }
+
+    @NonNull
+    private static String generateNamespaceName(ExtensionContext extensionContext) {
+        String namespacePrefix = getPrefix(extensionContext);
+        return namespacePrefix + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+    }
+
+    @NonNull
+    private static String getPrefix(ExtensionContext extensionContext) {
+        String simpleName = extensionContext.getRequiredTestClass().getSimpleName().replace("ST", "");
+        String limitedTestName = simpleName.substring(0, Math.min(simpleName.length(), MAX_NAMESPACE_PREFIX_LENGTH));
+        return String.join("-", limitedTestName.split("(?=\\p{Upper})")).toLowerCase(Locale.ROOT) + "-st";
     }
 
     private String extractK8sNamespace(ExtensionContext extensionContext) {

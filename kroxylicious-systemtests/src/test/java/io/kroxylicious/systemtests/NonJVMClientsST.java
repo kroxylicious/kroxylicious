@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 @Tag(EXTERNAL_KAFKA_CLIENTS)
 class NonJVMClientsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(NonJVMClientsST.class);
-    private final String clusterName = "my-cluster";
+    private final String clusterName = "non-jvm-clients-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
     private String bootstrap;
