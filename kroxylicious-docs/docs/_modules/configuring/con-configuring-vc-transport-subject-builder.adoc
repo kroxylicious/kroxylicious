@@ -1,6 +1,6 @@
 :_mod-docs-content-type: CONCEPT
 
-[id='con-configuring-vc-transport-subject-builders-{context}']
+[id='con-configuring-vc-transport-subject-builder-{context}']
 = Configuring the transport subject builder
 
 [role="_abstract"]
