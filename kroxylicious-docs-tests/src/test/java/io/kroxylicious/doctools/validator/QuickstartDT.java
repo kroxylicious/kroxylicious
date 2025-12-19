@@ -80,7 +80,7 @@ class QuickstartDT {
         // Then
         try {
             assertThat(actual)
-                    .succeedsWithin(Duration.ofMinutes(5))
+                    .succeedsWithin(Duration.ofMinutes(10))
                     .satisfies(er -> assertThat(er.exitValue())
                             .withFailMessage("Script failed - %s", er)
                             .isZero());
@@ -174,11 +174,14 @@ class QuickstartDT {
             try (var writer = new PrintWriter(Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8))) {
                 writer.println("#!/usr/bin/env bash");
                 writer.println("set -e -v -o pipefail");
+                if (System.getenv("KROYXLICIOUS_QUICKSTART_DEBUG") != null) {
+                    writer.println("set -x");
+                }
                 shellBlocks.forEach(block -> {
                     try (var reader = new BufferedReader(new StringReader(block.content()))) {
                         writer.println("""
                                 echo "##############"
-                                echo "Code block source: %s (line %s)"
+                                echo "Code block source: %s (line %s), started ${SECONDS}"
                                 """.formatted(block.asciiDocFile(), block.lineNumber()));
                         String line;
                         while ((line = reader.readLine()) != null) {
