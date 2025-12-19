@@ -36,7 +36,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.stubbing.Answer;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -532,12 +531,6 @@ class ProxyChannelStateMachineEndToEndTest {
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
         pipeline.fireChannelActive();
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
-    }
-
-    private static Answer<Void> selectServerCallsInitiateConnect() {
-        return invocation -> {
-            return null;
-        };
     }
 
     private void assertNoClientResponses() {
