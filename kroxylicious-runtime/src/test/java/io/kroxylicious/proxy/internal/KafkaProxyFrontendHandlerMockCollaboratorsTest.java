@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -15,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Answers;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -22,16 +22,15 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.local.LocalAddress;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.timeout.IdleStateHandler;
 
-import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
@@ -42,8 +41,6 @@ import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -197,7 +194,11 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     void shouldAddAuthenticatedSessionIdleHandlerWithConfiguredTimeoutsWhenSessionAuthenticated() throws Exception {
         // Given
         handler = new KafkaProxyFrontendHandler(
-                netFilter,
+                mock(PluginFactoryRegistry.class),
+                mock(FilterChainFactory.class),
+                List.of(),
+                endpointReconciler,
+                mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
