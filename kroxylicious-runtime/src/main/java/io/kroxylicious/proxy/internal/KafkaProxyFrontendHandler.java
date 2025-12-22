@@ -26,6 +26,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -131,16 +132,16 @@ public class KafkaProxyFrontendHandler
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     KafkaProxyFrontendHandler(
-                              PluginFactoryRegistry pfr,
-                              FilterChainFactory filterChainFactory,
-                              List<NamedFilterDefinition> namedFilterDefinitions,
-                              EndpointReconciler endpointReconciler,
-                              ApiVersionsServiceImpl apiVersionsService,
-                              DelegatingDecodePredicate dp,
-                              TransportSubjectBuilder subjectBuilder,
-                              EndpointBinding endpointBinding,
-                              ProxyChannelStateMachine proxyChannelStateMachine,
-                              Optional<NettySettings> proxyNettySettings) {
+            PluginFactoryRegistry pfr,
+            FilterChainFactory filterChainFactory,
+            List<NamedFilterDefinition> namedFilterDefinitions,
+            EndpointReconciler endpointReconciler,
+            ApiVersionsServiceImpl apiVersionsService,
+            DelegatingDecodePredicate dp,
+            TransportSubjectBuilder subjectBuilder,
+            EndpointBinding endpointBinding,
+            ProxyChannelStateMachine proxyChannelStateMachine,
+            Optional<NettySettings> proxyNettySettings) {
         this.endpointBinding = endpointBinding;
         this.pfr = pfr;
         this.filterChainFactory = filterChainFactory;
@@ -186,8 +187,8 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void userEventTriggered(
-                                   ChannelHandlerContext ctx,
-                                   Object event)
+            ChannelHandlerContext ctx,
+            Object event)
             throws Exception {
         if (event instanceof SniCompletionEvent sniCompletionEvent) {
             if (sniCompletionEvent.isSuccess()) {
@@ -234,7 +235,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void channelWritabilityChanged(
-                                          final ChannelHandlerContext ctx)
+            final ChannelHandlerContext ctx)
             throws Exception {
         super.channelWritabilityChanged(ctx);
         if (ctx.channel().isWritable()) {
@@ -252,8 +253,8 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void channelRead(
-                            ChannelHandlerContext ctx,
-                            Object msg) {
+            ChannelHandlerContext ctx,
+            Object msg) {
         proxyChannelStateMachine.onClientRequest(msg);
     }
 
@@ -368,7 +369,8 @@ public class KafkaProxyFrontendHandler
      * with the given {@code filters}.
      * @param remote upstream broker target
      */
-    void initiateConnect(HostPort remote) {
+    void initiateConnect(
+            HostPort remote) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Connecting to backend broker {}",
                     this.proxyChannelStateMachine.sessionId(), remote);
@@ -380,8 +382,8 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Connecting} state.
      */
     void inConnecting(
-                      HostPort remote,
-                      KafkaProxyBackendHandler backendHandler) {
+            HostPort remote,
+            KafkaProxyBackendHandler backendHandler) {
         final Channel inboundChannel = clientCtx().channel();
         // Start the upstream connection attempt.
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
@@ -549,9 +551,9 @@ public class KafkaProxyFrontendHandler
     }
 
     private void addFiltersToPipeline(
-                                      List<FilterAndInvoker> filters,
-                                      ChannelPipeline pipeline,
-                                      Channel inboundChannel) {
+            List<FilterAndInvoker> filters,
+            ChannelPipeline pipeline,
+            Channel inboundChannel) {
 
         int num = 0;
 
@@ -583,8 +585,8 @@ public class KafkaProxyFrontendHandler
     }
 
     private static ResponseFrame buildErrorResponseFrame(
-                                                         DecodedRequestFrame<?> triggerFrame,
-                                                         Throwable error) {
+            DecodedRequestFrame<?> triggerFrame,
+            Throwable error) {
         var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
         final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
         responseHeaderData.setCorrelationId(triggerFrame.correlationId());
@@ -597,7 +599,7 @@ public class KafkaProxyFrontendHandler
      * @return The response frame
      */
     private @Nullable ResponseFrame errorResponse(
-                                                  @Nullable Throwable errorCodeEx) {
+            @Nullable Throwable errorCodeEx) {
         ResponseFrame errorResponse;
         final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
         if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
@@ -622,9 +624,13 @@ public class KafkaProxyFrontendHandler
 
     public void onSessionAuthenticated() {
         ChannelPipeline channelPipeline = Objects.requireNonNull(clientCtx).pipeline();
-        channelPipeline.remove(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER);
-        channelPipeline.addFirst("authenticatedSessionIdleHandler",
-                new IdleStateHandler(idleTimeSeconds, idleTimeSeconds, idleTimeSeconds, TimeUnit.SECONDS));
+        ChannelHandler preSessionHandler = channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER);
+        // sessions can be re-authenticated however we only need to act on the first instance
+        if (preSessionHandler != null) {
+            channelPipeline.remove(preSessionHandler);
+            channelPipeline.addFirst("authenticatedSessionIdleHandler",
+                    new IdleStateHandler(idleTimeSeconds, idleTimeSeconds, idleTimeSeconds, TimeUnit.SECONDS));
+        }
     }
 
     protected String remoteHost() {
