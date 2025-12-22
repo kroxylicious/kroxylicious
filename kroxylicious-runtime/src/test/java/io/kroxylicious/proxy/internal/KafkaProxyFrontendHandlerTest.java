@@ -298,7 +298,8 @@ class KafkaProxyFrontendHandlerTest {
                 dp,
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
-                proxyChannelStateMachine, Optional.empty()) {
+                proxyChannelStateMachine,
+                Optional.empty()) {
 
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
