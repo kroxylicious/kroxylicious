@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,6 +56,10 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
             SOURCE_ADDRESS, "1.0.0.1", SOURCE_PORT, 9090);
     public static final DelegatingDecodePredicate DELEGATING_PREDICATE = new DelegatingDecodePredicate();
     public static final NettySettings NETTY_SETTINGS = new NettySettings(Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(Duration.ofSeconds(33)));
+
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    private ChannelPipeline channelPipeline;
+
     @Mock
     PluginFactoryRegistry pfr;
     @Mock
@@ -162,22 +167,49 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     void shouldRemovePreSessionIdleHandlerWhenSessionAuthenticated() throws Exception {
         // Given
         handler.channelActive(clientCtx);
-        ChannelPipeline channelPipeline = mock(ChannelPipeline.class);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
+        ChannelHandler idleHandler = mock(ChannelHandler.class);
+        when(channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER))
+                .thenReturn(idleHandler);
 
         // When
         handler.onSessionAuthenticated();
 
         // Then
-        verify(channelPipeline).remove(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER);
+        verify(channelPipeline).remove(idleHandler);
+    }
+
+    @Test
+    void shouldHandleReAuthentication() throws Exception {
+        // Given
+        handler.channelActive(clientCtx);
+        when(clientCtx.pipeline()).thenReturn(channelPipeline);
+        ChannelHandler idleHandler = mock(ChannelHandler.class);
+        when(channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER))
+                .thenReturn(idleHandler)
+                .thenReturn(null);
+        when(channelPipeline.remove(idleHandler)).thenReturn(channelPipeline);
+
+        // not strictly required for the test, but it mimics the netty API. It also ensures that an erroneous call to remove will fail
+        when(channelPipeline.remove((ChannelHandler) null)).thenThrow(new NullPointerException("handler"));
+
+        handler.onSessionAuthenticated();
+
+        // When
+        handler.onSessionAuthenticated();
+
+        // Then
+        verify(channelPipeline, times(1)).remove(idleHandler);
     }
 
     @Test
     void shouldAddAuthenticatedSessionIdleHandlerWithDefaultTimeoutsWhenSessionAuthenticated() throws Exception {
         // Given
         handler.channelActive(clientCtx);
-        ChannelPipeline channelPipeline = mock(ChannelPipeline.class);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
+        ChannelHandler idleHandler = mock(ChannelHandler.class);
+        when(channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER))
+                .thenReturn(idleHandler);
         ArgumentCaptor<? extends ChannelHandler> handlerCaptor = ArgumentCaptor.forClass(ChannelHandler.class);
 
         // When
@@ -205,8 +237,10 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 proxyChannelStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
-        ChannelPipeline channelPipeline = mock(ChannelPipeline.class);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
+        ChannelHandler idleHandler = mock(ChannelHandler.class);
+        when(channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER))
+                .thenReturn(idleHandler);
         ArgumentCaptor<? extends ChannelHandler> handlerCaptor = ArgumentCaptor.forClass(ChannelHandler.class);
 
         // When
