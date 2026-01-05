@@ -31,7 +31,7 @@ public record SimpleMetric(String name, Map<String, String> labels, double value
     // note: RE doesn't handle escaping within label values
     @SuppressWarnings("java:S5852") //
     private static final Pattern PROM_TEXT_EXPOSITION_PATTERN = Pattern
-            .compile("^(?<metric>[a-zA-Z_:][a-zA-Z0-9_:]*)(\\{(?<labels>.*)})?[\\t ]*(?<value>[0-9E.]*)[\\t ]*(?<timestamp>\\d+)?$");
+            .compile("^(?<metric>[a-zA-Z_:][a-zA-Z0-9_:]*)(\\{(?<labels>.*)})?[\\t ]*(?<value>[0-9E\\-.]*)[\\t ]*(?<timestamp>\\d+)?$");
     private static final Pattern NAME_WITH_QUOTED_VALUE = Pattern.compile("^(?<name>[a-zA-Z_:][a-zA-Z0-9_:]*)=\"(?<value>.*)\"$");
 
     private record LineMatcher(String line, Matcher matcher) {}
