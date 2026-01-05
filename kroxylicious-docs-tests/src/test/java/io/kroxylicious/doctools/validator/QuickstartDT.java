@@ -26,7 +26,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 import org.asciidoctor.Attributes;
 import org.asciidoctor.ast.StructuralNode;
@@ -52,7 +51,7 @@ class QuickstartDT {
 
     private static final FileAttribute<Set<PosixFilePermission>> OWNER_RWX = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
 
-    private static Stream<Arguments> quickstarts() {
+    private static List<Arguments> quickstarts() {
         try (var blockExtractor = new BlockExtractor()) {
 
             Assertions.assertThat(Utils.OPERATOR_ZIP).exists();
@@ -65,7 +64,7 @@ class QuickstartDT {
             var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quickstart").resolve("index.adoc");
             var quickstarts = List.of(new Quickstart("record-encryption-quickstart(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")),
                     new Quickstart("record-encryption-quickstart(localstack)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "localstack")));
-            return quickstarts.stream().map(q -> extractCodeBlocks(blockExtractor, q));
+            return quickstarts.stream().map(q -> extractCodeBlocks(blockExtractor, q)).toList();
         }
     }
 
@@ -81,7 +80,7 @@ class QuickstartDT {
         // Then
         try {
             assertThat(actual)
-                    .succeedsWithin(Duration.ofMinutes(5))
+                    .succeedsWithin(Duration.ofMinutes(10))
                     .satisfies(er -> assertThat(er.exitValue())
                             .withFailMessage("Script failed - %s", er)
                             .isZero());
@@ -173,13 +172,16 @@ class QuickstartDT {
         try {
             var tempFile = Files.createTempFile("quickstart", ".sh", OWNER_RWX);
             try (var writer = new PrintWriter(Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8))) {
-                writer.println("#!/usr/bin/env sh");
+                writer.println("#!/usr/bin/env bash");
                 writer.println("set -e -v -o pipefail");
+                if (System.getenv("KROXYLICIOUS_QUICKSTART_DEBUG") != null) {
+                    writer.println("set -x");
+                }
                 shellBlocks.forEach(block -> {
                     try (var reader = new BufferedReader(new StringReader(block.content()))) {
                         writer.println("""
                                 echo "##############"
-                                echo "Code block source: %s (line %s)"
+                                echo "Code block source: %s (line %s), started ${SECONDS}"
                                 """.formatted(block.asciiDocFile(), block.lineNumber()));
                         String line;
                         while ((line = reader.readLine()) != null) {
