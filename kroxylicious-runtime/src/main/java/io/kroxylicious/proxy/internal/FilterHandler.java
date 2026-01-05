@@ -77,6 +77,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private @Nullable ChannelHandlerContext ctx;
     private @Nullable PromiseFactory promiseFactory;
     private static AtomicBoolean deprecationWarningEmitted = new AtomicBoolean(false);
+    private final TopicNameRetriever topicNameRetriever = CachingTopicNameRetriever.cachingRetriever(OutOfBandTopicNameRetriever.instance());
 
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
@@ -635,7 +636,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
-            return new TopicNameRetriever(this, Objects.requireNonNull(ctx).executor()).topicNames(topicIds);
+            return topicNameRetriever.topicNames(topicIds, Objects.requireNonNull(ctx).executor(), this);
         }
 
     }
