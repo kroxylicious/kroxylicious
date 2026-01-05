@@ -174,7 +174,7 @@ class QuickstartDT {
             try (var writer = new PrintWriter(Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8))) {
                 writer.println("#!/usr/bin/env bash");
                 writer.println("set -e -v -o pipefail");
-                if (System.getenv("KROYXLICIOUS_QUICKSTART_DEBUG") != null) {
+                if (System.getenv("KROXYLICIOUS_QUICKSTART_DEBUG") != null) {
                     writer.println("set -x");
                 }
                 shellBlocks.forEach(block -> {
