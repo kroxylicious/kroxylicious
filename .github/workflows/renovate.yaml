@@ -58,7 +58,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
       - name: Renovate
-        uses: renovatebot/github-action@f7fad228a053c69a98e24f8e4f6cf40db8f61e08
+        uses: renovatebot/github-action@a7e89c349a53ab0c9d8458eb85f4b415e55848e7
         with:
           configurationFile: .github/renovate.json
           token: ${{ env.EFFECTIVE_TOKEN }}
