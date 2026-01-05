@@ -113,6 +113,10 @@ WEBSITE_DOCS_LOCATION="${WEBSITE_TMP}/"
 KROXYLICIOUS_JAVADOC_LOCATION="${ORIGINAL_WORKING_DIR}/target/javadoc-web"
 WEBSITE_JAVADOC_LOCATION="${WEBSITE_TMP}/javadoc/"
 
+# Define the subdirectory for raw Javadoc content
+RAW_SUBDIR="raw"
+WEBSITE_RAW_LOCATION="${WEBSITE_JAVADOC_LOCATION}/${RAW_SUBDIR}"
+
 if [[ "${DRY_RUN:-false}" == true ]]; then
     #Disable the shell check as the colour codes only work with interpolation.
     # shellcheck disable=SC2059
@@ -151,32 +155,25 @@ echo "Copying release docs from ${KROXYLICIOUS_DOCS_LOCATION} to ${WEBSITE_DOCS_
 cp -R "${KROXYLICIOUS_DOCS_LOCATION}"/* "${WEBSITE_DOCS_LOCATION}"
 
 echo "Copying release javadoc from ${KROXYLICIOUS_DOCS_LOCATION} to ${WEBSITE_DOCS_LOCATION}"
-cp -R "${KROXYLICIOUS_JAVADOC_LOCATION}"/* "${WEBSITE_JAVADOC_LOCATION}"
+cp -R "${KROXYLICIOUS_JAVADOC_LOCATION}"/* "${WEBSITE_RAW_LOCATION}"
 
-echo "Injecting Kroxylicious branding into Javadoc HTML files..."
-find "${WEBSITE_JAVADOC_LOCATION}" -name "*.html" | while read -r html_file; do
-    JAVADOC_TMP=$(mktemp)
+echo "Injecting Kroxylicious site layout into Javadoc HTML files..."
+find "${WEBSITE_RAW_LOCATION}" -name "*.html" | while read -r raw_file; do
+    # Calculate the relative path for the public wrapper URI
+    rel_path=${raw_file#${WEBSITE_RAW_LOCATION}/}
+    wrapper_file="${WEBSITE_RAW_LOCATION}/$rel_path"
 
-    # 1. Add Front Matter (using the pass-through layout)
-    cat <<EOF > "$JAVADOC_TMP"
+    # Ensure the directory structure exists for the wrapper
+    mkdir -p "$(dirname "$wrapper_file")"
+
+    # Create the wrapper page with front matter pointing to the raw content
+    # Ensure 'raw_path' matches the URI Jekyll will serve for the static file
+    cat <<EOF > "${wrapper_file}"
 ---
-layout: javadoc
+layout: javadoc-wrapper
+raw_path: "/javadoc/${RELEASE_VERSION}/${RAW_SUBDIR}/${rel_path}"
 ---
 EOF
-
-    # 2. Prepare the Asset Injections (Favicon, CSS, Bootstrap JS)
-    # Note: We use absolute_url logic manually here or relative paths since Jekyll won't process tags inside the Javadoc <body>
-    ASSETS='<link rel="icon" href="/favicon.ico" type="image/x-icon" />\n<link rel="stylesheet" href="/css/style.css" />\n<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" />\n<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>'
-    
-    # 3. Prepare the Nav and Dev Watermark
-    NAV_BLOCK='{% if jekyll.environment == "development" %}<div class="dev-watermark">Development Mode</div>{% endif %}\n{% include nav.html %}'
-
-    # 4. Perform Injections using sed
-    # Inject Assets into <head> and Nav into <body>
-    sed -e "s|<head>|& \n$ASSETS|I" \
-        -e "s|<body[^>]*>|& \n$NAV_BLOCK|I" "$html_file" >> "$JAVADOC_TMP"
-
-    mv "$JAVADOC_TMP" "$html_file"
 done
 
 echo "Updating latest release to ${RELEASE_VERSION}"
