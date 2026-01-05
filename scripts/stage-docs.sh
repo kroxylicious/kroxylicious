@@ -102,9 +102,16 @@ RELEASE_TAG="v${RELEASE_VERSION}"
 
 WEBSITE_TMP=$(mktemp -d)
 
+# NOTE: Only run Javadoc build for the modules we currently publish Javadoc for (as of 2025-12-30)
+# TODO: Probably should parameterise this or something
+JAVADOC_MODULES=":kroxylicious-api,:kroxylicious-kms,:kroxylicious-krpc-plugin,:kroxylicious-record-validation,:kroxylicious-runtime"
+
 # Use a `/.` at the end of the source path to avoid the source path being appended to the destination path if the `.../_files/` folder already exists
 KROXYLICIOUS_DOCS_LOCATION="${ORIGINAL_WORKING_DIR}/kroxylicious-docs/target/web"
 WEBSITE_DOCS_LOCATION="${WEBSITE_TMP}/"
+
+KROXYLICIOUS_JAVADOC_LOCATION="${ORIGINAL_WORKING_DIR}/target/javadoc-web"
+WEBSITE_JAVADOC_LOCATION="${WEBSITE_TMP}/javadoc/"
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
     #Disable the shell check as the colour codes only work with interpolation.
@@ -123,7 +130,12 @@ echo "Checking out tags/${RELEASE_TAG} in  in $(git remote get-url "${REPOSITORY
 git checkout "tags/${RELEASE_TAG}"
 
 # Run docs build
+echo "Run Asciidoc Build"
 mvn -P dist package --pl kroxylicious-docs
+
+# Run Javadoc build
+echo "Run Javadoc build"
+mvn -P webdocs package -pl "${JAVADOC_MODULES}"
 
 # Move to temp directory so we don't end up with website files in the main repository
 cd "${WEBSITE_TMP}"
@@ -137,6 +149,35 @@ git checkout -b "${RELEASE_DOCS_BRANCH}"
 
 echo "Copying release docs from ${KROXYLICIOUS_DOCS_LOCATION} to ${WEBSITE_DOCS_LOCATION}"
 cp -R "${KROXYLICIOUS_DOCS_LOCATION}"/* "${WEBSITE_DOCS_LOCATION}"
+
+echo "Copying release javadoc from ${KROXYLICIOUS_DOCS_LOCATION} to ${WEBSITE_DOCS_LOCATION}"
+cp -R "${KROXYLICIOUS_JAVADOC_LOCATION}"/* "${WEBSITE_JAVADOC_LOCATION}"
+
+echo "Injecting Kroxylicious branding into Javadoc HTML files..."
+find "${WEBSITE_JAVADOC_LOCATION}" -name "*.html" | while read -r html_file; do
+    JAVADOC_TMP=$(mktemp)
+
+    # 1. Add Front Matter (using the pass-through layout)
+    cat <<EOF > "$JAVADOC_TMP"
+---
+layout: javadoc
+---
+EOF
+
+    # 2. Prepare the Asset Injections (Favicon, CSS, Bootstrap JS)
+    # Note: We use absolute_url logic manually here or relative paths since Jekyll won't process tags inside the Javadoc <body>
+    ASSETS='<link rel="icon" href="/favicon.ico" type="image/x-icon" />\n<link rel="stylesheet" href="/css/style.css" />\n<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" />\n<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>'
+    
+    # 3. Prepare the Nav and Dev Watermark
+    NAV_BLOCK='{% if jekyll.environment == "development" %}<div class="dev-watermark">Development Mode</div>{% endif %}\n{% include nav.html %}'
+
+    # 4. Perform Injections using sed
+    # Inject Assets into <head> and Nav into <body>
+    sed -e "s|<head>|& \n$ASSETS|I" \
+        -e "s|<body[^>]*>|& \n$NAV_BLOCK|I" "$html_file" >> "$JAVADOC_TMP"
+
+    mv "$JAVADOC_TMP" "$html_file"
+done
 
 echo "Updating latest release to ${RELEASE_VERSION}"
 ${SED} -i -e "s/^latestRelease: .*$/latestRelease: ${RELEASE_VERSION}/g" _data/kroxylicious.yml
