@@ -82,6 +82,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -589,12 +590,11 @@ public abstract class AuthzIT extends BaseIT {
             var node = scenario.convertResponse(response);
             return scenario.clobberResponse(cl, node);
         });
-        assertThat(mapValues(proxiedResponsesByUser,
+        assertThatJson(mapValues(proxiedResponsesByUser,
                 x -> convertAndClobberUserResponse.apply(x, proxiedCluster)))
                 .as("Expect proxied response to be the same as the reference response with equivalent AuthZ")
                 .isEqualTo(mapValues(unproxiedResponsesByUser,
-                        x -> convertAndClobberUserResponse.apply(x, referenceCluster)));
-
+                        x1 -> convertAndClobberUserResponse.apply(x1, referenceCluster)));
 
         await().timeout(Duration.ofSeconds(60))
                 .alias("assertions about visible side effects").untilAsserted(() -> {
