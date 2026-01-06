@@ -51,7 +51,7 @@
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.1</junit.version>
         <kafka.version>4.1.1</kafka.version>
-        <kroxy.extension.version>0.13.0</kroxy.extension.version>
+        <kroxy.extension.version>0.14.0</kroxy.extension.version>
         <log4j.version>2.25.2</log4j.version>
         <caffeine.version>3.2.3</caffeine.version>
         <picocli.version>4.7.7</picocli.version>
@@ -78,7 +78,7 @@
         <kubernetes-client.version>7.4.0</kubernetes-client.version>
         <maven.core.version>3.9.12</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
-        <testcontainers.version>2.0.2</testcontainers.version>
+        <testcontainers.version>2.0.3</testcontainers.version>
         <azure.security.keyvault.keys.version>4.10.4</azure.security.keyvault.keys.version>
         <lowkey.version>6.0.6</lowkey.version>
         <bouncycastle.version>1.83</bouncycastle.version>
