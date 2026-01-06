@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test driver for low-level but complex sequential gestures, for example executing FindCoordinator requests
- * until a co-ordinator is available.
+ * until a co-coordinator is available.
  */
 class KafkaDriver {
     private final BaseClusterFixture cluster;
@@ -148,21 +148,23 @@ class KafkaDriver {
                                                                       Class<T> responseClass) {
         ApiKeys apiKeys = ApiKeys.forId(request.apiKey());
         Converter requestConverter = requestConverterFor(apiKeys.messageType);
-        LOG.info("{} {} request: {} >> {}",
-                username,
-                apiKeys,
-                prettyJsonString(requestConverter.writer().apply(request, apiVersion)),
-                cluster.name());
+        LOG.atDebug().setMessage("{} {} request: {} >> {}")
+                .addArgument(username)
+                .addArgument(apiKeys)
+                .addArgument(() -> prettyJsonString(requestConverter.writer().apply(request, apiVersion)))
+                .addArgument(cluster.name())
+                .log();
         Response res = kafkaClient.getSync(getRequest(apiVersion, request));
         ApiMessage responseMessage = res.payload().message();
         assertThat(responseMessage).isInstanceOf(responseClass);
         var response = responseClass.cast(responseMessage);
         Converter responseConverter = responseConverterFor(apiKeys.messageType);
-        LOG.info("{} {} response: {} << {}",
-                username,
-                apiKeys,
-                prettyJsonString(responseConverter.writer().apply(response, apiVersion)),
-                cluster.name());
+        LOG.atDebug().setMessage("{} {} response: {} << {}")
+                .addArgument(username)
+                .addArgument(apiKeys)
+                .addArgument(() -> prettyJsonString(responseConverter.writer().apply(response, apiVersion)))
+                .addArgument(cluster.name())
+                .log();
         return response;
     }
 

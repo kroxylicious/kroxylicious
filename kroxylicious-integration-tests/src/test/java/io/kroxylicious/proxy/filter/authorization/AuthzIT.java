@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.filter.authorization;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -23,15 +22,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicPartition;
@@ -52,17 +45,12 @@ import org.apache.kafka.common.protocol.Message;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
-import org.apache.kafka.common.serialization.Deserializer;
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.common.serialization.Serializer;
-import org.assertj.core.api.AbstractComparableAssert;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 
-import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -214,7 +202,7 @@ public abstract class AuthzIT extends BaseIT {
 
     /**
      * An abstraction for creating requests which depend on factors not known until just before the request is to be made.
-     *
+     * <br/>
      * While we want to specify the general "shape" of a request to be defined in the test method parameter supplier
      * (i.e. the thing named in the {@code @MethodSource}), an actual request with that shape can
      * depend on things, like topic ids, which are specific to the cluster (which might be a ReferenceCluster or a ProxiedCluster).
@@ -427,51 +415,6 @@ public abstract class AuthzIT extends BaseIT {
                 .allMatch(p -> p.leader() != null);
     }
 
-    protected static void ensureInternalTopicsExist(
-                                                    KafkaCluster unproxiedCluster,
-                                                    String tmpName)
-            throws ExecutionException, InterruptedException {
-        Map<String, Object> aSuper = unproxiedCluster.getKafkaClientConfiguration(SUPER, "Super");
-        try (var admin = AdminClient.create(aSuper)) {
-
-            admin.createTopics(List.of(new NewTopic(tmpName, 1, (short) 1)))
-                    .all().toCompletionStage().toCompletableFuture().join();
-
-            TopicPartition topicPartition = new TopicPartition(tmpName, 0);
-            Serdes.StringSerde stringSerde = new Serdes.StringSerde();
-            Serializer<String> serializer = stringSerde.serializer();
-            Deserializer<String> deserializer = stringSerde.deserializer();
-
-            var producerProps = new HashMap<>(aSuper);
-            producerProps.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, tmpName);
-            try (var producer = new KafkaProducer<>(producerProps,
-                    serializer,
-                    serializer)) {
-                producer.initTransactions();
-                producer.beginTransaction();
-                var sent = producer.send(new ProducerRecord<>(tmpName, "", "")).get();
-                LOG.debug("producer record offset: {}", sent.offset());
-                producer.commitTransaction();
-            }
-            var consumerProps = new HashMap<>(aSuper);
-            consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, tmpName);
-            try (var consumer = new KafkaConsumer<>(consumerProps,
-                    deserializer,
-                    deserializer)) {
-
-                consumer.subscribe(List.of(tmpName));
-                consumer.enforceRebalance();
-                var polled = consumer.poll(Duration.ofMillis(100));
-
-                LOG.debug("polled records: {}", polled.records(topicPartition));
-                consumer.commitSync();
-            }
-
-            admin.deleteTopics(TopicCollection.ofTopicNames(List.of(tmpName)))
-                    .all().toCompletionStage().toCompletableFuture().join();
-        }
-    }
-
     protected static void deleteTopicsAndAcls(Admin admin,
                                               List<String> topicNames,
                                               List<AclBinding> bindings) {
@@ -532,20 +475,6 @@ public abstract class AuthzIT extends BaseIT {
         return getRequest(apiVersion, request);
     }
 
-    static AbstractComparableAssert<?, Errors> assertErrorCodeAtPointer(
-                                                                        String user,
-                                                                        ObjectNode root,
-                                                                        JsonPointer errorPtr,
-                                                                        Errors expectedErrorCode) {
-        JsonNode node = root.at(errorPtr);
-        assertThat(node.isMissingNode())
-                .as("%s should have a result at %s, but node is missing", user, errorPtr)
-                .isFalse();
-        return assertThat(Errors.forCode(node.shortValue()))
-                .as("%s should have result %s", user, expectedErrorCode)
-                .isEqualTo(expectedErrorCode);
-    }
-
     @SuppressWarnings("unchecked")
     static <M extends Message> @Nullable List<M> duplicateList(@Nullable List<M> topics) {
         if (topics != null) {
@@ -590,26 +519,13 @@ public abstract class AuthzIT extends BaseIT {
                 String user = entry.getKey();
                 KafkaClient client = entry.getValue();
                 Request request = requests.get(user);
-                Response resp;
                 S r;
                 while (true) {
-                    LOG.info("{} {}{} >> {}",
-                            user,
-                            request.apiKeys(),
-                            prettyJsonString(
-                                    KafkaApiMessageConverter.requestConverterFor(request.apiKeys().messageType).writer().apply(request.message(), request.apiVersion())),
-                            baseTestCluster.name());
-                    resp = client.getSync(request);
-
-                    r = (S) resp.payload().message();
-                    LOG.info("{} {}{} << {}",
-                            user,
-                            request.apiKeys(),
-                            prettyJsonString(KafkaApiMessageConverter.responseConverterFor(request.apiKeys().messageType).writer().apply(r, request.apiVersion())),
-                            baseTestCluster.name());
+                    r = sendRequestAndGetResponse(baseTestCluster, user, request, client);
                     if (!scenario.needsRetry(r)) {
                         break;
                     }
+                    // KWTODO: Why?? Do we really need this?
                     try {
                         Thread.sleep(10);
                     }
@@ -624,6 +540,27 @@ public abstract class AuthzIT extends BaseIT {
         finally {
             clients.values().forEach(KafkaClient::close);
         }
+    }
+
+    private <S extends ApiMessage> S sendRequestAndGetResponse(BaseClusterFixture baseTestCluster, String user, Request request, KafkaClient client) {
+        LOG.atDebug().setMessage("{} {}{} >> {}")
+                .addArgument(user)
+                .addArgument(request.apiKeys())
+                .addArgument(() -> prettyJsonString(
+                        KafkaApiMessageConverter.requestConverterFor(request.apiKeys().messageType).writer().apply(request.message(), request.apiVersion())))
+                .addArgument(baseTestCluster.name())
+                .log();
+        Response resp = client.getSync(request);
+
+        S responseMessage = (S) resp.payload().message();
+        LOG.atDebug().setMessage("{} {}{} << {}")
+                .addArgument(user)
+                .addArgument(request.apiKeys())
+                .addArgument(() -> prettyJsonString(
+                        KafkaApiMessageConverter.responseConverterFor(request.apiKeys().messageType).writer().apply(responseMessage, request.apiVersion())))
+                .addArgument(baseTestCluster.name())
+                .log();
+        return responseMessage;
     }
 
     protected <Q extends ApiMessage, S extends ApiMessage> void verifyApiEqivalence(ReferenceCluster referenceCluster,
