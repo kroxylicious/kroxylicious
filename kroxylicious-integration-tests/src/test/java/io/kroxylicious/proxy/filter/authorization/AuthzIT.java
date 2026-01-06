@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.filter.authorization;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -82,6 +83,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * <p>A base class for integration tests covering some subset of the protocol
@@ -574,8 +576,6 @@ public abstract class AuthzIT extends BaseIT {
                 scenario);
 
         scenario.assertUnproxiedResponses(unproxiedResponsesByUser);
-        var referenceObservation = scenario.observedVisibleSideEffects(referenceCluster);
-        scenario.assertVisibleSideEffects(referenceCluster);
 
         scenario.prepareCluster(proxiedCluster);
 
@@ -594,10 +594,20 @@ public abstract class AuthzIT extends BaseIT {
                 .as("Expect proxied response to be the same as the reference response with equivalent AuthZ")
                 .isEqualTo(mapValues(unproxiedResponsesByUser,
                         x -> convertAndClobberUserResponse.apply(x, referenceCluster)));
-        // assertions about side effects
-        scenario.assertVisibleSideEffects(proxiedCluster);
-        var proxiedObservation = scenario.observedVisibleSideEffects(proxiedCluster);
-        assertThat(proxiedObservation).isEqualTo(referenceObservation);
+
+
+        await().timeout(Duration.ofSeconds(60))
+                .alias("assertions about visible side effects").untilAsserted(() -> {
+                    var referenceObservation = scenario.observedVisibleSideEffects(referenceCluster);
+                    scenario.assertVisibleSideEffects(referenceCluster);
+
+                    var proxiedObservation = scenario.observedVisibleSideEffects(proxiedCluster);
+                    scenario.assertVisibleSideEffects(proxiedCluster);
+
+                    assertThat(proxiedObservation)
+                            .as("Expect side effects visible on the proxied cluster to be the same as the reference cluster")
+                            .isEqualTo(referenceObservation);
+                });
     }
 
     protected <Q extends ApiMessage, S extends ApiMessage> void verifyUnsupportedVersion(ProxiedCluster proxiedCluster,
