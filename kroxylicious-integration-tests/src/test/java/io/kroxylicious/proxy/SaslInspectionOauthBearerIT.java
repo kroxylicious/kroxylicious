@@ -22,6 +22,7 @@ import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.filters.sasl.inspection.SaslInspection;
@@ -43,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration tests for the SASL Inspection Filter for SASL OAUTHBEARER (<a href="https://datatracker.ietf.org/doc/html/rfc7628">RFC-7628</a>.)
  * @see SaslInspectionIT
  */
+@EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 class SaslInspectionOauthBearerIT extends BaseOauthBearerIT {
 
     @Test

@@ -19,7 +19,6 @@ import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHand
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junitpioneer.jupiter.RestoreSystemProperties;
 import org.testcontainers.DockerClientFactory;
@@ -35,9 +34,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
-@EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 @RestoreSystemProperties
-public class BaseOauthBearerIT extends BaseIT {
+public abstract class BaseOauthBearerIT extends BaseIT {
     private static final int OAUTH_SERVER_PORT = 28089;
 
     // This token is expired
