@@ -24,6 +24,7 @@ import org.apache.kafka.common.security.oauthbearer.internals.secured.Verificati
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.proxy.BaseOauthBearerIT;
@@ -50,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * same test OAuth server.  It uses metric observations taken at the proxy to verify that the filter
  * is correctly protecting the broker from bad tokens.
  */
+@EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 class OauthBearerValidationIT extends BaseOauthBearerIT {
 
     @SaslMechanism(value = OAuthBearerLoginModule.OAUTHBEARER_MECHANISM)
