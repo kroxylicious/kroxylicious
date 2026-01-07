@@ -409,12 +409,7 @@ public abstract class AuthzIT extends BaseIT {
         }
         res.all().toCompletionStage().toCompletableFuture().join();
         Awaitility.waitAtMost(10, TimeUnit.SECONDS)
-                .until(() -> {
-                    Map<String, TopicDescription> join = admin.describeTopics(topicNames).allTopicNames().toCompletionStage().toCompletableFuture().join();
-                    return join.values().stream()
-                            .flatMap(topicDescription -> topicDescription.partitions().stream())
-                            .allMatch(p -> p.leader() != null);
-                });
+                .until(() -> allTopicPartitionsHaveALeader(admin, topicNames));
         return topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> {
             try {
                 return res.topicId(topicName).get();
@@ -423,6 +418,13 @@ public abstract class AuthzIT extends BaseIT {
                 throw new RuntimeException(e);
             }
         }));
+    }
+
+    public static boolean allTopicPartitionsHaveALeader(Admin admin, List<String> topicNames) {
+        Map<String, TopicDescription> join = admin.describeTopics(topicNames).allTopicNames().toCompletionStage().toCompletableFuture().join();
+        return join.values().stream()
+                .flatMap(topicDescription -> topicDescription.partitions().stream())
+                .allMatch(p -> p.leader() != null);
     }
 
     protected static void ensureInternalTopicsExist(
