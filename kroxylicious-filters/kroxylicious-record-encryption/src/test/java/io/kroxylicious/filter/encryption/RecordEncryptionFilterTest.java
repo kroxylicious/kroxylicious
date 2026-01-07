@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 import org.apache.kafka.common.InvalidRecordException;
@@ -390,10 +391,10 @@ class RecordEncryptionFilterTest {
     @Test
     void shouldPropagateShareResponseExceptions() {
         // Given
-        givenTopicNameMapping(Set.of(UNRESOLVED_TOPIC_ID), Map.of(UNRESOLVED_TOPIC_ID, UNRESOLVED_TOPIC));
+        givenTopicNameMapping(Set.of(ENCRYPTED_TOPIC_ID), Map.of(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC));
         var fetchResponseData = buildShareFetchResponseData(new ShareFetchableTopicResponse()
-                .setTopicId(UNRESOLVED_TOPIC_ID)
-                .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
         RuntimeException exception = new RuntimeException("boom");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
 
@@ -403,6 +404,43 @@ class RecordEncryptionFilterTest {
 
         // Then
         assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
+    }
+
+    @Test
+    void topicNameMappingLookupFailureOnShareFetch() {
+        // Given
+        givenTopicNameMappingFailure(Set.of(ENCRYPTED_TOPIC_ID));
+        var fetchResponseData = buildShareFetchResponseData(new ShareFetchableTopicResponse()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+
+        // When
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause()
+                .withMessage("Failed to obtain some topic names for ids: {\"%s\":\"%s\"}".formatted(ENCRYPTED_TOPIC_ID, Errors.UNKNOWN_SERVER_ERROR.message()));
+    }
+
+    private void givenTopicNameMappingFailure(Set<Uuid> failedTopicIds) {
+        when(context.topicNames(failedTopicIds)).thenReturn(CompletableFuture.completedFuture(new TopicNameMapping() {
+            @Override
+            public boolean anyFailures() {
+                return true;
+            }
+
+            @Override
+            public Map<Uuid, String> topicNames() {
+                return Map.of();
+            }
+
+            @Override
+            public Map<Uuid, TopicNameMappingException> failures() {
+                return failedTopicIds.stream().collect(Collectors.toMap(id -> id, id -> new TopicNameMappingException(Errors.UNKNOWN_SERVER_ERROR)));
+            }
+        }));
     }
 
     @Test

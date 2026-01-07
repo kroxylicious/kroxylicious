@@ -16,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
@@ -132,7 +133,7 @@ public class RecordEncryptionFilter<K>
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
         var plainRecordsTotal = RecordEncryptionMetrics.plainRecordsCounter(context.getVirtualClusterName());
-        var encyptedRecordsTotal = RecordEncryptionMetrics.encryptedRecordsCounter(context.getVirtualClusterName());
+        var encryptedRecordsTotal = RecordEncryptionMetrics.encryptedRecordsCounter(context.getVirtualClusterName());
         var topicNameToData = request.topicData().stream().collect(Collectors.toMap(TopicProduceData::name, Function.identity()));
         CompletionStage<TopicNameKekSelection<K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet()));
         return keks // figure out what keks we need
@@ -158,7 +159,7 @@ public class RecordEncryptionFilter<K>
                                     context::createByteBufferOutputStream)
                                     .thenApply(ppd::setRecords)
                                     .thenApply(produceData -> {
-                                        encyptedRecordsTotal
+                                        encryptedRecordsTotal
                                                 .withTags(RecordEncryptionMetrics.TOPIC_NAME, topicName)
                                                 .increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records()));
                                         return null;
@@ -213,12 +214,8 @@ public class RecordEncryptionFilter<K>
                         return context.forwardResponse(header, response);
                     }
                     else {
-                        log.atWarn().setMessage("Failed to process records, connection will be closed, cause message: {}")
-                                .addArgument(throwable.getMessage())
-                                .setCause(log.isDebugEnabled() ? throwable : null)
-                                .log();
                         // returning a failed stage is effectively asking the runtime to kill the connection.
-                        return CompletableFuture.failedStage(throwable);
+                        return recordProcessingFailure(throwable);
                     }
                 }));
     }
@@ -236,18 +233,27 @@ public class RecordEncryptionFilter<K>
                         return context.forwardResponse(header, response);
                     }
                     else {
-                        log.atWarn().setMessage("Failed to process records, connection will be closed, cause message: {}")
-                                .addArgument(throwable.getMessage())
-                                .setCause(log.isDebugEnabled() ? throwable : null)
-                                .log();
                         // returning a failed stage is effectively asking the runtime to kill the connection.
-                        return CompletableFuture.failedStage(throwable);
+                        return recordProcessingFailure(throwable);
                     }
                 });
     }
 
+    private static CompletionStage<ResponseFilterResult> recordProcessingFailure(Throwable throwable) {
+        log.atWarn().setMessage("Failed to process records, connection will be closed, cause message: {}. Raise log level to DEBUG to see the stack.")
+                .addArgument(throwable.getMessage())
+                .setCause(log.isDebugEnabled() ? throwable : null)
+                .log();
+        return CompletableFuture.failedStage(throwable);
+    }
+
     private CompletionStage<List<ShareFetchableTopicResponse>> maybeDecodeShareFetch(TopicNameMapping mapping, Collection<ShareFetchableTopicResponse> topics,
                                                                                      FilterContext context) {
+        if (mapping.anyFailures()) {
+            String failures = mapping.failures().entrySet().stream().map(e -> "\"%s\":\"%s\"".formatted(e.getKey().toString(), e.getValue().getMessage()))
+                    .collect(Collectors.joining(",", "{", "}"));
+            throw new EncryptionException("Failed to obtain some topic names for ids: " + failures);
+        }
         List<CompletionStage<ShareFetchableTopicResponse>> result = new ArrayList<>(topics.size());
         for (ShareFetchableTopicResponse topicData : topics) {
             String topicName = mapping.topicNames().get(topicData.topicId());
@@ -281,7 +287,7 @@ public class RecordEncryptionFilter<K>
                                                                List<T> partitions,
                                                                FilterContext context,
                                                                Function<T, BaseRecords> recordExtractor,
-                                                               Function<T, Integer> partitionIndexExtractor,
+                                                               ToIntFunction<T> partitionIndexExtractor,
                                                                Function<T, Function<MemoryRecords, T>> setRecords,
                                                                BiFunction<T, Short, T> errorsConsumer) {
         List<CompletionStage<T>> result = new ArrayList<>(partitions.size());
@@ -290,7 +296,8 @@ public class RecordEncryptionFilter<K>
             if (!(records instanceof MemoryRecords)) {
                 throw new IllegalStateException();
             }
-            var stage = maybeDecodeRecords(topicName, (MemoryRecords) records, context, partitionIndexExtractor.apply(partitionData), setRecords.apply(partitionData))
+            var stage = maybeDecodeRecords(topicName, (MemoryRecords) records, context, partitionIndexExtractor.applyAsInt(partitionData),
+                    setRecords.apply(partitionData))
                     .exceptionallyCompose(t -> {
                         var cause = t.getCause();
                         if (cause instanceof UnknownKeyException) {
@@ -301,7 +308,7 @@ public class RecordEncryptionFilter<K>
                                             + "Cause message: {}. "
                                             + "Raise log level to DEBUG to see the stack.")
                                     .addArgument(topicName)
-                                    .addArgument(partitionIndexExtractor.apply(partitionData))
+                                    .addArgument(() -> partitionIndexExtractor.applyAsInt(partitionData))
                                     .addArgument(cause.getMessage())
                                     .setCause(log.isDebugEnabled() ? cause : null)
                                     .log();
