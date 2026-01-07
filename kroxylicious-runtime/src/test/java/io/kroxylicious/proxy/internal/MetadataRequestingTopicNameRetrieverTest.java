@@ -40,7 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class OutOfBandTopicNameRetrieverTest {
+class MetadataRequestingTopicNameRetrieverTest {
 
     public static final Uuid UUID_2 = new Uuid(6L, 6L);
     private static final Uuid UUID = new Uuid(5L, 5L);
@@ -55,7 +55,7 @@ class OutOfBandTopicNameRetrieverTest {
 
     @BeforeEach
     void setUp() {
-        retriever = OutOfBandTopicNameRetriever.instance();
+        retriever = MetadataRequestingTopicNameRetriever.instance();
     }
 
     @Test

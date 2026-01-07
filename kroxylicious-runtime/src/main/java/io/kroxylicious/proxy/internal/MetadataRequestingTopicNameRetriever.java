@@ -34,12 +34,17 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.stream.Collectors.toMap;
 
-final class OutOfBandTopicNameRetriever implements TopicNameRetriever {
+/**
+ * Retrieves topic names by sending an out-of-band Metadata request to the upstream cluster. Note that
+ * this request/response traverses the Filter chain and so the observed topic names may be manipulated
+ * by Filters upstream of the Filter context this is invoked from.
+ */
+final class MetadataRequestingTopicNameRetriever implements TopicNameRetriever {
     // Version 12 was the first version that uses topic ids.
     private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
-    private static final OutOfBandTopicNameRetriever INSTANCE = new OutOfBandTopicNameRetriever();
+    private static final MetadataRequestingTopicNameRetriever INSTANCE = new MetadataRequestingTopicNameRetriever();
 
-    private OutOfBandTopicNameRetriever() {
+    private MetadataRequestingTopicNameRetriever() {
     }
 
     public static TopicNameRetriever instance() {

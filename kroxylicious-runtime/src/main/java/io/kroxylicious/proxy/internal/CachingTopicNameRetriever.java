@@ -22,6 +22,9 @@ import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Decorator that tries to retrieve topic names from a cache, otherwise delegating to another retriever
+ */
 public class CachingTopicNameRetriever implements TopicNameRetriever {
 
     private static final Map<Uuid, String> EMPTY = Map.of();
