@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -24,6 +25,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -58,6 +60,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -405,6 +408,13 @@ public abstract class AuthzIT extends BaseIT {
                     .toCompletionStage().toCompletableFuture().join();
         }
         res.all().toCompletionStage().toCompletableFuture().join();
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .until(() -> {
+                    Map<String, TopicDescription> join = admin.describeTopics(topicNames).allTopicNames().toCompletionStage().toCompletableFuture().join();
+                    return join.values().stream()
+                            .flatMap(topicDescription -> topicDescription.partitions().stream())
+                            .allMatch(p -> p.leader() != null);
+                });
         return topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> {
             try {
                 return res.topicId(topicName).get();
