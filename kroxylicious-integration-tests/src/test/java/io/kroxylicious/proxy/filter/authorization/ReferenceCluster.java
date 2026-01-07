@@ -14,7 +14,7 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
 /**
  * An unproxied references cluster for use with
- * {@link AuthzIT#verifyApiEqivalence(ReferenceCluster, ProxiedCluster, AuthzIT.Equivalence)}
+ * {@link AuthzIT#verifyApiEquivalence(ReferenceCluster, ProxiedCluster, AuthzIT.Equivalence)}
  * the responses from which are assumed to be the canonical Kafka behaviour
  *  which the {@link io.kroxylicious.filter.authorization.AuthorizationFilter} is
  *  attempting to replicate.

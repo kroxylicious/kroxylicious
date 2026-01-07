@@ -14,9 +14,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -46,11 +45,11 @@ import org.apache.kafka.common.protocol.Message;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
+import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -126,6 +125,7 @@ public abstract class AuthzIT extends BaseIT {
             ALICE, "Alice",
             BOB, "Bob",
             EVE, "Eve");
+    private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60)).pollDelay(Duration.ofMillis(100));
 
     @SaslMechanism(principals = {
             @SaslMechanism.Principal(user = SUPER, password = "Super"),
@@ -242,7 +242,7 @@ public abstract class AuthzIT extends BaseIT {
 
         @Override
         public void verifyBehaviour(ReferenceCluster referenceCluster, ProxiedCluster proxiedCluster) {
-            verifyApiEqivalence(
+            verifyApiEquivalence(
                     referenceCluster,
                     proxiedCluster,
                     this);
@@ -393,29 +393,34 @@ public abstract class AuthzIT extends BaseIT {
     protected static Map<String, Uuid> prepCluster(Admin admin,
                                                    List<String> topicNames,
                                                    List<AclBinding> bindings) {
-        var res = admin.createTopics(topicNames.stream().map(topicName -> new NewTopic(topicName, 1, (short) 1)).toList());
         if (!bindings.isEmpty()) {
             admin.createAcls(bindings).all()
                     .toCompletionStage().toCompletableFuture().join();
         }
+        var res = admin.createTopics(topicNames.stream().map(topicName -> new NewTopic(topicName, 1, (short) 1)).toList());
         res.all().toCompletionStage().toCompletableFuture().join();
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
-                .until(() -> allTopicPartitionsHaveALeader(admin, topicNames));
-        return topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> {
-            try {
-                return res.topicId(topicName).get();
-            }
-            catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
-            }
-        }));
+        AWAIT.alias("await until topics visible and partitions have leader")
+                .untilAsserted(() -> {
+                    var readyTopics = describeTopics(topicNames, admin)
+                            .filter(AuthzIT::topicPartitionsHaveALeader)
+                            .map(TopicDescription::name)
+                            .collect(Collectors.toSet());
+                    assertThat(topicNames).containsExactlyInAnyOrderElementsOf(readyTopics);
+                });
+        return topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> res.topicId(topicName).toCompletionStage().toCompletableFuture().join()));
+    }
+
+    private static Stream<TopicDescription> describeTopics(List<String> topics, Admin admin) {
+        return admin.describeTopics(topics).topicNameValues().values().stream()
+                .map(f -> f.toCompletionStage().toCompletableFuture())
+                .filter(AuthzIT::filterUnknownTopics)
+                .map(CompletableFuture::join);
     }
 
     public static boolean allTopicPartitionsHaveALeader(Admin admin, List<String> topicNames) {
         Map<String, TopicDescription> join = admin.describeTopics(topicNames).allTopicNames().toCompletionStage().toCompletableFuture().join();
         return join.values().stream()
-                .flatMap(topicDescription -> topicDescription.partitions().stream())
-                .allMatch(p -> p.leader() != null);
+                .allMatch(AuthzIT::topicPartitionsHaveALeader);
     }
 
     protected static void deleteTopicsAndAcls(Admin admin,
@@ -425,17 +430,23 @@ public abstract class AuthzIT extends BaseIT {
         try {
             KafkaFuture<Void> result = admin.deleteTopics(TopicCollection.ofTopicNames(topicNames))
                     .all();
-            if (!bindings.isEmpty()) {
-                var filters = bindings.stream().map(AclBinding::toFilter).toList();
-                admin.deleteAcls(filters).all()
-                        .toCompletionStage().toCompletableFuture().join();
-            }
             result.toCompletionStage().toCompletableFuture().join();
         }
         catch (CompletionException e) {
             if (!(e.getCause() instanceof UnknownTopicOrPartitionException)) {
                 throw e;
             }
+        }
+        finally {
+            if (!bindings.isEmpty()) {
+                var filters = bindings.stream().map(AclBinding::toFilter).toList();
+                admin.deleteAcls(filters).all()
+                        .toCompletionStage().toCompletableFuture().join();
+            }
+
+            AWAIT.alias("await visibility of topic removal.")
+                    .untilAsserted(() -> assertThat(describeTopics(topicNames, admin)).isEmpty());
+
         }
     }
 
@@ -523,19 +534,9 @@ public abstract class AuthzIT extends BaseIT {
                 KafkaClient client = entry.getValue();
                 Request request = requests.get(user);
                 S r;
-                while (true) {
+                do {
                     r = sendRequestAndGetResponse(baseTestCluster, user, request, client);
-                    if (!scenario.needsRetry(r)) {
-                        break;
-                    }
-                    // KWTODO: Why?? Do we really need this?
-                    try {
-                        Thread.sleep(10);
-                    }
-                    catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
+                } while (scenario.needsRetry(r));
                 responsesByUser.put(user, r);
             }
             return responsesByUser;
@@ -566,9 +567,9 @@ public abstract class AuthzIT extends BaseIT {
         return responseMessage;
     }
 
-    protected <Q extends ApiMessage, S extends ApiMessage> void verifyApiEqivalence(ReferenceCluster referenceCluster,
-                                                                                    ProxiedCluster proxiedCluster,
-                                                                                    Equivalence<Q, S> scenario) {
+    protected <Q extends ApiMessage, S extends ApiMessage> void verifyApiEquivalence(ReferenceCluster referenceCluster,
+                                                                                     ProxiedCluster proxiedCluster,
+                                                                                     Equivalence<Q, S> scenario) {
 
         scenario.prepareCluster(referenceCluster);
 
@@ -596,18 +597,17 @@ public abstract class AuthzIT extends BaseIT {
                 .isEqualTo(mapValues(unproxiedResponsesByUser,
                         x1 -> convertAndClobberUserResponse.apply(x1, referenceCluster)));
 
-        await().timeout(Duration.ofSeconds(60))
-                .alias("assertions about visible side effects").untilAsserted(() -> {
-                    var referenceObservation = scenario.observedVisibleSideEffects(referenceCluster);
-                    scenario.assertVisibleSideEffects(referenceCluster);
+        AWAIT.alias("assertions about visible side effects").untilAsserted(() -> {
+            var referenceObservation = scenario.observedVisibleSideEffects(referenceCluster);
+            scenario.assertVisibleSideEffects(referenceCluster);
 
-                    var proxiedObservation = scenario.observedVisibleSideEffects(proxiedCluster);
-                    scenario.assertVisibleSideEffects(proxiedCluster);
+            var proxiedObservation = scenario.observedVisibleSideEffects(proxiedCluster);
+            scenario.assertVisibleSideEffects(proxiedCluster);
 
-                    assertThat(proxiedObservation)
-                            .as("Expect side effects visible on the proxied cluster to be the same as the reference cluster")
-                            .isEqualTo(referenceObservation);
-                });
+            assertThat(proxiedObservation)
+                    .as("Expect side effects visible on the proxied cluster to be the same as the reference cluster")
+                    .isEqualTo(referenceObservation);
+        });
     }
 
     protected <Q extends ApiMessage, S extends ApiMessage> void verifyUnsupportedVersion(ProxiedCluster proxiedCluster,
@@ -637,4 +637,20 @@ public abstract class AuthzIT extends BaseIT {
         }
     }
 
+    private static boolean filterUnknownTopics(CompletableFuture<TopicDescription> f) {
+        try {
+            f.join();
+            return true;
+        }
+        catch (CompletionException ce) {
+            if (ce.getCause() instanceof UnknownTopicOrPartitionException) {
+                return false;
+            }
+            throw new RuntimeException(ce);
+        }
+    }
+
+    private static boolean topicPartitionsHaveALeader(TopicDescription td) {
+        return td.partitions().stream().allMatch(p -> p.leader() != null);
+    }
 }
