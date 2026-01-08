@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filters.sasl.inspection;
+package io.kroxylicious.filter.sasl.inspection;
 
 /**
  * State machine used that follows SASL handshaking and authentication exchange between client/server.

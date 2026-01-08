@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filters.sasl.inspection;
+package io.kroxylicious.filter.sasl.inspection;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +27,7 @@ import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -38,6 +39,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Factory for {@link SaslInspectionFilter}.
  */
 @Plugin(configType = Config.class)
+@DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.SaslInspection")
 public class SaslInspection implements FilterFactory<Config, Void> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslInspection.class);
