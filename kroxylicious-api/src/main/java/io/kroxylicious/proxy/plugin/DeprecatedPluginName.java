@@ -43,8 +43,4 @@ public @interface DeprecatedPluginName {
      */
     String oldName();
 
-    /**
-     * The plugin version in which the renaming occurred.
-     */
-    String since();
 }

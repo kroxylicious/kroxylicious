@@ -11,6 +11,6 @@ import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 @Plugin(configType = Void.class)
-@DeprecatedPluginName(oldName = "io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation", since = "0.0.0")
+@DeprecatedPluginName(oldName = "io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation")
 public class RepackagedImplementation implements ServiceWithBaggage {
 }

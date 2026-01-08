@@ -91,7 +91,7 @@ class ServiceBasedPluginFactoryRegistryTest {
         assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
                 + "with name 'io.kroxylicious.proxy.config.ImplementationWithDeprecatedName' "
                 + "should now be referred to using the name 'io.kroxylicious.proxy.config.RenamedImplementation'. "
-                + "The plugin has been renamed since 0.0.0 and in the future the old name "
+                + "The plugin has been renamed and in the future the old name "
                 + "'io.kroxylicious.proxy.config.ImplementationWithDeprecatedName' will cease to work."))
                 .isTrue();
     }
@@ -108,7 +108,7 @@ class ServiceBasedPluginFactoryRegistryTest {
         assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
                 + "with name 'ImplementationWithDeprecatedName' "
                 + "should now be referred to using the name 'io.kroxylicious.proxy.config.RenamedImplementation'. "
-                + "The plugin has been renamed since 0.0.0 and in the future the old name "
+                + "The plugin has been renamed and in the future the old name "
                 + "'ImplementationWithDeprecatedName' will cease to work."))
                 .isTrue();
     }
@@ -148,8 +148,8 @@ class ServiceBasedPluginFactoryRegistryTest {
         assertThat(instance).isNotNull();
         assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin with name "
                 + "'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' should now be referred to using the name "
-                + "'io.kroxylicious.proxy.config.newpkg.RepackagedImplementation'. The plugin has been renamed since "
-                + "0.0.0 and in the future the old name 'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' "
+                + "'io.kroxylicious.proxy.config.newpkg.RepackagedImplementation'. The plugin has been renamed "
+                + "and in the future the old name 'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' "
                 + "will cease to work."))
                 .isTrue();
     }

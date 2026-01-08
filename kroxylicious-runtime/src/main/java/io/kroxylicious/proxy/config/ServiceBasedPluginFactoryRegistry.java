@@ -138,12 +138,11 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                         DeprecatedPluginName deprecatedName = type.getAnnotation(DeprecatedPluginName.class);
                         if (isOldInstanceName(instanceName, deprecatedName, type)) {
                             LOGGER.warn("{} plugin with name '{}' should now be referred to using the name '{}'. "
-                                    + "The plugin has been renamed since {} and "
+                                    + "The plugin has been renamed and "
                                     + "in the future the old name '{}' will cease to work.",
                                     pluginClass.getName(),
                                     instanceName,
                                     type.getName(),
-                                    deprecatedName.since(),
                                     instanceName);
                         }
                     }
