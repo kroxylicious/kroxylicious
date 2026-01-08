@@ -80,7 +80,7 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
-    void shouldWarnAboutPluginLoadedWithOldFqName() {
+    void shouldWarnAboutRenamedPluginLoadedWithOldFqName() {
         // Given
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
         LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
@@ -97,7 +97,7 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
-    void shouldWarnAboutPluginLoadedWithOldShortName() {
+    void shouldWarnAboutRenamedPluginLoadedWithOldSimpleName() {
         // Given
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
         LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
@@ -114,7 +114,7 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
-    void shouldNotWarnAboutPluginLoadedWithNewFqName() {
+    void shouldNotWarnAboutRenamedPluginLoadedWithNewFqName() {
         // Given
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
         LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
@@ -126,7 +126,7 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
-    void shouldNotWarnAboutRepackagedPluginLoadedWithNewFqName() {
+    void shouldNotWarnAboutRenamedPluginLoadedWithNewSimpleName() {
         // Given
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
         LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
@@ -155,7 +155,7 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
-    void shouldNotWarnAboutRepackagedPluginLoadedWithSimpleName() {
+    void shouldWarnAboutRepackagedPluginLoadedWithNewFqName() {
         // Given
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
         LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
@@ -167,7 +167,7 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
-    void shouldNotWarnAboutPluginLoadedWithNewShortName1() {
+    void shouldNotWarnAboutRepackagedPluginLoadedWithSimpleName() {
         // Given
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
         LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
