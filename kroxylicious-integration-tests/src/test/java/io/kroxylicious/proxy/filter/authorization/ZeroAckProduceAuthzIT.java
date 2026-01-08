@@ -25,11 +25,11 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.security.plain.internals.PlainSaslServer;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 import io.kroxylicious.authorizer.provider.acl.AclAuthorizerService;
 import io.kroxylicious.filter.authorization.Authorization;

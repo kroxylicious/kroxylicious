@@ -95,17 +95,10 @@
             <property name="classes" value="java.lang.Boolean"/>
         </module>
 
-        <!-- not currently used by Kroxylicious but probably should do so -->
-        <!-- i.e. ban netty imports in the API package, maybe there is a better tool than checkstlye for that -->
-<!--        &lt;!&ndash;  Avoid importing some packages &ndash;&gt;-->
-<!--        <module name="IllegalImport">-->
-<!--            &lt;!&ndash; Should use TestNG &ndash;&gt;-->
-<!--            <property name="illegalPkgs" value="org.testng"/>-->
-<!--        </module>-->
-<!--        <module name="IllegalImport">-->
-<!--            &lt;!&ndash; Should use ModeShape-specific annotations &ndash;&gt;-->
-<!--            <property name="illegalPkgs" value="net.jcip.annotations, org.apache.http.annotation"/>-->
-<!--        </module>-->
+        <module name="IllegalImport">
+            <!-- we shouldn't be relying on class shaded into TC for dependencies -->
+            <property name="illegalPkgs" value="org.testcontainers.shaded"/>
+        </module>
 
         <!--
         Allow for suppressing sections of code using a starting and ending comment:
