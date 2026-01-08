@@ -6,7 +6,12 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
@@ -65,109 +70,65 @@ class ServiceBasedPluginFactoryRegistryTest {
                 factory.pluginInstance(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getName()));
     }
 
-    @Test
-    void shouldWarnAboutDeprecatedPluginImpl() {
+    static List<Arguments> shouldLogWarningOnInstantiation() {
+        return List.of(
+                Arguments.argumentSet("@Deprecated",
+                        "io.kroxylicious.proxy.config.DeprecatedImplementation",
+                        "io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                                + "with name 'io.kroxylicious.proxy.config.DeprecatedImplementation' is deprecated."),
+                Arguments.argumentSet("shouldWarnAboutRenamedPluginLoadedWithOldFqName",
+                        "io.kroxylicious.proxy.config.ImplementationWithDeprecatedName",
+                        "io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                                + "with name 'io.kroxylicious.proxy.config.ImplementationWithDeprecatedName' "
+                                + "should now be referred to using the name 'io.kroxylicious.proxy.config.RenamedImplementation'. "
+                                + "The plugin has been renamed and in the future the old name "
+                                + "'io.kroxylicious.proxy.config.ImplementationWithDeprecatedName' will cease to work."),
+                Arguments.argumentSet("shouldWarnAboutRenamedPluginLoadedWithOldSimpleName",
+                        "ImplementationWithDeprecatedName",
+                        "io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                                + "with name 'ImplementationWithDeprecatedName' "
+                                + "should now be referred to using the name 'io.kroxylicious.proxy.config.RenamedImplementation'. "
+                                + "The plugin has been renamed and in the future the old name "
+                                + "'ImplementationWithDeprecatedName' will cease to work."),
+                Arguments.argumentSet("shouldWarnAboutRepackagedPluginLoadedWithOldFqName",
+                        "io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation",
+                        "io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                                + "with name 'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' "
+                                + "should now be referred to using the name 'io.kroxylicious.proxy.config.newpkg.RepackagedImplementation'. "
+                                + "The plugin has been renamed and in the future the old name "
+                                + "'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' will cease to work.")
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void shouldLogWarningOnInstantiation(String instanceName, String expectedMessage) {
         // Given
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
         LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
         // When
-        var instance = factory.pluginInstance("io.kroxylicious.proxy.config.DeprecatedImplementation");
+        var instance = factory.pluginInstance(instanceName);
         // Then
         assertThat(instance).isNotNull();
-        assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
-                + "with name 'io.kroxylicious.proxy.config.DeprecatedImplementation' is deprecated."))
-                .isTrue();
+        assertThat(logCaptor.hasWarnMessage(expectedMessage)).isTrue();
     }
 
-    @Test
-    void shouldWarnAboutRenamedPluginLoadedWithOldFqName() {
-        // Given
-        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
-        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
-        // When
-        var instance = factory.pluginInstance("io.kroxylicious.proxy.config.ImplementationWithDeprecatedName");
-        // Then
-        assertThat(instance).isNotNull();
-        assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
-                + "with name 'io.kroxylicious.proxy.config.ImplementationWithDeprecatedName' "
-                + "should now be referred to using the name 'io.kroxylicious.proxy.config.RenamedImplementation'. "
-                + "The plugin has been renamed and in the future the old name "
-                + "'io.kroxylicious.proxy.config.ImplementationWithDeprecatedName' will cease to work."))
-                .isTrue();
+    static List<Arguments> shouldNotLogWarningOnInstantiation() {
+        return List.of(
+                Arguments.argumentSet("for RenamedPluginLoadedWithNewFqName",
+                        "io.kroxylicious.proxy.config.RenamedImplementation"),
+                Arguments.argumentSet("for RenamedPluginLoadedWithNewSimpleName",
+                        "RenamedImplementation"),
+                Arguments.argumentSet("for RepackagedPluginLoadedWithNewFqName",
+                        "io.kroxylicious.proxy.config.newpkg.RepackagedImplementation"),
+                Arguments.argumentSet("shouldNotWarnAboutRepackagedPluginLoadedWithSimpleName",
+                        "RepackagedImplementation")
+        );
     }
 
-    @Test
-    void shouldWarnAboutRenamedPluginLoadedWithOldSimpleName() {
-        // Given
-        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
-        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
-        // When
-        var instance = factory.pluginInstance("ImplementationWithDeprecatedName");
-        // Then
-        assertThat(instance).isNotNull();
-        assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
-                + "with name 'ImplementationWithDeprecatedName' "
-                + "should now be referred to using the name 'io.kroxylicious.proxy.config.RenamedImplementation'. "
-                + "The plugin has been renamed and in the future the old name "
-                + "'ImplementationWithDeprecatedName' will cease to work."))
-                .isTrue();
-    }
-
-    @Test
-    void shouldNotWarnAboutRenamedPluginLoadedWithNewFqName() {
-        // Given
-        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
-        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
-        // When
-        var instance = factory.pluginInstance("io.kroxylicious.proxy.config.RenamedImplementation");
-        // Then
-        assertThat(instance).isNotNull();
-        assertThat(logCaptor.getWarnLogs()).isEmpty();
-    }
-
-    @Test
-    void shouldNotWarnAboutRenamedPluginLoadedWithNewSimpleName() {
-        // Given
-        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
-        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
-        // When
-        var instance = factory.pluginInstance("RenamedImplementation");
-        // Then
-        assertThat(instance).isNotNull();
-        assertThat(logCaptor.getWarnLogs()).isEmpty();
-    }
-
-    @Test
-    void shouldWarnAboutRepackagedPluginLoadedWithOldFqName() {
-        // Given
-        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
-        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
-        // When
-        var instance = factory.pluginInstance("io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation");
-        // Then
-        assertThat(instance).isNotNull();
-        assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin with name "
-                + "'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' should now be referred to using the name "
-                + "'io.kroxylicious.proxy.config.newpkg.RepackagedImplementation'. The plugin has been renamed "
-                + "and in the future the old name 'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' "
-                + "will cease to work."))
-                .isTrue();
-    }
-
-    @Test
-    void shouldWarnAboutRepackagedPluginLoadedWithNewFqName() {
-        // Given
-        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
-        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
-        // When
-        var instance = factory.pluginInstance("io.kroxylicious.proxy.config.newpkg.RepackagedImplementation");
-        // Then
-        assertThat(instance).isNotNull();
-        assertThat(logCaptor.getWarnLogs()).isEmpty();
-    }
-
-    @Test
-    void shouldNotWarnAboutRepackagedPluginLoadedWithSimpleName() {
+    @ParameterizedTest
+    @MethodSource
+    void shouldNotLogWarningOnInstantiation(String instanceName) {
         // Given
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
         LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);

@@ -129,23 +129,8 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 var provider = nameToProvider.get(instanceName);
                 if (provider != null) {
                     Class<?> type = provider.provider().type();
-                    if (type.isAnnotationPresent(Deprecated.class)) {
-                        LOGGER.warn("{} plugin with name '{}' is deprecated.",
-                                pluginClass.getName(),
-                                instanceName);
-                    }
-                    if (type.isAnnotationPresent(DeprecatedPluginName.class)) {
-                        DeprecatedPluginName deprecatedName = type.getAnnotation(DeprecatedPluginName.class);
-                        if (isOldInstanceName(instanceName, deprecatedName, type)) {
-                            LOGGER.warn("{} plugin with name '{}' should now be referred to using the name '{}'. "
-                                    + "The plugin has been renamed and "
-                                    + "in the future the old name '{}' will cease to work.",
-                                    pluginClass.getName(),
-                                    instanceName,
-                                    type.getName(),
-                                    instanceName);
-                        }
-                    }
+                    maybeWarnAboutDeprecatedPluginClass(instanceName, type, pluginClass);
+                    maybeWarnAboutDeprecatedPluginName(instanceName, type, pluginClass);
                     return pluginClass.cast(provider.provider().get());
                 }
                 throw unknownPluginInstanceException(instanceName);
@@ -171,6 +156,29 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 return Collections.unmodifiableSet(nameToProvider.keySet());
             }
         };
+    }
+
+    private static <P> void maybeWarnAboutDeprecatedPluginName(String instanceName, Class<?> type, Class<P> pluginClass) {
+        if (type.isAnnotationPresent(DeprecatedPluginName.class)) {
+            DeprecatedPluginName deprecatedName = type.getAnnotation(DeprecatedPluginName.class);
+            if (isOldInstanceName(instanceName, deprecatedName, type)) {
+                LOGGER.warn("{} plugin with name '{}' should now be referred to using the name '{}'. "
+                        + "The plugin has been renamed and "
+                        + "in the future the old name '{}' will cease to work.",
+                        pluginClass.getName(),
+                        instanceName,
+                        type.getName(),
+                        instanceName);
+            }
+        }
+    }
+
+    private static <P> void maybeWarnAboutDeprecatedPluginClass(String instanceName, Class<?> type, Class<P> pluginClass) {
+        if (type.isAnnotationPresent(Deprecated.class)) {
+            LOGGER.warn("{} plugin with name '{}' is deprecated.",
+                    pluginClass.getName(),
+                    instanceName);
+        }
     }
 
     private static boolean isOldInstanceName(String instanceName, DeprecatedPluginName deprecatedName, Class<?> type) {
