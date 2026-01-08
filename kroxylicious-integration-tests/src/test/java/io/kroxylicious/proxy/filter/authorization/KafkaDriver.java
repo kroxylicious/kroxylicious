@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test driver for low-level but complex sequential gestures, for example executing FindCoordinator requests
- * until a co-coordinator is available.
+ * until a coordinator is available.
  */
 class KafkaDriver {
     private final BaseClusterFixture cluster;
