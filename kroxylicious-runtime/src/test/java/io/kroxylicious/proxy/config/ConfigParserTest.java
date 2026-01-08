@@ -76,6 +76,20 @@ class ConfigParserTest {
                               portIdentifiesNode:
                                   bootstrapAddress: cluster1:9192
                         """),
+                argumentSet("Virtual cluster - topic name cache config", """
+                        virtualClusters:
+                          - name: demo1
+                            topicNameCache:
+                              maxSize: 10000
+                              expireAfterWrite: 10h
+                              expireAfterAccess: 58m
+                            targetCluster:
+                              bootstrapServers: kafka.example:1234
+                            gateways:
+                            - name: default
+                              portIdentifiesNode:
+                                  bootstrapAddress: cluster1:9192
+                        """),
                 argumentSet("Virtual cluster (portIdentifiesNode with start port)", """
                         virtualClusters:
                           - name: demo1

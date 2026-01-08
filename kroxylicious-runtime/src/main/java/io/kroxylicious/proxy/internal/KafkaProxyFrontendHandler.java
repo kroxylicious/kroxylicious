@@ -306,6 +306,7 @@ public class KafkaProxyFrontendHandler
         if (endpointBinding.restrictUpstreamToMetadataDiscovery()) {
             filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
         }
+        filterAndInvokers.addAll(FilterAndInvoker.build("VirtualCluster TopicNameCache (internal)", virtualClusterModel.getTopicNameCacheFilter()));
         List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)",
                 new BrokerAddressFilter(endpointBinding.endpointGateway(), endpointReconciler));
         filterAndInvokers.addAll(brokerAddressFilters);
