@@ -82,7 +82,8 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 var fqCollision = implementationClasses.stream().filter(c -> c.isAnnotationPresent(DeprecatedPluginName.class))
                         .flatMap(c -> implementationClasses.stream()
                                 .filter(c2 -> c2.getName().equals(c.getAnnotation(DeprecatedPluginName.class).oldName()))
-                                .map(c2 -> Map.entry(c, c2))).findFirst();
+                                .map(c2 -> Map.entry(c, c2)))
+                        .findFirst();
                 if (fqCollision.isPresent()) {
                     var entry = fqCollision.get();
                     var annotatedClass = entry.getKey();
