@@ -21,7 +21,7 @@ import java.lang.annotation.Target;
  * <p>Plugin implementations should ideally have a single,
  * canonical name (the fully-qualified class name), so
  * this annotation is not intended to provide a general purpose
- * plugin aliasing facility
+ * plugin aliasing facility.
  * Instead, it is provided as a way of "renaming a plugin"
  * while maintaining backwards compatibility with
  * configuration files that continue to use the old
@@ -39,8 +39,13 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface DeprecatedPluginName {
     /**
-     * The fully qualified class name by which this plugin was previously known
+     * The fully qualified class name by which this plugin was previously known.
      */
     String oldName();
+
+    /**
+     * Returns the version in which the name became deprecated.
+     */
+    String since() default "";
 
 }
