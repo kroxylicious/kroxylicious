@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.config;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
@@ -75,12 +76,31 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 Collectors.partitioningBy(e -> e.getValue().size() == 1));
         if (LOGGER.isWarnEnabled()) {
             for (Map.Entry<String, Set<ProviderAndConfigType>> ambiguousInstanceNameToProviders : bySingleton.get(false)) {
-                LOGGER.warn("'{}' would be an ambiguous reference to a {} provider. "
-                        + "It could refer to any of {}"
-                        + " so to avoid ambiguous behaviour those fully qualified names must be used",
-                        ambiguousInstanceNameToProviders.getKey(),
-                        pluginInterface.getSimpleName(),
-                        ambiguousInstanceNameToProviders.getValue().stream().map(p -> p.provider().type().getName()).collect(Collectors.joining(", ")));
+                var implementationClasses = ambiguousInstanceNameToProviders.getValue().stream()
+                        .map(p -> p.provider().type())
+                        .toList();
+                String ambiguousKey = ambiguousInstanceNameToProviders.getKey();
+                if (isFqName(ambiguousKey)) {
+                    var c1 = implementationClasses.stream().filter(c -> c.isAnnotationPresent(DeprecatedPluginName.class)).findFirst().get();
+                    var c2 = implementationClasses.stream().filter(c -> c != c1).findFirst().get();
+                    LOGGER.warn("Pluging implementation class {} is annotated with @{}(oldName=\"{}\") which collides with the real plugin implementation class {}. "
+                                    + "You must remove one of these classes from the class path.",
+                            c1.getName(),
+                            DeprecatedPluginName.class.getSimpleName(),
+                            c1.getAnnotation(DeprecatedPluginName.class).oldName(),
+                            c2.getName());
+                    throw new RuntimeException("Ambiguous plugin implementation name '" + ambiguousKey + "'");
+                }
+                else {
+                    LOGGER.warn("'{}' would be an ambiguous reference to a {} provider. "
+                                    + "It could refer to any of {}"
+                                    + " so to avoid ambiguous behaviour those fully qualified names must be used",
+                            ambiguousKey,
+                            pluginInterface.getSimpleName(),
+                            implementationClasses.stream()
+                                    .map(Class::getName)
+                                    .collect(Collectors.joining(", ")));
+                }
             }
         }
         return bySingleton.get(true).stream().collect(Collectors.toMap(
@@ -99,7 +119,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             }
             else {
                 names = Stream.concat(names, Stream.of(oldName));
-                String shortName = shortName(oldName);
+                String shortName = simpleName(oldName);
                 if (shortName != null) {
                     names = Stream.concat(names, Stream.of(shortName));
                 }
@@ -108,7 +128,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         return names;
     }
 
-    private static @Nullable String shortName(String oldName) {
+    private static @Nullable String simpleName(String oldName) {
         String substring = null;
         var idx = oldName.lastIndexOf('.');
         if (idx != -1 && idx != oldName.length() - 1) {
@@ -183,9 +203,13 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private static boolean isOldInstanceName(String instanceName, DeprecatedPluginName deprecatedName, Class<?> type) {
         return instanceName.equals(deprecatedName.oldName())
-                || (instanceName.indexOf('.') == -1 // is a short name
+                || (!isFqName(instanceName) // is a short name
                         && !instanceName.equals(type.getSimpleName()) // given shortName is not the class's simpleName
-                        && instanceName.equals(shortName(deprecatedName.oldName())) // but is the short form of the old name
+                        && instanceName.equals(simpleName(deprecatedName.oldName())) // but is the short form of the old name
                 );
+    }
+
+    private static boolean isFqName(String instanceName) {
+        return instanceName.indexOf('.') != -1;
     }
 }
