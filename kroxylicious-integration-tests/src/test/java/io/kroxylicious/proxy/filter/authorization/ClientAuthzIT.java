@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -73,6 +74,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
@@ -609,8 +611,10 @@ class ClientAuthzIT extends AuthzIT {
 
             try (var setup = clientFactory.newAdmin(setupUser, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "setup"))) {
                 setup.createTopic(topicA);
+                Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> allTopicPartitionsHaveALeader(setup.admin, List.of(TOPIC_A)));
                 try (var admin = clientFactory.newAdmin(adminUser, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "admin"))) {
                     admin.createPartitions(topicA, 2);
+                    Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> allTopicPartitionsHaveALeader(admin.admin, List.of(TOPIC_A)));
                     admin.describeTopic(topicA);
                     admin.describeConfigs(ConfigResource.Type.TOPIC, topicA);
                     admin.alterConfigs(ConfigResource.Type.TOPIC, topicA, new ConfigEntry(TopicConfig.COMPRESSION_TYPE_CONFIG, "zstd"));
