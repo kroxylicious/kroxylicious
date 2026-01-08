@@ -13,7 +13,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
  * Factory for the {@link ScramSaslObserver}.
  */
 @Plugin(configType = Void.class)
-@DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.ScramSha256SaslObserverFactory")
+@DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.ScramSha256SaslObserverFactory", since = "0.19.0")
 public class ScramSha256SaslObserverFactory implements SaslObserverFactory {
     @Override
     public SaslObserver createObserver() {

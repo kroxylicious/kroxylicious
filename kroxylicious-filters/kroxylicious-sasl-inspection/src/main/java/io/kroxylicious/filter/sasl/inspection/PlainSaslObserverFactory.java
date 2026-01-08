@@ -17,7 +17,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
  * Proxy.
  */
 @Plugin(configType = Void.class)
-@DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.PlainSaslObserverFactory")
+@DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.PlainSaslObserverFactory", since = "0.19.0")
 public class PlainSaslObserverFactory implements SaslObserverFactory {
     @Override
     public SaslObserver createObserver() {

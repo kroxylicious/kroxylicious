@@ -39,7 +39,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Factory for {@link SaslInspectionFilter}.
  */
 @Plugin(configType = Config.class)
-@DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.SaslInspection")
+@DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.SaslInspection", since = "0.19.0")
 public class SaslInspection implements FilterFactory<Config, Void> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslInspection.class);

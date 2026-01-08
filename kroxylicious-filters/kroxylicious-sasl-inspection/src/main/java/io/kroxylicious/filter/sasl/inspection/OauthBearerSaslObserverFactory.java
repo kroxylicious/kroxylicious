@@ -13,7 +13,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
  * Factory for the {@link OauthBearerSaslObserver} instances.
  */
 @Plugin(configType = Void.class)
-@DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.OauthBearerSaslObserverFactory")
+@DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.OauthBearerSaslObserverFactory", since = "0.19.0")
 public class OauthBearerSaslObserverFactory implements SaslObserverFactory {
     @Override
     public SaslObserver createObserver() {
