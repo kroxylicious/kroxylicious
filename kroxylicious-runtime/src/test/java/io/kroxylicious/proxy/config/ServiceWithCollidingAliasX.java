@@ -9,4 +9,5 @@ package io.kroxylicious.proxy.config;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 @Plugin(configType = Void.class)
-public class ServiceWithCollidingAliasX implements ServiceWithCollidingAlias {}
+public class ServiceWithCollidingAliasX implements ServiceWithCollidingAlias {
+}

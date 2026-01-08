@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.config;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
@@ -84,7 +83,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                     var c1 = implementationClasses.stream().filter(c -> c.isAnnotationPresent(DeprecatedPluginName.class)).findFirst().get();
                     var c2 = implementationClasses.stream().filter(c -> c != c1).findFirst().get();
                     LOGGER.warn("Pluging implementation class {} is annotated with @{}(oldName=\"{}\") which collides with the real plugin implementation class {}. "
-                                    + "You must remove one of these classes from the class path.",
+                            + "You must remove one of these classes from the class path.",
                             c1.getName(),
                             DeprecatedPluginName.class.getSimpleName(),
                             c1.getAnnotation(DeprecatedPluginName.class).oldName(),
@@ -93,8 +92,8 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 }
                 else {
                     LOGGER.warn("'{}' would be an ambiguous reference to a {} provider. "
-                                    + "It could refer to any of {}"
-                                    + " so to avoid ambiguous behaviour those fully qualified names must be used",
+                            + "It could refer to any of {}"
+                            + " so to avoid ambiguous behaviour those fully qualified names must be used",
                             ambiguousKey,
                             pluginInterface.getSimpleName(),
                             implementationClasses.stream()

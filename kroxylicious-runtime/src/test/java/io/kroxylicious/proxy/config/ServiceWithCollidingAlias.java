@@ -6,9 +6,5 @@
 
 package io.kroxylicious.proxy.config;
 
-import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
-import io.kroxylicious.proxy.plugin.Plugin;
-
 public interface ServiceWithCollidingAlias {
 }
-
