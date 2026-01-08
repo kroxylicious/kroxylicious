@@ -75,19 +75,24 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 Collectors.partitioningBy(e -> e.getValue().size() == 1));
         if (LOGGER.isWarnEnabled()) {
             for (Map.Entry<String, Set<ProviderAndConfigType>> ambiguousInstanceNameToProviders : bySingleton.get(false)) {
+                String ambiguousKey = ambiguousInstanceNameToProviders.getKey();
                 var implementationClasses = ambiguousInstanceNameToProviders.getValue().stream()
                         .map(p -> p.provider().type())
                         .toList();
-                String ambiguousKey = ambiguousInstanceNameToProviders.getKey();
-                if (isFqName(ambiguousKey)) {
-                    var c1 = implementationClasses.stream().filter(c -> c.isAnnotationPresent(DeprecatedPluginName.class)).findFirst().get();
-                    var c2 = implementationClasses.stream().filter(c -> c != c1).findFirst().get();
-                    LOGGER.warn("Pluging implementation class {} is annotated with @{}(oldName=\"{}\") which collides with the real plugin implementation class {}. "
+                var fqCollision = implementationClasses.stream().filter(c -> c.isAnnotationPresent(DeprecatedPluginName.class))
+                        .flatMap(c -> implementationClasses.stream()
+                                .filter(c2 -> c2.getName().equals(c.getAnnotation(DeprecatedPluginName.class).oldName()))
+                                .map(c2 -> Map.entry(c, c2))).findFirst();
+                if (fqCollision.isPresent()) {
+                    var entry = fqCollision.get();
+                    var annotatedClass = entry.getKey();
+                    var classWithCollidingFqName = entry.getValue();
+                    LOGGER.warn("Plugin implementation class {} is annotated with @{}(oldName=\"{}\") which collides with the real plugin implementation class {}. "
                             + "You must remove one of these classes from the class path.",
-                            c1.getName(),
+                            annotatedClass.getName(),
                             DeprecatedPluginName.class.getSimpleName(),
-                            c1.getAnnotation(DeprecatedPluginName.class).oldName(),
-                            c2.getName());
+                            annotatedClass.getAnnotation(DeprecatedPluginName.class).oldName(),
+                            classWithCollidingFqName.getName());
                     throw new RuntimeException("Ambiguous plugin implementation name '" + ambiguousKey + "'");
                 }
                 else {

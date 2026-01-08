@@ -157,7 +157,7 @@ class ServiceBasedPluginFactoryRegistryTest {
             assertThatThrownBy(() -> serviceBasedPluginFactoryRegistry.pluginFactory(ServiceWithCollidingAlias.class))
                     .isExactlyInstanceOf(RuntimeException.class)
                     .hasMessage("Ambiguous plugin implementation name 'io.kroxylicious.proxy.config.ServiceWithCollidingAliasX'");
-            assertThat(logCaptor.hasWarnMessage("Pluging implementation class io.kroxylicious.proxy.config.ServiceWithCollidingAliasY "
+            assertThat(logCaptor.hasWarnMessage("Plugin implementation class io.kroxylicious.proxy.config.ServiceWithCollidingAliasY "
                     + "is annotated with @DeprecatedPluginName(oldName=\"io.kroxylicious.proxy.config.ServiceWithCollidingAliasX\") "
                     + "which collides with the real plugin implementation class io.kroxylicious.proxy.config.ServiceWithCollidingAliasX. "
                     + "You must remove one of these classes from the class path."))
