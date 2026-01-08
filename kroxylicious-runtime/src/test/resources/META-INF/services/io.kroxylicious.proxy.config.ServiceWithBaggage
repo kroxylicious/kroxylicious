@@ -6,3 +6,4 @@
 
 io.kroxylicious.proxy.config.RenamedImplementation
 io.kroxylicious.proxy.config.DeprecatedImplementation
+io.kroxylicious.proxy.config.newpkg.RepackagedImplementation

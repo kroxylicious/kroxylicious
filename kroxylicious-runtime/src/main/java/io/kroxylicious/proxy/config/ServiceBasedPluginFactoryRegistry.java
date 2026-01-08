@@ -24,6 +24,8 @@ import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A {@link PluginFactoryRegistry} that is implemented using {@link ServiceLoader} discovery.
  */
@@ -97,13 +99,22 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             }
             else {
                 names = Stream.concat(names, Stream.of(oldName));
-                var idx = oldName.lastIndexOf('.');
-                if (idx != -1 && idx != oldName.length() - 1) {
-                    names = Stream.concat(names, Stream.of(oldName.substring(idx + 1)));
+                String shortName = shortName(oldName);
+                if (shortName != null) {
+                    names = Stream.concat(names, Stream.of(shortName));
                 }
             }
         }
         return names;
+    }
+
+    private static @Nullable String shortName(String oldName) {
+        String substring = null;
+        var idx = oldName.lastIndexOf('.');
+        if (idx != -1 && idx != oldName.length() - 1) {
+            substring = oldName.substring(idx + 1);
+        }
+        return substring;
     }
 
     @Override
@@ -125,14 +136,16 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                     }
                     if (type.isAnnotationPresent(DeprecatedPluginName.class)) {
                         DeprecatedPluginName deprecatedName = type.getAnnotation(DeprecatedPluginName.class);
-                        LOGGER.warn("{} plugin with name '{}' should now be referred to using the name '{}'. "
-                                + "The plugin has been renamed since {} and "
-                                + "in the future the old name '{}' will cease to work.",
-                                pluginClass.getName(),
-                                instanceName,
-                                type.getName(),
-                                deprecatedName.since(),
-                                instanceName);
+                        if (isOldInstanceName(instanceName, deprecatedName, type)) {
+                            LOGGER.warn("{} plugin with name '{}' should now be referred to using the name '{}'. "
+                                            + "The plugin has been renamed since {} and "
+                                            + "in the future the old name '{}' will cease to work.",
+                                    pluginClass.getName(),
+                                    instanceName,
+                                    type.getName(),
+                                    deprecatedName.since(),
+                                    instanceName);
+                        }
                     }
                     return pluginClass.cast(provider.provider().get());
                 }
@@ -159,5 +172,13 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 return Collections.unmodifiableSet(nameToProvider.keySet());
             }
         };
+    }
+
+    private static boolean isOldInstanceName(String instanceName, DeprecatedPluginName deprecatedName, Class<?> type) {
+        return instanceName.equals(deprecatedName.oldName())
+                || (instanceName.indexOf('.') == -1  // is a short name
+                && !instanceName.equals(type.getSimpleName()) // given shortName is not the class's simpleName
+                && instanceName.equals(shortName(deprecatedName.oldName())) // but is the short form of the old name
+        );
     }
 }

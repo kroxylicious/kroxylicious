@@ -114,6 +114,71 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
+    void shouldNotWarnAboutPluginLoadedWithNewFqName() {
+        // Given
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
+        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
+        // When
+        var instance = factory.pluginInstance("io.kroxylicious.proxy.config.RenamedImplementation");
+        // Then
+        assertThat(instance).isNotNull();
+        assertThat(logCaptor.getWarnLogs()).isEmpty();
+    }
+
+    @Test
+    void shouldNotWarnAboutRepackagedPluginLoadedWithNewFqName() {
+        // Given
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
+        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
+        // When
+        var instance = factory.pluginInstance("RenamedImplementation");
+        // Then
+        assertThat(instance).isNotNull();
+        assertThat(logCaptor.getWarnLogs()).isEmpty();
+    }
+
+    @Test
+    void shouldWarnAboutRepackagedPluginLoadedWithOldFqName() {
+        // Given
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
+        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
+        // When
+        var instance = factory.pluginInstance("io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation");
+        // Then
+        assertThat(instance).isNotNull();
+        assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin with name "
+                + "'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' should now be referred to using the name "
+                + "'io.kroxylicious.proxy.config.newpkg.RepackagedImplementation'. The plugin has been renamed since "
+                + "0.0.0 and in the future the old name 'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' "
+                + "will cease to work."))
+                .isTrue();
+    }
+
+    @Test
+    void shouldNotWarnAboutRepackagedPluginLoadedWithSimpleName() {
+        // Given
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
+        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
+        // When
+        var instance = factory.pluginInstance("io.kroxylicious.proxy.config.newpkg.RepackagedImplementation");
+        // Then
+        assertThat(instance).isNotNull();
+        assertThat(logCaptor.getWarnLogs()).isEmpty();
+    }
+
+    @Test
+    void shouldNotWarnAboutPluginLoadedWithNewShortName1() {
+        // Given
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
+        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
+        // When
+        var instance = factory.pluginInstance("RepackagedImplementation");
+        // Then
+        assertThat(instance).isNotNull();
+        assertThat(logCaptor.getWarnLogs()).isEmpty();
+    }
+
+    @Test
     void shouldNotReturnPluginInstanceForAmbiguousName() {
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class);
         String ambiguous1 = io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getSimpleName();
