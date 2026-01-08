@@ -20,6 +20,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
@@ -57,7 +58,9 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             }
             else {
                 ProviderAndConfigType providerAndConfigType = new ProviderAndConfigType(provider, annotation.configType());
-                Stream.of(providerType.getName(), providerType.getSimpleName()).forEach(name2 -> nameToProviders.compute(name2, (k2, v) -> {
+                Stream<String> names = Stream.of(providerType.getName(), providerType.getSimpleName());
+                names = maybeAddOldNames(providerType, names);
+                names.forEach(name -> nameToProviders.compute(name, (k2, v) -> {
                     if (v == null) {
                         v = new HashSet<>();
                     }
@@ -83,6 +86,26 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 e -> e.getValue().iterator().next()));
     }
 
+    private static Stream<String> maybeAddOldNames(Class<?> providerType, Stream<String> names) {
+        if (providerType.isAnnotationPresent(DeprecatedPluginName.class)) {
+            String oldName = providerType.getAnnotation(DeprecatedPluginName.class).oldName();
+            if (oldName.equals(providerType.getName())) {
+                LOGGER.warn("@DeprecatedPluginName annotation on {} "
+                        + "specifies an oldName == newName. "
+                        + "This annotation is not being used correctly.",
+                        providerType.getName());
+            }
+            else {
+                names = Stream.concat(names, Stream.of(oldName));
+                var idx = oldName.lastIndexOf('.');
+                if (idx != -1 && idx != oldName.length() - 1) {
+                    names = Stream.concat(names, Stream.of(oldName.substring(idx + 1)));
+                }
+            }
+        }
+        return names;
+    }
+
     @Override
     public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
         var nameToProvider = load(pluginClass);
@@ -96,8 +119,19 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 if (provider != null) {
                     Class<?> type = provider.provider().type();
                     if (type.isAnnotationPresent(Deprecated.class)) {
-                        LOGGER.warn("{} plugin with id {} is deprecated",
+                        LOGGER.warn("{} plugin with name '{}' is deprecated.",
                                 pluginClass.getName(),
+                                instanceName);
+                    }
+                    if (type.isAnnotationPresent(DeprecatedPluginName.class)) {
+                        DeprecatedPluginName deprecatedName = type.getAnnotation(DeprecatedPluginName.class);
+                        LOGGER.warn("{} plugin with name '{}' should now be referred to using the name '{}'. "
+                                + "The plugin has been renamed since {} and "
+                                + "in the future the old name '{}' will cease to work.",
+                                pluginClass.getName(),
+                                instanceName,
+                                type.getName(),
+                                deprecatedName.since(),
                                 instanceName);
                     }
                     return pluginClass.cast(provider.provider().get());

@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
+import nl.altindag.log.LogCaptor;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -61,6 +63,54 @@ class ServiceBasedPluginFactoryRegistryTest {
                 factory.pluginInstance(io.kroxylicious.proxy.config.ambiguous1.Ambiguous.class.getName()));
         assertInstanceOf(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class,
                 factory.pluginInstance(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getName()));
+    }
+
+    @Test
+    void shouldWarnAboutDeprecatedPluginImpl() {
+        // Given
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
+        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
+        // When
+        var instance = factory.pluginInstance("io.kroxylicious.proxy.config.DeprecatedImplementation");
+        // Then
+        assertThat(instance).isNotNull();
+        assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                + "with name 'io.kroxylicious.proxy.config.DeprecatedImplementation' is deprecated."))
+                .isTrue();
+    }
+
+    @Test
+    void shouldWarnAboutPluginLoadedWithOldFqName() {
+        // Given
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
+        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
+        // When
+        var instance = factory.pluginInstance("io.kroxylicious.proxy.config.ImplementationWithDeprecatedName");
+        // Then
+        assertThat(instance).isNotNull();
+        assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                + "with name 'io.kroxylicious.proxy.config.ImplementationWithDeprecatedName' "
+                + "should now be referred to using the name 'io.kroxylicious.proxy.config.RenamedImplementation'. "
+                + "The plugin has been renamed since 0.0.0 and in the future the old name "
+                + "'io.kroxylicious.proxy.config.ImplementationWithDeprecatedName' will cease to work."))
+                .isTrue();
+    }
+
+    @Test
+    void shouldWarnAboutPluginLoadedWithOldShortName() {
+        // Given
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
+        LogCaptor logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
+        // When
+        var instance = factory.pluginInstance("ImplementationWithDeprecatedName");
+        // Then
+        assertThat(instance).isNotNull();
+        assertThat(logCaptor.hasWarnMessage("io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                + "with name 'ImplementationWithDeprecatedName' "
+                + "should now be referred to using the name 'io.kroxylicious.proxy.config.RenamedImplementation'. "
+                + "The plugin has been renamed since 0.0.0 and in the future the old name "
+                + "'ImplementationWithDeprecatedName' will cease to work."))
+                .isTrue();
     }
 
     @Test
