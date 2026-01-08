@@ -57,10 +57,12 @@ import io.kroxylicious.it.testplugins.RequestResponseMarkingFilter;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.it.testplugins.TopicIdToNameResponseStamper;
 import io.kroxylicious.it.testplugins.TopicNameMetadataPrefixer;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation;
 import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation;
+import io.kroxylicious.proxy.internal.TopicNameRetriever;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
@@ -168,12 +170,104 @@ class FilterIT {
             message.unknownTaggedFields().add(
                     new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id + "," + topic2Id).getBytes(StandardCharsets.UTF_8)));
             Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
-            List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
-            assertThat(tags).hasSize(1);
-            String tag = tags.getFirst();
-            String[] topicNames = tag.split(",");
+            String[] topicNames = extractTopicNames(response);
             assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1.name(), null), topicNameMapping(topic2Id, topic2.name(), null));
         }
+    }
+
+    @Test
+    void topicNamesAreCached() {
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> {
+            ConfigurationBuilder proxy = proxy(bootstrap);
+            proxy.addToFilterDefinitions(namedFilterDefinition)
+                    .addToDefaultFilters(namedFilterDefinition.name());
+            return proxy;
+        });
+                var client = tester.simpleTestClient()) {
+            Uuid topic1Id = Uuid.randomUuid();
+            String topic1Name = "topic1";
+            Uuid topic2Id = Uuid.randomUuid();
+            String topic2Name = "topic2";
+            MetadataResponseData responseData = new MetadataResponseData();
+            responseData.topics().add(getResponseTopic(topic1Name, topic1Id));
+            responseData.topics().add(getResponseTopic(topic2Name, topic2Id));
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, TopicNameRetriever.METADATA_API_VER_WITH_TOPIC_ID_SUPPORT, responseData));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            ApiVersionsRequestData message = new ApiVersionsRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id + "," + topic2Id).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", message));
+            String[] topicNames = extractTopicNames(response);
+            assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1Name, null), topicNameMapping(topic2Id, topic2Name, null));
+            assertThat(tester.getRequestsForApiKey(METADATA)).hasSize(1);
+            assertThat(tester.getRequestsForApiKey(API_VERSIONS)).hasSize(1);
+
+            Response response2 = client.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", message));
+            String[] topicNames2 = extractTopicNames(response2);
+            assertThat(topicNames2).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1Name, null), topicNameMapping(topic2Id, topic2Name, null));
+            // we infer that the topic ids were cached as they have been augmented onto the response but the mock server
+            // has received no further metadata requests
+            assertThat(tester.getRequestsForApiKey(METADATA)).hasSize(1);
+            assertThat(tester.getRequestsForApiKey(API_VERSIONS)).hasSize(2);
+        }
+    }
+
+    @Test
+    void topicNamesCachingScopedToCluster() {
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> {
+            ConfigurationBuilder proxy = proxy(bootstrap);
+            proxy.addToFilterDefinitions(namedFilterDefinition)
+                    .addToDefaultFilters(namedFilterDefinition.name());
+            return proxy;
+        });
+                var client = tester.simpleTestClient();
+                var client2 = tester.simpleTestClient()) {
+            Uuid topic1Id = Uuid.randomUuid();
+            String topic1Name = "topic1";
+            Uuid topic2Id = Uuid.randomUuid();
+            String topic2Name = "topic2";
+            MetadataResponseData responseData = new MetadataResponseData();
+            responseData.topics().add(getResponseTopic(topic1Name, topic1Id));
+            responseData.topics().add(getResponseTopic(topic2Name, topic2Id));
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, TopicNameRetriever.METADATA_API_VER_WITH_TOPIC_ID_SUPPORT, responseData));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            ApiVersionsRequestData message = new ApiVersionsRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id + "," + topic2Id).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", message));
+            String[] topicNames = extractTopicNames(response);
+            assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1Name, null), topicNameMapping(topic2Id, topic2Name, null));
+            assertThat(tester.getRequestsForApiKey(METADATA)).hasSize(1);
+            assertThat(tester.getRequestsForApiKey(API_VERSIONS)).hasSize(1);
+
+            // using a second client to prove that the cache scope is virtual-cluster wide
+            Response response2 = client2.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", message));
+            String[] topicNames2 = extractTopicNames(response2);
+            assertThat(topicNames2).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1Name, null), topicNameMapping(topic2Id, topic2Name, null));
+            // we infer that the topic names were cached as a single metadata requests was sent to the mock
+            assertThat(tester.getRequestsForApiKey(METADATA)).hasSize(1);
+            assertThat(tester.getRequestsForApiKey(API_VERSIONS)).hasSize(2);
+        }
+    }
+
+    private static String[] extractTopicNames(Response response) {
+        List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+        assertThat(tags).hasSize(1);
+        String tag = tags.getFirst();
+        return tag.split(",");
+    }
+
+    private static MetadataResponseData.MetadataResponseTopic getResponseTopic(String topic1Name, Uuid topic1Id) {
+        MetadataResponseData.MetadataResponseTopic topic = new MetadataResponseData.MetadataResponseTopic();
+        topic.setName(topic1Name);
+        topic.setTopicId(topic1Id);
+        return topic;
     }
 
     @Test
@@ -216,10 +310,7 @@ class FilterIT {
             message.unknownTaggedFields().add(
                     new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (nonexistentTopic + "," + topic1Id).getBytes(StandardCharsets.UTF_8)));
             Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
-            List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
-            assertThat(tags).hasSize(1);
-            String tag = tags.getFirst();
-            String[] topicNames = tag.split(",");
+            String[] topicNames = extractTopicNames(response);
             assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1.name(), null),
                     topicNameMapping(nonexistentTopic, null, "UNKNOWN_TOPIC_ID"));
         }
@@ -261,10 +352,7 @@ class FilterIT {
             message.unknownTaggedFields().add(
                     new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id + "," + topic2Id).getBytes(StandardCharsets.UTF_8)));
             Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
-            List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
-            assertThat(tags).hasSize(1);
-            String tag = tags.getFirst();
-            String[] topicNames = tag.split(",");
+            String[] topicNames = extractTopicNames(response);
             assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, expectedNameForTopic1, null),
                     topicNameMapping(topic2Id, expectedNameForTopic2, null));
         }

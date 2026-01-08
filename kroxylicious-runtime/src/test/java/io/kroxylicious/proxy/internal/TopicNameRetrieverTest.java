@@ -14,11 +14,13 @@ import java.util.concurrent.CompletionStage;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -29,6 +31,7 @@ import io.kroxylicious.proxy.filter.metadata.TopLevelMetadataErrorException;
 import io.kroxylicious.proxy.filter.metadata.TopicLevelMetadataErrorException;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
+import io.kroxylicious.proxy.internal.util.RequestHeaderTagger;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
@@ -72,6 +75,20 @@ class TopicNameRetrieverTest {
                     assertThat(topicNamesMapping.anyFailures()).isFalse();
                     assertThat(topicNamesMapping.topicNames()).containsExactly(entry(UUID, TOPIC_NAME));
                 });
+    }
+
+    @Test
+    void retrieveTopicNamesRequestHeaderContainsTag() {
+        // given
+        MetadataResponseData response = new MetadataResponseData();
+        response.topics().add(getResponseTopic(UUID, TOPIC_NAME));
+        givenSendRequestResponse(completedFuture(response));
+        // when
+        getTopicNamesMapping(Set.of(UUID));
+        // then
+        ArgumentCaptor<RequestHeaderData> argumentCaptor = ArgumentCaptor.forClass(RequestHeaderData.class);
+        verify(filterContext).sendRequest(argumentCaptor.capture(), any());
+        assertThat(RequestHeaderTagger.containsTag(argumentCaptor.getValue(), RequestHeaderTagger.Tag.LEARN_TOPIC_NAMES)).isTrue();
     }
 
     @Test
