@@ -46,8 +46,12 @@ public class OpaAuthorizer implements Authorizer {
         // TODO: more proper validation should happen on the data
         try {
             var opaData = mapper.readValue(data, OpaData.class);
-            if (opaData.topics().size() <= 0) {
-                throw new IllegalArgumentException("OPA data should have at least one configured topic");
+            boolean hasTopics = opaData.topics() != null && opaData.topics().size() > 0;
+            boolean hasPrefixes = opaData.prefixes() != null && opaData.prefixes().size() > 0;
+            boolean hasPatterns = opaData.patterns() != null && opaData.patterns().size() > 0;
+            boolean hasAnyResourceUsers = opaData.anyResourceUsers() != null && opaData.anyResourceUsers().length > 0;
+            if (!hasTopics && !hasPrefixes && !hasPatterns && !hasAnyResourceUsers) {
+                throw new IllegalArgumentException("OPA data should have at least one configured topic, prefix, pattern, or anyResourceUsers");
             }
         }
         catch (JsonProcessingException e) {
