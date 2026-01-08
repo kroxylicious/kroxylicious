@@ -9,6 +9,6 @@ package io.kroxylicious.proxy.config;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 @Plugin(configType = Void.class)
-@Deprecated(forRemoval = true)
+@Deprecated(forRemoval = true) // not really! This class exists to test how deprecated plugins are handled
 public class DeprecatedImplementation implements ServiceWithBaggage {
 }
