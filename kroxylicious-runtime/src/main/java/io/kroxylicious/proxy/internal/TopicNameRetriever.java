@@ -29,14 +29,15 @@ import io.kroxylicious.proxy.filter.metadata.TopLevelMetadataErrorException;
 import io.kroxylicious.proxy.filter.metadata.TopicLevelMetadataErrorException;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
+import io.kroxylicious.proxy.internal.util.RequestHeaderTagger;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static java.util.Collections.unmodifiableMap;
 import static java.util.stream.Collectors.toMap;
 
-final class TopicNameRetriever {
+public final class TopicNameRetriever {
     // Version 12 was the first version that uses topic ids.
-    private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
+    public static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
     private final FilterContext filterContext;
     private final ThreadAwareExecutor filterDispatchExecutor;
 
@@ -76,6 +77,7 @@ final class TopicNameRetriever {
         RequestHeaderData requestHeaderData = new RequestHeaderData();
         requestHeaderData.setRequestApiKey(ApiKeys.METADATA.id);
         requestHeaderData.setRequestApiVersion(METADATA_API_VER_WITH_TOPIC_ID_SUPPORT);
+        RequestHeaderTagger.tag(requestHeaderData, RequestHeaderTagger.Tag.LEARN_TOPIC_NAMES);
         return filterContext.sendRequest(requestHeaderData, request);
     }
 
