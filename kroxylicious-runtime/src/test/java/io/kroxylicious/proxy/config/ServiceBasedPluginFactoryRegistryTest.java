@@ -141,7 +141,12 @@ class ServiceBasedPluginFactoryRegistryTest {
 
     @Test
     void shouldNotReturnPluginInstanceForAmbiguousName() {
-        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class);
+        PluginFactory<ServiceWithAmbiguousImpls> factory;
+        try (var logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class)) {
+            factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class);
+            assertThat(logCaptor.hasWarnMessage(
+                    "'Ambiguous' would be an ambiguous reference to a ServiceWithAmbiguousImpls provider. It could refer to any of io.kroxylicious.proxy.config.ambiguous2.Ambiguous, io.kroxylicious.proxy.config.ambiguous1.Ambiguous so to avoid ambiguous behaviour those fully qualified names must be used")).isTrue();
+        }
         String ambiguous1 = io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getSimpleName();
         String ambiguous2 = io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getSimpleName();
 
