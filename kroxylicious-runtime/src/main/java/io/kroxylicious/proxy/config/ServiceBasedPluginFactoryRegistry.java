@@ -81,14 +81,19 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                         .toList();
                 var fqCollision = implementationClasses.stream().filter(c -> c.isAnnotationPresent(DeprecatedPluginName.class))
                         .flatMap(c -> implementationClasses.stream()
-                                .filter(c2 -> c2.getName().equals(c.getAnnotation(DeprecatedPluginName.class).oldName()))
+                                .filter(c2 -> {
+                                    var cOldName = c.getAnnotation(DeprecatedPluginName.class).oldName();
+                                    return c2.getName().equals(cOldName)
+                                            || c2.isAnnotationPresent(DeprecatedPluginName.class) &&
+                                            c2.getAnnotation(DeprecatedPluginName.class).oldName().equals(cOldName);
+                                })
                                 .map(c2 -> Map.entry(c, c2)))
                         .findFirst();
                 if (fqCollision.isPresent()) {
                     var entry = fqCollision.get();
                     var annotatedClass = entry.getKey();
                     var classWithCollidingFqName = entry.getValue();
-                    LOGGER.warn("Plugin implementation class {} is annotated with @{}(oldName=\"{}\") which collides with the real plugin implementation class {}. "
+                    LOGGER.warn("Plugin implementation class {} is annotated with @{}(oldName=\"{}\") which collides with the plugin implementation class {}. "
                             + "You must remove one of these classes from the class path.",
                             annotatedClass.getName(),
                             DeprecatedPluginName.class.getSimpleName(),
