@@ -11,43 +11,62 @@ import java.net.URL;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.config.tls.Tls;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is valid using the schema in Apicurio Registry.
  */
-public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioGlobalId) {
+public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioContentId, WireFormatVersion wireFormatVersion, @Nullable Tls tls) {
+
     /**
-     * Construct SchemaValidationConfig
-     * @param apicurioGlobalId apicurio registry version global identifier to be used for schema validation
+     * Wire format versions for Apicurio Registry schema identifiers.
+     * <p>
+     * V3 uses 4-byte content IDs (Confluent-compatible format) and is the default.
+     * V2 uses 8-byte global IDs and is deprecated.
+     * </p>
+     */
+    public enum WireFormatVersion {
+        /**
+         * Apicurio Registry v2 wire format using 8-byte global IDs.
+         * @deprecated Use {@link #V3} instead for Confluent compatibility. This option will be removed in a future release.
+         */
+        @Deprecated(since = "0.12.0", forRemoval = true)
+        V2,
+
+        /**
+         * Apicurio Registry v3 wire format using 4-byte content IDs (Confluent-compatible).
+         * This is the recommended and default format.
+         */
+        V3
+    }
+
+    /**
+     * Construct SchemaValidationConfig with explicit wire format version and TLS configuration
      * @param apicurioRegistryUrl Apicurio Registry instance url
+     * @param apicurioContentId apicurio registry content identifier to be used for schema validation
+     * @param wireFormatVersion wire format version (defaults to V3 if null)
+     * @param tls optional TLS configuration for connecting to a schema registry protected by TLS with a custom trust store
      */
     @JsonCreator
     public SchemaValidationConfig(@JsonProperty(value = "apicurioRegistryUrl", required = true) URL apicurioRegistryUrl,
-                                  @JsonProperty(value = "apicurioGlobalId", required = true) long apicurioGlobalId) {
-        this.apicurioGlobalId = apicurioGlobalId;
+                                  @JsonProperty(value = "apicurioContentId", required = true) long apicurioContentId,
+                                  @JsonProperty(value = "wireFormatVersion", required = false) WireFormatVersion wireFormatVersion,
+                                  @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
+        this.apicurioContentId = apicurioContentId;
         this.apicurioRegistryUrl = apicurioRegistryUrl;
-    }
-
-    /**
-     * @return the configured globalId to be used
-     */
-    @Override
-    public long apicurioGlobalId() {
-        return apicurioGlobalId;
-    }
-
-    /**
-     * @return the apicurio registry url to be used for this validation
-     */
-    @Override
-    public URL apicurioRegistryUrl() {
-        return apicurioRegistryUrl;
+        this.wireFormatVersion = wireFormatVersion != null ? wireFormatVersion : WireFormatVersion.V3;
+        this.tls = tls;
     }
 
     @Override
     public String toString() {
         return "SchemaValidationConfig{" +
-                "apicurioGlobalId=" + apicurioGlobalId +
+                "apicurioContentId=" + apicurioContentId +
                 ", apicurioRegistryUrl='" + apicurioRegistryUrl + '\'' +
+                ", wireFormatVersion=" + wireFormatVersion +
+                ", tls=" + tls +
                 '}';
     }
 
