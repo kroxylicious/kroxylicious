@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.config;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -78,14 +79,15 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 String ambiguousKey = ambiguousInstanceNameToProviders.getKey();
                 var implementationClasses = ambiguousInstanceNameToProviders.getValue().stream()
                         .map(p -> p.provider().type())
+                        .sorted(Comparator.comparing(Class::getName))
                         .toList();
                 var fqCollision = implementationClasses.stream().filter(c -> c.isAnnotationPresent(DeprecatedPluginName.class))
                         .flatMap(c -> implementationClasses.stream()
                                 .filter(c2 -> {
                                     var cOldName = c.getAnnotation(DeprecatedPluginName.class).oldName();
-                                    return c2.getName().equals(cOldName)
-                                            || c2.isAnnotationPresent(DeprecatedPluginName.class) &&
-                                            c2.getAnnotation(DeprecatedPluginName.class).oldName().equals(cOldName);
+                                    return !c.equals(c2) && (c2.getName().equals(cOldName)
+                                            || (c2.isAnnotationPresent(DeprecatedPluginName.class) &&
+                                                    c2.getAnnotation(DeprecatedPluginName.class).oldName().equals(cOldName)));
                                 })
                                 .map(c2 -> Map.entry(c, c2)))
                         .findFirst();

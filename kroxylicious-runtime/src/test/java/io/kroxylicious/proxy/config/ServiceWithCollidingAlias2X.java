@@ -11,4 +11,5 @@ import io.kroxylicious.proxy.plugin.Plugin;
 
 @Plugin(configType = Void.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.config.ServiceWithCollidingAlias2Z")
-public class ServiceWithCollidingAlias2X implements ServiceWithCollidingAlias2 {}
+public class ServiceWithCollidingAlias2X implements ServiceWithCollidingAlias2 {
+}

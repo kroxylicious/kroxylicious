@@ -8,4 +8,3 @@ package io.kroxylicious.proxy.config;
 
 public interface ServiceWithCollidingAlias2 {
 }
-
