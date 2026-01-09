@@ -4,14 +4,14 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.multitenant;
+package io.kroxylicious.filter.multitenant;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import io.kroxylicious.filter.multitenant.config.MultiTenantConfig;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.filter.multitenant.config.MultiTenantConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
