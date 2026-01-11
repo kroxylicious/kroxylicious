@@ -9,6 +9,8 @@ package io.kroxylicious.proxy.bootstrap;
 import java.util.List;
 import java.util.Random;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -16,6 +18,7 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrategy {
 
+    @JsonIgnore
     private final Random random = new Random();
 
     @Override
