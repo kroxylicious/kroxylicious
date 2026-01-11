@@ -367,7 +367,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         var deregs = allOfStage(listeningChannels.values().stream()
                 .filter(lcr -> lcr.unbindingStage.get() == null)
                 .map(lcr -> lcr.bindingStage()
-                        .thenCompose((acceptorChannel -> {
+                        .thenCompose(acceptorChannel -> {
                             var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                             if (bindings == null || bindings.get() == null) {
                                 // nothing to do for this channel
@@ -382,7 +382,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                                     .peek(creations::remove) // side effect
                                     .filter(eb -> !allBrokerIds.contains(eb.nodeId()))
                                     .map(eb -> deregisterBinding(virtualClusterModel, eb::equals)));
-                        }))));
+                        })));
 
         // chain any binding registrations and organise for the reconciliations entry to complete
         deregs.thenCompose(u1 -> allOfStage(creations.stream()
@@ -601,7 +601,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                                                                          Endpoint endpoint,
                                                                          @Nullable String sniHostname) {
         return new EndpointResolutionException(
-                ("%s binding address: %s, port: %d, sniHostname: %s, tls: %b").formatted(prefix,
+                "%s binding address: %s, port: %d, sniHostname: %s, tls: %b".formatted(prefix,
                         endpoint.bindingAddress().orElse("<any>"),
                         endpoint.port(),
                         sniHostname == null ? "<none>" : sniHostname,

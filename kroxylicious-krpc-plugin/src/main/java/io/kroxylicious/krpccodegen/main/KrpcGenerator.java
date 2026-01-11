@@ -348,7 +348,7 @@ public class KrpcGenerator {
         }
         try {
             long mismatch = Files.mismatch(generatedFile, finalFile);
-            return (mismatch == -1);
+            return mismatch == -1;
         }
         catch (IOException e) {
             throw new UncheckedIOException("IO exception while comparing files for mismatch", e);

@@ -907,13 +907,13 @@ class FilterHandlerTest extends FilterHarness {
         return Stream.of(
                 Arguments.of("api key set",
                         (Supplier<RequestHeaderData>) () -> new RequestHeaderData().setRequestApiVersion(fetch.lowestSupportedVersion()),
-                        (Consumer<RequestHeaderData>) (h) -> assertThat(h.requestApiKey()).isEqualTo(fetch.apiKey())),
+                        (Consumer<RequestHeaderData>) h -> assertThat(h.requestApiKey()).isEqualTo(fetch.apiKey())),
                 Arguments.of("clientid",
                         (Supplier<RequestHeaderData>) () -> new RequestHeaderData().setClientId("clientid").setRequestApiVersion(fetch.lowestSupportedVersion()),
-                        (Consumer<RequestHeaderData>) (h) -> assertThat(h.clientId()).isEqualTo("clientid")),
+                        (Consumer<RequestHeaderData>) h -> assertThat(h.clientId()).isEqualTo("clientid")),
                 Arguments.of("version",
                         (Supplier<RequestHeaderData>) () -> new RequestHeaderData().setRequestApiVersion(fetch.highestSupportedVersion(false)),
-                        (Consumer<RequestHeaderData>) (h) -> assertThat(h.requestApiVersion()).isEqualTo(fetch.highestSupportedVersion(false))));
+                        (Consumer<RequestHeaderData>) h -> assertThat(h.requestApiVersion()).isEqualTo(fetch.highestSupportedVersion(false))));
     }
 
     @ParameterizedTest(name = "{0}")

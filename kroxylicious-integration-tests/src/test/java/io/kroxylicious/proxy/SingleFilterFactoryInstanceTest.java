@@ -39,7 +39,7 @@ public class SingleFilterFactoryInstanceTest {
         final UUID configInstance = UUID.randomUUID();
 
         // When
-        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+        mockTester = mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap)
                 .addToFilterDefinitions(new NamedFilterDefinitionBuilder("one", "InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstance)
                         .build())
                 .addToDefaultFilters("one"));
@@ -56,7 +56,7 @@ public class SingleFilterFactoryInstanceTest {
         final UUID configInstanceB = UUID.randomUUID();
 
         // When
-        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+        mockTester = mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap)
                 .addToFilterDefinitions(
                         new NamedFilterDefinitionBuilder("one", "InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstanceA).build())
                 .addToFilterDefinitions(

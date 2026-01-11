@@ -81,7 +81,7 @@ class StandardBindersHookTest {
         verify(closeableBinder).bindTo(registry);
 
         hook.close();
-        verify(((AutoCloseable) closeableBinder)).close();
+        verify((AutoCloseable) closeableBinder).close();
     }
 
     private static void thenUptimeMeterRegistered(MeterRegistry registry) {

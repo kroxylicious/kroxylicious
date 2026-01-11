@@ -211,7 +211,7 @@ class AwsV4SigningHttpRequestBuilderTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void hostHeader(String name, URI uri, String expected) {
-        var builder = ((AwsV4SigningHttpRequestBuilder) createBuilder(TEST_URI));
+        var builder = (AwsV4SigningHttpRequestBuilder) createBuilder(TEST_URI);
         assertThat(builder.getHostHeaderForSigning(uri)).isEqualTo(expected);
     }
 

@@ -591,7 +591,7 @@ public class KafkaProxyFrontendHandler
         for (var protocolFilter : filters) {
             // TODO configurable timeout
             // Handler name must be unique, but filters are allowed to appear multiple times
-            String handlerName = "filter-" + (++num) + "-" + protocolFilter.filterName();
+            String handlerName = "filter-" + ++num + "-" + protocolFilter.filterName();
             pipeline.addFirst(
                     handlerName,
                     new FilterHandler(

@@ -69,7 +69,7 @@ class CachingKmsTest {
         Kms<Long, Long> kms = mock(Kms.class);
         SecretKey secretKey = mock(SecretKey.class);
         Mockito.when(kms.decryptEdek(any())).thenReturn(CompletableFuture.completedFuture(secretKey));
-        var caching = ((CachingKms<Long, Long>) CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8), Duration.ofSeconds(30)));
+        var caching = (CachingKms<Long, Long>) CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8), Duration.ofSeconds(30));
         assertThat(caching.decryptEdek(1L)).succeedsWithin(5, TimeUnit.SECONDS).isSameAs(secretKey);
         caching.decryptDekCacheCleanUp();
         assertThat(caching.decryptEdek(1L)).succeedsWithin(5, TimeUnit.SECONDS).isSameAs(secretKey);

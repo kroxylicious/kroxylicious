@@ -300,7 +300,7 @@ public class AclAuthorizer implements Authorizer {
                                                         Action action,
                                                         Decision whenFound,
                                                         @Nullable Decision whenNotFound) {
-        assert (whenFound != whenNotFound);
+        assert whenFound != whenNotFound;
         for (var p : subject.principals()) {
 
             Decision foundDecision;
