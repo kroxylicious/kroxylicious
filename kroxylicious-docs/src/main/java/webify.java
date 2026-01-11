@@ -261,10 +261,9 @@ public class webify implements Callable<Integer> {
                 var datafiable = datafyGlob.matches(relFilePath);
                 if (omitable && !tocifiable && !datafiable) {
                     // exit early when there is nothing to be done.
-                    // noinspection UnnecessaryReturnStatement
                     return;
                 }
-                else if (!omitable && tocifiable && !datafiable) {
+                if (!omitable && tocifiable && !datafiable) {
                     webify.this.tocify(filePath, outFilePath);
                 }
                 else {

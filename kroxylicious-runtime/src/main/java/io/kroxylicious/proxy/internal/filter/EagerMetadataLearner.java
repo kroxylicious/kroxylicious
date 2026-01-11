@@ -57,7 +57,7 @@ public class EagerMetadataLearner implements RequestFilter {
             var request = useClientRequest ? (MetadataRequestData) body : new MetadataRequestData();
 
             var future = new CompletableFuture<RequestFilterResult>();
-            var unused = context.<MetadataResponseData> sendRequest(requestHeader, request)
+            context.<MetadataResponseData> sendRequest(requestHeader, request)
                     .thenAccept(metadataResponse -> {
                         // closing the connection is important. This client connection is connected to bootstrap (it could
                         // be any broker or maybe not something else). we must close the connection to force the client to

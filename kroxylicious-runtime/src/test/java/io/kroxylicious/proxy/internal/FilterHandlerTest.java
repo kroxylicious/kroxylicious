@@ -704,7 +704,7 @@ class FilterHandlerTest extends FilterHarness {
             return context.requestFilterResultBuilder().drop().completed();
         };
         buildChannel(filter);
-        var frame = writeRequest(new ApiVersionsRequestData());
+        writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertNull(propagated);
     }
@@ -771,7 +771,7 @@ class FilterHandlerTest extends FilterHarness {
             return context.responseFilterResultBuilder().drop().completed();
         };
         buildChannel(filter);
-        var frame = writeResponse(new ApiVersionsResponseData());
+        writeResponse(new ApiVersionsResponseData());
         var propagated = channel.readInbound();
         assertNull(propagated);
 

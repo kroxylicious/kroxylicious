@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
+import java.util.Random;
 
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -15,10 +16,12 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrategy {
 
+    private final Random random = new Random();
+
     @Override
-    @SuppressWarnings("java:S2245") // using Math.random is entirely appropriate here.
+    @SuppressWarnings("java:S2245") // using insecure random is entirely appropriate here.
     public HostPort apply(List<HostPort> hostPorts) {
-        final int choice = (int) (Math.random() * hostPorts.size());
+        final int choice = random.nextInt(hostPorts.size());
         return hostPorts.get(choice);
     }
 

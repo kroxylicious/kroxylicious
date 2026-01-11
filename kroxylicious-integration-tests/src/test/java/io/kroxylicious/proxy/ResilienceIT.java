@@ -209,7 +209,7 @@ class ResilienceIT extends BaseIT {
             var producer = tester.producer(producerConfig);
             var consumer = tester.consumer(consumerConfig);
             consumer.subscribe(Set.of(randomTopic.name()));
-            var response = producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
+            producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
 
             LOGGER.debug("Restarting proxy");
             tester.restartProxy();

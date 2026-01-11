@@ -65,7 +65,7 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
             return;
         }
 
-        var unused = networkBindingExecutor.submit(() -> {
+        networkBindingExecutor.submit(() -> {
             try {
                 do {
                     var networkBindingOperation = queue.take();
