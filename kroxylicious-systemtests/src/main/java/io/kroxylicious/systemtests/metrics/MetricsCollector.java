@@ -168,7 +168,7 @@ public class MetricsCollector {
 
         scraperPodName = builder.scraperPodName;
         namespaceName = Optional.ofNullable(builder.namespaceName).orElse(kubeClient().getNamespace());
-        metricsPort = (builder.metricsPort <= 0) ? 9190 : builder.metricsPort;
+        metricsPort = builder.metricsPort <= 0 ? 9190 : builder.metricsPort;
         metricsPath = Optional.ofNullable(builder.metricsPath).orElse("/metrics");
         componentType = builder.componentType;
         componentName = builder.componentName;

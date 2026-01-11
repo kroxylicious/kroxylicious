@@ -52,7 +52,7 @@ public class AdocConverter extends StringConverter {
                 case "paragraph" -> {
                     if (node.getParent() != null
                             && node.getParent().getNodeName().matches("open|listing|pass")) {
-                        yield (block).getContent().toString();
+                        yield block.getContent().toString();
                     }
                     yield adocNodeConverter.convertParagraphNode(block);
                 }

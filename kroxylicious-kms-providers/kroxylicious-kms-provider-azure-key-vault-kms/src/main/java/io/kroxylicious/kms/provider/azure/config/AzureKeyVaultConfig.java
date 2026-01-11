@@ -98,7 +98,7 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
     }
 
     public String keyVaultUrl(String vaultName) {
-        String host = (vaultName + ".") + keyVaultHost;
+        String host = vaultName + "." + keyVaultHost;
         String portSpec = keyVaultPort() == null ? "" : ":" + keyVaultPort();
         return kvScheme() + "://" + host + portSpec;
     }

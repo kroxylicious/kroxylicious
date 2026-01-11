@@ -123,7 +123,7 @@ class FilterIT {
                 var client = tester.simpleTestClient()) {
             MetadataRequestData message = new MetadataRequestData();
             message.unknownTaggedFields().add(
-                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, ("").getBytes(StandardCharsets.UTF_8)));
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, "".getBytes(StandardCharsets.UTF_8)));
             Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
             // checking that the request/response flows through despite requesting an empty topic id list
             assertThat(response).isNotNull();
@@ -144,7 +144,7 @@ class FilterIT {
                 var client = tester.simpleTestClient()) {
             MetadataRequestData message = new MetadataRequestData();
             message.unknownTaggedFields().add(
-                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, ("").getBytes(StandardCharsets.UTF_8)));
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, "".getBytes(StandardCharsets.UTF_8)));
             Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
             // checking that the request/response flows through despite requesting an empty topic id list
             assertThat(response).isNotNull();

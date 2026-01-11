@@ -30,6 +30,6 @@ public class RetrieveApiKey implements TemplateMethodModelEx {
 
     @Override
     public Object exec(List arguments) {
-        return retrieveApiKey(((MessageSpecModel) arguments.get(0)));
+        return retrieveApiKey((MessageSpecModel) arguments.get(0));
     }
 }

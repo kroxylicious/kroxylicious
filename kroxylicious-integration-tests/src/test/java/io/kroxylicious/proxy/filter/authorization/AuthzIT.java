@@ -587,10 +587,10 @@ public abstract class AuthzIT extends BaseIT {
 
         // assert the responses from the proxied cluster at the same as from the unproxied cluster
         // (modulo clobbbering things like UUIDs which will be unavoidably different)
-        BiFunction<S, BaseClusterFixture, String> convertAndClobberUserResponse = ((BiFunction<S, BaseClusterFixture, String>) (response, cl) -> {
+        BiFunction<S, BaseClusterFixture, String> convertAndClobberUserResponse = (response, cl) -> {
             var node = scenario.convertResponse(response);
             return scenario.clobberResponse(cl, node);
-        });
+        };
         assertThatJson(mapValues(proxiedResponsesByUser,
                 x -> convertAndClobberUserResponse.apply(x, proxiedCluster)))
                 .as("Expect proxied response to be the same as the reference response with equivalent AuthZ")

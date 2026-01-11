@@ -41,7 +41,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
                                                                       FilterContext context) {
         return forwardingStyle.apply(new ForwardingContext(context, constructionContext, request))
-                .thenCompose((u) -> {
+                .thenCompose(u -> {
                     CreateTopicsResponseData response = new CreateTopicsResponseData();
                     CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection();
                     allocateByteBufToTestKroxyliciousReleasesIt(context);

@@ -153,6 +153,6 @@ class BrokerAddressFilterTest {
     private void configureContextResponseStubbing() {
         lenient().when(context.responseFilterResultBuilder()).thenReturn(new ResponseFilterResultBuilderImpl());
         lenient().when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture()))
-                .thenAnswer((x) -> new ResponseFilterResultBuilderImpl().forward(responseHeaderDataCaptor.getValue(), apiMessageCaptor.getValue()).completed());
+                .thenAnswer(x -> new ResponseFilterResultBuilderImpl().forward(responseHeaderDataCaptor.getValue(), apiMessageCaptor.getValue()).completed());
     }
 }

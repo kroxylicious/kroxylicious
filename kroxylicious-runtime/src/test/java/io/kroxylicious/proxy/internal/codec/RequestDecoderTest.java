@@ -347,7 +347,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         AbstractCodecTest::deserializeRequestHeaderUsingKafkaApis,
                         RequestDecoderTest::deserializeProduceRequestUsingKafkaApis,
                         getKafkaRequestDecoder(DECODE_EVERYTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES),
-                        DecodedRequestFrame.class, ((RequestHeaderData head) -> head), acks != 0),
+                        DecodedRequestFrame.class, (RequestHeaderData head) -> head, acks != 0),
                 "Unexpected correlation id");
     }
 
