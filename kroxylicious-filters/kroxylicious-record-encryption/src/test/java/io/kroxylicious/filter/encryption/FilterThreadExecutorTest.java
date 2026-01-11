@@ -26,7 +26,7 @@ class FilterThreadExecutorTest {
     private final FilterThreadExecutor dispatchExecutor = new FilterThreadExecutor(executorB);
 
     @Test
-    public void switchExecutorIfDeferred_SuccessSwitchesThreadIfDeferred() {
+    void switchExecutorIfDeferred_SuccessSwitchesThreadIfDeferred() {
         CompletableFuture<String> taskA = CompletableFuture.supplyAsync(() -> Thread.currentThread().getName(), executorA);
         CompletionStage<String> switched = dispatchExecutor.completingOnFilterThread(taskA);
         CompletionStage<Boolean> sameThread = switched.thenApply(thread -> thread.equals(Thread.currentThread().getName()));
@@ -34,7 +34,7 @@ class FilterThreadExecutorTest {
     }
 
     @Test
-    public void switchExecutorIfDeferred_SuccessDoesNotSwitchThreadIfDone() {
+    void switchExecutorIfDeferred_SuccessDoesNotSwitchThreadIfDone() {
         CompletableFuture<String> taskA = CompletableFuture.completedFuture(Thread.currentThread().getName());
         CompletionStage<String> switched = dispatchExecutor.completingOnFilterThread(taskA);
         CompletionStage<Boolean> sameThread = switched.thenApply(thread -> thread.equals(Thread.currentThread().getName()));
@@ -42,7 +42,7 @@ class FilterThreadExecutorTest {
     }
 
     @Test
-    public void switchExecutorIfDeferred_ExceptionSwitchesThreadIfDeferred() {
+    void switchExecutorIfDeferred_ExceptionSwitchesThreadIfDeferred() {
         CompletableFuture<String> taskA = CompletableFuture.supplyAsync(() -> {
             throw new TestException(Thread.currentThread().getName());
         }, executorA);
@@ -56,7 +56,7 @@ class FilterThreadExecutorTest {
     }
 
     @Test
-    public void switchExecutorIfDeferred_ExceptionDoesNotSwitchThreadIfDone() {
+    void switchExecutorIfDeferred_ExceptionDoesNotSwitchThreadIfDone() {
         CompletableFuture<String> taskA = CompletableFuture.failedFuture(new TestException(Thread.currentThread().getName()));
         CompletionStage<String> switched = dispatchExecutor.completingOnFilterThread(taskA);
         CompletionStage<String> extractException = switched.exceptionally(throwable -> {

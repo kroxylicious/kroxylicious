@@ -31,17 +31,17 @@ class ServiceBasedPluginFactoryRegistryTest {
     private static LogCaptor logCaptor;
 
     @BeforeAll
-    public static void setupLogCaptor() {
+    static void setupLogCaptor() {
         logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
     }
 
     @AfterEach
-    public void clearLogs() {
+    void clearLogs() {
         logCaptor.clearLogs();
     }
 
     @AfterAll
-    public static void tearDown() {
+    static void tearDown() {
         logCaptor.close();
     }
 

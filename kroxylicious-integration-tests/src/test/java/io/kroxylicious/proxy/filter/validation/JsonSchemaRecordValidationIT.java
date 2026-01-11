@@ -99,14 +99,14 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     private static final String FIRST_ARTIFACT_ID = UUID.randomUUID().toString();
     private static final String SECOND_ARTIFACT_ID = UUID.randomUUID().toString();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    public static final PersonBean PERSON_BEAN = new PersonBean("john", "smith", 23);
-    public static long firstGlobalId;
-    public static long secondGlobalId;
+    static final PersonBean PERSON_BEAN = new PersonBean("john", "smith", 23);
+    static long firstGlobalId;
+    static long secondGlobalId;
 
     private static GenericContainer registryContainer;
 
     @BeforeAll
-    public static void init() throws IOException {
+    static void init() throws IOException {
         // An Apicurio Registry instance is required for this test to work, so we start one using a Generic Container
         DockerImageName dockerImageName = DockerImageName.parse("quay.io/apicurio/apicurio-registry-mem:2.6.13.Final");
 
@@ -298,7 +298,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @AfterAll
-    public static void stopResources() {
+    static void stopResources() {
         if (registryContainer != null && registryContainer.isRunning()) {
             registryContainer.stop();
         }

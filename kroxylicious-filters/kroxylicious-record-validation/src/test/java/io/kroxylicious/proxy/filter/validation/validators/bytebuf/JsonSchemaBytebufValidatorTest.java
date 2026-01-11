@@ -32,7 +32,7 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 import static io.kroxylicious.test.record.RecordTestUtils.record;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class JsonSchemaBytebufValidatorTest {
+class JsonSchemaBytebufValidatorTest {
 
     private static final long GLOBAL_ID = 1L;
     private static final byte[] VALID_JSON = """
@@ -70,7 +70,7 @@ public class JsonSchemaBytebufValidatorTest {
             """;
 
     @BeforeAll
-    public static void initMockRegistry() {
+    static void initMockRegistry() {
         registryServer = new WireMockServer(
                 wireMockConfig()
                         .dynamicPort());
@@ -93,7 +93,7 @@ public class JsonSchemaBytebufValidatorTest {
     }
 
     @AfterAll
-    public static void shutdownMockRegistry() {
+    static void shutdownMockRegistry() {
         registryServer.shutdown();
     }
 

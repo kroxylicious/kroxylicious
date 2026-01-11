@@ -56,7 +56,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * </ol>
  */
 @ExtendWith(NettyLeakDetectorExtension.class)
-public class OutOfBandRequestIT {
+class OutOfBandRequestIT {
 
     @Test
     void testOutOfBandMessageInterceptedByUpstreamFilters() {

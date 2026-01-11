@@ -44,6 +44,8 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -110,7 +112,9 @@ class ProduceRequestTransformationFilterTest {
         var tfactory = mock(ByteBufferTransformationFactory.class);
         when(factoryContext.pluginInstance(any(), any())).thenReturn(tfactory);
         var cfg = new ProduceRequestTransformation.Config(null, null);
-        factory.initialize(factoryContext, cfg);
+        assertThatCode(() -> {
+            factory.initialize(factoryContext, cfg);
+        }).doesNotThrowAnyException();
     }
 
     @Test

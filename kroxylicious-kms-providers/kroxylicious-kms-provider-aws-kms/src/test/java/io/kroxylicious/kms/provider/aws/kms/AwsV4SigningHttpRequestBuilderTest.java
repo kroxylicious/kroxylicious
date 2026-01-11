@@ -60,13 +60,13 @@ class AwsV4SigningHttpRequestBuilderTest {
     private static WireMockServer server;
 
     @BeforeAll
-    public static void initMockServer() {
+    static void initMockServer() {
         server = new WireMockServer(wireMockConfig().port(4566));
         server.start();
     }
 
     @AfterAll
-    public static void shutdownMockServer() {
+    static void shutdownMockServer() {
         server.shutdown();
     }
 
@@ -226,7 +226,7 @@ class AwsV4SigningHttpRequestBuilderTest {
 
     record TestDef(String testName, Instant requestTime, URI url, String method, String accessKeyId, String secretAccessKey, String region, String service,
                    String data, Map<String, List<String>> headers, Map<String, List<String>> expectedHeaders) {
-        public void apply(HttpRequest.Builder builder) {
+        void apply(HttpRequest.Builder builder) {
             builder.uri(url());
             if (headers != null) {
                 headers.forEach((name, valueList) -> valueList.forEach(value -> builder.header(name, value)));

@@ -114,11 +114,11 @@ class MultiTenantFilterTest {
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         when(context.getVirtualClusterName()).thenReturn(TENANT_1);
     }
 
-    public static Stream<Arguments> requests() throws Exception {
+    static Stream<Arguments> requests() throws Exception {
         return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.request() != null)
                 .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.request()));
     }
@@ -145,7 +145,7 @@ class MultiTenantFilterTest {
         assertEquals(requestTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
     }
 
-    public static Stream<Arguments> responses() throws Exception {
+    static Stream<Arguments> responses() throws Exception {
         return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.response() != null)
                 .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.response()));
     }
