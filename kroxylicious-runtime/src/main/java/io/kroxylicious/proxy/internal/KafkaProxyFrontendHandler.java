@@ -98,7 +98,6 @@ public class KafkaProxyFrontendHandler
     private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
     private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
 
-    private final Optional<NettySettings> proxyNettySettings;
     private final long idleTimeSeconds;
 
     private @Nullable ChannelHandlerContext clientCtx;
@@ -153,10 +152,9 @@ public class KafkaProxyFrontendHandler
         this.subjectBuilder = Objects.requireNonNull(subjectBuilder);
         this.virtualClusterModel = endpointBinding.endpointGateway().virtualCluster();
         this.proxyChannelStateMachine = proxyChannelStateMachine;
-        this.proxyNettySettings = proxyNettySettings;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
-        idleTimeSeconds = getIdleSeconds(this.proxyNettySettings);
+        idleTimeSeconds = getIdleSeconds(proxyNettySettings);
     }
 
     @Override
@@ -388,7 +386,10 @@ public class KafkaProxyFrontendHandler
         // Start the upstream connection attempt.
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
 
-        LOGGER.debug("{}: Connecting to outbound {}", this.proxyChannelStateMachine.sessionId(), remote);
+        LOGGER.atDebug().setMessage("{}: Connecting to outbound {}")
+                .addArgument(this.proxyChannelStateMachine::sessionId)
+                .addArgument(remote)
+                .log();
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
         Channel outboundChannel = serverTcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
