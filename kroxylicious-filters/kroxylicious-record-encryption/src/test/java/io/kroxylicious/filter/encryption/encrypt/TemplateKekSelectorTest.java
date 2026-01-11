@@ -45,7 +45,7 @@ class TemplateKekSelectorTest {
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         Optional.ofNullable(kmsService).ifPresent(UnitTestingKmsService::close);
     }
 

@@ -12,7 +12,7 @@ import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class HeadersAssertTest {
+class HeadersAssertTest {
 
     HeadersAssert headersAssert = KafkaAssertions.assertThat(new RecordHeaders()
             .add("foo", "1".getBytes(StandardCharsets.UTF_8))

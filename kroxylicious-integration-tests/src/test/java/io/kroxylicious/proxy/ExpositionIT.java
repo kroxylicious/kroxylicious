@@ -128,6 +128,7 @@ class ExpositionIT extends BaseIT {
         }
     }
 
+    @SuppressWarnings("java:S2699") // sonar false positive, this test is making assertions in createTopic
     @Test
     void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) {
         List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9294");
@@ -257,6 +258,7 @@ class ExpositionIT extends BaseIT {
         }
     }
 
+    @SuppressWarnings("java:S2699") // sonar false positive, this test is making assertions in createTopic
     @Test
     void exposesTwoSeparateUpstreamClustersUsingSniRouting(KafkaCluster cluster) throws Exception {
         var keystoreTrustStoreList = new ArrayList<KeystoreTrustStorePair>();

@@ -89,11 +89,11 @@ class BrokerAddressFilterTest {
 
     private FilterInvoker invoker;
 
-    public static Stream<Arguments> nodeInfoCarryingResponses() throws Exception {
+    static Stream<Arguments> nodeInfoCarryingResponses() throws Exception {
         return responses(td -> td.response() != null);
     }
 
-    public static Stream<Arguments> completeClusterInfoCarryingResponses() throws Exception {
+    static Stream<Arguments> completeClusterInfoCarryingResponses() throws Exception {
         return responses(td -> td.response() != null && Set.of(ApiMessageType.METADATA, ApiMessageType.DESCRIBE_CLUSTER).contains(td.apiKey()));
     }
 
@@ -103,7 +103,7 @@ class BrokerAddressFilterTest {
     }
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         filter = new BrokerAddressFilter(virtualClusterListenerModel, endpointReconciler);
         invoker = getOnlyElement(FilterAndInvoker.build(((Filter) filter).getClass().getSimpleName(), filter)).invoker();
         lenient().when(virtualClusterListenerModel.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));

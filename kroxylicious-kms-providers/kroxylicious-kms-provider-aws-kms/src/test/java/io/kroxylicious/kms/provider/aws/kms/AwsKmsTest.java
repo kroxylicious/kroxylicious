@@ -50,18 +50,18 @@ class AwsKmsTest {
     private AwsKms kms;
 
     @BeforeAll
-    public static void initMockServer() {
+    static void initMockServer() {
         server = new WireMockServer(wireMockConfig().dynamicPort());
         server.start();
     }
 
     @AfterAll
-    public static void shutdownMockServer() {
+    static void shutdownMockServer() {
         server.shutdown();
     }
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         var longTermCredentialsProviderConfig = new LongTermCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret"));
         var config = new Config(URI.create(server.baseUrl()), longTermCredentialsProviderConfig, null, "us-west-2", null);
         awsKmsService = new AwsKmsService();

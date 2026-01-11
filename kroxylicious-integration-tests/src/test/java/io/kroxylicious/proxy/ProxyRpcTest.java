@@ -53,8 +53,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
-public class ProxyRpcTest {
-    public static final Map<ApiAndVersion, ApiMessage> REQUEST_SAMPLES = ApiMessageSampleGenerator.createRequestSamples();
+class ProxyRpcTest {
+    static final Map<ApiAndVersion, ApiMessage> REQUEST_SAMPLES = ApiMessageSampleGenerator.createRequestSamples();
     private static MockServerKroxyliciousTester mockTester;
 
     /**
@@ -72,7 +72,7 @@ public class ProxyRpcTest {
     static NettyLeakDetectorExtension nettyLeakDetectorExtension = new NettyLeakDetectorExtension(false, true, false, true);
 
     @BeforeAll
-    public static void beforeAll() {
+    static void beforeAll() {
         NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder("filter-3", FixedClientIdFilterFactory.class.getName());
         mockTester = mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap)
                 .addToFilterDefinitions(filterDefinitionBuilder.withConfig("clientId", "fixed").build())
@@ -85,7 +85,7 @@ public class ProxyRpcTest {
     }
 
     @AfterAll
-    public static void afterAll() {
+    static void afterAll() {
         if (mockTester != null) {
             mockTester.close();
         }

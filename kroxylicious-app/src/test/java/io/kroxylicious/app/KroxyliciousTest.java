@@ -46,7 +46,7 @@ class KroxyliciousTest {
     private AtomicReference<Features> features = new AtomicReference<>(null);
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         Kroxylicious app = new Kroxylicious((ffm, configuration, features) -> {
             if (!this.features.compareAndSet(null, features)) {
                 throw new IllegalStateException("env already set");

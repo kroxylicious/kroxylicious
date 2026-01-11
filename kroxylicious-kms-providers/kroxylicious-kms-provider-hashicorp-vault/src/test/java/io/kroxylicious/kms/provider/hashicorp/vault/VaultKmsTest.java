@@ -50,18 +50,18 @@ class VaultKmsTest {
     private VaultKms kms;
 
     @BeforeAll
-    public static void initMockServer() {
+    static void initMockServer() {
         server = new WireMockServer(wireMockConfig().dynamicPort());
         server.start();
     }
 
     @AfterAll
-    public static void shutdownMockServer() {
+    static void shutdownMockServer() {
         server.shutdown();
     }
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         var vaultAddress = URI.create(server.baseUrl()).resolve("/v1/transit");
         var config = new Config(vaultAddress, new InlinePassword("token"), null);
         vaultKmsService = new VaultKmsService();

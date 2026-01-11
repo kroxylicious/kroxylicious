@@ -14,7 +14,7 @@ import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.record.TimestampType;
 import org.junit.jupiter.api.Test;
 
-public class ConsumerRecordAssertTest {
+class ConsumerRecordAssertTest {
 
     long timestamp = System.currentTimeMillis();
 

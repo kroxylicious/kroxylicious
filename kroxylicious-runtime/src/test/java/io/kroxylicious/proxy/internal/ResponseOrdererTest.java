@@ -101,7 +101,7 @@ class ResponseOrdererTest {
     }
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         embeddedChannel = new EmbeddedChannel();
         orderer = new ResponseOrderer();
         embeddedChannel.pipeline().addFirst(orderer);

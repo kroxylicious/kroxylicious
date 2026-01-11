@@ -38,7 +38,7 @@ class DekManagerTest {
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         Optional.ofNullable(unitTestingKmsService).ifPresent(UnitTestingKmsService::close);
     }
 

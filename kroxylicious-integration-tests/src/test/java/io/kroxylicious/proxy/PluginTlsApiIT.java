@@ -47,7 +47,7 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIde
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class PluginTlsApiIT extends AbstractTlsIT {
+class PluginTlsApiIT extends AbstractTlsIT {
 
     static List<Arguments> subjectBuilderServiceConfigs() {
         return List.of(
