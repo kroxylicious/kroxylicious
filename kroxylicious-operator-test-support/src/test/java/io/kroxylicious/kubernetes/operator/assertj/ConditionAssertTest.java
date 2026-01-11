@@ -474,12 +474,11 @@ class ConditionAssertTest {
     @Test
     void shouldFailResolvedRefsTrueForResolvedRefsUnknownCondition() {
         // Given
-        var unknownRefsCondition =
-                // When
-                // Then
-                Assertions.assertThatThrownBy(
-                        () -> ConditionAssert.assertThat(resolvedRefsUnknownCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(),
-                                passedRefsCondition.getMessage()));
+        // When
+        // Then
+        Assertions.assertThatThrownBy(
+                () -> ConditionAssert.assertThat(resolvedRefsUnknownCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(),
+                        passedRefsCondition.getMessage()));
     }
 
     @Test

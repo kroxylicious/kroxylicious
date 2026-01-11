@@ -27,67 +27,37 @@ class MavenLogger implements System.Logger {
 
     @Override
     public boolean isLoggable(Level level) {
-        switch (level) {
-            case ALL:
-                return true;
-            case TRACE:
-            case DEBUG:
-                return mavenLog.isDebugEnabled();
-            case INFO:
-                return mavenLog.isInfoEnabled();
-            case WARNING:
-                return mavenLog.isWarnEnabled();
-            case ERROR:
-                return mavenLog.isErrorEnabled();
-            case OFF:
-            default:
-                return false;
-        }
+        return switch (level) {
+            case ALL -> true;
+            case TRACE, DEBUG -> mavenLog.isDebugEnabled();
+            case INFO -> mavenLog.isInfoEnabled();
+            case WARNING -> mavenLog.isWarnEnabled();
+            case ERROR -> mavenLog.isErrorEnabled();
+            default -> false;
+        };
     }
 
     @Override
     public void log(Level level, ResourceBundle bundle, String msg, Throwable thrown) {
         switch (level) {
-            case TRACE:
-            case DEBUG:
-                mavenLog.debug(msg, thrown);
-                break;
-            case INFO:
-                mavenLog.info(msg, thrown);
-                break;
-            case WARNING:
-                mavenLog.warn(msg, thrown);
-                break;
-            case ALL:
-            case ERROR:
-                mavenLog.error(msg, thrown);
-                break;
-            case OFF:
-            default:
-                break;
+            case TRACE, DEBUG -> mavenLog.debug(msg, thrown);
+            case INFO -> mavenLog.info(msg, thrown);
+            case WARNING -> mavenLog.warn(msg, thrown);
+            case ALL, ERROR -> mavenLog.error(msg, thrown);
+            default -> {
+            }
         }
     }
 
     @Override
     public void log(Level level, ResourceBundle bundle, String format, Object... params) {
         switch (level) {
-            case TRACE:
-            case DEBUG:
-                mavenLog.debug(new MessageFormat(format).format(params));
-                break;
-            case INFO:
-                mavenLog.info(new MessageFormat(format).format(params));
-                break;
-            case WARNING:
-                mavenLog.warn(new MessageFormat(format).format(params));
-                break;
-            case ALL:
-            case ERROR:
-                mavenLog.error(new MessageFormat(format).format(params));
-                break;
-            case OFF:
-            default:
-                break;
+            case TRACE, DEBUG -> mavenLog.debug(new MessageFormat(format).format(params));
+            case INFO -> mavenLog.info(new MessageFormat(format).format(params));
+            case WARNING -> mavenLog.warn(new MessageFormat(format).format(params));
+            case ALL, ERROR -> mavenLog.error(new MessageFormat(format).format(params));
+            default -> {
+            }
         }
     }
 }

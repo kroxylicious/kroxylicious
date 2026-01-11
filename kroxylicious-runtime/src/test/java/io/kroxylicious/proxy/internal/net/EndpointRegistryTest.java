@@ -842,7 +842,7 @@ class EndpointRegistryTest {
         }
 
         private <U> void propagateFutureResult(CompletableFuture<U> source, CompletableFuture<U> dest) {
-            var unused = source.handle((c, t) -> {
+            source.handle((c, t) -> {
                 if (t != null) {
                     dest.completeExceptionally(t);
                 }

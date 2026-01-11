@@ -63,11 +63,6 @@ class OauthServerContainer extends GenericContainer<OauthServerContainer> {
         withCopyFileToContainer(MountableFile.forHostPath(certs.getKeyStoreLocation()), CERT_FILE_MOUNT_PATH);
     }
 
-    @Override
-    public void start() {
-        super.start();
-    }
-
     public String getTrustStoreLocation() {
         return certs.getTrustStoreLocation();
     }

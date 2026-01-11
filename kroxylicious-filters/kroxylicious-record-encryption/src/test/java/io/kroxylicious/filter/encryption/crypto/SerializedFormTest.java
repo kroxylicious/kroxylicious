@@ -197,7 +197,7 @@ class SerializedFormTest {
         final var edekBuffer = ByteBuffer.allocate(edekLength);
         edekSerde.serialize(edek, edekBuffer);
         edekBuffer.flip().asReadOnlyBuffer();
-        var ct = record.value();
+        record.value();
 
         // when
         var buffer = ByteBuffer.allocate(100);
