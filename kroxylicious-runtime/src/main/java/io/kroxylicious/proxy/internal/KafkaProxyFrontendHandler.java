@@ -91,8 +91,7 @@ public class KafkaProxyFrontendHandler
 
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
-    public static final int DEFAULT_IDLE_TIME_SECONDS = 31;
-    public static final long DEFAULT_IDLE_SECONDS = 31L;
+    private static final Long NO_TIMEOUT = null;
 
     private final boolean logNetwork;
     private final boolean logFrames;
@@ -108,7 +107,7 @@ public class KafkaProxyFrontendHandler
     private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
     private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
 
-    private final long idleTimeSeconds;
+    private final Long idleTimeSeconds;
 
     private @Nullable ChannelHandlerContext clientCtx;
     @VisibleForTesting
@@ -674,6 +673,8 @@ public class KafkaProxyFrontendHandler
         // sessions can be re-authenticated however we only need to act on the first instance
         if (preSessionHandler != null) {
             channelPipeline.remove(preSessionHandler);
+        }
+        if (!Objects.isNull(idleTimeSeconds)) {
             channelPipeline.addFirst("authenticatedSessionIdleHandler",
                     new IdleStateHandler(idleTimeSeconds, idleTimeSeconds, idleTimeSeconds, TimeUnit.SECONDS));
         }
@@ -700,8 +701,9 @@ public class KafkaProxyFrontendHandler
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private long getIdleSeconds(Optional<NettySettings> nettySettings) {
-        return nettySettings.flatMap(NettySettings::authenticatedIdleTimeout).map(Duration::getSeconds).orElse(DEFAULT_IDLE_SECONDS);
+    @Nullable
+    private Long getIdleSeconds(Optional<NettySettings> nettySettings) {
+        return nettySettings.flatMap(NettySettings::authenticatedIdleTimeout).map(Duration::getSeconds).orElse(NO_TIMEOUT);
     }
 
 }

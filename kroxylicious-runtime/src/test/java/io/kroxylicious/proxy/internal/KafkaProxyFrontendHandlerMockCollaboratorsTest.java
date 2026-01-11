@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.channel.Channel;
@@ -41,6 +42,7 @@ import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -210,16 +212,13 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         ChannelHandler idleHandler = mock(ChannelHandler.class);
         when(channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER))
                 .thenReturn(idleHandler);
-        ArgumentCaptor<? extends ChannelHandler> handlerCaptor = ArgumentCaptor.forClass(ChannelHandler.class);
 
         // When
         handler.onSessionAuthenticated();
 
         // Then
-        verify(channelPipeline).addFirst(eq("authenticatedSessionIdleHandler"), handlerCaptor.capture());
-        assertThat(handlerCaptor.getValue())
-                .isInstanceOfSatisfying(IdleStateHandler.class,
-                        idleStateHandler -> assertThat(idleStateHandler.getAllIdleTimeInMillis()).isEqualTo(31_000L));
+
+        verify(channelPipeline, Mockito.never()).addFirst(eq("authenticatedSessionIdleHandler"), any());
     }
 
     @Test
