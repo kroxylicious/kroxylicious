@@ -62,7 +62,7 @@ public final class StructRegistry {
     /**
      * Register all the structures contained a message spec.
      */
-    public void register(MessageSpec message) throws Exception {
+    public void register(MessageSpec message) {
         // Register common structures.
         for (StructSpec struct : message.commonStructs()) {
             if (!firstIsCapitalized(struct.name())) {

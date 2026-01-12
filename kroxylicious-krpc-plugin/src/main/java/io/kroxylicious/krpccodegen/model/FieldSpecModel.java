@@ -69,7 +69,7 @@ class FieldSpecModel implements TemplateHashModel, AdapterTemplateModel {
     }
 
     @Override
-    public boolean isEmpty() throws TemplateModelException {
+    public boolean isEmpty() {
         return false;
     }
 

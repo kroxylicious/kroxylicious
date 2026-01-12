@@ -223,8 +223,7 @@ public abstract class AbstractCodecTest {
                                                                                            Supplier<B> bodySupplier,
                                                                                            KafkaMessageDecoder decoder,
                                                                                            Class<? extends Frame> frameClass,
-                                                                                           boolean expectedHasResponse)
-            throws Exception {
+                                                                                           boolean expectedHasResponse) {
 
         var encodedHeader = headerSupplier.apply(apiVersion);
 

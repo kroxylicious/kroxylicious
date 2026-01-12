@@ -13,7 +13,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -103,7 +102,7 @@ public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
     static Producer<byte[], byte[]> kafkaClusterNoAuthzProducer;
 
     @BeforeAll
-    void beforeAll() throws IOException, ExecutionException, InterruptedException {
+    void beforeAll() throws IOException {
         rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
         Files.writeString(rulesFile, """
                 from io.kroxylicious.filter.authorization import TopicResource as Topic;

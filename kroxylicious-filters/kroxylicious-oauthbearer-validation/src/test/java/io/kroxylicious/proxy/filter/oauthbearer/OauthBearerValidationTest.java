@@ -137,7 +137,7 @@ class OauthBearerValidationTest {
     }
 
     @Test
-    void mustCloseOauthHandler() throws Exception {
+    void mustCloseOauthHandler() {
         // given
         OauthBearerValidation oauthBearerValidation = new OauthBearerValidation(callbackHandler);
 

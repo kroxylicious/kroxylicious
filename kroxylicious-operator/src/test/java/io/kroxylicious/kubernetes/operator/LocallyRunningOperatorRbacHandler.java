@@ -172,7 +172,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     }
 
     @Override
-    public void afterEach(ExtensionContext context) throws Exception {
+    public void afterEach(ExtensionContext context) {
         try (var adminClient = OperatorTestUtils.kubeClient()) {
             this.roleBindings.forEach(roleBinding -> {
                 LOGGER.trace("Deleting ClusterRoleBinding: {}", name(roleBinding));
@@ -236,7 +236,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     }
 
     @Override
-    public void afterAll(ExtensionContext context) throws Exception {
+    public void afterAll(ExtensionContext context) {
         testActorClient.close();
     }
 

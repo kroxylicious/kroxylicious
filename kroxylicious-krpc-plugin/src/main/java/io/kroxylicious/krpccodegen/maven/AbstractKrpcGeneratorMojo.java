@@ -13,7 +13,6 @@ import java.util.stream.Stream;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
@@ -65,7 +64,7 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     }
 
     @Override
-    public void execute() throws MojoExecutionException, MojoFailureException {
+    public void execute() throws MojoExecutionException {
         if (buildContext == null || !buildContext.isIncremental()) {
             List<String> templates = Stream.of(templateNames.split(","))
                     .map(String::trim)
