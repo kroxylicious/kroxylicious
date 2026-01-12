@@ -77,42 +77,22 @@ class SaslPlainInitiationIT {
 
     @Test
     void shouldHandleInvalidPassword(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
-
-        NamedFilterDefinition saslInitiation = new NamedFilterDefinitionBuilder(
-                SaslPlainInitiation.class.getName(),
-                SaslPlainInitiation.class.getName())
-                .withConfig(
-                        "username", "alice",
-                        "password", "WRONG-PASSWORD")
-                .build();
-        var config = proxy(cluster)
-                .addToFilterDefinitions(saslInitiation)
-                .addToDefaultFilters(saslInitiation.name());
-
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.admin(Map.of(
-                        CommonClientConfigs.REQUEST_TIMEOUT_MS_CONFIG, "1000",
-                        CommonClientConfigs.DEFAULT_API_TIMEOUT_MS_CONFIG, "1000",
-                        CommonClientConfigs.METADATA_RECOVERY_STRATEGY_CONFIG, "none"))) {
-            assertThat(producer.listTopics().names())
-                    .failsWithin(Duration.ofSeconds(5))
-                    .withThrowableThat()
-                    .isExactlyInstanceOf(ExecutionException.class)
-                    .havingCause()
-                    .isExactlyInstanceOf(TimeoutException.class);
-        }
+        assertSaslHandshakeFails(cluster, "alice", "WRONG-PASSWORD");
     }
 
     @Test
     void shouldHandleNoCommonMechanism(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
+        assertSaslHandshakeFails(cluster, "alice", "alice-secret");
+    }
 
+    private static void assertSaslHandshakeFails(KafkaCluster cluster, String username, String password) {
         NamedFilterDefinition saslInitiation = new NamedFilterDefinitionBuilder(
                 SaslPlainInitiation.class.getName(),
                 SaslPlainInitiation.class.getName())
                 .withConfig(
-                        "username", "alice",
-                        "password", "WRONG-PASSWORD")
+                        "username", username,
+                        "password", password)
                 .build();
         var config = proxy(cluster)
                 .addToFilterDefinitions(saslInitiation)
@@ -131,4 +111,5 @@ class SaslPlainInitiationIT {
                     .isExactlyInstanceOf(TimeoutException.class);
         }
     }
+
 }

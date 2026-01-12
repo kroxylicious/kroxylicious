@@ -8,7 +8,6 @@ package io.kroxylicious.krpccodegen.maven;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.maven.plugin.AbstractMojo;
@@ -67,8 +66,7 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     public void execute() throws MojoExecutionException {
         if (buildContext == null || !buildContext.isIncremental()) {
             List<String> templates = Stream.of(templateNames.split(","))
-                    .map(String::trim)
-                    .collect(Collectors.toList());
+                    .map(String::trim).toList();
 
             KrpcGenerator gen = builder()
                     .withLogger(new MavenLogger(KrpcGenerator.class.getName(), getLog()))

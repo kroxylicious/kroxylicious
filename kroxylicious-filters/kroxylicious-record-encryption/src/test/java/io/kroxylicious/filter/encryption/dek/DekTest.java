@@ -517,11 +517,6 @@ class DekTest {
         assertThatThrownBy(() -> encryptor.generateParameters(size -> ByteBuffer.allocate(size)))
                 .isExactlyInstanceOf(DekUsageException.class)
                 .hasMessage("The Encryptor has no more operations allowed");
-        // assertThatThrownBy(() -> encryptor.encrypt(plaintextBuffer,
-        // null,
-        // size -> ByteBuffer.allocate(size)))
-        // .isExactlyInstanceOf(DekUsageException.class)
-        // .hasMessage("The Encryptor has no more operations allowed");
         assertThat(plaintextBuffer.position())
                 .describedAs("Position should be unchanged")
                 .isZero();

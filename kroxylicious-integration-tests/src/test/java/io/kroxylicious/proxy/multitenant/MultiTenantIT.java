@@ -23,8 +23,9 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
-import org.apache.kafka.clients.admin.ConsumerGroupListing;
+import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
+import org.apache.kafka.clients.admin.ListGroupsOptions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
@@ -59,6 +60,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static org.apache.kafka.common.GroupType.CLASSIC;
 import static org.assertj.core.api.Assertions.allOf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -219,7 +221,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             createTopics(admin, NEW_TOPIC_1);
             runConsumerInOrderToCreateGroup(tester, TENANT_1_CLUSTER, "Tenant1Group", NEW_TOPIC_1, consumerStyle, this.clientConfig);
-            verifyConsumerGroupsWithList(admin, Set.of("Tenant1Group"));
+            verifyClassicConsumerGroupsWithList(admin, Set.of("Tenant1Group"));
         }
     }
 
@@ -235,7 +237,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
             createTopics(adminTenant2, NEW_TOPIC_1);
             runConsumerInOrderToCreateGroup(tester, TENANT_2_CLUSTER, "Tenant2Group", NEW_TOPIC_1, consumerStyle, this.clientConfig);
-            verifyConsumerGroupsWithList(adminTenant2, Set.of("Tenant2Group"));
+            verifyClassicConsumerGroupsWithList(adminTenant2, Set.of("Tenant2Group"));
         }
     }
 
@@ -430,8 +432,8 @@ class MultiTenantIT extends BaseMultiTenantIT {
         }
     }
 
-    private void verifyConsumerGroupsWithList(Admin admin, Set<String> expectedGroupIds) throws Exception {
-        var groups = admin.listConsumerGroups().all().get().stream().map(ConsumerGroupListing::groupId).toList();
+    private void verifyClassicConsumerGroupsWithList(Admin admin, Set<String> expectedGroupIds) throws Exception {
+        var groups = admin.listGroups(new ListGroupsOptions().withTypes(Set.of(CLASSIC))).all().get().stream().map(GroupListing::groupId).toList();
         assertThat(groups).containsExactlyInAnyOrderElementsOf(expectedGroupIds);
     }
 
