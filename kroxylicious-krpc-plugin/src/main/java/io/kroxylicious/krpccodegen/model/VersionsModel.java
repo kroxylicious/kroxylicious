@@ -27,23 +27,19 @@ class VersionsModel implements TemplateHashModel, TemplateScalarModel, TemplateS
 
     @Override
     public TemplateModel get(String key) throws TemplateModelException {
-        switch (key) {
-            case "highest":
-                return wrapper.wrap(versions.highest());
-            case "lowest":
-                return wrapper.wrap(versions.lowest());
-            case "intersect":
-                return wrapper.wrap((TemplateMethodModelEx) args -> {
-                    Object o = args.get(0);
-                    return versions.intersect(((VersionsModel) o).versions);
-                });
-            case "contains":
-                return wrapper.wrap((TemplateMethodModelEx) args -> {
-                    Object o = args.get(0);
-                    return versions.contains(((SimpleNumber) o).getAsNumber().shortValue());
-                });
-        }
-        throw new TemplateModelException(versions.getClass().getSimpleName() + " doesn't have property " + key);
+        return switch (key) {
+            case "highest" -> wrapper.wrap(versions.highest());
+            case "lowest" -> wrapper.wrap(versions.lowest());
+            case "intersect" -> wrapper.wrap((TemplateMethodModelEx) args -> {
+                Object o = args.get(0);
+                return versions.intersect(((VersionsModel) o).versions);
+            });
+            case "contains" -> wrapper.wrap((TemplateMethodModelEx) args -> {
+                Object o = args.get(0);
+                return versions.contains(((SimpleNumber) o).getAsNumber().shortValue());
+            });
+            default -> throw new TemplateModelException(versions.getClass().getSimpleName() + " doesn't have property " + key);
+        };
     }
 
     @Override

@@ -23,36 +23,22 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
 
     @Override
     public TemplateModel get(String key) throws TemplateModelException {
-        switch (key) {
-            case "struct":
-                return wrapper.wrap(spec.struct());
-            case "name":
-                return wrapper.wrap(spec.name());
-            case "validVersions":
-                return wrapper.wrap(spec.validVersions());
-            case "validVersionsString":
-                return wrapper.wrap(spec.validVersionsString());
-            case "fields":
-                return wrapper.wrap(spec.fields());
-            case "commonStructs":
-                return wrapper.wrap(spec.commonStructs());
-            case "flexibleVersions":
-                return wrapper.wrap(spec.flexibleVersions());
-            case "flexibleVersionsString":
-                return wrapper.wrap(spec.flexibleVersionsString());
-            case "apiKey":
-                return wrapper.wrap(spec.apiKey());
-            case "latestVersionUnstable":
-                return wrapper.wrap(spec.latestVersionUnstable());
-            case "type":
-                return wrapper.wrap(spec.type());
-            case "listeners":
-                return wrapper.wrap(spec.listeners());
-            case "dataClassName":
-                return wrapper.wrap(spec.dataClassName());
-
-        }
-        throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property " + key);
+        return switch (key) {
+            case "struct" -> wrapper.wrap(spec.struct());
+            case "name" -> wrapper.wrap(spec.name());
+            case "validVersions" -> wrapper.wrap(spec.validVersions());
+            case "validVersionsString" -> wrapper.wrap(spec.validVersionsString());
+            case "fields" -> wrapper.wrap(spec.fields());
+            case "commonStructs" -> wrapper.wrap(spec.commonStructs());
+            case "flexibleVersions" -> wrapper.wrap(spec.flexibleVersions());
+            case "flexibleVersionsString" -> wrapper.wrap(spec.flexibleVersionsString());
+            case "apiKey" -> wrapper.wrap(spec.apiKey());
+            case "latestVersionUnstable" -> wrapper.wrap(spec.latestVersionUnstable());
+            case "type" -> wrapper.wrap(spec.type());
+            case "listeners" -> wrapper.wrap(spec.listeners());
+            case "dataClassName" -> wrapper.wrap(spec.dataClassName());
+            default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property " + key);
+        };
     }
 
     @Override
