@@ -70,7 +70,7 @@ public class AzureKeyVaultKmsTestKmsFacade extends AbstractAzureKeyVaultKmsTestK
     }
 
     public static LowkeyVaultContainer startKeyVault() {
-        String image = "nagyesta/lowkey-vault:6.0.6";
+        String image = "nagyesta/lowkey-vault:7.0.9";
         final DockerImageName imageName = DockerImageName.parse("mirror.gcr.io/" + image)
                 .asCompatibleSubstituteFor(DockerImageName.parse(image));
         final LowkeyVaultContainer lowkeyVaultContainer = lowkeyVault(imageName)
