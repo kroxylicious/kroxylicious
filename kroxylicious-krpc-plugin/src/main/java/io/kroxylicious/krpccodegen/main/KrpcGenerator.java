@@ -34,6 +34,7 @@ import java.util.stream.StreamSupport;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
 import io.kroxylicious.krpccodegen.model.MessageSpecParser;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
+import io.kroxylicious.krpccodegen.model.RetrieveApiListeners;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 import io.kroxylicious.krpccodegen.schema.StructRegistry;
 import io.kroxylicious.krpccodegen.schema.Versions;
@@ -346,27 +347,16 @@ public class KrpcGenerator {
     private long renderMulti(Configuration cfg, Set<MessageSpec> messageSpecs) {
         logger.log(Level.DEBUG, "Processing message specs");
 
-        // TODO not actually used right now
-        // var structRegistry = new StructRegistry();
-        // try {
-        // for (MessageSpec messageSpec : messageSpecs) {
-        // structRegistry.register(messageSpec);
-        // }
-        // }
-        // catch (Exception e) {
-        // throw new RuntimeException(e);
-        // }
         return templateNames.stream().mapToLong(templateName -> {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
-                // TODO support output to stdout via `-`
                 return writeIfChanged(outputDir, outputFile(outputFilePattern, null, templateName), (writer, finalFile) -> {
                     Map<String, Object> dataModel = Map.of(
-                            // "structRegistry", structRegistry,
                             "outputPackage", outputPackage,
                             "messageSpecs", messageSpecs,
-                            "retrieveApiKey", new RetrieveApiKey());
+                            "retrieveApiKey", new RetrieveApiKey(),
+                            "retrieveApiListener", new RetrieveApiListeners(messageSpecs));
                     template.process(dataModel, writer);
                 });
             }
