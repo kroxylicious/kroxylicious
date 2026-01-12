@@ -25,6 +25,7 @@ import io.kroxylicious.kms.service.TestKmsFacadeException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -70,6 +71,13 @@ public class AzureKeyVaultKmsTestKmsFacade extends AbstractAzureKeyVaultKmsTestK
     }
 
     public static LowkeyVaultContainer startKeyVault() {
+        final LowkeyVaultContainer lowkeyVaultContainer = createLowKeyContainer();
+        lowkeyVaultContainer.start();
+        return lowkeyVaultContainer;
+    }
+
+    @VisibleForTesting
+    static LowkeyVaultContainer createLowKeyContainer() {
         String image = "nagyesta/lowkey-vault:7.0.9";
         final DockerImageName imageName = DockerImageName.parse("mirror.gcr.io/" + image)
                 .asCompatibleSubstituteFor(DockerImageName.parse(image));
@@ -77,7 +85,6 @@ public class AzureKeyVaultKmsTestKmsFacade extends AbstractAzureKeyVaultKmsTestK
                 .vaultNames(Set.of(KEY_VAULT_NAME))
                 .build()
                 .withImagePullPolicy(PullPolicy.defaultPolicy());
-        lowkeyVaultContainer.start();
         return lowkeyVaultContainer;
     }
 
