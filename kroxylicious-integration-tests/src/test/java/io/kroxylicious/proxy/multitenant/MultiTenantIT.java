@@ -463,6 +463,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
         @Override
         public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+            // this class is not interested in partition revocations
         }
 
         @Override

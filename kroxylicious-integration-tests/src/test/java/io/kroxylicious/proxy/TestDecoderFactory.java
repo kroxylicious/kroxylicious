@@ -18,7 +18,7 @@ public class TestDecoderFactory implements ByteBufferTransformationFactory<Void>
 
     @Override
     public void validateConfiguration(Void config) throws PluginConfigurationException {
-
+        // nothing to validate
     }
 
     @Override

@@ -129,15 +129,6 @@ class DescribeConfigsAuthzIT extends AuthzIT {
             return prettyJsonString(jsonNodes);
         }
 
-        @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, DescribeConfigsResponseData> unproxiedResponsesByUser) {
-
-        }
-
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {

@@ -236,9 +236,13 @@ public abstract class AuthzIT extends BaseIT {
 
         public abstract String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonResponse);
 
-        public abstract void assertVisibleSideEffects(BaseClusterFixture cluster);
+        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
+            // do nothing by default
+        }
 
-        public abstract void assertUnproxiedResponses(Map<String, S> unproxiedResponsesByUser);
+        public void assertUnproxiedResponses(Map<String, S> unproxiedResponsesByUser) {
+            // do nothing by default
+        }
 
         @Override
         public void verifyBehaviour(ReferenceCluster referenceCluster, ProxiedCluster proxiedCluster) {
@@ -249,6 +253,7 @@ public abstract class AuthzIT extends BaseIT {
         }
 
         public void prepareCluster(BaseClusterFixture cluster) {
+            // do nothing by default
         }
 
         public Object observedVisibleSideEffects(BaseClusterFixture cluster) {

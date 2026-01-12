@@ -28,6 +28,7 @@ public class CorrelationManager {
      * Creates an empty CorrelationManager
      */
     public CorrelationManager() {
+        // explicit default constructor for javadoc
     }
 
     /**

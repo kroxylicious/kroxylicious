@@ -112,16 +112,6 @@ class ListOffsetsAuthzIT extends AuthzIT {
         }
 
         @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, ListOffsetsResponseData> unproxiedResponsesByUser) {
-
-        }
-
-        @Override
         public ApiKeys apiKey() {
             return ApiKeys.LIST_OFFSETS;
         }

@@ -171,11 +171,6 @@ class AddPartitionsToTxnAuthzIT extends AuthzIT {
             return prettyJsonString(jsonResponse);
         }
 
-        @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-
-        }
-
         record TopicPartitionError(String topic, int partition, Errors errors) {}
 
         @Override

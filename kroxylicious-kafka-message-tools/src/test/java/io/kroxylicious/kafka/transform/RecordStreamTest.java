@@ -195,7 +195,7 @@ class RecordStreamTest {
 
         @Override
         public void initBatch(RecordBatch batch) {
-
+            // nothing to do
         }
 
         @Override
@@ -209,7 +209,7 @@ class RecordStreamTest {
         public void resetAfterTransform(
                                         T state,
                                         Record record) {
-
+            // nothing to do
         }
 
         @Override

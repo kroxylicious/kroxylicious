@@ -10,8 +10,11 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 @JsonSerialize
 public class PrometheusMetricsConfig {
 
+    /**
+     * Create PrometheusMetricsConfig
+     */
     public PrometheusMetricsConfig() {
-
+        // explicit default constructor for javadoc
     }
 
 }

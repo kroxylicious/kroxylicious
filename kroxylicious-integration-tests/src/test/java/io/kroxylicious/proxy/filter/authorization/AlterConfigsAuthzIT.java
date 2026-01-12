@@ -127,15 +127,6 @@ class AlterConfigsAuthzIT extends AuthzIT {
             return prettyJsonString(jsonNodes);
         }
 
-        @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, AlterConfigsResponseData> unproxiedResponsesByUser) {
-
-        }
-
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {

@@ -185,10 +185,6 @@ class DeleteTopicsAuthzIT extends AuthzIT {
         }
 
         @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-        }
-
-        @Override
         public Object observedVisibleSideEffects(BaseClusterFixture cluster) {
             return topicListing(cluster);
         }
