@@ -209,7 +209,7 @@ class KafkaProxyReconcilerIT {
 
         // when
         var created = doCreate(kafkaService, kafkaProxy(PROXY_A, desiredReplicaCount));
-        Deployment deployment = assertDeploymentReplicaCount(created.proxy(), desiredReplicaCount);
+        assertDeploymentReplicaCount(created.proxy(), desiredReplicaCount);
 
         // then
         assertStausReplicaCount(created.proxy(), desiredReplicaCount);
@@ -824,7 +824,7 @@ class KafkaProxyReconcilerIT {
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
                     .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
-            assertThat(service.getSpec().getPorts().size()).describedAs("number of ports").isEqualTo(4);
+            assertThat(service.getSpec().getPorts()).describedAs("number of ports").hasSize(4);
         });
     }
 

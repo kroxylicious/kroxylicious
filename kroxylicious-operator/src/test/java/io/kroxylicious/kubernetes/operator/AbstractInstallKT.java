@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.test.ShellUtils;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
@@ -39,10 +40,10 @@ abstract class AbstractInstallKT {
     @Test
     void shouldInstallFromYamlManifests() {
         try {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", "target/packaged/install");
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", "target/packaged/install")).isTrue();
 
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "-n", "kroxylicious-operator", "--for=jsonpath={.status.readyReplicas}=1",
-                    "--timeout=300s", "deployment", "kroxylicious-operator");
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "-n", "kroxylicious-operator", "--for=jsonpath={.status.readyReplicas}=1",
+                    "--timeout=300s", "deployment", "kroxylicious-operator")).isTrue();
             LOGGER.info("Operator deployment became ready");
         }
         finally {
