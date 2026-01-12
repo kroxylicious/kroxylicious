@@ -145,7 +145,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void invalidAgeProduceRejectedUsingTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) throws Exception {
+    void invalidAgeProduceRejectedUsingTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) {
         // Topic 2 has schema validation, invalid data cannot be sent.
         var config = createGlobalIdRecordValidationConfig(cluster, topic2, "valueRule", firstGlobalId);
 

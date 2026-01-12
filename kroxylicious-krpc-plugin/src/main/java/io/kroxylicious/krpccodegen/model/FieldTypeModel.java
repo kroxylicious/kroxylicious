@@ -54,7 +54,7 @@ class FieldTypeModel implements TemplateHashModel, TemplateScalarModel, AdapterT
     }
 
     @Override
-    public boolean isEmpty() throws TemplateModelException {
+    public boolean isEmpty() {
         return false;
     }
 
@@ -64,7 +64,7 @@ class FieldTypeModel implements TemplateHashModel, TemplateScalarModel, AdapterT
     }
 
     @Override
-    public String getAsString() throws TemplateModelException {
+    public String getAsString() {
         return fieldType.toString();
     }
 }

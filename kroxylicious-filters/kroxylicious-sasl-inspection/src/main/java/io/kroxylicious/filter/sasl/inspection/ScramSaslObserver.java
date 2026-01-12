@@ -57,7 +57,7 @@ public class ScramSaslObserver implements SaslObserver {
     }
 
     @Override
-    public void serverChallenge(byte[] challenge) throws SaslException {
+    public void serverChallenge(byte[] challenge) {
         if (!gotServerFinal) {
             var c = new String(challenge, StandardCharsets.UTF_8);
             boolean verifier = c.startsWith("v=");

@@ -47,7 +47,7 @@ class VersionsModel implements TemplateHashModel, TemplateScalarModel, TemplateS
     }
 
     @Override
-    public boolean isEmpty() throws TemplateModelException {
+    public boolean isEmpty() {
         return false;
     }
 
@@ -67,7 +67,7 @@ class VersionsModel implements TemplateHashModel, TemplateScalarModel, TemplateS
     }
 
     @Override
-    public int size() throws TemplateModelException {
+    public int size() {
         return versions.empty() ? 0 : versions.highest() - versions.lowest() + 1;
     }
 }

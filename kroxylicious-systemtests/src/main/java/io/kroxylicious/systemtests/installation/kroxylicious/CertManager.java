@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,9 +43,8 @@ public class CertManager {
     /**
      * Instantiates a new Cert manager.
      *
-     * @throws IOException the io exception
      */
-    public CertManager() throws IOException {
+    public CertManager() {
         deploymentNamespace = Constants.CERT_MANAGER_NAMESPACE;
     }
 

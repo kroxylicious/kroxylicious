@@ -324,7 +324,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    void describeTransaction(KafkaCluster cluster) throws Exception {
+    void describeTransaction(KafkaCluster cluster) {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config)) {
             try (var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {

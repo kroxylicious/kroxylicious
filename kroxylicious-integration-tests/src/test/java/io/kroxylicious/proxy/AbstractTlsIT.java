@@ -154,7 +154,7 @@ public abstract class AbstractTlsIT extends BaseIT {
                 proxyTrustStore.toAbsolutePath().toString());
     }
 
-    KafkaCluster createMTlsCluster(KeytoolCertificateGenerator brokerCert, KeytoolCertificateGenerator clientCert) throws Exception {
+    KafkaCluster createMTlsCluster(KeytoolCertificateGenerator brokerCert, KeytoolCertificateGenerator clientCert) {
         // Note that the annotation driven Kroxylicious Extension doesn't support configuring a cluster that expects client-auth.
 
         var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
