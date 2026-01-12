@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -50,7 +49,7 @@ import static org.mockito.Mockito.when;
 public abstract class AbstractCodecTest {
 
     public static List<? extends Class<?>> messageClasses(List<Object> messages) {
-        return messages.stream().map(Object::getClass).collect(Collectors.toList());
+        return messages.stream().map(Object::getClass).toList();
     }
 
     public static Stream<Short> requestApiVersions() {
