@@ -26,7 +26,6 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -36,12 +35,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public abstract class AbstractProduceHeaderInjectionFilter implements ProduceRequestFilter {
 
-    @NonNull
     public static String headerName(Class<?> cls, String hashtag) {
         return cls.getSimpleName() + hashtag;
     }
 
-    @NonNull
     protected abstract List<RecordHeader> headersToAdd(FilterContext context);
 
     @Override
@@ -57,20 +54,20 @@ public abstract class AbstractProduceHeaderInjectionFilter implements ProduceReq
                 partitionDatum.setRecords(RecordStream.ofRecords(records)
                         .toMemoryRecords(
                                 context.createByteBufferOutputStream(records.sizeInBytes()),
-                                new RecordTransform<Void>() {
+                                new RecordTransform<>() {
                                     @Override
                                     public void initBatch(RecordBatch batch) {
-
+                                        // nothing to do
                                     }
 
                                     @Override
                                     public void init(@Nullable Void state, org.apache.kafka.common.record.Record record) {
-
+                                        // nothing to do
                                     }
 
                                     @Override
                                     public void resetAfterTransform(Void state, org.apache.kafka.common.record.Record record) {
-
+                                        // nothing to do
                                     }
 
                                     @Override

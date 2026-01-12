@@ -218,15 +218,6 @@ public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
             }
         }
 
-        @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, ConsumerGroupDescribeResponseData> unproxiedResponsesByUser) {
-
-        }
-
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {

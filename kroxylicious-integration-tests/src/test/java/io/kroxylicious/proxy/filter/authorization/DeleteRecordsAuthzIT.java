@@ -133,15 +133,6 @@ class DeleteRecordsAuthzIT extends AuthzIT {
             return prettyJsonString(jsonNodes);
         }
 
-        @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, DeleteRecordsResponseData> unproxiedResponsesByUser) {
-
-        }
-
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {

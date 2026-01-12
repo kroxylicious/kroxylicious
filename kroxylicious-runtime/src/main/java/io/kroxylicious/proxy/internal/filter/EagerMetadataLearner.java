@@ -41,7 +41,11 @@ public class EagerMetadataLearner implements RequestFilter {
      */
     private final static Set<ApiKeys> KAFKA_PRELUDE = Set.of(ApiKeys.API_VERSIONS, ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_AUTHENTICATE);
 
+    /**
+     * Create EagerMetadataLearner
+     */
     public EagerMetadataLearner() {
+        // explicit default constructor for javadoc
     }
 
     @Override

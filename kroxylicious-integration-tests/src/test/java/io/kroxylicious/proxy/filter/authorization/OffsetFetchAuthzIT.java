@@ -197,16 +197,6 @@ class OffsetFetchAuthzIT extends AuthzIT {
         }
 
         @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, OffsetFetchResponseData> unproxiedResponsesByUser) {
-
-        }
-
-        @Override
         public ApiKeys apiKey() {
             return ApiKeys.OFFSET_FETCH;
         }
@@ -249,16 +239,6 @@ class OffsetFetchAuthzIT extends AuthzIT {
                 sortArray((ObjectNode) group, "topics", "name");
             }
             return prettyJsonString(jsonResponse);
-        }
-
-        @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, OffsetFetchResponseData> unproxiedResponsesByUser) {
-
         }
 
         @Override

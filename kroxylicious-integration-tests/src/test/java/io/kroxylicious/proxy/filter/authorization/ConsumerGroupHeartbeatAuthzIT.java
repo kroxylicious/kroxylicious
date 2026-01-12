@@ -133,15 +133,6 @@ public class ConsumerGroupHeartbeatAuthzIT extends AuthzIT {
             return prettyJsonString(jsonNodes);
         }
 
-        @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, ConsumerGroupHeartbeatResponseData> unproxiedResponsesByUser) {
-
-        }
-
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {

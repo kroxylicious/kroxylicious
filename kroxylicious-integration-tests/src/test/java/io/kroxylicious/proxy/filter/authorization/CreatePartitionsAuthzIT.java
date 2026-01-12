@@ -178,10 +178,6 @@ class CreatePartitionsAuthzIT extends AuthzIT {
             return numPartitions(cluster.backingCluster());
         }
 
-        @Override
-        public void assertUnproxiedResponses(Map<String, CreatePartitionsResponseData> unproxiedResponsesByUser) {
-            // TODO
-        }
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {

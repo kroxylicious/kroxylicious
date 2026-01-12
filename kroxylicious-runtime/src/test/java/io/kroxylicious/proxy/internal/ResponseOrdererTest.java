@@ -65,7 +65,7 @@ class ResponseOrdererTest {
 
         @Override
         public void encode(ByteBufAccessor out) {
-
+            throw new IllegalStateException("Not implemented");
         }
 
         @Override

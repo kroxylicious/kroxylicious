@@ -118,16 +118,6 @@ class FetchAuthzIT extends AuthzIT {
         }
 
         @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, FetchResponseData> unproxiedResponsesByUser) {
-
-        }
-
-        @Override
         public ApiKeys apiKey() {
             return ApiKeys.FETCH;
         }

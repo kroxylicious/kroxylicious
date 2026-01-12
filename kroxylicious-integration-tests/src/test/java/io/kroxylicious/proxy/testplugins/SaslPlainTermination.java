@@ -58,7 +58,7 @@ public class SaslPlainTermination
 
         @Override
         public void close() {
-
+            // nothing to do
         }
 
         @Override

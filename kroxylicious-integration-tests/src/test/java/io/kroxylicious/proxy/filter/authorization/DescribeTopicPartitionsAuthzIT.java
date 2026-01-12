@@ -142,15 +142,6 @@ class DescribeTopicPartitionsAuthzIT extends AuthzIT {
             }
         }
 
-        @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, DescribeTopicPartitionsResponseData> unproxiedResponsesByUser) {
-
-        }
-
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {

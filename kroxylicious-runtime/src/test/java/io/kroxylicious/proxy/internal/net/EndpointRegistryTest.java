@@ -855,7 +855,7 @@ class EndpointRegistryTest {
 
         @Override
         public void close() {
-
+            // nothing to do
         }
     }
 }

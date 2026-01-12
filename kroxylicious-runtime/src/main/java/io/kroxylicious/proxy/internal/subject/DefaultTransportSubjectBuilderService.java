@@ -119,6 +119,7 @@ public class DefaultTransportSubjectBuilderService implements TransportSubjectBu
 
     @Override
     public void close() {
+        // nothing to do
     }
 
 }

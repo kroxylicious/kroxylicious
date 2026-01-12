@@ -142,15 +142,6 @@ class DescribeProducersAuthzIT extends AuthzIT {
             }
         }
 
-        @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, DescribeProducersResponseData> unproxiedResponsesByUser) {
-
-        }
-
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {

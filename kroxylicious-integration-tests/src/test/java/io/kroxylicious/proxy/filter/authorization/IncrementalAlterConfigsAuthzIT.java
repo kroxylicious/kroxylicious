@@ -127,15 +127,6 @@ class IncrementalAlterConfigsAuthzIT extends AuthzIT {
             return prettyJsonString(jsonNodes);
         }
 
-        @Override
-        public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-        }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, IncrementalAlterConfigsResponseData> unproxiedResponsesByUser) {
-
-        }
-
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {

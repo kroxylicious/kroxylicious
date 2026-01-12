@@ -183,10 +183,6 @@ class ProduceAuthzIT extends AuthzIT {
             }
             return recordValuesGroupedByKey;
         }
-
-        @Override
-        public void assertUnproxiedResponses(Map<String, ProduceResponseData> unproxiedResponsesByUser) {
-        }
     }
 
     static long pid = 1L;
