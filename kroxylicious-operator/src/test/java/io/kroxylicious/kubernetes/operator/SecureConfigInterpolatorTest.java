@@ -7,8 +7,12 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
@@ -160,54 +164,38 @@ class SecureConfigInterpolatorTest {
 
     }
 
-    @Test
-    void shouldThrowFromTnterpolateWhenPrefixed() throws JsonProcessingException {
-        // given
-        var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
-        var jsonValue = YAML_MAPPER.readValue("""
+    static Stream<Arguments> invalidInterpolations() {
+        return Stream.of(Arguments.argumentSet("prefixed", """
                 kms: AwsKms
                 kmsConfig:
                   prefixed:
                     prefix ${secret:different-secret:a-key}
-                """, Map.class);
-
-        // then
-        assertThatThrownBy(() -> i.interpolate(jsonValue)).isInstanceOf(InterpolationException.class)
-                .hasMessage("Config provider placeholders cannot be preceded or followed by other characters");
+                """, "Config provider placeholders cannot be preceded or followed by other characters"),
+                Arguments.argumentSet("suffixed", """
+                        kms: AwsKms
+                        kmsConfig:
+                          suffixed:
+                            ${secret:different-secret:a-key} suffix
+                        """, "Config provider placeholders cannot be preceded or followed by other characters"),
+                Arguments.argumentSet("unknown provider", """
+                        kms: AwsKms
+                        kmsConfig:
+                          knownProvider: ${secret:aws:a-key}
+                          unknownProvider: ${unknown:aws:a-key}
+                        """, "Unknown config provider 'unknown', known providers are: [secret]"));
     }
 
-    @Test
-    void shouldThrowFromTnterpolateWhenSuffixed() throws JsonProcessingException {
+    @MethodSource
+    @ParameterizedTest
+    void invalidInterpolations(String yamlConfig, String expectedExceptionMessage) throws JsonProcessingException {
         // given
         var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
-        var jsonValue = YAML_MAPPER.readValue("""
-                kms: AwsKms
-                kmsConfig:
-                  suffixed:
-                    ${secret:different-secret:a-key} suffix
-                """, Map.class);
+        var jsonValue = YAML_MAPPER.readValue(yamlConfig, Map.class);
 
+        // when
         // then
         assertThatThrownBy(() -> i.interpolate(jsonValue)).isInstanceOf(InterpolationException.class)
-                .hasMessage("Config provider placeholders cannot be preceded or followed by other characters");
-    }
-
-    @Test
-    void shouldThrowFromInterpolateWhenUnknownProvider() throws JsonProcessingException {
-        // given
-        var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
-        var jsonValue = YAML_MAPPER.readValue("""
-                kms: AwsKms
-                kmsConfig:
-                  knownProvider: ${secret:aws:a-key}
-                  unknownProvider: ${unknow:aws:a-key}
-                """, Map.class);
-
-        // then
-        assertThatThrownBy(() -> i.interpolate(jsonValue))
-                .isInstanceOf(InterpolationException.class)
-                .hasMessage("Unknown config provider 'unknow', known providers are: [secret]");
-
+                .hasMessage(expectedExceptionMessage);
     }
 
     @Test
