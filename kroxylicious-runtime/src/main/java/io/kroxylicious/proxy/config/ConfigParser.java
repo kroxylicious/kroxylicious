@@ -188,8 +188,6 @@ public class ConfigParser implements PluginFactoryRegistry {
                 // for properties annotated @PluginConfig
                 throw new PluginDiscoveryException(annotated + " lacked the @" + PluginImplConfig.class.getName() + " annotation");
             }
-            // TODO revisit the use of `getTypeContext` in light of https://github.com/FasterXML/jackson-databind/issues/4141#issuecomment-1753440738
-            // and https://github.com/FasterXML/jackson-databind/issues/4141#issuecomment-1756037995
             var ctors = ((AnnotatedClass) af.getTypeContext()).getConstructors();
             for (var ctor : ctors) {
                 pluginImplName = findPluginReferenceAnnotation(ctor, pcAnno.implNameProperty());
