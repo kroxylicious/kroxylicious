@@ -155,7 +155,9 @@ public class webify implements Callable<Integer> {
             stream.forEach(new DocConverter(omitGlobs, tocifyGlob, datafyGlob, resultDocsList));
         }
 
-        resultDocsList.sort(Comparator.nullsLast(Comparator.comparing(node -> node.get("rank").asText(null))));
+        Comparator<ObjectNode> byRank = Comparator.comparing(node -> node.get("rank").asText(null));
+        Comparator<ObjectNode> byTitle = Comparator.comparing(node -> node.get("title").asText(null));
+        resultDocsList.sort(Comparator.nullsLast(byRank.thenComparing(byTitle)));
 
         var resultRootObject = this.mapper.createObjectNode();
         var resultDocsArray = resultRootObject.putArray("docs");
