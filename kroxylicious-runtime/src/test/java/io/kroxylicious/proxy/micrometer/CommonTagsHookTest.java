@@ -22,8 +22,9 @@ class CommonTagsHookTest {
 
     @Test
     void testNullConfig() {
+        CommonTagsHook commonTagsHook = new CommonTagsHook();
         assertThatThrownBy(() -> {
-            new CommonTagsHook().build(null);
+            commonTagsHook.build(null);
         }).isInstanceOf(IllegalArgumentException.class);
     }
 

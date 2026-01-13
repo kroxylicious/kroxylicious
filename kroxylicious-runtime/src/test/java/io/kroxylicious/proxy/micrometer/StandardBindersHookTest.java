@@ -32,7 +32,8 @@ class StandardBindersHookTest {
 
     @Test
     void testNullHookConfigThrows() {
-        assertThatThrownBy(() -> new StandardBindersHook().build(null)).isInstanceOf(IllegalArgumentException.class);
+        StandardBindersHook standardBindersHook = new StandardBindersHook();
+        assertThatThrownBy(() -> standardBindersHook.build(null)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
