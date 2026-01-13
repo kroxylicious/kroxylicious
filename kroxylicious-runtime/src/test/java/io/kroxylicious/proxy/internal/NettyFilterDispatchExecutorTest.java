@@ -40,6 +40,7 @@ import static org.mockito.Mockito.when;
  * check that the parameters are delegated as expected to the mock, and that the result
  * from the mock is forwarded, untouched, to the client.
  */
+@SuppressWarnings("java:S2093") // netty EventLoop does not implement AutoClosable due to java 8 compatibility
 class NettyFilterDispatchExecutorTest {
 
     @Test
