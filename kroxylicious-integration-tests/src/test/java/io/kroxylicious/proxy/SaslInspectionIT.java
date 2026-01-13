@@ -34,7 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
-import io.kroxylicious.filters.sasl.inspection.SaslInspection;
+import io.kroxylicious.filter.sasl.inspection.SaslInspection;
 import io.kroxylicious.proxy.authentication.UserFactory;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;

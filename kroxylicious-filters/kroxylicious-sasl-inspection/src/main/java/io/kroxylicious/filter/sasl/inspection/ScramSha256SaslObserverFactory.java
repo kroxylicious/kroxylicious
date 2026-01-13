@@ -4,16 +4,17 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filters.sasl.inspection;
+package io.kroxylicious.filter.sasl.inspection;
 
+import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 /**
- /**
  * Factory for the {@link ScramSaslObserver}.
  */
 @Plugin(configType = Void.class)
-public class ScramSha512SaslObserverFactory implements SaslObserverFactory {
+@DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.ScramSha256SaslObserverFactory", since = "0.19.0")
+public class ScramSha256SaslObserverFactory implements SaslObserverFactory {
     @Override
     public SaslObserver createObserver() {
         return new ScramSaslObserver(this.mechanismName());
@@ -21,6 +22,6 @@ public class ScramSha512SaslObserverFactory implements SaslObserverFactory {
 
     @Override
     public String mechanismName() {
-        return "SCRAM-SHA-512";
+        return "SCRAM-SHA-256";
     }
 }

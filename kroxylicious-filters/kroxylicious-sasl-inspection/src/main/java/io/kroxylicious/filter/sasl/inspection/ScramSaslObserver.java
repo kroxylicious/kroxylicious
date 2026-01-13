@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filters.sasl.inspection;
+package io.kroxylicious.filter.sasl.inspection;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
