@@ -117,18 +117,18 @@ public class webifyTest {
                 """);
         assertContentEquals(outputDataPath.resolve(PROJECT_VERSION.replace(".", "_") + ".yaml"), """
                 docs:
-                  - title: Kroxylicious other guide
-                    description: Covers other stuff
-                    tags:
-                      - developer
-                    rank: '032'
-                    path: html/other-guide
                   - title: Kroxylicious Developer guide
                     description: Covers writing plugins for the proxy in the Java programming language
                     tags:
                       - developer
                     rank: '032'
                     path: html/developer-guide
+                  - title: Kroxylicious other guide
+                    description: Covers other stuff
+                    tags:
+                      - developer
+                    rank: '032'
+                    path: html/other-guide
                 """);
     }
 
