@@ -24,7 +24,7 @@ public abstract class NetworkBindingOperation<U> {
      * Creates a NetworkBindingOperation with given TLS mode.
      * @param tls Indicates whether the port is to be used for TLS.
      */
-    public NetworkBindingOperation(boolean tls) {
+    protected NetworkBindingOperation(boolean tls) {
         this.tls = tls;
     }
 

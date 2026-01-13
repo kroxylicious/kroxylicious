@@ -27,8 +27,8 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
     protected abstract Logger log();
 
-    KafkaMessageDecoder(int socketFrameMaxSize,
-                        @Nullable KafkaMessageListener listener) {
+    protected KafkaMessageDecoder(int socketFrameMaxSize,
+                                  @Nullable KafkaMessageListener listener) {
         this.socketFrameMaxSize = socketFrameMaxSize;
         this.listener = listener;
     }
