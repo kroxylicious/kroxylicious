@@ -623,7 +623,7 @@
                 <plugin>
                     <groupId>net.revelc.code</groupId>
                     <artifactId>impsort-maven-plugin</artifactId>
-                    <version>1.12.0</version>
+                    <version>1.13.0</version>
                     <configuration>
                         <groups>java.,javax.,org.,com.,io.,io.kroxylicious</groups>
                         <removeUnused>true</removeUnused>
