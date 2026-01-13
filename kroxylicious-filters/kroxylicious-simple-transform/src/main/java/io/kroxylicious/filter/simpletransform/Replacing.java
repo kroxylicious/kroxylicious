@@ -19,10 +19,12 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 @Plugin(configType = Replacing.Config.class)
+@DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.simpletransform.Replacing", since = "0.19.0")
 public class Replacing implements ByteBufferTransformationFactory<Replacing.Config> {
     public record Config(
                          @JsonProperty String charset,
