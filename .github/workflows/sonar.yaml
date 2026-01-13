@@ -42,8 +42,10 @@ jobs:
       - uses: actions/checkout@v6
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: $HEAD_REF
           fetch-depth: 0
+        env:
+          HEAD_REF: ${{ github.event.workflow_run.head_branch }}
       - name: Checkout base branch
         env:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
