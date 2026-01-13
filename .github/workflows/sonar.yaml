@@ -42,14 +42,22 @@ jobs:
           full_name: ${{ github.event.repository.full_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: "sanitize head ref"
+        id: set_branch_name
+        run: |
+          head_ref="${{ github.event.workflow_run.head_repository.head_branch }}"
+          
+          # Sanitize by replacing shell characters with -
+          sanitized_head=$(echo ${head_ref} | sed 's/[\(\$\)]/-/g')
+          
+          echo "sanitized_head_ref=${sanitized_head}" >> $GITHUB_ENV
+        shell: bash
       - uses: actions/checkout@v6
         if: env.SONAR_TOKEN_SET == 'true'
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
-          ref: $HEAD_REF
+          ref: ${{env.sanitized_head_ref}}
           fetch-depth: 0
-        env:
-          HEAD_REF: ${{ github.event.workflow_run.head_branch }}
       - name: Checkout base branch
         if: env.SONAR_TOKEN_SET == 'true'
         env:
@@ -91,7 +99,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Operator
         if: env.SONAR_TOKEN_SET == 'true'
-        run: mvn -B clean verify -Pci -DskipITs=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar -Djapicmp.skip=true -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} -pl ':kroxylicious-operator,:kroxylicious-parent'
+        run: mvn -B clean verify -Pci -DskipITs=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar -Djapicmp.skip=true  -Dsonar.projectName='Kroxylicious Operator' -Dsonar.projectKey='kroxylicious_operator' -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} -pl ':kroxylicious-operator,:kroxylicious-parent'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
