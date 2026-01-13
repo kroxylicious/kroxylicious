@@ -129,6 +129,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-authorizer-opa</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.kroxylicious.testing</groupId>
             <artifactId>testing-api</artifactId>
             <scope>test</scope>

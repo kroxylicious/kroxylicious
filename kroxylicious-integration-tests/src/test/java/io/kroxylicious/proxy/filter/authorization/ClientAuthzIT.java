@@ -994,7 +994,7 @@ class ClientAuthzIT extends AuthzIT {
                 node.isFenced());
     }
 
-    private List<TracedOp> traceExecution(List<Actor> actors,
+    protected List<TracedOp> traceExecution(List<Actor> actors,
                                           BaseClusterFixture cluster,
                                           Prog prog)
             throws InterruptedException {
