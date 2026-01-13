@@ -114,6 +114,7 @@ public class ProxyChannelStateMachine {
     Timer.Sample serverBackpressureTimer;
 
     @NonNull
+    // Ideally this would be final, however that breaks forceState which is used heavily in testing.
     private KafkaSession kafkaSession;
 
     @SuppressWarnings("java:S5738")
@@ -450,7 +451,7 @@ public class ProxyChannelStateMachine {
     }
 
     public void onSessionAuthenticated() {
-        this.kafkaSession = this.kafkaSession.in(KafkaSessionState.AUTHENTICATED);
+        this.kafkaSession.transitionTo(KafkaSessionState.AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
@@ -485,7 +486,7 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
-        kafkaSession = kafkaSession.in(KafkaSessionState.NOT_AUTHENTICATED);
+        kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).inForwarding();
         proxyToServerConnectionToken.acquire();
     }
@@ -557,7 +558,7 @@ public class ProxyChannelStateMachine {
         }
 
         setState(new Closed());
-        kafkaSession = kafkaSession.in(KafkaSessionState.TERMINATING);
+        kafkaSession.transitionTo(KafkaSessionState.TERMINATING);
         // Close the server connection
         if (backendHandler != null) {
             backendHandler.inClosed();
