@@ -21,10 +21,11 @@ class KafkaSessionTest {
         KafkaSession kafkaSession = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
 
         // When
-        KafkaSession actualSession = kafkaSession.in(target);
+        KafkaSession actualSession = kafkaSession.transitionTo(target);
 
         // Then
         assertThat(actualSession)
+                .isSameAs(kafkaSession)
                 .satisfies(s -> {
                     assertThat(s.sessionId()).isEqualTo(kafkaSession.sessionId());
                     assertThat(s.currentState()).isEqualTo(target);
