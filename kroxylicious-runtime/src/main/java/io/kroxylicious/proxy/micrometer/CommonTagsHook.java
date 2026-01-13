@@ -7,7 +7,6 @@ package io.kroxylicious.proxy.micrometer;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +51,7 @@ public class CommonTagsHook implements MicrometerConfigurationHookService<Common
 
         @Override
         public void configure(MeterRegistry targetRegistry) {
-            List<Tag> tags = config.commonTags.entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).collect(Collectors.toList());
+            List<Tag> tags = config.commonTags.entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).toList();
             targetRegistry.config().commonTags(tags);
             log.info("configured micrometer registry with tags: {}", tags);
         }
