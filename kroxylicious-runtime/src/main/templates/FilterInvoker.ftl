@@ -45,8 +45,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
  * An invoker for ${filterClass}. The point is that this invoker knows the type of
- * ${filterClass} to avoid using instanceof/cast, which has a performance issue in
- * the current LTS java (17).
+ * ${filterClass} to avoid using instanceof/cast, which isn't performant in Java 21.
  */
 class ${filterInvokerClass} implements FilterInvoker {
 
