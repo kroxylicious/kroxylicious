@@ -3,6 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
+package io.kroxylicious;
 
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 21+
@@ -48,9 +49,9 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 @SuppressWarnings("java:S101") // lowercase name to match jbang conventions
-                               // https://www.jbang.dev/documentation/jbang/latest/faq.html#:~:text=Why%20is%20JBang%20scripting%20examples%20using%20lower%20case%20class%20names%20%3F
+// https://www.jbang.dev/documentation/jbang/latest/faq.html#:~:text=Why%20is%20JBang%20scripting%20examples%20using%20lower%20case%20class%20names%20%3F
 @Command(name = "webify", mixinStandardHelpOptions = true, version = "webify 0.1", description = "Converts Asciidoc standalone HTML output into content ready for kroxylicious.io")
-public class webify implements Callable<Integer> {
+public class Webify implements Callable<Integer> {
 
     public static final String PROJECT_VERSION_PLACEHOLDER = "${project.version}";
     @Option(names = { "--project-version" }, required = true, description = "The kroxy version.")
@@ -77,7 +78,7 @@ public class webify implements Callable<Integer> {
     @Option(names = { "--datafy" }, description = "Glob matching data yamls")
     private String datafyGlob;
 
-    private final Logger logger = LoggerFactory.getLogger(webify.class);
+    private final Logger logger = LoggerFactory.getLogger(Webify.class);
 
     private Path outdir;
     private Path dataDestPath;
@@ -93,7 +94,7 @@ public class webify implements Callable<Integer> {
     }
 
     static int execute(String... args) {
-        return new CommandLine(new webify()).execute(args);
+        return new CommandLine(new Webify()).execute(args);
     }
 
     @Override
@@ -267,8 +268,8 @@ public class webify implements Callable<Integer> {
                 if (!Files.isRegularFile(filePath)) {
                     return;
                 }
-                var relFilePath = Objects.requireNonNull(webify.this.srcDir.relativize(filePath));
-                var outFilePath = Objects.requireNonNull(webify.this.outdir.resolve(relFilePath));
+                var relFilePath = Objects.requireNonNull(Webify.this.srcDir.relativize(filePath));
+                var outFilePath = Objects.requireNonNull(Webify.this.outdir.resolve(relFilePath));
                 var omitable = omitGlobs.stream().anyMatch(glob -> glob.matches(relFilePath));
                 var tocifiable = tocifyGlob.matches(relFilePath);
                 var datafiable = datafyGlob.matches(relFilePath);
@@ -277,7 +278,7 @@ public class webify implements Callable<Integer> {
                     return;
                 }
                 if (!omitable && tocifiable && !datafiable) {
-                    webify.this.tocify(filePath, outFilePath);
+                    Webify.this.tocify(filePath, outFilePath);
                 }
                 else {
                     datifyOrCopy(filePath, outFilePath, omitable, tocifiable, datafiable, relFilePath);
@@ -306,18 +307,18 @@ public class webify implements Callable<Integer> {
         }
 
         private ObjectNode createDataDocObject(Path filePath, Path relFilePath, Path outputDirectory) throws IOException {
-            var dataDocObject = webify.this.readMetadata(filePath);
+            var dataDocObject = Webify.this.readMetadata(filePath);
             String relPath;
             if (!dataDocObject.has("path")) {
                 Path relFilePathParent = Objects.requireNonNull(relFilePath.getParent());
                 relPath = "html/" + relFilePathParent;
                 Files.createDirectories(outputDirectory);
                 Files.writeString(outputDirectory.resolve("index.html"),
-                        webify.this.guideFrontMatter(dataDocObject, "html/" + relFilePathParent),
+                        Webify.this.guideFrontMatter(dataDocObject, "html/" + relFilePathParent),
                         StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             }
             else {
-                relPath = dataDocObject.get("path").textValue().replace(PROJECT_VERSION_PLACEHOLDER, webify.this.projectVersion);
+                relPath = dataDocObject.get("path").textValue().replace(PROJECT_VERSION_PLACEHOLDER, Webify.this.projectVersion);
             }
             dataDocObject.put("path", relPath);
             return dataDocObject;

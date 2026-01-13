@@ -3,6 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
+package io.kroxylicious;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class webifyTest {
+public class WebifyTest {
 
     public static final String PROJECT_VERSION = "1.2.3";
 
@@ -32,7 +33,7 @@ public class webifyTest {
         copyFileFromClasspath(sourceDir, "developer-guide/index.html");
         copyFileFromClasspath(sourceDir, "other-guide/doc.yaml");
         copyFileFromClasspath(sourceDir, "other-guide/index.html");
-        webify.execute("--project-version=" + PROJECT_VERSION,
+        Webify.execute("--project-version=" + PROJECT_VERSION,
                 "--src-dir=" + sourceDir.toAbsolutePath(),
                 "--dest-dir=" + destDir.toAbsolutePath(),
                 "--tocify=*/index.html",
