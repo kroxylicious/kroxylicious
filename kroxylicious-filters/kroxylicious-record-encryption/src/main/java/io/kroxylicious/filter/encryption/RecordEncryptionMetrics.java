@@ -15,6 +15,13 @@ import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class RecordEncryptionMetrics {
 
+    /**
+     * Prevent construction of utility class
+     */
+    private RecordEncryptionMetrics() {
+        // private constructor
+    }
+
     public static final String VIRTUAL_CLUSTER_LABEL = "virtual_cluster";
     public static final String TOPIC_NAME = "topic_name";
 
