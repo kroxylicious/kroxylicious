@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.oauthbearer;
+package io.kroxylicious.filter.oauthbearer;
 
 import java.net.URI;
 import java.util.List;
@@ -29,11 +29,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
+import io.kroxylicious.filter.oauthbearer.OauthBearerValidation.Config;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.filter.oauthbearer.OauthBearerValidation.Config;
 
-import static io.kroxylicious.proxy.filter.oauthbearer.OauthBearerValidation.ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG;
+import static io.kroxylicious.filter.oauthbearer.OauthBearerValidation.ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.assertArg;

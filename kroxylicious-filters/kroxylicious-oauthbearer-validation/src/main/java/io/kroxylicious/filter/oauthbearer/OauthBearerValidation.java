@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.oauthbearer;
+package io.kroxylicious.filter.oauthbearer;
 
 import java.net.URI;
 import java.time.Duration;
@@ -32,9 +32,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
+import io.kroxylicious.filter.oauthbearer.sasl.ExponentialJitterBackoffStrategy;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.filter.oauthbearer.sasl.ExponentialJitterBackoffStrategy;
+import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
@@ -46,6 +47,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 
 @Plugin(configType = OauthBearerValidation.Config.class)
+@DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.oauthbearer.OauthBearerValidation", since = "0.19.0")
 public class OauthBearerValidation implements FilterFactory<OauthBearerValidation.Config, SharedOauthBearerValidationContext> {
 
     private final OAuthBearerValidatorCallbackHandler oauthHandler;

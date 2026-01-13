@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.oauthbearer;
+package io.kroxylicious.filter.oauthbearer;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -37,13 +37,13 @@ import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
+import io.kroxylicious.filter.oauthbearer.sasl.BackoffStrategy;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.SaslAuthenticateRequestFilter;
 import io.kroxylicious.proxy.filter.SaslAuthenticateResponseFilter;
 import io.kroxylicious.proxy.filter.SaslHandshakeRequestFilter;
-import io.kroxylicious.proxy.filter.oauthbearer.sasl.BackoffStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
