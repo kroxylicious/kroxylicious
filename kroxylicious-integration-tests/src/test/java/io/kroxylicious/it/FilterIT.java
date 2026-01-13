@@ -46,6 +46,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.filter.simpletransform.FetchResponseTransformation;
+import io.kroxylicious.filter.simpletransform.ProduceRequestTransformation;
 import io.kroxylicious.it.testplugins.ForwardingStyle;
 import io.kroxylicious.it.testplugins.GenericRequestSpecificResponseFilter;
 import io.kroxylicious.it.testplugins.GenericRequestSpecificResponseFilterFactory;
@@ -60,8 +62,6 @@ import io.kroxylicious.it.testplugins.TopicNameMetadataPrefixer;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation;
-import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation;
 import io.kroxylicious.proxy.internal.TopicNameRetriever;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
