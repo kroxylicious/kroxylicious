@@ -101,7 +101,7 @@ class OperatorChangeDetectionST extends AbstractST {
         // @formatter:off
         KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                 .withNewSpec()
-                .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
+                .withType("io.kroxylicious.filter.simpletransform.ProduceRequestTransformation")
                 .withConfigTemplate(Map.of("findPattern", "foo", "replacementValue", "bar"))
                 .endSpec();
         // @formatter:on
@@ -187,7 +187,7 @@ class OperatorChangeDetectionST extends AbstractST {
         // @formatter:off
         KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                 .withNewSpec()
-                    .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
+                    .withType("io.kroxylicious.filter.simpletransform.ProduceRequestTransformation")
                     .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findPattern", "foo", "replacementValue", "bar")))
                 .endSpec();
         // @formatter:on
@@ -299,7 +299,7 @@ class OperatorChangeDetectionST extends AbstractST {
                         .withData(Map.of("tls.crt", "whatever", "tls.key", "whatever")),
                 KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                         .withNewSpec()
-                        .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
+                        .withType("io.kroxylicious.filter.simpletransform.ProduceRequestTransformation")
                         .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",
                                 Map.of("findPattern", "foo", "pathToReplacementValue", "${secret:kilted-kiwi:tls.key}")))
                         .endSpec());
