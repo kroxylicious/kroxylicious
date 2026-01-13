@@ -21,6 +21,7 @@ jobs:
           echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> $GITHUB_ENV
       - name: Download PR number artifact
         uses: dawidd6/action-download-artifact@0bd50d53a6d7fb5cb921e607957e9cc12b4ce392
+        if: env.SONAR_TOKEN_SET == 'true'
         with:
           workflow: Build
           run_id: ${{ github.event.workflow_run.id }}
@@ -28,10 +29,12 @@ jobs:
       - name: Read PR_NUMBER.txt
         id: pr_number
         uses: juliangruber/read-file-action@b549046febe0fe86f8cb4f93c24e284433f9ab58
+        if: env.SONAR_TOKEN_SET == 'true'
         with:
           path: ./PR_NUMBER.txt
       - name: Request GitHub API for PR data
         uses: octokit/request-action@05a2312de9f8207044c4c9e41fe19703986acc13
+        if: env.SONAR_TOKEN_SET == 'true'
         id: get_pr_data
         with:
           route: GET /repos/{full_name}/pulls/{number}
@@ -40,6 +43,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v6
+        if: env.SONAR_TOKEN_SET == 'true'
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
           ref: $HEAD_REF
@@ -47,6 +51,7 @@ jobs:
         env:
           HEAD_REF: ${{ github.event.workflow_run.head_branch }}
       - name: Checkout base branch
+        if: env.SONAR_TOKEN_SET == 'true'
         env:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
@@ -57,13 +62,16 @@ jobs:
           git clean -ffdx && git reset --hard HEAD
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
+        if: env.SONAR_TOKEN_SET == 'true'
       - name: Set up JDK 21
         uses: actions/setup-java@v5
+        if: env.SONAR_TOKEN_SET == 'true'
         with:
           java-version: 21
           distribution: 'temurin'
       - name: 'Cache Maven packages'
         uses: actions/cache/restore@v5
+        if: env.SONAR_TOKEN_SET == 'true'
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
@@ -76,11 +84,13 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
       - name: SonarCloud scan on PR for the Proxy Runtime
+        if: env.SONAR_TOKEN_SET == 'true'
         run: mvn -B clean verify -Pci -DskipITs=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar -Djapicmp.skip=true -Dsonar.projectName="Proxy Runtime" -Dsonar.projectKey=kroxylicious_kroxylicious -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}  -pl ''!:kroxylicious-operator''
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Operator
+        if: env.SONAR_TOKEN_SET == 'true'
         run: mvn -B clean verify -Pci -DskipITs=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar -Djapicmp.skip=true -Dsonar.projectName="Kroxylicious Operator" -Dsonar.projectKey=kroxylicious_operator -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} -pl ':kroxylicious-operator,:kroxylicious-parent'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
