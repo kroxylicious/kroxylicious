@@ -11,10 +11,12 @@ import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 
+import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 @Plugin(configType = UpperCasing.Config.class)
+@DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.simpletransform.UpperCasing", since = "0.19.0")
 public class UpperCasing implements ByteBufferTransformationFactory<UpperCasing.Config> {
     public record Config(String charset) {}
 
