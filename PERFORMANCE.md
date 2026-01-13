@@ -25,7 +25,7 @@ The tested scenarios are:
 ## Prerequisites 
 
 - [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
-- [`mvn`](https://maven.apache.org/index.html) (version 3.5 and above) - Maven CLI
+- [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - Maven CLI
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 - [`jq`](https://jqlang.github.io/) 1.7 or higher
 
