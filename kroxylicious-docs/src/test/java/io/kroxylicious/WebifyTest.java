@@ -29,16 +29,22 @@ public class WebifyTest {
         Files.createDirectories(outputDataPath);
         Files.createDirectories(sourceDir.resolve("developer-guide"));
         Files.createDirectories(sourceDir.resolve("other-guide"));
+        Files.createDirectories(sourceDir.resolve("no-toc-guide"));
         copyFileFromClasspath(sourceDir, "developer-guide/doc.yaml");
         copyFileFromClasspath(sourceDir, "developer-guide/index.html");
+        copyFileFromClasspath(sourceDir, "developer-guide/other.html");
+        copyFileFromClasspath(sourceDir, "developer-guide/excluded.html");
         copyFileFromClasspath(sourceDir, "other-guide/doc.yaml");
         copyFileFromClasspath(sourceDir, "other-guide/index.html");
+        copyFileFromClasspath(sourceDir, "no-toc-guide/doc.yaml");
+        copyFileFromClasspath(sourceDir, "no-toc-guide/index.html");
         Webify.execute("--project-version=" + PROJECT_VERSION,
                 "--src-dir=" + sourceDir.toAbsolutePath(),
                 "--dest-dir=" + destDir.toAbsolutePath(),
                 "--tocify=*/index.html",
                 "--tocify-toc-file=toc.html",
                 "--tocify-tocless-file=content.html",
+                "--tocify-omit=*/excluded.html",
                 "--datafy=*/doc.yaml");
         assertContentEquals(outputHtmlPath.resolve("developer-guide").resolve("content.html"), """
                 {% raw %}
@@ -56,6 +62,18 @@ public class WebifyTest {
                  </body>
                 </html>
                 {% endraw %}
+                """);
+        assertContentEquals(outputHtmlPath.resolve("developer-guide").resolve("other.html"), """
+                <!--
+
+                    Copyright Kroxylicious Authors.
+
+                    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+                -->
+                <div>
+                    anything
+                </div>\
                 """);
         assertContentEquals(outputHtmlPath.resolve("other-guide").resolve("content.html"), """
                 {% raw %}
@@ -95,6 +113,18 @@ public class WebifyTest {
                 </div>
                 {% endraw %}
                 """);
+        assertContentEquals(outputHtmlPath.resolve("no-toc-guide").resolve("index.html"), """
+                ---
+                layout: guide
+                title: Kroxylicious no-toc guide
+                description: Contains no toc
+                tags:
+                  - developer
+                rank: '044'
+                version: 1.2.3
+                permalink: "/documentation/${project.version}/html/no-toc-guide/"
+                ---
+                """);
         assertContentEquals(outputHtmlPath.resolve("developer-guide").resolve("toc.html"), """
                 {% raw %}
                 <div id="toc" class="toc">
@@ -130,7 +160,14 @@ public class WebifyTest {
                       - developer
                     rank: '032'
                     path: html/other-guide
+                  - title: Kroxylicious no-toc guide
+                    description: Contains no toc
+                    tags:
+                      - developer
+                    rank: '044'
+                    path: html/no-toc-guide
                 """);
+        assertThat(Files.notExists(outputHtmlPath.resolve("developer-guide").resolve("excluded.html"))).isTrue();
     }
 
     private void assertContentEquals(Path resolve, String expectedContents) {
