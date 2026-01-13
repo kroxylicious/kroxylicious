@@ -91,7 +91,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -B verify -Pci -Djapicmp.skip=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar -pl ':kroxylicious-operator,:kroxylicious-parent'
+        run: mvn -B verify -Pci -Djapicmp.skip=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar -Dsonar.projectName='Kroxylicious Operator' -Dsonar.projectKey='kroxylicious_operator' -pl ':kroxylicious-operator,:kroxylicious-parent'
       - name: Save PR number to file
         if: github.event_name == 'pull_request'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
