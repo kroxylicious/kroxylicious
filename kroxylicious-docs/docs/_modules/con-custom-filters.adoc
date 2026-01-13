@@ -9,7 +9,7 @@
 
 [role="_abstract"]
 Custom filters can be written in the Java programming language.
-Kroxylicious supports Java 17.
+Kroxylicious supports Java 21.
 Knowledge of the {kafka-protocol}[Kafka protocol^] is generally required to write a protocol filter.
 
 There is currently one class of Custom Filters users can implement:
@@ -351,7 +351,7 @@ after the response is sent to the client.
 Filters can make additional asynchronous requests to the Cluster.  This is useful if the Filter needs additional
 information from the Cluster in order to know how to mutate the filtered request/response.
 
-The Filter can make use of {java-17-javadoc}/java.base/java/util/concurrent/CompletionStage.html[CompletionStage^]
+The Filter can make use of {java-21-javadoc}/java.base/java/util/concurrent/CompletionStage.html[CompletionStage^]
 chaining features ([`#thenApply()` etc.) to organise for actions to be done once the asynchronous request completes.
 For example, it could chain an action that mutates the filtered request/response using the asynchronous response, and
 finally, chain an action to forward the request/response to the next filter.
@@ -435,7 +435,7 @@ public class FetchFilter implements FetchRequestFilter {
 ----
 
 === Filter Construction and Configuration
-For Kroxylicious to instantiate and configure your custom filter we use Java's {java-17-javadoc}/java.base/java/util/ServiceLoader.html[ServiceLoader^] API.
+For Kroxylicious to instantiate and configure your custom filter we use Java's {java-21-javadoc}/java.base/java/util/ServiceLoader.html[ServiceLoader^] API.
 Each Custom Filter should provide a corresponding {api-javadoc}/io/kroxylicious/proxy/filter/FilterFactory.html[FilterFactory^]
 implementation that can create an instance of your custom Filter. The factory can optionally declare a configuration class that Kroxylicious will
 populate (using Jackson) when loading your custom Filter. The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterFactory`
