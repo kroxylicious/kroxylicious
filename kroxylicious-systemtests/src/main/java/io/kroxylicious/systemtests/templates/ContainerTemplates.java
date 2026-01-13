@@ -16,6 +16,13 @@ import io.kroxylicious.systemtests.Constants;
 
 public class ContainerTemplates {
 
+    /**
+     * Create ContainerTemplates
+     */
+    private ContainerTemplates() {
+        // private constructor
+    }
+
     private static final List<String> SNAPSHOT_STRINGS = List.of("latest", "snapshot");
 
     private static final Set<String> snapshotImagesPulledOnce = new HashSet<>();

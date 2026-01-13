@@ -13,6 +13,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters;
 
 public class AssertFactory {
+    /**
+     * Prevent construction of utility class
+     */
+    private AssertFactory() {
+        // private constructor
+    }
+
     public static InstanceOfAssertFactory<KafkaProxyStatus, KafkaProxyStatusAssert> status() {
         return new InstanceOfAssertFactory<>(KafkaProxyStatus.class, KafkaProxyStatusAssert::assertThat);
     }
