@@ -42,14 +42,22 @@ jobs:
           full_name: ${{ github.event.repository.full_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: "sanitize head ref"
+        id: set_branch_name
+        run: |
+          head_ref="${{ github.event.workflow_run.head_repository.head_branch }}"
+          
+          # Sanitize by replacing shell characters with -
+          sanitized_head=$(echo ${head_ref} | sed 's/[\(\$\)]/-/g')
+          
+          echo "sanitized_head_ref=${sanitized_head}" >> $GITHUB_ENV
+        shell: bash
       - uses: actions/checkout@v6
         if: env.SONAR_TOKEN_SET == 'true'
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
-          ref: $HEAD_REF
+          ref: ${{env.sanitized_head_ref}}
           fetch-depth: 0
-        env:
-          HEAD_REF: ${{ github.event.workflow_run.head_branch }}
       - name: Checkout base branch
         if: env.SONAR_TOKEN_SET == 'true'
         env:
