@@ -50,6 +50,17 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
         </dependency>
+
+        <!-- third party dependencies - test -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -73,7 +84,7 @@
                             <goal>resources</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.build.directory}/generated-sources</outputDirectory>
+                            <outputDirectory>${project.build.directory}/jbang/generated-sources/</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
@@ -165,7 +176,7 @@
                         <configuration>
                             <skip>${skipDocs}</skip>
                             <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
-                            <script>${project.build.directory}/generated-sources/webify.java</script>
+                            <script>${project.build.directory}/jbang/generated-sources/webify.java</script>
                             <args>
                                 <arg>--project-version=${project.version}</arg>
                                 <arg>--src-dir=${project.build.directory}/docs/embedded/</arg>
