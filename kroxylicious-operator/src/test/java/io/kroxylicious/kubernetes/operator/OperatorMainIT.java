@@ -146,51 +146,51 @@ class OperatorMainIT {
         assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.kafkaproxyreconciler").meter().getId()).isNotNull();
     }
 
-    @SuppressWarnings("resource")
     @Test
     void shouldMakeMetricsAvailableViaHttp() {
         // Given
-        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
-        HttpClient httpClient = HttpClient.newHttpClient();
-        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
-        final KafkaProxyBuilder proxyBuilder = new KafkaProxyBuilder()
-                .withKind("KafkaProxy")
-                .withNewMetadata()
-                .withName("mycoolproxy")
-                .endMetadata();
-        operatorMain.start();
+        try (HttpClient httpClient = HttpClient.newHttpClient()) {
+            final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+            final KafkaProxyBuilder proxyBuilder = new KafkaProxyBuilder()
+                    .withKind("KafkaProxy")
+                    .withNewMetadata()
+                    .withName("mycoolproxy")
+                    .endMetadata();
+            operatorMain.start();
 
-        // When
-        kafkaProxy = createProxyInstance(proxyBuilder);
+            // When
+            kafkaProxy = createProxyInstance(proxyBuilder);
 
-        // Then
-        Awaitility.await()
-                .atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    final HttpResponse<Stream<String>> response = httpClient.send(
-                            HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/metrics")).build(),
-                            responseBodyHandler);
-                    assertThat(response.statusCode()).isEqualTo(200);
-                    assertThat(response.body())
-                            .isNotEmpty()
-                            .anySatisfy(line -> assertThat(line).contains("kroxylicious_operator_build_info"))
-                            .anySatisfy(line -> assertThat(line).contains("operator_sdk_reconciliations_executions_kafkaproxyreconciler"))
-                            .anySatisfy(line -> assertThat(line).contains("operator_sdk_events_received"));
-                });
+            // Then
+            Awaitility.await()
+                    .atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> {
+                        final HttpResponse<Stream<String>> response = httpClient.send(
+                                HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/metrics")).build(),
+                                responseBodyHandler);
+                        assertThat(response.statusCode()).isEqualTo(200);
+                        assertThat(response.body())
+                                .isNotEmpty()
+                                .anySatisfy(line -> assertThat(line).contains("kroxylicious_operator_build_info"))
+                                .anySatisfy(line -> assertThat(line).contains("operator_sdk_reconciliations_executions_kafkaproxyreconciler"))
+                                .anySatisfy(line -> assertThat(line).contains("operator_sdk_events_received"));
+                    });
+        }
     }
 
     @Test
     void shouldSendClientErrorForUnsupportedHttpMethod() throws IOException, InterruptedException {
         // Given
-        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
-        HttpClient httpClient = HttpClient.newHttpClient();
-        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
-        operatorMain.start();
+        final HttpResponse<Stream<String>> response;
+        try (HttpClient httpClient = HttpClient.newHttpClient()) {
+            final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+            operatorMain.start();
 
-        // When
-        final HttpResponse<Stream<String>> response = httpClient.send(
-                HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/")).DELETE().build(),
-                responseBodyHandler);
+            // When
+            response = httpClient.send(
+                    HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/")).DELETE().build(),
+                    responseBodyHandler);
+        }
 
         // Then
         assertThat(response.statusCode()).isEqualTo(405);
@@ -200,15 +200,16 @@ class OperatorMainIT {
     @Test
     void shouldSendClientErrorForUnsupportedPaths() throws IOException, InterruptedException {
         // Given
-        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
-        HttpClient httpClient = HttpClient.newHttpClient();
-        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
-        operatorMain.start();
+        final HttpResponse<Stream<String>> response;
+        try (HttpClient httpClient = HttpClient.newHttpClient()) {
+            final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+            operatorMain.start();
 
-        // When
-        final HttpResponse<Stream<String>> response = httpClient.send(
-                HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/")).GET().build(),
-                responseBodyHandler);
+            // When
+            response = httpClient.send(
+                    HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/")).GET().build(),
+                    responseBodyHandler);
+        }
 
         // Then
         assertThat(response.statusCode()).isEqualTo(404);
@@ -218,15 +219,16 @@ class OperatorMainIT {
     @Test
     void shouldSendClientErrorForUnsupportedHttpMethodToMetrics() throws IOException, InterruptedException {
         // Given
-        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
-        HttpClient httpClient = HttpClient.newHttpClient();
-        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
-        operatorMain.start();
+        final HttpResponse<Stream<String>> response;
+        try (HttpClient httpClient = HttpClient.newHttpClient()) {
+            final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+            operatorMain.start();
 
-        // When
-        final HttpResponse<Stream<String>> response = httpClient.send(
-                HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/metrics")).DELETE().build(),
-                responseBodyHandler);
+            // When
+            response = httpClient.send(
+                    HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/metrics")).DELETE().build(),
+                    responseBodyHandler);
+        }
 
         // Then
         assertThat(response.statusCode()).isEqualTo(405);
