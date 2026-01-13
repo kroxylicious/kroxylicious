@@ -87,8 +87,12 @@ public class webify implements Callable<Integer> {
             .enable(Feature.INDENT_ARRAYS_WITH_INDICATOR);
 
     public static void main(String... args) {
-        int exitCode = new CommandLine(new webify()).execute(args);
+        int exitCode = execute(args);
         System.exit(exitCode);
+    }
+
+    static int execute(String... args) {
+        return new CommandLine(new webify()).execute(args);
     }
 
     @Override
