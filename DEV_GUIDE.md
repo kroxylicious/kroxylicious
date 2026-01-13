@@ -50,7 +50,7 @@ This document gives a detailed breakdown of the various build processes and opti
 ## Build Prerequisites
 
 - [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
-- [`mvn`](https://maven.apache.org/index.html) (version 3.6.3 and above) - [Apache Maven®](https://maven.apache.org)
+- [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - [Apache Maven®](https://maven.apache.org)
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 
 > :warning: **If you are using Podman please see [these notes](#running-integration-tests-on-podman) below**
