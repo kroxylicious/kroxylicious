@@ -152,6 +152,7 @@ class ProduceAuthzIT extends AuthzIT {
             return prettyJsonString(jsonNodes);
         }
 
+        @Override
         public void assertVisibleSideEffects(BaseClusterFixture cluster) {
             assertThat(topicContents(cluster.backingCluster(), 2))
                     .isEqualTo(Map.of(
