@@ -58,11 +58,6 @@ class UserNamespaceFilterTest {
             String.format("%s/[A-Z_]+/\\d+/.*\\.yaml", UserNamespaceFilterTest.class.getPackageName().replace(".", "/")));
     private static final String TENANT_1 = "tenant1";
 
-    private static final String VIRTUAL_CLUSTER_NAME = "vc1";
-    private static final String TEST_TOPIC = "testTopic";
-    @Mock
-    private FilterContext filterContext;
-
     private static List<ResourceInfo> getTestResources() throws IOException {
         var resources = ClassPath.from(UserNamespaceFilterTest.class.getClassLoader()).getResources().stream()
                 .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches()).toList();
