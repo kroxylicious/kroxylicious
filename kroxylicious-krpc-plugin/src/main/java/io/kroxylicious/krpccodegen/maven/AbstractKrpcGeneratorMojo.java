@@ -89,15 +89,9 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
             String absolutePath = outputDirectory.getAbsolutePath();
             Arrays.stream(addToProjectSourceRoots.split(",")).forEach(sourceRoot -> {
                 switch (sourceRoot) {
-                    case "compile" -> {
-                        project.addCompileSourceRoot(absolutePath);
-                    }
-                    case "testCompile" -> {
-                        project.addTestCompileSourceRoot(absolutePath);
-                    }
-                    default -> {
-                        throw new IllegalArgumentException("unexpected source root " + sourceRoot);
-                    }
+                    case "compile" -> project.addCompileSourceRoot(absolutePath);
+                    case "testCompile" -> project.addTestCompileSourceRoot(absolutePath);
+                    default -> throw new IllegalArgumentException("unexpected source root " + sourceRoot);
                 }
             });
         }
