@@ -197,8 +197,8 @@ public class ConfigParser implements PluginFactoryRegistry {
         }
 
         private static PluginConfigTypeIdResolver newResolver(Class<?> pluginInterface) {
-            var providersByName = pluginFactoryRegistry.pluginFactory(pluginInterface);
-            return new PluginConfigTypeIdResolver(providersByName);
+            var pluginFactory = pluginFactoryRegistry.pluginFactory(pluginInterface);
+            return new PluginConfigTypeIdResolver(pluginFactory);
         }
 
         private @Nullable PluginImplName findPluginReferenceAnnotation(AnnotatedWithParams owner, String instanceNameProperty) {
