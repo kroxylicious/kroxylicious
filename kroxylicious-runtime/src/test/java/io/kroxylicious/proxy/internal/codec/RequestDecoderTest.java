@@ -157,7 +157,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
+    void testApiVersionsExactlyOneFrame_opaque(short apiVersion) {
         Filter filter = new ApiVersionsRequestFilter() {
 
             @Override
@@ -293,7 +293,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
      */
     @ParameterizedTest
     @MethodSource("produceRequestApiVersions")
-    void testAcksParsingWhenNotDecoding(short produceVersion, short acks) throws Exception {
+    void testAcksParsingWhenNotDecoding(short produceVersion, short acks) {
 
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)

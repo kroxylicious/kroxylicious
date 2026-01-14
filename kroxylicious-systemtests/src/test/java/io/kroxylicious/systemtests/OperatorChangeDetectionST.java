@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -354,7 +353,7 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     @BeforeEach
-    void setUp(String namespace) throws IOException {
+    void setUp(String namespace) {
         kroxylicious = new Kroxylicious(namespace);
         certManager = new CertManager();
         certManager.deploy();
