@@ -45,6 +45,7 @@ class MavenLogger implements System.Logger {
             case WARNING -> mavenLog.warn(msg, thrown);
             case ALL, ERROR -> mavenLog.error(msg, thrown);
             default -> {
+                // log nothing
             }
         }
     }
@@ -57,6 +58,7 @@ class MavenLogger implements System.Logger {
             case WARNING -> mavenLog.warn(new MessageFormat(format).format(params));
             case ALL, ERROR -> mavenLog.error(new MessageFormat(format).format(params));
             default -> {
+                // log nothing
             }
         }
     }
