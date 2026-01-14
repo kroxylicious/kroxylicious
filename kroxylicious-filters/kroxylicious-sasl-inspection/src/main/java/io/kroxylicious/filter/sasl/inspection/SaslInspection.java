@@ -12,7 +12,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -44,12 +43,8 @@ public class SaslInspection implements FilterFactory<Config, Void> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslInspection.class);
 
-    public static final SaslSubjectBuilder DEFAULT_SUBJECT_BUILDER = new SaslSubjectBuilder() {
-        @Override
-        public CompletionStage<Subject> buildSaslSubject(Context context) {
-            return CompletableFuture.completedStage(new Subject(Set.of(new User(context.clientSaslContext().authorizationId()))));
-        }
-    };
+    public static final SaslSubjectBuilder DEFAULT_SUBJECT_BUILDER = context -> CompletableFuture
+            .completedStage(new Subject(Set.of(new User(context.clientSaslContext().authorizationId()))));
     private @Nullable Map<String, SaslObserverFactory> observerFactoryMap;
     private @Nullable SaslSubjectBuilder subjectBuilder;
     private boolean authenticationRequired = false;

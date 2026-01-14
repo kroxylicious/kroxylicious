@@ -15,7 +15,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -100,7 +99,7 @@ class RecordEncryptionDeserializationCompatibilityIT {
         }
 
         public Iterable<Header> kafkaHeaders() {
-            return headers.stream().map(SerializedHeader::toKafkaHeader).collect(Collectors.toList());
+            return headers.stream().map(SerializedHeader::toKafkaHeader).toList();
         }
     }
 
@@ -112,8 +111,7 @@ class RecordEncryptionDeserializationCompatibilityIT {
 
     record DeserializedRecord(List<DeserializedHeader> headers, @Nullable String key, @Nullable String value) {
         public ProducerRecord<String, String> producerRecord(String topic) {
-            return new ProducerRecord<>(topic, 0, key, value, headers.stream().map(DeserializedHeader::kafkaHeader).collect(
-                    Collectors.toList()));
+            return new ProducerRecord<>(topic, 0, key, value, headers.stream().map(DeserializedHeader::kafkaHeader).toList());
         }
     }
 
@@ -148,7 +146,7 @@ class RecordEncryptionDeserializationCompatibilityIT {
 
     private void assertExpected(DeserializedRecord expected, ConsumerRecord<String, String> onlyRecord) {
         List<DeserializedHeader> actual = StreamSupport.stream(onlyRecord.headers().spliterator(), false)
-                .map(h -> new DeserializedHeader(h.key(), h.value() == null ? null : new String(h.value(), StandardCharsets.UTF_8))).collect(Collectors.toList());
+                .map(h -> new DeserializedHeader(h.key(), h.value() == null ? null : new String(h.value(), StandardCharsets.UTF_8))).toList();
         assertThat(actual).isEqualTo(expected.headers);
         assertThat(onlyRecord.key()).isEqualTo(expected.key);
         assertThat(onlyRecord.value()).isEqualTo(expected.value);

@@ -14,12 +14,7 @@ import java.util.stream.Stream;
 public interface TlsCertificateExtractor extends Function<X509Certificate, Stream<String>> {
 
     static TlsCertificateExtractor subject() {
-        return new TlsCertificateExtractor() {
-            @Override
-            public Stream<String> apply(X509Certificate x509Certificate) {
-                return Stream.of(x509Certificate.getSubjectX500Principal().getName());
-            }
-        };
+        return x509Certificate -> Stream.of(x509Certificate.getSubjectX500Principal().getName());
     }
 
     enum Asn1SanNameType {
@@ -37,23 +32,20 @@ public interface TlsCertificateExtractor extends Function<X509Certificate, Strea
     }
 
     static TlsCertificateExtractor san(Asn1SanNameType targetType) {
-        return new TlsCertificateExtractor() {
-            @Override
-            public Stream<String> apply(X509Certificate x509Certificate) {
-                try {
-                    return x509Certificate.getSubjectAlternativeNames().stream().flatMap(san -> {
-                        Integer asn1SanType = (Integer) san.get(0);
-                        if (asn1SanType == targetType.asn1Value) {
-                            return Stream.of((String) san.get(1));
-                        }
-                        else {
-                            return Stream.empty();
-                        }
-                    });
-                }
-                catch (CertificateParsingException e) {
-                    return Stream.empty();
-                }
+        return x509Certificate -> {
+            try {
+                return x509Certificate.getSubjectAlternativeNames().stream().flatMap(san -> {
+                    Integer asn1SanType = (Integer) san.get(0);
+                    if (asn1SanType == targetType.asn1Value) {
+                        return Stream.of((String) san.get(1));
+                    }
+                    else {
+                        return Stream.empty();
+                    }
+                });
+            }
+            catch (CertificateParsingException e) {
+                return Stream.empty();
             }
         };
     }
