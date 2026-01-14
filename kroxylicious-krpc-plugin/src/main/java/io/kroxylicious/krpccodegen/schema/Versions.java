@@ -55,8 +55,6 @@ public final class Versions {
         }
     }
 
-    public static final Versions ALL = new Versions((short) 0, Short.MAX_VALUE);
-
     public static final Versions NONE = new Versions();
 
     public static final String NONE_STRING = "none";
