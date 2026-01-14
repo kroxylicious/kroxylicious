@@ -8,8 +8,8 @@ package io.kroxylicious.it;
 
 import java.nio.ByteBuffer;
 
-import io.kroxylicious.filter.simpletransform.ByteBufferTransformation;
-import io.kroxylicious.filter.simpletransform.ByteBufferTransformationFactory;
+import io.kroxylicious.proxy.filter.simpletransform.ByteBufferTransformation;
+import io.kroxylicious.proxy.filter.simpletransform.ByteBufferTransformationFactory;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
