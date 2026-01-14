@@ -106,8 +106,6 @@ class RecordEncryptionFilterTest {
     private static final byte[] HELLO_CIPHER_WORLD = "Hello Ciphertext World!".getBytes(UTF_8);
 
     private static final byte[] ENCRYPTED_MESSAGE_BYTES = "xslkajfd;ljsaefjjKLDJlkDSJFLJK';,kSDKF'".getBytes(UTF_8);
-    private static final short OLD_FETCH_API_VERSION = 9;
-    private static final short MODERN_FETCH_API_VERSION = FetchResponseData.HIGHEST_SUPPORTED_VERSION;
 
     @Mock(strictness = LENIENT)
     EncryptionManager<String> encryptionManager;
@@ -155,12 +153,8 @@ class RecordEncryptionFilterTest {
         final Map<String, String> topicNameToKekId = new HashMap<>();
         topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
 
-        when(kekSelector.selectKek(anySet())).thenAnswer(invocationOnMock -> {
-            Set<String> wanted = invocationOnMock.getArgument(0);
-            var copy = new HashMap<>(topicNameToKekId);
-            copy.keySet().retainAll(wanted);
-            return CompletableFuture.completedFuture(new TopicNameKekSelection<>(topicNameToKekId, Set.of(UNRESOLVED_TOPIC)));
-        });
+        when(kekSelector.selectKek(anySet()))
+                .thenAnswer(invocationOnMock -> CompletableFuture.completedFuture(new TopicNameKekSelection<>(topicNameToKekId, Set.of(UNRESOLVED_TOPIC))));
 
         when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
