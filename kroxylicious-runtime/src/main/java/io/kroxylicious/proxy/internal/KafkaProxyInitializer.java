@@ -49,6 +49,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @VisibleForTesting
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
     public static final String PRE_SESSION_IDLE_HANDLER = "preSessionIdleHandler";
+    private static final long DEFAULT_UNAUTHENTICATED_IDLE_TIMEOUT_SECONDS = 11L;
 
     private final boolean haproxyProtocol;
     private final boolean tls;
@@ -261,7 +262,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private long getIdleSeconds(Optional<NettySettings> nettySettings) {
-        return nettySettings.flatMap(NettySettings::unAuthenticatedIdleTimeout).map(Duration::getSeconds).orElse(11L);
+        return nettySettings.flatMap(NettySettings::unAuthenticatedIdleTimeout).map(Duration::getSeconds).orElse(DEFAULT_UNAUTHENTICATED_IDLE_TIMEOUT_SECONDS);
     }
 
     @Sharable
