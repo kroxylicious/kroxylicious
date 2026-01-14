@@ -102,7 +102,7 @@ And enable the Transit Secrets Engine.
 
 [source,terminal,kms="vault"]
 ----
-$ kubectl exec -n kms statefulsets/vault -- vault secrets enable transit
+$ kubectl wait -n kms --for=condition=Ready pod/vault-0 && kubectl exec -n kms statefulsets/vault -- vault secrets enable transit
 ----
 ====
 
