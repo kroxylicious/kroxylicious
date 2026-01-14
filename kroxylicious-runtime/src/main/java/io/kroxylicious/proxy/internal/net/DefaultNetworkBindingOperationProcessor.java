@@ -74,14 +74,7 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
                     }
 
                     var bootstrap = networkBindingOperation.tls() ? tlsServerBootstrap : plainServerBootstrap;
-                    try {
-                        networkBindingOperation.performBindingOperation(bootstrap, networkBindingExecutor);
-                    }
-                    catch (Exception e) {
-                        // We don't expect performBindingOperation to throw an exception but if it does,
-                        // we don't want to break the executor loop.
-                        LOGGER.error("Unexpected error performing the binding operation", e);
-                    }
+                    performBindingOperation(networkBindingOperation, bootstrap);
                 } while (!Thread.interrupted());
             }
             catch (InterruptedException e) {
@@ -94,6 +87,17 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
                 LOGGER.debug("Network event processor shutdown");
             }
         });
+    }
+
+    private void performBindingOperation(NetworkBindingOperation<?> networkBindingOperation, ServerBootstrap bootstrap) {
+        try {
+            networkBindingOperation.performBindingOperation(bootstrap, networkBindingExecutor);
+        }
+        catch (Exception e) {
+            // We don't expect performBindingOperation to throw an exception but if it does,
+            // we don't want to break the executor loop.
+            LOGGER.error("Unexpected error performing the binding operation", e);
+        }
     }
 
     @Override
