@@ -180,16 +180,22 @@ public final class MessageSpec {
                 '}';
     }
 
-    public boolean hasAtLeastOneEntityField() {
-        return hasAtLeastOneEntityField(fields());
+    /**
+     * Returns true if this message spec has at least one field of one of the given entity field types.
+     *
+     * @param entityFieldTypeNames entity field types
+     * @return true if present, false otherwise
+     */
+    public boolean hasAtLeastOneEntityField(Set<EntityType> entityFieldTypeNames) {
+        return hasAtLeastOneEntityField(fields(), entityFieldTypeNames);
     }
 
-    private boolean hasAtLeastOneEntityField(List<FieldSpec> fields) {
-        var found = fields.stream().anyMatch(f -> ENTITY_FIELDS.contains(f.entityType()));
+    private boolean hasAtLeastOneEntityField(List<FieldSpec> fields, Set<EntityType> entityFieldTypeNames) {
+        var found = fields.stream().anyMatch(f -> entityFieldTypeNames.contains(f.entityType()));
         if (found) {
             return true;
         }
-        return fields.stream().anyMatch(f -> hasAtLeastOneEntityField(f.fields()));
+        return fields.stream().anyMatch(f -> hasAtLeastOneEntityField(f.fields(), entityFieldTypeNames));
     }
 
     public List<Short> entityFieldIntersectedVersions() {

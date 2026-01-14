@@ -5,7 +5,7 @@
     Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 
 -->
-<#assign filteredEntityTypes = ["GROUP_ID", "TRANSACTIONAL_ID", "TOPIC_NAME"]>
+<#assign filteredEntityTypes = createEntityTypeSet("GROUP_ID", "TRANSACTIONAL_ID", "TOPIC_NAME")>
 <#macro fieldVersionSet messageSpec versions>
 Set.of(<#list messageSpec.validVersions.intersect(versions) as version> (short) ${version}<#sep>, </#list>)</#macro>
 <#macro mapRequestFields messageSpec dataVar fields indent>
@@ -107,10 +107,11 @@ import javax.annotation.processing.Generated;
 
 <#list messageSpecs?filter(ms -> retrieveApiListener(ms)?seq_contains("BROKER"))>
     <#items as messageSpec>
-       <#if messageSpec.type?lower_case == 'request' && (messageSpec.hasAtLeastOneEntityField || messageSpec.name == 'FindCoordinatorRequest')>
+        <#assign messageSpecHasEntityFields=messageSpec.hasAtLeastOneEntityField(filteredEntityTypes) || retrieveApiKey(messageSpec) == "FIND_COORDINATOR"/>
+        <#if messageSpec.type?lower_case == 'request' && (messageSpecHasEntityFields)>
 import org.apache.kafka.common.message.${messageSpec.name}Data;
         </#if>
-        <#if messageSpec.type?lower_case == 'response' && (messageSpec.hasAtLeastOneEntityField || messageSpec.name == 'FindCoordinatorResponse')>
+        <#if messageSpec.type?lower_case == 'response' && (messageSpecHasEntityFields)>
 import org.apache.kafka.common.message.${messageSpec.name}Data;
         </#if>
     </#items>
@@ -142,7 +143,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UserNamespaceFilter.class);
 
-    <#list messageSpecs?filter(ms -> ms.type?lower_case == 'request' && ms.hasAtLeastOneEntityField && ms.listeners?seq_contains("BROKER"))>
+    <#list messageSpecs?filter(ms -> ms.type?lower_case == 'request' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
         <#items as messageSpec>
             <#assign specName>
                 <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
@@ -151,7 +152,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         </#items>
     </#list>
 
-    <#list messageSpecs?filter(ms -> ms.type?lower_case == 'response' && ms.hasAtLeastOneEntityField && retrieveApiListener(ms)?seq_contains("BROKER"))>
+    <#list messageSpecs?filter(ms -> ms.type?lower_case == 'response' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
         <#items as messageSpec>
             <#assign specName>
             <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
@@ -173,7 +174,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
             return true;
         }
         return switch (apiKey) {
-        <#list messageSpecs?filter(ms -> ms.type?lower_case == 'request' && ms.hasAtLeastOneEntityField && ms.listeners?seq_contains("BROKER"))>
+        <#list messageSpecs?filter(ms -> ms.type?lower_case == 'request' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
             <#items as messageSpec>
                 <#assign specName>
                     <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
@@ -192,7 +193,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
             return true;
         }
         return switch (apiKey) {
-        <#list messageSpecs?filter(ms -> ms.type?lower_case == 'response' && ms.hasAtLeastOneEntityField && retrieveApiListener(ms)?seq_contains("BROKER"))>
+        <#list messageSpecs?filter(ms -> ms.type?lower_case == 'response' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
             <#items as messageSpec>
                     <#assign specName>
                         <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${
@@ -237,7 +238,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
 
             switch (apiKey) {
-<#list messageSpecs?filter(ms -> ms.type?lower_case == 'request' && ms.hasAtLeastOneEntityField && ms.listeners?seq_contains("BROKER"))>
+<#list messageSpecs?filter(ms -> ms.type?lower_case == 'request' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
     <#items as messageSpec>
                 case ${retrieveApiKey(messageSpec)} -> {
                     <#assign specName>
@@ -316,7 +317,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
             }
 
             switch (apiKey) {
-<#list messageSpecs?filter(ms -> ms.type?lower_case == 'response' && ms.hasAtLeastOneEntityField && retrieveApiListener(ms)?seq_contains("BROKER"))>
+<#list messageSpecs?filter(ms -> ms.type?lower_case == 'response' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
     <#items as messageSpec>
                 case ${retrieveApiKey(messageSpec)} -> {
                     <#assign specName>

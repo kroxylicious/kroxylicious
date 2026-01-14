@@ -50,9 +50,6 @@ public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
         else if (obj instanceof Versions versions) {
             return new VersionsModel(this, versions);
         }
-        // else if (obj instanceof RequestListenerType l) {
-        // return super.wrap(l.name());
-        // }
         return super.wrap(obj);
     }
 

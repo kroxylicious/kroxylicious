@@ -31,6 +31,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import io.kroxylicious.krpccodegen.model.EntityTypeSetFactory;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
 import io.kroxylicious.krpccodegen.model.MessageSpecParser;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
@@ -356,6 +357,7 @@ public class KrpcGenerator {
                             "outputPackage", outputPackage,
                             "messageSpecs", messageSpecs,
                             "retrieveApiKey", new RetrieveApiKey(),
+                            "createEntityTypeSet", new EntityTypeSetFactory(),
                             "retrieveApiListener", new RetrieveApiListeners(messageSpecs));
                     template.process(dataModel, writer);
                 });

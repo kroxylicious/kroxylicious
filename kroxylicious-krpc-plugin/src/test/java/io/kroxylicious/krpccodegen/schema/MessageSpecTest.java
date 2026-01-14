@@ -6,6 +6,8 @@
 
 package io.kroxylicious.krpccodegen.schema;
 
+import java.util.Set;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -110,10 +112,21 @@ class MessageSpecTest {
         // Given
 
         // When
-        var atLeastOneEntityField = groupIdMessageSpec.hasAtLeastOneEntityField();
+        var atLeastOneEntityField = groupIdMessageSpec.hasAtLeastOneEntityField(Set.of(EntityType.GROUP_ID));
 
         // Then
         assertThat(atLeastOneEntityField).isTrue();
+    }
+
+    @Test
+    void shouldDetectAbsenceOfEntityField() {
+        // Given
+
+        // When
+        var noEntityFieldOfType = groupIdMessageSpec.hasAtLeastOneEntityField(Set.of(EntityType.TOPIC_NAME));
+
+        // Then
+        assertThat(noEntityFieldOfType).isFalse();
     }
 
     @Test
@@ -121,7 +134,7 @@ class MessageSpecTest {
         // Given
 
         // When
-        var atLeastOneEntityField = nestedGroupIdMessageSpec.hasAtLeastOneEntityField();
+        var atLeastOneEntityField = nestedGroupIdMessageSpec.hasAtLeastOneEntityField(Set.of(EntityType.GROUP_ID));
 
         // Then
         assertThat(atLeastOneEntityField).isTrue();
