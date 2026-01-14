@@ -178,11 +178,17 @@ class QuickstartDT {
                     writer.println("set -x");
                 }
                 shellBlocks.forEach(block -> {
-                    try (var reader = new BufferedReader(new StringReader(block.content()))) {
+                    String content = block.content();
+                    boolean ampersandsReplaced = false;
+                    if (content.contains("&amp;")) {
+                        content = content.replaceAll("&amp;", "&");
+                        ampersandsReplaced = true;
+                    }
+                    try (var reader = new BufferedReader(new StringReader(content))) {
                         writer.println("""
                                 echo "##############"
-                                echo "Code block source: %s (line %s), started ${SECONDS}"
-                                """.formatted(block.asciiDocFile(), block.lineNumber()));
+                                echo "Code block source: %s (line %s), started ${SECONDS}%s"
+                                """.formatted(block.asciiDocFile(), block.lineNumber(), ampersandsReplaced ? ", ampersands replaced" : ""));
                         String line;
                         while ((line = reader.readLine()) != null) {
                             line = line.replaceAll("^\\$ *", ""); // chomp the shell prompt
