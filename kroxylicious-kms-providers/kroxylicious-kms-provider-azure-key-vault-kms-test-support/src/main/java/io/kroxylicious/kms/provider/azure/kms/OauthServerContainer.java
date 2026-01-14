@@ -17,6 +17,7 @@ import org.testcontainers.utility.MountableFile;
 import io.kroxylicious.kms.service.TestKmsFacadeException;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
+@SuppressWarnings("java:S2160") // equals on superclass is not intended for use
 class OauthServerContainer extends GenericContainer<OauthServerContainer> {
 
     private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:3.0.1");
