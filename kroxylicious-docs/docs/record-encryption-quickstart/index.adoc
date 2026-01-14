@@ -25,7 +25,7 @@ You'll be encrypting in a snap!
 == Objectives
 
 * Deploy a Kafka Cluster to a Kubernetes cluster.
-* Deploy a Key Management Service (KMS) - we'll show you how, with either HashiCorp Vault or AWS Localstack.
+    * Deploy a Key Management Service (KMS) - we'll show you how, with either HashiCorp Vault or AWS Localstack.
 * Deploy Kroxylicious and configure it to proxy the cluster and apply Record Encryption.
 * Produce/consume records to Kafka via the proxy demonstrating the transparent encryption.
 * Verify that the records are encrypted on the broker.
@@ -104,7 +104,7 @@ And enable the Transit Secrets Engine.
 
 [source,terminal,kms="vault"]
 ----
-$ kubectl exec -n kms statefulsets/vault -- vault secrets enable transit
+$ kubectl wait -n kms --for=condition=Ready pod/vault-0 && kubectl exec -n kms statefulsets/vault -- vault secrets enable transit
 ----
 ====
 
