@@ -5,11 +5,12 @@
     Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 
 -->
+<#assign filteredEntityTypes = ["GROUP_ID", "TRANSACTIONAL_ID", "TOPIC_NAME"]>
 <#macro fieldVersionSet messageSpec versions>
 Set.of(<#list messageSpec.validVersions.intersect(versions) as version> (short) ${version}<#sep>, </#list>)</#macro>
 <#macro mapRequestFields messageSpec dataVar fields indent>
     <#local pad = ""?left_pad(4*indent)/>
-    <#list fields?filter(field -> field.entityType == 'GROUP_ID' || field.entityType == 'TRANSACTIONAL_ID' || field.entityType == 'TOPIC_NAME')>
+    <#list fields?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
 ${pad}// process any entity fields defined at this level
         <#items as field>
             <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
@@ -38,7 +39,7 @@ ${pad}}
 </#macro>
 <#macro mapAndFilterResponseFields messageSpec collectionIterator dataVar dataClass fields indent>
     <#local pad = ""?left_pad(4*indent)/>
-    <#list fields?filter(field -> field.entityType == 'GROUP_ID' || field.entityType == 'TRANSACTIONAL_ID' || field.entityType == 'TOPIC_NAME')>
+    <#list fields?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
 ${pad}// process entity fields defined at this level
         <#items as field>
             <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
