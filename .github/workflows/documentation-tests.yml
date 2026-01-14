@@ -29,6 +29,10 @@ concurrency:
 jobs:
   build_operator:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        iteration: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     steps:
       - name: 'Check out repository'
