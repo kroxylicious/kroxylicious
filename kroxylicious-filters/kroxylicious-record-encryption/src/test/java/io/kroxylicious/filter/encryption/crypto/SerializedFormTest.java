@@ -81,20 +81,18 @@ class SerializedFormTest {
         var parcelBuffer = ByteBuffer.allocate(parcelSize);
         parcel.writeParcel(recordFields, record, parcelBuffer);
         parcelBuffer.flip();
-        String parcelHex = HexFormat.of().formatHex(parcelBuffer.array());
-        return parcelHex;
+        return HexFormat.of().formatHex(parcelBuffer.array());
     }
 
     private static RecordBatch recordBatch(String recordValueHex, Header[] headers) {
         final byte[] recordValueBytes = HexFormat.of().parseHex(recordValueHex);
-        RecordBatch batch = RecordTestUtils.singleElementMemoryRecords(
+        return RecordTestUtils.singleElementMemoryRecords(
                 headers == null ? RecordBatch.MAGIC_VALUE_V1 : RecordTestUtils.DEFAULT_MAGIC_VALUE,
                 RecordTestUtils.DEFAULT_OFFSET,
                 RecordTestUtils.DEFAULT_TIMESTAMP,
                 "hello".getBytes(StandardCharsets.UTF_8),
                 recordValueBytes,
                 headers).firstBatch();
-        return batch;
     }
 
     static List<Arguments> wrapperV2SerializedForm() {
@@ -116,23 +114,23 @@ class SerializedFormTest {
     void parcelV1SerializedForm(EnumSet<RecordField> recordFields, String recordValueHex, Header[] headers) {
         // given
         RecordBatch batch = recordBatch(recordValueHex, headers);
-        String expectedHeadersHex;
+        StringBuilder expectedHeadersHex;
         if (recordFields.contains(RecordField.RECORD_HEADER_VALUES)) {
             if (headers == null) {
-                expectedHeadersHex = varintAsHex(0); // TODO It seems that headers can never be null? but parcel V1 has (dead) code to use NULL_MARKER
+                expectedHeadersHex = new StringBuilder(varintAsHex(0)); // TODO It seems that headers can never be null? but parcel V1 has (dead) code to use NULL_MARKER
             }
             else {
-                expectedHeadersHex = varintAsHex(headers.length);
+                expectedHeadersHex = new StringBuilder(varintAsHex(headers.length));
                 for (var header : headers) {
-                    expectedHeadersHex += unsignedVarintAsHex(header.key().length());
-                    expectedHeadersHex += HexFormat.of().formatHex(header.key().getBytes(StandardCharsets.UTF_8));
-                    expectedHeadersHex += varintAsHex(header.value().length);
-                    expectedHeadersHex += HexFormat.of().formatHex(header.value());
+                    expectedHeadersHex.append(unsignedVarintAsHex(header.key().length()));
+                    expectedHeadersHex.append(HexFormat.of().formatHex(header.key().getBytes(StandardCharsets.UTF_8)));
+                    expectedHeadersHex.append(varintAsHex(header.value().length));
+                    expectedHeadersHex.append(HexFormat.of().formatHex(header.value()));
                 }
             }
         }
         else {
-            expectedHeadersHex = varintAsHex(ParcelV1.ABSENT_MARKER);
+            expectedHeadersHex = new StringBuilder(varintAsHex(ParcelV1.ABSENT_MARKER));
         }
         String expectedParcelHex = varintAsHex(recordValueHex.length() / 2)
                 + recordValueHex
