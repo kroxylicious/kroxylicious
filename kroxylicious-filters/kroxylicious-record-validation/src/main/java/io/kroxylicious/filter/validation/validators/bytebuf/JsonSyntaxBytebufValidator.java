@@ -51,6 +51,7 @@ class JsonSyntaxBytebufValidator implements BytebufValidator {
                 parser.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
             }
             while (parser.nextToken() != null) {
+                // consume all remaining tokens
             }
 
             return Result.VALID_RESULT_STAGE;
