@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.oauthbearer;
+package io.kroxylicious.filter.oauthbearer;
 
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
@@ -33,11 +33,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
+import io.kroxylicious.filter.oauthbearer.sasl.BackoffStrategy;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
-import io.kroxylicious.proxy.filter.oauthbearer.sasl.BackoffStrategy;
 
 import static io.kroxylicious.test.condition.kafka.SaslAuthenticateResponseDataCondition.saslAuthenticateResponseMatching;
 import static org.apache.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
