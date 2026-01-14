@@ -256,6 +256,7 @@ public abstract class AuthzIT extends BaseIT {
             // do nothing by default
         }
 
+        @SuppressWarnings("unused") // cluster is used in subclasses
         public Object observedVisibleSideEffects(BaseClusterFixture cluster) {
             return null;
         }

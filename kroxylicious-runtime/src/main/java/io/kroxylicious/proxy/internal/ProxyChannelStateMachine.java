@@ -531,12 +531,11 @@ public class ProxyChannelStateMachine {
     }
 
     private boolean onClientRequestInHaProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
-        return transitionClientRequest(msg, haProxy::toApiVersions, haProxy::toSelectingServer);
+        return transitionClientRequest(msg, haProxy::toSelectingServer);
     }
 
     private boolean transitionClientRequest(
                                             Object msg,
-                                            Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.ApiVersions> apiVersionsFactory,
                                             Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.SelectingServer> selectingServerFactory) {
         if (isMessageApiVersionsRequest(msg)) {
             // We know it's an API Versions request even if the compiler doesn't
@@ -558,19 +557,12 @@ public class ProxyChannelStateMachine {
             return true;
         }
         else {
-            return transitionClientRequest(msg, clientActive::toApiVersions, clientActive::toSelectingServer);
+            return transitionClientRequest(msg, clientActive::toSelectingServer);
         }
     }
 
     private void toHaProxy(ProxyChannelState.HaProxy haProxy) {
         setState(haProxy);
-    }
-
-    private void toApiVersions(
-                               ProxyChannelState.ApiVersions apiVersions,
-                               DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-        setState(apiVersions);
-        Objects.requireNonNull(frontendHandler).inApiVersions(apiVersionsFrame);
     }
 
     private void toSelectingServer(ProxyChannelState.SelectingServer selectingServer) {
