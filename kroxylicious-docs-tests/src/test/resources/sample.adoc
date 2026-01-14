@@ -209,3 +209,9 @@ Monitor:: Displays information in visual form using text and graphics.
 
 image::sunset.jpg[Sunset]
 
+=== Source block with Ampersands
+
+[source,terminal]
+----
+$ kubectl wait -n kms --for=condition=Ready pod/vault-0 && kubectl exec -n kms statefulsets/vault -- vault secrets enable transit
+----

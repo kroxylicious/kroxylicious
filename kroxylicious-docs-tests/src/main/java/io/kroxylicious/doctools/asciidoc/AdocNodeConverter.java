@@ -175,10 +175,11 @@ class AdocNodeConverter {
         // title
         result.append(getBlockNodeTitle(block));
         // body
+        Object content = block.getContent().toString().replace("&amp;", "&");
         return result
                 .append(symbols)
                 .append(LINE_SEPARATOR)
-                .append(block.getContent())
+                .append(content)
                 .append(LINE_SEPARATOR)
                 .append(symbols)
                 .append(LINE_SEPARATOR)
