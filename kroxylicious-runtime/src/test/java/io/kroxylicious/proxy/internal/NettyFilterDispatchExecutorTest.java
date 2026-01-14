@@ -355,7 +355,7 @@ class NettyFilterDispatchExecutorTest {
     void shutdownIsNoOp() {
         EventLoop mock = Mockito.mock();
         FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(mock);
-        dispatch.shutdownNow();
+        dispatch.shutdown();
         verifyNoInteractions(mock);
     }
 
