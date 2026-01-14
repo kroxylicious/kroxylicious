@@ -145,19 +145,13 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
     <#list messageSpecs?filter(ms -> ms.type?lower_case == 'request' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
         <#items as messageSpec>
-            <#assign specName>
-                <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
-            </#assign>
-    private static final Set<Short> ${specName?trim}_VERSIONS = Set.of(<#list messageSpec.entityFieldIntersectedVersions as version>(short) ${version}<#sep>, </#list>);
+    private static final Set<Short> ${retrieveApiKey(messageSpec)}_REQUEST_VERSIONS = Set.of(<#list messageSpec.entityFieldIntersectedVersions as version>(short) ${version}<#sep>, </#list>);
         </#items>
     </#list>
 
     <#list messageSpecs?filter(ms -> ms.type?lower_case == 'response' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
         <#items as messageSpec>
-            <#assign specName>
-            <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
-            </#assign>
-    private static final Set<Short> ${specName?trim}_VERSIONS = Set.of(<#list messageSpec.entityFieldIntersectedVersions as version>(short) ${version}<#sep>, </#list>);
+    private static final Set<Short> ${retrieveApiKey(messageSpec)}_RESPONSE_VERSIONS = Set.of(<#list messageSpec.entityFieldIntersectedVersions as version>(short) ${version}<#sep>, </#list>);
         </#items>
     </#list>
 
@@ -176,10 +170,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         return switch (apiKey) {
         <#list messageSpecs?filter(ms -> ms.type?lower_case == 'request' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
             <#items as messageSpec>
-                <#assign specName>
-                    <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
-                </#assign>
-            case ${retrieveApiKey(messageSpec)} -> inVersion(apiVersion, ${specName?trim}_VERSIONS);
+            case ${retrieveApiKey(messageSpec)} -> inVersion(apiVersion,  ${retrieveApiKey(messageSpec)}_REQUEST_VERSIONS);
             </#items>
         </#list>
             default -> false;
@@ -195,11 +186,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         return switch (apiKey) {
         <#list messageSpecs?filter(ms -> ms.type?lower_case == 'response' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
             <#items as messageSpec>
-                    <#assign specName>
-                        <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${
-                    word?c_upper_case}<#sep>_</#list>
-                    </#assign>
-            case ${retrieveApiKey(messageSpec)} -> inVersion(apiVersion, ${specName?trim}_VERSIONS);
+            case ${retrieveApiKey(messageSpec)} -> inVersion(apiVersion, ${retrieveApiKey(messageSpec)}_RESPONSE_VERSIONS);
             </#items>
         </#list>
         default -> false;
