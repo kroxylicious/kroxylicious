@@ -635,7 +635,7 @@ class ConfigurationTest {
                 null);
 
         // When
-        var model = configuration.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
+        var model = configuration.virtualClusterModel();
 
         // Then
         var directModel = model.stream().filter(x -> x.getClusterName().equals("direct")).findFirst().get();

@@ -141,7 +141,7 @@ public final class KafkaProxy implements AutoCloseable {
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
-        this.virtualClusterModels = config.virtualClusterModel(pfr);
+        this.virtualClusterModels = config.virtualClusterModel();
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
     }

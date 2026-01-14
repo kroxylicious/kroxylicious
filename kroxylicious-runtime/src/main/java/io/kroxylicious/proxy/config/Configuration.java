@@ -157,7 +157,7 @@ public record Configuration(
         return useIoUring();
     }
 
-    public List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
+    public List<VirtualClusterModel> virtualClusterModel() {
         var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
                 .stream()
                 .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
