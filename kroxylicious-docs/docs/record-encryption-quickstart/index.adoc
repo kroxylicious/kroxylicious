@@ -96,8 +96,6 @@ Note that Record Encryption requires the Transit Secrets Engine, which must be e
 ----
 $ helm repo add --force-update hashicorp https://helm.releases.hashicorp.com
 $ helm upgrade --install vault hashicorp/vault --namespace kms --create-namespace --version {vault-chart-version} --set server.dev.enabled=true,server.dev.devRootToken=myroottoken --wait
-$ kubectl get -A statefulsets -o yaml
-$ kubectl get -A pods -n kms -o yaml
 ----
 
 And enable the Transit Secrets Engine.
