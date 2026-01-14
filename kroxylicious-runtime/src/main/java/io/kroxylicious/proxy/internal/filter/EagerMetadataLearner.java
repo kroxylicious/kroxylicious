@@ -39,7 +39,7 @@ public class EagerMetadataLearner implements RequestFilter {
     /**
      * The set of the API keys that are permitted before the client would normally send a METADATA request.
      */
-    private final static Set<ApiKeys> KAFKA_PRELUDE = Set.of(ApiKeys.API_VERSIONS, ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_AUTHENTICATE);
+    private static final Set<ApiKeys> KAFKA_PRELUDE = Set.of(ApiKeys.API_VERSIONS, ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_AUTHENTICATE);
 
     /**
      * Create EagerMetadataLearner

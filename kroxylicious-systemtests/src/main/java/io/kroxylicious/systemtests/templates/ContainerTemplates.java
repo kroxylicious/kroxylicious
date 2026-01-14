@@ -36,7 +36,7 @@ public class ContainerTemplates {
      * @param image         image
      * @return container builder
      */
-    public synchronized static ContainerBuilder baseImageBuilder(String containerName, String image) {
+    public static synchronized ContainerBuilder baseImageBuilder(String containerName, String image) {
         var imagePullPolicy = Constants.PULL_IMAGE_IF_NOT_PRESENT;
         String lowerCaseImage = image.toLowerCase();
         if (SNAPSHOT_STRINGS.stream().anyMatch(lowerCaseImage::contains) && !snapshotImagesPulledOnce.contains(image)) {
