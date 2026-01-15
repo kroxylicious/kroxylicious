@@ -228,22 +228,19 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 <#list messageSpecs?filter(ms -> ms.type?lower_case == 'request' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
     <#items as messageSpec>
                 case ${retrieveApiKey(messageSpec)} -> {
-                    <#assign specName>
-                      <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
-                    </#assign>
                     <#assign dataClass="${messageSpec.name}Data" dataVar="${messageSpec.name?uncap_first}Data"/>
                     var ${dataVar} = (${dataClass}) request;
                     LOGGER.atDebug()
                             .addArgument(context.sessionId())
                             .addArgument(aid)
                             .addArgument(${dataVar})
-                            .log("{} for {}: request ${specName?trim}: {}");
+                            .log("{} for {}: request ${retrieveApiKey(messageSpec)}: {}");
                     <@mapRequestFields messageSpec dataVar messageSpec.fields 5/>
                     LOGGER.atDebug()
                             .addArgument(context.sessionId())
                             .addArgument(aid)
                             .addArgument(${dataVar})
-                            .log("{} for {}: request result ${specName?trim}: {}");
+                            .log("{} for {}: request result ${retrieveApiKey(messageSpec)}: {}");
                 }
     </#items>
 </#list>
@@ -307,22 +304,19 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 <#list messageSpecs?filter(ms -> ms.type?lower_case == 'response' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
     <#items as messageSpec>
                 case ${retrieveApiKey(messageSpec)} -> {
-                    <#assign specName>
-                        <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
-                    </#assign>
                     <#assign dataClass="${messageSpec.name}Data" dataVar="${messageSpec.name?uncap_first}Data"/>
                         var ${dataVar} = (${dataClass}) response;
                     LOGGER.atDebug()
                             .addArgument(context.sessionId())
                             .addArgument(aid)
                             .addArgument(${dataVar})
-                            .log("{} for {}: response ${specName?trim}: {}");
+                            .log("{} for {}: response ${retrieveApiKey(messageSpec)}: {}");
                     <@mapAndFilterResponseFields messageSpec "" dataVar dataClass messageSpec.fields 5/>
                     LOGGER.atDebug()
                             .addArgument(context.sessionId())
                             .addArgument(aid)
                             .addArgument(${dataVar})
-                            .log("{} for {}: response result ${specName?trim}: {}");
+                            .log("{} for {}: response result ${retrieveApiKey(messageSpec)}: {}");
                 }
     </#items>
 </#list>
