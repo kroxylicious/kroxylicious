@@ -82,6 +82,26 @@ ${pad}}
         </#items>
     </#list>
 </#macro>
+<#macro writeFieldConstants messageSpec stem fields>
+    <#list fields?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
+        <#items as field>
+    private static final Set<Short> ${field.name?upper_case}_${stem}_${messageSpec.type} = <@fieldVersionSet messageSpec field.versions/>;
+        </#items>
+    </#list>
+<#--    <#list fields?filter(field -> field.type.isArray && field.fields?size != 0) >-->
+<#--        ${pad}// recursively process sub-fields-->
+<#--        <#items as field>-->
+<#--            <#local getter="${field.name?uncap_first}()" />-->
+<#--            <#local elementVar=field.type?remove_beginning("[]")?uncap_first />-->
+<#--            ${pad}if (inVersion(header.requestApiVersion(), <@fieldVersionSet messageSpec field.versions/>) && ${dataVar}.${getter} != null) {-->
+<#--            ${pad}    ${dataVar}.${getter}.forEach(${elementVar} -> {-->
+<#--            <@mapRequestFields messageSpec elementVar field.fields indent + 1 />-->
+<#--            ${pad}    });-->
+<#--            ${pad}}-->
+<#--        </#items>-->
+<#--    </#list>-->
+</#macro>
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements. See the NOTICE file distributed with
@@ -145,7 +165,9 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
     <#list messageSpecs?filter(ms -> ms.type?lower_case == 'request' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
         <#items as messageSpec>
-    private static final Set<Short> ${retrieveApiKey(messageSpec)}_REQUEST_VERSIONS = Set.of(<#list messageSpec.intersectedVersionsForEntityFields(filteredEntityTypes) as version>(short) ${version}<#sep>, </#list>);
+            <#assign key=retrieveApiKey(messageSpec)/>
+    private static final Set<Short> ${key}_REQUEST_VERSIONS = Set.of(<#list messageSpec.intersectedVersionsForEntityFields(filteredEntityTypes) as version>(short) ${version}<#sep>, </#list>);
+            <@writeFieldConstants messageSpec key messageSpec.fields/>
         </#items>
     </#list>
 
