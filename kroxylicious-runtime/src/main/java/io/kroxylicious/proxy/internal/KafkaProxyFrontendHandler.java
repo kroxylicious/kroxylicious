@@ -37,6 +37,8 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
@@ -201,6 +203,11 @@ public class KafkaProxyFrontendHandler
                 && handshakeCompletionEvent.isSuccess()) {
             this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder, this::onTransportSubjectBuilt);
         }
+        else if (event instanceof IdleStateEvent idleStateEvent && idleStateEvent.state() == IdleState.ALL_IDLE) {
+                // No traffic has been observed on the channel for the configured period
+                proxyChannelStateMachine.onClientIdle();
+            }
+
         super.userEventTriggered(ctx, event);
     }
 
@@ -633,7 +640,7 @@ public class KafkaProxyFrontendHandler
         }
         if (!Objects.isNull(idleTimeSeconds)) {
             channelPipeline.addFirst("authenticatedSessionIdleHandler",
-                    new IdleStateHandler(idleTimeSeconds, idleTimeSeconds, idleTimeSeconds, TimeUnit.SECONDS));
+                    new IdleStateHandler(0, 0, idleTimeSeconds, TimeUnit.SECONDS));
         }
     }
 
