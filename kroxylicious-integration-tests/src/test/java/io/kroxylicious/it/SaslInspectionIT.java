@@ -66,7 +66,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
-@SuppressWarnings("java:S5976") // Ignoring 'replace these n tests with a single parameterized one' - we are using the annotated parameters that a parameterized test wouldn't handle nicely.
+@SuppressWarnings({ "java:S5976",
+        "DefaultAnnotationParam" })
+        // Ignoring 'replace these n tests with a single parameterized one' - we are using the annotated parameters that a parameterized test wouldn't handle nicely.
+        // Also ignore a warning about assigning the default value in annotations. Explicit is better than implicit especially in tests
 class SaslInspectionIT extends BaseIT {
 
     /**
