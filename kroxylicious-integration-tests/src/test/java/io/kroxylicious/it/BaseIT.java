@@ -92,7 +92,8 @@ public abstract class BaseIT {
                                           Map<String, Object> consumerConfig,
                                           int numBatches,
                                           BiConsumer<Integer, ConsumerRecords<String, byte[]>> recordConsumer) {
-        sendReceiveBatches(tester, topic, producerConfig, consumerConfig, numBatches, kroxyliciousTester -> {}, recordConsumer);
+        sendReceiveBatches(tester, topic, producerConfig, consumerConfig, numBatches, kroxyliciousTester -> {
+        }, recordConsumer);
     }
 
     public static void sendReceiveBatches(KroxyliciousTester tester,
