@@ -30,6 +30,7 @@ class VersionsModel implements TemplateHashModel, TemplateScalarModel, TemplateS
         return switch (key) {
             case "highest" -> wrapper.wrap(versions.highest());
             case "lowest" -> wrapper.wrap(versions.lowest());
+            case "range" -> wrapper.wrap(versions.range());
             case "intersect" -> wrapper.wrap((TemplateMethodModelEx) args -> {
                 Object o = args.get(0);
                 return versions.intersect(((VersionsModel) o).versions);

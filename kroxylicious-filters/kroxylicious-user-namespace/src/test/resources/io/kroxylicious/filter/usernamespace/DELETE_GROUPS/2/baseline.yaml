@@ -1,0 +1,29 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: DELETE_GROUPS
+  version: 2
+  request:
+    payload:
+      groupsNames: [mygroup]
+      timeoutMs: 0
+      validateOnly: false
+    diff:
+      - op: replace
+        path: "/groupsNames/0"
+        value: tenant1-mygroup
+  response:
+    payload:
+      results:
+        - groupId: tenant1-mygroup
+          errorCode: 0
+          errorMessage:
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/results/0/groupId"
+        value: mygroup
+  disabled: false

@@ -12,9 +12,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.util.StdConverter;
 
+@JsonDeserialize(converter = FieldSpec.FieldSpecAugmenter.class)
 public final class FieldSpec {
     private static final Pattern VALID_FIELD_NAMES = Pattern.compile("[A-Za-z]([A-Za-z0-9]*)");
 
@@ -22,7 +27,11 @@ public final class FieldSpec {
 
     private final Versions versions;
 
+    @JsonManagedReference
     private final List<FieldSpec> fields;
+
+    @JsonBackReference
+    private FieldSpec parent;
 
     private final FieldType type;
 
@@ -245,4 +254,39 @@ public final class FieldSpec {
         return zeroCopy;
     }
 
+    private void setParent(FieldSpec parent) {
+        this.parent = parent;
+    }
+
+    public FieldSpec parent() {
+        return this.parent;
+    }
+
+    @Override
+    public String toString() {
+        return "FieldSpec{" +
+                "name='" + name + '\'' +
+                ", versions=" + versions +
+                ", fields=" + fields +
+                ", type=" + type +
+                ", mapKey=" + mapKey +
+                ", nullableVersions=" + nullableVersions +
+                ", fieldDefault='" + fieldDefault + '\'' +
+                ", ignorable=" + ignorable +
+                ", entityType=" + entityType +
+                ", about='" + about + '\'' +
+                ", taggedVersions=" + taggedVersions +
+                ", flexibleVersions=" + flexibleVersions +
+                ", tag=" + tag +
+                ", zeroCopy=" + zeroCopy +
+                '}';
+    }
+
+    public static class FieldSpecAugmenter extends StdConverter<FieldSpec, FieldSpec> {
+        @Override
+        public FieldSpec convert(FieldSpec value) {
+            value.fields().forEach(f -> f.setParent(value));
+            return value;
+        }
+    }
 }

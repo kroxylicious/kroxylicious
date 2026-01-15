@@ -31,14 +31,11 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-
+import io.kroxylicious.krpccodegen.model.EntityTypeSetFactory;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
+import io.kroxylicious.krpccodegen.model.MessageSpecParser;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
+import io.kroxylicious.krpccodegen.model.RetrieveApiListeners;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 import io.kroxylicious.krpccodegen.schema.StructRegistry;
 import io.kroxylicious.krpccodegen.schema.Versions;
@@ -176,16 +173,6 @@ public class KrpcGenerator {
     enum GeneratorMode {
         SINGLE,
         MULTI;
-    }
-
-    static final ObjectMapper JSON_SERDE = new ObjectMapper();
-
-    static {
-        JSON_SERDE.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        JSON_SERDE.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
-        JSON_SERDE.configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, true);
-        JSON_SERDE.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
-        JSON_SERDE.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
     }
 
     private final Logger logger;
@@ -361,27 +348,17 @@ public class KrpcGenerator {
     private long renderMulti(Configuration cfg, Set<MessageSpec> messageSpecs) {
         logger.log(Level.DEBUG, "Processing message specs");
 
-        // TODO not actually used right now
-        // var structRegistry = new StructRegistry();
-        // try {
-        // for (MessageSpec messageSpec : messageSpecs) {
-        // structRegistry.register(messageSpec);
-        // }
-        // }
-        // catch (Exception e) {
-        // throw new RuntimeException(e);
-        // }
         return templateNames.stream().mapToLong(templateName -> {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
-                // TODO support output to stdout via `-`
                 return writeIfChanged(outputDir, outputFile(outputFilePattern, null, templateName), (writer, finalFile) -> {
                     Map<String, Object> dataModel = Map.of(
-                            // "structRegistry", structRegistry,
                             "outputPackage", outputPackage,
                             "messageSpecs", messageSpecs,
-                            "retrieveApiKey", new RetrieveApiKey());
+                            "retrieveApiKey", new RetrieveApiKey(),
+                            "createEntityTypeSet", new EntityTypeSetFactory(),
+                            "retrieveApiListener", new RetrieveApiListeners(messageSpecs));
                     template.process(dataModel, writer);
                 });
             }
@@ -407,11 +384,12 @@ public class KrpcGenerator {
             throw new UncheckedIOException(e);
         }
 
+        var messageSpecParser = new MessageSpecParser();
         return paths.stream()
                 .map(inputPath -> {
                     try {
                         logger.log(Level.DEBUG, "Parsing message spec {0}", inputPath);
-                        MessageSpec messageSpec = JSON_SERDE.readValue(inputPath.toFile(), MessageSpec.class);
+                        MessageSpec messageSpec = messageSpecParser.getMessageSpec(inputPath);
                         logger.log(Level.DEBUG, "Loaded {0} from {1}", messageSpec.name(), inputPath);
                         return messageSpec;
                     }
@@ -434,7 +412,7 @@ public class KrpcGenerator {
         cfg.setDirectoryForTemplateLoading(templateDir);
 
         // From here we will set the settings recommended for new projects. These
-        // aren't the defaults for backward compatibilty.
+        // aren't the defaults for backward compatibility.
 
         // Set the preferred charset template files are stored in. UTF-8 is
         // a good choice in most applications:
