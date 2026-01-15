@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,11 +34,19 @@ import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.management.ReflectionException;
 
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.AlterConfigOp;
+import org.apache.kafka.clients.admin.ConfigEntry;
+import org.apache.kafka.clients.admin.FeatureUpdate;
+import org.apache.kafka.clients.admin.FeatureUpdate.UpgradeType;
+import org.apache.kafka.clients.admin.UpdateFeaturesOptions;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.KafkaShareConsumer;
+import org.apache.kafka.clients.consumer.ShareConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -45,10 +54,15 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.coordinator.group.GroupConfig;
+import org.apache.kafka.server.common.Feature;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowingConsumer;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,6 +84,7 @@ import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeInvocationContextProvider;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.test.tester.SimpleMetricAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
@@ -99,6 +114,7 @@ class RecordEncryptionFilterIT {
     private static final String TEMPLATE_KEK_SELECTOR_PATTERN = "$(topicName)";
     private static final String HELLO_WORLD = "hello world";
     private static final String HELLO_SECRET = "hello secret";
+    public static final String ENCRYPTION_SHARE_CONSUMER = "encryption-share-consumer";
 
     @TestTemplate
     void roundTripSingleRecord(KafkaCluster cluster,
@@ -128,6 +144,58 @@ class RecordEncryptionFilterIT {
                     .extracting(ConsumerRecord::value)
                     .isEqualTo(HELLO_WORLD);
         }
+    }
+
+    @TestTemplate
+    void roundTripShareGroup(
+                             @BrokerConfig(name = "share.coordinator.state.topic.replication.factor", value = "1") @BrokerConfig(name = "share.coordinator.state.topic.min.isr", value = "1") KafkaCluster cluster,
+                             @TopicNameMethodSource Topic topic,
+                             TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer();
+                var admin = tester.admin();
+                ShareConsumer<String, String> shareConsumer = new KafkaShareConsumer<>(shareConsumerConfig(tester))) {
+            prepareClusterForShareGroups(admin);
+            shareConsumer.subscribe(List.of(topic.name()));
+            producer.send(new ProducerRecord<>(topic.name(), HELLO_WORLD)).get(5, TimeUnit.SECONDS);
+            Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
+                var records = shareConsumer.poll(Duration.ofSeconds(1));
+                assertThat(records.iterator())
+                        .toIterable()
+                        .singleElement()
+                        .extracting(ConsumerRecord::value)
+                        .isEqualTo(HELLO_WORLD);
+            });
+        }
+    }
+
+    private static void prepareClusterForShareGroups(Admin admin) throws InterruptedException, ExecutionException {
+        // this feature update should be removable in Kafka 4.2 when share groups become stable/enabled-by-default
+        FeatureUpdate featureUpdate = new FeatureUpdate((short) 1, UpgradeType.UPGRADE);
+        Map<String, FeatureUpdate> featureUpdates = Map.of(Feature.SHARE_VERSION.featureName(), featureUpdate);
+        admin.updateFeatures(featureUpdates, new UpdateFeaturesOptions()).all().get();
+        ConfigResource configResource = new ConfigResource(ConfigResource.Type.GROUP, ENCRYPTION_SHARE_CONSUMER);
+        ConfigEntry autoOffsetReset = new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest");
+        List<AlterConfigOp> alterConfig = List.of(new AlterConfigOp(autoOffsetReset, AlterConfigOp.OpType.SET));
+        admin.incrementalAlterConfigs(Map.of(configResource, alterConfig)).all().get();
+    }
+
+    private static Map<String, Object> shareConsumerConfig(KroxyliciousTester tester) {
+        Map<String, Object> clientConfig = tester.clientConfiguration();
+        clientConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        clientConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        clientConfig.put(ConsumerConfig.GROUP_ID_CONFIG, ENCRYPTION_SHARE_CONSUMER);
+        return clientConfig;
     }
 
     // Covers a bug, #2504, where large record batches failed to be encrypted. This occurred when the encrypted output for a record batch exceeded
@@ -527,6 +595,44 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
+    void unencryptedRecordsConsumableByShareConsumer(
+                                                     @BrokerConfig(name = "share.coordinator.state.topic.replication.factor", value = "1") @BrokerConfig(name = "share.coordinator.state.topic.min.isr", value = "1") KafkaCluster cluster,
+                                                     KafkaProducer<String, String> directProducer,
+                                                     @TopicNameMethodSource Topic topic,
+                                                     TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer();
+                var admin = tester.admin();
+                var consumer = new KafkaShareConsumer<>(shareConsumerConfig(tester))) {
+            prepareClusterForShareGroups(admin);
+
+            // messages produced via Kroxylicious will be encrypted
+            producer.send(new ProducerRecord<>(topic.name(), HELLO_SECRET)).get(5, TimeUnit.SECONDS);
+
+            // messages produced direct will be plain
+            directProducer.send(new ProducerRecord<>(topic.name(), HELLO_WORLD)).get(5, TimeUnit.SECONDS);
+
+            consumer.subscribe(List.of(topic.name()));
+            Awaitility.await().untilAsserted(() -> {
+                var records = consumer.poll(Duration.ofSeconds(2));
+                assertThat(records.iterator()).toIterable()
+                        .hasSize(2)
+                        .map(ConsumerRecord::value)
+                        .contains(HELLO_SECRET, HELLO_WORLD);
+            });
+        }
+    }
+
+    @TestTemplate
     void nullValueRecordProducedAndConsumedSuccessfully(KafkaCluster cluster,
                                                         @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "test") Consumer<String, String> directConsumer,
                                                         @TopicNameMethodSource Topic topic,
@@ -547,20 +653,52 @@ class RecordEncryptionFilterIT {
             String message = null;
             producer.send(new ProducerRecord<>(topic.name(), message)).get(5, TimeUnit.SECONDS);
 
-            assertOnlyValueInTopicHasNullValue(consumer, topic.name());
+            assertOnlyValueInTopicHasNullValue(topic.name(), consumer::subscribe, consumer::poll);
             // test that the null-value is preserved in Kafka to keep compaction tombstoning working
-            assertOnlyValueInTopicHasNullValue(directConsumer, topic.name());
+            assertOnlyValueInTopicHasNullValue(topic.name(), directConsumer::subscribe, directConsumer::poll);
         }
     }
 
-    private static void assertOnlyValueInTopicHasNullValue(Consumer<String, String> consumer, String topic) {
-        consumer.subscribe(List.of(topic));
-        var records = consumer.poll(Duration.ofSeconds(2));
-        assertThat(records.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(ConsumerRecord::value)
-                .isNull();
+    @TestTemplate
+    void nullValueRecordProducedAndConsumedSuccessfullyByShareConsumer(
+                                                                       @BrokerConfig(name = "share.coordinator.state.topic.replication.factor", value = "1") @BrokerConfig(name = "share.coordinator.state.topic.min.isr", value = "1") KafkaCluster cluster,
+                                                                       @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "test") Consumer<String, String> directConsumer,
+                                                                       @TopicNameMethodSource Topic topic,
+                                                                       TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer();
+                var admin = tester.admin();
+                var consumer = new KafkaShareConsumer<>(shareConsumerConfig(tester))) {
+            prepareClusterForShareGroups(admin);
+            String message = null;
+            producer.send(new ProducerRecord<>(topic.name(), message)).get(5, TimeUnit.SECONDS);
+
+            assertOnlyValueInTopicHasNullValue(topic.name(), consumer::subscribe, consumer::poll);
+            // test that the null-value is preserved in Kafka to keep compaction tombstoning working
+            assertOnlyValueInTopicHasNullValue(topic.name(), directConsumer::subscribe, directConsumer::poll);
+        }
+    }
+
+    private static <K, V> void assertOnlyValueInTopicHasNullValue(String topic, java.util.function.Consumer<List<String>> subscribeFunc,
+                                                                  java.util.function.Function<Duration, ConsumerRecords<K, V>> pollFunc) {
+        subscribeFunc.accept(List.of(topic));
+        Awaitility.await().untilAsserted(() -> {
+            var records = pollFunc.apply(Duration.ofSeconds(2));
+            assertThat(records.iterator())
+                    .toIterable()
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isNull();
+        });
     }
 
     @TestTemplate
@@ -816,6 +954,41 @@ class RecordEncryptionFilterIT {
             assertThatThrownBy(() -> consumer.poll(timeout))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Unexpected error code 91 while fetching at offset 0 from topic-partition " + topic.name() + "-0");
+        }
+    }
+
+    @TestTemplate
+    void shareGroupConsumeFailsAfterKekDeleted(@BrokerConfig(name = "share.coordinator.state.topic.replication.factor", value = "1") @BrokerConfig(name = "share.coordinator.state.topic.min.isr", value = "1") KafkaCluster cluster,
+                                               @TopicNameMethodSource Topic topic,
+                                               TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws ExecutionException, InterruptedException {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer();
+                var admin = tester.admin();
+                var consumer = new KafkaShareConsumer<>(shareConsumerConfig(tester))) {
+            prepareClusterForShareGroups(admin);
+            var timeout = Duration.ofSeconds(5);
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), HELLO_WORLD)))
+                    .succeedsWithin(timeout);
+
+            testKekManager.deleteKek(topic.name());
+
+            consumer.subscribe(List.of(topic.name()));
+
+            Awaitility.await().untilAsserted(() -> {
+                assertThatThrownBy(() -> consumer.poll(timeout))
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("Unexpected error code 91 while fetching from topic-partition " + topic.name() + "-0");
+            });
         }
     }
 
