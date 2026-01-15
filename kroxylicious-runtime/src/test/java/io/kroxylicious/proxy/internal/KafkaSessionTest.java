@@ -56,6 +56,17 @@ class KafkaSessionTest {
         assertThat(a).isEqualTo(b);
     }
 
+    @SuppressWarnings("EqualsWithItself") // We are testing the equals impl
+    @Test
+    void shouldConsiderSameInstanceEqual() {
+        // Given
+        KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+
+        // When
+        // Then
+        assertThat(a).isEqualTo(a);
+    }
+
     @Test
     void shouldConsiderSessionsWithDifferentIdsNotEqual() {
         // Given
@@ -65,6 +76,27 @@ class KafkaSessionTest {
         // When
         // Then
         assertThat(a).isNotEqualTo(b);
+    }
+
+    @SuppressWarnings("AssertBetweenInconvertibleTypes") // testing that the equals method handles inconvertible types
+    @Test
+    void shouldConsiderDifferentTypesAsNotEqual() {
+        // Given
+        KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+
+        // When
+        // Then
+        assertThat(a).isNotEqualTo("Wibble");
+    }
+
+    @Test
+    void shouldConsiderNullAsNotEqual() {
+        // Given
+        KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+
+        // When
+        // Then
+        assertThat(a).isNotEqualTo(null);
     }
 
     @Test
