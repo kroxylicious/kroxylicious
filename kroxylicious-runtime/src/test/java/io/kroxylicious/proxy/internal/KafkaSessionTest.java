@@ -14,11 +14,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class KafkaSessionTest {
 
+    private static final String SESSION_ID = "testSession";
+
     @ParameterizedTest
     @EnumSource(KafkaSessionState.class)
     void shouldTransitionTo(KafkaSessionState target) {
         // Given
-        KafkaSession kafkaSession = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
+        KafkaSession kafkaSession = new KafkaSession(SESSION_ID, KafkaSessionState.NOT_AUTHENTICATED);
 
         // When
         KafkaSession actualSession = kafkaSession.transitionTo(target);
@@ -41,5 +43,71 @@ class KafkaSessionTest {
 
         // Then
         assertThat(kafkaSession.sessionId()).isNotNull();
+    }
+
+    @Test
+    void shouldConsiderEqualObjectEqual() {
+        // Given
+        KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+        KafkaSession b = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+
+        // When
+        // Then
+        assertThat(a).isEqualTo(b);
+    }
+
+    @Test
+    void shouldConsiderSessionsWithDifferentIdsNotEqual() {
+        // Given
+        KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+        KafkaSession b = new KafkaSession("session2", KafkaSessionState.ESTABLISHING);
+
+        // When
+        // Then
+        assertThat(a).isNotEqualTo(b);
+    }
+
+    @Test
+    void shouldConsiderSessionsWithDifferentStatesNotEqual() {
+        // Given
+        KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+        KafkaSession b = new KafkaSession(SESSION_ID, KafkaSessionState.AUTHENTICATED);
+
+        // When
+        // Then
+        assertThat(a).isNotEqualTo(b);
+    }
+
+    @Test
+    void shouldConsiderGenerateSameHashCodeForIdenticalObjects() {
+        // Given
+        KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+        KafkaSession b = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+
+        // When
+        // Then
+        assertThat(a).hasSameHashCodeAs(b);
+    }
+
+    @Test
+    void shouldGiveSessionsWithDifferentIdsDifferentHashCode() {
+        // Given
+        KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+        KafkaSession b = new KafkaSession("session2", KafkaSessionState.ESTABLISHING);
+
+        // When
+        // Then
+        assertThat(a).doesNotHaveSameHashCodeAs(b);
+    }
+
+    @Test
+    void shouldGiveSessionsWithDifferentStatesDifferentHashCode() {
+        // Given
+        KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
+        KafkaSession b = new KafkaSession(SESSION_ID, KafkaSessionState.AUTHENTICATED);
+
+        // When
+        // Then
+        assertThat(a).doesNotHaveSameHashCodeAs(b);
     }
 }
