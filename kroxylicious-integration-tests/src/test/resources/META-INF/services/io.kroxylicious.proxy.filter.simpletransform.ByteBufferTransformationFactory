@@ -4,5 +4,5 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-io.kroxylicious.proxy.TestDecoderFactory
-io.kroxylicious.proxy.TestEncoderFactory
+io.kroxylicious.it.TestDecoderFactory
+io.kroxylicious.it.TestEncoderFactory

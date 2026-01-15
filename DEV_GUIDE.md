@@ -265,7 +265,7 @@ as a suggestion if you used sdkman to install it).
 
 In the IDEA Maven dialogue click on `Generate Sources and Update Folders For All Projects`.
 
-Build the entire project by running `Build > Build Project` and then check that you can run `io.kroxylicious.proxy.FilterIT`
+Build the entire project by running `Build > Build Project` and then check that you can run `io.kroxylicious.it.FilterIT`
 
 If you encounter any further issues with generated sources, you can try running `mvn clean install -DskipTests` again or running 
 `Generate Sources and Update Folders` for the specific module that is having problems.
