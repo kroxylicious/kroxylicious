@@ -147,8 +147,8 @@ class KafkaProxyInitializerTest {
                 argument -> assertThat(argument).isInstanceOfSatisfying(IdleStateHandler.class,
                         actualIdleStateHandler -> {
                             assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(CONFIGURED_IDLE_DURATION_MILLIS);
-                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isEqualTo(CONFIGURED_IDLE_DURATION_MILLIS);
-                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isEqualTo(CONFIGURED_IDLE_DURATION_MILLIS);
+                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isZero();
+                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isZero();
                         })));
     }
 
@@ -166,8 +166,8 @@ class KafkaProxyInitializerTest {
                 argument -> assertThat(argument).isInstanceOfSatisfying(IdleStateHandler.class,
                         actualIdleStateHandler -> {
                             assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(DEFAULT_IDLE_DURATION_MILLIS);
-                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isEqualTo(DEFAULT_IDLE_DURATION_MILLIS);
-                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isEqualTo(DEFAULT_IDLE_DURATION_MILLIS);
+                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isZero();
+                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isZero();
                         })));
     }
 
