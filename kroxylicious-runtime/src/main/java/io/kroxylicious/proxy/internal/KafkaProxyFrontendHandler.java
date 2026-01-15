@@ -204,9 +204,9 @@ public class KafkaProxyFrontendHandler
             this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder, this::onTransportSubjectBuilt);
         }
         else if (event instanceof IdleStateEvent idleStateEvent && idleStateEvent.state() == IdleState.ALL_IDLE) {
-                // No traffic has been observed on the channel for the configured period
-                proxyChannelStateMachine.onClientIdle();
-            }
+            // No traffic has been observed on the channel for the configured period
+            proxyChannelStateMachine.onClientIdle();
+        }
 
         super.userEventTriggered(ctx, event);
     }

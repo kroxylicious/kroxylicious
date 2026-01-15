@@ -68,8 +68,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(NettyLeakDetectorExtension.class)
 @SuppressWarnings({ "java:S5976",
         "DefaultAnnotationParam" })
-        // Ignoring 'replace these n tests with a single parameterized one' - we are using the annotated parameters that a parameterized test wouldn't handle nicely.
-        // Also ignore a warning about assigning the default value in annotations. Explicit is better than implicit especially in tests
+// Ignoring 'replace these n tests with a single parameterized one' - we are using the annotated parameters that a parameterized test wouldn't handle nicely.
+// Also ignore a warning about assigning the default value in annotations. Explicit is better than implicit especially in tests
 class SaslInspectionIT extends BaseIT {
 
     /**
@@ -323,9 +323,10 @@ class SaslInspectionIT extends BaseIT {
                         List.of(new io.kroxylicious.proxy.internal.subject.Map("/(.*)/$1/U", null)), UserFactory.class.getName())));
 
         var expectedUpperCasedUserName = username.toUpperCase(Locale.ROOT);
-        assertClientsCanAccessCluster(cluster, topic, mechanism, subjectBuilderConfig, 2, clientLoginModule, username, password, headers -> HeadersAssert.assertThat(headers)
-                .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
-                .hasValueEqualTo("Subject[principals=[User[name=%s]]]".formatted(expectedUpperCasedUserName)));
+        assertClientsCanAccessCluster(cluster, topic, mechanism, subjectBuilderConfig, 2, clientLoginModule, username, password,
+                headers -> HeadersAssert.assertThat(headers)
+                        .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
+                        .hasValueEqualTo("Subject[principals=[User[name=%s]]]".formatted(expectedUpperCasedUserName)));
     }
 
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
