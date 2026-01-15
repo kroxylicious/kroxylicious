@@ -6,8 +6,16 @@
 
 package io.kroxylicious.proxy.internal;
 
+import io.kroxylicious.proxy.filter.FilterContext;
+
 /**
  * Describes the possible states of a Kafka session as viewed from the proxy
+ * Generally we expect a Kafka Session to transition through one of the two following sequences.
+ * The simplest model where there are is no detectable authentication: {@code ESTABLISHING -> NOT_AUTHENTICATED -> TERMINATING}
+ * The second workflow where we can detect a set of client credentials (either M_TLS or SASL via an invocation of {@link FilterContext#clientSaslAuthenticationFailure(String, String, Exception)}):
+ * {@code ESTABLISHING -> NOT_AUTHENTICATED -> AUTHENTICATED -> TERMINATING}
+ *
+ * Note the session can transition to {@code TERMINATING} from any other state at any time.
  */
 public enum KafkaSessionState {
     /**
