@@ -100,6 +100,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private void initPlainChannel(Channel ch) {
         ch.pipeline().addLast("plainResolver", new ChannelInboundHandlerAdapter() {
+            @SuppressWarnings("java:S1181")
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
 
@@ -125,8 +126,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         });
     }
 
-    // deep inheritance tree of SniHandler not something we can fix
-    @SuppressWarnings({ "java:S110" })
+    // deep inheritance tree of SniHandler not something we can fix, throwable is the right choice as we are forwarding it on.
+    @SuppressWarnings({ "java:S110", "java:S1181" })
     private void initTlsChannel(Channel ch) {
         LOGGER.debug("Adding SSL/SNI handler");
         ch.pipeline().addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
@@ -257,7 +258,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     private void addIdleHandlerToPipeline(ChannelPipeline pipeline) {
-        pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(idleSeconds, idleSeconds, idleSeconds, TimeUnit.SECONDS));
+        pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(0, 0, idleSeconds, TimeUnit.SECONDS));
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")

@@ -51,6 +51,7 @@ public class Metrics {
     private static final String CLIENT_TO_PROXY_ERROR_BASE_METER_NAME = "kroxylicious_client_to_proxy_errors";
     private static final String PROXY_TO_SERVER_ERROR_BASE_METER_NAME = "kroxylicious_proxy_to_server_errors";
     private static final String CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_connections";
+    private static final String CLIENT_TO_PROXY_IDLE_DISCONNECTS_BASE_METER_NAME = "kroxylicious_client_to_proxy_idle_disconnects";
     private static final String PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_connections";
     private static final String KROXYLICIOUS_SERVER_TO_PROXY_READS_PAUSED_NAME = "kroxylicious_server_to_proxy_reads_paused";
     private static final String KROXYLICIOUS_CLIENT_TO_PROXY_READS_PAUSED_NAME = "kroxylicious_client_to_proxy_reads_paused";
@@ -133,6 +134,12 @@ public class Metrics {
     public static MeterProvider<Counter> clientToProxyConnectionCounter(String clusterName, @Nullable Integer nodeId) {
         return buildCounterMeterProvider(CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME,
                 "Count of the number of times a connection is accepted from the clients.", clusterName,
+                nodeId);
+    }
+
+    public static MeterProvider<Counter> clientToProxyIdleDisconnectsCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(CLIENT_TO_PROXY_IDLE_DISCONNECTS_BASE_METER_NAME,
+                "Count of the number of times a connections from clients are disconnected for being idle.", clusterName,
                 nodeId);
     }
 
@@ -305,4 +312,5 @@ public class Metrics {
             new NettyAllocatorMetrics(byteBufAllocatorMetricProvider).bindTo(globalRegistry);
         }
     }
+
 }
