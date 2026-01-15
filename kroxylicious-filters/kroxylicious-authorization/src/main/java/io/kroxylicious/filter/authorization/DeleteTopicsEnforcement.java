@@ -107,6 +107,7 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
             DeleteTopicsResponseData.DeletableTopicResultCollection topicResults = new DeleteTopicsResponseData.DeletableTopicResultCollection();
             request.topicNames().stream()
                     .map(topicName -> errorResult(apiVersion, topicName, Errors.TOPIC_AUTHORIZATION_FAILED))
+                    // using method reference is failing to compile on JDK17, see JDK-8268312
                     .forEach(topicResults::mustAdd);
             return context.requestFilterResultBuilder()
                     .shortCircuitResponse(
@@ -160,9 +161,11 @@ class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, De
             DeleteTopicsResponseData.DeletableTopicResultCollection topicResults = new DeleteTopicsResponseData.DeletableTopicResultCollection();
             okStates.stream()
                     .map(topicState -> errorResult(apiVersion, topicState, Errors.TOPIC_AUTHORIZATION_FAILED))
+                    // using method reference is failing to compile on JDK17, see JDK-8268312
                     .forEach(topicResults::mustAdd);
             errorStates.stream()
                     .map(topicState -> deletableTopicResult(mapping, topicState, apiVersion))
+                    // using method reference is failing to compile on JDK17, see JDK-8268312
                     .forEach(topicResults::mustAdd);
             return context.requestFilterResultBuilder()
                     .shortCircuitResponse(

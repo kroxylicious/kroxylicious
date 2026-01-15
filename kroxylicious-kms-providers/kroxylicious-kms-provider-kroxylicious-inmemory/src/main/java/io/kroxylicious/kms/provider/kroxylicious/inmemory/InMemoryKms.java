@@ -61,7 +61,7 @@ public class InMemoryKms implements
         this.numAuthBits = numAuthBits;
         try {
             this.aes = KeyGenerator.getInstance(AES_KEY_ALGO);
-            this.aes.init(256); // Required for Java 21 which may fall back to 128: https://bugs.openjdk.org/browse/JDK-8283475
+            this.aes.init(256); // Required for Java 17 which defaults to a key size of 128.
         }
         catch (NoSuchAlgorithmException e) {
             // This should be impossible, because JCA guarantees that AES is available
