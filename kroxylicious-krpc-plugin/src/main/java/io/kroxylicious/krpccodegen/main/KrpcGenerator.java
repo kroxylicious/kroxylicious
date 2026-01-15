@@ -13,7 +13,6 @@ import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -195,13 +194,11 @@ public class KrpcGenerator {
     private final String messageSpecFilter;
 
     private final File templateDir;
-    private static final Charset TEMPLATE_ENCODING = StandardCharsets.UTF_8;
     private final List<String> templateNames;
 
     private final String outputPackage;
     private final File outputDir;
     private final String outputFilePattern;
-    private static final Charset OUTPUT_ENCODING = StandardCharsets.UTF_8;
 
     @SuppressWarnings("java:S107") // Methods should not have too many parameters - ignored as use-case with builder seems reasonable.
     private KrpcGenerator(Logger logger, GeneratorMode mode, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames,
@@ -316,7 +313,7 @@ public class KrpcGenerator {
         Path tempPath = outPath.resolve(tempOutputFileName);
         Path finalPath = outPath.resolve(finalFileName);
         logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
-        try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), OUTPUT_ENCODING)) {
+        try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), StandardCharsets.UTF_8)) {
             consumer.accept(writer, finalPath.toFile());
         }
         if (!filesEqual(tempPath, finalPath)) {
@@ -438,7 +435,7 @@ public class KrpcGenerator {
 
         // Set the preferred charset template files are stored in. UTF-8 is
         // a good choice in most applications:
-        cfg.setDefaultEncoding(TEMPLATE_ENCODING.name());
+        cfg.setDefaultEncoding(StandardCharsets.UTF_8.name());
 
         // Sets how errors will appear.
         // During web page *development* TemplateExceptionHandler.HTML_DEBUG_HANDLER is better.
