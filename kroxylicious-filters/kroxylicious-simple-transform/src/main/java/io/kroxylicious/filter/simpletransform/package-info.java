@@ -7,7 +7,7 @@
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)
-package io.kroxylicious.proxy.filter.simpletransform;
+package io.kroxylicious.filter.simpletransform;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
 import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;

@@ -4,12 +4,13 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.simpletransform;
+package io.kroxylicious.filter.simpletransform;
 
+import io.kroxylicious.proxy.plugin.DeprecatedPluginType;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-@Deprecated
-public interface ByteBufferTransformationFactory<C> extends io.kroxylicious.filter.simpletransform.ByteBufferTransformationFactory<C> {
+@DeprecatedPluginType(io.kroxylicious.proxy.filter.simpletransform.ByteBufferTransformationFactory.class)
+public interface ByteBufferTransformationFactory<C> {
 
     /**
      * Validates the configuration.
