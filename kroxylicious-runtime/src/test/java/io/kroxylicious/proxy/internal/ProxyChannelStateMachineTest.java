@@ -161,7 +161,6 @@ class ProxyChannelStateMachineTest {
                         .isCloseTo(1.0, CLOSE_ENOUGH));
     }
 
-    @SuppressWarnings("DataFlowIssue")
     @Test
     void shouldCountProxyToServerConnections() {
         // Given
@@ -568,6 +567,21 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
+    void inForwardingShouldTransitionToClosedOnClientIdle() {
+        // Given
+        stateMachineInForwarding();
+        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler).inClosed(null);
+
+        // When
+        proxyChannelStateMachine.onClientIdle();
+
+        // Then
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
+        verify(backendHandler).inClosed();
+    }
+
+    @Test
     void shouldNotTransitionToClosedMultipleTimes() {
         // Given
         stateMachineInClosed();
@@ -951,6 +965,30 @@ class ProxyChannelStateMachineTest {
                 .isEqualTo(initialClientCount - 1);
         assertThat(getVirtualNodeProxyToServerActiveConnections())
                 .isEqualTo(initialServerCount); // unchanged
+    }
+
+    @Test
+    void shouldFlushToServerWhenClientReadCompletes() {
+        // Given
+        stateMachineInForwarding();
+
+        // When
+        proxyChannelStateMachine.clientReadComplete();
+
+        // Then
+        verify(backendHandler).flushToServer();
+    }
+
+    @Test
+    void shouldFlushToClientWhenServerReadCompletes() {
+        // Given
+        stateMachineInForwarding();
+
+        // When
+        proxyChannelStateMachine.serverReadComplete();
+
+        // Then
+        verify(frontendHandler).flushToClient();
     }
 
     private int getVirtualNodeClientToProxyActiveConnections() {
