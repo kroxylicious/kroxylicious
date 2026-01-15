@@ -145,10 +145,21 @@ class MessageSpecTest {
         // Given
 
         // When
-        var versions = groupIdMessageSpec.entityFieldIntersectedVersions();
+        var versions = groupIdMessageSpec.intersectedVersionsForEntityFields(Set.of(EntityType.GROUP_ID));
 
         // Then
         assertThat(versions).containsExactly((short) 1, (short) 2, (short) 3, (short) 4);
+    }
+
+    @Test
+    void shouldReportEmptyIntersectedVersionForMessageWithoutEntityTypeField() {
+        // Given
+
+        // When
+        var versions = groupIdMessageSpec.intersectedVersionsForEntityFields(Set.of(EntityType.UNKNOWN));
+
+        // Then
+        assertThat(versions).isEmpty();
     }
 
     @Test
@@ -156,7 +167,7 @@ class MessageSpecTest {
         // Given
 
         // When
-        var versions = nestedGroupIdMessageSpec.entityFieldIntersectedVersions();
+        var versions = nestedGroupIdMessageSpec.intersectedVersionsForEntityFields(Set.of(EntityType.GROUP_ID));
 
         // Then
         assertThat(versions).containsExactly((short) 0, (short) 1);

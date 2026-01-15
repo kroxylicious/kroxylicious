@@ -7,6 +7,7 @@ package io.kroxylicious.krpccodegen.model;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import io.kroxylicious.krpccodegen.schema.EntityType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
@@ -44,8 +45,8 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
             case "type" -> wrapper.wrap(spec.type());
             case "listeners" -> wrapper.wrap(spec.listeners());
             case "dataClassName" -> wrapper.wrap(spec.dataClassName());
-            case "hasAtLeastOneEntityField" -> wrapper.wrap((TemplateMethodModelEx) this::callHasAtLeastOneEntityField);
-            case "entityFieldIntersectedVersions" -> wrapper.wrap(spec.entityFieldIntersectedVersions());
+            case "hasAtLeastOneEntityField" -> wrapper.wrap((TemplateMethodModelEx) this::handleHasAtLeastOneEntityField);
+            case "intersectedVersionsForEntityFields" -> wrapper.wrap((TemplateMethodModelEx) this::handleIntersectedVersionsForEntityFields);
             default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property '" + key + "'");
         };
     }
@@ -60,8 +61,19 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
         return spec;
     }
 
-    private Object callHasAtLeastOneEntityField(List args) {
+    private boolean handleHasAtLeastOneEntityField(List args) {
         var seq = (SimpleSequence) args.get(0);
+        var set = getTypeHashSet(seq);
+        return spec.hasAtLeastOneEntityField(set);
+    }
+
+    private List<Short> handleIntersectedVersionsForEntityFields(List args) {
+        var seq = (SimpleSequence) args.get(0);
+        var set = getTypeHashSet(seq);
+        return spec.intersectedVersionsForEntityFields(set);
+    }
+
+    private static Set<EntityType> getTypeHashSet(SimpleSequence seq) {
         var ow = (ObjectWrapperAndUnwrapper) seq.getObjectWrapper();
         var set = new HashSet<EntityType>(seq.size());
         for (int i = 0; i < seq.size(); i++) {
@@ -74,6 +86,6 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
                 throw new RuntimeException("Failed to unwrap template model object at index " + i, e);
             }
         }
-        return spec.hasAtLeastOneEntityField(set);
+        return set;
     }
 }

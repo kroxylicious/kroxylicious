@@ -6,7 +6,6 @@
 package io.kroxylicious.krpccodegen.schema;
 
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -26,7 +25,6 @@ import com.fasterxml.jackson.databind.util.StdConverter;
 @JsonDeserialize(converter = MessageSpec.MessageSpecAugmenter.class)
 
 public final class MessageSpec {
-    private static final EnumSet<EntityType> ENTITY_FIELDS = EnumSet.of(EntityType.TOPIC_NAME, EntityType.GROUP_ID, EntityType.TRANSACTIONAL_ID);
     private final StructSpec struct;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -167,19 +165,6 @@ public final class MessageSpec {
         };
     }
 
-    @Override
-    public String toString() {
-        return "MessageSpec{" +
-                "struct=" + struct +
-                ", apiKey=" + apiKey +
-                ", type=" + type +
-                ", commonStructs=" + commonStructs +
-                ", flexibleVersions=" + flexibleVersions +
-                ", listeners=" + listeners +
-                ", latestVersionUnstable=" + latestVersionUnstable +
-                '}';
-    }
-
     /**
      * Returns true if this message spec has at least one field of one of the given entity field types.
      *
@@ -198,13 +183,20 @@ public final class MessageSpec {
         return fields.stream().anyMatch(f -> hasAtLeastOneEntityField(f.fields(), entityFieldTypeNames));
     }
 
-    public List<Short> entityFieldIntersectedVersions() {
-        return entityFieldIntersectedVersions(fields()).stream().toList();
+    /**
+     * Returns the intersected versions used by fields of this messages that are of the
+     * given entity types.
+     *
+     * @param entityFieldTypeNames entity field types
+     * @return intersected versions
+     */
+    public List<Short> intersectedVersionsForEntityFields(Set<EntityType> entityFieldTypeNames) {
+        return intersectedVersionsForEntityFields(fields(), entityFieldTypeNames).stream().toList();
     }
 
-    private Set<Short> entityFieldIntersectedVersions(List<FieldSpec> fields) {
+    private Set<Short> intersectedVersionsForEntityFields(List<FieldSpec> fields, Set<EntityType> entityFields) {
         var versions = fields.stream()
-                .filter(f -> ENTITY_FIELDS.contains(f.entityType()))
+                .filter(f -> entityFields.contains(f.entityType()))
                 .map(f -> validVersions().intersect(f.versions()))
                 .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
                 .distinct()
@@ -214,10 +206,23 @@ public final class MessageSpec {
                 .collect(Collectors.toCollection(TreeSet::new));
 
         versions.addAll(fields.stream()
-                .flatMap(f -> entityFieldIntersectedVersions(f.fields()).stream())
+                .flatMap(f -> intersectedVersionsForEntityFields(f.fields(), entityFields).stream())
                 .collect(Collectors.toSet()));
 
         return versions;
+    }
+
+    @Override
+    public String toString() {
+        return "MessageSpec{" +
+                "struct=" + struct +
+                ", apiKey=" + apiKey +
+                ", type=" + type +
+                ", commonStructs=" + commonStructs +
+                ", flexibleVersions=" + flexibleVersions +
+                ", listeners=" + listeners +
+                ", latestVersionUnstable=" + latestVersionUnstable +
+                '}';
     }
 
     public static class MessageSpecAugmenter extends StdConverter<MessageSpec, MessageSpec> {
