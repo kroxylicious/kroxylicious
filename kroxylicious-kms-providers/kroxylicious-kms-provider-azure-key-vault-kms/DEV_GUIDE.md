@@ -55,7 +55,7 @@ broad permissions.
     * The path to your local **private SSH key** file (`~/.ssh/azure_vm_key`).
 
 ### 8. Install Kafka
-* Install a Java 21 JRE: `sudo apt update && sudo apt install openjdk-21-jre-headless`
+* Install a java 17 JRE: `sudo apt update && sudo apt install openjdk-17-jre-headless`
 * Follow the Kafka quickstart https://kafka.apache.org/quickstart to download and run Kafka on the VM.
 * Consider tuning down its network thread count and heap memory. You can set `KAFKA_HEAP_OPTS="-Xmx256m"` and
   in `config/server.properties` tune down `num.network.threads=1`, `num.io.threads=1` and set `log.cleaner.enable=false`.

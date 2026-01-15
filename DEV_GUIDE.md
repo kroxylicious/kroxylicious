@@ -49,7 +49,7 @@ This document gives a detailed breakdown of the various build processes and opti
 
 ## Build Prerequisites
 
-- [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
+- [JDK](https://openjdk.org/projects/jdk/21//) (version 21 and above) - JDK
 - [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - [Apache Maven®](https://maven.apache.org)
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 
@@ -60,6 +60,9 @@ This document gives a detailed breakdown of the various build processes and opti
 ## Build
 
 JDK version 21 or newer, and [Apache Maven®](https://maven.apache.org) are required for building this project.
+
+Kroxylicious targets language level 17, except for the `integrationtests` module
+which targets 21 to access some new language features.
 
 Build the project like this:
 
