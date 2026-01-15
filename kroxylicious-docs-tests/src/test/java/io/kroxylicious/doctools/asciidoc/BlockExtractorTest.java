@@ -106,6 +106,18 @@ class BlockExtractorTest {
                         (Consumer<List<Block>>) blocks -> assertThat(blocks)
                                 .singleElement()
                                 .satisfies(b -> assertThat(b.content()).isEqualTo("foo: {}"))),
+                Arguments.argumentSet("handles code blocks using characters that are commonly represented by HTML entities",
+                        """
+                                [source,shell]
+                                ----
+                                (echo hello && echo entity world) > /tmp/null
+                                ----
+                                """,
+                        (Predicate<StructuralNode>) sn -> true,
+                        (Consumer<List<Block>>) blocks -> assertThat(blocks)
+                                .singleElement()
+                                .satisfies(b -> assertThat(b.content()).isEqualTo("(echo hello && echo entity world) > /tmp/null"))),
+
                 Arguments.argumentSet("reports line number",
                         """
                                 Mary had a little lamb,
