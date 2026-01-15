@@ -13,7 +13,6 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -26,8 +25,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.google.common.io.Files;
-import com.google.common.io.Resources;
 
+import static io.kroxylicious.krpccodegen.main.Files.assertFileHasExpectedContents;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.writeString;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -250,12 +249,6 @@ class KrpcGeneratorTest {
     void filesEqualInvalidArguments(Consumer<Path> tempDirConsumer, Class<? extends Exception> exceptionType, String message, @TempDir File tempDir) {
         Path path = tempDir.toPath();
         assertThatThrownBy(() -> tempDirConsumer.accept(path)).isInstanceOf(exceptionType).hasMessageContaining(message);
-    }
-
-    private void assertFileHasExpectedContents(File file, String expectedFile) throws IOException {
-        String expected = Resources.asCharSource(
-                Objects.requireNonNull(getClass().getClassLoader().getResource(expectedFile)), UTF_8).read();
-        assertThat(file).content().isEqualTo(expected);
     }
 
     private static void testSingleGeneration(File tempDir, String messageSpec, String template, String expectedContents) throws Exception {
