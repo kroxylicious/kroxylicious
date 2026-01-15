@@ -97,5 +97,10 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
         }
     }
 
+    // visible for testing
+    public MavenProject project() {
+        return project;
+    }
+
     abstract KrpcGenerator.Builder builder();
 }
