@@ -205,11 +205,10 @@ class KafkaProxyTest {
                            bootstrapAddress: localhost:9192
                 """), Features.defaultFeatures())) {
             proxy.startup();
-            HttpResponse<Void> response;
-            try (var client = HttpClient.newHttpClient()) {
-                var uri = URI.create("http://localhost:9190/livez");
-                response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
-            }
+            @SuppressWarnings("resource") // it's not auto closable in java 17
+            var client = HttpClient.newHttpClient();
+            var uri = URI.create("http://localhost:9190/livez");
+            var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
             assertThat(response.statusCode()).isEqualTo(200);
         }
     }
