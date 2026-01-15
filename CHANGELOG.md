@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3147](https://github.com/kroxylicious/kroxylicious/pull/3129): Deprecate Java 17 as a compilation target. Upgrade to Java 21 in containers.
 * [#3147](https://github.com/kroxylicious/kroxylicious/pull/3129): Upgrade Project JDK to Java 21
 * [#3112](https://github.com/kroxylicious/kroxylicious/pull/3112): cache topic name lookups per VirtualCluster
 * [#3129](https://github.com/kroxylicious/kroxylicious/pull/3129): build(deps): bump netty.version from 4.2.7.Final to 4.2.9.Final
@@ -15,7 +16,8 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
-* The Project JDK has been upgraded to Java 21.
+* Use of Java 17 as a compilation target has been deprecated. Please switch to Java 21 or above before support is removed.
+* Containers have been upgraded to use Java 21.
 * The four argument forms of `RequestFilter#onRequest` and `ResponseFilter#onResponse` are deprecated and will be removed in a future release.
   Implement the five argument form, which includes the `apiVersion` instead.
 
