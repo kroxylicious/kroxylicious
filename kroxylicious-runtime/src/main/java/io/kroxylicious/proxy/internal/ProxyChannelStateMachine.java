@@ -463,6 +463,13 @@ public class ProxyChannelStateMachine {
         return kafkaSession.sessionId();
     }
 
+    /**
+     * @return Return the session for this connection.
+     */
+    public KafkaSession getKafkaSession() {
+        return kafkaSession;
+    }
+
     public void onSessionAuthenticated() {
         this.kafkaSession.transitionTo(KafkaSessionState.AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
@@ -594,4 +601,5 @@ public class ProxyChannelStateMachine {
         return msg instanceof DecodedRequestFrame
                 && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS;
     }
+
 }
