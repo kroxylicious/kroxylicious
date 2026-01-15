@@ -115,7 +115,7 @@ If neither list is specified, the virtual cluster uses the default TLS protocols
 When the client connects, it negotiates the highest mutually acceptable TLS protocol with the virtual cluster.
 If the two have no protocols in common, the connection fails.
 
-The names of the TLS protocols are defined by {java-21-specs}/security/standard-names.html#sslcontext-algorithms[Java specification].
+The names of the TLS protocols are defined by {java-17-specs}/security/standard-names.html#sslcontext-algorithms[Java specification].
 
 .Example restricting TLS protocols using an allow list
 
@@ -163,7 +163,7 @@ If neither list is specified, the virtual cluster uses the default cipher suites
 When the client connects, it negotiates the most preferred mutually acceptable cipher suite with the virtual cluster. 
 If the two have no cipher suites in common, the connection fails.
 
-The names of the cipher suite are defined by {java-21-specs}/security/standard-names.html#jsse-cipher-suite-names[Java specification].
+The names of the cipher suite are defined by {java-17-specs}/security/standard-names.html#jsse-cipher-suite-names[Java specification].
 
 .Example restricting cipher suites using an allow list
 

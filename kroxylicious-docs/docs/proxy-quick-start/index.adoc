@@ -13,9 +13,9 @@ Get Kroxylicious, the snappy open source proxy for Apache Kafka®, up and runnin
 
 Before you begin, ensure you have the following installed and configured.
 
-* **Java 21+**
+* **Java 17+**
 +
-Kroxylicious requires a Java Runtime Environment (JRE) version 21 or higher. To check your version, run:
+Kroxylicious requires a Java Runtime Environment (JRE) version 17 or higher. To check your version, run:
 +
 [source,bash]
 ----
