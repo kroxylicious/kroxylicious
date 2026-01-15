@@ -45,10 +45,10 @@ class IdleConnectionIT extends SaslInspectionIT {
         var config = proxy(cluster)
                 .withNetwork(networkDefinition)
                 .withNewManagement()
-                    .withNewEndpoints()
-                        .withNewPrometheus()
-                    .endPrometheus()
-                    .endEndpoints()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
                 .endManagement();
 
         // we need to create a producer or a consumer to get it to connect, but we don't actually use it.
@@ -79,7 +79,7 @@ class IdleConnectionIT extends SaslInspectionIT {
 
     @Test
     void shouldTimeOutAuthenticatedCLient(@SaslMechanism(value = "PLAIN", principals = {
-                                     @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
 
         String mechanism = "PLAIN";
         String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
