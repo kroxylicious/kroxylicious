@@ -92,11 +92,22 @@ public abstract class BaseIT {
                                           Map<String, Object> consumerConfig,
                                           int numBatches,
                                           BiConsumer<Integer, ConsumerRecords<String, byte[]>> recordConsumer) {
+        sendReceiveBatches(tester, topic, producerConfig, consumerConfig, numBatches, kroxyliciousTester -> {}, recordConsumer);
+    }
+
+    public static void sendReceiveBatches(KroxyliciousTester tester,
+                                          Topic topic,
+                                          Map<String, Object> producerConfig,
+                                          Map<String, Object> consumerConfig,
+                                          int numBatches,
+                                          java.util.function.Consumer<KroxyliciousTester> preSendConsumer,
+                                          BiConsumer<Integer, ConsumerRecords<String, byte[]>> recordConsumer) {
         try (var producer = tester.producer(producerConfig);
                 var consumer = tester
                         .consumer(Serdes.String(), Serdes.ByteArray(), consumerConfig)) {
             int batchNumOneBased = 1;
             while (batchNumOneBased <= numBatches) {
+                preSendConsumer.accept(tester);
                 assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
                         .succeedsWithin(Duration.ofSeconds(5));
 
