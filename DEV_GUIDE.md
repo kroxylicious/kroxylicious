@@ -49,7 +49,10 @@ This document gives a detailed breakdown of the various build processes and opti
 
 ## Build Prerequisites
 
-- [JDK](https://openjdk.org/projects/jdk/21//) (version 21 and above) - JDK
+> [!WARNING]
+> [Use of Java 17 as a compilation target has been deprecated](https://github.com/kroxylicious/design/pull/87). Please switch to Java 21 or above before support is removed.
+
+- [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
 - [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - [Apache Maven®](https://maven.apache.org)
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 

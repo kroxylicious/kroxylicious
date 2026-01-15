@@ -22,7 +22,10 @@ The tested scenarios are:
 * Kroxylicious + Kafka - envelope encryption with encrypted topic
 * Kroxylicious + Kafka - envelope encryption without encrypted topic
 
-## Prerequisites 
+## Prerequisites
+
+> [!WARNING]
+> [Use of Java 17 as a compilation target has been deprecated](https://github.com/kroxylicious/design/pull/87). Please switch to Java 21 or above before support is removed.
 
 - [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
 - [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - Maven CLI
