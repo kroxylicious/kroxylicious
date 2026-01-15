@@ -102,6 +102,7 @@ public class ProxyChannelStateMachine {
 
     // Connection metrics
     private final Counter clientToProxyErrorCounter;
+    private final Counter clientToProxyIdleDisconnectsCounter;
     private final Counter clientToProxyConnectionCounter;
     private final Counter proxyToServerConnectionCounter;
     private final Counter proxyToServerErrorCounter;
@@ -130,6 +131,7 @@ public class ProxyChannelStateMachine {
 
         // Connection metrics
         clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
+        clientToProxyIdleDisconnectsCounter = Metrics.clientToProxyIdleDisconnectsCounter(clusterName, nodeId).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
         proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
         proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
@@ -402,6 +404,17 @@ public class ProxyChannelStateMachine {
      * </p>
      */
     void onClientInactive() {
+        toClosed(null);
+    }
+
+    /**
+     * Notify the statemachine that the connection to the downstream client is idle.
+     * <p>
+     * This will result in the proxy session being torn down.
+     * </p>
+     */
+    void onClientIdle() {
+        clientToProxyIdleDisconnectsCounter.increment();
         toClosed(null);
     }
 
