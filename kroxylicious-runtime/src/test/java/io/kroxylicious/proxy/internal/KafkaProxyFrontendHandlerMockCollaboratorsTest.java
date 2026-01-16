@@ -29,11 +29,8 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
-import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
@@ -64,18 +61,12 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
     @Mock
     PluginFactoryRegistry pfr;
-    @Mock
-    Channel ch;
+
     @Mock
     FilterChainFactory filterChainFactory;
-    @Mock
-    List<NamedFilterDefinition> filters;
+
     @Mock
     EndpointReconciler endpointReconciler;
-    @Mock
-    ApiVersionsIntersectFilter apiVersionsIntersectFilter;
-    @Mock
-    ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
 
     @Mock
     VirtualClusterModel virtualCluster;
