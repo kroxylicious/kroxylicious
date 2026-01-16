@@ -36,7 +36,7 @@ import static org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
-class IdleConnectionIT extends SaslInspectionIT {
+class IdleConnectionIT extends BaseIT {
 
     @Test
     void shouldDisconnectIdleClient(KafkaCluster cluster) {
@@ -86,7 +86,7 @@ class IdleConnectionIT extends SaslInspectionIT {
         String username = "alice";
         String password = "alice-secret";
 
-        ConfigurationBuilder configBuilder = buildProxyConfig(cluster, Set.of(mechanism), null);
+        ConfigurationBuilder configBuilder = buildProxyConfigWithSaslInspection(cluster, Set.of(mechanism), null);
         configBuilder.withNetwork(new NetworkDefinitionBuilder().withNewProxy().withAuthenticatedIdleTimeout(Duration.ofSeconds(2)).endProxy().build());
         configBuilder.withNewManagement()
                 .withNewEndpoints()
