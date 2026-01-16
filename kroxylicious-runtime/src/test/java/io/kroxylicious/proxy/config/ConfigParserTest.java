@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.config;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -28,6 +29,7 @@ import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
+import io.kroxylicious.proxy.config.datetime.DurationSpec;
 import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.ConstructorInjectionConfig;
@@ -301,6 +303,30 @@ class ConfigParserTest {
         var roundTrippedJsonNode = MAPPER.reader().readValue(roundTripped, JsonNode.class);
         var diff = JsonDiff.asJson(originalJsonNode, roundTrippedJsonNode);
         assertThat(diff).isEmpty();
+    }
+
+    record TestObj(DurationSpec spec) {}
+
+    @Test
+    public void deserializeDurationSpec() throws IOException {
+        String input = """
+                ---
+                spec: "6m"
+                """;
+        TestObj spec = ConfigParser.createObjectMapper().reader().readValue(input, TestObj.class);
+        assertThat(spec).isEqualTo(new TestObj(new DurationSpec(6L, ChronoUnit.MINUTES)));
+    }
+
+    @Test
+    public void serializeDurationSpec() throws IOException {
+        DurationSpec spec = new DurationSpec(6L, ChronoUnit.MINUTES);
+        ObjectMapper objectMapper = ConfigParser.createObjectMapper();
+        String converted = objectMapper.convertValue(spec, String.class);
+        assertThat(converted).isEqualTo("6m");
+        assertThat(objectMapper.writeValueAsString(new TestObj(spec))).isEqualTo("""
+                ---
+                spec: "6m"
+                """);
     }
 
     @Test
