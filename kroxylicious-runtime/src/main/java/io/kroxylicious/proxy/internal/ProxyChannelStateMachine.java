@@ -470,8 +470,13 @@ public class ProxyChannelStateMachine {
         return kafkaSession;
     }
 
-    public void onSessionAuthenticated() {
-        this.kafkaSession.transitionTo(KafkaSessionState.AUTHENTICATED);
+    public void onSessionTlsAuthenticated() {
+        this.kafkaSession.transitionTo(KafkaSessionState.TLS_AUTHENTICATED);
+        Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
+    }
+
+    public void onSessionSaslAuthenticated() {
+        this.kafkaSession.transitionTo(KafkaSessionState.SASL_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 

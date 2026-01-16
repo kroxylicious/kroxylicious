@@ -680,7 +680,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(subject)
                     .log();
 
-            proxyChannelStateMachine.onSessionAuthenticated();
+            proxyChannelStateMachine.onSessionSaslAuthenticated();
 
             // dispatch principal injection
             clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
