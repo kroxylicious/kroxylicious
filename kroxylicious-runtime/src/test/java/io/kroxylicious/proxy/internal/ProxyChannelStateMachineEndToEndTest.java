@@ -56,10 +56,12 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
@@ -489,6 +491,8 @@ class ProxyChannelStateMachineEndToEndTest {
         var dp = new DelegatingDecodePredicate();
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
         when(virtualClusterModel.getClusterName()).thenReturn("cluster");
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.DEFAULT, "cluster");
+        when(virtualClusterModel.getTopicNameCacheFilter()).thenReturn(topicNameCacheFilter);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         EndpointGateway endpointGateway = mock(EndpointGateway.class);
         when(endpointGateway.virtualCluster()).thenReturn(virtualClusterModel);
