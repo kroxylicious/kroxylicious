@@ -200,7 +200,7 @@ public class KafkaProxyFrontendHandler
             }
         }
         else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent
-                && handshakeCompletionEvent.isSuccess()) {
+                && handshakeCompletionEvent.isSuccess() && Objects.nonNull(this.clientSubjectManager)) {
             this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder, this::onTransportSubjectBuilt);
         }
         else if (event instanceof IdleStateEvent idleStateEvent && idleStateEvent.state() == IdleState.ALL_IDLE) {
