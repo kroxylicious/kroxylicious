@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal.filter;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -33,6 +34,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.config.CacheConfiguration;
+import io.kroxylicious.proxy.config.datetime.DurationSpec;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
@@ -42,7 +44,7 @@ import io.kroxylicious.proxy.internal.util.RequestHeaderTagger;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.proxy.config.CacheConfiguration.USE_CACHE_DEFAULTS;
+import static io.kroxylicious.proxy.config.CacheConfiguration.DEFAULT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
@@ -63,7 +65,7 @@ class TopicNameCacheFilterTest {
     @Test
     void onMetadataRequestWithoutTag() {
         // given
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(USE_CACHE_DEFAULTS, Map.of(TOPIC_ID, TOPIC_NAME), CLUSTER_NAME);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, Map.of(TOPIC_ID, TOPIC_NAME), CLUSTER_NAME);
         RequestHeaderData header = new RequestHeaderData();
         MetadataRequestData request = new MetadataRequestData();
         MetadataRequestTopic topic = new MetadataRequestTopic();
@@ -82,7 +84,7 @@ class TopicNameCacheFilterTest {
     @Test
     void onMetadataRequestWithTagTopicsEmpty() {
         // given
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(USE_CACHE_DEFAULTS, Map.of(TOPIC_ID, TOPIC_NAME), CLUSTER_NAME);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, Map.of(TOPIC_ID, TOPIC_NAME), CLUSTER_NAME);
         RequestHeaderData header = new RequestHeaderData();
         RequestHeaderTagger.tag(header, RequestHeaderTagger.Tag.LEARN_TOPIC_NAMES);
         MetadataRequestData request = new MetadataRequestData();
@@ -104,7 +106,7 @@ class TopicNameCacheFilterTest {
     @Test
     void onMetadataRequestWithTagTopicsNull() {
         // given
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(USE_CACHE_DEFAULTS, Map.of(TOPIC_ID, TOPIC_NAME), CLUSTER_NAME);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, Map.of(TOPIC_ID, TOPIC_NAME), CLUSTER_NAME);
         RequestHeaderData header = new RequestHeaderData();
         RequestHeaderTagger.tag(header, RequestHeaderTagger.Tag.LEARN_TOPIC_NAMES);
         MetadataRequestData request = new MetadataRequestData();
@@ -127,7 +129,7 @@ class TopicNameCacheFilterTest {
     @Test
     void onMetadataRequestWithTagAndAllTopicIdsCached() {
         // given
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(USE_CACHE_DEFAULTS, Map.of(TOPIC_ID, TOPIC_NAME), CLUSTER_NAME);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, Map.of(TOPIC_ID, TOPIC_NAME), CLUSTER_NAME);
         RequestHeaderData header = new RequestHeaderData();
         RequestHeaderTagger.tag(header, RequestHeaderTagger.Tag.LEARN_TOPIC_NAMES);
         MetadataRequestData request = new MetadataRequestData();
@@ -157,7 +159,7 @@ class TopicNameCacheFilterTest {
     @Test
     void onMetadataRequestWithTagAndTopicIdsNotCached() {
         // given
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(USE_CACHE_DEFAULTS, Map.of(), CLUSTER_NAME);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, Map.of(), CLUSTER_NAME);
         RequestHeaderData header = new RequestHeaderData();
         RequestHeaderTagger.tag(header, RequestHeaderTagger.Tag.LEARN_TOPIC_NAMES);
         MetadataRequestData request = new MetadataRequestData();
@@ -187,7 +189,7 @@ class TopicNameCacheFilterTest {
     @Test
     void onMetadataResponseWithNoTopics() {
         // given
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(USE_CACHE_DEFAULTS, CLUSTER_NAME);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, CLUSTER_NAME);
         ResponseHeaderData header = new ResponseHeaderData();
         MetadataResponseData response = new MetadataResponseData();
         CompletableFuture<ResponseFilterResult> result = CompletableFuture.completedFuture(null);
@@ -202,7 +204,7 @@ class TopicNameCacheFilterTest {
     @Test
     void onMetadataResponseWithTopics() {
         // given
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(USE_CACHE_DEFAULTS, CLUSTER_NAME);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, CLUSTER_NAME);
         ResponseHeaderData header = new ResponseHeaderData();
         MetadataResponseData response = new MetadataResponseData();
         MetadataResponseData.MetadataResponseTopic topic = new MetadataResponseData.MetadataResponseTopic();
@@ -229,7 +231,7 @@ class TopicNameCacheFilterTest {
     @Test
     void onMetadataResponseWithNullTopics() {
         // given
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(USE_CACHE_DEFAULTS, CLUSTER_NAME);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, CLUSTER_NAME);
         ResponseHeaderData header = new ResponseHeaderData();
         MetadataResponseData response = new MetadataResponseData();
         response.setTopics(null);
@@ -247,7 +249,7 @@ class TopicNameCacheFilterTest {
     @MethodSource
     void onMetadataResponseWithUnlearnableTopic(@Nullable Uuid topicId, @Nullable String topicName) {
         // given
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(USE_CACHE_DEFAULTS, CLUSTER_NAME);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, CLUSTER_NAME);
         ResponseHeaderData header = new ResponseHeaderData();
         MetadataResponseData response = new MetadataResponseData();
         MetadataResponseData.MetadataResponseTopic topic = new MetadataResponseData.MetadataResponseTopic();
@@ -267,19 +269,21 @@ class TopicNameCacheFilterTest {
     @Test
     void defaultCacheConfig() {
         // given
-        CacheConfiguration cacheConfig = USE_CACHE_DEFAULTS;
+        CacheConfiguration cacheConfig = DEFAULT;
         // when
         TopicNameCacheFilter filter = new TopicNameCacheFilter(cacheConfig, CLUSTER_NAME);
         // then
         assertThat(filter.topicNameCache.policy().eviction()).isEmpty();
-        assertThat(filter.topicNameCache.policy().expireAfterAccess()).isEmpty();
+        assertThat(filter.topicNameCache.policy().expireAfterAccess()).hasValueSatisfying(expiratioon -> {
+            assertThat(expiratioon.getExpiresAfter()).isEqualTo(Duration.ofHours(1));
+        });
         assertThat(filter.topicNameCache.policy().expireAfterWrite()).isEmpty();
     }
 
     @Test
     void cacheStatsEnabled() {
         // when
-        TopicNameCacheFilter filter = new TopicNameCacheFilter(USE_CACHE_DEFAULTS, CLUSTER_NAME);
+        TopicNameCacheFilter filter = new TopicNameCacheFilter(DEFAULT, CLUSTER_NAME);
         // then
         assertThat(filter.topicNameCache.policy().isRecordingStats()).isTrue();
     }
@@ -287,7 +291,7 @@ class TopicNameCacheFilterTest {
     @Test
     void expiryConfig() {
         // given
-        CacheConfiguration cacheConfig = new CacheConfiguration(null, 10L, 10L);
+        CacheConfiguration cacheConfig = new CacheConfiguration(null, new DurationSpec(10L, ChronoUnit.SECONDS), new DurationSpec(10L, ChronoUnit.SECONDS));
         // when
         TopicNameCacheFilter filter = new TopicNameCacheFilter(cacheConfig, CLUSTER_NAME);
         // then

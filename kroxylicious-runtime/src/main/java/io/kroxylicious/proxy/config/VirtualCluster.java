@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.config;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -38,7 +37,6 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                              @Nullable CacheConfiguration topicNameCache) {
 
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
-    public static final CacheConfiguration DEFAULT_CONFIG = new CacheConfiguration(null, null, Duration.ofHours(1).toSeconds());
 
     @SuppressWarnings("java:S2789") // S2789 - checking for null tls is the intent
     public VirtualCluster {
@@ -91,7 +89,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
     }
 
     CacheConfiguration topicNameCacheConfig() {
-        return topicNameCache == null ? DEFAULT_CONFIG : topicNameCache;
+        return topicNameCache == null ? CacheConfiguration.DEFAULT : topicNameCache;
     }
 
 }

@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -32,6 +31,7 @@ import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics;
 
 import io.kroxylicious.proxy.config.CacheConfiguration;
+import io.kroxylicious.proxy.config.datetime.DurationSpec;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.MetadataRequestFilter;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
@@ -79,12 +79,12 @@ public class TopicNameCacheFilter implements MetadataRequestFilter, MetadataResp
         if (cacheConfiguration.maxSize() != null) {
             cacheBuilder.maximumSize(cacheConfiguration.maxSize());
         }
-        if (cacheConfiguration.expireAfterWriteSeconds() != null) {
-            cacheBuilder.expireAfterWrite(cacheConfiguration.expireAfterWriteSeconds(), TimeUnit.SECONDS);
+        DurationSpec expireAfterWrite = cacheConfiguration.expireAfterWrite();
+        if (expireAfterWrite != null) {
+            cacheBuilder.expireAfterWrite(expireAfterWrite.duration());
         }
-        if (cacheConfiguration.expireAfterAccessSeconds() != null) {
-            cacheBuilder.expireAfterAccess(cacheConfiguration.expireAfterAccessSeconds(), TimeUnit.SECONDS);
-        }
+        DurationSpec expireAfterAccess = cacheConfiguration.expireAfterAccess();
+        cacheBuilder.expireAfterAccess(expireAfterAccess.duration());
         return cacheBuilder.build();
     }
 

@@ -206,7 +206,7 @@ class KafkaProxyFrontendHandlerTest {
     private static VirtualClusterModel mockVirtualClusterModel(String cluster) {
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
         when(virtualClusterModel.getClusterName()).thenReturn(cluster);
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.USE_CACHE_DEFAULTS, cluster);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.DEFAULT, cluster);
         when(virtualClusterModel.getTopicNameCacheFilter()).thenReturn(topicNameCacheFilter);
         return virtualClusterModel;
     }
