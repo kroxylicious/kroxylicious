@@ -258,6 +258,35 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     }
 
     @Test
+    void shouldOnlyAddAuthenticatedSessionIdleHandlerOnce() throws Exception {
+        // Given
+        handler = new KafkaProxyFrontendHandler(
+                mock(PluginFactoryRegistry.class),
+                mock(FilterChainFactory.class),
+                List.of(),
+                endpointReconciler,
+                mock(ApiVersionsServiceImpl.class),
+                DELEGATING_PREDICATE,
+                new DefaultSubjectBuilder(List.of()),
+                endpointBinding,
+                proxyChannelStateMachine,
+                Optional.of(NETTY_SETTINGS));
+        handler.channelActive(clientCtx);
+        when(clientCtx.pipeline()).thenReturn(channelPipeline);
+        ChannelHandler idleHandler = mock(ChannelHandler.class);
+        when(channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER)).thenReturn(idleHandler);
+        when(channelPipeline.names()).thenReturn(List.of()).thenReturn(List.of("authenticatedSessionIdleHandler"));
+        ArgumentCaptor<? extends ChannelHandler> handlerCaptor = ArgumentCaptor.forClass(ChannelHandler.class);
+        handler.onSessionAuthenticated();
+
+        // When
+        handler.onSessionAuthenticated();
+
+        // Then
+        verify(channelPipeline, times(1)).addFirst(eq("authenticatedSessionIdleHandler"), handlerCaptor.capture());
+    }
+
+    @Test
     void shouldRemovePreSessionIdleHandlerWhenSessionTlsAuthenticated() throws Exception {
         // Given
         handler.channelActive(clientCtx);

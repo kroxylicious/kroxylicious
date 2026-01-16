@@ -640,7 +640,7 @@ public class KafkaProxyFrontendHandler
         if (preSessionHandler != null) {
             channelPipeline.remove(preSessionHandler);
         }
-        if (!Objects.isNull(idleTimeSeconds)) {
+        if (!Objects.isNull(idleTimeSeconds) && !channelPipeline.names().contains("authenticatedSessionIdleHandler")) {
             channelPipeline.addFirst("authenticatedSessionIdleHandler",
                     new IdleStateHandler(0, 0, idleTimeSeconds, TimeUnit.SECONDS));
         }

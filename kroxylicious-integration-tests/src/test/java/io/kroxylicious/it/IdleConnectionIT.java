@@ -78,7 +78,7 @@ class IdleConnectionIT extends BaseIT {
     }
 
     @Test
-    void shouldTimeOutAuthenticatedCLient(@SaslMechanism(value = "PLAIN", principals = {
+    void shouldTimeOutAuthenticatedClient(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
 
         String mechanism = "PLAIN";
