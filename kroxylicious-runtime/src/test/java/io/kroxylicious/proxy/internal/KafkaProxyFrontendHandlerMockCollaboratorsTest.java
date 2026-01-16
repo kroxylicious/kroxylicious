@@ -16,7 +16,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.channel.Channel;
@@ -45,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -98,7 +98,12 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         when(endpointGateway.virtualCluster()).thenReturn(virtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         handler = new KafkaProxyFrontendHandler(
-                pfr, filterChainFactory, virtualCluster.getFilters(), endpointReconciler, new ApiVersionsServiceImpl(), DELEGATING_PREDICATE,
+                pfr,
+                filterChainFactory,
+                virtualCluster.getFilters(),
+                endpointReconciler,
+                new ApiVersionsServiceImpl(),
+                DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
                 proxyChannelStateMachine,
@@ -166,7 +171,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     }
 
     @Test
-    void shouldRemovePreSessionIdleHandlerWhenSessionAuthenticated() throws Exception {
+    void shouldRemovePreSessionIdleHandlerWhenSessionSaslAuthenticated() throws Exception {
         // Given
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
@@ -205,7 +210,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     }
 
     @Test
-    void shouldAddAuthenticatedSessionIdleHandlerWithDefaultTimeoutsWhenSessionAuthenticated() throws Exception {
+    void shouldNotAddAuthenticatedSessionIdleHandlerWhenSessionSaslAuthenticated() throws Exception {
         // Given
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
@@ -218,11 +223,11 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
 
-        verify(channelPipeline, Mockito.never()).addFirst(eq("authenticatedSessionIdleHandler"), any());
+        verify(channelPipeline, never()).addFirst(eq("authenticatedSessionIdleHandler"), any());
     }
 
     @Test
-    void shouldAddAuthenticatedSessionIdleHandlerWithConfiguredTimeoutsWhenSessionAuthenticated() throws Exception {
+    void shouldAddAuthenticatedSessionIdleHandlerWithConfiguredTimeoutsWhenSessionSaslAuthenticated() throws Exception {
         // Given
         handler = new KafkaProxyFrontendHandler(
                 mock(PluginFactoryRegistry.class),
@@ -252,4 +257,19 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                         idleStateHandler -> assertThat(idleStateHandler.getAllIdleTimeInMillis()).isEqualTo(33_000L));
     }
 
+    @Test
+    void shouldRemovePreSessionIdleHandlerWhenSessionTlsAuthenticated() throws Exception {
+        // Given
+        handler.channelActive(clientCtx);
+        when(clientCtx.pipeline()).thenReturn(channelPipeline);
+        ChannelHandler idleHandler = mock(ChannelHandler.class);
+        when(channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER))
+                .thenReturn(idleHandler);
+
+        // When
+        handler.onTransportSubjectBuilt();
+
+        // Then
+        verify(proxyChannelStateMachine).onSessionTlsAuthenticated();
+    }
 }

@@ -103,7 +103,7 @@ class KafkaSessionTest {
     void shouldConsiderSessionsWithDifferentStatesNotEqual() {
         // Given
         KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
-        KafkaSession b = new KafkaSession(SESSION_ID, KafkaSessionState.AUTHENTICATED);
+        KafkaSession b = new KafkaSession(SESSION_ID, KafkaSessionState.SASL_AUTHENTICATED);
 
         // When
         // Then
@@ -136,7 +136,7 @@ class KafkaSessionTest {
     void shouldGiveSessionsWithDifferentStatesDifferentHashCode() {
         // Given
         KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
-        KafkaSession b = new KafkaSession(SESSION_ID, KafkaSessionState.AUTHENTICATED);
+        KafkaSession b = new KafkaSession(SESSION_ID, KafkaSessionState.SASL_AUTHENTICATED);
 
         // When
         // Then

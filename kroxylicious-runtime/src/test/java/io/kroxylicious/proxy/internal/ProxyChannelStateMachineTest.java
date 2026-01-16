@@ -773,7 +773,7 @@ class ProxyChannelStateMachineTest {
         stateMachineInForwarding();
 
         // When
-        proxyChannelStateMachine.onSessionAuthenticated();
+        proxyChannelStateMachine.onSessionSaslAuthenticated();
 
         // Then
         verify(frontendHandler).onSessionAuthenticated();
