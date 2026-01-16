@@ -86,9 +86,13 @@ class ProxyChannelStateMachineTest {
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
     private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("", Optional.empty()), false, false,
             List.of());
+    public static final KafkaSession TEST_KAFKA_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
     private ProxyChannelStateMachine proxyChannelStateMachine;
+
+    @Mock
     private KafkaProxyBackendHandler backendHandler;
+
     @Mock(strictness = Mock.Strictness.LENIENT)
     private KafkaProxyFrontendHandler frontendHandler;
     private SimpleMeterRegistry simpleMeterRegistry;
@@ -96,7 +100,6 @@ class ProxyChannelStateMachineTest {
     @BeforeEach
     void setUp() {
         proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
-        backendHandler = mock(KafkaProxyBackendHandler.class);
         simpleMeterRegistry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(simpleMeterRegistry);
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
@@ -443,6 +446,7 @@ class ProxyChannelStateMachineTest {
         verify(frontendHandler).bufferMsg(msg);
     }
 
+    @SuppressWarnings("DataFlowIssue")
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
     void inSelectingServerShouldTransitionToConnectingWhenOnInitiateConnectCalled(boolean configureSsl) throws SSLException {
@@ -608,6 +612,22 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
+    void inForwardingShouldTransitionToClosedOnClientIdle() {
+        // Given
+        stateMachineInForwarding();
+        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler).inClosed(null);
+
+        // When
+        proxyChannelStateMachine.onClientIdle();
+
+        // Then
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        assertThat(proxyChannelStateMachine.getKafkaSession().currentState()).isEqualTo(KafkaSessionState.TERMINATING);
+        verify(frontendHandler).inClosed(null);
+        verify(backendHandler).inClosed();
+    }
+
+    @Test
     void shouldNotTransitionToClosedMultipleTimes() {
         // Given
         stateMachineInClosed();
@@ -747,6 +767,18 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.clientToProxyBackpressureTimer).isNull();
     }
 
+    @Test
+    void shouldNotifyFrontendHandlerThatAuthenticationHasCompleted() {
+        // Given
+        stateMachineInForwarding();
+
+        // When
+        proxyChannelStateMachine.onSessionSaslAuthenticated();
+
+        // Then
+        verify(frontendHandler).onSessionAuthenticated();
+    }
+
     public Stream<Arguments> clientErrorStates() {
         return Stream.of(
                 argumentSet("STARTING TLS on", (Runnable) () -> {
@@ -792,35 +824,40 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.ClientActive(),
                 frontendHandler,
-                null);
+                null,
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInHaProxy() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
                 frontendHandler,
-                null);
+                null,
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInApiVersionsState() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.ApiVersions(null, null, null),
                 frontendHandler,
-                null);
+                null,
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInSelectingServer() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.SelectingServer(null, null, null),
                 frontendHandler,
-                null);
+                null,
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInConnecting() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Connecting(null, null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
-                backendHandler);
+                backendHandler,
+                TEST_KAFKA_SESSION);
     }
 
     private ProxyChannelState.Forwarding stateMachineInForwarding() {
@@ -828,7 +865,8 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 forwarding,
                 frontendHandler,
-                backendHandler);
+                backendHandler,
+                TEST_KAFKA_SESSION);
         return forwarding;
     }
 
@@ -836,7 +874,8 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Closed(),
                 frontendHandler,
-                backendHandler);
+                backendHandler,
+                TEST_KAFKA_SESSION);
     }
 
     private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {
@@ -983,6 +1022,30 @@ class ProxyChannelStateMachineTest {
                 .isEqualTo(initialClientCount - 1);
         assertThat(getVirtualNodeProxyToServerActiveConnections())
                 .isEqualTo(initialServerCount); // unchanged
+    }
+
+    @Test
+    void shouldFlushToServerWhenClientReadCompletes() {
+        // Given
+        stateMachineInForwarding();
+
+        // When
+        proxyChannelStateMachine.clientReadComplete();
+
+        // Then
+        verify(backendHandler).flushToServer();
+    }
+
+    @Test
+    void shouldFlushToClientWhenServerReadCompletes() {
+        // Given
+        stateMachineInForwarding();
+
+        // When
+        proxyChannelStateMachine.serverReadComplete();
+
+        // Then
+        verify(frontendHandler).flushToClient();
     }
 
     private int getVirtualNodeClientToProxyActiveConnections() {

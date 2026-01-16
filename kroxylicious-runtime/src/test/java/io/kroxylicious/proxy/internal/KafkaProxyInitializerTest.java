@@ -7,11 +7,16 @@
 package io.kroxylicious.proxy.internal;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 
+import org.assertj.core.api.AbstractAssert;
+import org.assertj.core.matcher.AssertionMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +27,7 @@ import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
@@ -38,9 +44,11 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -68,6 +76,10 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyInitializerTest {
 
+    private static final Duration CONFIGURED_IDLE_DURATION = Duration.ofSeconds(12);
+    private static final long CONFIGURED_IDLE_DURATION_MILLIS = CONFIGURED_IDLE_DURATION.toMillis();
+    private static final long DEFAULT_IDLE_DURATION_MILLIS = Duration.ofSeconds(11).toMillis();
+
     @Mock(strictness = Mock.Strictness.LENIENT)
     private SocketChannel channel;
 
@@ -91,6 +103,7 @@ class KafkaProxyInitializerTest {
     private CompletionStage<EndpointBinding> bindingStage;
     private VirtualClusterModel virtualClusterModel;
     private FilterChainFactory filterChainFactory;
+    private NettySettings proxyNettySettings;
 
     @BeforeEach
     void setUp() {
@@ -98,6 +111,7 @@ class KafkaProxyInitializerTest {
         pfr = new ServiceBasedPluginFactoryRegistry();
         bindingStage = CompletableFuture.completedStage(endpointBinding);
         filterChainFactory = new FilterChainFactory(pfr, List.of());
+        proxyNettySettings = null; // use defaults
         final InetSocketAddress localhost = new InetSocketAddress(0);
         ChannelId channelId = DefaultChannelId.newInstance();
         when(channel.id()).thenReturn(channelId);
@@ -117,6 +131,44 @@ class KafkaProxyInitializerTest {
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
 
+    }
+
+    @Test
+    void shouldRegisterIdleStateHandlerWithConfiguredDuration() {
+        // Given
+        proxyNettySettings = new NettySettings(Optional.empty(), Optional.empty(), Optional.of(CONFIGURED_IDLE_DURATION), Optional.empty());
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline).addFirst(eq("preSessionIdleHandler"), argThat(
+                argument -> assertThat(argument).isInstanceOfSatisfying(IdleStateHandler.class,
+                        actualIdleStateHandler -> {
+                            assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(CONFIGURED_IDLE_DURATION_MILLIS);
+                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isZero();
+                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isZero();
+                        })));
+    }
+
+    @Test
+    void shouldRegisterIdleStateHandlerWithDefaultDuration() {
+        // Given
+        proxyNettySettings = null;
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline).addFirst(eq("preSessionIdleHandler"), argThat(
+                argument -> assertThat(argument).isInstanceOfSatisfying(IdleStateHandler.class,
+                        actualIdleStateHandler -> {
+                            assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(DEFAULT_IDLE_DURATION_MILLIS);
+                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isZero();
+                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isZero();
+                        })));
     }
 
     @Test
@@ -290,6 +342,7 @@ class KafkaProxyInitializerTest {
         assertThatCode(embeddedChannel::checkException).doesNotThrowAnyException();
     }
 
+    @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
         return new KafkaProxyInitializer(filterChainFactory,
@@ -298,7 +351,8 @@ class KafkaProxyInitializerTest {
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                new ApiVersionsServiceImpl());
+                new ApiVersionsServiceImpl(),
+                Optional.ofNullable(proxyNettySettings));
     }
 
     private void assertErrorHandlerAdded() {
@@ -331,4 +385,24 @@ class KafkaProxyInitializerTest {
         orderedVerifyer.verify(channelPipeline).addLast(eq("saslV0Rejecter"), any(SaslV0RejectionHandler.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
     }
+
+    public static <T> T argThat(Consumer<T> assertions) {
+        return MockitoHamcrest.argThat(new AssertionMatcher<>() {
+
+            String underlyingDescription;
+
+            @Override
+            public void assertion(T actual) throws AssertionError {
+                AbstractAssert.setDescriptionConsumer(description -> underlyingDescription = description.value());
+                assertions.accept(actual);
+            }
+
+            @Override
+            public void describeTo(org.hamcrest.Description description) {
+                super.describeTo(description);
+                description.appendValue(Objects.requireNonNullElse(underlyingDescription, "custom argument matcher"));
+            }
+        });
+    }
+
 }

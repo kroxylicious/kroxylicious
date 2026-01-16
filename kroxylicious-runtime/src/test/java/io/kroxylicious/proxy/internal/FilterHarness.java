@@ -87,7 +87,12 @@ public abstract class FilterHarness {
         var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());
 
         ProxyChannelStateMachine channelStateMachine = new ProxyChannelStateMachine(testVirtualCluster.getClusterName(), null);
-
+        var forwarding = new ProxyChannelState.Forwarding(null, null, null);
+        channelStateMachine.forceState(
+                forwarding,
+                mock(KafkaProxyFrontendHandler.class),
+                mock(KafkaProxyBackendHandler.class),
+                new KafkaSession(KafkaSessionState.ESTABLISHING));
         clientSubjectManager = new ClientSubjectManager();
         var filterHandlers = Arrays.stream(filters)
                 .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addFirst, (d1, d2) -> {
@@ -103,7 +108,6 @@ public abstract class FilterHarness {
         var handlers = Stream.concat(channelProcessors, filterHandlers);
 
         channel = new EmbeddedChannel(handlers.toArray(ChannelHandler[]::new));
-        channelStateMachine.allocateSessionId();
     }
 
     /**
