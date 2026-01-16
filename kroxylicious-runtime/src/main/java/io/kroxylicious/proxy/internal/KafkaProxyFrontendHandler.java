@@ -304,7 +304,9 @@ public class KafkaProxyFrontendHandler
         clientChannel.read();
     }
 
-    private void onTransportSubjectBuilt() {
+    @VisibleForTesting
+    void onTransportSubjectBuilt() {
+        proxyChannelStateMachine.onSessionTlsAuthenticated();
         maybeUnblock();
     }
 
@@ -634,7 +636,7 @@ public class KafkaProxyFrontendHandler
     public void onSessionAuthenticated() {
         ChannelPipeline channelPipeline = Objects.requireNonNull(clientCtx).pipeline();
         ChannelHandler preSessionHandler = channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER);
-        // sessions can be re-authenticated however we only need to act on the first instance
+        // sessions can be re-authenticated however we only need to act on the first instance or it may already have been removed due to MTLS auth
         if (preSessionHandler != null) {
             channelPipeline.remove(preSessionHandler);
         }
