@@ -316,7 +316,6 @@ class SaslInspectionFilter
                         .setMessage(
                                 "Server has accepted an expired SASL credentials on channel {}. Client must re-authenticate on the next request, or the server will disconnect.")
                         .addArgument(context::channelDescriptor)
-                        .addArgument(authorizationIdFromClient)
                         .log();
                 context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizationIdFromClient, new SaslException("expired credential"));
             }
