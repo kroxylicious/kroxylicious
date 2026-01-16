@@ -19,7 +19,6 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
-import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -58,7 +57,6 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
-import io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
@@ -331,16 +329,6 @@ public class KafkaProxyFrontendHandler
     }
 
     /**
-     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link ApiVersions} state.
-     */
-    void inApiVersions(DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-        // This handler can respond to ApiVersions itself
-        writeApiVersionsResponse(clientCtx(), apiVersionsFrame);
-        // Request to read the following request
-        this.clientCtx().channel().read();
-    }
-
-    /**
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link SelectingServer} state.
      */
     void inSelectingServer() {
@@ -361,22 +349,6 @@ public class KafkaProxyFrontendHandler
 
         var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
         initiateConnect(target, filterAndInvokers);
-    }
-
-    /**
-     * Sends an ApiVersions response from this handler to the client
-     * if the proxy is handling authentication
-     * (i.e. prior to having a backend connection)
-     */
-    private void writeApiVersionsResponse(ChannelHandlerContext ctx,
-                                          DecodedRequestFrame<ApiVersionsRequestData> frame) {
-        short apiVersion = frame.apiVersion();
-        int correlationId = frame.correlationId();
-        ResponseHeaderData header = new ResponseHeaderData()
-                .setCorrelationId(correlationId);
-        LOGGER.debug("{}: Writing ApiVersions response", ctx.channel());
-        ctx.writeAndFlush(new DecodedResponseFrame<>(
-                apiVersion, correlationId, header, API_VERSIONS_RESPONSE));
     }
 
     /**
