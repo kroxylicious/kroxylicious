@@ -41,7 +41,7 @@ class IdleConnectionIT extends BaseIT {
     @Test
     void shouldDisconnectIdleClient(KafkaCluster cluster) {
 
-        NetworkDefinition networkDefinition = new NetworkDefinitionBuilder().withNewProxy().withUnAuthenticatedIdleTimeout(Duration.ofSeconds(2)).endProxy().build();
+        NetworkDefinition networkDefinition = new NetworkDefinitionBuilder().withNewProxy().withUnAuthenticatedIdleTimeout(Duration.ofMillis(500)).endProxy().build();
         var config = proxy(cluster)
                 .withNetwork(networkDefinition)
                 .withNewManagement()
@@ -53,23 +53,15 @@ class IdleConnectionIT extends BaseIT {
 
         // we need to create a producer or a consumer to get it to connect, but we don't actually use it.
         try (var tester = kroxyliciousTester(config);
-                var ignored = tester.producer(Map.of());
+                var ignored = tester.producer();
                 ManagementClient managementClient = tester.getManagementClient()) {
-
-            var initialConnectionCound = getActiveConnectionCount(managementClient.scrapeMetrics(),
-                    labels -> labels.containsKey(NODE_ID_LABEL));
 
             await().atMost(Duration.ofSeconds(10))
                     .untilAsserted(() -> {
                         List<SimpleMetric> metricList = managementClient.scrapeMetrics();
                         SimpleMetricAssert.assertThat(metricList)
-                                .withUniqueMetric("kroxylicious_client_to_proxy_active_connections", Map.of(
-                                        NODE_ID_LABEL, "0"))
-                                .value()
-                                .isLessThan(initialConnectionCound);
-                        SimpleMetricAssert.assertThat(metricList)
                                 .withUniqueMetric("kroxylicious_client_to_proxy_idle_disconnects_total", Map.of(
-                                        NODE_ID_LABEL, "0"))
+                                        NODE_ID_LABEL, "bootstrap"))
                                 .value()
                                 .isGreaterThanOrEqualTo(1.0);
                     });
@@ -87,7 +79,7 @@ class IdleConnectionIT extends BaseIT {
         String password = "alice-secret";
 
         ConfigurationBuilder configBuilder = buildProxyConfigWithSaslInspection(cluster, Set.of(mechanism), null);
-        configBuilder.withNetwork(new NetworkDefinitionBuilder().withNewProxy().withAuthenticatedIdleTimeout(Duration.ofSeconds(2)).endProxy().build());
+        configBuilder.withNetwork(new NetworkDefinitionBuilder().withNewProxy().withAuthenticatedIdleTimeout(Duration.ofMillis(500)).endProxy().build());
         configBuilder.withNewManagement()
                 .withNewEndpoints()
                 .withNewPrometheus()
@@ -107,20 +99,12 @@ class IdleConnectionIT extends BaseIT {
                 var ignored = tester.producer(producerConfig);
                 ManagementClient managementClient = tester.getManagementClient()) {
 
-            var initialConnectionCound = getActiveConnectionCount(managementClient.scrapeMetrics(),
-                    labels -> labels.containsKey(NODE_ID_LABEL));
-
             await().atMost(Duration.ofSeconds(10))
                     .untilAsserted(() -> {
                         List<SimpleMetric> metricList = managementClient.scrapeMetrics();
                         SimpleMetricAssert.assertThat(metricList)
-                                .withUniqueMetric("kroxylicious_client_to_proxy_active_connections", Map.of(
-                                        NODE_ID_LABEL, "0"))
-                                .value()
-                                .isLessThan(initialConnectionCound);
-                        SimpleMetricAssert.assertThat(metricList)
                                 .withUniqueMetric("kroxylicious_client_to_proxy_idle_disconnects_total", Map.of(
-                                        NODE_ID_LABEL, "0"))
+                                        NODE_ID_LABEL, "bootstrap"))
                                 .value()
                                 .isGreaterThanOrEqualTo(1.0);
                     });

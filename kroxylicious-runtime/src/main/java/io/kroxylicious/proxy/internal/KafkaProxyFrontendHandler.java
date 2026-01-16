@@ -107,7 +107,7 @@ public class KafkaProxyFrontendHandler
     private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
     private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
 
-    private final Long idleTimeSeconds;
+    private final Long idleTimeMillis;
 
     private @Nullable ChannelHandlerContext clientCtx;
     @VisibleForTesting
@@ -173,7 +173,7 @@ public class KafkaProxyFrontendHandler
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
-        idleTimeSeconds = getIdleSeconds(proxyNettySettings);
+        idleTimeMillis = getIdleMillis(proxyNettySettings);
     }
 
     @Override
@@ -655,9 +655,9 @@ public class KafkaProxyFrontendHandler
         if (preSessionHandler != null) {
             channelPipeline.remove(preSessionHandler);
         }
-        if (!Objects.isNull(idleTimeSeconds) && !channelPipeline.names().contains("authenticatedSessionIdleHandler")) {
+        if (!Objects.isNull(idleTimeMillis) && !channelPipeline.names().contains("authenticatedSessionIdleHandler")) {
             channelPipeline.addFirst("authenticatedSessionIdleHandler",
-                    new IdleStateHandler(0, 0, idleTimeSeconds, TimeUnit.SECONDS));
+                    new IdleStateHandler(0, 0, idleTimeMillis, TimeUnit.MILLISECONDS));
         }
     }
 
@@ -683,8 +683,8 @@ public class KafkaProxyFrontendHandler
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     @Nullable
-    private Long getIdleSeconds(Optional<NettySettings> nettySettings) {
-        return nettySettings.flatMap(NettySettings::authenticatedIdleTimeout).map(Duration::getSeconds).orElse(NO_TIMEOUT);
+    private Long getIdleMillis(Optional<NettySettings> nettySettings) {
+        return nettySettings.flatMap(NettySettings::authenticatedIdleTimeout).map(Duration::toMillis).orElse(NO_TIMEOUT);
     }
 
 }
