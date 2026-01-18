@@ -158,7 +158,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         var actionsWithSupportedResourceTypes = partitionedBySupportedResourceTypes.getOrDefault(Boolean.TRUE, List.of());
         var actionsWithUnsupportedResourceTypes = partitionedBySupportedResourceTypes.getOrDefault(Boolean.FALSE, List.of());
         return authorizer.authorize(context.authenticatedSubject(),
-                        actionsWithSupportedResourceTypes)
+                actionsWithSupportedResourceTypes)
                 .thenApply(authz -> {
                     if (!authz.denied().isEmpty()) {
                         LOG.info("DENY {} to {}", authz.denied(), authz.subject());
