@@ -13,7 +13,10 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -28,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;
+import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -149,7 +153,15 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     }
 
     CompletionStage<AuthorizeResult> authorization(FilterContext context, List<Action> actions) {
-        return authorizer.authorize(context.authenticatedSubject(), actions)
+        var partitionedBySupportedResourceTypes = authorizer.supportedResourceTypes()
+                .map(supportedTypes -> actions.stream().collect(Collectors.partitioningBy(
+                        action -> action.resourceTypeClass() == ClusterResource.class
+                                || supportedTypes.contains(action.resourceTypeClass()))))
+                .orElse(Map.of(Boolean.TRUE, actions));
+        var actionsWithSupportedResourceTypes = partitionedBySupportedResourceTypes.getOrDefault(Boolean.TRUE, List.of());
+        var actionsWithUnsupportedResourceTypes = partitionedBySupportedResourceTypes.getOrDefault(Boolean.FALSE, List.of());
+        return authorizer.authorize(context.authenticatedSubject(),
+                        actionsWithSupportedResourceTypes)
                 .thenApply(authz -> {
                     if (!authz.denied().isEmpty()) {
                         LOG.info("DENY {} to {}", authz.denied(), authz.subject());
@@ -159,6 +171,10 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                     }
                     else if (actions.isEmpty()) {
                         LOG.debug("ALLOW {} no authorizable actions", authz.subject());
+                    }
+                    if (!actionsWithUnsupportedResourceTypes.isEmpty()) {
+                        LOG.debug("ALLOW {} to {} (due to unsupported resource type)", authz.allowed(), authz.subject());
+                        authz.allowed().addAll(actionsWithUnsupportedResourceTypes);
                     }
                     return authz;
                 });
