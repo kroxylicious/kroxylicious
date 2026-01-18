@@ -41,6 +41,7 @@ import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
+import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -86,6 +87,7 @@ public class KafkaProxyFrontendHandler
     public static final int DEFAULT_IDLE_TIME_SECONDS = 31;
     public static final long DEFAULT_IDLE_SECONDS = 31L;
     private static final Long NO_TIMEOUT = null;
+    private static final String AUTH_IDLE_HANDLER_NAME = "authenticatedSessionIdleHandler";
 
     private final boolean logNetwork;
     private final boolean logFrames;
@@ -304,9 +306,10 @@ public class KafkaProxyFrontendHandler
         clientChannel.read();
     }
 
-    @VisibleForTesting
-    void onTransportSubjectBuilt() {
-        proxyChannelStateMachine.onSessionTlsAuthenticated();
+    private void onTransportSubjectBuilt() {
+        if (Objects.requireNonNull(clientSubjectManager).authenticatedSubject() != Subject.anonymous()) {
+            proxyChannelStateMachine.onSessionTransportAuthenticated();
+        }
         maybeUnblock();
     }
 
@@ -640,8 +643,8 @@ public class KafkaProxyFrontendHandler
         if (preSessionHandler != null) {
             channelPipeline.remove(preSessionHandler);
         }
-        if (!Objects.isNull(idleTimeMillis) && !channelPipeline.names().contains("authenticatedSessionIdleHandler")) {
-            channelPipeline.addFirst("authenticatedSessionIdleHandler",
+        if (!Objects.isNull(idleTimeMillis) && !channelPipeline.names().contains(AUTH_IDLE_HANDLER_NAME)) {
+            channelPipeline.addFirst(AUTH_IDLE_HANDLER_NAME,
                     new IdleStateHandler(0, 0, idleTimeMillis, TimeUnit.MILLISECONDS));
         }
     }

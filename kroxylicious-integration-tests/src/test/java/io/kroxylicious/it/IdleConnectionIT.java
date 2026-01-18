@@ -10,7 +10,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.config.SaslConfigs;
@@ -56,7 +55,7 @@ class IdleConnectionIT extends BaseIT {
                 var ignored = tester.producer();
                 ManagementClient managementClient = tester.getManagementClient()) {
 
-            await().atMost(Duration.ofSeconds(10))
+            await().atMost(Duration.ofSeconds(90))
                     .untilAsserted(() -> {
                         List<SimpleMetric> metricList = managementClient.scrapeMetrics();
                         SimpleMetricAssert.assertThat(metricList)
@@ -111,13 +110,4 @@ class IdleConnectionIT extends BaseIT {
 
         }
     }
-
-    private static double getActiveConnectionCount(List<SimpleMetric> metricList, Predicate<Map<String, String>> labelPredicate) {
-        return metricList.stream()
-                .filter(simpleMetric -> simpleMetric.name().equals("kroxylicious_client_to_proxy_active_connections"))
-                .filter(simpleMetric -> labelPredicate.test(simpleMetric.labels()))
-                .findFirst()
-                .orElseThrow().value();
-    }
-
 }

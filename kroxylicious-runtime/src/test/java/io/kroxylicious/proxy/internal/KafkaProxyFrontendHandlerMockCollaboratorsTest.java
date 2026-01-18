@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.timeout.IdleStateHandler;
 
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
@@ -35,6 +37,7 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
+import io.kroxylicious.proxy.internal.subject.PrincipalAdder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -278,7 +281,35 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     }
 
     @Test
-    void shouldRemovePreSessionIdleHandlerWhenSessionTransportAuthenticated() throws Exception {
+    void shouldMarkSessionAuthenticatedWhenSessionTransportAuthenticated() throws Exception {
+        // Given
+        handler = new KafkaProxyFrontendHandler(
+                pfr,
+                filterChainFactory,
+                virtualCluster.getFilters(),
+                endpointReconciler,
+                new ApiVersionsServiceImpl(),
+                DELEGATING_PREDICATE,
+                new DefaultSubjectBuilder(List.of(new PrincipalAdder(ctx -> Stream.of("Bob"), List.of(), User::new))),
+                endpointBinding,
+                proxyChannelStateMachine,
+                Optional.empty());
+
+        handler.channelActive(clientCtx);
+        when(clientCtx.pipeline()).thenReturn(channelPipeline);
+        ChannelHandler idleHandler = mock(ChannelHandler.class);
+        when(channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER))
+                .thenReturn(idleHandler);
+
+        // When
+        handler.inClientActive();
+
+        // Then
+        verify(proxyChannelStateMachine).onSessionTransportAuthenticated();
+    }
+
+    @Test
+    void shouldNotMarkSessionAuthenticatedWhenSessionTransportAuthenticatedIsAnonymous() throws Exception {
         // Given
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
@@ -287,9 +318,9 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 .thenReturn(idleHandler);
 
         // When
-        handler.onTransportSubjectBuilt();
+        handler.inClientActive(); // Drive the transition through inClientActive rather than onTransportSubjectBuilt so the state is initialised
 
         // Then
-        verify(proxyChannelStateMachine).onSessionTransportAuthenticated();
+        verify(proxyChannelStateMachine, never()).onSessionTransportAuthenticated();
     }
 }
