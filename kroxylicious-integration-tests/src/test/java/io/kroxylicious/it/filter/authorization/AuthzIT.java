@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -25,6 +26,8 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicPartition;
@@ -394,6 +397,22 @@ public abstract class AuthzIT extends BaseIT {
         else {
             return jsonNode;
         }
+    }
+
+    protected static void ensureCoordinators(Producer<String, String> producer,
+                                             Admin admin)
+            throws InterruptedException, ExecutionException {
+        producer.initTransactions();
+        producer.beginTransaction();
+        producer.send(new ProducerRecord<>("top", "", "")).get();
+
+        TopicPartition top = new TopicPartition("top", 0);
+        while (admin.describeTransactions(List.of("x")).all().toCompletionStage().toCompletableFuture()
+                .join().get("x").coordinatorId() < 0) {
+            Thread.sleep(1_000);
+        }
+        producer.abortTransaction();
+        // admin.trans
     }
 
     protected static Map<String, Uuid> prepCluster(Admin admin,

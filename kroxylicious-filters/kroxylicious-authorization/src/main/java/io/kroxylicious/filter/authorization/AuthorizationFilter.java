@@ -13,8 +13,6 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
@@ -31,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;
-import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -88,7 +85,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
         apiEnforcement.put(ApiKeys.TXN_OFFSET_COMMIT, new TxnOffsetCommitEnforcement());
 
-        apiEnforcement.put(ApiKeys.FIND_COORDINATOR, new Passthrough<>(0, 6));
+        apiEnforcement.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEnforcement());
         apiEnforcement.put(ApiKeys.JOIN_GROUP, new Passthrough<>(0, 9));
         apiEnforcement.put(ApiKeys.SYNC_GROUP, new Passthrough<>(0, 5));
         apiEnforcement.put(ApiKeys.CONSUMER_GROUP_HEARTBEAT, new ConsumerGroupHeartbeatEnforcement());
