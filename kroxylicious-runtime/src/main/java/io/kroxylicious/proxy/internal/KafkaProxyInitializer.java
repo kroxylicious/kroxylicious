@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +42,9 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.CheckReturnValue;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
@@ -49,7 +53,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @VisibleForTesting
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
     public static final String PRE_SESSION_IDLE_HANDLER = "preSessionIdleHandler";
-    private static final long DEFAULT_UNAUTHENTICATED_IDLE_TIMEOUT_MILLIS = Duration.ofSeconds(11).toMillis();
 
     private final boolean haproxyProtocol;
     private final boolean tls;
@@ -61,7 +64,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<NettySettings> proxyNettySettings;
     private final Counter clientToProxyErrorCounter;
-    private final long idleMillis;
+    @Nullable
+    private final Long idleMillis;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
@@ -258,12 +262,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     private void addIdleHandlerToPipeline(ChannelPipeline pipeline) {
-        pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(0, 0, idleMillis, TimeUnit.MILLISECONDS));
+        if (Objects.nonNull(idleMillis)) {
+            pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(0, 0, idleMillis, TimeUnit.MILLISECONDS));
+        }
     }
 
+    @Nullable
+    @CheckReturnValue
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private long getIdleMillis(Optional<NettySettings> nettySettings) {
-        return nettySettings.flatMap(NettySettings::unAuthenticatedIdleTimeout).map(Duration::toMillis).orElse(DEFAULT_UNAUTHENTICATED_IDLE_TIMEOUT_MILLIS);
+    private Long getIdleMillis(Optional<NettySettings> nettySettings) {
+        return nettySettings.flatMap(NettySettings::unAuthenticatedIdleTimeout).map(Duration::toMillis).orElse(null);
     }
 
     @Sharable

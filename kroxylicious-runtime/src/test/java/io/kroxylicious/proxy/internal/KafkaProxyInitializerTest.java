@@ -69,6 +69,7 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,7 +79,6 @@ class KafkaProxyInitializerTest {
 
     private static final Duration CONFIGURED_IDLE_DURATION = Duration.ofSeconds(12);
     private static final long CONFIGURED_IDLE_DURATION_MILLIS = CONFIGURED_IDLE_DURATION.toMillis();
-    private static final long DEFAULT_IDLE_DURATION_MILLIS = Duration.ofSeconds(11).toMillis();
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private SocketChannel channel;
@@ -153,7 +153,7 @@ class KafkaProxyInitializerTest {
     }
 
     @Test
-    void shouldRegisterIdleStateHandlerWithDefaultDuration() {
+    void shouldNotRegisterIdleStateHandlerWithoutConfiguredDuration() {
         // Given
         proxyNettySettings = null;
         kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
@@ -162,13 +162,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline).addFirst(eq("preSessionIdleHandler"), argThat(
-                argument -> assertThat(argument).isInstanceOfSatisfying(IdleStateHandler.class,
-                        actualIdleStateHandler -> {
-                            assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(DEFAULT_IDLE_DURATION_MILLIS);
-                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isZero();
-                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isZero();
-                        })));
+        verify(channelPipeline, never()).addFirst(eq("preSessionIdleHandler"), any());
     }
 
     @Test
