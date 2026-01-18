@@ -278,7 +278,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     }
 
     @Test
-    void shouldRemovePreSessionIdleHandlerWhenSessionTlsAuthenticated() throws Exception {
+    void shouldRemovePreSessionIdleHandlerWhenSessionTransportAuthenticated() throws Exception {
         // Given
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
@@ -290,6 +290,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.onTransportSubjectBuilt();
 
         // Then
-        verify(proxyChannelStateMachine).onSessionTlsAuthenticated();
+        verify(proxyChannelStateMachine).onSessionTransportAuthenticated();
     }
 }
