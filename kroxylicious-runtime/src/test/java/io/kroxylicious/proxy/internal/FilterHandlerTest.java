@@ -1001,7 +1001,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         assertThat(snoopedOobRequestResponseFuture).withFailMessage("Future should be finished").isCompletedExceptionally();
-        assertThatThrownBy(() -> snoopedOobRequestResponseFuture.get()).hasCauseInstanceOf(TimeoutException.class).hasMessageContaining("failed to complete within");
+        assertThatThrownBy(snoopedOobRequestResponseFuture::get).hasCauseInstanceOf(TimeoutException.class).hasMessageContaining("failed to complete within");
     }
 
     @Test
