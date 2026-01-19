@@ -46,9 +46,8 @@ jobs:
         id: set_branch_name
         env:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          BRANCH_REGEX: "[\(\$\)\;]+"
         run: |
-          if [[ ${HEAD_BRANCH} =~ ${BRANCH_REGEX} ]];
+          if [[ ${HEAD_BRANCH} =~ [\(\$\)\;]+ ]];
           then
             echo "BRANCH '${HEAD_BRANCH}' contains potentially malicious characters as it matches BRANCH_REGEX '${BRANCH_REGEX}'"
             exit 1
