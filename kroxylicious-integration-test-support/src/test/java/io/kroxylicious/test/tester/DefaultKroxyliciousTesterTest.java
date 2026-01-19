@@ -22,7 +22,7 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.consumer.MockConsumer;
-import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.clients.consumer.internals.AutoOffsetResetStrategy.StrategyType;
 import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.KafkaFuture;
@@ -97,7 +97,7 @@ class DefaultKroxyliciousTesterTest {
 
     private final MockProducer<String, String> producer = new MockProducer<>();
 
-    private final MockConsumer<String, String> consumer = new MockConsumer<>(OffsetResetStrategy.LATEST);
+    private final MockConsumer<String, String> consumer = new MockConsumer<>(StrategyType.LATEST.toString());
 
     @BeforeEach
     void setUp() {

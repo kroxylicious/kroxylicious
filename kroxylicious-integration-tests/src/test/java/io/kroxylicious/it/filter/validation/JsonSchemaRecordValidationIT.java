@@ -37,6 +37,7 @@ import org.testcontainers.utility.DockerImageName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Ports;
 
@@ -111,8 +112,8 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         // An Apicurio Registry instance is required for this test to work, so we start one using a Generic Container
         DockerImageName dockerImageName = DockerImageName.parse("quay.io/apicurio/apicurio-registry-mem:2.6.13.Final");
 
-        Consumer<CreateContainerCmd> cmd = e -> e.withPortBindings(
-                new PortBinding(Ports.Binding.bindPort(APICURIO_REGISTRY_PORT), new ExposedPort(APICURIO_REGISTRY_PORT)));
+        Consumer<CreateContainerCmd> cmd = e -> e.withHostConfig(new HostConfig().withPortBindings(
+                new PortBinding(Ports.Binding.bindPort(APICURIO_REGISTRY_PORT), new ExposedPort(APICURIO_REGISTRY_PORT))));
 
         registryContainer = new GenericContainer<>(dockerImageName)
                 .withEnv(Map.of(

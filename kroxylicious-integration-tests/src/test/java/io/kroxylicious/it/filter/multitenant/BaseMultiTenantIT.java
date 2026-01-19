@@ -24,7 +24,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.clients.consumer.internals.AutoOffsetResetStrategy;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -137,7 +137,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         Map<String, Object> standardConfig = Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId,
                 ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
                 ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(),
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OffsetResetStrategy.EARLIEST.toString());
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, AutoOffsetResetStrategy.StrategyType.EARLIEST.toString());
         return getConsumerWithConfig(tester, Optional.of(virtualCluster), baseConfig, standardConfig, additionalConfig);
     }
 
