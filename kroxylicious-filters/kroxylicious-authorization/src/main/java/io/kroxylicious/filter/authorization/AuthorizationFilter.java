@@ -170,7 +170,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         LOG.debug("ALLOW {} no authorizable actions", authz.subject());
                     }
                     if (!actionsWithUnsupportedResourceTypes.isEmpty()) {
-                        LOG.debug("ALLOW {} to {} (due to unsupported resource type)", authz.allowed(), authz.subject());
+                        LOG.debug("ALLOW {} to {} (due to unsupported resource type)", actionsWithUnsupportedResourceTypes, authz.subject());
                         authz.allowed().addAll(actionsWithUnsupportedResourceTypes);
                     }
                     return authz;
