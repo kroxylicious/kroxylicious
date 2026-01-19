@@ -56,6 +56,7 @@ class FindCoordinatorAuthzIT extends AuthzIT {
             EVE_TXN_ID,
             NON_EXISTING_TXN_ID);
     public static final List<String> ALL_TOPICS_IN_TEST = List.<String> of();
+    public static final String TXN_COORDINATOR_OBSERVER = "x";
 
     private Path rulesFile;
 
@@ -93,14 +94,14 @@ class FindCoordinatorAuthzIT extends AuthzIT {
 
     @BeforeEach
     void prepClusters(
-                      @Name("kafkaClusterWithAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = "x") @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterWithAuthzProducer,
+                      @Name("kafkaClusterWithAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = TXN_COORDINATOR_OBSERVER) @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterWithAuthzProducer,
 
-                      @Name("kafkaClusterNoAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = "x") @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterNoAuthzProducer)
+                      @Name("kafkaClusterNoAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = TXN_COORDINATOR_OBSERVER) @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterNoAuthzProducer)
             throws InterruptedException, ExecutionException {
         prepCluster(kafkaClusterWithAuthzAdmin, ALL_TOPICS_IN_TEST, aclBindings);
         prepCluster(kafkaClusterNoAuthzAdmin, ALL_TOPICS_IN_TEST, List.of());
-        ensureCoordinators(kafkaClusterWithAuthzProducer, kafkaClusterWithAuthzAdmin);
-        ensureCoordinators(kafkaClusterNoAuthzProducer, kafkaClusterNoAuthzAdmin);
+        ensureCoordinators(kafkaClusterWithAuthzProducer, TXN_COORDINATOR_OBSERVER, kafkaClusterWithAuthzAdmin);
+        ensureCoordinators(kafkaClusterNoAuthzProducer, TXN_COORDINATOR_OBSERVER, kafkaClusterNoAuthzAdmin);
     }
 
     @AfterEach

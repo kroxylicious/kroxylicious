@@ -400,6 +400,7 @@ public abstract class AuthzIT extends BaseIT {
     }
 
     protected static void ensureCoordinators(Producer<String, String> producer,
+                                             String transactionalId,
                                              Admin admin)
             throws InterruptedException, ExecutionException {
         producer.initTransactions();
@@ -407,8 +408,8 @@ public abstract class AuthzIT extends BaseIT {
         producer.send(new ProducerRecord<>("top", "", "")).get();
 
         TopicPartition top = new TopicPartition("top", 0);
-        while (admin.describeTransactions(List.of("x")).all().toCompletionStage().toCompletableFuture()
-                .join().get("x").coordinatorId() < 0) {
+        while (admin.describeTransactions(List.of(transactionalId)).all().toCompletionStage().toCompletableFuture()
+                .join().get(transactionalId).coordinatorId() < 0) {
             Thread.sleep(1_000);
         }
         producer.abortTransaction();
