@@ -181,9 +181,8 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
 
     private IterableAssert<Record> recordIterable() {
         isNotNull();
-        IterableAssert<Record> records = IterableAssert.assertThatIterable(actual)
+        return IterableAssert.assertThatIterable(actual)
                 .describedAs("records");
-        return records;
     }
 
     public RecordAssert firstRecord() {
