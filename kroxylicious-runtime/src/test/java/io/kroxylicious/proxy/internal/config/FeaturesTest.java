@@ -118,7 +118,7 @@ class FeaturesTest {
     void equalsHashcode(Object a, Object b, boolean equals) {
         assertThat(a.equals(b)).isEqualTo(equals);
         if (equals) {
-            assertThat(a.hashCode()).isEqualTo(b.hashCode());
+            assertThat(a).hasSameHashCodeAs(b);
         }
     }
 }

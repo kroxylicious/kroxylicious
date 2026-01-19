@@ -182,7 +182,7 @@ class EndpointRegistryTest {
         assertThat(executionException).hasRootCauseInstanceOf(IOException.class);
 
         assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isFalse();
-        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(0);
+        assertThat(endpointRegistry.listeningChannelCount()).isZero();
     }
 
     @Test
@@ -201,7 +201,7 @@ class EndpointRegistryTest {
         assertThat(df.isDone()).isTrue();
 
         assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isFalse();
-        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(0);
+        assertThat(endpointRegistry.listeningChannelCount()).isZero();
     }
 
     @Test
@@ -817,7 +817,7 @@ class EndpointRegistryTest {
         }
 
         public void verifyAndProcessNetworkEvents(NetworkBindingOperation... expectedEvents) {
-            assertThat(queue.size()).as("unexpected number of events").isEqualTo(expectedEvents.length);
+            assertThat(queue).as("unexpected number of events").hasSize(expectedEvents.length);
             var expectedEventIterator = Arrays.stream(expectedEvents).iterator();
             while (expectedEventIterator.hasNext()) {
                 var expectedEvent = expectedEventIterator.next();
