@@ -389,11 +389,8 @@ class ConfigParserTest {
                       portIdentifiesNode:
                         bootstrapAddress: cluster1:9192
                 """);
-        ServiceBasedPluginFactoryRegistry registry = new ServiceBasedPluginFactoryRegistry();
         // When/Then
-        assertThatThrownBy(() -> {
-            configuration.virtualClusterModel();
-        }).isInstanceOf(IllegalConfigurationException.class)
+        assertThatThrownBy(configuration::virtualClusterModel).isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageStartingWith("Virtual cluster 'mycluster1', gateway 'default': 'tls' object is missing the mandatory attribute 'key'.");
         // We can't assert the full message as the link will change with every release
     }
