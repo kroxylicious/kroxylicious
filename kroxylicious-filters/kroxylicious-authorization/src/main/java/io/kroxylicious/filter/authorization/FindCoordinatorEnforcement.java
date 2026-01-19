@@ -68,8 +68,9 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
                     var deniedKeys = decisions.get(Decision.DENY);
                     if (allowedKeys.isEmpty()) {
                         // Shortcircuit if there are no allowed topics
-                        return context.requestFilterResultBuilder().shortCircuitResponse(
-                                errorResponse(keys, usesBatching(header))).completed();
+                        return context.requestFilterResultBuilder()
+                                .errorResponse(header, request, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception())
+                                .completed();
                     }
                     else if (deniedKeys.isEmpty()) {
                         // Just forward if there are no denied topics
