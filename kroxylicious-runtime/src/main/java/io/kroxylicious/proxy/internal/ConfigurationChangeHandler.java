@@ -66,10 +66,6 @@ public class ConfigurationChangeHandler {
             ConfigurationChangeRollbackTracker rollbackTracker = new ConfigurationChangeRollbackTracker();
 
             return processConfigurationChanges(changes, changeContext, rollbackTracker)
-                    .thenRun(() -> {
-                        LOGGER.info("Configuration hot-reload completed successfully - {} operations processed",
-                                changes.getTotalOperations());
-                    })
                     .whenComplete((result, throwable) -> {
                         if (throwable != null) {
                             LOGGER.error("Configuration change failed - initiating rollback", throwable);
@@ -82,6 +78,11 @@ public class ConfigurationChangeHandler {
                                             LOGGER.info("Rollback completed successfully - system restored to previous state");
                                         }
                                     });
+                        }
+                        else {
+                            // SUCCESS LOG: Only logs after ALL operations complete without error
+                            LOGGER.info("Configuration hot-reload completed successfully - {} operations processed",
+                                    changes.getTotalOperations());
                         }
                     });
 

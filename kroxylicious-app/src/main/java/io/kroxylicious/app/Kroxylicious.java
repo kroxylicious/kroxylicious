@@ -8,6 +8,7 @@ package io.kroxylicious.app;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -42,11 +43,7 @@ public class Kroxylicious implements Callable<Integer> {
     private final KafkaProxyBuilder proxyBuilder;
 
     interface KafkaProxyBuilder {
-        KafkaProxy build(PluginFactoryRegistry registry, Configuration config, Features features);
-        
-        default KafkaProxy build(PluginFactoryRegistry registry, Configuration config, Features features, java.nio.file.Path configFilePath) {
-            return new KafkaProxy(registry, config, features, configFilePath);
-        }
+        KafkaProxy build(PluginFactoryRegistry registry, Configuration config, Features features, Path configFilePath);
     }
 
     Kroxylicious() {
