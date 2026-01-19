@@ -101,7 +101,7 @@ class DekTest {
 
         dek.destroy(); // This should be safe
 
-        assertThatThrownBy(() -> dek.decryptor()).isExactlyInstanceOf(DestroyedDekException.class);
+        assertThatThrownBy(dek::decryptor).isExactlyInstanceOf(DestroyedDekException.class);
         assertThatThrownBy(() -> dek.encryptor(1)).isExactlyInstanceOf(DestroyedDekException.class);
     }
 
@@ -514,7 +514,7 @@ class DekTest {
                 .isZero();
 
         // Shouldn't be able to use the Encryptor again
-        assertThatThrownBy(() -> encryptor.generateParameters(size -> ByteBuffer.allocate(size)))
+        assertThatThrownBy(() -> encryptor.generateParameters(ByteBuffer::allocate))
                 .isExactlyInstanceOf(DekUsageException.class)
                 .hasMessage("The Encryptor has no more operations allowed");
         assertThat(plaintextBuffer.position())

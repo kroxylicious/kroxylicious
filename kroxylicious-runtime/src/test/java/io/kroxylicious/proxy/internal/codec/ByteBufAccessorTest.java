@@ -88,7 +88,7 @@ public class ByteBufAccessorTest {
 
         var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
         var kp = new ByteBufAccessorImpl(bbuf);
-        assertThatThrownBy(() -> kp.readVarlong()).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Varlong is too long");
+        assertThatThrownBy(kp::readVarlong).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Varlong is too long");
     }
 
     @Test
@@ -101,7 +101,7 @@ public class ByteBufAccessorTest {
 
         var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
         var kp = new ByteBufAccessorImpl(bbuf);
-        assertThatThrownBy(() -> kp.readUnsignedVarint()).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Varint is too long");
+        assertThatThrownBy(kp::readUnsignedVarint).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Varint is too long");
     }
 
     @Test
@@ -114,7 +114,7 @@ public class ByteBufAccessorTest {
 
         var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
         var kp = new ByteBufAccessorImpl(bbuf);
-        assertThatThrownBy(() -> kp.readVarint()).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Varint is too long");
+        assertThatThrownBy(kp::readVarint).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Varint is too long");
     }
 
     @Test
