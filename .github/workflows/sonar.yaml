@@ -64,13 +64,11 @@ jobs:
           fetch-depth: 0
       - name: Checkout base branch
         if: env.SONAR_TOKEN_SET == 'true'
-        env:
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           git remote add upstream ${{ github.event.repository.clone_url }}
           git fetch upstream
           git checkout -B ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} upstream/${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
-          git checkout "${HEAD_BRANCH}"
+          git checkout "origin/${SANITIZED_HEAD_REF}"
           git clean -ffdx && git reset --hard HEAD
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
