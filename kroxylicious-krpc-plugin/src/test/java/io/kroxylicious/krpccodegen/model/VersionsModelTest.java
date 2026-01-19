@@ -93,7 +93,7 @@ class VersionsModelTest {
     void sizeNone() {
         VersionsModel versionsModel = new VersionsModel(WRAPPER, Versions.NONE);
         int size = versionsModel.size();
-        assertThat(size).isEqualTo(0);
+        assertThat(size).isZero();
     }
 
 }
