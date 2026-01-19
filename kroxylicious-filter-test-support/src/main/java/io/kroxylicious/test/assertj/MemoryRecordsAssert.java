@@ -39,9 +39,8 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
 
     public IterableAssert<? extends RecordBatch> batchesIterable() {
         isNotNull();
-        var batchesAssert = IterableAssert.assertThatIterable(actual.batches())
+        return IterableAssert.assertThatIterable(actual.batches())
                 .describedAs("batches");
-        return batchesAssert;
     }
 
     public Iterable<RecordBatchAssert> batches() {
