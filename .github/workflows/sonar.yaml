@@ -42,17 +42,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           pr_number: ${{ steps.pr_number.outputs.content }}
           full_name: ${{ github.event.repository.full_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: "sanitize head ref"
+      - name: "Check for legal branch names"
         id: set_branch_name
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          BRANCH_REGEX: "[\(\$\)\;]+"
         run: |
-          head_ref="${{ github.event.workflow_run.head_repository.head_branch }}"
-          
-          # Sanitize by replacing shell characters with -
-          sanitized_head=$(echo ${head_ref} | sed 's/[\(\$\)]/-/g')
-          
-          echo "sanitized_head_ref=${sanitized_head}" >> $GITHUB_ENV
+          if [[ ${HEAD_BRANCH} =~ ${BRANCH_REGEX} ]];
+          then
+            echo "BRANCH '${HEAD_BRANCH}' contains potentially malicious characters as it matches BRANCH_REGEX '${BRANCH_REGEX}'"
+            exit 1
+          else
+            echo "SANITIZED_HEAD_REF=${sanitized_head}" >> $GITHUB_ENV
+          fi
         shell: bash
       - uses: actions/checkout@v6
         if: env.SONAR_TOKEN_SET == 'true'
