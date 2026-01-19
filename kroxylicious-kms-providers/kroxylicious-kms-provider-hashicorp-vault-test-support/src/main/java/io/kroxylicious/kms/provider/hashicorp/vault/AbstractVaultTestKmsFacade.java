@@ -205,6 +205,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
                 .build();
     }
 
+    @SuppressWarnings("java:S3398") // private method called only by inner class is defined here for consistency
     private HttpRequest createVaultDelete(URI url) {
         return createVaultRequest()
                 .uri(url)
