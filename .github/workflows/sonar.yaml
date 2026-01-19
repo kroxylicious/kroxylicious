@@ -37,7 +37,7 @@ jobs:
         if: env.SONAR_TOKEN_SET == 'true'
         id: get_pr_data
         with:
-          route: GET /repos/${{env.full_name}}/pulls/${{env.number}}
+          route: GET /repos/${{env.full_name}}/pulls/${{env.pr_number}}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           pr_number: ${{ steps.pr_number.outputs.content }}
@@ -60,7 +60,7 @@ jobs:
         if: env.SONAR_TOKEN_SET == 'true'
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
-          ref: ${{env.sanitized_head_ref}}
+          ref: ${{env.SANITIZED_HEAD_REF}}
           fetch-depth: 0
       - name: Checkout base branch
         if: env.SONAR_TOKEN_SET == 'true'
