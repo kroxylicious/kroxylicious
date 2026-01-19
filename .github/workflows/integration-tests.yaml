@@ -45,6 +45,7 @@ jobs:
     needs: discover_integration_test_chunks
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         tests: ${{ fromJson(needs.discover_integration_test_chunks.outputs.test_chunks) }}
     steps:
