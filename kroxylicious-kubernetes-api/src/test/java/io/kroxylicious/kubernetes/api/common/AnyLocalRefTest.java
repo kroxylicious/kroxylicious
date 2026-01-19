@@ -21,14 +21,13 @@ class AnyLocalRefTest {
         var secretRefFoo2 = new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build();
         var cmRefFoo = new AnyLocalRefBuilder().withName("foo").withKind("ConfigMap").withGroup("").build();
         var diffGroupSecretFoo = new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("not.the.usual.group").build();
-        assertThat(secretRefFoo).isEqualTo(secretRefFoo);
-        assertThat(secretRefFoo).isNotEqualTo("salami");
-        assertThat(secretRefFoo).isNotEqualTo(diffGroupSecretFoo);
-        assertThat(secretRefFoo).isEqualTo(secretRefFoo2);
+        assertThat(secretRefFoo).isEqualTo(secretRefFoo)
+                .isNotEqualTo("salami")
+                .isNotEqualTo(diffGroupSecretFoo)
+                .isEqualTo(secretRefFoo2)
+                .hasSameHashCodeAs(secretRefFoo2)
+                .isNotEqualTo(cmRefFoo);
         assertThat(secretRefFoo2).isEqualTo(secretRefFoo);
-        assertThat(secretRefFoo).hasSameHashCodeAs(secretRefFoo2);
-
-        assertThat(secretRefFoo).isNotEqualTo(cmRefFoo);
     }
 
     @Test
