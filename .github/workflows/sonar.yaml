@@ -52,7 +52,7 @@ jobs:
             echo "BRANCH '${HEAD_BRANCH}' contains potentially malicious characters as it matches BRANCH_REGEX '${BRANCH_REGEX}'"
             exit 1
           else
-            echo "SANITIZED_HEAD_REF=${sanitized_head}" >> $GITHUB_ENV
+            echo "SANITIZED_HEAD_REF=${HEAD_BRANCH}" >> $GITHUB_ENV
           fi
         shell: bash
       - uses: actions/checkout@v6
