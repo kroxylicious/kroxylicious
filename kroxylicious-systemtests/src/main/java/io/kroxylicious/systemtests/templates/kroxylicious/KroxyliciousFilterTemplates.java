@@ -58,7 +58,7 @@ public final class KroxyliciousFilterTemplates {
                 .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY)
                 .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
-                .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT);
+                .setDefaultPropertyInclusion(JsonInclude.Include.NON_DEFAULT);
     }
 
     /**

@@ -184,7 +184,7 @@ public class KrpcGenerator {
         JSON_SERDE.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
         JSON_SERDE.configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, true);
         JSON_SERDE.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
-        JSON_SERDE.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+        JSON_SERDE.setDefaultPropertyInclusion(JsonInclude.Include.NON_EMPTY);
     }
 
     private final Logger logger;
