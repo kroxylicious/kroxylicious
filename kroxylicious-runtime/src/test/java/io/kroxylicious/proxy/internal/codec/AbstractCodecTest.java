@@ -187,7 +187,7 @@ public abstract class AbstractCodecTest {
 
         ApiMessage encodedBody = bodySupplier.get();
 
-        short headerVersion = headerVersionSupplier.apply(apiVersion); // ;
+        short headerVersion = headerVersionSupplier.apply(apiVersion);
         ByteBuffer akBuffer = serializeUsingKafkaApis(headerVersion, encodedHeader, apiVersion, encodedBody);
 
         // This is a bit of a hack... the Data classes know about which fields appear in which versions
