@@ -30,6 +30,9 @@ import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
@@ -551,7 +554,6 @@ class ConfigurationTest {
                 new NamedFilterDefinition("foo", "", ""));
         Optional<Map<String, Object>> development = Optional.empty();
         var virtualCluster = List.of(VIRTUAL_CLUSTER);
-        NetworkDefinition network = null;
         assertThatThrownBy(() -> new Configuration(null,
                 filterDefinitions,
                 null,
@@ -559,7 +561,7 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
-                network))
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
     }
@@ -633,23 +635,9 @@ class ConfigurationTest {
         List<NamedFilterDefinition> filterDefinitions = List.of(
                 new NamedFilterDefinition("foo", "Foo", ""),
                 new NamedFilterDefinition("bar", "Bar", ""));
-        VirtualCluster direct = new VirtualCluster("direct", new TargetCluster("y:9092", Optional.empty()),
-                List.of(new VirtualClusterGateway("mygateway",
-                        new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
-                        null,
-                        Optional.empty())),
-                false,
-                false,
-                List.of("foo")); // filters defined on cluster
 
-        VirtualCluster defaulted = new VirtualCluster("defaulted", new TargetCluster("x:9092", Optional.empty()),
-                List.of(new VirtualClusterGateway("mygateway",
-                        new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
-                        null,
-                        Optional.empty())),
-                false,
-                false,
-                null); // filters not defined => should default to the top level
+        VirtualCluster direct = buildVirtualCluster("direct", "y:9092", List.of("foo")); // filters defined on cluster
+        VirtualCluster defaulted = buildVirtualCluster("defaulted", "x:9092", null); // filters not defined => should default to the top level
 
         Configuration configuration = new Configuration(
                 null,
@@ -672,6 +660,18 @@ class ConfigurationTest {
                 .isPresent()
                 .hasValueSatisfying(vcm -> assertThat(vcm.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Bar"))
         ;
+    }
+
+    @NonNull
+    private static VirtualCluster buildVirtualCluster(String virtualClusterName, String targetBootstrap, @Nullable List<String> filterNames) {
+        return new VirtualCluster(virtualClusterName, new TargetCluster(targetBootstrap, Optional.empty()),
+                List.of(new VirtualClusterGateway("mygateway",
+                        new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
+                        null,
+                        Optional.empty())),
+                false,
+                false,
+                filterNames);
     }
 
 }
