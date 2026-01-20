@@ -9,7 +9,7 @@
 
 [role="_abstract"]
 Custom filters can be written in the Java programming language.
-Kroxylicious supports Java 21 (Java 17 currently works but has been deprecated).
+Kroxylicious supports Java 21 (Java 17 remains supported for now but is deprecated and will be removed in a future release).
 Knowledge of the {kafka-protocol}[Kafka protocol^] is generally required to write a protocol filter.
 
 There is currently one class of Custom Filters users can implement:

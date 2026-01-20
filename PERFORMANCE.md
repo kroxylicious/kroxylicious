@@ -24,10 +24,8 @@ The tested scenarios are:
 
 ## Prerequisites
 
-> [!WARNING]
-> [Use of Java 17 as a compilation target has been deprecated](https://github.com/kroxylicious/design/pull/87). Please switch to Java 21 or above before support is removed.
-
 - [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
+  - At production runtime, Java 17 remains supported but is deprecated. Use Java 21 or later. 
 - [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - Maven CLI
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 - [`jq`](https://jqlang.github.io/) 1.7 or higher

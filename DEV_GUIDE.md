@@ -49,9 +49,6 @@ This document gives a detailed breakdown of the various build processes and opti
 
 ## Build Prerequisites
 
-> [!WARNING]
-> [Use of Java 17 as a compilation target has been deprecated](https://github.com/kroxylicious/design/pull/87). Please switch to Java 21 or above before support is removed.
-
 - [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
 - [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - [Apache Maven®](https://maven.apache.org)
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
@@ -65,7 +62,7 @@ This document gives a detailed breakdown of the various build processes and opti
 JDK version 21 or newer, and [Apache Maven®](https://maven.apache.org) are required for building this project.
 
 Kroxylicious targets language level 17, except for the `integrationtests` module
-which targets 21 to access some new language features.
+which targets 21 to access some new language features. At production runtime, Java 17 remains supported but is deprecated. Use Java 21 or later.
 
 Build the project like this:
 
