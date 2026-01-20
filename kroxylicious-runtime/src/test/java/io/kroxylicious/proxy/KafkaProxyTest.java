@@ -451,7 +451,7 @@ class KafkaProxyTest {
                 """), Features.defaultFeatures())) {
             // When
             // Then
-            assertThatThrownBy(proxy::startup).isInstanceOf(LifecycleException.class).hasMessageStartingWith("io_uring not available due to: ");
+            assertThatThrownBy(proxy::startup).isInstanceOf(LifecycleException.class).cause().hasMessageStartingWith("io_uring not available due to: ");
         }
     }
 }
