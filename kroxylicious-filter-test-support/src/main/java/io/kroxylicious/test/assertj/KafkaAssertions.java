@@ -31,7 +31,7 @@ public class KafkaAssertions {
         return RecordAssert.assertThat(actual);
     }
 
-    public static ConsumerRecordAssert assertThat(ConsumerRecord actual) {
+    public static ConsumerRecordAssert assertThat(ConsumerRecord<?, ?> actual) {
         return ConsumerRecordAssert.assertThat(actual);
     }
 
