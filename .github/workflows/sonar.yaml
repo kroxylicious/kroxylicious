@@ -37,36 +37,37 @@ jobs:
         if: env.SONAR_TOKEN_SET == 'true'
         id: get_pr_data
         with:
-          route: GET /repos/{full_name}/pulls/{number}
-          number: ${{ steps.pr_number.outputs.content }}
-          full_name: ${{ github.event.repository.full_name }}
+          route: GET /repos/${{env.full_name}}/pulls/${{env.pr_number}}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: "sanitize head ref"
+          pr_number: ${{ steps.pr_number.outputs.content }}
+          full_name: ${{ github.event.repository.full_name }}
+      - name: "Check for legal branch names"
         id: set_branch_name
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          head_ref="${{ github.event.workflow_run.head_repository.head_branch }}"
-          
-          # Sanitize by replacing shell characters with -
-          sanitized_head=$(echo ${head_ref} | sed 's/[\(\$\)]/-/g')
-          
-          echo "sanitized_head_ref=${sanitized_head}" >> $GITHUB_ENV
+          if [[ ${HEAD_BRANCH} =~ [\(\$\)\;]+ ]];
+          then
+            echo "BRANCH '${HEAD_BRANCH}' contains potentially malicious characters as it matches BRANCH_REGEX '${BRANCH_REGEX}'"
+            exit 1
+          else
+            echo "SANITIZED_HEAD_REF=${HEAD_BRANCH}" >> $GITHUB_ENV
+          fi
         shell: bash
       - uses: actions/checkout@v6
         if: env.SONAR_TOKEN_SET == 'true'
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
-          ref: ${{env.sanitized_head_ref}}
+          ref: ${{env.SANITIZED_HEAD_REF}}
           fetch-depth: 0
       - name: Checkout base branch
         if: env.SONAR_TOKEN_SET == 'true'
-        env:
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           git remote add upstream ${{ github.event.repository.clone_url }}
           git fetch upstream
           git checkout -B ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} upstream/${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
-          git checkout "${HEAD_BRANCH}"
+          git checkout "origin/${{env.SANITIZED_HEAD_REF}}"
           git clean -ffdx && git reset --hard HEAD
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
