@@ -56,65 +56,57 @@ class ConfigurationTest {
 
     @Test
     void shouldRejectVirtualClusterWithNoGateways() {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                              name: cluster
-                              targetCluster:
-                                bootstrapServers: kafka.example:1234
-                            """, VirtualCluster.class);
-        }).isInstanceOf(MismatchedInputException.class)
+        assertThatThrownBy(() -> MAPPER.readValue(
+                """
+                          name: cluster
+                          targetCluster:
+                            bootstrapServers: kafka.example:1234
+                        """, VirtualCluster.class)).isInstanceOf(MismatchedInputException.class)
                 .hasMessageContaining("Missing required creator property 'gateways'");
     }
 
     @Test
     void shouldRejectVirtualClusterWithNullGateways() {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                              name: cluster
-                              targetCluster:
-                                bootstrapServers: kafka.example:1234
-                              gateways: null
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
+        assertThatThrownBy(() -> MAPPER.readValue(
+                """
+                          name: cluster
+                          targetCluster:
+                            bootstrapServers: kafka.example:1234
+                          gateways: null
+                        """, VirtualCluster.class)).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("no gateways configured for virtual cluster 'cluster'");
     }
 
     @Test
     void shouldRejectVirtualClusterNullGatewayValue() {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                              name: cluster
-                              targetCluster:
-                                bootstrapServers: kafka.example:1234
-                              gateways: [null]
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
+        assertThatThrownBy(() -> MAPPER.readValue(
+                """
+                          name: cluster
+                          targetCluster:
+                            bootstrapServers: kafka.example:1234
+                          gateways: [null]
+                        """, VirtualCluster.class)).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("one or more gateways were null for virtual cluster 'cluster'");
     }
 
     @Test
     void shouldRejectSniGatewayWithNoAdvertisedBrokerAddressPattern() {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                              name: cluster
-                              targetCluster:
-                                bootstrapServers: kafka.example:1234
-                              gateways:
-                              - name: default
-                                sniHostIdentifiesNode:
-                                    bootstrapAddress: cluster1:9192
-                                tls:
-                                  key:
-                                    certificateFile: /tmp/cert
-                                    privateKeyFile: /tmp/key
-                            """, VirtualCluster.class);
-        }).isInstanceOf(MismatchedInputException.class)
+        assertThatThrownBy(() -> MAPPER.readValue(
+                """
+                          name: cluster
+                          targetCluster:
+                            bootstrapServers: kafka.example:1234
+                          gateways:
+                          - name: default
+                            sniHostIdentifiesNode:
+                                bootstrapAddress: cluster1:9192
+                            tls:
+                              key:
+                                certificateFile: /tmp/cert
+                                privateKeyFile: /tmp/key
+                        """, VirtualCluster.class)).isInstanceOf(MismatchedInputException.class)
                 .hasMessageContaining("Missing required creator property 'advertisedBrokerAddressPattern'");
     }
 
@@ -124,18 +116,18 @@ class ConfigurationTest {
                         "examplePluginConfig", Map.of("pluginKey", "pluginValue"))
                 .build();
         return Stream.of(argumentSet("Top level",
-                new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withUseIoUring(true).build(),
-                """
-                        useIoUring: true
-                        virtualClusters:
-                          - name: demo
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                            gateways:
-                            - name: default
-                              portIdentifiesNode:
-                                bootstrapAddress: example.com:1234
-                        """),
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withUseIoUring(true).build(),
+                        """
+                                useIoUring: true
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
                 argumentSet("With filterDefinitions",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters(VIRTUAL_CLUSTER)
@@ -673,10 +665,13 @@ class ConfigurationTest {
         var model = configuration.virtualClusterModel();
 
         // Then
-        var directModel = model.stream().filter(x -> x.getClusterName().equals("direct")).findFirst().get();
-        var defaultModel = model.stream().filter(x -> x.getClusterName().equals("defaulted")).findFirst().get();
-        assertThat(directModel.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Foo");
-        assertThat(defaultModel.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Bar");
+        assertThat(model.stream().filter(x -> x.getClusterName().equals("direct")).findFirst())
+                .isPresent()
+                .hasValueSatisfying(vcm -> assertThat(vcm.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Foo"));
+        assertThat(model.stream().filter(x -> x.getClusterName().equals("defaulted")).findFirst())
+                .isPresent()
+                .hasValueSatisfying(vcm -> assertThat(vcm.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Bar"))
+        ;
     }
 
 }
