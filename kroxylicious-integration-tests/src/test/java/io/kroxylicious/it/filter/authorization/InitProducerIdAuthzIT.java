@@ -15,8 +15,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.TransactionDescription;
-import org.apache.kafka.clients.admin.TransactionListing;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.acl.AccessControlEntry;
@@ -43,8 +41,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.kroxylicious.filter.authorization.InitProducerIdEnforcement;
 import io.kroxylicious.testing.kafka.common.ClientConfig;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class InitProducerIdAuthzIT extends AuthzIT {
 
@@ -100,6 +96,7 @@ class InitProducerIdAuthzIT extends AuthzIT {
 
                       @Name("kafkaClusterNoAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = TXN_COORDINATOR_OBSERVER) @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterNoAuthzProducer)
             throws InterruptedException, ExecutionException {
+        System.out.println(kafkaClusterWithAuthzAdmin.describeFeatures().featureMetadata().get());
         prepCluster(kafkaClusterWithAuthzAdmin, ALL_TOPICS_IN_TEST, aclBindings);
         prepCluster(kafkaClusterNoAuthzAdmin, ALL_TOPICS_IN_TEST, List.of());
         ensureCoordinators(kafkaClusterWithAuthzProducer, TXN_COORDINATOR_OBSERVER, kafkaClusterWithAuthzAdmin);

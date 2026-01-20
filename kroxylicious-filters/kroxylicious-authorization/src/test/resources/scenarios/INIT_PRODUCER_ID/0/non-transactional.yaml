@@ -7,29 +7,27 @@
 ---
 metadata:
   apiKeys: "INIT_PRODUCER_ID"
-  apiVersion: 5
+  apiVersion: 0
   scenario: "baseline"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "INIT_PRODUCER_ID"
-      expectedRequestVersion: 5
+      expectedRequestVersion: 0
       expectedRequestHeader:
         requestApiKey: 22
-        requestApiVersion: 5
+        requestApiVersion: 0
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        transactionalId: "my-transactional-id"
-        transactionTimeoutMs: 649
-        producerId: 575
-        producerEpoch: 966
+        transactionalId: null
+        transactionTimeoutMs: 506
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
-        throttleTimeMs: 450
-        errorCode: 838
-        producerId: 980
-        producerEpoch: 629
+        throttleTimeMs: 289
+        errorCode: 273
+        producerId: 324
+        producerEpoch: 123
   authorizerRules:
     allowed:
       - subject: "alice"
@@ -41,19 +39,17 @@ when:
   subject: "alice"
   requestHeader:
     requestApiKey: 22
-    requestApiVersion: 5
+    requestApiVersion: 0
     correlationId: 1
     clientId: "clientId"
   request:
-    transactionalId: "my-transactional-id"
-    transactionTimeoutMs: 649
-    producerId: 575
-    producerEpoch: 966
+    transactionalId: null
+    transactionTimeoutMs: 506
 then:
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
-    throttleTimeMs: 450
-    errorCode: 838
-    producerId: 980
-    producerEpoch: 629
+    throttleTimeMs: 289
+    errorCode: 273
+    producerId: 324
+    producerEpoch: 123

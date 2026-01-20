@@ -1,0 +1,44 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "INIT_PRODUCER_ID"
+  apiVersion: 6
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "WRITE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 22
+    requestApiVersion: 6
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "my-transactional-id"
+    transactionTimeoutMs: 264
+    producerId: 564
+    producerEpoch: 554
+    enable2Pc: true
+    keepPreparedTxn: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 53
+    producerId: -1
+    producerEpoch: -1
+    ongoingTxnProducerId: -1
+    ongoingTxnProducerEpoch: -1

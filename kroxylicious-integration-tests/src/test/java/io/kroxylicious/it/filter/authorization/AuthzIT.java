@@ -81,6 +81,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
+import kafka.server.KafkaConfig;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -138,8 +139,11 @@ public abstract class AuthzIT extends BaseIT {
     @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer")
     // ANONYMOUS is the broker
     @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:super")
+    @BrokerConfig(name = "transaction.two.phase.commit.enable", value = "true")
     @Name("kafkaClusterWithAuthz")
     static KafkaCluster kafkaClusterWithAuthz;
+
+    @BrokerConfig(name = "transaction.two.phase.commit.enable", value = "true")
     @Name("kafkaClusterNoAuthz")
     static KafkaCluster kafkaClusterNoAuthz;
 
