@@ -358,16 +358,6 @@ public class KrpcGenerator {
     private long renderMulti(Configuration cfg, Set<MessageSpec> messageSpecs) {
         logger.log(Level.DEBUG, "Processing message specs");
 
-        // TODO not actually used right now
-        // var structRegistry = new StructRegistry();
-        // try {
-        // for (MessageSpec messageSpec : messageSpecs) {
-        // structRegistry.register(messageSpec);
-        // }
-        // }
-        // catch (Exception e) {
-        // throw new RuntimeException(e);
-        // }
         return templateNames.stream().mapToLong(templateName -> {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
