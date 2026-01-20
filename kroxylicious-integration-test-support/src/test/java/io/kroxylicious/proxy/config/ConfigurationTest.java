@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -494,6 +495,40 @@ class ConfigurationTest {
                                 network:
                                     management:
                                         workerThreadCount: 2
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("UnAuthenticatedIdleTimeout",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork()
+                                .withNewProxy().withUnAuthenticatedIdleTimeout(Duration.ofSeconds(90)).endProxy()
+                                .endNetwork().build(),
+                        """
+                                network:
+                                    proxy:
+                                        unAuthenticatedIdleTimeout: 1m30s
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("AuthenticatedIdleTimeout",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork()
+                                .withNewProxy().withAuthenticatedIdleTimeout(Duration.ofMinutes(10)).endProxy()
+                                .endNetwork().build(),
+                        """
+                                network:
+                                    proxy:
+                                        authenticatedIdleTimeout: 10m
                                 virtualClusters:
                                   - name: demo
                                     targetCluster:
