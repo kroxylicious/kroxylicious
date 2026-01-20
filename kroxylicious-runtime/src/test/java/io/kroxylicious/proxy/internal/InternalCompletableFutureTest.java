@@ -13,14 +13,15 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.CompletableFutureAssert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -29,8 +30,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
@@ -38,7 +37,6 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 @SuppressWarnings("java:S3415")
 class InternalCompletableFutureTest {
 
-    private static final AtomicReference<Thread> actualThread = new AtomicReference<>();
     private static EventLoop executor;
     private static Thread threadOfExecutor;
 
@@ -53,22 +51,18 @@ class InternalCompletableFutureTest {
         executor.shutdownGracefully(0, 0, TimeUnit.SECONDS);
     }
 
-    @BeforeEach
-    void setUp() {
-        actualThread.set(null);
-    }
-
     @Test
     void asyncChainingMethodExecutesOnThreadOfExecutor() {
         // Given
         var future = InternalCompletableFuture.completedFuture(executor, null);
 
         // When
-        assertThat(future.thenAcceptAsync(InternalCompletableFutureTest::captureThread))
+        ThreadCaptor threadCaptor = new ThreadCaptor();
+        assertThat(future.thenAcceptAsync(captureThreadConsumer(threadCaptor)))
                 .succeedsWithin(Duration.ofMillis(100));
 
         // Then
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(threadCaptor.actualThread()).hasValue(threadOfExecutor);
     }
 
     @Test
@@ -77,214 +71,226 @@ class InternalCompletableFutureTest {
         var future = new InternalCompletableFuture<>(executor);
 
         // When
+        ThreadCaptor threadCaptor = new ThreadCaptor();
         assertThat(future.acceptEitherAsync(CompletableFuture.completedFuture(null),
                 u -> {
-                }).thenAcceptAsync(InternalCompletableFutureTest::captureThread))
+                }).thenAcceptAsync(captureThreadConsumer(threadCaptor)))
                 .succeedsWithin(Duration.ofMillis(100));
 
         // Then
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(threadCaptor.actualThread()).hasValue(threadOfExecutor);
     }
+
+    record ThreadCaptor(AtomicReference<Thread> actualThread) {
+        ThreadCaptor() {
+            this(new AtomicReference<>(null));
+        }
+    }
+
+    record StageChainingContext(CompletionStage<Void> stageToChainTo, Executor executor, ThreadCaptor captor) {}
 
     static Stream<Arguments> allExceptionalMethods() {
         return Stream.of(
-                argumentSet("exceptionally", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionally(
-                        InternalCompletableFutureTest::captureThreadWithResult)),
-                argumentSet("exceptionallyAsync", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyAsync(
-                        InternalCompletableFutureTest::captureThreadWithResult)),
-                argumentSet("exceptionallyAsync(E)", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyAsync(
-                        InternalCompletableFutureTest::captureThreadWithResult, e)),
+                argumentSet("exceptionally", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().exceptionally(
+                        captureThreadThrowableFunction(s.captor()))),
+                argumentSet("exceptionallyAsync", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().exceptionallyAsync(
+                        captureThreadThrowableFunction(s.captor()))),
+                argumentSet("exceptionallyAsync(E)", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().exceptionallyAsync(
+                        captureThreadThrowableFunction(s.captor()), s.executor())),
 
                 argumentSet("exceptionallyCompose",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyCompose(
-                                InternalCompletableFutureTest::captureThreadChainedResult)),
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().exceptionallyCompose(
+                                captureThreadStageFunction(s.captor()))),
                 argumentSet("exceptionallyComposeAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyComposeAsync(
-                                InternalCompletableFutureTest::captureThreadChainedResult)),
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().exceptionallyComposeAsync(
+                                captureThreadStageFunction(s.captor()))),
                 argumentSet("exceptionallyComposeAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyComposeAsync(
-                                InternalCompletableFutureTest::captureThreadChainedResult, e)));
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().exceptionallyComposeAsync(
+                                captureThreadStageFunction(s.captor()), s.executor())));
     }
 
     static Stream<Arguments> allCompositionMethods() {
         var other = CompletableFuture.<Void> completedFuture(null);
         return Stream.of(
-                argumentSet("thenCombine", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.thenCombine(s,
+                argumentSet("thenCombine", (Function<StageChainingContext, CompletionStage<Void>>) s -> other.thenCombine(s.stageToChainTo(),
                         (unused, unused2) -> null)),
                 argumentSet("thenCombineAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.thenCombineAsync(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.thenCombineAsync(s.stageToChainTo(),
                                 (unused, unused2) -> null)),
                 argumentSet("thenCombineAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.thenCombineAsync(s,
-                                (unused, unused2) -> null, e)),
-                argumentSet("acceptEither", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.acceptEither(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.thenCombineAsync(s.stageToChainTo(),
+                                (unused, unused2) -> null, s.executor())),
+                argumentSet("acceptEither", (Function<StageChainingContext, CompletionStage<Void>>) s -> other.acceptEither(s.stageToChainTo(),
                         unused -> {
                         })),
                 argumentSet("acceptEitherAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.acceptEitherAsync(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.acceptEitherAsync(s.stageToChainTo(),
                                 unused -> {
                                 })),
                 argumentSet("acceptEitherAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.acceptEitherAsync(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.acceptEitherAsync(s.stageToChainTo(),
                                 unused -> {
-                                }, e)),
+                                }, s.executor())),
 
-                argumentSet("applyToEither", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.applyToEither(s,
+                argumentSet("applyToEither", (Function<StageChainingContext, CompletionStage<Void>>) s -> other.applyToEither(s.stageToChainTo(),
                         unused -> null)),
                 argumentSet("applyToEitherAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.applyToEitherAsync(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.applyToEitherAsync(s.stageToChainTo(),
                                 unused -> null)),
                 argumentSet("applyToEitherAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.applyToEitherAsync(s,
-                                unused -> null, e)),
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.applyToEitherAsync(s.stageToChainTo(),
+                                unused -> null, s.executor())),
 
-                argumentSet("runAfterEither", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.runAfterEither(s,
+                argumentSet("runAfterEither", (Function<StageChainingContext, CompletionStage<Void>>) s -> other.runAfterEither(s.stageToChainTo(),
                         () -> {
                         })),
                 argumentSet("runAfterEitherAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.runAfterEitherAsync(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.runAfterEitherAsync(s.stageToChainTo(),
                                 () -> {
                                 })),
                 argumentSet("runAfterEitherAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.runAfterEitherAsync(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.runAfterEitherAsync(s.stageToChainTo(),
                                 () -> {
-                                }, e)),
+                                }, s.executor())),
 
                 argumentSet("theAcceptBoth",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.thenAcceptBoth(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.thenAcceptBoth(s.stageToChainTo(),
                                 (unused, unused2) -> {
                                 })),
                 argumentSet("thenAcceptBothAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.thenAcceptBothAsync(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.thenAcceptBothAsync(s.stageToChainTo(),
                                 (unused, unused2) -> {
                                 })),
                 argumentSet("thenAcceptBothAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.thenAcceptBothAsync(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.thenAcceptBothAsync(s.stageToChainTo(),
                                 (unused, unused2) -> {
-                                }, e)),
+                                }, s.executor())),
 
-                argumentSet("runAfterBoth", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.runAfterBoth(s,
+                argumentSet("runAfterBoth", (Function<StageChainingContext, CompletionStage<Void>>) s -> other.runAfterBoth(s.stageToChainTo(),
                         () -> {
                         })),
                 argumentSet("runAfterBothAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.runAfterBothAsync(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.runAfterBothAsync(s.stageToChainTo(),
                                 () -> {
                                 })),
                 argumentSet("runAfterBothAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> other.runAfterBothAsync(s,
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> other.runAfterBothAsync(s.stageToChainTo(),
                                 () -> {
-                                }, e)));
+                                }, s.executor())));
     }
 
     static Stream<Arguments> allChainingMethods() {
         var other = CompletableFuture.<Void> completedFuture(null);
         return Stream.of(
                 argumentSet("thenAccept",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenAccept(InternalCompletableFutureTest::captureThread)),
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenAccept(captureThreadConsumer(s.captor()))),
                 argumentSet("thenAcceptAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenAcceptAsync(InternalCompletableFutureTest::captureThread)),
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenAcceptAsync(captureThreadConsumer(s.captor()))),
                 argumentSet("thenAcceptAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenAcceptAsync(InternalCompletableFutureTest::captureThread,
-                                e)),
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenAcceptAsync(captureThreadConsumer(s.captor()),
+                                s.executor())),
 
-                argumentSet("thenApply", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenApply(
-                        InternalCompletableFutureTest::captureThreadWithResult)),
-                argumentSet("thenApplyAsync", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenApplyAsync(
-                        InternalCompletableFutureTest::captureThreadWithResult)),
-                argumentSet("thenApplyAsync(E)", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenApplyAsync(
-                        InternalCompletableFutureTest::captureThreadWithResult, e)),
+                argumentSet("thenApply", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenApply(
+                        captureThreadFunction(s.captor()))),
+                argumentSet("thenApplyAsync", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenApplyAsync(
+                        captureThreadFunction(s.captor()))),
+                argumentSet("thenApplyAsync(E)", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenApplyAsync(
+                        captureThreadFunction(s.captor()), s.executor())),
 
-                argumentSet("thenCombine", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenCombine(other,
-                        InternalCompletableFutureTest::captureThreadWithResult)),
+                argumentSet("thenCombine", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenCombine(other,
+                        captureThreadComposeBiFunction(s.captor()))),
                 argumentSet("thenCombineAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenCombineAsync(other,
-                                InternalCompletableFutureTest::captureThreadWithResult)),
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenCombineAsync(other,
+                                captureThreadComposeBiFunction(s.captor()))),
                 argumentSet("thenCombineAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenCombineAsync(other,
-                                InternalCompletableFutureTest::captureThreadWithResult, e)),
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenCombineAsync(other,
+                                captureThreadComposeBiFunction(s.captor()), s.executor())),
 
-                argumentSet("thenCompose", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenCompose(
-                        InternalCompletableFutureTest::captureThreadChainedResult)),
-                argumentSet("thenComposeAsync", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenComposeAsync(
-                        InternalCompletableFutureTest::captureThreadChainedResult)),
-                argumentSet("thenComposeAsync(E)", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenComposeAsync(
-                        InternalCompletableFutureTest::captureThreadChainedResult, e)),
+                argumentSet("thenCompose", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenCompose(
+                        captureThreadStageFunction(s.captor()))),
+                argumentSet("thenComposeAsync", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenComposeAsync(
+                        captureThreadStageFunction(s.captor()))),
+                argumentSet("thenComposeAsync(E)", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenComposeAsync(
+                        captureThreadStageFunction(s.captor()), s.executor())),
 
                 argumentSet("thenRun",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenRun(InternalCompletableFutureTest::captureThread)),
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenRun(captureThread(s.captor()))),
                 argumentSet("thenRunAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenRunAsync(InternalCompletableFutureTest::captureThread)),
-                argumentSet("thenRunAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenRunAsync(InternalCompletableFutureTest::captureThread, e)),
+                        (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenRunAsync(captureThread(s.captor())),
+                        argumentSet("thenRunAsync(E)",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenRunAsync(captureThread(s.captor()), s.executor())),
 
-                argumentSet("handle",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.handle(InternalCompletableFutureTest::captureThreadWithResult)),
-                argumentSet("handleAsync", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.handleAsync(
-                        InternalCompletableFutureTest::captureThreadWithResult)),
-                argumentSet("handleAsync(E)", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.handleAsync(
-                        InternalCompletableFutureTest::captureThreadWithResult, e)),
+                        argumentSet("handle",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().handle(
+                                        captureThreadComposeBiFunction(s.captor()))),
+                        argumentSet("handleAsync", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().handleAsync(
+                                captureThreadComposeBiFunction(s.captor()))),
+                        argumentSet("handleAsync(E)", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().handleAsync(
+                                captureThreadComposeBiFunction(s.captor()), s.executor())),
 
-                argumentSet("whenComplete",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.whenComplete(InternalCompletableFutureTest::captureThread)),
-                argumentSet("whenCompleteAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.whenCompleteAsync(InternalCompletableFutureTest::captureThread)),
-                argumentSet("whenCompleteAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.whenCompleteAsync(InternalCompletableFutureTest::captureThread,
-                                e)),
-                argumentSet("acceptEither", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.acceptEither(other,
-                        InternalCompletableFutureTest::captureThread)),
-                argumentSet("acceptEitherAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.acceptEitherAsync(other,
-                                InternalCompletableFutureTest::captureThread)),
-                argumentSet("acceptEitherAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.acceptEitherAsync(other,
-                                InternalCompletableFutureTest::captureThread, e)),
+                        argumentSet("whenComplete",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().whenComplete(captureThreadBiConsumer(s.captor()))),
+                        argumentSet("whenCompleteAsync",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().whenCompleteAsync(
+                                        captureThreadBiConsumer(s.captor()))),
+                        argumentSet("whenCompleteAsync(E)",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().whenCompleteAsync(
+                                        captureThreadBiConsumer(s.captor()),
+                                        s.executor())),
+                        argumentSet("acceptEither", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().acceptEither(other,
+                                captureThreadConsumer(s.captor()))),
+                        argumentSet("acceptEitherAsync",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().acceptEitherAsync(other,
+                                        captureThreadConsumer(s.captor()))),
+                        argumentSet("acceptEitherAsync(E)",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().acceptEitherAsync(other,
+                                        captureThreadConsumer(s.captor()), s.executor())),
 
-                argumentSet("applyToEither", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.applyToEither(other,
-                        InternalCompletableFutureTest::captureThreadWithResult)),
-                argumentSet("applyToEitherAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.applyToEitherAsync(other,
-                                InternalCompletableFutureTest::captureThreadWithResult)),
-                argumentSet("applyToEitherAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.applyToEitherAsync(other,
-                                InternalCompletableFutureTest::captureThreadWithResult, e)),
+                        argumentSet("applyToEither", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().applyToEither(other,
+                                captureThreadFunction(s.captor()))),
+                        argumentSet("applyToEitherAsync",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().applyToEitherAsync(other,
+                                        captureThreadFunction(s.captor()))),
+                        argumentSet("applyToEitherAsync(E)",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().applyToEitherAsync(other,
+                                        captureThreadFunction(s.captor()), s.executor())),
 
-                argumentSet("runAfterEither", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.runAfterEither(other,
-                        InternalCompletableFutureTest::captureThread)),
-                argumentSet("runAfterEitherAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.runAfterEitherAsync(other,
-                                InternalCompletableFutureTest::captureThread)),
-                argumentSet("runAfterEitherAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.runAfterEitherAsync(other,
-                                InternalCompletableFutureTest::captureThread, e)),
+                        argumentSet("runAfterEither", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().runAfterEither(other,
+                                captureThread(s.captor()))),
+                        argumentSet("runAfterEitherAsync",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().runAfterEitherAsync(other,
+                                        captureThread(s.captor()))),
+                        argumentSet("runAfterEitherAsync(E)",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().runAfterEitherAsync(other,
+                                        captureThread(s.captor()), s.executor())),
 
-                argumentSet("theAcceptBoth",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenAcceptBoth(other,
-                                InternalCompletableFutureTest::captureThreadWithResult)),
-                argumentSet("thenAcceptBothAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenAcceptBothAsync(other,
-                                InternalCompletableFutureTest::captureThreadWithResult)),
-                argumentSet("thenAcceptBothAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenAcceptBothAsync(other,
-                                InternalCompletableFutureTest::captureThreadWithResult, e)),
+                        argumentSet("theAcceptBoth",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenAcceptBoth(other,
+                                        captureThreadComposeBiConsumer(s.captor()))),
+                        argumentSet("thenAcceptBothAsync",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenAcceptBothAsync(other,
+                                        captureThreadComposeBiConsumer(s.captor()))),
+                        argumentSet("thenAcceptBothAsync(E)",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().thenAcceptBothAsync(other,
+                                        captureThreadComposeBiConsumer(s.captor()), s.executor())),
 
-                argumentSet("runAfterBoth", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.runAfterBoth(other,
-                        InternalCompletableFutureTest::captureThread)),
-                argumentSet("runAfterBothAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.runAfterBothAsync(other,
-                                InternalCompletableFutureTest::captureThread)),
-                argumentSet("runAfterBothAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.runAfterBothAsync(other,
-                                InternalCompletableFutureTest::captureThread, e)));
+                        argumentSet("runAfterBoth", (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().runAfterBoth(other,
+                                captureThread(s.captor()))),
+                        argumentSet("runAfterBothAsync",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().runAfterBothAsync(other,
+                                        captureThread(s.captor()))),
+                        argumentSet("runAfterBothAsync(E)",
+                                (Function<StageChainingContext, CompletionStage<Void>>) s -> s.stageToChainTo().runAfterBothAsync(other,
+                                        captureThread(s.captor()), s.executor()))));
     }
 
     @ParameterizedTest()
     @MethodSource("allCompositionMethods")
-    void minimalStageCanCompose(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void minimalStageCanCompose(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
         var minimalStage = future.minimalCompletionStage();
-        var result = func.apply(minimalStage, executor);
+        var result = func.apply(new StageChainingContext(minimalStage, executor, new ThreadCaptor()));
         CompletableFuture<Void> resultFuture = result.toCompletableFuture();
 
         // When
@@ -296,10 +302,10 @@ class InternalCompletableFutureTest {
 
     @ParameterizedTest()
     @MethodSource("allCompositionMethods")
-    void futureCanCompose(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void futureCanCompose(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
-        var result = func.apply(future, executor);
+        var result = func.apply(new StageChainingContext(future, executor, new ThreadCaptor()));
         CompletableFuture<Void> resultFuture = result.toCompletableFuture();
 
         // When
@@ -311,11 +317,12 @@ class InternalCompletableFutureTest {
 
     @ParameterizedTest()
     @MethodSource("allChainingMethods")
-    void chainedWorkIsExecutedOnEventLoop(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void chainedWorkIsExecutedOnEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
         var stage = future.minimalCompletionStage();
-        var result = func.apply(stage, executor);
+        ThreadCaptor captor = new ThreadCaptor();
+        var result = func.apply(new StageChainingContext(stage, executor, captor));
         CompletableFuture<Void> resultFuture = result.toCompletableFuture();
 
         // When
@@ -323,18 +330,18 @@ class InternalCompletableFutureTest {
 
         // Then
         assertThat(resultFuture).succeedsWithin(2, TimeUnit.SECONDS);
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
     @ParameterizedTest()
     @MethodSource({ "allChainingMethods", "allExceptionalMethods" })
-    void chainingToStageProducesFutureOfExpectedType(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void chainingToStageProducesFutureOfExpectedType(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
         var stage = future.minimalCompletionStage();
 
         // When
-        var result = func.apply(stage, executor);
+        var result = func.apply(new StageChainingContext(stage, executor, new ThreadCaptor()));
 
         // Then
         assertThat(result.getClass()).isAssignableTo(InternalCompletionStage.class);
@@ -342,12 +349,12 @@ class InternalCompletableFutureTest {
 
     @ParameterizedTest()
     @MethodSource({ "allChainingMethods", "allExceptionalMethods" })
-    void chainingToFutureProducesFutureOfExpectedType(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void chainingToFutureProducesFutureOfExpectedType(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
 
         // When
-        var result = func.apply(future, executor);
+        var result = func.apply(new StageChainingContext(future, executor, new ThreadCaptor()));
 
         // Then
         assertThat(result.getClass()).isAssignableTo(InternalCompletableFuture.class);
@@ -355,11 +362,12 @@ class InternalCompletableFutureTest {
 
     @ParameterizedTest()
     @MethodSource("allChainingMethods")
-    void chainedWorkIsExecutedOnEventLoop_CompletionDrivenByEventLoop(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void chainedWorkIsExecutedOnEventLoop_CompletionDrivenByEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
         var stage = future.minimalCompletionStage();
-        var result = func.apply(stage, executor);
+        ThreadCaptor captor = new ThreadCaptor();
+        var result = func.apply(new StageChainingContext(stage, executor, captor));
         assertThat(result.getClass()).isAssignableTo(InternalCompletionStage.class);
         CompletableFuture<Void> resultFuture = result.toCompletableFuture();
 
@@ -368,15 +376,16 @@ class InternalCompletableFutureTest {
 
         // Then
         assertThat(resultFuture).succeedsWithin(2, TimeUnit.SECONDS);
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
     @ParameterizedTest()
     @MethodSource("allChainingMethods")
-    void chainedWorkIsExecutedOnEventLoopFuture(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void chainedWorkIsExecutedOnEventLoopFuture(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
-        var result = func.apply(future, executor);
+        ThreadCaptor captor = new ThreadCaptor();
+        var result = func.apply(new StageChainingContext(future, executor, captor));
         CompletableFuture<Void> resultFuture = result.toCompletableFuture();
 
         // When
@@ -386,15 +395,16 @@ class InternalCompletableFutureTest {
         assertThat(resultFuture).isInstanceOf(InternalCompletableFuture.class)
                 .succeedsWithin(2, TimeUnit.SECONDS);
         // actualThread should be populated by one of the `captureThread` family of methods.
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
     @ParameterizedTest()
     @MethodSource("allChainingMethods")
-    void chainedWorkIsExecutedOnEventLoopFuture_CompletionDrivenByEventLoop(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void chainedWorkIsExecutedOnEventLoopFuture_CompletionDrivenByEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
-        var result = func.apply(future, executor);
+        ThreadCaptor captor = new ThreadCaptor();
+        var result = func.apply(new StageChainingContext(future, executor, captor));
         CompletableFuture<Void> resultFuture = result.toCompletableFuture();
 
         // When
@@ -404,16 +414,17 @@ class InternalCompletableFutureTest {
         assertThat(resultFuture).isInstanceOf(InternalCompletableFuture.class)
                 .succeedsWithin(2, TimeUnit.SECONDS);
         // actualThread should be populated by one of the `captureThread` family of methods.
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
     @ParameterizedTest()
     @MethodSource("allExceptionalMethods")
-    void exceptionHandlingWorkIsExecutedOnEventLoop(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void exceptionHandlingWorkIsExecutedOnEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
         var stage = future.minimalCompletionStage();
-        var result = func.apply(stage, executor);
+        ThreadCaptor captor = new ThreadCaptor();
+        var result = func.apply(new StageChainingContext(stage, executor, captor));
         assertThat(result.getClass()).isAssignableTo(InternalCompletionStage.class);
         CompletableFuture<Void> resultFuture = result.toCompletableFuture();
 
@@ -423,16 +434,17 @@ class InternalCompletableFutureTest {
         // Then
         assertThat(resultFuture).succeedsWithin(2, TimeUnit.SECONDS);
         // actualThread should be populated by one of the `captureThread` family of methods.
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
     @ParameterizedTest()
     @MethodSource("allExceptionalMethods")
-    void exceptionHandlingWorkIsExecutedOnEventLoop_completionDrivenByEventLoop(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void exceptionHandlingWorkIsExecutedOnEventLoop_completionDrivenByEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
         var stage = future.minimalCompletionStage();
-        var result = func.apply(stage, executor);
+        ThreadCaptor captor = new ThreadCaptor();
+        var result = func.apply(new StageChainingContext(stage, executor, captor));
         CompletableFuture<Void> resultFuture = result.toCompletableFuture();
 
         // When
@@ -441,15 +453,16 @@ class InternalCompletableFutureTest {
         // Then
         assertThat(resultFuture).succeedsWithin(2, TimeUnit.SECONDS);
         // actualThread should be populated by one of the `captureThread` family of methods.
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
     @ParameterizedTest()
     @MethodSource("allExceptionalMethods")
-    void exceptionHandlingWorkIsExecutedOnEventLoopFuture(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void exceptionHandlingWorkIsExecutedOnEventLoopFuture(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
-        var result = func.apply(future, executor);
+        ThreadCaptor captor = new ThreadCaptor();
+        var result = func.apply(new StageChainingContext(future, executor, captor));
         CompletableFuture<Void> resultFuture = result.toCompletableFuture();
 
         // When
@@ -459,15 +472,16 @@ class InternalCompletableFutureTest {
         assertThat(resultFuture).succeedsWithin(2, TimeUnit.SECONDS);
 
         // actualThread should be populated by one of the `captureThread` family of methods.
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
     @ParameterizedTest()
     @MethodSource("allExceptionalMethods")
-    void exceptionHandlingWorkIsExecutedOnEventLoopFuture_completionDrivenByEventLoop(BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) {
+    void exceptionHandlingWorkIsExecutedOnEventLoopFuture_completionDrivenByEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
         var future = new InternalCompletableFuture<Void>(executor);
-        var result = func.apply(future, executor);
+        ThreadCaptor captor = new ThreadCaptor();
+        var result = func.apply(new StageChainingContext(future, executor, captor));
         CompletableFuture<Void> resultFuture = result.toCompletableFuture();
 
         // When
@@ -477,7 +491,7 @@ class InternalCompletableFutureTest {
         assertThat(resultFuture).succeedsWithin(2, TimeUnit.SECONDS);
 
         // actualThread should populated by one of the `captureThread` family of methods.
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
     static Stream<Arguments> futureCompletionAlternatives() {
@@ -499,7 +513,8 @@ class InternalCompletableFutureTest {
     void whenComplete(Consumer<CompletableFuture<?>> futureConsumer, boolean futureCompletesExceptionally) {
         // Given
         CompletableFuture<Void> future = new InternalCompletableFuture<>(executor);
-        CompletableFuture<Void> whenCompleteFuture = future.whenComplete(InternalCompletableFutureTest::captureThread);
+        ThreadCaptor threadCaptor = new ThreadCaptor();
+        CompletableFuture<Void> whenCompleteFuture = future.whenComplete(captureThreadBiConsumer(threadCaptor));
         futureConsumer.accept(future);
         CompletableFutureAssert<Void> assertThatWhenComplete = assertThat(whenCompleteFuture);
 
@@ -512,7 +527,7 @@ class InternalCompletableFutureTest {
         }
 
         // Then
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(threadCaptor.actualThread()).hasValue(threadOfExecutor);
     }
 
     @MethodSource("futureCompletionAlternatives")
@@ -520,52 +535,66 @@ class InternalCompletableFutureTest {
     void handle(Consumer<CompletableFuture<?>> futureConsumer, boolean ignored) {
         // Given
         CompletableFuture<Void> future = new InternalCompletableFuture<>(executor);
-        CompletableFuture<Void> handleFuture = future.handle(InternalCompletableFutureTest::captureThreadWithResult);
+        ThreadCaptor threadCaptor = new ThreadCaptor();
+        CompletableFuture<Void> handleFuture = future.handle(captureThreadComposeBiFunction(threadCaptor));
 
         // When
         futureConsumer.accept(future);
 
         // Then
         assertThat(handleFuture).succeedsWithin(2, TimeUnit.SECONDS);
-        assertThat(actualThread).hasValue(threadOfExecutor);
+        assertThat(threadCaptor.actualThread()).hasValue(threadOfExecutor);
     }
 
-    private static void captureThread() {
-        assertThread();
+    private static Runnable captureThread(ThreadCaptor threadCaptor) {
+        return () -> assertThread(threadCaptor);
     }
 
-    private static <T> void captureThread(T ignored) {
-        assertThread();
+    private static <T> Consumer<T> captureThreadConsumer(ThreadCaptor threadCaptor) {
+        return ignored -> assertThread(threadCaptor);
     }
 
-    private static <T> void captureThread(T ignored, Throwable ignoredThrowable) {
-        assertThread();
+    private static <T> BiConsumer<T, Throwable> captureThreadBiConsumer(ThreadCaptor threadCaptor) {
+        return (ignored, alsoIgnored) -> assertThread(threadCaptor);
     }
 
-    private static <T> T captureThreadWithResult(T ignored) {
-        assertThread();
-        return ignored;
+    private static <T> Function<T, T> captureThreadFunction(ThreadCaptor threadCaptor) {
+        return value -> {
+            assertThread(threadCaptor);
+            return value;
+        };
     }
 
-    @Nullable
-    private static <T> T captureThreadWithResult(Throwable ignored) {
-        assertThread();
-        return null;
+    private static <T> Function<Throwable, T> captureThreadThrowableFunction(ThreadCaptor threadCaptor) {
+        return ignored -> {
+            assertThread(threadCaptor);
+            return null;
+        };
     }
 
-    private static <T, U> T captureThreadWithResult(T ignored, U after) {
-        assertThread();
-        return ignored;
+    private static <T, U> BiFunction<T, U, T> captureThreadComposeBiFunction(ThreadCaptor threadCaptor) {
+        return (value, ignored) -> {
+            assertThread(threadCaptor);
+            return value;
+        };
     }
 
-    private static <T> CompletableFuture<Void> captureThreadChainedResult(T ignored) {
-        assertThread();
-        return CompletableFuture.completedFuture(null);
+    private static <T, U> BiConsumer<T, U> captureThreadComposeBiConsumer(ThreadCaptor threadCaptor) {
+        return (value, ignored) -> {
+            assertThread(threadCaptor);
+        };
     }
 
-    private static void assertThread() {
+    private static <T, U> Function<T, CompletionStage<U>> captureThreadStageFunction(ThreadCaptor threadCaptor) {
+        return value -> {
+            assertThread(threadCaptor);
+            return CompletableFuture.completedFuture(null);
+        };
+    }
+
+    private static void assertThread(ThreadCaptor threadCaptor) {
         assertThat(executor.inEventLoop()).isTrue();
-        assertThat(actualThread.compareAndSet(null, Thread.currentThread())).isTrue();
+        assertThat(threadCaptor.actualThread().compareAndSet(null, Thread.currentThread())).isTrue();
     }
 
 }
