@@ -20,7 +20,7 @@ public abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByte
     /**
      * Create KafkaMessageEncoder
      */
-    public KafkaMessageEncoder() {
+    protected KafkaMessageEncoder() {
     }
 
     /**
