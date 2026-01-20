@@ -1,0 +1,82 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-configuring-idle-timeouts-{context}']
+= Configuring idle connection timeouts
+
+[role="_abstract"]
+The proxy can automatically disconnect idle client connections to reclaim resources.
+Idle timeout configuration is completely optional and disabled by default, allowing you to opt in only when needed for your deployment.
+
+== Two-stage timeout mechanism
+
+The proxy supports two independent idle timeout settings that apply at different stages of the connection lifecycle:
+
+* **Unauthenticated timeout** (`unAuthenticatedIdleTimeout`) - Applies to connections that have not completed SASL authentication. This timeout begins when the connection is established and ends when authentication completes.
+* **Authenticated timeout** (`authenticatedIdleTimeout`) - Applies to connections after SASL authentication has completed. This timeout is active for the remainder of the connection's lifetime.
+
+Both timeout settings are optional and have no default values.
+You can configure one, both, or neither depending on your requirements.
+Timeout values use ISO-8601 duration format (for example, `PT30s` for 30 seconds, `PT5m` for 5 minutes, `PT1h` for 1 hour).
+
+== Configuration examples
+
+.Example: Unauthenticated timeout only
+[source,yaml]
+----
+network:
+  proxy:
+    unAuthenticatedIdleTimeout: PT30s # <1>
+virtualClusters:
+  # ...
+----
+<1> Disconnect connections that remain unauthenticated for more than 30 seconds.
+
+.Example: Authenticated timeout only
+[source,yaml]
+----
+network:
+  proxy:
+    authenticatedIdleTimeout: PT5m # <1>
+virtualClusters:
+  # ...
+----
+<1> Disconnect authenticated connections that are idle for more than 5 minutes.
+
+.Example: Both timeouts configured
+[source,yaml]
+----
+network:
+  proxy:
+    unAuthenticatedIdleTimeout: PT30s # <1>
+    authenticatedIdleTimeout: PT10m # <2>
+virtualClusters:
+  # ...
+----
+<1> Disconnect unauthenticated connections after 30 seconds of inactivity.
+<2> Disconnect authenticated connections after 10 minutes of inactivity.
+
+== When to enable idle timeouts
+
+Consider enabling idle timeouts in the following scenarios:
+
+* **Misbehaving clients** - Clients that abandon connections without properly closing them, leaving resources allocated unnecessarily.
+* **High-scale deployments** - Environments with many clients where connection resources (memory, file descriptors) are constrained.
+* **Connection exhaustion prevention** - Deployments approaching operating system or network limits on concurrent connections.
+* **Network infrastructure requirements** - Environments where network infrastructure (firewalls, load balancers) drops idle connections, and you want the proxy to disconnect gracefully first.
+* **Different security postures** - Scenarios where unauthenticated connections require stricter timeouts than authenticated connections for security reasons.
+
+== When not to enable idle timeouts
+
+Avoid enabling idle timeouts in the following scenarios:
+
+* **Legitimate idle connections** - Applications where clients maintain long-lived connections with extended idle periods, such as consumers with long poll timeouts or applications using connection pooling.
+* **Stable network infrastructure** - Environments with reliable network infrastructure and no issues with idle connection management.
+* **Minimal overhead desired** - Deployments where the proxy's monitoring overhead should be kept to an absolute minimum.
+* **No resource constraints** - Systems with ample connection resources and no risk of connection exhaustion.
+
+== Monitoring idle disconnects
+
+The proxy tracks idle disconnects using the `kroxylicious_client_to_proxy_idle_disconnects_total` metric.
+This counter is incremented each time a connection is closed due to exceeding the configured idle timeout.
+
+For more information about connection metrics, see xref:con-prometheus-metrics-proxy-{context}[Overview of proxy metrics].

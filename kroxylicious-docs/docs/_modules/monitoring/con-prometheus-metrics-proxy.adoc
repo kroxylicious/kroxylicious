@@ -78,6 +78,12 @@ The proxy provides both counter and gauge metrics for connections:
 |`virtual_cluster`, `node_id`
 |Shows the current number of active TCP connections from the proxy to servers. +
  This gauge reflects real-time connection state and decreases when connections are closed.
+
+|`kroxylicious_client_to_proxy_idle_disconnects_total`
+|Counter
+|`virtual_cluster`, `node_id`
+|Incremented by one every time a client connection is closed due to exceeding the configured idle timeout. +
+ Requires idle timeouts to be configured via `network.proxy.unAuthenticatedIdleTimeout` or `network.proxy.authenticatedIdleTimeout`.
 |===
 
 == Message metrics
