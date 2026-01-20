@@ -20,6 +20,11 @@ public interface VersionInfo {
     String commitId();
 
     private static VersionInfo getVersionInfo() {
+        if (Runtime.version().feature() < 21) {
+            var logger = LoggerFactory.getLogger(Info.class);
+            logger.warn(
+                    "Running Kroxylicious on Java 17 is deprecated. Upgrade to Java 21 or later. Support for Java versions less than 21 will be removed in a future release.");
+        }
 
         try (var resource = Info.class.getClassLoader().getResourceAsStream("META-INF/metadata.properties")) {
             if (resource != null) {
