@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3046](https://github.com/kroxylicious/kroxylicious/pull/3046): Add configurable idle connection timeouts for client connections
 * [#3147](https://github.com/kroxylicious/kroxylicious/pull/3129): Deprecate Java 17. Upgrade to Java 21 in containers.
 * [#3127](https://github.com/kroxylicious/kroxylicious/pull/3127): build(deps): bump kubernetes-client.version from 7.4.0 to 7.5.0
 * [#3112](https://github.com/kroxylicious/kroxylicious/pull/3112): cache topic name lookups per VirtualCluster
@@ -22,6 +23,11 @@ Format `<github issue/pr number>: <short description>`.
 * The four argument forms of `RequestFilter#onRequest` and `ResponseFilter#onResponse` are deprecated and will be removed in a future release.
   Implement the five argument form, which includes the `apiVersion` instead.
 * A JSON Web Signature (JWS) Signature validator has been added. WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
+* Idle connection timeout support added with two optional configuration properties under `network.proxy`:
+  * `unAuthenticatedIdleTimeout` - Applies to connections where authentication cannot be detected
+  * `authenticatedIdleTimeout` - Applies to connections with established identities
+  Both properties use Go-style duration format (e.g., `30s`, `5m`, `1h30m`) with supported units: `d`, `h`, `m`, `s`, `ms`, `μs`/`us`, `ns`.
+  A new metric `kroxylicious_client_to_proxy_idle_disconnects_total` tracks idle disconnections.
 
 ## 0.18.0
 
