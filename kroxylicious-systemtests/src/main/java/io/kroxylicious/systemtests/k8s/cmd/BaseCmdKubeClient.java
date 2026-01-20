@@ -65,7 +65,9 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
             if (!entry.getValue().isSuccess()) {
                 LOGGER.warn("Failed to apply {}!", entry.getKey().getAbsolutePath());
-                LOGGER.debug(entry.getValue().err());
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(entry.getValue().err());
+                }
             }
         }
         return (K) this;
@@ -78,7 +80,9 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
             if (!entry.getValue().isSuccess()) {
                 LOGGER.warn("Failed to delete {}!", entry.getKey().getAbsolutePath());
-                LOGGER.debug(entry.getValue().err());
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(entry.getValue().err());
+                }
             }
         }
         return (K) this;
