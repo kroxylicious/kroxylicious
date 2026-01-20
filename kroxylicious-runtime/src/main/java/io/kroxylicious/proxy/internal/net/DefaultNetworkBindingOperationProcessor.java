@@ -108,20 +108,18 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
         }
 
         enqueueNetworkBindingEvent(POISON_PILL);
-        boolean shutdown = false;
         try {
             POISON_PILL.getFuture().get(1, TimeUnit.MINUTES);
         }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
         catch (Exception e) {
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
             throw new RuntimeException(e);
         }
         finally {
-            if (!shutdown) {
-                networkBindingExecutor.shutdownNow();
-            }
+            networkBindingExecutor.shutdownNow();
         }
     }
 }
