@@ -11,8 +11,10 @@ Idle timeout configuration is completely optional and disabled by default, allow
 
 The proxy supports two independent idle timeout settings that apply at different stages of the connection lifecycle:
 
-* **Unauthenticated timeout** (`unAuthenticatedIdleTimeout`) - Applies to connections that have not completed SASL authentication. This timeout begins when the connection is established and ends when authentication completes.
-* **Authenticated timeout** (`authenticatedIdleTimeout`) - Applies to connections after SASL authentication has completed. This timeout is active for the remainder of the connection's lifetime.
+* **Unauthenticated timeout** (`unAuthenticatedIdleTimeout`) - Applies to connections where the proxy cannot detect the completion of authentication. The proxy considers authentication to be complete if either of the following hold true:
+1. A transport subject builder creates a subject with an identity. Usually this would be from a client TLS certificate.
+2. A SASL inspection or termination filter has invoked `io.kroxylicious.proxy.filter.FilterContext.clientSaslAuthenticationSuccess` method.
+* **Authenticated timeout** (`authenticatedIdleTimeout`) - Applies to connections where an identity can be established. This timeout applies for the remainder of the connection's lifetime.
 
 Both timeout settings are optional and have no default values.
 You can configure one, both, or neither depending on your requirements.
