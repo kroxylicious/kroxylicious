@@ -70,5 +70,3 @@ then:
         port: -1
         errorCode: 53
         errorMessage: ""
-
-

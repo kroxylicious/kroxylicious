@@ -46,14 +46,12 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 class FindCoordinatorAuthzIT extends AuthzIT {
 
-    private static final String ALICE_TXN_ID = "alice-txn";
-    private static final String BOB_TXN_ID = "bob-txn";
-    private static final String EVE_TXN_ID = "eve-txn";
+    private static final String FOO_TXN_ID = "foo";
+    private static final String BAR_TXN_ID = "bar";
     private static final String NON_EXISTING_TXN_ID = "non-existing-txn";
     public static final List<String> ALL_TXN_IDS_IN_TEST = List.of(
-            ALICE_TXN_ID,
-            BOB_TXN_ID,
-            EVE_TXN_ID,
+            FOO_TXN_ID,
+            BAR_TXN_ID,
             NON_EXISTING_TXN_ID);
     public static final List<String> ALL_TOPICS_IN_TEST = List.<String> of();
     public static final String TXN_COORDINATOR_OBSERVER = "x";
@@ -73,21 +71,23 @@ class FindCoordinatorAuthzIT extends AuthzIT {
         rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
         Files.writeString(rulesFile, """
                 from io.kroxylicious.filter.authorization import TransactionalIdResource as TxnId;
-                allow User with name = "alice" to * TxnId with name = "%s";
-                allow User with name = "bob" to DESCRIBE TxnId with name = "%s";
+                allow User with name = "%s" to * TxnId with name = "%s";
+                allow User with name = "%s" to DESCRIBE TxnId with name = "%s";
                 otherwise deny;
-                """.formatted(ALICE_TXN_ID, BOB_TXN_ID));
+                """.formatted(
+                ALICE, FOO_TXN_ID,
+                BOB, BAR_TXN_ID));
         /*
          * The correctness of this test is predicated on the equivalence of the Proxy ACLs (above) and the Kafka ACLs (below)
          * If you add a rule to one you'll need to add an equivalent rule to the other
          */
         aclBindings = List.of(
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, ALICE_TXN_ID, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, FOO_TXN_ID, PatternType.LITERAL),
                         new AccessControlEntry("User:" + ALICE, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, BOB_TXN_ID, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, BAR_TXN_ID, PatternType.LITERAL),
                         new AccessControlEntry("User:" + BOB, "*",
                                 AclOperation.DESCRIBE, AclPermissionType.ALLOW)));
     }
@@ -182,9 +182,9 @@ class FindCoordinatorAuthzIT extends AuthzIT {
             }
             if (apiVersion >= FindCoordinatorEnforcement.MIN_API_VERSION_USING_BATCHING) {
                 result.add(
-                        Arguments.of(new FindCoordinatorEquivalence(apiVersion, new RequestTemplate<FindCoordinatorRequestData>() {
+                        Arguments.of(new FindCoordinatorEquivalence(apiVersion, new RequestTemplate<>() {
                             @Override
-                            public FindCoordinatorRequestData request(String user, BaseClusterFixture topicNameToId) {
+                            public FindCoordinatorRequestData request(String user, BaseClusterFixture baseClusterFixture) {
                                 return new FindCoordinatorRequestData()
                                         .setKeyType(FindCoordinatorRequest.CoordinatorType.TRANSACTION.id())
                                         .setCoordinatorKeys(ALL_TXN_IDS_IN_TEST);

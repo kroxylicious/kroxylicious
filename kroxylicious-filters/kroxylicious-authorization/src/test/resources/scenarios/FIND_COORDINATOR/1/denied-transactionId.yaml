@@ -31,4 +31,10 @@ when:
 then:
   expectedResponseHeader:
     correlationId: 1
-  expectedErrorResponse: "TRANSACTIONAL_ID_AUTHORIZATION_FAILED"
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 53
+    errorMessage: "Transactional Id authorization failed."
+    nodeId: -1
+    host: ""
+    port: -1

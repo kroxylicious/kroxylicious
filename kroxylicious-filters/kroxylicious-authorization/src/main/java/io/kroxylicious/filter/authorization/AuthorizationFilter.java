@@ -150,13 +150,13 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     }
 
     CompletionStage<AuthorizeResult> authorization(FilterContext context, List<Action> actions) {
-        var partitionedBySupportedResourceTypes = authorizer.supportedResourceTypes()
+        var actionsPartitionedByAuthorizerSupport = authorizer.supportedResourceTypes()
                 .map(supportedTypes -> actions.stream().collect(Collectors.partitioningBy(
                         action -> action.resourceTypeClass() == ClusterResource.class
                                 || supportedTypes.contains(action.resourceTypeClass()))))
                 .orElse(Map.of(Boolean.TRUE, actions));
-        var actionsWithSupportedResourceTypes = partitionedBySupportedResourceTypes.getOrDefault(Boolean.TRUE, List.of());
-        var actionsWithUnsupportedResourceTypes = partitionedBySupportedResourceTypes.getOrDefault(Boolean.FALSE, List.of());
+        var actionsWithSupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(Boolean.TRUE, List.of());
+        var actionsWithUnsupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(Boolean.FALSE, List.of());
         return authorizer.authorize(context.authenticatedSubject(),
                 actionsWithSupportedResourceTypes)
                 .thenApply(authz -> {
@@ -170,7 +170,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         LOG.debug("ALLOW {} no authorizable actions", authz.subject());
                     }
                     if (!actionsWithUnsupportedResourceTypes.isEmpty()) {
-                        LOG.debug("ALLOW {} to {} (due to unsupported resource type)", actionsWithUnsupportedResourceTypes, authz.subject());
+                        LOG.debug("ALLOW {} to {} (due to resource types not being supported by {})",
+                                actionsWithUnsupportedResourceTypes, authz.subject(),
+                                authorizer.getClass().getName());
                         authz.allowed().addAll(actionsWithUnsupportedResourceTypes);
                     }
                     return authz;

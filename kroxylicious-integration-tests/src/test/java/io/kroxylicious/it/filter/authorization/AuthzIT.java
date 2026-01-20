@@ -401,19 +401,17 @@ public abstract class AuthzIT extends BaseIT {
 
     protected static void ensureCoordinators(Producer<String, String> producer,
                                              String transactionalId,
-                                             Admin admin)
-            throws InterruptedException, ExecutionException {
-        producer.initTransactions();
-        producer.beginTransaction();
-        producer.send(new ProducerRecord<>("top", "", "")).get();
-
-        TopicPartition top = new TopicPartition("top", 0);
-        while (admin.describeTransactions(List.of(transactionalId)).all().toCompletionStage().toCompletableFuture()
-                .join().get(transactionalId).coordinatorId() < 0) {
-            Thread.sleep(1_000);
-        }
-        producer.abortTransaction();
-        // admin.trans
+                                             Admin admin) {
+        AWAIT.alias("await until transaction coordinators are ready")
+                .untilAsserted(() -> {
+                    producer.initTransactions();
+                    producer.beginTransaction();
+                    producer.send(new ProducerRecord<>("top", "", "")).get();
+                    var coordId = admin.describeTransactions(List.of(transactionalId)).all().toCompletionStage().toCompletableFuture()
+                            .join().get(transactionalId).coordinatorId();
+                    producer.abortTransaction();
+                    assertThat(coordId).isNotEqualTo(-1);
+                });
     }
 
     protected static Map<String, Uuid> prepCluster(Admin admin,

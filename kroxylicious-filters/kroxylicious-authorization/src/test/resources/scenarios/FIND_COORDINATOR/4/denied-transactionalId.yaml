@@ -32,4 +32,12 @@ when:
 then:
   expectedResponseHeader:
     correlationId: 1
-  expectedErrorResponse: "TRANSACTIONAL_ID_AUTHORIZATION_FAILED"
+  expectedResponse:
+    throttleTimeMs: 0
+    coordinators:
+      - key: "unauthorized"
+        nodeId: -1
+        host: ""
+        port: -1
+        errorCode: 53
+        errorMessage: ""

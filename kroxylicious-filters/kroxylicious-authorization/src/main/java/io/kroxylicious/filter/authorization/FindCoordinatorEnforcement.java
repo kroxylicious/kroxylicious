@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -68,8 +69,17 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
                     var deniedKeys = decisions.get(Decision.DENY);
                     if (allowedKeys.isEmpty()) {
                         // Shortcircuit if there are no allowed topics
+                        ApiException exception;
+                        if (usesBatching(header)) {
+                            // Kafka does not use the default error message for batched requests (for some reason)
+                            exception = Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception("");
+                        }
+                        else {
+                            exception = Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception();
+                        }
                         return context.requestFilterResultBuilder()
-                                .errorResponse(header, request, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception())
+                                .shortCircuitResponse(FindCoordinatorEnforcement
+                                        .errorResponse(deniedKeys, usesBatching(header)))
                                 .completed();
                     }
                     else if (deniedKeys.isEmpty()) {
@@ -100,7 +110,7 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
                     .map(key -> new FindCoordinatorResponseData.Coordinator()
                             .setKey(key)
                             .setErrorCode(Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.code())
-                            // for some reason Kafka does not use the default error message for batched requests
+                            // Kafka does not use the default error message for batched requests (for some reason)
                             .setPort(-1)
                             .setHost("")
                             .setNodeId(-1))
