@@ -18,7 +18,9 @@ The proxy supports two independent idle timeout settings that apply at different
 
 Both timeout settings are optional and have no default values.
 You can configure one, both, or neither depending on your requirements.
-Timeout values use ISO-8601 duration format (for example, `PT30s` for 30 seconds, `PT5m` for 5 minutes, `PT1h` for 1 hour).
+Timeout values use Go-style duration format (for example, `30s` for 30 seconds, `5m` for 5 minutes, `1h` for 1 hour).
+Supported units are: `d` (days), `h` (hours), `m` (minutes), `s` (seconds), `ms` (milliseconds), `μs` or `us` (microseconds), and `ns` (nanoseconds).
+Units can be combined, such as `1h30m` or `90s`.
 
 == Configuration examples
 
@@ -27,7 +29,7 @@ Timeout values use ISO-8601 duration format (for example, `PT30s` for 30 seconds
 ----
 network:
   proxy:
-    unAuthenticatedIdleTimeout: PT30s # <1>
+    unAuthenticatedIdleTimeout: 30s # <1>
 virtualClusters:
   # ...
 ----
@@ -38,7 +40,7 @@ virtualClusters:
 ----
 network:
   proxy:
-    authenticatedIdleTimeout: PT5m # <1>
+    authenticatedIdleTimeout: 5m # <1>
 virtualClusters:
   # ...
 ----
@@ -49,8 +51,8 @@ virtualClusters:
 ----
 network:
   proxy:
-    unAuthenticatedIdleTimeout: PT30s # <1>
-    authenticatedIdleTimeout: PT10m # <2>
+    unAuthenticatedIdleTimeout: 30s # <1>
+    authenticatedIdleTimeout: 10m # <2>
 virtualClusters:
   # ...
 ----
