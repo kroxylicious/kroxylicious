@@ -33,9 +33,13 @@ public record AuthorizeResult(
      * @param allowed The allowed actions.
      * @param denied The denied actions.
      */
-    public AuthorizeResult {
-        Objects.requireNonNull(allowed);
-        Objects.requireNonNull(denied);
+    public AuthorizeResult(
+            Subject subject,
+            List<Action> allowed,
+            List<Action> denied) {
+        this.subject = Objects.requireNonNull(subject);
+        this.allowed = List.copyOf(Objects.requireNonNull(allowed));
+        this.denied = List.copyOf(Objects.requireNonNull(denied));
     }
 
     /**

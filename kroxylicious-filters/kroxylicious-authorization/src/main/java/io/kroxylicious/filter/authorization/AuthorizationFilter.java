@@ -175,7 +175,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                 actionsWithUnsupportedResourceTypes, authz.subject(),
                                 authorizer.getClass().getName());
                         authz = new AuthorizeResult(authz.subject(),
-                                Stream.concat(authz.allowed().stream(), actionsWithUnsupportedResourceTypes.stream()).toList(),
+                                Stream.concat(authz.allowed().stream(), actionsWithUnsupportedResourceTypes.stream()).collect(Collectors.toUnmodifiableList()),
                                 authz.denied());
                     }
                     return authz;

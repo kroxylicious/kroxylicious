@@ -93,7 +93,6 @@ class AuthorizationFilterTest {
         Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
         List<Action> actions = List.of(new Action(TopicResource.ALTER_CONFIGS, "resourceA"),
                 new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
-        // TODO document whether authorize result members must be mutable or move to immutability
         AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(actions), new ArrayList<>());
         when(mockAuthorizer.authorize(subject, actions)).thenReturn(CompletableFuture.completedFuture(result));
         when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.empty());
@@ -114,7 +113,6 @@ class AuthorizationFilterTest {
         // given
         Subject subject = Subject.anonymous();
         Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
-        // TODO document whether authorize result members must be mutable or move to immutability
         AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(), new ArrayList<>());
         when(mockAuthorizer.authorize(subject, List.of())).thenReturn(CompletableFuture.completedFuture(result));
         when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.of(Set.of()));
@@ -140,7 +138,6 @@ class AuthorizationFilterTest {
         Action topicAction = new Action(TopicResource.ALTER_CONFIGS, "resourceA");
         List<Action> actions = List.of(topicAction,
                 new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
-        // TODO document whether authorize result members must be mutable or move to immutability
         AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(List.of(topicAction)), new ArrayList<>());
         when(mockAuthorizer.authorize(subject, List.of(topicAction))).thenReturn(CompletableFuture.completedFuture(result));
         when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.of(Set.of(TopicResource.class)));

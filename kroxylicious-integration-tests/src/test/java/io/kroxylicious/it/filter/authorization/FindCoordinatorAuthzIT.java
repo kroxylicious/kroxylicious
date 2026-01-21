@@ -67,7 +67,6 @@ class FindCoordinatorAuthzIT extends AuthzIT {
 
     @BeforeAll
     void beforeAll() throws IOException {
-        // TODO need to add Carol who has Cluster.CREATE
         rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
         Files.writeString(rulesFile, """
                 from io.kroxylicious.filter.authorization import TransactionalIdResource as TxnId;
