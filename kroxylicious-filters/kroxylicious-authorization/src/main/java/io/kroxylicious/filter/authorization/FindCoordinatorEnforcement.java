@@ -69,14 +69,6 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
                     var deniedKeys = decisions.get(Decision.DENY);
                     if (allowedKeys.isEmpty()) {
                         // Shortcircuit if there are no allowed topics
-                        ApiException exception;
-                        if (usesBatching(header)) {
-                            // Kafka does not use the default error message for batched requests (for some reason)
-                            exception = Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception("");
-                        }
-                        else {
-                            exception = Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception();
-                        }
                         return context.requestFilterResultBuilder()
                                 .shortCircuitResponse(FindCoordinatorEnforcement
                                         .errorResponse(deniedKeys, usesBatching(header)))

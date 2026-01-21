@@ -17,7 +17,8 @@ import java.util.stream.Collectors;
 import io.kroxylicious.proxy.authentication.Subject;
 
 /**
- * Represents the outcome of a call to {@link Authorizer#authorize(io.kroxylicious.proxy.authentication.Subject, List)}
+ * Represents the outcome of a call to {@link Authorizer#authorize(io.kroxylicious.proxy.authentication.Subject, List)}.
+ * @param subject The subject.
  * @param allowed The allowed actions.
  * @param denied The denied actions.
  */
@@ -26,6 +27,12 @@ public record AuthorizeResult(
                               List<Action> allowed,
                               List<Action> denied) {
 
+    /**
+     * It is the instantiator's responsibility to ensure that {@code allowed} and {@code denied} are disjoint.
+     * @param subject The subject.
+     * @param allowed The allowed actions.
+     * @param denied The denied actions.
+     */
     public AuthorizeResult {
         Objects.requireNonNull(allowed);
         Objects.requireNonNull(denied);
