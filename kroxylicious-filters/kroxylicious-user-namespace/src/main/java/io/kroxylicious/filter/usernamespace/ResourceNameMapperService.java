@@ -14,7 +14,7 @@ public interface ResourceNameMapperService<C> {
      * Initialises the service.  This method must be invoked exactly once
      * before {@link #build()} is called.
      *
-     * @param config KMS service configuration
+     * @param config service configuration
      */
     void initialize(C config);
 
@@ -22,7 +22,7 @@ public interface ResourceNameMapperService<C> {
      * Builds a mapper service.
      * {@link #initialize(C)} must have been called before this method is invoked.
      *
-     * @return the KMS.
+     * @return the mapper.
      * @throws IllegalStateException if the mapper service has not been initialised.
      */
     @NonNull
