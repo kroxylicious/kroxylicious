@@ -24,6 +24,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderDataJsonConverter;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -72,6 +73,11 @@ class AuthorizationFilterTest {
         });
     }
 
+    @BeforeEach
+    void setup() {
+        logCaptor.clearLogs();
+    }
+
     @ParameterizedTest
     @MethodSource
     void authorization(ScenarioDefinition definition) {
@@ -101,7 +107,7 @@ class AuthorizationFilterTest {
             throw new IllegalStateException("test has finished, but mock responses are still queued");
         }
 
-        assertOutcomeLogged();
+        assertOutcomeLogged(definition.then().isExpectAuthorizationOutcomeLog());
         // we expect that any inflight state pushed during a request is always popped on the corresponding response
         // if it is non-empty then we may have a memory leak
         assertThat(authorizationFilter.inflightState())
@@ -109,26 +115,31 @@ class AuthorizationFilterTest {
                 .isEmpty();
     }
 
-    private static void assertOutcomeLogged() {
-        assertThat(logCaptor.getLogEvents())
-                .isNotEmpty()
-                .allSatisfy(event -> {
-                    if ("INFO".equalsIgnoreCase(event.getLevel())) {
-                        assertThat(event.getFormattedMessage())
-                                .startsWith("DENY")
-                                .doesNotContain("[]");
-                    }
-                    else if ("DEBUG".equalsIgnoreCase(event.getLevel())) {
-                        assertThat(event.getFormattedMessage())
-                                .containsAnyOf("ALLOW", "NON-AUTHORIZABLE")
-                                .doesNotContain("[]");
-                    }
-                    else {
-                        // false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
-                        // noinspection ResultOfMethodCallIgnored
-                        fail("unexpected event logged: %s", event.getFormattedMessage());
-                    }
-                });
+    private static void assertOutcomeLogged(Boolean expectOutcomeLogs) {
+        if (expectOutcomeLogs) {
+            assertThat(logCaptor.getLogEvents())
+                    .isNotEmpty()
+                    .allSatisfy(event -> {
+                        if ("INFO".equalsIgnoreCase(event.getLevel())) {
+                            assertThat(event.getFormattedMessage())
+                                    .startsWith("DENY")
+                                    .doesNotContain("[]");
+                        }
+                        else if ("DEBUG".equalsIgnoreCase(event.getLevel())) {
+                            assertThat(event.getFormattedMessage())
+                                    .containsAnyOf("ALLOW", "NON-AUTHORIZABLE")
+                                    .doesNotContain("[]");
+                        }
+                        else {
+                            // false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
+                            // noinspection ResultOfMethodCallIgnored
+                            fail("unexpected event logged: %s", event.getFormattedMessage());
+                        }
+                    });
+        }
+        else {
+            assertThat(logCaptor.getLogEvents()).isEmpty();
+        }
     }
 
     private static void handleRequestForward(ScenarioDefinition definition, CompletionStage<RequestFilterResult> stage, MockUpstream mockUpstream, Subject subject,
