@@ -6,8 +6,6 @@
 
 package io.kroxylicious.filter.usernamespace;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public interface ResourceNameMapperService<C> {
 
     /**
@@ -25,6 +23,5 @@ public interface ResourceNameMapperService<C> {
      * @return the mapper.
      * @throws IllegalStateException if the mapper service has not been initialised.
      */
-    @NonNull
     ResourceNameMapper build() throws IllegalStateException;
 }
