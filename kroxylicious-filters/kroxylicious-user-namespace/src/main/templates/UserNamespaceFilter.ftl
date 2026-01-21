@@ -30,9 +30,9 @@ ${pad}// process any entity fields defined at this level
                     fieldVersionsConst="${snakeFieldName?c_upper_case}_${constStem}" />
 ${pad}if (shouldMap(UserNamespace.ResourceType.${field.entityType}) && inVersion(header.requestApiVersion(), ${fieldVersionsConst}_${messageSpec.type}_VERSIONS)) {
             <#if field.type == 'string'>
-${pad}    ${dataVar}.${setter}(map(context, UserNamespace.ResourceType.${field.entityType}, ${dataVar}.${getter}()));
+${pad}    ${dataVar}.${setter}(map(mapperContext, UserNamespace.ResourceType.${field.entityType}, ${dataVar}.${getter}()));
             <#elseif field.type == '[]string'>
-${pad}    ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(context, UserNamespace.ResourceType.${field.entityType}, orig)).toList());
+${pad}    ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(mapperContext, UserNamespace.ResourceType.${field.entityType}, orig)).toList());
             </#if>
 ${pad}}
         </#items>
@@ -69,8 +69,8 @@ ${pad}// process entity fields defined at this level
                     fieldVersionsConst="${snakeFieldName?c_upper_case}_${constStem}" />
 ${pad}if (shouldMap(UserNamespace.ResourceType.${field.entityType}) && inVersion(apiVersion, ${fieldVersionsConst}_${messageSpec.type}_VERSIONS)) {
             <#if field.type == 'string'>
-${pad}    if (inNamespace(context, UserNamespace.ResourceType.${field.entityType}, ${dataVar}.${getter}())) {
-${pad}        ${dataVar}.${setter}(unmap(context, UserNamespace.ResourceType.${field.entityType}, ${dataVar}.${getter}()));
+${pad}    if (inNamespace(mapperContext, UserNamespace.ResourceType.${field.entityType}, ${dataVar}.${getter}())) {
+${pad}        ${dataVar}.${setter}(unmap(mapperContext, UserNamespace.ResourceType.${field.entityType}, ${dataVar}.${getter}()));
 ${pad}    }
                 <#if collectionIterator?has_content>
 ${pad}    else {
@@ -79,8 +79,8 @@ ${pad}    }
                 </#if>
             <#elseif field.type == '[]string'>
 ${pad}    ${dataVar}.${setter}(${dataVar}.${getter}().stream()
-${pad}                        .filter(orig -> inNamespace(context, UserNamespace.ResourceType.${field.entityType}, orig))
-${pad}                        .map(orig -> unmap(context, UserNamespace.ResourceType.${field.entityType}, orig)).toList());
+${pad}                        .filter(orig -> inNamespace(mapperContext, UserNamespace.ResourceType.${field.entityType}, orig))
+${pad}                        .map(orig -> unmap(mapperContext, UserNamespace.ResourceType.${field.entityType}, orig)).toList());
                 <#if collectionIterator?has_content>
 ${pad}    if (!${dataVar}.${getter}().isEmpty()) {
 ${pad}        ${collectionIterator}.remove();
@@ -199,7 +199,6 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
     private final Set<UserNamespace.ResourceType> resourceTypes;
     private final ResourceNameMapper mapper;
 
-
     UserNamespaceFilter(Set<UserNamespace.ResourceType> resourceTypes, ResourceNameMapper mapper) {
         this.resourceTypes = Objects.requireNonNull(resourceTypes);
         this.mapper = Objects.requireNonNull(mapper);
@@ -245,16 +244,17 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                                                           RequestHeaderData header,
                                                           ApiMessage request,
                                                           FilterContext context) {
+        var mapperContext = buildMapperContext(context);
         switch (apiKey) {
             case FIND_COORDINATOR -> {
                 FindCoordinatorRequestData findCoordinatorRequestData = (FindCoordinatorRequestData) request;
                 log(context, "request", ApiKeys.FIND_COORDINATOR, findCoordinatorRequestData);
                 if (resourceTypes.contains(UserNamespace.ResourceType.GROUP_ID) && findCoordinatorRequestData.keyType() == 0) {
                     if (inVersion(header.requestApiVersion(), Set.of( (short) 0,  (short) 1,  (short) 2,  (short) 3))) {
-                        findCoordinatorRequestData.setKey(map(context, UserNamespace.ResourceType.GROUP_ID, findCoordinatorRequestData.key()));
+                        findCoordinatorRequestData.setKey(map(mapperContext, UserNamespace.ResourceType.GROUP_ID, findCoordinatorRequestData.key()));
                     }
                     else {
-                        findCoordinatorRequestData.setCoordinatorKeys(findCoordinatorRequestData.coordinatorKeys().stream().map(k -> map(context, UserNamespace.ResourceType.GROUP_ID, k)).toList());
+                        findCoordinatorRequestData.setCoordinatorKeys(findCoordinatorRequestData.coordinatorKeys().stream().map(k -> map(mapperContext, UserNamespace.ResourceType.GROUP_ID, k)).toList());
                     }
                 }
                 log(context, "request result", ApiKeys.FIND_COORDINATOR, findCoordinatorRequestData);
@@ -267,7 +267,7 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
             case ${key} -> {
                 var ${dataVar} = (${dataClass}) request;
                 log(context, "${messageSpec.type?c_lower_case}", ApiKeys.${key}, ${dataVar});
-                <@mapRequestFields messageSpec dataVar key messageSpec.fields 5/>
+                <@mapRequestFields messageSpec dataVar key messageSpec.fields 4/>
                 log(context, "${messageSpec.type?c_lower_case} result", ApiKeys.${key}, ${dataVar});
             }
     </#items>
@@ -282,12 +282,13 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                                                             ResponseHeaderData header,
                                                             ApiMessage response,
                                                             FilterContext context) {
+        var mapperContext = buildMapperContext(context);
         switch (apiKey) {
             case FIND_COORDINATOR -> {
                 FindCoordinatorResponseData findCoordinatorResponseData = (FindCoordinatorResponseData) response;
                 log(context, "response", ApiKeys.FIND_COORDINATOR, findCoordinatorResponseData);
                 findCoordinatorResponseData.coordinators().forEach(
-                        coordinator -> coordinator.setKey(unmap(context, UserNamespace.ResourceType.GROUP_ID, coordinator.key())));
+                        coordinator -> coordinator.setKey(unmap(mapperContext, UserNamespace.ResourceType.GROUP_ID, coordinator.key())));
                 log(context, "response result", ApiKeys.FIND_COORDINATOR, findCoordinatorResponseData);
             }
 <#list messageSpecs?filter(ms -> ms.type == 'RESPONSE' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
@@ -298,7 +299,7 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
             case ${key} -> {
                 var ${dataVar} = (${dataClass}) response;
                 log(context, "${messageSpec.type?c_lower_case}", ApiKeys.${key}, ${dataVar});
-                <@mapAndFilterResponseFields messageSpec "" dataVar dataClass key messageSpec.fields 5/>
+                <@mapAndFilterResponseFields messageSpec "" dataVar dataClass key messageSpec.fields 4/>
                 log(context, "${messageSpec.type?c_lower_case} result", ApiKeys.${key}, ${dataVar});
             }
     </#items>
@@ -311,22 +312,28 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         return resourceTypes.contains(entityType);
     }
 
-    private String map(FilterContext context, UserNamespace.ResourceType resourceType, String originalName) {
+    private String map(MapperContext context, UserNamespace.ResourceType resourceType, String originalName) {
         if (originalName == null || originalName.isEmpty()) {
             return originalName;
         }
-        return mapper.map(context.authenticatedSubject(), context.clientTlsContext().orElse(null), context.clientSaslContext().orElse(null), resourceType, originalName);
+        return mapper.map(context, resourceType, originalName);
     }
 
-    private String unmap(FilterContext context, UserNamespace.ResourceType resourceType, String mappedName) {
+    private String unmap(MapperContext context, UserNamespace.ResourceType resourceType, String mappedName) {
         if (mappedName.isEmpty()) {
             return mappedName;
         }
-        return mapper.unmap(context.authenticatedSubject(), context.clientTlsContext().orElse(null), context.clientSaslContext().orElse(null), resourceType, mappedName);
+        return mapper.unmap(context, resourceType, mappedName);
     }
 
-    private boolean inNamespace(FilterContext context, UserNamespace.ResourceType resourceType, String mappedName) {
-        return mapper.isInNamespace(context.authenticatedSubject(), context.clientTlsContext().orElse(null), context.clientSaslContext().orElse(null), resourceType, mappedName);
+    private boolean inNamespace(MapperContext context, UserNamespace.ResourceType resourceType, String mappedName) {
+        return mapper.isInNamespace(context, resourceType, mappedName);
+    }
+
+    private static MapperContext buildMapperContext(FilterContext context) {
+        return new MapperContext(context.authenticatedSubject(),
+                context.clientTlsContext().orElse(null),
+                context.clientSaslContext().orElse(null));
     }
 
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {

@@ -9,22 +9,18 @@ package io.kroxylicious.filter.usernamespace;
 import java.util.Objects;
 import java.util.Optional;
 
-import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
-import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 class UserPrincipalPrefixingResourceNameMapper implements ResourceNameMapper {
 
     private static final String SEPARATOR = "-";
 
     @Override
-    public String map(Subject authenticateSubject, @Nullable ClientTlsContext clientTlsContext, @Nullable ClientSaslContext clientSaslContext,
-                      UserNamespace.ResourceType resourceType, String unmappedResourceName) {
-        var user = getAuthenticatedPrincipal(authenticateSubject);
+    public String map(MapperContext mapperContext, UserNamespace.ResourceType resourceType, String unmappedResourceName) {
+        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject());
         return user.map(authId -> doMap(authId, unmappedResourceName))
                 .orElse(unmappedResourceName);
     }
@@ -35,9 +31,8 @@ class UserPrincipalPrefixingResourceNameMapper implements ResourceNameMapper {
     }
 
     @Override
-    public String unmap(Subject authenticateSubject, @Nullable ClientTlsContext clientTlsContext, @Nullable ClientSaslContext clientSaslContext,
-                        UserNamespace.ResourceType resourceType, String mappedResourceName) {
-        var user = getAuthenticatedPrincipal(authenticateSubject);
+    public String unmap(MapperContext mapperContext, UserNamespace.ResourceType resourceType, String mappedResourceName) {
+        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject());
         return user.map(authId -> doUnmap(authId, mappedResourceName))
                 .orElse(mappedResourceName);
     }
@@ -53,9 +48,8 @@ class UserPrincipalPrefixingResourceNameMapper implements ResourceNameMapper {
     }
 
     @Override
-    public boolean isInNamespace(Subject authenticateSubject, @Nullable ClientTlsContext clientTlsContext, @Nullable ClientSaslContext clientSaslContext,
-                                 UserNamespace.ResourceType resourceType, String mappedResourceName) {
-        var user = getAuthenticatedPrincipal(authenticateSubject);
+    public boolean isInNamespace(MapperContext mapperContext, UserNamespace.ResourceType resourceType, String mappedResourceName) {
+        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject());
         return user.map(authId -> mappedResourceName.startsWith(authId + SEPARATOR))
                 .orElse(false);
     }

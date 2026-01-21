@@ -31,19 +31,14 @@ import com.flipkart.zjsonpatch.JsonDiff;
 import com.google.common.reflect.ClassPath;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
-import io.kroxylicious.proxy.authentication.ClientSaslContext;
-import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.tls.ClientTlsContext;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -72,22 +67,19 @@ class UserNamespaceFilterTest {
             Set.of(UserNamespace.ResourceType.GROUP_ID, UserNamespace.ResourceType.TRANSACTIONAL_ID),
             new ResourceNameMapper() {
                 @Override
-                public String map(Subject authenticateSubject, @Nullable ClientTlsContext clientTlsContext, @Nullable ClientSaslContext clientSaslContext,
-                                  UserNamespace.ResourceType resourceType, String unmappedResourceName) {
+                public String map(MapperContext mapperContext, UserNamespace.ResourceType resourceType, String unmappedResourceName) {
                     return TENANT_1 + "-" + unmappedResourceName;
                 }
 
                 @Override
-                public String unmap(Subject authenticateSubject, @Nullable ClientTlsContext clientTlsContext, @Nullable ClientSaslContext clientSaslContext,
-                                    UserNamespace.ResourceType resourceType, String mappedResourceName) {
+                public String unmap(MapperContext mapperContext, UserNamespace.ResourceType resourceType, String mappedResourceName) {
                     var prefix = TENANT_1 + "-";
                     boolean hasPrefix = mappedResourceName.startsWith(prefix);
                     return hasPrefix ? mappedResourceName.substring(prefix.length()) : mappedResourceName;
                 }
 
                 @Override
-                public boolean isInNamespace(Subject authenticateSubject, @Nullable ClientTlsContext clientTlsContext, @Nullable ClientSaslContext clientSaslContext,
-                                             UserNamespace.ResourceType resourceType, String mappedResourceName) {
+                public boolean isInNamespace(MapperContext mapperContext, UserNamespace.ResourceType resourceType, String mappedResourceName) {
                     var prefix = TENANT_1 + "-";
                     return mappedResourceName.startsWith(prefix);
                 }
