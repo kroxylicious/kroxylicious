@@ -228,7 +228,6 @@ class AddPartitionsToTxnAuthzIT extends AuthzIT {
             Map<String, KafkaClient> userToClient = cluster.authenticatedClients(PASSWORDS.keySet());
             userToClient.forEach((username, kafkaClient) -> {
                 String transactionalId = "trans-" + Uuid.randomUuid();
-                String groupId = "group-" + Uuid.randomUuid();
                 KafkaDriver kafkaDriver = new KafkaDriver(cluster, kafkaClient, username);
                 kafkaDriver.findCoordinator(CoordinatorType.TRANSACTION, transactionalId);
                 ProducerIdAndEpoch producerIdAndEpoch = kafkaDriver.initProducerId(transactionalId);
