@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3127](https://github.com/kroxylicious/kroxylicious/pull/3127): build(deps): bump kubernetes-client.version from 7.4.0 to 7.5.0
 * [#3112](https://github.com/kroxylicious/kroxylicious/pull/3112): cache topic name lookups per VirtualCluster
 * [#3129](https://github.com/kroxylicious/kroxylicious/pull/3129): build(deps): bump netty.version from 4.2.7.Final to 4.2.9.Final
 * [#2969](https://github.com/kroxylicious/kroxylicious/issues/2969): Give `ResponseFilter#onResponse` access to the api-version
