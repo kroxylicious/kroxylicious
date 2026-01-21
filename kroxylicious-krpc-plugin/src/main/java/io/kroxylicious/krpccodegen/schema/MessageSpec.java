@@ -19,10 +19,7 @@ import java.util.stream.IntStream;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.util.StdConverter;
-
-@JsonDeserialize(converter = MessageSpec.MessageSpecAugmenter.class)
 
 public final class MessageSpec {
     private final StructSpec struct;

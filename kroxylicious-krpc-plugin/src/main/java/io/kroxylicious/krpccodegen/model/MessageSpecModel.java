@@ -12,6 +12,7 @@ import java.util.Set;
 import io.kroxylicious.krpccodegen.schema.EntityType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 
+import freemarker.ext.beans.GenericObjectModel;
 import freemarker.template.AdapterTemplateModel;
 import freemarker.template.ObjectWrapperAndUnwrapper;
 import freemarker.template.SimpleSequence;
@@ -61,16 +62,35 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
         return spec;
     }
 
-    private boolean handleHasAtLeastOneEntityField(List args) {
-        var seq = (SimpleSequence) args.get(0);
+    private boolean handleHasAtLeastOneEntityField(List args) throws TemplateModelException {
+        var seq = argsToSimpleSequence(args);
         var set = getTypeHashSet(seq);
         return spec.hasAtLeastOneEntityField(set);
     }
 
-    private List<Short> handleIntersectedVersionsForEntityFields(List args) {
-        var seq = (SimpleSequence) args.get(0);
+    private List<Short> handleIntersectedVersionsForEntityFields(List args) throws TemplateModelException {
+        var seq = argsToSimpleSequence(args);
         var set = getTypeHashSet(seq);
         return spec.intersectedVersionsForEntityFields(set);
+    }
+
+    private SimpleSequence argsToSimpleSequence(List args) throws TemplateModelException {
+        var seq = new SimpleSequence(wrapper);
+        for (Object objOrSeq : args) {
+            if (objOrSeq instanceof SimpleSequence ss) {
+                for (int i = 0; i < ss.size(); i++) {
+                    var obj = ss.get(i);
+                    seq.add(obj);
+                }
+            }
+            else if (objOrSeq instanceof GenericObjectModel gom) {
+                seq.add(gom);
+            }
+            else {
+                throw new IllegalArgumentException("Unsupported argument type " + objOrSeq.getClass().getName() + " found in arguments.");
+            }
+        }
+        return seq;
     }
 
     private static Set<EntityType> getTypeHashSet(SimpleSequence seq) {

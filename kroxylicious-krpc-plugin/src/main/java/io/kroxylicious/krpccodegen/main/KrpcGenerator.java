@@ -262,7 +262,8 @@ public class KrpcGenerator {
         }
         Map<String, Object> dataModel = Map.of(
                 "structRegistry", structRegistry,
-                "messageSpec", messageSpec);
+                "messageSpec", messageSpec,
+                "createEntityTypeSet", new EntityTypeSetFactory());
         return templateNames.stream().mapToLong(templateName -> {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
