@@ -87,13 +87,13 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
                 seq.add(gom);
             }
             else {
-                throw new IllegalArgumentException("Unsupported argument type " + objOrSeq.getClass().getName() + " found in arguments.");
+                throw new TemplateModelException("Unsupported argument type " + objOrSeq.getClass().getName() + " found in arguments.");
             }
         }
         return seq;
     }
 
-    private static Set<EntityType> getTypeHashSet(SimpleSequence seq) {
+    private static Set<EntityType> getTypeHashSet(SimpleSequence seq) throws TemplateModelException {
         var ow = (ObjectWrapperAndUnwrapper) seq.getObjectWrapper();
         var set = new HashSet<EntityType>(seq.size());
         for (int i = 0; i < seq.size(); i++) {
@@ -103,7 +103,7 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
                 set.add(unwrapped instanceof EntityType et ? et : EntityType.valueOf(String.valueOf(unwrapped)));
             }
             catch (TemplateModelException e) {
-                throw new RuntimeException("Failed to unwrap template model object at index " + i, e);
+                throw new TemplateModelException("Failed to unwrap template model object at index " + i, e);
             }
         }
         return set;
