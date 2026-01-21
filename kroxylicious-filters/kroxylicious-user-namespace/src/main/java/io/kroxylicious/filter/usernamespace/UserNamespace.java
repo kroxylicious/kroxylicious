@@ -32,9 +32,9 @@ public class UserNamespace implements FilterFactory<UserNamespace.Config, UserNa
     @SuppressWarnings("java:S2638") // Tightening Unknown Nullness
     public Config initialize(FilterFactoryContext context, @NonNull Config config) {
         var configuration = Plugins.requireConfig(this, config);
-        ResourceNameMapperService<Object> kmsPlugin = context.pluginInstance(ResourceNameMapperService.class, configuration.mapper());
-        kmsPlugin.initialize(configuration.mapperConfig());
-        mapper = kmsPlugin.build();
+        ResourceNameMapperService<Object> mapperService = context.pluginInstance(ResourceNameMapperService.class, configuration.mapper());
+        mapperService.initialize(configuration.mapperConfig());
+        mapper = mapperService.build();
         return config;
     }
 

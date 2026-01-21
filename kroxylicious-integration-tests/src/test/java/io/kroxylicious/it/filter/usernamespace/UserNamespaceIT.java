@@ -59,7 +59,7 @@ import static org.awaitility.Awaitility.await;
  * TODO: transactional id tests, share groups
  */
 @ExtendWith(KafkaClusterExtension.class)
-class UserNamespaceFilterIT {
+class UserNamespaceIT {
 
     public static final String CONSUMER_GROUP_NAME = "mygroup";
 

@@ -7,19 +7,15 @@ package io.kroxylicious.krpccodegen.schema;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.util.StdConverter;
 
 public final class MessageSpec {
     private final StructSpec struct;
@@ -107,14 +103,8 @@ public final class MessageSpec {
     }
 
     @JsonProperty("fields")
-    @JsonManagedReference
     public List<FieldSpec> fields() {
         return struct.fields();
-    }
-
-    // @VisibleForTesting
-    public Map<String, FieldSpec> fieldsByName() {
-        return struct.fields().stream().collect(Collectors.toMap(FieldSpec::name, Function.identity()));
     }
 
     @JsonProperty("apiKey")
@@ -216,14 +206,5 @@ public final class MessageSpec {
                 ", listeners=" + listeners +
                 ", latestVersionUnstable=" + latestVersionUnstable +
                 '}';
-    }
-
-    public static class MessageSpecAugmenter extends StdConverter<MessageSpec, MessageSpec> {
-
-        @Override
-        public MessageSpec convert(MessageSpec value) {
-            // value.fields().forEach(f -> f.setMessageSpec(value));
-            return value;
-        }
     }
 }
