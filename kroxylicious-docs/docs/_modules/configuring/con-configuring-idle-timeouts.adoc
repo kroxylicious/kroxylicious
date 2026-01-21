@@ -80,7 +80,13 @@ Avoid enabling idle timeouts in the following scenarios:
 
 == Monitoring idle disconnects
 
-The proxy tracks idle disconnects using the `kroxylicious_client_to_proxy_idle_disconnects_total` metric.
+The proxy tracks idle disconnects using the `kroxylicious_client_to_proxy_disconnects_total` metric with `cause="idle_timeout"`.
 This counter is incremented each time a connection is closed due to exceeding the configured idle timeout.
+
+The `kroxylicious_client_to_proxy_disconnects_total` metric also tracks other disconnect scenarios:
+
+* `cause="idle_timeout"` - Connection exceeded the configured idle timeout duration
+* `cause="client_closed"` - Client initiated the connection close
+* `cause="server_closed"` - Backend server closed the connection, causing the proxy to close the client connection
 
 For more information about connection metrics, see xref:con-prometheus-metrics-proxy-{context}[Overview of proxy metrics].
