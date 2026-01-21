@@ -8,8 +8,6 @@ package io.kroxylicious.filter.usernamespace;
 
 import io.kroxylicious.proxy.plugin.Plugin;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 @Plugin(configType = Void.class)
 public class UserPrincipalPrefixingResourceNameMapperService implements ResourceNameMapperService<Void> {
     @Override
@@ -17,7 +15,6 @@ public class UserPrincipalPrefixingResourceNameMapperService implements Resource
         // intentionally empty
     }
 
-    @NonNull
     @Override
     public ResourceNameMapper build() {
         return new UserPrincipalPrefixingResourceNameMapper();

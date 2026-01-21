@@ -40,31 +40,40 @@ class UserPrincipalPrefixingResourceNameMapperTest {
 
     @Test
     void map() {
-        assertThat(mapper.map(new MapperContext(subject, null, null), UserNamespace.ResourceType.TOPIC_NAME, "foo"))
+        var mapperContext = buildMapperContext(subject);
+        assertThat(mapper.map(mapperContext, UserNamespace.ResourceType.TOPIC_NAME, "foo"))
                 .isEqualTo("bob-foo");
     }
 
     @Test
     void unmap() {
-        assertThat(mapper.unmap(new MapperContext(subject, null, null), UserNamespace.ResourceType.TOPIC_NAME, "bob-foo"))
+        var mapperContext = buildMapperContext(subject);
+        assertThat(mapper.unmap(mapperContext, UserNamespace.ResourceType.TOPIC_NAME, "bob-foo"))
                 .isEqualTo("foo");
     }
 
     @Test
     void shouldRejectOutOfNamespaceResourceName() {
-        assertThatThrownBy(() -> mapper.unmap(new MapperContext(subject, null, null), UserNamespace.ResourceType.TOPIC_NAME, "alice-foo"))
+        var mapperContext = buildMapperContext(subject);
+        assertThatThrownBy(() -> mapper.unmap(mapperContext, UserNamespace.ResourceType.TOPIC_NAME, "alice-foo"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void isInNamespace() {
-        assertThat(mapper.isInNamespace(new MapperContext(subject, null, null), UserNamespace.ResourceType.TOPIC_NAME, "bob-foo"))
+        var mapperContext = buildMapperContext(subject);
+        assertThat(mapper.isInNamespace(mapperContext, UserNamespace.ResourceType.TOPIC_NAME, "bob-foo"))
                 .isTrue();
     }
 
     @Test
     void notInNamespace() {
-        assertThat(mapper.isInNamespace(new MapperContext(subject, null, null), UserNamespace.ResourceType.TOPIC_NAME, "alice-foo"))
+        assertThat(mapper.isInNamespace(buildMapperContext(subject), UserNamespace.ResourceType.TOPIC_NAME, "alice-foo"))
                 .isFalse();
     }
+
+    private MapperContext buildMapperContext(Subject s) {
+        return new MapperContext(s, null, null);
+    }
+
 }

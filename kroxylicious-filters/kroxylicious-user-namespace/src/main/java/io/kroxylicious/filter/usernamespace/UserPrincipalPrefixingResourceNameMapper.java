@@ -12,8 +12,6 @@ import java.util.Optional;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 class UserPrincipalPrefixingResourceNameMapper implements ResourceNameMapper {
 
     private static final String SEPARATOR = "-";
@@ -25,7 +23,6 @@ class UserPrincipalPrefixingResourceNameMapper implements ResourceNameMapper {
                 .orElse(unmappedResourceName);
     }
 
-    @NonNull
     private static String doMap(String authId, String unmappedResourceName) {
         return authId + SEPARATOR + unmappedResourceName;
     }
