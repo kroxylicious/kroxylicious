@@ -18,6 +18,7 @@ import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@link FilterFactory} for {@link UserNamespaceFilter}.
@@ -25,6 +26,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 @Plugin(configType = UserNamespace.Config.class)
 public class UserNamespace implements FilterFactory<UserNamespace.Config, UserNamespace.Config> {
 
+    @Nullable
     private ResourceNameMapper mapper;
 
     @NonNull
@@ -42,6 +44,9 @@ public class UserNamespace implements FilterFactory<UserNamespace.Config, UserNa
     @Override
     @SuppressWarnings("java:S2638") // Tightening Unknown Nullness
     public UserNamespaceFilter createFilter(FilterFactoryContext context, @NonNull Config configuration) {
+        if (mapper == null) {
+            throw new IllegalStateException("filter factory has not been initialized");
+        }
         return new UserNamespaceFilter(configuration.resourceTypes, mapper);
     }
 
