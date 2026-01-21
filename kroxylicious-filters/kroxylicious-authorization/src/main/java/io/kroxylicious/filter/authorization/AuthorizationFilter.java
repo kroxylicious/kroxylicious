@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -173,7 +174,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         LOG.debug("ALLOW {} to {} (due to resource types not being supported by {})",
                                 actionsWithUnsupportedResourceTypes, authz.subject(),
                                 authorizer.getClass().getName());
-                        authz.allowed().addAll(actionsWithUnsupportedResourceTypes);
+                        authz = new AuthorizeResult(authz.subject(),
+                                Stream.concat(authz.allowed().stream(), actionsWithUnsupportedResourceTypes.stream()).toList(),
+                                authz.denied());
                     }
                     return authz;
                 });
