@@ -40,31 +40,31 @@ class UserPrincipalPrefixingResourceNameMapperTest {
 
     @Test
     void map() {
-        assertThat(mapper.map(subject, null, null, UserNamespace.ResourceType.TOPIC_NAME, "foo"))
+        assertThat(mapper.map(new MapperContext(subject, null, null), UserNamespace.ResourceType.TOPIC_NAME, "foo"))
                 .isEqualTo("bob-foo");
     }
 
     @Test
     void unmap() {
-        assertThat(mapper.unmap(subject, null, null, UserNamespace.ResourceType.TOPIC_NAME, "bob-foo"))
+        assertThat(mapper.unmap(new MapperContext(subject, null, null), UserNamespace.ResourceType.TOPIC_NAME, "bob-foo"))
                 .isEqualTo("foo");
     }
 
     @Test
     void shouldRejectOutOfNamespaceResourceName() {
-        assertThatThrownBy(() -> mapper.unmap(subject, null, null, UserNamespace.ResourceType.TOPIC_NAME, "alice-foo"))
+        assertThatThrownBy(() -> mapper.unmap(new MapperContext(subject, null, null), UserNamespace.ResourceType.TOPIC_NAME, "alice-foo"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void isInNamespace() {
-        assertThat(mapper.isInNamespace(subject, null, null, UserNamespace.ResourceType.TOPIC_NAME, "bob-foo"))
+        assertThat(mapper.isInNamespace(new MapperContext(subject, null, null), UserNamespace.ResourceType.TOPIC_NAME, "bob-foo"))
                 .isTrue();
     }
 
     @Test
     void notInNamespace() {
-        assertThat(mapper.isInNamespace(subject, null, null, UserNamespace.ResourceType.TOPIC_NAME, "alice-foo"))
+        assertThat(mapper.isInNamespace(new MapperContext(subject, null, null), UserNamespace.ResourceType.TOPIC_NAME, "alice-foo"))
                 .isFalse();
     }
 }

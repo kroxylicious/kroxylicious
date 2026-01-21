@@ -47,7 +47,6 @@ public class UserNamespace implements FilterFactory<UserNamespace.Config, UserNa
 
     public enum ResourceType {
         TOPIC_NAME,
-
         GROUP_ID,
         TRANSACTIONAL_ID
     }
