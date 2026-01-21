@@ -7,11 +7,14 @@
 package io.kroxylicious.filter.authorization;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -29,12 +32,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.reflect.ClassPath;
 
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.AuthorizeResult;
+import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -50,6 +57,7 @@ import static java.util.EnumSet.copyOf;
 import static java.util.EnumSet.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.Mockito.when;
 
 class AuthorizationFilterTest {
 
@@ -76,6 +84,76 @@ class AuthorizationFilterTest {
     @BeforeEach
     void setup() {
         logCaptor.clearLogs();
+    }
+
+    @Test
+    void authorizerDoesNotDeclareSupportedResourceTypes() {
+        // given
+        Subject subject = Subject.anonymous();
+        Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
+        List<Action> actions = List.of(new Action(TopicResource.ALTER_CONFIGS, "resourceA"),
+                new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
+        // TODO document whether authorize result members must be mutable or move to immutability
+        AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(actions), new ArrayList<>());
+        when(mockAuthorizer.authorize(subject, actions)).thenReturn(CompletableFuture.completedFuture(result));
+        when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.empty());
+        AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        when(filterContext.authenticatedSubject()).thenReturn(subject);
+        // when
+        CompletionStage<AuthorizeResult> authorization = filter.authorization(filterContext, actions);
+        // then
+        assertThat(authorization).succeedsWithin(Duration.ZERO).satisfies(authorizeResult -> {
+            assertThat(authorizeResult.denied()).isEmpty();
+            assertThat(authorizeResult.allowed()).containsExactlyElementsOf(actions);
+        });
+    }
+
+    @Test
+    void actionsForUnsupportedResourceTypes() {
+        // given
+        Subject subject = Subject.anonymous();
+        Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
+        // TODO document whether authorize result members must be mutable or move to immutability
+        AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(), new ArrayList<>());
+        when(mockAuthorizer.authorize(subject, List.of())).thenReturn(CompletableFuture.completedFuture(result));
+        when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.of(Set.of()));
+        AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        when(filterContext.authenticatedSubject()).thenReturn(subject);
+        List<Action> actions = List.of(new Action(TopicResource.ALTER_CONFIGS, "resourceA"),
+                new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
+        // when
+        CompletionStage<AuthorizeResult> authorization = filter.authorization(filterContext, actions);
+        // then
+        assertThat(authorization).succeedsWithin(Duration.ZERO).satisfies(authorizeResult -> {
+            assertThat(authorizeResult.denied()).isEmpty();
+            assertThat(authorizeResult.allowed()).containsExactlyElementsOf(actions);
+        });
+    }
+
+    @Test
+    void actionsForUnsupportedAndSupportedResourceTypes() {
+        // given
+        Subject subject = Subject.anonymous();
+        Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
+        Action topicAction = new Action(TopicResource.ALTER_CONFIGS, "resourceA");
+        List<Action> actions = List.of(topicAction,
+                new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
+        // TODO document whether authorize result members must be mutable or move to immutability
+        AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(List.of(topicAction)), new ArrayList<>());
+        when(mockAuthorizer.authorize(subject, List.of(topicAction))).thenReturn(CompletableFuture.completedFuture(result));
+        when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.of(Set.of(TopicResource.class)));
+        AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        when(filterContext.authenticatedSubject()).thenReturn(subject);
+        // when
+        CompletionStage<AuthorizeResult> authorization = filter.authorization(filterContext, actions);
+        // then
+        assertThat(authorization).succeedsWithin(Duration.ZERO).satisfies(authorizeResult -> {
+            assertThat(authorizeResult.denied()).isEmpty();
+            assertThat(authorizeResult.allowed()).containsExactlyElementsOf(actions);
+        });
     }
 
     @ParameterizedTest
