@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -72,6 +74,10 @@ public final class KafkaProxy implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
     private static final Logger STARTUP_SHUTDOWN_LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
+
+    private static final int JRE_FEATURE_VERSION = Runtime.version().feature();
+    private static final TreeSet<Integer> DEPRECATED_JRE_VERSIONS = new TreeSet<>(Set.of(17));
+    private static final TreeSet<Integer> SUPPORTED_JRE_VERSIONS = new TreeSet<>(Set.of(21, 25));
 
     @VisibleForTesting
     record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
@@ -179,6 +185,19 @@ public final class KafkaProxy implements AutoCloseable {
             throw new IllegalStateException("This proxy is already running");
         }
         try {
+            if (!SUPPORTED_JRE_VERSIONS.contains(JRE_FEATURE_VERSION)) {
+                String versionStatus = "unsupported";
+
+                if (DEPRECATED_JRE_VERSIONS.contains(JRE_FEATURE_VERSION)) {
+                    versionStatus = "deprecated";
+                }
+
+                STARTUP_SHUTDOWN_LOGGER.warn(
+                        "Detected {} JRE version: {}. Running Kroxylicious is only supported on LTS releases >={}. If you find any issues on JRE {} then please try to re-create them on one of the following JREs: {}.",
+                        versionStatus, JRE_FEATURE_VERSION, SUPPORTED_JRE_VERSIONS.first(), JRE_FEATURE_VERSION,
+                        SUPPORTED_JRE_VERSIONS);
+            }
+
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is starting");
             meterRegistries = new MeterRegistries(pfr, micrometerConfig);
             initVersionInfoMetric();
