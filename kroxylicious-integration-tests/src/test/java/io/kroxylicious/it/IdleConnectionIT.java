@@ -59,8 +59,9 @@ class IdleConnectionIT extends BaseIT {
                     .untilAsserted(() -> {
                         List<SimpleMetric> metricList = managementClient.scrapeMetrics();
                         SimpleMetricAssert.assertThat(metricList)
-                                .withUniqueMetric("kroxylicious_client_to_proxy_idle_disconnects_total", Map.of(
-                                        NODE_ID_LABEL, "bootstrap"))
+                                .withUniqueMetric("kroxylicious_client_to_proxy_disconnects_total", Map.of(
+                                        NODE_ID_LABEL, "bootstrap",
+                                        "cause", "idle_timeout"))
                                 .value()
                                 .isGreaterThanOrEqualTo(1.0);
                     });
@@ -69,7 +70,7 @@ class IdleConnectionIT extends BaseIT {
     }
 
     @Test
-    void shouldTimeOutAuthenticatedClient(@SaslMechanism(value = "PLAIN", principals = {
+    void shouldTimeOutAuthenticatedClient(@SuppressWarnings("DefaultAnnotationParam") @SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
 
         String mechanism = "PLAIN";
@@ -102,8 +103,9 @@ class IdleConnectionIT extends BaseIT {
                     .untilAsserted(() -> {
                         List<SimpleMetric> metricList = managementClient.scrapeMetrics();
                         SimpleMetricAssert.assertThat(metricList)
-                                .withUniqueMetric("kroxylicious_client_to_proxy_idle_disconnects_total", Map.of(
-                                        NODE_ID_LABEL, "bootstrap"))
+                                .withUniqueMetric("kroxylicious_client_to_proxy_disconnects_total", Map.of(
+                                        NODE_ID_LABEL, "bootstrap",
+                                        "cause", "idle_timeout"))
                                 .value()
                                 .isGreaterThanOrEqualTo(1.0);
                     });

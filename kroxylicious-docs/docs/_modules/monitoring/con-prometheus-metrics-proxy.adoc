@@ -34,12 +34,21 @@ For these specific errors, the `virtual_cluster` and `node_id` labels are set to
 
 NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `RESOURCE_NOT_FOUND` or `UNKNOWN_TOPIC_ID`) are not classed as errors by these metrics.
 
-=== Understanding connection counter vs gauge metrics
+=== Understanding connection metrics relationships
 
-The proxy provides both counter and gauge metrics for connections:
+The proxy provides several related metrics for tracking connections:
 
 * **Connection counters** (`kroxylicious_*_connections_total`) track the total number of connection attempts over time. These values only increase and provide a historical view of connection activity.
 * **Active connection gauges** (`kroxylicious_*_active_connections`) show the current number of open connections at any given moment. These values increase when connections are established and decrease when connections are closed.
+* **Error counters** (`kroxylicious_*_errors_total`) track connections that closed due to errors.
+* **Disconnect counters** (`kroxylicious_client_to_proxy_disconnects_total`) track connections that closed without errors, categorized by cause.
+
+When a connection closes, it increments either the error counter or one of the disconnect counter causes, but never both.
+The active connection gauge decreases regardless of whether the closure was due to an error or a clean disconnect.
+
+The following relationship holds:
+
+`Active connections = Connections total - (Errors total + sum of all Disconnect causes)`
 
 .Connection metrics for client and broker interactions
 |===
@@ -79,11 +88,14 @@ The proxy provides both counter and gauge metrics for connections:
 |Shows the current number of active TCP connections from the proxy to servers. +
  This gauge reflects real-time connection state and decreases when connections are closed.
 
-|`kroxylicious_client_to_proxy_idle_disconnects_total`
+|`kroxylicious_client_to_proxy_disconnects_total`
 |Counter
-|`virtual_cluster`, `node_id`
-|Incremented by one every time a client connection is closed due to exceeding the configured idle timeout. +
- Requires idle timeouts to be configured via `network.proxy.unAuthenticatedIdleTimeout` or `network.proxy.authenticatedIdleTimeout`.
+|`virtual_cluster`, `node_id`, `cause`
+|Incremented by one every time a client connection is closed by the proxy. The `cause` label indicates the reason for disconnection: +
+ `idle_timeout` - Connection exceeded the configured idle timeout duration (requires idle timeouts configured via `network.proxy.unAuthenticatedIdleTimeout` or `network.proxy.authenticatedIdleTimeout`). +
+ `client_closed` - Client initiated the connection close. +
+ `server_closed` - Backend server closed the connection, causing the proxy to close the client connection. +
+ Note: Error-based disconnects are tracked separately via `kroxylicious_client_to_proxy_errors_total`, not this metric.
 |===
 
 == Message metrics

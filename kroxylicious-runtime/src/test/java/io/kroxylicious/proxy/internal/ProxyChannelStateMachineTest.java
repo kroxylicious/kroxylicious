@@ -98,9 +98,9 @@ class ProxyChannelStateMachineTest {
 
     @BeforeEach
     void setUp() {
-        proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
         simpleMeterRegistry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(simpleMeterRegistry);
+        proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
     }
 
@@ -998,5 +998,101 @@ class ProxyChannelStateMachineTest {
 
     private int getVirtualNodeProxyToServerActiveConnections() {
         return io.kroxylicious.proxy.internal.util.Metrics.proxyToServerConnectionCounter(VIRTUAL_CLUSTER_NODE).get();
+    }
+
+    @org.junit.jupiter.api.Nested
+    class DisconnectMetricsTest {
+
+        @Test
+        void shouldIncrementIdleTimeoutCauseOnClientIdle() {
+            // Given
+            stateMachineInForwarding();
+
+            // When
+            proxyChannelStateMachine.onClientIdle();
+
+            // Then
+            assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
+                    .tag("virtual_cluster", CLUSTER_NAME)
+                    .tag("node_id", "bootstrap")
+                    .tag("cause", "idle_timeout")
+                    .counter())
+                    .isNotNull()
+                    .satisfies(counter -> assertThat(counter.count()).isEqualTo(1.0));
+        }
+
+        @Test
+        void shouldIncrementClientClosedCauseOnClientInactive() {
+            // Given
+            stateMachineInForwarding();
+
+            // When
+            proxyChannelStateMachine.onClientInactive();
+
+            // Then
+            assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
+                    .tag("virtual_cluster", CLUSTER_NAME)
+                    .tag("node_id", "bootstrap")
+                    .tag("cause", "client_closed")
+                    .counter())
+                    .isNotNull()
+                    .satisfies(counter -> assertThat(counter.count()).isEqualTo(1.0));
+        }
+
+        @Test
+        void shouldIncrementServerClosedCauseOnServerInactive() {
+            // Given
+            stateMachineInForwarding();
+
+            // When
+            proxyChannelStateMachine.onServerInactive();
+
+            // Then
+            assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
+                    .tag("virtual_cluster", CLUSTER_NAME)
+                    .tag("node_id", "bootstrap")
+                    .tag("cause", "server_closed")
+                    .counter())
+                    .isNotNull()
+                    .satisfies(counter -> assertThat(counter.count()).isEqualTo(1.0));
+        }
+
+        @Test
+        void shouldNotDoubleCountOnSubsequentCloseAfterIdle() {
+            // Given
+            stateMachineInForwarding();
+
+            // When - idle timeout followed by client inactive
+            proxyChannelStateMachine.onClientIdle();
+            proxyChannelStateMachine.onClientInactive();
+
+            // Then - should only count once for idle, not again for client_closed
+            assertThat(simpleMeterRegistry.counter("kroxylicious_client_to_proxy_disconnects",
+                    "virtual_cluster", CLUSTER_NAME,
+                    "node_id", "bootstrap",
+                    "cause", "idle_timeout").count())
+                    .isEqualTo(1.0);
+            assertThat(simpleMeterRegistry.counter("kroxylicious_client_to_proxy_disconnects",
+                    "virtual_cluster", CLUSTER_NAME,
+                    "node_id", "bootstrap",
+                    "cause", "client_closed").count())
+                    .isEqualTo(0.0); // Should not be incremented
+        }
+
+        @Test
+        void shouldNotIncrementDisconnectMetricsOnErrors() {
+            // Given
+            stateMachineInForwarding();
+
+            // When - error causes disconnect
+            proxyChannelStateMachine.onClientException(new RuntimeException("test error"), false);
+
+            // Then - client_closed disconnect counter should not be incremented
+            assertThat(simpleMeterRegistry.counter("kroxylicious_client_to_proxy_disconnects",
+                    "virtual_cluster", CLUSTER_NAME,
+                    "node_id", "bootstrap",
+                    "cause", "client_closed").count())
+                    .isEqualTo(0.0);
+        }
     }
 }

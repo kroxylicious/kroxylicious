@@ -94,9 +94,33 @@ public class ProxyChannelStateMachine {
     private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "onInitiateConnect called more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
 
+    /**
+     * Enumeration of disconnect causes for tracking client to proxy disconnections.
+     */
+    public enum DisconnectCause {
+        /** Connection closed due to exceeding idle timeout */
+        IDLE_TIMEOUT("idle_timeout"),
+        /** Client initiated connection close */
+        CLIENT_CLOSED("client_closed"),
+        /** Server (backend Kafka broker) initiated connection close */
+        SERVER_CLOSED("server_closed");
+
+        private final String label;
+
+        DisconnectCause(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
     // Connection metrics
     private final Counter clientToProxyErrorCounter;
-    private final Counter clientToProxyIdleDisconnectsCounter;
+    private final Counter clientToProxyDisconnectsIdleCounter;
+    private final Counter clientToProxyDisconnectsClientClosedCounter;
+    private final Counter clientToProxyDisconnectsServerClosedCounter;
     private final Counter clientToProxyConnectionCounter;
     private final Counter proxyToServerConnectionCounter;
     private final Counter proxyToServerErrorCounter;
@@ -125,7 +149,9 @@ public class ProxyChannelStateMachine {
 
         // Connection metrics
         clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
-        clientToProxyIdleDisconnectsCounter = Metrics.clientToProxyIdleDisconnectsCounter(clusterName, nodeId).withTags();
+        clientToProxyDisconnectsIdleCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.IDLE_TIMEOUT.label()).withTags();
+        clientToProxyDisconnectsClientClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.CLIENT_CLOSED.label()).withTags();
+        clientToProxyDisconnectsServerClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.SERVER_CLOSED.label()).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
         proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
         proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
@@ -386,7 +412,7 @@ public class ProxyChannelStateMachine {
      * </p>
      */
     void onServerInactive() {
-        toClosed(null);
+        toClosed(null, DisconnectCause.SERVER_CLOSED);
     }
 
     /**
@@ -396,7 +422,7 @@ public class ProxyChannelStateMachine {
      * </p>
      */
     void onClientInactive() {
-        toClosed(null);
+        toClosed(null, DisconnectCause.CLIENT_CLOSED);
     }
 
     /**
@@ -406,8 +432,7 @@ public class ProxyChannelStateMachine {
      * </p>
      */
     void onClientIdle() {
-        clientToProxyIdleDisconnectsCounter.increment();
-        toClosed(null);
+        toClosed(null, DisconnectCause.IDLE_TIMEOUT);
     }
 
     /**
@@ -578,11 +603,18 @@ public class ProxyChannelStateMachine {
     }
 
     private void toClosed(@Nullable Throwable errorCodeEx) {
+        toClosed(errorCodeEx, null);
+    }
+
+    private void toClosed(@Nullable Throwable errorCodeEx, @Nullable DisconnectCause disconnectCause) {
         if (state instanceof Closed) {
             return;
         }
 
         setState(new Closed());
+
+        incrementAppropriateDisconnectsMetric(disconnectCause);
+
         kafkaSession.transitionTo(KafkaSessionState.TERMINATING);
         // Close the server connection
         if (backendHandler != null) {
@@ -594,6 +626,23 @@ public class ProxyChannelStateMachine {
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
             frontendHandler.inClosed(errorCodeEx);
             clientToProxyConnectionToken.release();
+        }
+    }
+
+    private void incrementAppropriateDisconnectsMetric(@Nullable DisconnectCause disconnectCause) {
+        // Increment disconnect counter based on cause (if not an error)
+        if (disconnectCause != null) {
+            switch (disconnectCause) {
+                case IDLE_TIMEOUT:
+                    clientToProxyDisconnectsIdleCounter.increment();
+                    break;
+                case CLIENT_CLOSED:
+                    clientToProxyDisconnectsClientClosedCounter.increment();
+                    break;
+                case SERVER_CLOSED:
+                    clientToProxyDisconnectsServerClosedCounter.increment();
+                    break;
+            }
         }
     }
 

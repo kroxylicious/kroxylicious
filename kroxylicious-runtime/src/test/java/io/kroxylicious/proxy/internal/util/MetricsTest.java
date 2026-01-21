@@ -8,14 +8,34 @@ package io.kroxylicious.proxy.internal.util;
 
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
+import static io.micrometer.core.instrument.Metrics.globalRegistry;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MetricsTest {
+
+    private SimpleMeterRegistry simpleMeterRegistry;
+
+    @BeforeEach
+    void setUp() {
+        simpleMeterRegistry = new SimpleMeterRegistry();
+        globalRegistry.add(simpleMeterRegistry);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (simpleMeterRegistry != null) {
+            simpleMeterRegistry.getMeters().forEach(globalRegistry::remove);
+            globalRegistry.remove(simpleMeterRegistry);
+        }
+    }
 
     @Test
     void shouldBuildTagList() {
@@ -127,5 +147,39 @@ class MetricsTest {
         // Then
         assertThatThrownBy(() -> Metrics.tags("TagA", "value1", "TagB", "value2", "TagC", "value3", "TagD", "   "))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void disconnectsCounterShouldIncludeCauseTag() {
+        // Given
+        var meterProvider = Metrics.clientToProxyDisconnectsCounter("test-cluster", 1, "idle_timeout");
+        var counter = meterProvider.withTags();
+
+        // When
+        counter.increment();
+
+        // Then
+        assertThat(counter.getId().getTag("cause")).isEqualTo("idle_timeout");
+        assertThat(counter.getId().getTag("virtual_cluster")).isEqualTo("test-cluster");
+        assertThat(counter.getId().getTag("node_id")).isEqualTo("1");
+        assertThat(counter.count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void disconnectsCounterShouldSupportAllCauses() {
+        // Given
+        // When
+        var idleCounter = Metrics.clientToProxyDisconnectsCounter("cluster", null, "idle_timeout").withTags();
+        var clientClosedCounter = Metrics.clientToProxyDisconnectsCounter("cluster", null, "client_closed").withTags();
+        var serverClosedCounter = Metrics.clientToProxyDisconnectsCounter("cluster", null, "server_closed").withTags();
+
+        idleCounter.increment();
+        clientClosedCounter.increment();
+        serverClosedCounter.increment();
+
+        // Then
+        assertThat(idleCounter.count()).isEqualTo(1.0);
+        assertThat(clientClosedCounter.count()).isEqualTo(1.0);
+        assertThat(serverClosedCounter.count()).isEqualTo(1.0);
     }
 }

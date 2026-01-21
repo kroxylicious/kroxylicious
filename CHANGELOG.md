@@ -32,7 +32,10 @@ Format `<github issue/pr number>: <short description>`.
   * `unAuthenticatedIdleTimeout` - Applies to connections where authentication cannot be detected
   * `authenticatedIdleTimeout` - Applies to connections with established identities
   Both properties use Go-style duration format (e.g., `30s`, `5m`, `1h30m`) with supported units: `d`, `h`, `m`, `s`, `ms`, `μs`/`us`, `ns`.
-  A new metric `kroxylicious_client_to_proxy_idle_disconnects_total` tracks idle disconnections.
+* A new metric `kroxylicious_client_to_proxy_disconnects_total` tracks client-to-proxy disconnections with a `cause` label to distinguish between:
+  * `idle_timeout` - Connection exceeded the configured idle timeout duration
+  * `client_closed` - Client initiated the connection close
+  * `server_closed` - Backend server closed the connection, causing the proxy to close the client connection
 
 ## 0.18.0
 
