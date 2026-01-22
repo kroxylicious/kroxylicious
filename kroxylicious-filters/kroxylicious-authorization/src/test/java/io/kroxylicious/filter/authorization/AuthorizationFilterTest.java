@@ -302,7 +302,6 @@ class AuthorizationFilterTest {
                 ApiKeys.SASL_AUTHENTICATE,
                 ApiKeys.METADATA,
                 ApiKeys.FIND_COORDINATOR,
-                ApiKeys.INIT_PRODUCER_ID,
                 ApiKeys.ADD_OFFSETS_TO_TXN,
                 ApiKeys.END_TXN,
                 ApiKeys.LIST_OFFSETS,
@@ -327,7 +326,8 @@ class AuthorizationFilterTest {
                 ApiKeys.FETCH,
                 ApiKeys.OFFSET_COMMIT,
                 ApiKeys.OFFSET_FETCH,
-                ApiKeys.ADD_PARTITIONS_TO_TXN);
+                ApiKeys.ADD_PARTITIONS_TO_TXN,
+                ApiKeys.INIT_PRODUCER_ID);
         EnumSet<ApiKeys> noVersionsSupported = complementOf(unionOf(allVersionsSupported, someVersionsSupported));
         for (ApiKeys apiKey : allVersionsSupported) {
 
