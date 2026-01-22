@@ -7,60 +7,59 @@
 ---
 metadata:
   apiKeys: "FIND_COORDINATOR"
-  apiVersion: 5
-  scenario: "baseline"
+  apiVersion: 4
+  scenario: "find coordinator for a transactional id is allowed"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "FIND_COORDINATOR"
-      expectedRequestVersion: 5
+      expectedRequestVersion: 4
       expectedRequestHeader:
         requestApiKey: 10
-        requestApiVersion: 5
+        requestApiVersion: 4
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        keyType: 81
+        keyType: 1
         coordinatorKeys:
-          - "random-string-934"
+          - "alice-transactional-id"
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
-        throttleTimeMs: 249
+        throttleTimeMs: 1016
         coordinators:
-          - key: "random-string-393"
-            nodeId: 541
-            host: "random-string-482"
-            port: 519
-            errorCode: 824
-            errorMessage: "random-string-76"
+          - key: "alice-transactional-id"
+            nodeId: 639
+            host: "random-string-641"
+            port: 432
+            errorCode: 220
+            errorMessage: "random-string-990"
   authorizerRules:
     allowed:
       - subject: "alice"
-        resourceName: "my-topic"
-        resourceClass: "TOPIC"
+        resourceName: "alice-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
         resourceType: "DESCRIBE"
   topicNames: null
 when:
   subject: "alice"
   requestHeader:
     requestApiKey: 10
-    requestApiVersion: 5
+    requestApiVersion: 4
     correlationId: 1
     clientId: "clientId"
   request:
-    keyType: 81
+    keyType: 1
     coordinatorKeys:
-      - "random-string-934"
+      - "alice-transactional-id"
 then:
-  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
-    throttleTimeMs: 249
+    throttleTimeMs: 1016
     coordinators:
-      - key: "random-string-393"
-        nodeId: 541
-        host: "random-string-482"
-        port: 519
-        errorCode: 824
-        errorMessage: "random-string-76"
+      - key: "alice-transactional-id"
+        nodeId: 639
+        host: "random-string-641"
+        port: 432
+        errorCode: 220
+        errorMessage: "random-string-990"

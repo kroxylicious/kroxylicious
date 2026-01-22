@@ -8,7 +8,7 @@
 metadata:
   apiKeys: "FIND_COORDINATOR"
   apiVersion: 4
-  scenario: "baseline"
+  scenario: "find coordinator for a transactional id is a mix of allowed and denied"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "FIND_COORDINATOR"
@@ -19,15 +19,15 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        keyType: 55
+        keyType: 1
         coordinatorKeys:
-          - "random-string-977"
+          - "alice-transactional-id"
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
         throttleTimeMs: 1016
         coordinators:
-          - key: "random-string-646"
+          - key: "alice-transactional-id"
             nodeId: 639
             host: "random-string-641"
             port: 432
@@ -36,8 +36,8 @@ given:
   authorizerRules:
     allowed:
       - subject: "alice"
-        resourceName: "my-topic"
-        resourceClass: "TOPIC"
+        resourceName: "alice-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
         resourceType: "DESCRIBE"
   topicNames: null
 when:
@@ -48,19 +48,25 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    keyType: 55
+    keyType: 1
     coordinatorKeys:
-      - "random-string-977"
+      - "alice-transactional-id"
+      - "unauthorized"
 then:
-  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
     throttleTimeMs: 1016
     coordinators:
-      - key: "random-string-646"
+      - key: "alice-transactional-id"
         nodeId: 639
         host: "random-string-641"
         port: 432
         errorCode: 220
         errorMessage: "random-string-990"
+      - key: "unauthorized"
+        nodeId: -1
+        host: ""
+        port: -1
+        errorCode: 53
+        errorMessage: ""

@@ -141,7 +141,7 @@ class AddPartitionsToTxnAuthzIT extends AuthzIT {
     List<Arguments> shouldEnforceAccessToTopics() {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.ADD_PARTITIONS_TO_TXN),
                 AuthorizationFilter.maxSupportedApiVersion(ApiKeys.ADD_PARTITIONS_TO_TXN))
-                .mapToObj(apiVersion -> Arguments.argumentSet("api version " + apiVersion, new TxnOffsetCommitEquivalence((short) apiVersion)));
+                .mapToObj(apiVersion -> Arguments.argumentSet("api version " + apiVersion, new AddPartitionsToTxnEquivalence((short) apiVersion)));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.ADD_PARTITIONS_TO_TXN.oldestVersion(), ApiKeys.ADD_PARTITIONS_TO_TXN.latestVersion(true))
                 .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.ADD_PARTITIONS_TO_TXN, (short) version))
@@ -160,9 +160,9 @@ class AddPartitionsToTxnAuthzIT extends AuthzIT {
         }
     }
 
-    class TxnOffsetCommitEquivalence extends Equivalence<AddPartitionsToTxnRequestData, AddPartitionsToTxnResponseData> {
+    class AddPartitionsToTxnEquivalence extends Equivalence<AddPartitionsToTxnRequestData, AddPartitionsToTxnResponseData> {
 
-        TxnOffsetCommitEquivalence(short apiVersion) {
+        AddPartitionsToTxnEquivalence(short apiVersion) {
             super(apiVersion);
         }
 

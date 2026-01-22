@@ -70,6 +70,7 @@ when:
     includeSynonyms: false
     includeDocumentation: true
 then:
+  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
