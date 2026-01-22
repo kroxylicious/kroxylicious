@@ -25,6 +25,8 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicPartition;
@@ -394,6 +396,21 @@ public abstract class AuthzIT extends BaseIT {
         else {
             return jsonNode;
         }
+    }
+
+    protected static void ensureCoordinators(Producer<String, String> producer,
+                                             String transactionalId,
+                                             Admin admin) {
+        AWAIT.alias("await until transaction coordinators are ready")
+                .untilAsserted(() -> {
+                    producer.initTransactions();
+                    producer.beginTransaction();
+                    producer.send(new ProducerRecord<>("top", "", "")).get();
+                    var coordId = admin.describeTransactions(List.of(transactionalId)).all().toCompletionStage().toCompletableFuture()
+                            .join().get(transactionalId).coordinatorId();
+                    producer.abortTransaction();
+                    assertThat(coordId).isNotEqualTo(-1);
+                });
     }
 
     protected static Map<String, Uuid> prepCluster(Admin admin,

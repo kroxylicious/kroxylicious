@@ -60,6 +60,7 @@ when:
             value: "random-string-788"
     validateOnly: false
 then:
+  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
