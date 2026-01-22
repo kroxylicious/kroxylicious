@@ -596,12 +596,6 @@ class ProxyChannelStateMachineEndToEndTest {
                 null);
     }
 
-    private void assertHandlerInHaProxyState() {
-        assertThat(proxyChannelStateMachine.state())
-                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.HaProxy.class))
-                .extracting(ProxyChannelState.HaProxy::haProxyMessage).isSameAs(HA_PROXY_MESSAGE);
-    }
-
     private void assertHandlerInConnectingState(
                                                 boolean haProxy,
                                                 List<ApiKeys> expectedBufferedRequestTypes) {

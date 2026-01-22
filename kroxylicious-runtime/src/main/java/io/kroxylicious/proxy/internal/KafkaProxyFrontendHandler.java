@@ -393,7 +393,6 @@ public class KafkaProxyFrontendHandler
         if (logFrames) {
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger", LogLevel.INFO));
         }
-        // addFiltersToPipeline(filters, pipeline, inboundChannel);
 
         var encoderListener = buildMetricsMessageListenerForEncode();
         var decoderListener = buildMetricsMessageListenerForDecode();
