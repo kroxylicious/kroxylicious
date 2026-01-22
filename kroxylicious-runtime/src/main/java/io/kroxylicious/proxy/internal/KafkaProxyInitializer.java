@@ -175,7 +175,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         }
 
         ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId());
-        
+
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {
             LOGGER.debug("Adding haproxy handlers");
