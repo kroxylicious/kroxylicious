@@ -133,6 +133,7 @@ public abstract class AuthzIT extends BaseIT {
     @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:super")
     @Name("kafkaClusterWithAuthz")
     static KafkaCluster kafkaClusterWithAuthz;
+
     @Name("kafkaClusterNoAuthz")
     static KafkaCluster kafkaClusterNoAuthz;
 
