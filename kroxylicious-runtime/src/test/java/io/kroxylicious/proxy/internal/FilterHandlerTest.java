@@ -205,18 +205,18 @@ class FilterHandlerTest extends FilterHarness {
         CompletableFuture.runAsync(() -> requestFutureMap.get(req1).complete(null)).join();
         channel.runPendingTasks();
 
-        DecodedRequestFrame<?> outboundRequest1 = channel.readInbound();
+        DecodedRequestFrame<?> forwardedRequest1 = channel.readInbound();
 
-        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
+        assertThat(forwardedRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
 
         // simulate Filter completing from an uncontrolled thread
         CompletableFuture.runAsync(() -> requestFutureMap.get(req2).complete(null)).join();
         channel.runPendingTasks();
 
-        DecodedRequestFrame<?> outboundRequest2 = channel.readInbound();
+        DecodedRequestFrame<?> forwardedRequest2 = channel.readInbound();
 
         assertThat(channel.isOpen()).isTrue();
-        assertThat(outboundRequest2).extracting(DecodedRequestFrame::body).isEqualTo(req2);
+        assertThat(forwardedRequest2).extracting(DecodedRequestFrame::body).isEqualTo(req2);
     }
 
     static Stream<Arguments> deferredRequests() {
@@ -229,8 +229,8 @@ class FilterHandlerTest extends FilterHarness {
                             test.writeRequest(deferredApiRequest1);
                         },
                         (Consumer<FilterHandlerTest>) test -> {
-                            DecodedRequestFrame<?> outboundRequest = test.channel.readInbound();
-                            assertThat(outboundRequest)
+                            DecodedRequestFrame<?> forwardedRequest = test.channel.readInbound();
+                            assertThat(forwardedRequest)
                                     .extracting(DecodedRequestFrame::body)
                                     .isEqualTo(deferredApiRequest1);
 
@@ -324,8 +324,8 @@ class FilterHandlerTest extends FilterHarness {
         firstFuture.complete(null);
         channel.runPendingTasks();
 
-        DecodedRequestFrame<?> outboundRequest1 = channel.readInbound();
-        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(first);
+        DecodedRequestFrame<?> forwardedRequest1 = channel.readInbound();
+        assertThat(forwardedRequest1).extracting(DecodedRequestFrame::body).isEqualTo(first);
 
         requestAssertions.accept(this);
     }
@@ -340,8 +340,8 @@ class FilterHandlerTest extends FilterHarness {
                             test.writeResponse(deferredApiResponse1);
                         },
                         (Consumer<FilterHandlerTest>) test -> {
-                            DecodedResponseFrame<?> brokerResponseFrame = test.channel.readOutbound();
-                            assertThat(brokerResponseFrame)
+                            DecodedResponseFrame<?> forwardedResponseFrame = test.channel.readOutbound();
+                            assertThat(forwardedResponseFrame)
                                     .extracting(DecodedResponseFrame::body)
                                     .isEqualTo(deferredApiResponse1);
 
@@ -436,8 +436,9 @@ class FilterHandlerTest extends FilterHarness {
         firstFuture.complete(null);
         channel.runPendingTasks();
 
-        DecodedResponseFrame<?> clientResponseFrame = channel.readOutbound();
-        assertThat(clientResponseFrame).extracting(DecodedResponseFrame::body).isEqualTo(first);
+        // clientResponseFrame (avoiding name related to client/server terminology)
+        DecodedResponseFrame<?> forwardedResponseFrame = channel.readOutbound();
+        assertThat(forwardedResponseFrame).extracting(DecodedResponseFrame::body).isEqualTo(first);
 
         responseAssertions.accept(this);
     }
@@ -727,12 +728,12 @@ class FilterHandlerTest extends FilterHarness {
 
         assertThat(channel.isOpen()).isEqualTo(!withClose);
 
-        var brokerRequestFrame = channel.readInbound();
-        assertThat(brokerRequestFrame).isNull();
+        var forwardedRequestFrame = channel.readInbound();
+        assertThat(forwardedRequestFrame).isNull();
 
-        var clientResponseFrame = channel.readOutbound();
-        assertThat(clientResponseFrame).isNotNull();
-        assertThat(((DecodedResponseFrame<?>) clientResponseFrame).body()).isEqualTo(shortCircuitResponse);
+        var forwardedResponseFrame = channel.readOutbound();
+        assertThat(forwardedResponseFrame).isNotNull();
+        assertThat(((DecodedResponseFrame<?>) forwardedResponseFrame).body()).isEqualTo(shortCircuitResponse);
     }
 
     @Test
