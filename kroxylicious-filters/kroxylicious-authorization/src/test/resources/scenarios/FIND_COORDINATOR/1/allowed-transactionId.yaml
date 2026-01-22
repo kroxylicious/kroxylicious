@@ -7,54 +7,53 @@
 ---
 metadata:
   apiKeys: "FIND_COORDINATOR"
-  apiVersion: 2
-  scenario: "baseline"
+  apiVersion: 1
+  scenario: "find coordinator for a transactional id is allowed"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "FIND_COORDINATOR"
-      expectedRequestVersion: 2
+      expectedRequestVersion: 1
       expectedRequestHeader:
         requestApiKey: 10
-        requestApiVersion: 2
+        requestApiVersion: 1
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        key: "random-string-600"
-        keyType: 17
+        key: "my-transactional-id"
+        keyType: 1
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
-        throttleTimeMs: 1003
-        errorCode: 127
-        errorMessage: "random-string-922"
-        nodeId: 681
-        host: "random-string-549"
-        port: 487
+        throttleTimeMs: 49
+        errorCode: 49
+        errorMessage: "random-string-269"
+        nodeId: 511
+        host: "random-string-938"
+        port: 769
   authorizerRules:
     allowed:
       - subject: "alice"
-        resourceName: "my-topic"
-        resourceClass: "TOPIC"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
         resourceType: "DESCRIBE"
   topicNames: null
 when:
   subject: "alice"
   requestHeader:
     requestApiKey: 10
-    requestApiVersion: 2
+    requestApiVersion: 1
     correlationId: 1
     clientId: "clientId"
   request:
-    key: "random-string-600"
-    keyType: 17
+    key: "my-transactional-id"
+    keyType: 1
 then:
-  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
-    throttleTimeMs: 1003
-    errorCode: 127
-    errorMessage: "random-string-922"
-    nodeId: 681
-    host: "random-string-549"
-    port: 487
+    throttleTimeMs: 49
+    errorCode: 49
+    errorMessage: "random-string-269"
+    nodeId: 511
+    host: "random-string-938"
+    port: 769
