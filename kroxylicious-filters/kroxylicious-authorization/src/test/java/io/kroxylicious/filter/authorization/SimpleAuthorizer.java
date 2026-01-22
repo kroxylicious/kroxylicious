@@ -53,7 +53,7 @@ class SimpleAuthorizer implements Authorizer {
     @NonNull
     @Override
     public Optional<Set<Class<? extends ResourceType<?>>>> supportedResourceTypes() {
-        return Optional.of(Set.of(TopicResource.class, ClusterResource.class));
+        return Optional.of(Set.of(TopicResource.class, TransactionalIdResource.class, ClusterResource.class));
     }
 
     record Config(List<AllowedActionDef> allowed) {
@@ -62,6 +62,7 @@ class SimpleAuthorizer implements Authorizer {
 
     enum TargetResourceType {
         TOPIC(TopicResource::valueOf),
+        TRANSACTIONAL_ID(TransactionalIdResource::valueOf),
         CLUSTER(ClusterResource::valueOf);
 
         private final Function<String, ResourceType<?>> resourceTypeFunction;
