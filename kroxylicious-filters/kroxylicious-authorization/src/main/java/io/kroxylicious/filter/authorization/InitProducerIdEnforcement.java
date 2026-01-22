@@ -32,10 +32,10 @@ public class InitProducerIdEnforcement extends ApiEnforcement<InitProducerIdRequ
 
     @Override
     short maxSupportedVersion() {
-        // While v6 of the RPC is defined, its use is gated on the transaction.version
-        // feature having transaction.version >= 3.
-        // Kafka 4.2 has `transaction.version -> SupportedVersionRange[min_version:0, max_version:2]`
-        // Thus while API version 6 is defined it's not possible to spin up a broker what actually supports it,
+        // While v6 of the API is 'defined', its use is gated on the transaction.version feature having
+        // transaction.version >= 3.
+        // Kafka 4.1 has `transaction.version -> SupportedVersionRange[min_version:0, max_version:2]`
+        // Thus, while API version 6 is defined it's not possible to spin up a broker that actually supports it,
         // and therefore it's impossible to test.
         // See https://cwiki.apache.org/confluence/display/KAFKA/KIP-939:+Support+Participation+in+2PC#KIP939:SupportParticipationin2PC-Compatibility,Deprecation,andMigrationPlan
         return MIN_VERSION_SUPPORTING_2PC - 1;
