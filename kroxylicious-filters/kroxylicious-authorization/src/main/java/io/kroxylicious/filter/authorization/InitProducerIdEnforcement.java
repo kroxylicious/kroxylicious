@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.authorization;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
@@ -51,18 +50,10 @@ public class InitProducerIdEnforcement extends ApiEnforcement<InitProducerIdRequ
         var transactionalId = request.transactionalId();
         List<Action> actions;
         if (isTransactional(transactionalId)) {
-            Action writeTransactionalId = new Action(TransactionalIdResource.WRITE, transactionalId);
-            if (request.enable2Pc()) {
-                actions = List.of(writeTransactionalId,
-                        new Action(TransactionalIdResource.TWO_PHASE_COMMIT, transactionalId));
-            }
-            else {
-                actions = List.of(writeTransactionalId);
-            }
+            actions = List.of(new Action(TransactionalIdResource.WRITE, transactionalId));
         }
         else {
-            // TODO actions = List.of(new Action(ClusterResource.IDEMPOTENT_WRITE, ""));
-            actions = new ArrayList<>();
+            return context.forwardRequest(header, request);
         }
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {

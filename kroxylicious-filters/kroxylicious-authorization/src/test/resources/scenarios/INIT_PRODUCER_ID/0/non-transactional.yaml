@@ -53,3 +53,4 @@ then:
     errorCode: 273
     producerId: 324
     producerEpoch: 123
+  expectAuthorizationOutcomeLog: false

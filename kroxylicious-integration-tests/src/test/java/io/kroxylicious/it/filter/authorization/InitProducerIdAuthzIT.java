@@ -96,7 +96,6 @@ class InitProducerIdAuthzIT extends AuthzIT {
 
                       @Name("kafkaClusterNoAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = TXN_COORDINATOR_OBSERVER) @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterNoAuthzProducer)
             throws InterruptedException, ExecutionException {
-        System.out.println(kafkaClusterWithAuthzAdmin.describeFeatures().featureMetadata().get());
         prepCluster(kafkaClusterWithAuthzAdmin, ALL_TOPICS_IN_TEST, aclBindings);
         prepCluster(kafkaClusterNoAuthzAdmin, ALL_TOPICS_IN_TEST, List.of());
         ensureCoordinators(kafkaClusterWithAuthzProducer, TXN_COORDINATOR_OBSERVER, kafkaClusterWithAuthzAdmin);
@@ -114,8 +113,8 @@ class InitProducerIdAuthzIT extends AuthzIT {
         private final RequestTemplate<InitProducerIdRequestData> requestTemplate;
 
         InitProducerIdEquivalence(
-                                   short apiVersion,
-                                   RequestTemplate<InitProducerIdRequestData> requestTemplate) {
+                                  short apiVersion,
+                                  RequestTemplate<InitProducerIdRequestData> requestTemplate) {
             super(apiVersion);
             this.requestTemplate = requestTemplate;
         }
