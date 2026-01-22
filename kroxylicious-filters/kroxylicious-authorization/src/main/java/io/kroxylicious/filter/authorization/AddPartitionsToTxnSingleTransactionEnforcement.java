@@ -6,10 +6,11 @@
 
 package io.kroxylicious.filter.authorization;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
@@ -23,7 +24,14 @@ import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 class AddPartitionsToTxnSingleTransactionEnforcement extends ApiEnforcement<AddPartitionsToTxnRequestData, AddPartitionsToTxnResponseData> {
+
+    // AddPartitionsToTxn is used client-to-broker only up to version 3
+    // AddPartitionsToTxn version 4 and above are only allowed broker-to-broker
+    public static final short MAX_CLIENT_TO_BROKER_VERSION = 3;
+
     @Override
     short minSupportedVersion() {
         return 0;
@@ -31,7 +39,7 @@ class AddPartitionsToTxnSingleTransactionEnforcement extends ApiEnforcement<AddP
 
     @Override
     short maxSupportedVersion() {
-        return 3;
+        return MAX_CLIENT_TO_BROKER_VERSION;
     }
 
     @Override
@@ -39,28 +47,34 @@ class AddPartitionsToTxnSingleTransactionEnforcement extends ApiEnforcement<AddP
                                                    AddPartitionsToTxnRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        List<Action> actions = request.v3AndBelowTopics().stream().map(s -> new Action(TopicResource.WRITE, s.name())).toList();
+
+        List<Action> actions = Stream.concat(
+                Stream.of(new Action(TransactionalIdResource.WRITE, request.v3AndBelowTransactionalId())),
+                request.v3AndBelowTopics().stream().map(s -> new Action(TopicResource.WRITE, s.name())))
+                .toList();
         CompletionStage<AuthorizeResult> authorization = authorizationFilter.authorization(context, actions);
         return authorization.thenCompose(result -> {
             if (result.denied().isEmpty()) {
                 return context.forwardRequest(header, request);
             }
             else {
-                // add partitions succeeds or fails atomically for a transaction, allowed topics fail with OPERATION_NOT_ATTEMPTED
-                Set<String> deniedTopics = result.denied().stream().map(Action::resourceName).collect(Collectors.toSet());
-                AddPartitionsToTxnResponseData response = new AddPartitionsToTxnResponseData();
-                List<AddPartitionsToTxnTopicResult> topicResults = request.v3AndBelowTopics().stream().map(topic -> {
-                    AddPartitionsToTxnTopicResult txnTopicResult = new AddPartitionsToTxnTopicResult();
-                    txnTopicResult.setName(topic.name());
-                    topic.partitions().forEach(partition -> {
-                        AddPartitionsToTxnPartitionResult partitionResult = new AddPartitionsToTxnPartitionResult();
-                        partitionResult.setPartitionIndex(partition);
+                List<AddPartitionsToTxnTopicResult> topicResults;
+                // the check for WRITE on TransactionalId takes precedence
+                if (!result.denied(TransactionalIdResource.WRITE).isEmpty()) {
+                    topicResults = request.v3AndBelowTopics().stream().map(topic -> {
+                        Errors error = Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED;
+                        return partitionError(topic, error);
+                    }).toList();
+                }
+                else {
+                    // add partitions succeeds or fails atomically for a transaction, allowed topics fail with OPERATION_NOT_ATTEMPTED
+                    Set<String> deniedTopics = new HashSet<>(result.denied(TopicResource.WRITE));
+                    topicResults = request.v3AndBelowTopics().stream().map(topic -> {
                         Errors error = deniedTopics.contains(topic.name()) ? Errors.TOPIC_AUTHORIZATION_FAILED : Errors.OPERATION_NOT_ATTEMPTED;
-                        partitionResult.setPartitionErrorCode(error.code());
-                        txnTopicResult.resultsByPartition().add(partitionResult);
-                    });
-                    return txnTopicResult;
-                }).toList();
+                        return partitionError(topic, error);
+                    }).toList();
+                }
+                AddPartitionsToTxnResponseData response = new AddPartitionsToTxnResponseData();
                 // results are reversed in the real implementation for some reason
                 for (int i = topicResults.size() - 1; i >= 0; i--) {
                     response.resultsByTopicV3AndBelow().mustAdd(topicResults.get(i));
@@ -69,5 +83,18 @@ class AddPartitionsToTxnSingleTransactionEnforcement extends ApiEnforcement<AddP
                 return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
             }
         });
+    }
+
+    @NonNull
+    private static AddPartitionsToTxnTopicResult partitionError(AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic topic, Errors error) {
+        AddPartitionsToTxnTopicResult txnTopicResult = new AddPartitionsToTxnTopicResult();
+        txnTopicResult.setName(topic.name());
+        topic.partitions().forEach(partition -> {
+            AddPartitionsToTxnPartitionResult partitionResult = new AddPartitionsToTxnPartitionResult();
+            partitionResult.setPartitionIndex(partition);
+            partitionResult.setPartitionErrorCode(error.code());
+            txnTopicResult.resultsByPartition().add(partitionResult);
+        });
+        return txnTopicResult;
     }
 }
