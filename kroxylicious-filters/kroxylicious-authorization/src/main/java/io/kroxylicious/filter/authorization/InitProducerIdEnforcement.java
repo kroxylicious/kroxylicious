@@ -46,30 +46,24 @@ public class InitProducerIdEnforcement extends ApiEnforcement<InitProducerIdRequ
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
 
-        @Nullable
         var transactionalId = request.transactionalId();
         List<Action> actions;
-        if (isTransactional(transactionalId)) {
-            actions = List.of(new Action(TransactionalIdResource.WRITE, transactionalId));
+        if (!isTransactional(transactionalId)) {
+            return context.forwardRequest(header, request);
         }
         else {
-            return context.forwardRequest(header, request);
+            actions = List.of(new Action(TransactionalIdResource.WRITE, transactionalId));
         }
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
-                    if (isTransactional(transactionalId)) {
-                        if (authorization.denied().isEmpty()) {
-                            // Just forward if there are no denied actions
-                            return context.forwardRequest(header, request);
-                        }
-                        else {
-                            // Shortcircuit if there are no allowed actions
-                            return context.requestFilterResultBuilder().shortCircuitResponse(
-                                    errorResponse()).completed();
-                        }
+                    if (authorization.denied().isEmpty()) {
+                        // Just forward if there are no denied actions
+                        return context.forwardRequest(header, request);
                     }
                     else {
-                        return context.forwardRequest(header, request);
+                        // Shortcircuit if there are no allowed actions
+                        return context.requestFilterResultBuilder().shortCircuitResponse(
+                                errorResponse()).completed();
                     }
                 });
     }
