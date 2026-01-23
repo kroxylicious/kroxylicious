@@ -1,0 +1,62 @@
+# Kafka cluster configuration
+kafka:
+  replicas: 3
+  image: apache/kafka-native:4.1.1
+  imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  storage:
+    size: "10Gi"
+    storageClass: ""  # Use default storage class
+
+# Kroxylicious proxy (enabled for proxy scenarios)
+kroxylicious:
+  enabled: false  # Disabled for baseline scenario
+  image: quay.io/kroxylicious/kroxylicious:latest
+  imagePullPolicy: IfNotPresent
+  configMap: kroxylicious-no-filters  # Name of ConfigMap to mount
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+# HashiCorp Vault (for encryption scenarios)
+vault:
+  enabled: false
+  image: hashicorp/vault:1.15
+  imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "200m"
+
+# OpenMessaging Benchmark workers
+omb:
+  workerReplicas: 3
+  image: openmessaging/openmessaging-benchmark:latest
+  imagePullPolicy: IfNotPresent
+  driver: baseline  # Can be 'baseline' or 'proxy'
+  workload: 1topic-1kb  # Workload name to run
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+# Benchmark configuration
+benchmark:
+  testDurationMinutes: 5
+  warmupDurationMinutes: 1

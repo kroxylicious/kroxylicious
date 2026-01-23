@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: omb-worker
+  labels:
+    app: omb-worker
+spec:
+  clusterIP: None
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: omb-worker
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omb-worker
+  labels:
+    app: omb-worker
+spec:
+  replicas: {{ .Values.omb.workerReplicas }}
+  selector:
+    matchLabels:
+      app: omb-worker
+  template:
+    metadata:
+      labels:
+        app: omb-worker
+    spec:
+      containers:
+      - name: omb-worker
+        image: {{ .Values.omb.image }}
+        imagePullPolicy: {{ .Values.omb.imagePullPolicy }}
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Start OMB worker
+          bin/benchmark-worker
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          {{- toYaml .Values.omb.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
