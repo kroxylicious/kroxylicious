@@ -122,10 +122,9 @@ class AddPartitionsToTxnAuthzIT extends AuthzIT {
     }
 
     record TestState(
-            KafkaClient superClient,
-            String transactionalId,
-            ProducerIdAndEpoch producerIdAndEpoch
-    ) {}
+                     KafkaClient superClient,
+                     String transactionalId,
+                     ProducerIdAndEpoch producerIdAndEpoch) {}
 
     List<Arguments> shouldEnforceAccessToTopics() {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.ADD_PARTITIONS_TO_TXN),

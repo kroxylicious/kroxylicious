@@ -75,7 +75,7 @@ class AddPartitionsToTxnTxnlIdAuthzIT extends AuthzIT {
                 from io.kroxylicious.filter.authorization import TopicResource as Topic,
                                                                  TransactionalIdResource as TxnlId;
                 allow User with name * to * Topic with name like "*";
-                
+
                 allow User with name = "alice" to * TxnlId with name = "%s";
                 allow User with name = "bob" to {DESCRIBE, WRITE} TxnlId with name = "%s";
                 otherwise deny;
@@ -105,8 +105,7 @@ class AddPartitionsToTxnTxnlIdAuthzIT extends AuthzIT {
                 new AclBinding(
                         new ResourcePattern(ResourceType.TRANSACTIONAL_ID, BOB_TXNL_ID, PatternType.LITERAL),
                         new AccessControlEntry("User:" + BOB, "*",
-                                AclOperation.WRITE, AclPermissionType.ALLOW))
-        );
+                                AclOperation.WRITE, AclPermissionType.ALLOW)));
     }
 
     @BeforeEach
@@ -127,10 +126,9 @@ class AddPartitionsToTxnTxnlIdAuthzIT extends AuthzIT {
     }
 
     record TestState(
-            KafkaClient superClient,
-            String transactionalId,
-            ProducerIdAndEpoch producerIdAndEpoch
-    ) {}
+                     KafkaClient superClient,
+                     String transactionalId,
+                     ProducerIdAndEpoch producerIdAndEpoch) {}
 
     List<Arguments> shouldEnforceAccessToTransactionalIds() {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(
