@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.validation.validators.bytebuf;
+package io.kroxylicious.filter.validation.validators.bytebuf;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -19,7 +19,7 @@ import org.jose4j.jws.AlgorithmIdentifiers;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.tls.AllowDeny;
-import io.kroxylicious.proxy.filter.validation.validators.Result;
+import io.kroxylicious.filter.validation.validators.Result;
 
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
 import static io.kroxylicious.test.jws.JwsTestUtils.INVALID_JWS;

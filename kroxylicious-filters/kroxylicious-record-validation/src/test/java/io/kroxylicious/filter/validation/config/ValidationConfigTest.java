@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.kroxylicious.proxy.config.tls.AllowDeny;
-import io.kroxylicious.proxy.filter.validation.validators.bytebuf.JwsSignatureBytebufValidator;
+import io.kroxylicious.filter.validation.validators.bytebuf.JwsSignatureBytebufValidator;
 
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
 import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;

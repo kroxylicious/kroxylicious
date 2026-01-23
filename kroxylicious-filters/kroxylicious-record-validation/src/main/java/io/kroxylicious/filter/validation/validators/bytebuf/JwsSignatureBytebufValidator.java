@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.validation.validators.bytebuf;
+package io.kroxylicious.filter.validation.validators.bytebuf;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -29,7 +29,7 @@ import org.jose4j.lang.UnresolvableKeyException;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.AllowDeny;
-import io.kroxylicious.proxy.filter.validation.validators.Result;
+import io.kroxylicious.filter.validation.validators.Result;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

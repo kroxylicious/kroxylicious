@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.validation.config;
+package io.kroxylicious.filter.validation.config;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,7 +28,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import io.kroxylicious.proxy.config.tls.AllowDeny;
-import io.kroxylicious.proxy.filter.validation.validators.bytebuf.JwsSignatureBytebufValidator;
+import io.kroxylicious.filter.validation.validators.bytebuf.JwsSignatureBytebufValidator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
