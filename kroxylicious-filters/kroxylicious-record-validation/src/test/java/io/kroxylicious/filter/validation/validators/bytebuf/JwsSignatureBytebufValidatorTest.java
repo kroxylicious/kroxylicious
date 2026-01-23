@@ -18,8 +18,8 @@ import org.apache.kafka.common.record.Record;
 import org.jose4j.jws.AlgorithmIdentifiers;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.filter.validation.validators.Result;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
 import static io.kroxylicious.test.jws.JwsTestUtils.INVALID_JWS;

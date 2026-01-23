@@ -27,8 +27,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
-import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.filter.validation.validators.bytebuf.JwsSignatureBytebufValidator;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

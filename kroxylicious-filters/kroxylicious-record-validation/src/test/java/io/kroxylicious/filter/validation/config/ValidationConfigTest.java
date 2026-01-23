@@ -12,18 +12,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import org.jose4j.jws.AlgorithmIdentifiers;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import org.jose4j.jws.AlgorithmIdentifiers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
-import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.filter.validation.validators.bytebuf.JwsSignatureBytebufValidator;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
 import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
@@ -33,7 +32,8 @@ class ValidationConfigTest {
 
     private static ValidationConfig expectedApicurioConfig() throws MalformedURLException {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L), new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null),false,
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L),
+                        new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null), false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
         return new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, null, false, true)));
@@ -45,7 +45,7 @@ class ValidationConfigTest {
                         new AllowDeny<>(List.of(AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256),
                                 null),
                         new JwsSignatureBytebufValidator.JwsHeaderOptions("kroxylicious.io/jws", true),
-                        new JwsSignatureBytebufValidator.JwsContentOptions(false)),false,
+                        new JwsSignatureBytebufValidator.JwsContentOptions(false)), false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
         return new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, null, false, true)));
@@ -53,14 +53,17 @@ class ValidationConfigTest {
 
     public static Stream<Arguments> deserialize() throws MalformedURLException {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null), true, false));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null), true,
+                        false));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, true, false), null);
         ValidationConfig defaultConfig = new ValidationConfig(List.of(ruleOne, ruleTwo),
                 new RecordValidationRule(null, new BytebufValidation(null, null, null, true, false)));
 
         TopicMatchingRecordValidationRule nonDefaultRuleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null, new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null), false, true));
-        TopicMatchingRecordValidationRule nonDefaultRuleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null, new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null), false,
+                        true));
+        TopicMatchingRecordValidationRule nonDefaultRuleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true),
+                null);
         ValidationConfig nonDefaultConfig = new ValidationConfig(List.of(nonDefaultRuleOne, nonDefaultRuleTwo),
                 new RecordValidationRule(null, new BytebufValidation(null, null, null, false, true)));
         return Stream.of(Arguments.argumentSet("default values", """

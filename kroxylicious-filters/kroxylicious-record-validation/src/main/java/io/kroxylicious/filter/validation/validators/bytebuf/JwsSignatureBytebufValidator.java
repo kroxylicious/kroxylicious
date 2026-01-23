@@ -28,8 +28,8 @@ import org.jose4j.lang.UnresolvableKeyException;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.filter.validation.validators.Result;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
