@@ -181,7 +181,7 @@ class KafkaDriver {
 
     ProducerIdAndEpoch initProducerId(String transactionalId) {
         AtomicReference<ProducerIdAndEpoch> producerIdAndEpoch = new AtomicReference<>(ProducerIdAndEpoch.NONE);
-        Awaitility.await().pollInterval(10, MILLISECONDS).untilAsserted(() -> {
+        Awaitility.await().alias("for user " + this.username + " on " + this.cluster.getClass().getSimpleName()).pollInterval(10, MILLISECONDS).untilAsserted(() -> {
             InitProducerIdRequestData request = new InitProducerIdRequestData();
             request.setTransactionalId(transactionalId);
             ProducerIdAndEpoch pep = producerIdAndEpoch.get();
@@ -189,7 +189,9 @@ class KafkaDriver {
             request.setProducerEpoch(pep.epoch);
             request.setTransactionTimeoutMs(10000);
             InitProducerIdResponseData response = sendRequest(request, (short) 5, InitProducerIdResponseData.class);
-            assertThat(Errors.forCode(response.errorCode())).isEqualTo(Errors.NONE);
+            assertThat(Errors.forCode(response.errorCode()))
+                    .as("InitProducerId for transactionalId=" + transactionalId)
+                    .isEqualTo(Errors.NONE);
             producerIdAndEpoch.set(new ProducerIdAndEpoch(response.producerId(), response.producerEpoch()));
         });
         return producerIdAndEpoch.get();
