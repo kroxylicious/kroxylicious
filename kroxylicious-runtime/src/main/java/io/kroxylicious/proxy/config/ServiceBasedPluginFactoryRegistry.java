@@ -22,8 +22,8 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginType;
+import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
