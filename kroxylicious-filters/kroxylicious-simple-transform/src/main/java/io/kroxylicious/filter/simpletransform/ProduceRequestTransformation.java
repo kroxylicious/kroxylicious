@@ -20,6 +20,8 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * A {@link FilterFactory} for {@link ProduceRequestTransformationFilter}.
  *
@@ -33,9 +35,9 @@ public class ProduceRequestTransformation
                          @PluginImplConfig(implNameProperty = "transformation") Object transformationConfig) {}
 
     @Override
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings({ "rawtypes", "unchecked", "java:S2638" })
     public Filter createFilter(FilterFactoryContext context,
-                               Config configuration) {
+                               @NonNull Config configuration) {
         ByteBufferTransformationFactory factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         return new ProduceRequestTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }

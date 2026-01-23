@@ -20,6 +20,7 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -35,9 +36,9 @@ public class FetchResponseTransformation implements FilterFactory<Config, Config
     }
 
     @Override
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings({ "rawtypes", "unchecked", "java:S2638" })
     public Filter createFilter(FilterFactoryContext context,
-                               Config configuration) {
+                               @NonNull Config configuration) {
         var factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         Objects.requireNonNull(factory, "Violated contract of FilterCreationContext");
         return new FetchResponseTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
