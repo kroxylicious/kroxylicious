@@ -6,10 +6,8 @@
 
 package io.kroxylicious.filter.simpletransform;
 
-import io.kroxylicious.proxy.plugin.DeprecatedPluginType;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-@DeprecatedPluginType(io.kroxylicious.proxy.filter.simpletransform.ByteBufferTransformationFactory.class)
 public interface ByteBufferTransformationFactory<C> {
 
     /**

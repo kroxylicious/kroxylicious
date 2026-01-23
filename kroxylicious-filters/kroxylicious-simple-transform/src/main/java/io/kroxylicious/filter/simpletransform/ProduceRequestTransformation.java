@@ -16,11 +16,9 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
-import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
-import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -40,25 +38,7 @@ public class ProduceRequestTransformation
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public Filter createFilter(FilterFactoryContext context,
                                @NonNull Config configuration) {
-        ByteBufferTransformationFactory factory;
-        try {
-            factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
-        }
-        catch (UnknownPluginInstanceException e) {
-            io.kroxylicious.proxy.filter.simpletransform.ByteBufferTransformationFactory oldFactory = context
-                    .pluginInstance(io.kroxylicious.proxy.filter.simpletransform.ByteBufferTransformationFactory.class, configuration.transformation());
-            factory = new ByteBufferTransformationFactory() {
-                @Override
-                public void validateConfiguration(Object config) throws PluginConfigurationException {
-                    oldFactory.validateConfiguration(config);
-                }
-
-                @Override
-                public ByteBufferTransformation createTransformation(Object configuration) {
-                    return oldFactory.createTransformation(configuration);
-                }
-            };
-        }
+        ByteBufferTransformationFactory factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         return new ProduceRequestTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }
 

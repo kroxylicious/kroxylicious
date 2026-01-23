@@ -10,7 +10,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
@@ -22,7 +21,6 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.plugin.DeprecatedPluginType;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
@@ -153,11 +151,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     @Override
     public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
-        var nameToProvider = new LinkedHashMap<String, ProviderAndConfigType>();
-        if (pluginClass.isAnnotationPresent(DeprecatedPluginType.class)) {
-            nameToProvider.putAll(load(pluginClass.getAnnotation(DeprecatedPluginType.class).value()));
-        }
-        nameToProvider.putAll(load(pluginClass));
+        var nameToProvider = load(pluginClass);
         return new PluginFactory<>() {
             @Override
             public P pluginInstance(String instanceName) {
