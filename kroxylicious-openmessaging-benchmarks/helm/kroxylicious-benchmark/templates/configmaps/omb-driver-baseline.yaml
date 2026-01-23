@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omb-driver-baseline
+  labels:
+    app: omb-benchmark
+data:
+  driver-kafka.yaml: |
+    # OpenMessaging Benchmark Kafka Driver Configuration
+    # Baseline scenario: Direct connection to Kafka (no proxy)
+
+    name: Kafka
+    driverClass: io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriver
+
+    # Bootstrap servers - direct to Kafka cluster
+    bootstrap.servers: kafka-0.kafka:9092,kafka-1.kafka:9092,kafka-2.kafka:9092
+
+    # Producer configuration
+    producer:
+      acks: all
+      linger.ms: 1
+      batch.size: 131072
+      max.in.flight.requests.per.connection: 5
+      buffer.memory: 67108864
+      compression.type: none
+
+    # Consumer configuration
+    consumer:
+      auto.offset.reset: earliest
+      enable.auto.commit: false
+      max.poll.records: 10000
+      fetch.min.bytes: 100000
+
+    # Topic configuration
+    topic:
+      replication.factor: 3
+      min.insync.replicas: 2

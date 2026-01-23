@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: omb-benchmark
+  labels:
+    app: omb-benchmark
+spec:
+  restartPolicy: Never
+  containers:
+  - name: benchmark
+    image: {{ .Values.omb.image }}
+    imagePullPolicy: {{ .Values.omb.imagePullPolicy }}
+    command:
+    - /bin/bash
+    - -c
+    - |
+      # Wait for workers to be ready
+      echo "Waiting for OMB workers to be ready..."
+      for i in $(seq 0 $(({{ .Values.omb.workerReplicas }} - 1))); do
+        while ! curl -s http://omb-worker-${i}.omb-worker:8080 > /dev/null 2>&1; do
+          echo "Waiting for omb-worker-${i}..."
+          sleep 2
+        done
+      done
+      echo "All workers ready"
+
+      # Wait for Kafka to be ready
+      echo "Waiting for Kafka to be ready..."
+      while ! kafka-topics --bootstrap-server kafka-0.kafka:9092 --list > /dev/null 2>&1; do
+        echo "Waiting for Kafka..."
+        sleep 5
+      done
+      echo "Kafka is ready"
+
+      # Keep pod running for manual benchmark execution
+      echo "Ready to run benchmarks. Sleeping indefinitely..."
+      echo "To run a benchmark, exec into this pod and run:"
+      echo "  bin/benchmark --drivers /config/driver-kafka.yaml --workers <worker-list> /workloads/workload.yaml"
+      sleep infinity
+    volumeMounts:
+    - name: driver-config
+      mountPath: /config
+    - name: workload-config
+      mountPath: /workloads
+    resources:
+      {{- toYaml .Values.omb.resources | nindent 6 }}
+  volumes:
+  - name: driver-config
+    configMap:
+      name: omb-driver-{{ .Values.omb.driver }}
+  - name: workload-config
+    configMap:
+      name: omb-workload-{{ .Values.omb.workload }}

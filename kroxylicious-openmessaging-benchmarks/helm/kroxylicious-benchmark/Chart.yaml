@@ -1,0 +1,6 @@
+apiVersion: v2
+name: kroxylicious-benchmark
+description: OpenMessaging Benchmark for Kroxylicious
+version: 0.1.0
+appVersion: "0.18.0"
+icon: https://raw.githubusercontent.com/kroxylicious/kroxylicious.github.io/main/assets/img/kroxylicious-logo.svg
