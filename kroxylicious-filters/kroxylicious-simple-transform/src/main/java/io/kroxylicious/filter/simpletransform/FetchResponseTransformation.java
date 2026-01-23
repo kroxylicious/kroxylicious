@@ -30,13 +30,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class FetchResponseTransformation implements FilterFactory<Config, Config> {
 
     @Override
-    public @NonNull Config initialize(FilterFactoryContext context, @Nullable Config config) {
+    public Config initialize(FilterFactoryContext context, @Nullable Config config) {
         return Plugins.requireConfig(this, config);
     }
 
     @Override
     public FetchResponseTransformationFilter createFilter(FilterFactoryContext context,
-                                                          @NonNull Config configuration) {
+                                                          Config configuration) {
         var factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         Objects.requireNonNull(factory, "Violated contract of FilterCreationContext");
         return new FetchResponseTransformationFilter(factory.createTransformation(configuration.transformationConfig()));

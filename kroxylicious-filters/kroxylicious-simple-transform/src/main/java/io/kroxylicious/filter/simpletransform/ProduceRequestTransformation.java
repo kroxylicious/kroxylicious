@@ -37,14 +37,14 @@ public class ProduceRequestTransformation
     @Override
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public Filter createFilter(FilterFactoryContext context,
-                               @NonNull Config configuration) {
+                               Config configuration) {
         ByteBufferTransformationFactory factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         return new ProduceRequestTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }
 
     @Override
     @SuppressWarnings({ "unchecked" })
-    public @NonNull Config initialize(FilterFactoryContext context, @Nullable Config config) {
+    public Config initialize(FilterFactoryContext context, @Nullable Config config) {
         var result = Plugins.requireConfig(this, config);
         var transformationFactory = context.pluginInstance(ByteBufferTransformationFactory.class, result.transformation());
         transformationFactory.validateConfiguration(result.transformationConfig());
