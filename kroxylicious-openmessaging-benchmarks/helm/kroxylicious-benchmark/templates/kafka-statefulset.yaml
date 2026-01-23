@@ -30,10 +30,20 @@ spec:
       labels:
         app: kafka
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
       - name: kafka
         image: {{ .Values.kafka.image }}
         imagePullPolicy: {{ .Values.kafka.imagePullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
         ports:
         - containerPort: 9092
           name: kafka
@@ -72,11 +82,26 @@ spec:
           value: "{{ .Values.kafka.replicationFactor }}"
         - name: KAFKA_MIN_INSYNC_REPLICAS
           value: "{{ .Values.kafka.minInSyncReplicas }}"
+        livenessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
         resources:
-          {{- toYaml .Values.kafka.resources | nindent 10 }}
+{{ toYaml .Values.kafka.resources | nindent 10 }}
         volumeMounts:
         - name: data
           mountPath: /var/lib/kafka/data
+          readOnly: false
   volumeClaimTemplates:
   - metadata:
       name: data
