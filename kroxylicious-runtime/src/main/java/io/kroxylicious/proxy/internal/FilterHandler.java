@@ -112,6 +112,16 @@ public class FilterHandler extends ChannelDuplexHandler {
         super.handlerAdded(ctx);
     }
 
+    /**
+     * Handles outbound responses flowing toward the client.
+     * outbound writes are requests that can succeed or fail. The promise allows the
+     * original writer to be notified when data reaches the socket (or if an error occurs).
+     *
+     * @param ctx channel handler context for each filter handler
+     * @param msg the message being written
+     * @param promise the channel promise
+     * @throws Exception if an error occurs
+     */
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof InternalResponseFrame<?> decodedFrame) {
@@ -174,6 +184,12 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
+    /**
+     * Handles inbound requests flowing toward the upstream broker.
+     * @param ctx channel handler context for each filter handler
+     * @param msg the message being read
+     * @throws Exception if an error occurs
+     */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof InternalRequestFrame<?> decodedFrame) {
@@ -378,6 +394,28 @@ public class FilterHandler extends ChannelDuplexHandler {
         });
     }
 
+    /**
+     * Called when a deferred (async) request filter operation completes.
+     * <p>
+     * Re-enables auto-read and ensures all pending writes are flushed.
+     * <p>
+     * <p><b>Why two flushes?</b>
+     * <pre>
+     * ctx.flush();                          // FLUSH #1: Immediate
+     * writeFuture.whenComplete((u, t) -> {
+     *     ctx.flush();                      // FLUSH #2: After pending writes complete
+     *     inboundChannel.flush();
+     * });
+     * </pre>
+     * <ul>
+     *   <li><b>FLUSH #1:</b> Handles short-circuit responses where {@code ctx.write()} already
+     *       happened synchronously. Ensures response is sent to client immediately.</li>
+     *   <li><b>FLUSH #2:</b> Handles async response writes that may complete after this method
+     *       returns. Waits for {@code writeFuture} to ensure all chained writes are flushed.</li>
+     * </ul>
+     * If no writes occurred, flush is a no-op (harmless). This belt-and-suspenders approach
+     * prevents race conditions between async writes and flush timing.
+     */
     private void deferredRequestCompleted(RequestFilterResult ignored, Throwable throwable) {
         inboundChannel.config().setAutoRead(true);
         // Ensure proper ordering of flushes to prevent race conditions
@@ -414,6 +452,25 @@ public class FilterHandler extends ChannelDuplexHandler {
         ctx.fireChannelReadComplete();
     }
 
+    /**
+     * Forwards a response toward the client.
+     *
+     * @param decodedFrame The decoded frame to respond to.
+     * @param header       The response header.
+     * @param message      The response message.
+     * @param promise The write promise from upstream, or {@code null} for short-circuit responses.
+     * <p>
+     * <b>Why nullable?</b>
+     * <ul>
+     *     <li><b>Non-null:</b> Normal response path — promise originated from an upstream
+     *         write() call and must be passed through so the original writer gets notified.</li>
+     *     <li><b>Null:</b> Short-circuit path — filter generated this response locally
+     *         (no broker round-trip), so no upstream writer is waiting for completion.</li>
+     * </ul>
+     * <p>
+     * When null, we use {@code ctx.voidPromise()} (avoids allocation) and flush
+     * immediately since no one else will trigger the flush.
+     */
     private void forwardResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message, @Nullable ChannelPromise promise) {
         // check it's a response
         String name = message.getClass().getName();
