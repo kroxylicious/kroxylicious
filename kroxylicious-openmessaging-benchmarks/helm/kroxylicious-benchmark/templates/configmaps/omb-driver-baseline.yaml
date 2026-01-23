@@ -13,7 +13,7 @@ data:
     driverClass: io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriver
 
     # Bootstrap servers - direct to Kafka cluster
-    bootstrap.servers: kafka-0.kafka:9092,kafka-1.kafka:9092,kafka-2.kafka:9092
+    bootstrap.servers: {{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}
 
     # Producer configuration
     producer:

@@ -51,7 +51,7 @@ spec:
         - name: KAFKA_ADVERTISED_LISTENERS
           value: "PLAINTEXT://$(KAFKA_NODE_ID).kafka:9092"
         - name: KAFKA_CONTROLLER_QUORUM_VOTERS
-          value: "kafka-0@kafka-0.kafka:9093,kafka-1@kafka-1.kafka:9093,kafka-2@kafka-2.kafka:9093"
+          value: "{{ include "kroxylicious-benchmark.kafkaControllerQuorum" . }}"
         - name: KAFKA_CONTROLLER_LISTENER_NAMES
           value: "CONTROLLER"
         - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
@@ -63,15 +63,15 @@ spec:
         - name: KAFKA_CLUSTER_ID
           value: "kroxylicious-benchmark-cluster"
         - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
-          value: "3"
+          value: "{{ .Values.kafka.replicationFactor }}"
         - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
-          value: "3"
+          value: "{{ .Values.kafka.replicationFactor }}"
         - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
-          value: "2"
+          value: "{{ .Values.kafka.minInSyncReplicas }}"
         - name: KAFKA_DEFAULT_REPLICATION_FACTOR
-          value: "3"
+          value: "{{ .Values.kafka.replicationFactor }}"
         - name: KAFKA_MIN_INSYNC_REPLICAS
-          value: "2"
+          value: "{{ .Values.kafka.minInSyncReplicas }}"
         resources:
           {{- toYaml .Values.kafka.resources | nindent 10 }}
         volumeMounts:

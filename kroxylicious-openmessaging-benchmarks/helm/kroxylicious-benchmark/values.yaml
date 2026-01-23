@@ -3,6 +3,9 @@ kafka:
   replicas: 3
   image: apache/kafka-native:4.1.1
   imagePullPolicy: IfNotPresent
+  # Replication settings (defaults match replica count for safety)
+  replicationFactor: 3  # Should be <= replicas
+  minInSyncReplicas: 2  # Should be < replicationFactor
   resources:
     requests:
       memory: "2Gi"

@@ -38,6 +38,7 @@ kroxylicious-openmessaging-benchmarks/
 │       ├── Chart.yaml
 │       ├── values.yaml
 │       ├── templates/
+│       │   ├── _helpers.tpl
 │       │   ├── kafka-statefulset.yaml
 │       │   ├── omb-workers-deployment.yaml
 │       │   ├── omb-benchmark-pod.yaml
@@ -100,6 +101,25 @@ kubectl delete pvc -l app=kafka  # Clean up persistent volumes
 ```
 
 ## Configuration
+
+### Kafka Cluster Size
+
+The number of Kafka brokers is configurable (default: 3):
+
+```yaml
+kafka:
+  replicas: 5  # Number of Kafka brokers
+  replicationFactor: 5  # Should be <= replicas
+  minInSyncReplicas: 3  # Should be < replicationFactor
+```
+
+Or via `--set`:
+```bash
+helm install benchmark ./helm/kroxylicious-benchmark \
+  --set kafka.replicas=5 \
+  --set kafka.replicationFactor=5 \
+  --set kafka.minInSyncReplicas=3
+```
 
 ### Workloads
 
