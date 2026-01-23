@@ -46,8 +46,6 @@ class ProduceRequestTransformationFilter implements ProduceRequestFilter, ApiVer
      */
     private final ByteBufferTransformation valueTransformation;
 
-    // TODO: add transformation support for key/header/topic
-
     ProduceRequestTransformationFilter(ByteBufferTransformation valueTransformation) {
         this.valueTransformation = valueTransformation;
     }

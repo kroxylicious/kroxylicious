@@ -49,8 +49,6 @@ class FetchResponseTransformationFilter implements FetchResponseFilter {
      */
     private final ByteBufferTransformation valueTransformation;
 
-    // TODO: add transformation support for key/header/topic
-
     FetchResponseTransformationFilter(ByteBufferTransformation valueTransformation) {
         this.valueTransformation = valueTransformation;
     }

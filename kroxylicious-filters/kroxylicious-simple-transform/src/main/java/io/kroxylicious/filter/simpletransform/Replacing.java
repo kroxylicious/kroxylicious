@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.simpletransform;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
@@ -83,7 +84,7 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
                 }
             }
             catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new UncheckedIOException(e);
             }
         }
 
