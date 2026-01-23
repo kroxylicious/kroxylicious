@@ -26,7 +26,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-class AddPartitionsToTxnSingleTransactionEnforcement extends ApiEnforcement<AddPartitionsToTxnRequestData, AddPartitionsToTxnResponseData> {
+class AddPartitionsToTxnEnforcement extends ApiEnforcement<AddPartitionsToTxnRequestData, AddPartitionsToTxnResponseData> {
 
     // AddPartitionsToTxn is used client-to-broker only up to version 3
     // AddPartitionsToTxn version 4 and above are only allowed broker-to-broker
@@ -62,8 +62,7 @@ class AddPartitionsToTxnSingleTransactionEnforcement extends ApiEnforcement<AddP
                 // the check for WRITE on TransactionalId takes precedence
                 if (!result.denied(TransactionalIdResource.WRITE).isEmpty()) {
                     topicResults = request.v3AndBelowTopics().stream().map(topic -> {
-                        Errors error = Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED;
-                        return partitionError(topic, error);
+                        return partitionError(topic, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED);
                     }).toList();
                 }
                 else {
@@ -86,7 +85,8 @@ class AddPartitionsToTxnSingleTransactionEnforcement extends ApiEnforcement<AddP
     }
 
     @NonNull
-    private static AddPartitionsToTxnTopicResult partitionError(AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic topic, Errors error) {
+    private static AddPartitionsToTxnTopicResult partitionError(AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic topic,
+                                                                Errors error) {
         AddPartitionsToTxnTopicResult txnTopicResult = new AddPartitionsToTxnTopicResult();
         txnTopicResult.setName(topic.name());
         topic.partitions().forEach(partition -> {

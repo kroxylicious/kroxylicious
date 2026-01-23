@@ -181,7 +181,7 @@ class KafkaDriver {
 
     ProducerIdAndEpoch initProducerId(String transactionalId) {
         AtomicReference<ProducerIdAndEpoch> producerIdAndEpoch = new AtomicReference<>(ProducerIdAndEpoch.NONE);
-        Awaitility.await().pollInterval(10, MILLISECONDS).untilAsserted(() -> {
+        Awaitility.await().alias("for user " + this.username + " on " + this.cluster.getClass().getSimpleName()).pollInterval(10, MILLISECONDS).untilAsserted(() -> {
             InitProducerIdRequestData request = new InitProducerIdRequestData();
             request.setTransactionalId(transactionalId);
             ProducerIdAndEpoch pep = producerIdAndEpoch.get();
