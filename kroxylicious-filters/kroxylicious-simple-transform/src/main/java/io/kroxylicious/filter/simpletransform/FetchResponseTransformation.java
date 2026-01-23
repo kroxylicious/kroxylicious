@@ -11,6 +11,7 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.filter.simpletransform.FetchResponseTransformation.Config;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
@@ -19,7 +20,6 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -35,8 +35,9 @@ public class FetchResponseTransformation implements FilterFactory<Config, Config
     }
 
     @Override
-    public FetchResponseTransformationFilter createFilter(FilterFactoryContext context,
-                                                          Config configuration) {
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public Filter createFilter(FilterFactoryContext context,
+                               Config configuration) {
         var factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         Objects.requireNonNull(factory, "Violated contract of FilterCreationContext");
         return new FetchResponseTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
