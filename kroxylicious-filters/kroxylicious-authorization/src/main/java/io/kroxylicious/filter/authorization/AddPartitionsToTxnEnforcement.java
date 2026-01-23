@@ -61,9 +61,9 @@ class AddPartitionsToTxnEnforcement extends ApiEnforcement<AddPartitionsToTxnReq
                 List<AddPartitionsToTxnTopicResult> topicResults;
                 // the check for WRITE on TransactionalId takes precedence
                 if (!result.denied(TransactionalIdResource.WRITE).isEmpty()) {
-                    topicResults = request.v3AndBelowTopics().stream().map(topic -> {
-                        return partitionError(topic, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED);
-                    }).toList();
+                    topicResults = request.v3AndBelowTopics().stream()
+                            .map(topic -> partitionError(topic, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED))
+                            .toList();
                 }
                 else {
                     // add partitions succeeds or fails atomically for a transaction, allowed topics fail with OPERATION_NOT_ATTEMPTED
