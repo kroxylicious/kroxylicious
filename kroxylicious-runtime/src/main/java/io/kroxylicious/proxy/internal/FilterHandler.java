@@ -72,10 +72,21 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final FilterAndInvoker filterAndInvoker;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
     private final ClientSubjectManager clientSubjectManager;
+
+    /** Chains response processing to preserve ordering when filters defer work asynchronously. */
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
+
+    /** Chains request processing to preserve ordering when filters defer work asynchronously. */
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
+
+    /**
+     * Set in {@link #handlerAdded}. Guaranteed non-null when handler methods execute
+     * per Netty's lifecycle contract.
+     * Applies to {@link #promiseFactory} as well.
+     */
     private @Nullable ChannelHandlerContext ctx;
     private @Nullable PromiseFactory promiseFactory;
+
     private static final AtomicBoolean deprecationWarningEmitted = new AtomicBoolean(false);
 
     public FilterHandler(FilterAndInvoker filterAndInvoker,
@@ -385,6 +396,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         return future.thenApplyAsync(filterResult -> filterResult, ctx.executor());
     }
 
+    /**
+     * Called when a deferred response filter operation completes.
+     * Unlike {@link #deferredRequestCompleted}, no immediate flush is needed here
+     * because responses always flow through the normal write path with its own flush handling.
+     */
     private void deferredResponseCompleted(ResponseFilterResult ignored, Throwable throwable) {
         inboundChannel.config().setAutoRead(true);
         // Ensure proper ordering of flushes to prevent race conditions
@@ -501,6 +517,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                 throw new AssertionError();
             }
             if (LOGGER.isDebugEnabled()) {
+                // noinspection LoggingSimilarMessage
                 LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
             }
             ctx.write(decodedFrame, promise != null ? promise : ctx.voidPromise());
