@@ -59,6 +59,18 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     @Test
+    void jwsSignedWithEcdsaJwkPassesValidationWithDefaultConfig() {
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
+        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
+                new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, null), new JwsSignatureBytebufValidator.JwsContentOptions(null));
+        CompletionStage<Result> future = validator.validate(record.key(), record, true);
+
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
+    }
+
+    @Test
     void jwsSignedWithRsaJwkPassesValidation() {
         Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(RSA_VERIFY_JWKS, PERMIT_RS256,
