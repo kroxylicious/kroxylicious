@@ -34,9 +34,12 @@ import io.kroxylicious.proxy.config.tls.AllowDeny;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Checks if the {@link Record} headers contains a valid {@link JsonWebSignature} Signature.
+ * Checks if the {@link Record} headers contain a valid {@link JsonWebSignature} Signature.
  * <p>
  * The JWS Signature is validated using the provided {@link JsonWebKeySet} and {@link AlgorithmConstraints}.
+ * </p>
+ * <p>
+ * WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
  * </p>
  *
  * @see <a href="https://datatracker.ietf.org/doc/html/rfc7515">RFC 7515 (JWS)</a>
