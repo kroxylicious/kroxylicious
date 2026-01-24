@@ -45,6 +45,7 @@ public class JwsSignatureBytebufValidatorTest {
     private static final AllowDeny<String> PERMIT_ALL = new AllowDeny<>(List.of(), Set.of("not-an-algorithm"));
 
     private static final byte[] EMPTY = new byte[0];
+    private static final String RANDOM_STRING = "random string";
 
     @Test
     void jwsSignedWithEcdsaJwkPassesValidation() {
@@ -188,7 +189,19 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void missingJwsHeaderFailsValidation() {
-        Record record = record(EMPTY);
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, INVALID_JWS));
+        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
+                new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
+        CompletionStage<Result> future = validator.validate(record.value(), record, false);
+
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(false, Result::valid);
+    }
+
+    @Test
+    void missingJwsHeaderFailsValidationWhileOtherHeadersArePresent() {
+        Record record = record(EMPTY, new RecordHeader(RANDOM_STRING, EMPTY));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
