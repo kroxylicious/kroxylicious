@@ -18,7 +18,7 @@ Format `<github issue/pr number>: <short description>`.
 
 * The four argument forms of `RequestFilter#onRequest` and `ResponseFilter#onResponse` are deprecated and will be removed in a future release.
   Implement the five argument form, which includes the `apiVersion` instead.
-* A JSON Web Signature (JWS) Signature validator has been added.
+* A JSON Web Signature (JWS) Signature validator has been added. WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
 
 ## 0.18.0
 
