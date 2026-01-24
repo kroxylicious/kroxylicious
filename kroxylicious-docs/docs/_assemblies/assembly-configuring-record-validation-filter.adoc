@@ -82,6 +82,8 @@ allowEmpty: true                                                 # <3>
 
 The JWS Signature Validation rule validates that the configured Kafka record header contains a valid https://datatracker.ietf.org/doc/html/rfc7515[JSON Web Signature (JWS)] Signature.
 
+WARNING: This validator does NOT include https://datatracker.ietf.org/doc/html/rfc7519[JSON Web Token (JWT)] validation (expiration, issuer, etc. are NOT checked).
+
 [source,yaml]
 ----
 jwsSignatureValidation:
