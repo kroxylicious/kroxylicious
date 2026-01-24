@@ -63,7 +63,12 @@ public class BytebufValidators {
     }
 
     /**
-     * Returns a validator that can validates whether a record contains a valid JWS (JSON Web Signature) Signature
+     * Returns a validator that can validate whether a record contains a valid JWS (JSON Web Signature) Signature
+     *
+     * <p>
+     * WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
+     * </p>
+     *
      * @return validator
      */
     public static BytebufValidator jwsSignatureValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> algorithms,
