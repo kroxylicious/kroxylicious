@@ -41,6 +41,17 @@ public class HelmUtils {
     }
 
     /**
+     * Renders Helm templates and returns the raw YAML output.
+     *
+     * @return rendered template YAML
+     * @throws IOException if helm command fails
+     */
+    public static String renderTemplate() throws IOException {
+        List<String> command = List.of("helm", "template", "test-release", HELM_CHART_DIR.toString());
+        return executeCommand(command);
+    }
+
+    /**
      * Validates that Helm is installed and available.
      *
      * @return true if Helm is available
