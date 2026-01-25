@@ -83,4 +83,22 @@ class HelmTemplateRenderingTest {
                 .as("Kafka StatefulSet should have %d replicas", replicas)
                 .isEqualTo(replicas);
     }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 1, 3, 5 })
+    @SuppressWarnings("unchecked")
+    void shouldGenerateCorrectControllerQuorumVoters(int replicas) throws IOException {
+        // When: Rendering with custom replica count
+        String yaml = HelmUtils.renderTemplate(Map.of("kafka.replicas", String.valueOf(replicas)));
+        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
+        Map<String, Object> kafkaStatefulSet = HelmUtils.findResource(resources, "StatefulSet", "kafka");
+
+        // Then: KAFKA_CONTROLLER_QUORUM_VOTERS should be correctly formatted
+        assertThat(kafkaStatefulSet).isNotNull();
+        String quorumVoters = HelmUtils.extractEnvVar(kafkaStatefulSet, "KAFKA_CONTROLLER_QUORUM_VOTERS");
+        String expectedVoters = HelmUtils.generateExpectedQuorumVoters(replicas);
+        assertThat(quorumVoters)
+                .as("Controller quorum voters should be correctly formatted for %d replicas", replicas)
+                .isEqualTo(expectedVoters);
+    }
 }
