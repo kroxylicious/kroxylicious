@@ -11,7 +11,7 @@ import java.io.IOException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
@@ -30,7 +30,9 @@ class HelmLintTest {
         String lintOutput = HelmUtils.lint();
 
         // Then: Should pass with no errors
-        assertTrue(lintOutput.contains("1 chart(s) linted"), "Expected successful lint output");
-        assertTrue(lintOutput.contains("0 chart(s) failed"), "Expected no chart failures");
+        assertThat(lintOutput)
+                .as("Helm lint should complete successfully")
+                .contains("1 chart(s) linted")
+                .contains("0 chart(s) failed");
     }
 }
