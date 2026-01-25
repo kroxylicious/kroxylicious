@@ -48,4 +48,20 @@ class HelmTemplateRenderingTest {
                 .as("Should parse into valid Kubernetes resources")
                 .isNotEmpty();
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldRenderKafkaStatefulSet() throws IOException {
+        // When: Rendering templates and finding Kafka StatefulSet
+        String yaml = HelmUtils.renderTemplate();
+        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
+        Map<String, Object> kafkaStatefulSet = HelmUtils.findResource(resources, "StatefulSet", "kafka");
+
+        // Then: Kafka StatefulSet should have default replica count
+        assertThat(kafkaStatefulSet).isNotNull();
+        Map<String, Object> spec = (Map<String, Object>) kafkaStatefulSet.get("spec");
+        assertThat(spec.get("replicas"))
+                .as("Kafka StatefulSet should have default 3 replicas")
+                .isEqualTo(3);
+    }
 }
