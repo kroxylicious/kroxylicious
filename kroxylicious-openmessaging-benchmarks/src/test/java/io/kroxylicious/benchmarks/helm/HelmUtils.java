@@ -149,4 +149,24 @@ public class HelmUtils {
 
         return resources;
     }
+
+    /**
+     * Finds a resource by kind and name in a list of resources.
+     *
+     * @param resources List of Kubernetes resources
+     * @param kind Resource kind (e.g., "StatefulSet", "ConfigMap")
+     * @param name Resource name
+     * @return The matching resource, or null if not found
+     */
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> findResource(List<Map<String, Object>> resources, String kind, String name) {
+        return resources.stream()
+                .filter(r -> kind.equals(r.get("kind")))
+                .filter(r -> {
+                    Map<String, Object> metadata = (Map<String, Object>) r.get("metadata");
+                    return metadata != null && name.equals(metadata.get("name"));
+                })
+                .findFirst()
+                .orElse(null);
+    }
 }
