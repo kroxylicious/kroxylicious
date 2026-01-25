@@ -101,4 +101,46 @@ class HelmTemplateRenderingTest {
                 .as("Controller quorum voters should be correctly formatted for %d replicas", replicas)
                 .isEqualTo(expectedVoters);
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldSetPodSecurityContext() throws IOException {
+        // When: Rendering templates
+        String yaml = HelmUtils.renderTemplate();
+        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
+        Map<String, Object> kafkaStatefulSet = HelmUtils.findResource(resources, "StatefulSet", "kafka");
+
+        // Then: Pod security context should be configured correctly
+        assertThat(kafkaStatefulSet).isNotNull();
+        Map<String, Object> spec = (Map<String, Object>) kafkaStatefulSet.get("spec");
+        Map<String, Object> template = (Map<String, Object>) spec.get("template");
+        Map<String, Object> podSpec = (Map<String, Object>) template.get("spec");
+        Map<String, Object> securityContext = (Map<String, Object>) podSpec.get("securityContext");
+
+        assertThat(securityContext.get("runAsNonRoot"))
+                .as("Pod should run as non-root")
+                .isEqualTo(true);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldSetContainerSecurityContext() throws IOException {
+        // When: Rendering templates
+        String yaml = HelmUtils.renderTemplate();
+        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
+        Map<String, Object> kafkaStatefulSet = HelmUtils.findResource(resources, "StatefulSet", "kafka");
+
+        // Then: Container security context should drop all capabilities
+        assertThat(kafkaStatefulSet).isNotNull();
+        Map<String, Object> spec = (Map<String, Object>) kafkaStatefulSet.get("spec");
+        Map<String, Object> template = (Map<String, Object>) spec.get("template");
+        Map<String, Object> podSpec = (Map<String, Object>) template.get("spec");
+        List<Map<String, Object>> containers = (List<Map<String, Object>>) podSpec.get("containers");
+        Map<String, Object> kafkaContainer = containers.get(0);
+        Map<String, Object> containerSecurityContext = (Map<String, Object>) kafkaContainer.get("securityContext");
+
+        assertThat(containerSecurityContext.get("allowPrivilegeEscalation"))
+                .as("Container should not allow privilege escalation")
+                .isEqualTo(false);
+    }
 }
