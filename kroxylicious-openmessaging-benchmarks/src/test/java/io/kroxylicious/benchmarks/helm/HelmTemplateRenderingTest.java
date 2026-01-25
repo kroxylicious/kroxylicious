@@ -12,6 +12,8 @@ import java.util.Map;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -63,5 +65,22 @@ class HelmTemplateRenderingTest {
         assertThat(spec.get("replicas"))
                 .as("Kafka StatefulSet should have default 3 replicas")
                 .isEqualTo(3);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 1, 3, 5 })
+    @SuppressWarnings("unchecked")
+    void shouldRenderWithConfigurableReplicaCount(int replicas) throws IOException {
+        // When: Rendering with custom replica count
+        String yaml = HelmUtils.renderTemplate(Map.of("kafka.replicas", String.valueOf(replicas)));
+        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
+        Map<String, Object> kafkaStatefulSet = HelmUtils.findResource(resources, "StatefulSet", "kafka");
+
+        // Then: StatefulSet should have configured replica count
+        assertThat(kafkaStatefulSet).isNotNull();
+        Map<String, Object> spec = (Map<String, Object>) kafkaStatefulSet.get("spec");
+        assertThat(spec.get("replicas"))
+                .as("Kafka StatefulSet should have %d replicas", replicas)
+                .isEqualTo(replicas);
     }
 }
