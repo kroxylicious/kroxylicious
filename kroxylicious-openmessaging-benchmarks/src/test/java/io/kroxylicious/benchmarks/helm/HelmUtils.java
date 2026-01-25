@@ -11,14 +11,20 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
 /**
- * Utility class for executing Helm CLI commands.
+ * Utility class for executing Helm CLI commands and parsing Kubernetes YAML manifests.
  */
 public class HelmUtils {
 
+    private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
     private static final Path HELM_CHART_DIR = getHelmChartDirectory();
 
     private static Path getHelmChartDirectory() {
@@ -105,5 +111,42 @@ public class HelmUtils {
         }
 
         return output.toString();
+    }
+
+    /**
+     * Parses YAML output containing multiple Kubernetes resources (separated by ---).
+     *
+     * @param yaml YAML string potentially containing multiple documents
+     * @return List of parsed resources as Maps
+     * @throws IOException if parsing fails
+     */
+    @SuppressWarnings("unchecked")
+    public static List<Map<String, Object>> parseKubernetesManifests(String yaml) throws IOException {
+        List<Map<String, Object>> resources = new ArrayList<>();
+
+        // Split by YAML document separator
+        String[] documents = yaml.split("---");
+
+        for (String doc : documents) {
+            // Remove comment lines (Helm source comments and license headers)
+            StringBuilder cleanDoc = new StringBuilder();
+            for (String line : doc.split("\n")) {
+                if (!line.trim().startsWith("#")) {
+                    cleanDoc.append(line).append("\n");
+                }
+            }
+
+            String trimmed = cleanDoc.toString().trim();
+            if (trimmed.isEmpty()) {
+                continue; // Skip empty documents
+            }
+
+            Map<String, Object> resource = YAML_MAPPER.readValue(trimmed, Map.class);
+            if (resource != null && !resource.isEmpty()) {
+                resources.add(resource);
+            }
+        }
+
+        return resources;
     }
 }
