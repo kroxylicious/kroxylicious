@@ -53,7 +53,28 @@ public class HelmUtils {
      * @throws IOException if helm command fails
      */
     public static String renderTemplate() throws IOException {
-        List<String> command = List.of("helm", "template", "test-release", HELM_CHART_DIR.toString());
+        return renderTemplate(Map.of());
+    }
+
+    /**
+     * Renders Helm templates with custom values and returns the raw YAML output.
+     *
+     * @param setValues Map of key-value pairs to pass as --set arguments
+     * @return rendered template YAML
+     * @throws IOException if helm command fails
+     */
+    public static String renderTemplate(Map<String, String> setValues) throws IOException {
+        List<String> command = new ArrayList<>();
+        command.add("helm");
+        command.add("template");
+        command.add("test-release");
+        command.add(HELM_CHART_DIR.toString());
+
+        for (Map.Entry<String, String> entry : setValues.entrySet()) {
+            command.add("--set");
+            command.add(entry.getKey() + "=" + entry.getValue());
+        }
+
         return executeCommand(command);
     }
 
