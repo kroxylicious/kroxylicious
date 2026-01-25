@@ -145,14 +145,50 @@ benchmark:
   warmupDurationMinutes: 1
 ```
 
-## Validation
+## Testing
 
-Helm chart passes linting:
+The project includes test coverage to ensure the Helm chart works correctly and stays working as changes are made.
+
+### Running Tests Locally
+
+Prerequisites:
+- Java 17+
+- Maven 3.6+
+- Helm 3.0+
 
 ```bash
-helm lint helm/kroxylicious-benchmark
-# 1 chart(s) linted, 0 chart(s) failed
+# Run all tests
+mvn clean test
+
+# Run only template rendering tests
+mvn test -Dtest=HelmTemplateRenderingTest
+
+# Run only helm lint test
+mvn test -Dtest=HelmLintTest
 ```
+
+### Test Coverage
+
+#### Template Rendering Tests (`HelmTemplateRenderingTest`)
+Validates that Helm templates render correctly:
+- Templates render without errors
+- Valid Kubernetes resources are produced
+- Kafka StatefulSet has correct default replica count (3)
+- Configurable broker replica counts (1, 3, 5)
+- KRaft controller quorum voters generation
+- Pod security context (runAsNonRoot)
+- Container security context (allowPrivilegeEscalation)
+
+#### Helm Lint Test (`HelmLintTest`)
+Validates that the Helm chart passes linting with no warnings or errors.
+
+### Test Implementation
+
+Tests use the following approach:
+1. **HelmUtils** - Utility class that executes `helm template` and `helm lint` CLI commands
+2. **YAML Parsing** - Parses rendered templates into Kubernetes resource maps using Jackson
+3. **AssertJ** - Fluent assertions for validating resource structure
+4. **JUnit 5** - Parameterized tests for testing multiple configurations
 
 ## Next Phases (Planned)
 
