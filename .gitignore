@@ -27,6 +27,7 @@ dependency-reduced-pom.xml
 .idea/**/shelf
 .idea/kubernetes-settings.xml
 .idea/sonarlint.xml
+.idea/copilot.*
 
  # AWS User-specific
 .idea/**/aws.xml
@@ -106,5 +107,4 @@ docs/*.html
 .releaseNotes
 
 .claude/
-
-.idea/copilot.*
+.op/
