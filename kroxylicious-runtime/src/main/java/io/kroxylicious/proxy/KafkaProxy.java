@@ -188,7 +188,7 @@ public final class KafkaProxy implements AutoCloseable {
                 String versionStatus = "untested";
                 String deprecatedMessage = "";
 
-                if (TESTED_JRE_VERSIONS.first() < JRE_FEATURE_VERSION) {
+                if (JRE_FEATURE_VERSION < TESTED_JRE_VERSIONS.first()) {
                     versionStatus = "deprecated";
                     deprecatedMessage = " The ability to run Kroxylicious on JRE %s will be removed in a future release.".formatted(JRE_FEATURE_VERSION);
                 }
