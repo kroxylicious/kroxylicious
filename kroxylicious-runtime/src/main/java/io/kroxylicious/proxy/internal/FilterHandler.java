@@ -56,6 +56,7 @@ import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -136,43 +137,70 @@ public class FilterHandler extends ChannelDuplexHandler {
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof InternalResponseFrame<?> decodedFrame) {
-            // jump the queue, let responses to asynchronous requests flow back to their sender
-            if (decodedFrame.isRecipient(filterAndInvoker.filter())) {
-                completeInternalResponse(decodedFrame);
-            }
-            else {
-                handleDecodedResponse(decodedFrame, promise);
-            }
+            handleInternalResponseWrite(promise, decodedFrame);
         }
         else if (msg instanceof DecodedResponseFrame<?> decodedFrame) {
-            if (writeFuture.isDone()) {
-                writeFuture = handleDecodedResponse(decodedFrame, promise);
-            }
-            else {
-                writeFuture = writeFuture.thenCompose(ignored -> {
-                    if (ctx.channel().isOpen()) {
-                        return handleDecodedResponse(decodedFrame, promise);
-                    }
-                    else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                }).exceptionally(throwable -> null);
-            }
+            handleDecodedResponseWrite(decodedFrame, promise);
+        }
+        else if (msg instanceof OpaqueResponseFrame orf) {
+            handleOpaqueResponseWrite(ctx, msg, promise, orf);
         }
         else {
-            if (msg instanceof OpaqueResponseFrame orf) {
-                writeFuture = writeFuture.whenComplete((a, b) -> {
-                    if (ctx.channel().isOpen()) {
-                        ctx.write(msg, promise);
-                    }
-                    else {
-                        orf.releaseBuffer();
-                    }
-                });
+            throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to downstream: " + msgDescriptor(msg));
+        }
+    }
+
+    private void handleInternalResponseWrite(ChannelPromise promise, InternalResponseFrame<?> decodedFrame) {
+        // jump the queue, let responses to asynchronous requests flow back to their sender
+        if (decodedFrame.isRecipient(filterAndInvoker.filter())) {
+            completeInternalResponse(decodedFrame);
+        }
+        else {
+            handleDecodedResponse(decodedFrame, promise);
+        }
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    private void handleDecodedResponseWrite(DecodedResponseFrame<?> decodedFrame, ChannelPromise promise) {
+        if (writeFuture.isDone()) {
+            writeFuture = handleDecodedResponse(decodedFrame, promise);
+        }
+        else {
+            writeFuture = writeFuture.thenCompose(ignored -> {
+                if (ctx.channel().isOpen()) {
+                    return handleDecodedResponse(decodedFrame, promise);
+                }
+                else {
+                    return CompletableFuture.completedFuture(null);
+                }
+            }).exceptionally(throwable -> null);
+        }
+    }
+
+    private void handleOpaqueResponseWrite(ChannelHandlerContext ctx, Object msg, ChannelPromise promise, OpaqueResponseFrame orf) {
+        writeFuture = writeFuture.whenComplete((a, b) -> {
+            if (ctx.channel().isOpen()) {
+                ctx.write(msg, promise);
             }
             else {
-                throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to downstream: " + msgDescriptor(msg));
+                orf.releaseBuffer();
             }
+        });
+    }
+
+    private CompletableFuture<Void> handleDecodedResponse(DecodedResponseFrame<?> decodedFrame, ChannelPromise promise) {
+        var filterContext = new InternalFilterContext(decodedFrame);
+
+        final var future = dispatchDecodedResponseFrame(decodedFrame, filterContext);
+        boolean defer = !future.isDone();
+        if (defer) {
+            return configureResponseFilterChain(decodedFrame, promise, handleDeferredStage(decodedFrame, future))
+                    .whenComplete(this::deferredResponseCompleted)
+                    .thenApply(responseFilterResult -> null);
+        }
+        else {
+            return configureResponseFilterChain(decodedFrame, promise, future)
+                    .thenApply(responseFilterResult -> null);
         }
     }
 
@@ -208,52 +236,15 @@ public class FilterHandler extends ChannelDuplexHandler {
             handleDecodedRequest(decodedFrame);
         }
         else if (msg instanceof DecodedRequestFrame<?> decodedFrame) {
-            if (readFuture.isDone()) {
-                readFuture = handleDecodedRequest(decodedFrame);
-            }
-            else {
-                readFuture = readFuture.thenCompose(ignored -> {
-                    if (ctx.channel().isOpen()) {
-                        return handleDecodedRequest(decodedFrame);
-                    }
-                    else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                }).exceptionally(throwable -> null);
-            }
+            handleDecodedRequestRead(decodedFrame);
+        }
+        else if (msg instanceof OpaqueRequestFrame || msg == Unpooled.EMPTY_BUFFER) {
+            handleOpaqueOrPassthroughRead(msg);
         }
         else {
-            if (msg instanceof OpaqueRequestFrame || msg == Unpooled.EMPTY_BUFFER) {
-                readFuture = readFuture.whenComplete((unused, throwable) -> {
-                    if (ctx.channel().isOpen()) {
-                        ctx.fireChannelRead(msg);
-                    }
-                    else if (msg instanceof OpaqueRequestFrame orf) {
-                        orf.releaseBuffer();
-                    }
-                });
-            }
-            else {
-                // Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
-                // but, otherwise we don't expect any other kind of message
-                throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to upstream: " + msgDescriptor(msg));
-            }
-        }
-    }
-
-    private CompletableFuture<Void> handleDecodedResponse(DecodedResponseFrame<?> decodedFrame, ChannelPromise promise) {
-        var filterContext = new InternalFilterContext(decodedFrame);
-
-        final var future = dispatchDecodedResponseFrame(decodedFrame, filterContext);
-        boolean defer = !future.isDone();
-        if (defer) {
-            return configureResponseFilterChain(decodedFrame, promise, handleDeferredStage(decodedFrame, future))
-                    .whenComplete(this::deferredResponseCompleted)
-                    .thenApply(responseFilterResult -> null);
-        }
-        else {
-            return configureResponseFilterChain(decodedFrame, promise, future)
-                    .thenApply(responseFilterResult -> null);
+            // Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
+            // but, otherwise we don't expect any other kind of message
+            throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to upstream: " + msgDescriptor(msg));
         }
     }
 
@@ -296,6 +287,33 @@ public class FilterHandler extends ChannelDuplexHandler {
             return configureRequestFilterChain(decodedFrame, future)
                     .thenApply(requestFilterResult -> null);
         }
+    }
+
+    private void handleDecodedRequestRead(DecodedRequestFrame<?> decodedFrame) {
+        if (readFuture.isDone()) {
+            readFuture = handleDecodedRequest(decodedFrame);
+        }
+        else {
+            readFuture = readFuture.thenCompose(ignored -> {
+                if (ctx.channel().isOpen()) {
+                    return handleDecodedRequest(decodedFrame);
+                }
+                else {
+                    return CompletableFuture.completedFuture(null);
+                }
+            }).exceptionally(throwable -> null);
+        }
+    }
+
+    private void handleOpaqueOrPassthroughRead(Object msg) {
+        readFuture = readFuture.whenComplete((unused, throwable) -> {
+            if (ctx.channel().isOpen()) {
+                ctx.fireChannelRead(msg);
+            }
+            else if (msg instanceof OpaqueRequestFrame orf) {
+                orf.releaseBuffer();
+            }
+        });
     }
 
     private CompletableFuture<RequestFilterResult> dispatchDecodedRequest(DecodedRequestFrame<?> decodedFrame, InternalFilterContext filterContext) {
@@ -490,28 +508,14 @@ public class FilterHandler extends ChannelDuplexHandler {
      */
     private void forwardResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message, @Nullable ChannelPromise promise) {
         // check it's a response
-        String name = message.getClass().getName();
-        if (!name.endsWith("ResponseData")) {
-            throw new AssertionError("Filter '" + filterDescriptor() + "': Attempt to use forwardResponse with a non-response: " + name);
-        }
+        validateResponseMessage(message);
         if (decodedFrame instanceof DecodedRequestFrame<?> decodedRequestFrame) {
 
             if (promise != null) {
                 throw new IllegalStateException("Filter '" + filterDescriptor() + "': Short-circuit response should not have a promise");
             }
 
-            if (message.apiKey() != decodedFrame.apiKeyId()) {
-                throw new AssertionError(
-                        "Filter '" + filterDescriptor() + "': Attempt to respond with ApiMessage of type " + ApiKeys.forId(message.apiKey()) + " but request is of type "
-                                + decodedFrame.apiKey());
-            }
-            DecodedResponseFrame<?> responseFrame = decodedRequestFrame.responseFrame(header, message);
-            decodedFrame.transferBuffersTo(responseFrame);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Filter '{}' sending short-circuit response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
-            }
-            ctx.write(responseFrame, ctx.voidPromise());
-            ctx.flush();
+            handleShortCircuitResponse(decodedRequestFrame, header, message);
         }
         else {
 
@@ -519,16 +523,42 @@ public class FilterHandler extends ChannelDuplexHandler {
                 throw new IllegalStateException("Filter '" + filterDescriptor() + "': Normal response path requires a promise");
             }
 
-            if (decodedFrame.body() != message) {
-                throw new AssertionError();
-            }
-            if (decodedFrame.header() != header) {
-                throw new AssertionError();
-            }
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
-            }
-            ctx.write(decodedFrame, promise);
+            handleUpstreamResponse(decodedFrame, header, message, promise);
+        }
+    }
+
+    private void handleUpstreamResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message, @NonNull ChannelPromise promise) {
+        if (decodedFrame.body() != message) {
+            throw new AssertionError();
+        }
+        if (decodedFrame.header() != header) {
+            throw new AssertionError();
+        }
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
+        }
+        ctx.write(decodedFrame, promise);
+    }
+
+    private void handleShortCircuitResponse(DecodedRequestFrame<?> decodedRequestFrame, ResponseHeaderData header, ApiMessage message) {
+        if (message.apiKey() != decodedRequestFrame.apiKeyId()) {
+            throw new AssertionError(
+                    "Filter '" + filterDescriptor() + "': Attempt to respond with ApiMessage of type " + ApiKeys.forId(message.apiKey()) + " but request is of type "
+                            + decodedRequestFrame.apiKey());
+        }
+        DecodedResponseFrame<?> responseFrame = decodedRequestFrame.responseFrame(header, message);
+        decodedRequestFrame.transferBuffersTo(responseFrame);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("{}: Filter '{}' sending short-circuit response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedRequestFrame));
+        }
+        ctx.write(responseFrame, ctx.voidPromise());
+        ctx.flush();
+    }
+
+    private void validateResponseMessage(ApiMessage message) {
+        String name = message.getClass().getName();
+        if (!name.endsWith("ResponseData")) {
+            throw new AssertionError("Filter '" + filterDescriptor() + "': Attempt to use forwardResponse with a non-response: " + name);
         }
     }
 
