@@ -392,9 +392,9 @@ class KafkaProxyInitializerTest {
      * Helper method to create KafkaProxyInitializer with HAProxy protocol support.
      */
     private KafkaProxyInitializer createKafkaProxyInitializerWithHAProxy(
-            boolean tls,
-            EndpointBindingResolver bindingResolver,
-            boolean haproxyProtocol) {
+                                                                         boolean tls,
+                                                                         EndpointBindingResolver bindingResolver,
+                                                                         boolean haproxyProtocol) {
         return new KafkaProxyInitializer(
                 filterChainFactory,
                 pfr,
