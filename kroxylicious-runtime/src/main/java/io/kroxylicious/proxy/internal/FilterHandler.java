@@ -315,8 +315,9 @@ public class FilterHandler extends ChannelDuplexHandler {
                 .exceptionally(t -> handleFilteringException(t, decodedFrame));
     }
 
-    private ResponseFilterResult handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame, ResponseFilterResult responseFilterResult,
-                                                            @Nullable ChannelPromise promise) {
+    private ResponseFilterResult handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame,
+                                                            ResponseFilterResult responseFilterResult,
+                                                            ChannelPromise promise) {
         if (responseFilterResult.drop()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter '{}' drops {} response",
@@ -494,6 +495,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             throw new AssertionError("Filter '" + filterDescriptor() + "': Attempt to use forwardResponse with a non-response: " + name);
         }
         if (decodedFrame instanceof DecodedRequestFrame<?> decodedRequestFrame) {
+
+            if (promise != null) {
+                throw new IllegalStateException("Filter '" + filterDescriptor() + "': Short-circuit response should not have a promise");
+            }
+
             if (message.apiKey() != decodedFrame.apiKeyId()) {
                 throw new AssertionError(
                         "Filter '" + filterDescriptor() + "': Attempt to respond with ApiMessage of type " + ApiKeys.forId(message.apiKey()) + " but request is of type "
@@ -502,14 +508,17 @@ public class FilterHandler extends ChannelDuplexHandler {
             DecodedResponseFrame<?> responseFrame = decodedRequestFrame.responseFrame(header, message);
             decodedFrame.transferBuffersTo(responseFrame);
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
+                LOGGER.debug("{}: Filter '{}' sending short-circuit response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
             }
-            ctx.write(responseFrame, promise != null ? promise : ctx.voidPromise());
-            if (promise == null) {
-                ctx.flush();
-            }
+            ctx.write(responseFrame, ctx.voidPromise());
+            ctx.flush();
         }
         else {
+
+            if (promise == null) {
+                throw new IllegalStateException("Filter '" + filterDescriptor() + "': Normal response path requires a promise");
+            }
+
             if (decodedFrame.body() != message) {
                 throw new AssertionError();
             }
@@ -517,10 +526,9 @@ public class FilterHandler extends ChannelDuplexHandler {
                 throw new AssertionError();
             }
             if (LOGGER.isDebugEnabled()) {
-                // noinspection LoggingSimilarMessage
                 LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
             }
-            ctx.write(decodedFrame, promise != null ? promise : ctx.voidPromise());
+            ctx.write(decodedFrame, promise);
         }
     }
 
