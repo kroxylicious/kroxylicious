@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.simpletransform;
+package io.kroxylicious.filter.simpletransform;
 
 import java.util.List;
 import java.util.Map;
@@ -48,8 +48,6 @@ class FetchResponseTransformationFilter implements FetchResponseFilter {
      * Transformation to be applied to record value.
      */
     private final ByteBufferTransformation valueTransformation;
-
-    // TODO: add transformation support for key/header/topic
 
     FetchResponseTransformationFilter(ByteBufferTransformation valueTransformation) {
         this.valueTransformation = valueTransformation;

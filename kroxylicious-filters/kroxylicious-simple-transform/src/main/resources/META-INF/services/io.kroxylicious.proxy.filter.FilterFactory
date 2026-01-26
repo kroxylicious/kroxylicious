@@ -1,2 +1,2 @@
-io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation
-io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation
+io.kroxylicious.filter.simpletransform.ProduceRequestTransformation
+io.kroxylicious.filter.simpletransform.FetchResponseTransformation
