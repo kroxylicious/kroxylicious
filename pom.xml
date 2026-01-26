@@ -94,7 +94,7 @@
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
         <logcaptor.version>2.12.2</logcaptor.version>
         <async-profiler.version>4.2</async-profiler.version>
-        <json-unit-assertj.version>5.0.0</json-unit-assertj.version>
+        <json-unit-assertj.version>5.1.0</json-unit-assertj.version>
     </properties>
 
     <name>Parent POM</name>
