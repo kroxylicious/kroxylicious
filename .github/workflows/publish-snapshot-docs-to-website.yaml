@@ -47,6 +47,11 @@ jobs:
         ports:
           - 5000:5000
     steps:
+      - name: 'Test for Slack secret'
+        env:
+          KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+        run: |
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -112,6 +117,14 @@ jobs:
         with:
           path: kroxylicious.github.io/_site
           retention-days: 14
+      - name: Slack Notification on Failure
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true'
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+          SLACK_COLOR: 'danger'
+          SLACK_TITLE: 'Failure Alert: ${{ github.repository }}'
+          SLACK_MESSAGE: 'The snapshot documentation build workflow failed.'
 
   # Deployment job
   deploy:
@@ -121,6 +134,19 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: 'Test for Slack secret'
+        env:
+          KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+        run: |
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Slack Notification on Failure
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true'
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+          SLACK_COLOR: 'danger'
+          SLACK_TITLE: 'Failure Alert: ${{ github.repository }}'
+          SLACK_MESSAGE: 'The snapshot documentation deployment workflow failed.'
