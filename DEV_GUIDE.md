@@ -49,8 +49,8 @@ This document gives a detailed breakdown of the various build processes and opti
 
 ## Build Prerequisites
 
-- [JDK](https://openjdk.org/projects/jdk/17/) (version 21 and above) - JDK
-- [`mvn`](https://maven.apache.org/index.html) (version 3.6.3 and above) - [Apache Maven®](https://maven.apache.org)
+- [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
+- [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - [Apache Maven®](https://maven.apache.org)
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 
 > :warning: **If you are using Podman please see [these notes](#running-integration-tests-on-podman) below**
@@ -62,7 +62,7 @@ This document gives a detailed breakdown of the various build processes and opti
 JDK version 21 or newer, and [Apache Maven®](https://maven.apache.org) are required for building this project.
 
 Kroxylicious targets language level 17, except for the `integrationtests` module
-which targets 21 to access some new language features.
+which targets 21 to access some new language features. At production runtime, Java 17 remains supported but is deprecated. Use Java 21 or later.
 
 Build the project like this:
 
@@ -299,15 +299,15 @@ While Kroxylicious is a java application we've had reports of issues running the
       Expect output similar to: 
       ```shell
       > java --version
-   openjdk 19.0.2 2023-01-17
-   OpenJDK Runtime Environment Temurin-19.0.2+7 (build 19.0.2+7)
-   OpenJDK 64-Bit Server VM Temurin-19.0.2+7 (build 19.0.2+7, mixed mode, sharing)
+   openjdk 21.0.8 2025-07-15 LTS
+   OpenJDK Runtime Environment Temurin-21.0.8+9 (build 21.0.8+9-LTS)
+   OpenJDK 64-Bit Server VM Temurin-21.0.8+9 (build 21.0.8+9-LTS, mixed mode, sharing
    ```
     2. Update if needed: sample update command like:
     ```shell
     sudo apt update
     sudo apt upgrade
-    sudo apt install openjdk-18-jre-headless
+    sudo apt install openjdk-21-jre-headless
     ```
 4. Ensure GIT is available
    1. ```shell
