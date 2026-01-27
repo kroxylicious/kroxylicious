@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -72,6 +74,9 @@ public final class KafkaProxy implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
     private static final Logger STARTUP_SHUTDOWN_LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
+
+    private static final int JRE_FEATURE_VERSION = Runtime.version().feature();
+    private static final TreeSet<Integer> TESTED_JRE_VERSIONS = new TreeSet<>(Set.of(21, 25));
 
     @VisibleForTesting
     record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
@@ -179,6 +184,20 @@ public final class KafkaProxy implements AutoCloseable {
             throw new IllegalStateException("This proxy is already running");
         }
         try {
+            if (!TESTED_JRE_VERSIONS.contains(JRE_FEATURE_VERSION)) {
+                String versionStatus = "untested";
+                String deprecatedMessage = "";
+
+                if (JRE_FEATURE_VERSION < TESTED_JRE_VERSIONS.first()) {
+                    versionStatus = "deprecated";
+                    deprecatedMessage = " The ability to run Kroxylicious on JRE %s will be removed in a future release.".formatted(JRE_FEATURE_VERSION);
+                }
+
+                STARTUP_SHUTDOWN_LOGGER.warn(
+                        "Detected {} JRE version: {}.{} Running Kroxylicious is only tested on LTS releases >={}. If you find any issues, please try to re-create them on one of the tested JREs.",
+                        versionStatus, JRE_FEATURE_VERSION, deprecatedMessage, TESTED_JRE_VERSIONS.first());
+            }
+
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is starting");
             meterRegistries = new MeterRegistries(pfr, micrometerConfig);
             initVersionInfoMetric();
