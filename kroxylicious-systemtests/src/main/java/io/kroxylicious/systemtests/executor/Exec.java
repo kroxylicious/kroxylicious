@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -278,12 +279,12 @@ public class Exec {
             LOGGER.info("Input: {}", input);
         }
         LOGGER.info("RETURN code: {}", ret);
-        if (!execOut.isEmpty()) {
+        if (!execOut.isEmpty() && LOGGER.isDebugEnabled()) {
             LOGGER.debug("======STDOUT START=======");
             LOGGER.debug("{}", cutExecutorLog(execOut));
             LOGGER.debug("======STDOUT END======");
         }
-        if (!execErr.isEmpty()) {
+        if (!execErr.isEmpty() && LOGGER.isDebugEnabled()) {
             LOGGER.debug("======STDERR START=======");
             LOGGER.debug("{}", cutExecutorLog(execErr));
             LOGGER.debug("======STDERR END======");
@@ -303,7 +304,7 @@ public class Exec {
      * @throws ExecutionException the execution exception
      */
     public int execute(String input, List<String> commands, Duration timeout, File dir) throws IOException, InterruptedException, ExecutionException {
-        LOGGER.debug("Running command - {}", String.join(" ", commands.toArray(new String[0])));
+        LOGGER.atDebug().setMessage("Running command - {}").addArgument(() -> String.join(" ", commands.toArray(new String[0]))).log();
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
         dir = dir == null ? new File(System.getProperty("user.dir")) : dir;
@@ -311,7 +312,7 @@ public class Exec {
         process = builder.start();
         OutputStream outputStream = process.getOutputStream();
         if (input != null) {
-            LOGGER.debug("With stdin {}", input);
+            LOGGER.debug("With stdin {}", (Supplier<String>) () -> input);
             outputStream.write(input.getBytes(Charset.defaultCharset()));
         }
         // Close subprocess' stdin
@@ -361,7 +362,7 @@ public class Exec {
      * @return the pid
      */
     public long executeWithoutWait(String input, List<String> commands, File dir) {
-        LOGGER.debug("Running command - {}", String.join(" ", commands.toArray(new String[0])));
+        LOGGER.atDebug().setMessage("Running command - {}").addArgument(() -> String.join(" ", commands.toArray(new String[0]))).log();
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
         dir = dir == null ? new File(System.getProperty("user.dir")) : dir;

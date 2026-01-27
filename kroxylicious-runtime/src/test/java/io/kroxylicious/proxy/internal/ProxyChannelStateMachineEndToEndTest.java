@@ -616,14 +616,6 @@ class ProxyChannelStateMachineEndToEndTest {
                 .extracting(ProxyChannelState.HaProxy::haProxyMessage).isSameAs(HA_PROXY_MESSAGE);
     }
 
-    private void assertHandlerInApiVersionsState(boolean haProxy) {
-        var stateAssert = assertThat(proxyChannelStateMachine.state())
-                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.ApiVersions.class));
-        stateAssert.extracting(ProxyChannelState.ApiVersions::haProxyMessage).isEqualTo(haProxy ? HA_PROXY_MESSAGE : null);
-        stateAssert.extracting(ProxyChannelState.ApiVersions::clientSoftwareName).isEqualTo(CLIENT_SOFTWARE_NAME);
-        stateAssert.extracting(ProxyChannelState.ApiVersions::clientSoftwareVersion).isEqualTo(CLIENT_SOFTWARE_VERSION);
-    }
-
     private void assertHandlerInConnectingState(
                                                 boolean haProxy,
                                                 List<ApiKeys> expectedBufferedRequestTypes) {

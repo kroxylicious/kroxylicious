@@ -66,8 +66,8 @@ class KmsIT<C, K, E> {
 
     @TestTemplate
     void resolveKeyByName() {
-        var alias = "mykey";
-        manager.generateKek(alias);
+        String namedAlias = "my-key";
+        manager.generateKek(namedAlias);
         var resolved = kms.resolveAlias(alias);
         assertThat(resolved)
                 .succeedsWithin(Duration.ofSeconds(5))
@@ -76,8 +76,8 @@ class KmsIT<C, K, E> {
 
     @TestTemplate
     void resolveWithUnknownAlias() {
-        var alias = "unknown";
-        var resolved = kms.resolveAlias(alias);
+        var unknownAlias = "unknown";
+        var resolved = kms.resolveAlias(unknownAlias);
         assertThat(resolved)
                 .failsWithin(Duration.ofSeconds(5))
                 .withThrowableThat()

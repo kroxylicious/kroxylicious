@@ -26,11 +26,6 @@ public record BrokerEndpointBinding(EndpointGateway endpointGateway, HostPort up
     }
 
     @Override
-    public Integer nodeId() {
-        return nodeId;
-    }
-
-    @Override
     public String toString() {
         return "BrokerEndpointBinding[" +
                 "endpointGateway=" + this.endpointGateway() + ", " +

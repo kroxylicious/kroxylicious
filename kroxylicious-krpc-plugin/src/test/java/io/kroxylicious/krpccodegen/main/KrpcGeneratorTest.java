@@ -71,6 +71,7 @@ class KrpcGeneratorTest {
         assertFileHasExpectedContents(file, "hello-world/example-expected-FetchRequest.txt");
     }
 
+    @SuppressWarnings("java:S2925") // sleep justified for testing logic that depends on filesystem modtimes
     @Test
     void singleGenerateDoesNotModifyFileIfContentsUnchanged(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.single()
@@ -147,6 +148,7 @@ class KrpcGeneratorTest {
         assertFileHasExpectedContents(file, "Kproxy/KrpcRequestFilter-expected.txt");
     }
 
+    @SuppressWarnings("java:S2925") // sleep justified for testing logic that depends on filesystem modtimes
     @Test
     void multiGenerateDoesNotModifyFileIfContentsUnchanged(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.multi()
