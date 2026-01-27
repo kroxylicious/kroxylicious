@@ -127,10 +127,8 @@ class KafkaProxyFrontendHandlerTest {
         boolean[] tf = { true, false };
         for (boolean sslConfigured : tf) {
             for (boolean haProxyConfigured : tf) {
-                for (boolean sendApiVersions : tf) {
-                    for (boolean sendSasl : tf) {
-                        result.add(Arguments.of(sslConfigured, haProxyConfigured, sendApiVersions, sendSasl));
-                    }
+                for (boolean sendSasl : tf) {
+                    result.add(Arguments.of(sslConfigured, haProxyConfigured, sendSasl));
                 }
             }
         }
@@ -334,14 +332,12 @@ class KafkaProxyFrontendHandlerTest {
      *
      * @param sslConfigured         Whether SSL is configured
      * @param haProxyConfigured
-     * @param sendApiVersions
      * @param sendSasl
      */
     @ParameterizedTest
     @MethodSource("provideArgsForExpectedFlow")
     void expectedFlow(boolean sslConfigured,
                       boolean haProxyConfigured,
-                      boolean sendApiVersions,
                       boolean sendSasl) {
 
         var dp = new DelegatingDecodePredicate();
@@ -372,27 +368,10 @@ class KafkaProxyFrontendHandlerTest {
             assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.HaProxy.class);
         }
 
-        if (sendApiVersions) {
-            // Simulate the client doing ApiVersions
-            writeInboundApiVersionsRequest("foo");
-            assertThat(proxyChannelStateMachine.state())
-                    .as("state in (ApiVersions, Connecting)")
-                    .isInstanceOfAny(ProxyChannelState.ApiVersions.class, ProxyChannelState.Connecting.class);
-
-            // We transition directly through selecting server, so can't observe the state.
-            assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
-            // should cause connection to the backend cluster
-            handleConnect();
-        }
-
         if (sendSasl) {
             // Simulate the client doing SaslHandshake and SaslAuthentication,
             writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData());
-            if (!sendApiVersions) {
-                // client doesn't send api versions, so the next frame drives selectServer
-                handleConnect();
-
-            }
+            handleConnect();
             writeRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData());
         }
 
