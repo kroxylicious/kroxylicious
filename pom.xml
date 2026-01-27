@@ -47,7 +47,7 @@
         <freemarker.version>2.3.34</freemarker.version>
         <guava.version>33.5.0-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
-        <jackson.version>2.20.0</jackson.version>
+        <jackson.version>2.21.0</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.2</junit.version>
         <kafka.version>4.1.1</kafka.version>
@@ -94,7 +94,7 @@
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
         <logcaptor.version>2.12.2</logcaptor.version>
         <async-profiler.version>4.2</async-profiler.version>
-        <json-unit-assertj.version>5.0.0</json-unit-assertj.version>
+        <json-unit-assertj.version>5.1.0</json-unit-assertj.version>
     </properties>
 
     <name>Parent POM</name>
@@ -965,7 +965,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>3.6.2</version>
+                <version>3.6.3</version>
             </plugin>
             <plugin>
                 <groupId>org.commonjava.maven.plugins</groupId>
