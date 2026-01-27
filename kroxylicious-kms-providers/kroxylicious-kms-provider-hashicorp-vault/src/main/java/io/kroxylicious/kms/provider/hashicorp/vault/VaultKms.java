@@ -12,6 +12,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
@@ -23,6 +24,9 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
 import javax.crypto.SecretKey;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -48,6 +52,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class VaultKms implements Kms<String, VaultEdek> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(VaultKms.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
     private static final Pattern LEGAL_API_VERSION_REGEX = Pattern.compile("^/?v1/.+");
@@ -153,6 +158,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
             return OBJECT_MAPPER.writeValueAsString(map);
         }
         catch (JsonProcessingException e) {
+            LOGGER.warn("Failed to build request body for key '{}', cause: {}", edek.kekRef(), e.getMessage());
             throw new KmsException("Failed to build request body for %s".formatted(edek.kekRef()));
         }
     }
@@ -190,6 +196,8 @@ public class VaultKms implements Kms<String, VaultEdek> {
             return result;
         }
         catch (IOException e) {
+            var responseBody = new String(bytes, StandardCharsets.UTF_8);
+            LOGGER.warn("Failed to decode Vault response as JSON, response body: {}, cause: {}", responseBody, e.getMessage());
             throw new UncheckedIOException(e);
         }
     }
@@ -198,9 +206,15 @@ public class VaultKms implements Kms<String, VaultEdek> {
                                                             HttpResponse<byte[]> response,
                                                             Function<String, KmsException> notFound) {
         if (response.statusCode() == 404 || response.statusCode() == 400) {
+            var uri = response.request().uri();
+            var responseBody = new String(response.body(), StandardCharsets.UTF_8);
+            LOGGER.warn("Key '{}' not found in Vault, request uri: {}, HTTP status code: {}, response: {}", key, uri, response.statusCode(), responseBody);
             throw notFound.apply("key '%s' is not found.".formatted(key));
         }
         else if (response.statusCode() != 200) {
+            var uri = response.request().uri();
+            var responseBody = new String(response.body(), StandardCharsets.UTF_8);
+            LOGGER.warn("Failed to retrieve key '{}' from Vault, request uri: {}, HTTP status code: {}, response: {}", key, uri, response.statusCode(), responseBody);
             throw new KmsException("fail to retrieve key '%s', HTTP status code %d.".formatted(key, response.statusCode()));
         }
         return response;
