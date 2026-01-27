@@ -60,10 +60,6 @@ import static org.slf4j.LoggerFactory.getLogger;
  *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives a PROXY header
  *  │  {@link ProxyChannelState.HaProxy HaProxy} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  ╰───┤
- *  ╭───┤
- *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives an ApiVersions request
- *  │  {@link ProxyChannelState.ApiVersions ApiVersions} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *  ╰───┤
  *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any other KRPC request
  *     {@link ProxyChannelState.SelectingServer SelectingServer} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *     {@link ProxyChannelState.Connecting Connecting} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
@@ -509,25 +505,12 @@ public class ProxyChannelStateMachine {
         else if (state() instanceof ProxyChannelState.HaProxy haProxy) {
             return onClientRequestInHaProxyState(msg, haProxy);
         }
-        else if (state() instanceof ProxyChannelState.ApiVersions apiVersions) {
-            return onClientRequestInApiVersionsState(msg, apiVersions);
-        }
         else if (state() instanceof ProxyChannelState.SelectingServer) {
             return msg instanceof RequestFrame;
         }
         else {
             return state() instanceof ProxyChannelState.Connecting && msg instanceof RequestFrame;
         }
-    }
-
-    @SuppressWarnings({ "java:S1172", "java:S1135" })
-    // We keep dp as we should need it and it gives consistency with the other onClientRequestIn methods (sue me)
-    private boolean onClientRequestInApiVersionsState(Object msg, ProxyChannelState.ApiVersions apiVersions) {
-        if (msg instanceof RequestFrame) {
-            toSelectingServer(apiVersions.toSelectingServer());
-            return true;
-        }
-        return false;
     }
 
     private boolean onClientRequestInHaProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
