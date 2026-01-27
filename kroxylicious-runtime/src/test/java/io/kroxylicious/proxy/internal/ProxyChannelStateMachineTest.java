@@ -50,7 +50,6 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
@@ -165,7 +164,7 @@ class ProxyChannelStateMachineTest {
         stateMachineInSelectingServer();
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(HostPort.parse("localhost:9090"), List.of(), VIRTUAL_CLUSTER_MODEL);
+        proxyChannelStateMachine.onInitiateConnect(HostPort.parse("localhost:9090"), VIRTUAL_CLUSTER_MODEL);
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
@@ -449,12 +448,11 @@ class ProxyChannelStateMachineTest {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateMachineInSelectingServer();
-        var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualClusterModel.class);
         doReturn(configureSsl ? Optional.of(SslContextBuilder.forClient().build()) : Optional.empty()).when(vc).getUpstreamSslContext();
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(brokerAddress, filters, vc);
+        proxyChannelStateMachine.onInitiateConnect(brokerAddress, vc);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -468,11 +466,10 @@ class ProxyChannelStateMachineTest {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateMachineInClientActive();
-        var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualClusterModel.class);
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(brokerAddress, filters, vc);
+        proxyChannelStateMachine.onInitiateConnect(brokerAddress, vc);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -486,11 +483,10 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInConnecting();
 
-        var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualClusterModel.class);
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(BROKER_ADDRESS, filters, vc);
+        proxyChannelStateMachine.onInitiateConnect(BROKER_ADDRESS, vc);
 
         // Then
         assertThat(proxyChannelStateMachine.state())

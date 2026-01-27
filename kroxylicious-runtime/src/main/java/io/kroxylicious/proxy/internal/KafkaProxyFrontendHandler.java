@@ -97,8 +97,6 @@ public class KafkaProxyFrontendHandler
     private boolean pendingClientFlushes;
     private @Nullable String sniHostname;
 
-    private @Nullable List<FilterAndInvoker> filters;
-
     // Flag if we receive a channelReadComplete() prior to outbound connection activation
     // so we can perform the channelReadComplete()/outbound flush & auto_read
     // once the outbound channel is active
@@ -144,7 +142,6 @@ public class KafkaProxyFrontendHandler
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
-        this.filters = null;
     }
 
     @Override
@@ -277,7 +274,10 @@ public class KafkaProxyFrontendHandler
         }
 
         // install filters before first read
-        addFiltersToPipeline(getFilters(), clientCtx().pipeline(), clientCtx().channel());
+        List<FilterAndInvoker> filters = buildFilters();
+        addFiltersToPipeline(filters, clientCtx().pipeline(), clientCtx().channel());
+        // Set the decode predicate now that we have the filters
+        dp.setDelegate(DecodePredicate.forFilters(filters));
         // Initially the channel is not auto reading
         clientChannel.config().setAutoRead(false);
         clientChannel.read();
@@ -302,14 +302,11 @@ public class KafkaProxyFrontendHandler
      */
     void inSelectingServer() {
         var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
-        initiateConnect(target, getFilters());
+        initiateConnect(target);
     }
 
     @NonNull
-    private List<FilterAndInvoker> getFilters() {
-        if (this.filters != null) {
-            return this.filters;
-        }
+    private List<FilterAndInvoker> buildFilters() {
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
@@ -325,7 +322,7 @@ public class KafkaProxyFrontendHandler
         List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)",
                 new BrokerAddressFilter(endpointBinding.endpointGateway(), endpointReconciler));
         filterAndInvokers.addAll(brokerAddressFilters);
-        this.filters = filterAndInvokers;
+
         return filterAndInvokers;
     }
 
@@ -356,16 +353,13 @@ public class KafkaProxyFrontendHandler
      * Initializes the {@code backendHandler} and configures its pipeline
      * with the given {@code filters}.
      * @param remote upstream broker target
-     * @param filters The protocol filters
      */
-    void initiateConnect(
-                         HostPort remote,
-                         List<FilterAndInvoker> filters) {
+    void initiateConnect(HostPort remote) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
-                    this.proxyChannelStateMachine.sessionId(), remote, filters);
+            LOGGER.debug("{}: Connecting to backend broker {}",
+                    this.proxyChannelStateMachine.sessionId(), remote);
         }
-        this.proxyChannelStateMachine.onInitiateConnect(remote, filters, virtualClusterModel);
+        this.proxyChannelStateMachine.onInitiateConnect(remote, virtualClusterModel);
     }
 
     /**
@@ -412,10 +406,6 @@ public class KafkaProxyFrontendHandler
         serverTcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
                 LOGGER.trace("{}: Outbound connected", clientCtx().channel().id());
-                // Now we know which filters are to be used we need to update the DecodePredicate
-                // so that the decoder starts decoding the messages that the filters want to intercept
-                dp.setDelegate(DecodePredicate.forFilters(filters));
-
                 // This branch does not cause the transition to Connected:
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }
