@@ -106,3 +106,4 @@ docs/*.html
 .releaseNotes
 
 .claude/
+.op/

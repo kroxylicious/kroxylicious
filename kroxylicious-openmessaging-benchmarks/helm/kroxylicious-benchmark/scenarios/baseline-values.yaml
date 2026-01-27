@@ -1,0 +1,23 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Baseline Scenario: Direct Kafka connection (no Kroxylicious proxy)
+#
+# This scenario measures Kafka performance without any proxy overhead.
+# It establishes the performance ceiling for comparison with proxy scenarios.
+
+# Kroxylicious is disabled for baseline
+kroxylicious:
+  enabled: false
+
+# Vault is not needed for baseline
+vault:
+  enabled: false
+
+# Use baseline driver (direct Kafka connection)
+omb:
+  driver: baseline
+  workload: 1topic-1kb
