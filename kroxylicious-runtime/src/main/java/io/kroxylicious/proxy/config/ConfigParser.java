@@ -39,7 +39,6 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
@@ -103,7 +102,6 @@ public class ConfigParser implements PluginFactoryRegistry {
         return new ObjectMapper(yamlFactory)
                 .registerModule(new ParameterNamesModule())
                 .registerModule(new Jdk8Module())
-                .registerModule(new JavaTimeModule())
                 .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))
                 .setVisibility(PropertyAccessor.ALL, Visibility.NONE)
                 .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
