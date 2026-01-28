@@ -64,6 +64,7 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -124,6 +125,7 @@ class ProxyChannelStateMachineEndToEndTest {
         // Given
         buildFrontendHandler(false);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
+        activateOutboundChannelAutomatically = false;
 
         // When
         hClientConnect(handler);
@@ -177,23 +179,6 @@ class ProxyChannelStateMachineEndToEndTest {
     }
 
     @ParameterizedTest
-    @MethodSource("bool")
-    void clientActiveToHaProxy(boolean sni) {
-        buildHandlerInClientActiveState(sni);
-
-        // When
-        inboundChannel.writeInbound(HA_PROXY_MESSAGE);
-
-        // Then
-        inboundChannel.checkException();
-        assertThat(inboundChannel.config().isAutoRead()).isFalse();
-        assertThat(inboundChannel.isWritable()).isTrue();
-
-        assertHandlerInHaProxyState();
-
-    }
-
-    @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void clientActiveToConnecting(
                                   boolean sni,
@@ -234,6 +219,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
     private void buildHandlerInClientActiveState(boolean sni) {
         buildFrontendHandler(false);
+        activateOutboundChannelAutomatically = false;
 
         hClientConnect(handler);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
@@ -449,7 +435,7 @@ class ProxyChannelStateMachineEndToEndTest {
         return new KafkaProxyFrontendHandler(pfr,
                 new FilterChainFactory(pfr, List.of()),
                 List.of(),
-                null,
+                mock(EndpointReconciler.class),
                 new ApiVersionsServiceImpl(),
                 dp,
                 new DefaultSubjectBuilder(List.of()),
@@ -610,12 +596,6 @@ class ProxyChannelStateMachineEndToEndTest {
                 null);
     }
 
-    private void assertHandlerInHaProxyState() {
-        assertThat(proxyChannelStateMachine.state())
-                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.HaProxy.class))
-                .extracting(ProxyChannelState.HaProxy::haProxyMessage).isSameAs(HA_PROXY_MESSAGE);
-    }
-
     private void assertHandlerInConnectingState(
                                                 boolean haProxy,
                                                 List<ApiKeys> expectedBufferedRequestTypes) {
@@ -765,6 +745,84 @@ class ProxyChannelStateMachineEndToEndTest {
 
         await("transition to closed").atMost(BACKGROUND_TASK_TIMEOUT)
                 .untilAsserted(() -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class));
+    }
+
+    /**
+     * Integration test to verify handler ordering in the complete pipeline after filters are installed.
+     *
+     * Critical ordering requirements:
+     * - HAProxyMessageHandler (if present) must come before FilterHandler instances
+     * - FilterHandler instances must come before KafkaProxyFrontendHandler
+     *
+     * This ensures:
+     * - HAProxyMessage is intercepted before filters see it
+     * - Filters process Kafka messages before the frontend handler
+     * - State machine receives HAProxyMessage before any Kafka messages
+     */
+    @Test
+    void shouldMaintainCorrectHandlerOrderingAfterFiltersInstalled() {
+        // Given - Build handler which will install filters during ClientActive transition
+        buildFrontendHandler(false);
+
+        // When - Transition to ClientActive state (this installs filters in the pipeline)
+        hClientConnect(handler);
+
+        // Then - Verify the pipeline ordering
+        ChannelPipeline pipeline = inboundChannel.pipeline();
+        List<String> handlerNames = pipeline.names();
+
+        // Find positions of critical handlers
+        int haProxyHandlerIndex = handlerNames.indexOf("HAProxyMessageHandler");
+        int frontendHandlerIndex = findHandlerIndex(handlerNames, handler);
+
+        // Find first filter handler (they're named "filter-N-FilterName")
+        int firstFilterIndex = findFirstFilterHandler(handlerNames);
+
+        // Assert ordering if handlers exist
+        if (haProxyHandlerIndex >= 0 && firstFilterIndex >= 0) {
+            assertThat(haProxyHandlerIndex)
+                    .as("HAProxyMessageHandler (at index %d) must come before first filter (at index %d) in pipeline: %s",
+                            haProxyHandlerIndex, firstFilterIndex, handlerNames)
+                    .isLessThan(firstFilterIndex);
+        }
+
+        if (firstFilterIndex >= 0) {
+            assertThat(firstFilterIndex)
+                    .as("First filter (at index %d) must come before KafkaProxyFrontendHandler (at index %d) in pipeline: %s",
+                            firstFilterIndex, frontendHandlerIndex, handlerNames)
+                    .isLessThan(frontendHandlerIndex);
+        }
+
+        // Additional validation: frontend handler must be present
+        assertThat(frontendHandlerIndex)
+                .as("KafkaProxyFrontendHandler must be present in pipeline: %s", handlerNames)
+                .isGreaterThanOrEqualTo(0);
+    }
+
+    /**
+     * Find the index of the handler instance in the pipeline.
+     */
+    private int findHandlerIndex(List<String> handlerNames, KafkaProxyFrontendHandler handler) {
+        ChannelPipeline pipeline = inboundChannel.pipeline();
+        for (int i = 0; i < handlerNames.size(); i++) {
+            if (pipeline.get(handlerNames.get(i)) == handler) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Find the index of the first filter handler in the pipeline.
+     * Filter handlers are named with pattern "filter-N-FilterName".
+     */
+    private int findFirstFilterHandler(List<String> handlerNames) {
+        for (int i = 0; i < handlerNames.size(); i++) {
+            if (handlerNames.get(i).startsWith("filter-")) {
+                return i;
+            }
+        }
+        return -1;
     }
 
 }

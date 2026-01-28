@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
@@ -23,7 +22,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
-import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
@@ -155,7 +153,7 @@ public class ProxyChannelStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort, List, VirtualClusterModel)}
+     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort, VirtualClusterModel)}
      * has been called
      */
     @VisibleForTesting
@@ -272,15 +270,13 @@ public class ProxyChannelStateMachine {
     /**
      * Notify the statemachine that the connection to the backend has started.
      * @param peer the upstream host to connect to.
-     * @param filters the set of filters to be applied to the session
      * @param virtualClusterModel the virtual cluster the client is connecting too
      */
     void onInitiateConnect(
                            HostPort peer,
-                           List<FilterAndInvoker> filters,
                            VirtualClusterModel virtualClusterModel) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
-            toConnecting(selectingServerState.toConnecting(peer), filters, virtualClusterModel);
+            toConnecting(selectingServerState.toConnecting(peer), virtualClusterModel);
         }
         else {
             illegalState(DUPLICATE_INITIATE_CONNECT_ERROR);
@@ -470,11 +466,10 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     private void toConnecting(
                               ProxyChannelState.Connecting connecting,
-                              List<FilterAndInvoker> filters,
                               VirtualClusterModel virtualClusterModel) {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
-        Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), filters, backendHandler);
+        Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()
                 .setMessage("{}: Upstream connection to {} established for client at {}:{}")

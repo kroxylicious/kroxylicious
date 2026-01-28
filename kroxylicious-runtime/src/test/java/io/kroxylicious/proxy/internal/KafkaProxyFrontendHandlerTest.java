@@ -55,6 +55,7 @@ import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.RequestDecoderTest;
 import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
@@ -213,7 +214,7 @@ class KafkaProxyFrontendHandlerTest {
     void testHandleFrameOversizedExceptionDownstreamTlsDisabled() throws Exception {
         // Given
 
-        VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
+        VirtualClusterModel virtualClusterModel = mockVirtualClusterModel("cluster");
         VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
@@ -226,8 +227,7 @@ class KafkaProxyFrontendHandlerTest {
         pipeline.addLast(throwOnReadHandler(new DecoderException(new FrameOversizedException(5, 6))));
         pipeline.addLast(handler);
 
-        ChannelHandlerContext mockChannelCtx = mock(ChannelHandlerContext.class);
-        doReturn(inboundChannel).when(mockChannelCtx).channel();
+        ChannelHandlerContext mockChannelCtx = mockChannelContext();
         handler.channelActive(mockChannelCtx);
 
         // when
@@ -240,7 +240,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testHandleFrameOversizedExceptionDownstreamTlsEnabled() throws Exception {
         // Given
-        VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
+        VirtualClusterModel virtualClusterModel = mockVirtualClusterModel("cluster-for-oversize-frame");
         VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
@@ -253,8 +253,7 @@ class KafkaProxyFrontendHandlerTest {
         pipeline.addLast(throwOnReadHandler(new DecoderException(new FrameOversizedException(5, 6))));
         pipeline.addLast(handler);
 
-        ChannelHandlerContext mockChannelCtx = mock(ChannelHandlerContext.class);
-        doReturn(inboundChannel).when(mockChannelCtx).channel();
+        ChannelHandlerContext mockChannelCtx = mockChannelContext();
         handler.channelActive(mockChannelCtx);
 
         // when
@@ -294,7 +293,7 @@ class KafkaProxyFrontendHandlerTest {
         return new KafkaProxyFrontendHandler(pfr,
                 fcf,
                 namedFilterDefs,
-                null,
+                mock(EndpointReconciler.class),
                 new ApiVersionsServiceImpl(),
                 dp,
                 new DefaultSubjectBuilder(List.of()),
@@ -384,8 +383,7 @@ class KafkaProxyFrontendHandlerTest {
     @MethodSource("requests")
     void shouldTransitionToFailedOnException(Short version, ApiMessage apiMessage) {
         // Given
-        VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
-        when(virtualClusterModel.getClusterName()).thenReturn("cluster");
+        VirtualClusterModel virtualClusterModel = mockVirtualClusterModel("cluster");
         VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
@@ -416,7 +414,7 @@ class KafkaProxyFrontendHandlerTest {
     @MethodSource("requests")
     void shouldTransitionToFailedOnExceptionForFrameOversizedException(Short version, ApiMessage apiMessage) {
         // Given
-        VirtualClusterModel model = mock(VirtualClusterModel.class);
+        VirtualClusterModel model = mockVirtualClusterModel("cluster");
         when(model.getClusterName()).thenReturn(CLUSTER_NAME);
         VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(model);
@@ -451,6 +449,9 @@ class KafkaProxyFrontendHandlerTest {
     private void initialiseInboundChannel(KafkaProxyFrontendHandler handler) {
         final ChannelPipeline pipeline = inboundChannel.pipeline();
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
+            // Add HAProxyMessageHandler before the frontend handler to intercept HAProxyMessage
+            // and prevent it from reaching FilterHandlers (which only expect Kafka protocol messages)
+            pipeline.addLast(new HAProxyMessageHandler(proxyChannelStateMachine));
             pipeline.addLast(handler);
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
@@ -532,7 +533,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void transitionsFromStart() {
         var dp = new DelegatingDecodePredicate();
-        var virtualCluster = mock(VirtualClusterModel.class);
+        var virtualCluster = mockVirtualClusterModel("test-cluster");
         var virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualCluster);
         when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
@@ -550,6 +551,14 @@ class KafkaProxyFrontendHandlerTest {
     private void assertStateIsClosed() {
         // As the embedded channels have their own threads we can't be certain which state we will be in here and it doesn't matter to this test
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+    }
+
+    private ChannelHandlerContext mockChannelContext() {
+        ChannelHandlerContext mockChannelCtx = mock(ChannelHandlerContext.class);
+        ChannelPipeline mockPipeline = mock(ChannelPipeline.class);
+        doReturn(inboundChannel).when(mockChannelCtx).channel();
+        doReturn(mockPipeline).when(mockChannelCtx).pipeline();
+        return mockChannelCtx;
     }
 
 }
