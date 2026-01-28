@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
@@ -63,14 +64,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
-    private final FilterChainFactory filterChainFactory;
+    // Shared mutable reference to FilterChainFactory - enables hot reload of filter configurations
+    private final AtomicReference<FilterChainFactory> filterChainFactoryRef;
     private final ApiVersionsServiceImpl apiVersionsService;
     private final Counter clientToProxyErrorCounter;
     private final ConnectionTracker connectionTracker;
     private final ConnectionDrainManager connectionDrainManager;
     private final InFlightMessageTracker inFlightTracker;
 
-    public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
+    public KafkaProxyInitializer(AtomicReference<FilterChainFactory> filterChainFactoryRef,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
@@ -87,7 +89,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.tls = tls;
         this.bindingResolver = bindingResolver;
-        this.filterChainFactory = filterChainFactory;
+        this.filterChainFactoryRef = filterChainFactoryRef;
         this.apiVersionsService = apiVersionsService;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
         this.connectionTracker = connectionTracker;
@@ -231,7 +233,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 ch,
                 binding,
                 pfr,
-                filterChainFactory,
+                filterChainFactoryRef,
                 virtualCluster.getFilters(),
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
@@ -275,7 +277,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         private final EndpointGateway gateway;
         private final EndpointBinding binding;
         private final PluginFactoryRegistry pfr;
-        private final FilterChainFactory filterChainFactory;
+        // Shared mutable reference to FilterChainFactory - gets current factory on each connection
+        private final AtomicReference<FilterChainFactory> filterChainFactoryRef;
         private final List<NamedFilterDefinition> filterDefinitions;
         private final EndpointReconciler endpointReconciler;
         private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
@@ -285,7 +288,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                             Channel ch,
                             EndpointBinding binding,
                             PluginFactoryRegistry pfr,
-                            FilterChainFactory filterChainFactory,
+                            AtomicReference<FilterChainFactory> filterChainFactoryRef,
                             List<NamedFilterDefinition> filterDefinitions,
                             EndpointReconciler endpointReconciler,
                             ApiVersionsIntersectFilter apiVersionsIntersectFilter,
@@ -295,7 +298,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             this.gateway = binding.endpointGateway();
             this.binding = binding;
             this.pfr = pfr;
-            this.filterChainFactory = filterChainFactory;
+            this.filterChainFactoryRef = filterChainFactoryRef;
             this.filterDefinitions = filterDefinitions;
             this.endpointReconciler = endpointReconciler;
             this.apiVersionsIntersectFilter = apiVersionsIntersectFilter;
@@ -308,7 +311,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                     : FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
-            List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
+
+            // Get current FilterChainFactory (may have been swapped during hot reload)
+            FilterChainFactory currentFactory = filterChainFactoryRef.get();
+            List<FilterAndInvoker> filterChain = currentFactory.createFilters(filterContext, filterDefinitions);
+
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)", new BrokerAddressFilter(gateway, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));

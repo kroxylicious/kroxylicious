@@ -14,11 +14,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.ConfigurationChangeResult;
@@ -52,16 +54,21 @@ public class ConfigurationReloadOrchestrator {
     private Configuration currentConfiguration;
     private final @Nullable Path configFilePath;
 
+    // Shared mutable reference to FilterChainFactory - enables atomic swaps during hot reload
+    private final AtomicReference<FilterChainFactory> filterChainFactoryRef;
+
     public ConfigurationReloadOrchestrator(
             Configuration initialConfiguration,
             ConfigurationChangeHandler configurationChangeHandler,
             PluginFactoryRegistry pluginFactoryRegistry,
             Features features,
-            @Nullable Path configFilePath) {
+            @Nullable Path configFilePath,
+            AtomicReference<FilterChainFactory> filterChainFactoryRef) {
         this.currentConfiguration = Objects.requireNonNull(initialConfiguration, "initialConfiguration cannot be null");
         this.configurationChangeHandler = Objects.requireNonNull(configurationChangeHandler, "configurationChangeHandler cannot be null");
         this.pluginFactoryRegistry = Objects.requireNonNull(pluginFactoryRegistry, "pluginFactoryRegistry cannot be null");
         this.features = Objects.requireNonNull(features, "features cannot be null");
+        this.filterChainFactoryRef = Objects.requireNonNull(filterChainFactoryRef, "filterChainFactoryRef cannot be null");
         this.configFilePath = configFilePath;
         this.stateManager = new ReloadStateManager();
         this.reloadLock = new ReentrantLock();
@@ -151,11 +158,27 @@ public class ConfigurationReloadOrchestrator {
     }
 
     /**
-     * Execute the configuration reload by creating a change context and
-     * delegating to the ConfigurationChangeHandler.
+     * Execute the configuration reload by creating a new FilterChainFactory, building a change context,
+     * and delegating to the ConfigurationChangeHandler. On success, swaps to the new factory atomically.
+     * On failure, closes the new factory and rolls back to the old factory.
      */
     private CompletableFuture<ReloadResult> executeReload(Configuration newConfig, Instant startTime) {
-        // Build change context
+        // 1. Create new FilterChainFactory with updated filter definitions
+        FilterChainFactory newFactory;
+        try {
+            LOGGER.debug("Creating new FilterChainFactory with updated filter definitions");
+            newFactory = new FilterChainFactory(pluginFactoryRegistry, newConfig.filterDefinitions());
+            LOGGER.info("New FilterChainFactory created successfully");
+        }
+        catch (Exception e) {
+            LOGGER.error("Failed to create new FilterChainFactory", e);
+            throw new CompletionException("Failed to create new FilterChainFactory: " + e.getMessage(), e);
+        }
+
+        // 2. Get old factory for rollback capability
+        FilterChainFactory oldFactory = filterChainFactoryRef.get();
+
+        // 3. Build change context with both old and new factories
         List<VirtualClusterModel> oldModels = currentConfiguration.virtualClusterModel(pluginFactoryRegistry);
         List<VirtualClusterModel> newModels = newConfig.virtualClusterModel(pluginFactoryRegistry);
 
@@ -163,12 +186,45 @@ public class ConfigurationReloadOrchestrator {
                 currentConfiguration,
                 newConfig,
                 oldModels,
-                newModels);
+                newModels,
+                oldFactory,    // oldFilterChainFactory for detectors to reference
+                newFactory);   // newFilterChainFactory for detectors to reference
 
-        // Execute change through handler
+        // 4. Execute configuration changes (virtual cluster restarts, etc.)
         return configurationChangeHandler.handleConfigurationChange(changeContext)
-                .thenApply(v -> buildReloadResult(changeContext, startTime))
+                .thenApply(v -> {
+                    // SUCCESS: Atomically swap to new factory
+                    LOGGER.info("Configuration changes applied successfully, swapping FilterChainFactory");
+                    filterChainFactoryRef.set(newFactory);
+
+                    // Close old factory to release filter resources
+                    if (oldFactory != null) {
+                        try {
+                            oldFactory.close();
+                            LOGGER.info("Old FilterChainFactory closed successfully");
+                        }
+                        catch (Exception e) {
+                            LOGGER.warn("Exception while closing old FilterChainFactory (new factory already active)", e);
+                        }
+                    }
+
+                    return buildReloadResult(changeContext, startTime);
+                })
                 .exceptionally(error -> {
+                    // FAILURE: Rollback - close new factory, keep old factory
+                    LOGGER.error("Configuration reload failed, rolling back FilterChainFactory", error);
+
+                    try {
+                        newFactory.close();
+                        LOGGER.info("New FilterChainFactory closed successfully (rollback)");
+                    }
+                    catch (Exception e) {
+                        LOGGER.warn("Exception while closing new FilterChainFactory during rollback", e);
+                    }
+
+                    // filterChainFactoryRef remains unchanged - still points to oldFactory
+                    LOGGER.info("FilterChainFactory rollback complete, old factory remains active");
+
                     // Null-safe error message extraction
                     String errorMessage = error.getMessage();
                     if (errorMessage == null || errorMessage.isBlank()) {
