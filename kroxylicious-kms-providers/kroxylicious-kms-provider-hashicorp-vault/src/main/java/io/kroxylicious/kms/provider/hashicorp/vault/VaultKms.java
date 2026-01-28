@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -158,7 +159,11 @@ public class VaultKms implements Kms<String, VaultEdek> {
             return OBJECT_MAPPER.writeValueAsString(map);
         }
         catch (JsonProcessingException e) {
-            LOGGER.warn("Failed to build request body for key '{}', cause: {}", edek.kekRef(), e.getMessage());
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .addArgument(edek.kekRef())
+                    .addArgument(e.getMessage())
+                    .log("Failed to build request body for key '{}', cause: {}. Increase log level to DEBUG for stacktrace");
             throw new KmsException("Failed to build request body for %s".formatted(edek.kekRef()));
         }
     }
@@ -189,16 +194,20 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .thenApply(VaultResponse::data);
     }
 
-    private static <T> VaultResponse<T> decodeJson(TypeReference<VaultResponse<T>> valueTypeRef, byte[] bytes) {
+    static <T> VaultResponse<T> decodeJson(TypeReference<VaultResponse<T>> valueTypeRef, byte[] bytes) {
         try {
             VaultResponse<T> result = OBJECT_MAPPER.readValue(bytes, valueTypeRef);
             Arrays.fill(bytes, (byte) 0);
             return result;
         }
         catch (IOException e) {
-            var responseBody = new String(bytes, StandardCharsets.UTF_8);
-            LOGGER.warn("Failed to decode Vault response as JSON, response body: {}, cause: {}", responseBody, e.getMessage());
-            throw new UncheckedIOException(e);
+            var responseBody = bodyString(bytes);
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .addArgument(responseBody)
+                    .addArgument(e.getMessage())
+                    .log("Failed to decode Vault response as JSON, response body: {}, cause: {}. Increase log level to DEBUG for stacktrace");
+            throw new UncheckedIOException("Failed to decode Vault response as JSON", e);
         }
     }
 
@@ -207,17 +216,26 @@ public class VaultKms implements Kms<String, VaultEdek> {
                                                             Function<String, KmsException> notFound) {
         if (response.statusCode() == 404 || response.statusCode() == 400) {
             var uri = response.request().uri();
-            var responseBody = new String(response.body(), StandardCharsets.UTF_8);
+            var responseBody = bodyString(response.body());
             LOGGER.warn("Key '{}' not found in Vault, request uri: {}, HTTP status code: {}, response: {}", key, uri, response.statusCode(), responseBody);
             throw notFound.apply("key '%s' is not found.".formatted(key));
         }
         else if (response.statusCode() != 200) {
             var uri = response.request().uri();
-            var responseBody = new String(response.body(), StandardCharsets.UTF_8);
+            var responseBody = bodyString(response.body());
             LOGGER.warn("Failed to retrieve key '{}' from Vault, request uri: {}, HTTP status code: {}, response: {}", key, uri, response.statusCode(), responseBody);
             throw new KmsException("fail to retrieve key '%s', HTTP status code %d.".formatted(key, response.statusCode()));
         }
         return response;
+    }
+
+    private static String bodyString(byte[] bytes) {
+        try {
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+        catch (Exception e) {
+            return Base64.getEncoder().encodeToString(bytes);
+        }
     }
 
     @Override
