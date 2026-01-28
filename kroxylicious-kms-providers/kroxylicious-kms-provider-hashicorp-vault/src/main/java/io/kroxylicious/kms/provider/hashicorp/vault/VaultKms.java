@@ -15,7 +15,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -201,7 +200,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
             return result;
         }
         catch (IOException e) {
-            var responseBody = bodyString(bytes);
+            var responseBody = new String(bytes, StandardCharsets.UTF_8);
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .addArgument(responseBody)
@@ -216,26 +215,17 @@ public class VaultKms implements Kms<String, VaultEdek> {
                                                             Function<String, KmsException> notFound) {
         if (response.statusCode() == 404 || response.statusCode() == 400) {
             var uri = response.request().uri();
-            var responseBody = bodyString(response.body());
+            var responseBody = new String(response.body(), StandardCharsets.UTF_8);
             LOGGER.warn("Key '{}' not found in Vault, request uri: {}, HTTP status code: {}, response: {}", key, uri, response.statusCode(), responseBody);
             throw notFound.apply("key '%s' is not found.".formatted(key));
         }
         else if (response.statusCode() != 200) {
             var uri = response.request().uri();
-            var responseBody = bodyString(response.body());
+            var responseBody = new String(response.body(), StandardCharsets.UTF_8);
             LOGGER.warn("Failed to retrieve key '{}' from Vault, request uri: {}, HTTP status code: {}, response: {}", key, uri, response.statusCode(), responseBody);
             throw new KmsException("fail to retrieve key '%s', HTTP status code %d.".formatted(key, response.statusCode()));
         }
         return response;
-    }
-
-    private static String bodyString(byte[] bytes) {
-        try {
-            return new String(bytes, StandardCharsets.UTF_8);
-        }
-        catch (Exception e) {
-            return Base64.getEncoder().encodeToString(bytes);
-        }
     }
 
     @Override
