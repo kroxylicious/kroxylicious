@@ -80,6 +80,10 @@ public class VirtualClusterModel {
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
 
+    // Store plugin factory registry for creating credential suppliers at connection time
+    @Nullable
+    private PluginFactoryRegistry pluginFactoryRegistry = null;
+
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
                                boolean logNetwork,
@@ -181,6 +185,37 @@ public class VirtualClusterModel {
 
     public Optional<SslContext> getUpstreamSslContext() {
         return upstreamSslContext;
+    }
+
+    /**
+     * Set the plugin factory registry for creating credential suppliers at runtime.
+     * This should be called during proxy initialization.
+     *
+     * @param pfr The plugin factory registry
+     */
+    public void setPluginFactoryRegistry(PluginFactoryRegistry pfr) {
+        this.pluginFactoryRegistry = pfr;
+    }
+
+    /**
+     * Returns the plugin factory registry for creating credential suppliers.
+     *
+     * @return The plugin factory registry, or null if not set
+     */
+    @Nullable
+    public PluginFactoryRegistry getPluginFactoryRegistry() {
+        return pluginFactoryRegistry;
+    }
+
+    /**
+     * Checks if this virtual cluster uses dynamic TLS credential supplier.
+     *
+     * @return true if a credential supplier is configured
+     */
+    public boolean usesDynamicTlsCredentials() {
+        return targetCluster.tls()
+                .map(tls -> tls.tlsCredentialSupplier() != null)
+                .orElse(false);
     }
 
     private static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {

@@ -148,6 +148,9 @@ public final class KafkaProxy implements AutoCloseable {
         this.virtualClusterModels = config.virtualClusterModel();
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
+
+        // Set the PluginFactoryRegistry on each VirtualClusterModel for dynamic credential supplier support
+        this.virtualClusterModels.forEach(model -> model.setPluginFactoryRegistry(pfr));
     }
 
     @VisibleForTesting
