@@ -59,6 +59,10 @@ found on this page https://uk.smartkey.io/#/settings.
 In order to be able to run the system and performance tests for our Pull Requests (PR) using Jenkins, we have defined the following Personal Access Token (PAT) 
 `KROXYLICIOUS_JENKINS_TOKEN` to allow `kroxylicious-robot` writing comments with the results of the test execution and adding a new status check in the PR.
 
+## Slack Integration
+
+We use a slack webhook to send messages to the `#kroxylicious-bots` channel on slack. The webhook is stored in an organization secret called `KROXYLICIOUS_SLACK_WEBHOOK`.
+
 ## Deploying the Snapshot Website to GitHub Pages on a Fork
 
 We have automation to deploy a snapshot version of the website (source at https://github.com/kroxylicious/kroxylicious.github.io) with the latest documentation

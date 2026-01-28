@@ -22,10 +22,11 @@ The tested scenarios are:
 * Kroxylicious + Kafka - envelope encryption with encrypted topic
 * Kroxylicious + Kafka - envelope encryption without encrypted topic
 
-## Prerequisites 
+## Prerequisites
 
-- [JDK](https://openjdk.org/projects/jdk/17/) (version 17 and above) - JDK
-- [`mvn`](https://maven.apache.org/index.html) (version 3.5 and above) - Maven CLI
+- [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
+  - At production runtime, Java 17 remains supported but is deprecated. Use Java 21 or later. 
+- [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - Maven CLI
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 - [`jq`](https://jqlang.github.io/) 1.7 or higher
 

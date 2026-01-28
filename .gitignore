@@ -106,3 +106,5 @@ docs/*.html
 .releaseNotes
 
 .claude/
+
+.idea/copilot.*

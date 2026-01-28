@@ -331,4 +331,77 @@ class KafkaProxyInitializerTest {
         orderedVerifyer.verify(channelPipeline).addLast(eq("saslV0Rejecter"), any(SaslV0RejectionHandler.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
     }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void shouldAddHAProxyHandlersInCorrectOrder(boolean tls) {
+        // Given - HAProxy protocol enabled
+        virtualClusterModel = buildVirtualCluster(false, false);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
+
+        // Create initializer with HAProxy enabled (haproxyProtocol = true)
+        kafkaProxyInitializer = createKafkaProxyInitializerWithHAProxy(tls, (endpoint, sniHostname) -> bindingStage, true);
+
+        // When
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
+
+        // Then - verify ordering using InOrder
+        final InOrder orderedVerifier = inOrder(channelPipeline);
+
+        // First remove error handler
+        verifyErrorHandlerRemoved(orderedVerifier);
+
+        // Then HAProxyMessageDecoder must be added
+        orderedVerifier.verify(channelPipeline).addLast(eq("HAProxyMessageDecoder"), any(io.netty.handler.codec.haproxy.HAProxyMessageDecoder.class));
+
+        // Immediately followed by HAProxyMessageHandler
+        orderedVerifier.verify(channelPipeline).addLast(eq("HAProxyMessageHandler"), any(HAProxyMessageHandler.class));
+
+        // Then other handlers (decoder, encoder, etc.)
+        verifyEncoderAndOrdererAdded(orderedVerifier);
+
+        // Then frontend handler
+        verifyFrontendHandlerAdded(orderedVerifier);
+
+        // Then error handler re-added
+        verifyErrorHandlerAdded(orderedVerifier);
+
+        Mockito.verifyNoMoreInteractions(channelPipeline);
+    }
+
+    /**
+     * Test that HAProxy handlers are NOT added when HAProxy protocol is disabled.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void shouldNotAddHAProxyHandlersWhenDisabled(boolean tls) {
+        // Given - HAProxy protocol disabled (default)
+        virtualClusterModel = buildVirtualCluster(false, false);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
+
+        // Then - verify HAProxy handlers are NOT added
+        verify(channelPipeline, Mockito.never()).addLast(eq("HAProxyMessageDecoder"), any());
+        verify(channelPipeline, Mockito.never()).addLast(eq("HAProxyMessageHandler"), any());
+    }
+
+    /**
+     * Helper method to create KafkaProxyInitializer with HAProxy protocol support.
+     */
+    private KafkaProxyInitializer createKafkaProxyInitializerWithHAProxy(
+                                                                         boolean tls,
+                                                                         EndpointBindingResolver bindingResolver,
+                                                                         boolean haproxyProtocol) {
+        return new KafkaProxyInitializer(
+                filterChainFactory,
+                pfr,
+                tls,
+                bindingResolver,
+                (virtualCluster, upstreamNodes) -> null,
+                haproxyProtocol,
+                new ApiVersionsServiceImpl());
+    }
 }

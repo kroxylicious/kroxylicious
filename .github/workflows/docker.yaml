@@ -17,6 +17,7 @@ on:
   push:
     branches:
       - 'main'
+      - 'release/**'
     tags:
       - 'v*.*.*'
   pull_request:
@@ -40,7 +41,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Determine Build Configuration
         id: build_configuration

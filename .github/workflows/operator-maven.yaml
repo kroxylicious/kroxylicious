@@ -18,7 +18,7 @@ name: Build Kroxylicious Operator
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'release/**' ]
   pull_request:
     types: [ opened, synchronize, reopened ]
 

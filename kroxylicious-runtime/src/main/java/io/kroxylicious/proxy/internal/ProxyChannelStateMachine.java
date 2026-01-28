@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
@@ -23,7 +22,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
-import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
@@ -59,10 +57,6 @@ import static org.slf4j.LoggerFactory.getLogger;
  *  ╭───┤
  *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives a PROXY header
  *  │  {@link ProxyChannelState.HaProxy HaProxy} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *  ╰───┤
- *  ╭───┤
- *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives an ApiVersions request
- *  │  {@link ProxyChannelState.ApiVersions ApiVersions} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  ╰───┤
  *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any other KRPC request
  *     {@link ProxyChannelState.SelectingServer SelectingServer} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
@@ -159,7 +153,7 @@ public class ProxyChannelStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort, List, VirtualClusterModel)}
+     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort, VirtualClusterModel)}
      * has been called
      */
     @VisibleForTesting
@@ -276,15 +270,13 @@ public class ProxyChannelStateMachine {
     /**
      * Notify the statemachine that the connection to the backend has started.
      * @param peer the upstream host to connect to.
-     * @param filters the set of filters to be applied to the session
      * @param virtualClusterModel the virtual cluster the client is connecting too
      */
     void onInitiateConnect(
                            HostPort peer,
-                           List<FilterAndInvoker> filters,
                            VirtualClusterModel virtualClusterModel) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
-            toConnecting(selectingServerState.toConnecting(peer), filters, virtualClusterModel);
+            toConnecting(selectingServerState.toConnecting(peer), virtualClusterModel);
         }
         else {
             illegalState(DUPLICATE_INITIATE_CONNECT_ERROR);
@@ -474,11 +466,10 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     private void toConnecting(
                               ProxyChannelState.Connecting connecting,
-                              List<FilterAndInvoker> filters,
                               VirtualClusterModel virtualClusterModel) {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
-        Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), filters, backendHandler);
+        Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()
                 .setMessage("{}: Upstream connection to {} established for client at {}:{}")
@@ -509,25 +500,12 @@ public class ProxyChannelStateMachine {
         else if (state() instanceof ProxyChannelState.HaProxy haProxy) {
             return onClientRequestInHaProxyState(msg, haProxy);
         }
-        else if (state() instanceof ProxyChannelState.ApiVersions apiVersions) {
-            return onClientRequestInApiVersionsState(msg, apiVersions);
-        }
         else if (state() instanceof ProxyChannelState.SelectingServer) {
             return msg instanceof RequestFrame;
         }
         else {
             return state() instanceof ProxyChannelState.Connecting && msg instanceof RequestFrame;
         }
-    }
-
-    @SuppressWarnings({ "java:S1172", "java:S1135" })
-    // We keep dp as we should need it and it gives consistency with the other onClientRequestIn methods (sue me)
-    private boolean onClientRequestInApiVersionsState(Object msg, ProxyChannelState.ApiVersions apiVersions) {
-        if (msg instanceof RequestFrame) {
-            toSelectingServer(apiVersions.toSelectingServer());
-            return true;
-        }
-        return false;
     }
 
     private boolean onClientRequestInHaProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {

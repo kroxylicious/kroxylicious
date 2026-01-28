@@ -4,7 +4,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-FROM registry.access.redhat.com/ubi9/openjdk-17:1.24-2.1767878246 AS builder
+FROM registry.access.redhat.com/ubi9/openjdk-21:1.24-2.1769108681 AS builder
 
 ARG TARGETOS=linux
 ARG TARGETARCH
@@ -41,9 +41,9 @@ COPY . .
 
 RUN mvn -q -B clean package -Pdist -Dquick -DskipContainerImageBuild=true -DskipDocs=true -Dmaven.test.skip
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7-1768783948
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7-1769056855
 
-ARG JAVA_VERSION=17
+ARG JAVA_VERSION=21
 ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER=kroxylicious
 ARG CONTAINER_USER_UID=185
@@ -59,7 +59,7 @@ RUN microdnf -y update \
     && microdnf remove -y shadow-utils \
     && microdnf clean all
 
-ENV JAVA_HOME=/usr/lib/jvm/jre-17
+ENV JAVA_HOME=/usr/lib/jvm/jre-21
 
 COPY --from=builder /opt/tini/bin/tini /usr/bin/tini
 COPY --from=builder /opt/kroxylicious/kroxylicious-operator/target/kroxylicious-operator-${KROXYLICIOUS_VERSION}-app/kroxylicious-operator-${KROXYLICIOUS_VERSION} /opt/kroxylicious-operator

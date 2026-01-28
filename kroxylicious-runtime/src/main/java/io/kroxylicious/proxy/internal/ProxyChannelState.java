@@ -17,7 +17,6 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
@@ -33,7 +32,6 @@ sealed interface ProxyChannelState permits
         Startup,
         ClientActive,
         HaProxy,
-        ApiVersions,
         SelectingServer,
         Connecting,
         Forwarding,
@@ -65,23 +63,6 @@ sealed interface ProxyChannelState permits
         }
 
         /**
-         * Transition to {@link ApiVersions}, because an ApiVersions request has been received
-         * @return The ApiVersions state
-         */
-        public ApiVersions toApiVersions(
-                                         DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-            // TODO check the format of the strings using a regex
-            // Needed to reproduce the exact behaviour for how a broker handles this
-            // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
-            var clientSoftwareName = apiVersionsFrame.body().clientSoftwareName();
-            var clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
-            return new ApiVersions(
-                    null,
-                    clientSoftwareName,
-                    clientSoftwareVersion);
-        }
-
-        /**
          * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
          * @return The Connecting state
          */
@@ -102,22 +83,6 @@ sealed interface ProxyChannelState permits
             implements ProxyChannelState {
 
         /**
-         * Transition to {@link ApiVersions}, because an ApiVersions request has been received
-         * @return The ApiVersions state
-         */
-        public ApiVersions toApiVersions(DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-            // TODO check the format of the strings using a regex
-            // Needed to reproduce the exact behaviour for how a broker handles this
-            // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
-            var clientSoftwareName = apiVersionsFrame.body().clientSoftwareName();
-            var clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
-            return new ApiVersions(
-                    haProxyMessage,
-                    clientSoftwareName,
-                    clientSoftwareVersion);
-        }
-
-        /**
          * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
          * @return The Connecting state
          */
@@ -126,29 +91,6 @@ sealed interface ProxyChannelState permits
                     haProxyMessage,
                     apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareName(),
                     apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareVersion());
-        }
-    }
-
-    /**
-     * The client has sent an ApiVersions request
-     * @param haProxyMessage
-     * @param clientSoftwareName
-     * @param clientSoftwareVersion
-     */
-    record ApiVersions(@Nullable HAProxyMessage haProxyMessage,
-                       @Nullable String clientSoftwareName, // optional in the protocol
-                       @Nullable String clientSoftwareVersion // optional in the protocol
-    ) implements ProxyChannelState {
-
-        /**
-         * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
-         * @return The Connecting state
-         */
-        public SelectingServer toSelectingServer() {
-            return new SelectingServer(
-                    haProxyMessage,
-                    clientSoftwareName,
-                    clientSoftwareVersion);
         }
     }
 

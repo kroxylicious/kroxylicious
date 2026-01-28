@@ -50,7 +50,6 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
@@ -165,7 +164,7 @@ class ProxyChannelStateMachineTest {
         stateMachineInSelectingServer();
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(HostPort.parse("localhost:9090"), List.of(), VIRTUAL_CLUSTER_MODEL);
+        proxyChannelStateMachine.onInitiateConnect(HostPort.parse("localhost:9090"), VIRTUAL_CLUSTER_MODEL);
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
@@ -383,47 +382,6 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inApiVersionsShouldCloseOnClientActive() {
-        // Given
-        stateMachineInApiVersionsState();
-
-        // When
-        proxyChannelStateMachine.onClientActive(frontendHandler);
-
-        // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
-        verify(frontendHandler).inClosed(null);
-    }
-
-    @Test
-    void inApiVersionsShouldBuffer() {
-        // Given
-        stateMachineInApiVersionsState();
-        var msg = metadataRequest();
-
-        // When
-        proxyChannelStateMachine.onClientRequest(msg);
-
-        // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.SelectingServer.class);
-        verify(frontendHandler).bufferMsg(msg);
-    }
-
-    @Test
-    void inApiVersionsShouldCloseOnHaProxyMessage() {
-        // Given
-        stateMachineInApiVersionsState();
-
-        // When
-        proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
-
-        // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
-        verify(frontendHandler).inClosed(null);
-        verifyNoInteractions(backendHandler);
-    }
-
-    @Test
     void inClientActiveShouldTransitionToApiVersionsOrSelectingServer() {
         // Given
         stateMachineInClientActive();
@@ -449,17 +407,16 @@ class ProxyChannelStateMachineTest {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateMachineInSelectingServer();
-        var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualClusterModel.class);
         doReturn(configureSsl ? Optional.of(SslContextBuilder.forClient().build()) : Optional.empty()).when(vc).getUpstreamSslContext();
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(brokerAddress, filters, vc);
+        proxyChannelStateMachine.onInitiateConnect(brokerAddress, vc);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.Connecting.class);
-        verify(frontendHandler).inConnecting(eq(brokerAddress), eq(filters), notNull(KafkaProxyBackendHandler.class));
+        verify(frontendHandler).inConnecting(eq(brokerAddress), notNull(KafkaProxyBackendHandler.class));
         assertThat(proxyChannelStateMachine).extracting("backendHandler").isNotNull();
     }
 
@@ -468,11 +425,10 @@ class ProxyChannelStateMachineTest {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateMachineInClientActive();
-        var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualClusterModel.class);
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(brokerAddress, filters, vc);
+        proxyChannelStateMachine.onInitiateConnect(brokerAddress, vc);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -486,11 +442,10 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInConnecting();
 
-        var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualClusterModel.class);
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(BROKER_ADDRESS, filters, vc);
+        proxyChannelStateMachine.onInitiateConnect(BROKER_ADDRESS, vc);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -755,8 +710,6 @@ class ProxyChannelStateMachineTest {
                 argumentSet("STARTING TLS off ", (Runnable) () -> {
                     // no Op
                 }, false),
-                argumentSet("API Versions TLS on", (Runnable) this::stateMachineInApiVersionsState, true),
-                argumentSet("API Versions TLS off ", (Runnable) this::stateMachineInApiVersionsState, false),
                 argumentSet("HA Proxy TLS on", (Runnable) this::stateMachineInHaProxy, true),
                 argumentSet("HA Proxy TLS off ", (Runnable) this::stateMachineInHaProxy, false),
                 argumentSet("Selecting Server TLS on", (Runnable) this::stateMachineInSelectingServer, true),
@@ -773,7 +726,6 @@ class ProxyChannelStateMachineTest {
 
     public Stream<Arguments> givenStates() {
         return Stream.of(
-                argumentSet("API Versions", (Runnable) this::stateMachineInApiVersionsState),
                 argumentSet("HA Proxy", (Runnable) this::stateMachineInHaProxy),
                 argumentSet("Connecting", (Runnable) this::stateMachineInConnecting),
                 argumentSet("ClientActive ", (Runnable) this::stateMachineInClientActive),
@@ -798,13 +750,6 @@ class ProxyChannelStateMachineTest {
     private void stateMachineInHaProxy() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
-                frontendHandler,
-                null);
-    }
-
-    private void stateMachineInApiVersionsState() {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.ApiVersions(null, null, null),
                 frontendHandler,
                 null);
     }
