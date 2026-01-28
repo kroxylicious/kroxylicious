@@ -63,7 +63,7 @@ class VirtualClusterModelTest {
     void shouldNotAllowUpstreamToProvideTlsServerOptions() {
         // Given
         final Optional<Tls> downstreamTls = Optional
-                .of(new Tls(keyPair, new TrustStore(client, PASSWORD_PROVIDER, null, new ServerOptions(TlsClientAuth.REQUIRED)), null, null));
+                .of(new Tls(keyPair, new TrustStore(client, PASSWORD_PROVIDER, null, new ServerOptions(TlsClientAuth.REQUIRED)), null, null, null));
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", downstreamTls);
 
         // When/Then
