@@ -13,6 +13,7 @@ Format `<github issue/pr number>: <short description>`.
 * [#3129](https://github.com/kroxylicious/kroxylicious/pull/3129): build(deps): bump netty.version from 4.2.7.Final to 4.2.9.Final
 * [#2969](https://github.com/kroxylicious/kroxylicious/issues/2969): Give `ResponseFilter#onResponse` access to the api-version
 * [#3035](https://github.com/kroxylicious/kroxylicious/issues/3035): fix(sasl inspector): Fix config parsing error if SaslInspector with subject builder
+* [#2861](https://github.com/kroxylicious/kroxylicious/pull/2861): Add JWS Signature validator
 
 ### Changes, deprecations and removals
 
@@ -20,6 +21,7 @@ Format `<github issue/pr number>: <short description>`.
 * Containers have been upgraded to use Java 21.
 * The four argument forms of `RequestFilter#onRequest` and `ResponseFilter#onResponse` are deprecated and will be removed in a future release.
   Implement the five argument form, which includes the `apiVersion` instead.
+* A JSON Web Signature (JWS) Signature validator has been added. WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
 
 ## 0.18.0
 

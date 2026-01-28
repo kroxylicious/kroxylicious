@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.jose4j.jwk.JsonWebKeySet;
+
+import io.kroxylicious.proxy.config.tls.AllowDeny;
+
 /**
  * Static factory methods for creating/getting {@link BytebufValidator} instances
  */
@@ -59,8 +63,23 @@ public class BytebufValidators {
     }
 
     /**
+     * Returns a validator that can validate whether a record contains a valid JWS (JSON Web Signature) Signature
+     *
+     * <p>
+     * WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
+     * </p>
+     *
+     * @return validator
+     */
+    public static BytebufValidator jwsSignatureValidator(JsonWebKeySet trustedJsonWebKeySet, AllowDeny<String> algorithms,
+                                                         JwsSignatureBytebufValidator.JwsHeaderOptions headerOptions,
+                                                         JwsSignatureBytebufValidator.JwsContentOptions contentOptions) {
+        return new JwsSignatureBytebufValidator(trustedJsonWebKeySet, algorithms, headerOptions, contentOptions);
+    }
+
+    /**
      * A chain of {@link BytebufValidators}.  Validators are executed in the order
-     *  * they are defined.  Validation stops after the first validation failure.
+     * they are defined.  Validation stops after the first validation failure.
      * @param elements list of validators
      *
      * @return BytebufValidator that will validate against all.

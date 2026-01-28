@@ -14,10 +14,11 @@ The Record Validation filter validates records sent by a producer.
 Only records that pass the validation are sent to the broker.
 This filter can be used to prevent _poison messages_—such as those containing corrupted data or invalid formats—from entering the Kafka system, which may otherwise lead to consumer failure.
 
-The filter currently supports two modes of operation:
+The filter currently supports three modes of operation:
 
 1. Schema Validation ensures the content of the record conforms to a schema stored in an https://www.apicur.io/registry/[Apicurio Registry].
 2. JSON Syntax Validation ensures the content of the record contains syntactically valid JSON.
+3. JWS Signature Validation ensures the configured Kafka header contains a valid https://datatracker.ietf.org/doc/html/rfc7515[JSON Web Signature (JWS)] Signature.
 
 Validation rules can be applied to check the content of the Kafka record key or value.
 

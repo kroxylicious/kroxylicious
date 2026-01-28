@@ -321,6 +321,11 @@
             <artifactId>json-unit-assertj</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.bitbucket.b_c</groupId>
+            <artifactId>jose4j</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

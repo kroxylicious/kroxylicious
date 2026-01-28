@@ -62,6 +62,10 @@ class ProduceRequestValidatorBuilder {
         valueRule.getSchemaValidationConfig().ifPresent(
                 config -> validators.add(BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
                         config.apicurioGlobalId())));
+        valueRule.getJwsSignatureValidationConfig().ifPresent(
+                config -> validators
+                        .add(BytebufValidators.jwsSignatureValidator(config.getJsonWebKeySet(), config.getAlgorithms(), config.getHeaderOptions(),
+                                config.getContentOptions())));
 
         return BytebufValidators.chainOf(validators);
     }

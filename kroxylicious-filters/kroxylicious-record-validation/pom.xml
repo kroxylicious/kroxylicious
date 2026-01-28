@@ -70,6 +70,10 @@
             <groupId>io.apicurio</groupId>
             <artifactId>apicurio-registry-schema-validation-jsonschema</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.bitbucket.b_c</groupId>
+            <artifactId>jose4j</artifactId>
+        </dependency>
 
         <!-- third party dependencies - test -->
         <dependency>
@@ -129,6 +133,15 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>org.jose4j.jws.AlgorithmIdentifiers</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
