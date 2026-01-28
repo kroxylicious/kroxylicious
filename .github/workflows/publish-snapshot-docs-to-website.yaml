@@ -19,7 +19,7 @@ name: Publish Snapshot Docs to Website
 
 on:
   push:
-    branches: ["main", "release/**"]
+    branches: ["main"]
 
   workflow_dispatch:
     inputs:
