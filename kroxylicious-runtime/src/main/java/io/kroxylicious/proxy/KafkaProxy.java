@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -152,7 +153,8 @@ public final class KafkaProxy implements AutoCloseable {
     private final @Nullable ConfigurationReloadOrchestrator reloadOrchestrator;
     private final @Nullable Path configFilePath;
     private @Nullable MeterRegistries meterRegistries;
-    private @Nullable FilterChainFactory filterChainFactory;
+    // Shared mutable reference to FilterChainFactory - enables atomic swaps during hot reload
+    private AtomicReference<FilterChainFactory> filterChainFactoryRef;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
 
@@ -176,13 +178,18 @@ public final class KafkaProxy implements AutoCloseable {
                         new FilterChangeDetector()),
                 virtualClusterManager);
 
-        // Initialize reload orchestrator for HTTP endpoint
+        // Create AtomicReference for FilterChainFactory (will be initialized in startup())
+        // This reference is shared with both KafkaProxyInitializer and ConfigurationReloadOrchestrator
+        this.filterChainFactoryRef = new AtomicReference<>();
+
+        // Initialize reload orchestrator for HTTP endpoint (receives shared factory reference)
         this.reloadOrchestrator = new ConfigurationReloadOrchestrator(
                 config,
                 configurationChangeHandler,
                 pfr,
                 features,
-                configFilePath);
+                configFilePath,
+                filterChainFactoryRef);
         LOGGER.info("Configuration reload orchestrator initialized for HTTP endpoint support");
     }
 
@@ -245,13 +252,17 @@ public final class KafkaProxy implements AutoCloseable {
 
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
-            this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
+            // Create initial FilterChainFactory and store in shared atomic reference
+            FilterChainFactory initialFactory = new FilterChainFactory(pfr, config.filterDefinitions());
+            this.filterChainFactoryRef.set(initialFactory);
+
+            // Pass atomic reference (not factory directly) to initializers for dynamic factory swaps
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(),
+                    new KafkaProxyInitializer(filterChainFactoryRef, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(),
                             apiVersionsService, connectionTracker, connectionDrainManager, inFlightTracker));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(),
+                    new KafkaProxyInitializer(filterChainFactoryRef, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(),
                             apiVersionsService, connectionTracker, connectionDrainManager, inFlightTracker));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
@@ -366,8 +377,10 @@ public final class KafkaProxy implements AutoCloseable {
                     closeFutures.addAll(managementEventGroup.shutdownGracefully(shutdownQuietPeriodSeconds));
                 }
                 closeFutures.forEach(Future::syncUninterruptibly);
-                if (filterChainFactory != null) {
-                    filterChainFactory.close();
+                // Close current FilterChainFactory
+                FilterChainFactory currentFactory = filterChainFactoryRef.get();
+                if (currentFactory != null) {
+                    currentFactory.close();
                 }
                 if (t != null) {
                     if (t instanceof RuntimeException re) {
@@ -390,7 +403,7 @@ public final class KafkaProxy implements AutoCloseable {
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;
-            filterChainFactory = null;
+            filterChainFactoryRef.set(null);
             shutdown.complete(null);
             LOGGER.info("Shut down completed.");
 

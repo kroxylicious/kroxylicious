@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.junit.jupiter.api.BeforeEach;
@@ -97,14 +98,14 @@ class KafkaProxyInitializerTest {
     private KafkaProxyInitializer kafkaProxyInitializer;
     private CompletionStage<EndpointBinding> bindingStage;
     private VirtualClusterModel virtualClusterModel;
-    private FilterChainFactory filterChainFactory;
+    private AtomicReference<FilterChainFactory> filterChainFactoryRef;
 
     @BeforeEach
     void setUp() {
         virtualClusterModel = buildVirtualCluster(false, false);
         pfr = new ServiceBasedPluginFactoryRegistry();
         bindingStage = CompletableFuture.completedStage(vcb);
-        filterChainFactory = new FilterChainFactory(pfr, List.of());
+        filterChainFactoryRef = new AtomicReference<>(new FilterChainFactory(pfr, List.of()));
         final InetSocketAddress localhost = new InetSocketAddress(0);
         ChannelId channelId = DefaultChannelId.newInstance();
         when(channel.id()).thenReturn(channelId);
@@ -263,13 +264,14 @@ class KafkaProxyInitializerTest {
     void shouldCreateFilters() {
         // Given
         final FilterChainFactory fcf = mock(FilterChainFactory.class);
+        final AtomicReference<FilterChainFactory> fcfRef = new AtomicReference<>(fcf);
         when(vcb.upstreamTarget()).thenReturn(new HostPort("upstream.broker.kafka", 9090));
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         final KafkaProxyInitializer.InitalizerNetFilter initalizerNetFilter = new KafkaProxyInitializer.InitalizerNetFilter(mock(SaslDecodePredicate.class),
                 channel,
                 vcb,
                 pfr,
-                fcf,
+                fcfRef,
                 List.of(),
                 (virtualCluster1, upstreamNodes) -> null,
                 new ApiVersionsIntersectFilter(apiVersionsService),
@@ -346,7 +348,7 @@ class KafkaProxyInitializerTest {
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver,
                                                               Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
-        return new KafkaProxyInitializer(filterChainFactory,
+        return new KafkaProxyInitializer(filterChainFactoryRef,
                 pfr,
                 tls,
                 bindingResolver,

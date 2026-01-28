@@ -47,7 +47,7 @@ class KroxyliciousTest {
 
     @BeforeEach
     public void setup() {
-        Kroxylicious app = new Kroxylicious((ffm, configuration, features) -> {
+        Kroxylicious app = new Kroxylicious((ffm, configuration, features, configFilePath) -> {
             if (!this.features.compareAndSet(null, features)) {
                 throw new IllegalStateException("env already set");
             }
