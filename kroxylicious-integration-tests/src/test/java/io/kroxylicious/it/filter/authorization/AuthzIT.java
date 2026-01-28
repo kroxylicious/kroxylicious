@@ -26,8 +26,10 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.KafkaFuture;
+import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
@@ -657,6 +659,11 @@ public abstract class AuthzIT extends BaseIT {
     }
 
     private static boolean topicPartitionsHaveALeader(TopicDescription td) {
-        return td.partitions().stream().allMatch(p -> p.leader() != null);
+        return td.partitions().stream().allMatch(AuthzIT::partitionHasLeaderAssigned);
+    }
+
+    private static boolean partitionHasLeaderAssigned(TopicPartitionInfo p) {
+        var leader = p.leader();
+        return leader != null && leader.id() != Node.noNode().id();
     }
 }
