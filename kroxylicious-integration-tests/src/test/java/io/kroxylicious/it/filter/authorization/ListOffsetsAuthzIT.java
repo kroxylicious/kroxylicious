@@ -39,8 +39,9 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 class ListOffsetsAuthzIT extends AuthzIT {
 
     public static final String EXISTING_TOPIC_NAME = "other-topic";
-    public static final IntStream SUPPORTED_API_VERSIONS = IntStream.rangeClosed(ApiKeys.LIST_OFFSETS.oldestVersion(), ApiKeys.LIST_OFFSETS.latestVersion(true));
-    public static final int NON_EXISTANT_PARTITION = 20;
+    public static final List<Short> SUPPORTED_API_VERSIONS = IntStream.rangeClosed(ApiKeys.LIST_OFFSETS.oldestVersion(), ApiKeys.LIST_OFFSETS.latestVersion(true)).boxed()
+            .map(Integer::shortValue).toList();
+    public static final int NON_EXISTENT_PARTITION = 20;
     private Path rulesFile;
 
     private static final String ALICE_TO_DESCRIBE_TOPIC_NAME = "alice-new-topic";
@@ -87,8 +88,8 @@ class ListOffsetsAuthzIT extends AuthzIT {
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {
-        return SUPPORTED_API_VERSIONS.<Arguments> mapToObj(
-                apiVersion -> Arguments.argumentSet("list offsets version " + apiVersion, new ListOffsetsEquivalence((short) apiVersion))).toList();
+        return SUPPORTED_API_VERSIONS.stream().<Arguments> map(
+                apiVersion -> Arguments.argumentSet("list offsets version " + apiVersion, new ListOffsetsEquivalence(apiVersion))).toList();
     }
 
     @ParameterizedTest
@@ -124,9 +125,9 @@ class ListOffsetsAuthzIT extends AuthzIT {
         @Override
         public ListOffsetsRequestData requestData(String user, BaseClusterFixture clusterFixture) {
             ListOffsetsRequestData listOffsetsRequestData = new ListOffsetsRequestData();
-            ListOffsetsRequestData.ListOffsetsTopic topicA = createListOffsetsTopic(ALICE_TO_DESCRIBE_TOPIC_NAME, 0, NON_EXISTANT_PARTITION);
-            ListOffsetsRequestData.ListOffsetsTopic topicB = createListOffsetsTopic(BOB_TO_DESCRIBE_TOPIC_NAME, 0, NON_EXISTANT_PARTITION);
-            ListOffsetsRequestData.ListOffsetsTopic topicC = createListOffsetsTopic(EXISTING_TOPIC_NAME, 0, NON_EXISTANT_PARTITION);
+            ListOffsetsRequestData.ListOffsetsTopic topicA = createListOffsetsTopic(ALICE_TO_DESCRIBE_TOPIC_NAME, 0, NON_EXISTENT_PARTITION);
+            ListOffsetsRequestData.ListOffsetsTopic topicB = createListOffsetsTopic(BOB_TO_DESCRIBE_TOPIC_NAME, 0, NON_EXISTENT_PARTITION);
+            ListOffsetsRequestData.ListOffsetsTopic topicC = createListOffsetsTopic(EXISTING_TOPIC_NAME, 0, NON_EXISTENT_PARTITION);
             listOffsetsRequestData.setTopics(List.of(topicA, topicB, topicC));
             return listOffsetsRequestData;
         }
