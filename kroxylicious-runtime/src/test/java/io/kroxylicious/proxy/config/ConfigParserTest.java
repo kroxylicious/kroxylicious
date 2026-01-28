@@ -898,6 +898,105 @@ class ConfigParserTest {
                 .satisfies(targetCluster -> assertThat(targetCluster.selectionStrategy()).isInstanceOf(Class.forName(expectedClass)));
     }
 
+    @Test
+    void shouldSupportTargetClusterTlsConfigurationWithoutCredentialSupplier() {
+        // When - test backward compatibility, existing configs without tlsCredentialSupplier should work
+        var configurationModel = configParser.parseConfiguration("""
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                    tls:
+                      trust:
+                        storeFile: /tmp/foo.jks
+                        storePassword:
+                          password: changeit
+                        storeType: JKS
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """);
+        // Then
+        assertThat(configurationModel)
+                .extracting(Configuration::virtualClusters, InstanceOfAssertFactories.collection(VirtualCluster.class))
+                .singleElement()
+                .extracting(VirtualCluster::targetCluster)
+                .satisfies(targetCluster -> {
+                    assertThat(targetCluster.tls()).isPresent();
+                    assertThat(targetCluster.tls().get().tlsCredentialSupplier()).isNull();
+                });
+    }
+
+    @Test
+    void shouldValidateTargetClusterTlsCredentialSupplierInvalidPlugin() {
+        // Given/When/Then - verifies that configuration validation fails fast at startup for invalid plugin
+        assertThatThrownBy(() -> configParser.parseConfiguration("""
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                    tls:
+                      tlsCredentialSupplier:
+                        type: UnknownSupplier
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .isInstanceOf(ValueInstantiationException.class)
+                .hasMessageContaining("Unknown io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory plugin instance");
+    }
+
+    @Test
+    void shouldValidateTargetClusterTlsCredentialSupplierInvalidPluginWithConfig() {
+        // Given/When/Then - verifies that configuration validation fails fast at startup for invalid plugin with config
+        assertThatThrownBy(() -> configParser.parseConfiguration("""
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                    tls:
+                      tlsCredentialSupplier:
+                        type: UnknownSupplier
+                        config:
+                          path: /etc/certs
+                          refreshInterval: 60s
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .isInstanceOf(ValueInstantiationException.class)
+                .hasMessageContaining("Unknown io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory plugin instance");
+    }
+
+    @Test
+    void shouldRejectTargetClusterTlsCredentialSupplierWithoutType() {
+        // Given/When/Then
+        assertThatThrownBy(() -> configParser.parseConfiguration("""
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                    tls:
+                      tlsCredentialSupplier:
+                        config:
+                          path: /etc/certs
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .hasMessageContaining("Missing external type id property 'type'");
+    }
+
     private record NonSerializableConfig(String id) {
         @Override
         @JsonGetter

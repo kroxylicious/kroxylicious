@@ -50,7 +50,7 @@ class VaultKmsServiceTest {
         var validButUnusualCipherSuite = "TLS_EMPTY_RENEGOTIATION_INFO_SCSV"; // Valid suite, but not a true cipher
         vaultKmsService.initialize(
                 new Config(URI.create("https://unused/v1/transit"), new InlinePassword("vaultToken"), new Tls(null, null, new AllowDeny<>(
-                        List.of(validButUnusualCipherSuite), null), null)));
+                        List.of(validButUnusualCipherSuite), null), null, null)));
         var kms = vaultKmsService.buildKms();
         var client = kms.getHttpClient();
         assertThat(client)
