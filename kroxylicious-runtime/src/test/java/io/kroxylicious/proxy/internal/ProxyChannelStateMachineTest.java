@@ -382,47 +382,6 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inApiVersionsShouldCloseOnClientActive() {
-        // Given
-        stateMachineInApiVersionsState();
-
-        // When
-        proxyChannelStateMachine.onClientActive(frontendHandler);
-
-        // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
-        verify(frontendHandler).inClosed(null);
-    }
-
-    @Test
-    void inApiVersionsShouldBuffer() {
-        // Given
-        stateMachineInApiVersionsState();
-        var msg = metadataRequest();
-
-        // When
-        proxyChannelStateMachine.onClientRequest(msg);
-
-        // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.SelectingServer.class);
-        verify(frontendHandler).bufferMsg(msg);
-    }
-
-    @Test
-    void inApiVersionsShouldCloseOnHaProxyMessage() {
-        // Given
-        stateMachineInApiVersionsState();
-
-        // When
-        proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
-
-        // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
-        verify(frontendHandler).inClosed(null);
-        verifyNoInteractions(backendHandler);
-    }
-
-    @Test
     void inClientActiveShouldTransitionToApiVersionsOrSelectingServer() {
         // Given
         stateMachineInClientActive();
@@ -751,8 +710,6 @@ class ProxyChannelStateMachineTest {
                 argumentSet("STARTING TLS off ", (Runnable) () -> {
                     // no Op
                 }, false),
-                argumentSet("API Versions TLS on", (Runnable) this::stateMachineInApiVersionsState, true),
-                argumentSet("API Versions TLS off ", (Runnable) this::stateMachineInApiVersionsState, false),
                 argumentSet("HA Proxy TLS on", (Runnable) this::stateMachineInHaProxy, true),
                 argumentSet("HA Proxy TLS off ", (Runnable) this::stateMachineInHaProxy, false),
                 argumentSet("Selecting Server TLS on", (Runnable) this::stateMachineInSelectingServer, true),
@@ -769,7 +726,6 @@ class ProxyChannelStateMachineTest {
 
     public Stream<Arguments> givenStates() {
         return Stream.of(
-                argumentSet("API Versions", (Runnable) this::stateMachineInApiVersionsState),
                 argumentSet("HA Proxy", (Runnable) this::stateMachineInHaProxy),
                 argumentSet("Connecting", (Runnable) this::stateMachineInConnecting),
                 argumentSet("ClientActive ", (Runnable) this::stateMachineInClientActive),
@@ -794,13 +750,6 @@ class ProxyChannelStateMachineTest {
     private void stateMachineInHaProxy() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
-                frontendHandler,
-                null);
-    }
-
-    private void stateMachineInApiVersionsState() {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.ApiVersions(null, null, null),
                 frontendHandler,
                 null);
     }
