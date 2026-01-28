@@ -35,6 +35,8 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.handler.timeout.IdleState;
@@ -43,10 +45,14 @@ import io.netty.handler.timeout.IdleStateHandler;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
+import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
@@ -64,9 +70,14 @@ import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl;
+import io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
+import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
+import io.kroxylicious.proxy.tls.TlsCredentials;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -386,10 +397,19 @@ public class KafkaProxyFrontendHandler
         if (proxyChannelStateMachine.virtualCluster().isLogNetwork()) {
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger", LogLevel.INFO));
         }
-        proxyChannelStateMachine.virtualCluster().getUpstreamSslContext().ifPresent(sslContext -> {
-            final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
-            pipeline.addFirst("ssl", handler);
-        });
+
+        // Check if we need to use dynamic TLS credential supplier
+        if (proxyChannelStateMachine.virtualCluster().usesDynamicTlsCredentials()) {
+            // Dynamic credential supplier - invoke it asynchronously
+            invokeTlsCredentialSupplier(remote, outboundChannel, pipeline, serverTcpConnectFuture);
+        }
+        else {
+            // Static TLS configuration - use pre-built SslContext
+            proxyChannelStateMachine.virtualCluster().getUpstreamSslContext().ifPresent(sslContext -> {
+                final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
+                pipeline.addFirst("ssl", handler);
+            });
+        }
 
         LOGGER.debug("Configured broker channel pipeline: {}", pipeline);
 
@@ -403,6 +423,163 @@ public class KafkaProxyFrontendHandler
                 proxyChannelStateMachine.onServerException(future.cause());
             }
         });
+    }
+
+    /**
+     * Invokes the TLS credential supplier asynchronously and configures the SSL handler once credentials are available.
+     */
+    private void invokeTlsCredentialSupplier(HostPort remote, Channel outboundChannel, ChannelPipeline pipeline, ChannelFuture serverTcpConnectFuture) {
+        try {
+            PluginFactoryRegistry pfr = proxyChannelStateMachine.virtualCluster().getPluginFactoryRegistry();
+            if (pfr == null) {
+                String errorMsg = "PluginFactoryRegistry not available for credential supplier";
+                LOGGER.error(errorMsg);
+                proxyChannelStateMachine.onServerException(new IllegalStateException(errorMsg));
+                return;
+            }
+
+            // Get the credential supplier definition from configuration
+            TlsCredentialSupplierDefinition definition = proxyChannelStateMachine.virtualCluster().targetCluster().tls()
+                    .flatMap(tls -> Optional.ofNullable(tls.tlsCredentialSupplier()))
+                    .orElseThrow(() -> new IllegalStateException("TLS credential supplier configuration not found"));
+
+            // Create the TLS credential supplier manager
+            TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition);
+
+            // Create the factory context for supplier creation (using event loop for FilterDispatchExecutor)
+            FilterDispatchExecutor executor = NettyFilterDispatchExecutor.eventLoopExecutor(outboundChannel.eventLoop());
+            ServerTlsCredentialSupplierFactoryContext factoryContext = createFactoryContext(pfr, executor);
+
+            // Create the supplier instance
+            ServerTlsCredentialSupplier supplier = manager.createSupplier(factoryContext);
+            if (supplier == null) {
+                String errorMsg = "Failed to create TLS credential supplier";
+                LOGGER.error(errorMsg);
+                proxyChannelStateMachine.onServerException(new IllegalStateException(errorMsg));
+                manager.close();
+                return;
+            }
+
+            // Create the supplier context
+            ServerTlsCredentialSupplierContextImpl supplierContext = new ServerTlsCredentialSupplierContextImpl(
+                    null, // clientTlsContext - will be populated if client uses TLS
+                    proxyChannelStateMachine.virtualCluster().targetCluster().tls());
+
+            // Invoke the supplier using the event loop for thread safety
+            outboundChannel.eventLoop().execute(() -> {
+                supplier.tlsCredentials(supplierContext).whenComplete((credentials, throwable) -> {
+                    // Ensure completion happens on the event loop thread
+                    outboundChannel.eventLoop().execute(() -> {
+                        try {
+                            if (throwable != null) {
+                                LOGGER.error("TLS credential supplier failed for connection to {}", remote, throwable);
+                                proxyChannelStateMachine.onServerException(
+                                        new IllegalStateException("Failed to obtain TLS credentials: " + throwable.getMessage(), throwable));
+                            }
+                            else if (credentials == null) {
+                                String errorMsg = "TLS credential supplier returned null credentials";
+                                LOGGER.error(errorMsg);
+                                proxyChannelStateMachine.onServerException(new IllegalStateException(errorMsg));
+                            }
+                            else {
+                                // Successfully obtained credentials - build SslContext and add handler
+                                applySslContextToChannel(credentials, remote, outboundChannel, pipeline);
+                            }
+                        }
+                        finally {
+                            // Clean up the manager
+                            try {
+                                manager.close();
+                            }
+                            catch (Exception e) {
+                                LOGGER.warn("Error closing TLS credential supplier manager", e);
+                            }
+                        }
+                    });
+                });
+            });
+        }
+        catch (Exception e) {
+            LOGGER.error("Error invoking TLS credential supplier for connection to {}", remote, e);
+            proxyChannelStateMachine.onServerException(e);
+        }
+    }
+
+    /**
+     * Creates a ServerTlsCredentialSupplierFactoryContext for supplier creation.
+     */
+    private ServerTlsCredentialSupplierFactoryContext createFactoryContext(PluginFactoryRegistry pfr, FilterDispatchExecutor executor) {
+        return new ServerTlsCredentialSupplierFactoryContext() {
+            @Override
+            public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
+                return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
+            }
+
+            @Override
+            public <P> java.util.Set<String> pluginImplementationNames(Class<P> pluginClass) {
+                return pfr.pluginFactory(pluginClass).registeredInstanceNames();
+            }
+
+            @Override
+            public FilterDispatchExecutor filterDispatchExecutor() {
+                return executor;
+            }
+
+            @Override
+            public java.util.concurrent.CompletionStage<TlsCredentials> tlsCredentials(
+                                                                                       java.io.InputStream certificateChainPem,
+                                                                                       java.io.InputStream privateKeyPem) {
+                ServerTlsCredentialSupplierContextImpl context = new ServerTlsCredentialSupplierContextImpl(
+                        null,
+                        proxyChannelStateMachine.virtualCluster().targetCluster().tls());
+                return context.tlsCredentials(certificateChainPem, privateKeyPem);
+            }
+        };
+    }
+
+    /**
+     * Applies the obtained TLS credentials to the channel by building an SslContext and adding an SslHandler.
+     */
+    private void applySslContextToChannel(TlsCredentials credentials, HostPort remote, Channel outboundChannel, ChannelPipeline pipeline) {
+        try {
+            if (!(credentials instanceof TlsCredentialsImpl)) {
+                throw new IllegalStateException("Unexpected TlsCredentials implementation: " + credentials.getClass().getName());
+            }
+
+            TlsCredentialsImpl credentialsImpl = (TlsCredentialsImpl) credentials;
+
+            // Build SslContextBuilder with trust configuration from target cluster
+            SslContextBuilder sslContextBuilder = SslContextBuilder.forClient()
+                    .keyManager(credentialsImpl.getPrivateKey(), credentialsImpl.getCertificateChain());
+
+            // Apply trust provider configuration if present
+            proxyChannelStateMachine.virtualCluster().targetCluster().tls().ifPresent(tls -> {
+                NettyTrustProvider trustProvider = configureTrustProvider(tls);
+                trustProvider.apply(sslContextBuilder);
+            });
+
+            // Build the SslContext
+            SslContext sslContext = sslContextBuilder.build();
+
+            // Create and add the SslHandler to the pipeline
+            final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
+            pipeline.addFirst("ssl", handler);
+
+            LOGGER.debug("Successfully configured dynamic TLS credentials for connection to {}", remote);
+        }
+        catch (Exception e) {
+            LOGGER.error("Error applying TLS credentials to channel for connection to {}", remote, e);
+            proxyChannelStateMachine.onServerException(e);
+        }
+    }
+
+    /**
+     * Configures trust provider for the target cluster TLS configuration.
+     */
+    private static NettyTrustProvider configureTrustProvider(io.kroxylicious.proxy.config.tls.Tls tlsConfiguration) {
+        final io.kroxylicious.proxy.config.tls.TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust())
+                .orElse(io.kroxylicious.proxy.config.tls.PlatformTrustProvider.INSTANCE);
+        return new NettyTrustProvider(trustProvider);
     }
 
     private MetricEmittingKafkaMessageListener buildMetricsMessageListenerForEncode() {
