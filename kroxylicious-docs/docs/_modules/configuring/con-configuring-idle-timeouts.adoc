@@ -86,7 +86,7 @@ This counter is incremented each time a connection is closed due to exceeding th
 The `kroxylicious_client_to_proxy_disconnects_total` metric also tracks other disconnect scenarios:
 
 * `cause="idle_timeout"` - Connection exceeded the configured idle timeout duration
-* `cause="client_closed"` - Client initiated the connection close
-* `cause="server_closed"` - Backend server closed the connection, causing the proxy to close the client connection
+* `cause="client_closed"` - The downstream client initiated the connection close
+* `cause="server_closed"` - The upstream node closed the connection, causing the proxy to close the client connection
 
 For more information about connection metrics, see xref:con-prometheus-metrics-proxy-{context}[Overview of proxy metrics].
