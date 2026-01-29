@@ -7,11 +7,9 @@
 package io.kroxylicious.it;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -34,15 +32,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
-import io.kroxylicious.filter.sasl.inspection.SaslInspection;
-import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
-import io.kroxylicious.it.testplugins.ProtocolCounter;
 import io.kroxylicious.it.testplugins.ProtocolCounterFilter;
 import io.kroxylicious.proxy.authentication.UserFactory;
-import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.internal.subject.DefaultSaslSubjectBuilderService;
 import io.kroxylicious.proxy.internal.subject.PrincipalAdderConf;
 import io.kroxylicious.test.assertj.HeadersAssert;
@@ -55,7 +47,6 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -64,9 +55,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @see SaslInspectionOauthBearerIT
  */
+// Ignoring 'replace these n tests with a single parameterized one' - we are using the annotated parameters that a parameterized test wouldn't handle nicely.
+// Also ignore a warning about assigning the default value in annotations. Explicit is better than implicit especially in tests
+@SuppressWarnings({ "java:S5976", "DefaultAnnotationParam" })
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
-@SuppressWarnings("java:S5976") // Ignoring 'replace these n tests with a single parameterized one' - we are using the annotated parameters that a parameterized test wouldn't handle nicely.
 class SaslInspectionIT extends BaseIT {
 
     /**
@@ -236,7 +229,7 @@ class SaslInspectionIT extends BaseIT {
     void shouldNotAuthenticateWhenNoCommonMechanism(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                     Topic topic) {
-        var config = buildProxyConfig(cluster, null, null);
+        var config = buildProxyConfigWithSaslInspection(cluster, null, null);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(
@@ -264,7 +257,7 @@ class SaslInspectionIT extends BaseIT {
     @Test
     void shouldNotConnectWhenClientNotConfiguredForSasl(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
-        var config = buildProxyConfig(cluster, Set.of("PLAIN"), null);
+        var config = buildProxyConfigWithSaslInspection(cluster, Set.of("PLAIN"), null);
 
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(Map.of(
@@ -294,11 +287,9 @@ class SaslInspectionIT extends BaseIT {
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, null, 2, clientLoginModule, username, password, headers -> {
-            HeadersAssert.assertThat(headers)
-                    .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
-                    .hasValueEqualTo("Subject[principals=[User[name=%s]]]".formatted(username));
-        });
+        assertClientsCanAccessCluster(cluster, topic, mechanism, null, 2, clientLoginModule, username, password, headers -> HeadersAssert.assertThat(headers)
+                .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
+                .hasValueEqualTo("Subject[principals=[User[name=%s]]]".formatted(username)));
     }
 
     /**
@@ -322,16 +313,15 @@ class SaslInspectionIT extends BaseIT {
                         List.of(new io.kroxylicious.proxy.internal.subject.Map("/(.*)/$1/U", null)), UserFactory.class.getName())));
 
         var expectedUpperCasedUserName = username.toUpperCase(Locale.ROOT);
-        assertClientsCanAccessCluster(cluster, topic, mechanism, subjectBuilderConfig, 2, clientLoginModule, username, password, headers -> {
-            HeadersAssert.assertThat(headers)
-                    .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
-                    .hasValueEqualTo("Subject[principals=[User[name=%s]]]".formatted(expectedUpperCasedUserName));
-        });
+        assertClientsCanAccessCluster(cluster, topic, mechanism, subjectBuilderConfig, 2, clientLoginModule, username, password,
+                headers -> HeadersAssert.assertThat(headers)
+                        .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
+                        .hasValueEqualTo("Subject[principals=[User[name=%s]]]".formatted(expectedUpperCasedUserName)));
     }
 
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
                                                                     String password) {
-        var config = buildProxyConfig(cluster, Set.of(mechanism), null);
+        var config = buildProxyConfigWithSaslInspection(cluster, Set.of(mechanism), null);
 
         String jaasConfig = "%s required%n  username=\"%s\"%n   password=\"%s\";".formatted(clientLoginModule, username, password);
         try (var tester = kroxyliciousTester(config);
@@ -390,7 +380,7 @@ class SaslInspectionIT extends BaseIT {
                                                       final int numAuthReqPerAuth,
                                                       Duration pauseTime,
                                                       ThrowingConsumer<Headers> headersAssertion) {
-        var config = buildProxyConfig(cluster, proxyEnabledSaslMechanisms, subjectBuilderConfig);
+        var config = buildProxyConfigWithSaslInspection(cluster, proxyEnabledSaslMechanisms, subjectBuilderConfig);
 
         String jaasConfig = "%s required%n  username=\"%s\"%n   password=\"%s\";".formatted(clientLoginModule, username, password);
         try (var tester = kroxyliciousTester(config)) {
@@ -438,41 +428,4 @@ class SaslInspectionIT extends BaseIT {
         }
     }
 
-    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, @Nullable Set<String> enableMechanisms,
-                                                         @Nullable DefaultSaslSubjectBuilderService.Config subjectBuilderConfig) {
-        var saslInspection = buildSaslInspector(enableMechanisms, subjectBuilderConfig);
-        var counter = new NamedFilterDefinitionBuilder(
-                ProtocolCounter.class.getName(),
-                ProtocolCounter.class.getName())
-                .withConfig(
-                        "countRequests", Set.of(ApiKeys.SASL_AUTHENTICATE),
-                        "countResponses", Set.of(ApiKeys.SASL_AUTHENTICATE))
-                .build();
-        var lawyer = new NamedFilterDefinitionBuilder(
-                ClientAuthAwareLawyer.class.getName(),
-                ClientAuthAwareLawyer.class.getName())
-                .build();
-        return proxy(cluster)
-                .addToFilterDefinitions(saslInspection, counter, lawyer)
-                .addToDefaultFilters(saslInspection.name(), counter.name(), lawyer.name());
-    }
-
-    private static NamedFilterDefinition buildSaslInspector(@Nullable Set<String> enableMechanisms,
-                                                            @Nullable DefaultSaslSubjectBuilderService.Config subjectBuilderConfig) {
-        var saslInspectorBuilder = new NamedFilterDefinitionBuilder(
-                SaslInspection.class.getName(),
-                SaslInspection.class.getName());
-
-        var saslInspectorConfig = new HashMap<String, Object>();
-        Optional.ofNullable(enableMechanisms).ifPresent(value -> {
-            saslInspectorConfig.put("enabledMechanisms", value);
-        });
-        Optional.ofNullable(subjectBuilderConfig).ifPresent(value -> {
-            saslInspectorConfig.put("subjectBuilder", DefaultSaslSubjectBuilderService.class.getName());
-            saslInspectorConfig.put("subjectBuilderConfig", subjectBuilderConfig);
-        });
-        saslInspectorBuilder.withConfig(saslInspectorConfig);
-
-        return saslInspectorBuilder.build();
-    }
 }

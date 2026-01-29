@@ -27,6 +27,9 @@ public class DefaultSubjectBuilder implements TransportSubjectBuilder, SaslSubje
     @Override
     public CompletionStage<Subject> buildTransportSubject(TransportSubjectBuilder.Context context) {
         try {
+            if (adders.isEmpty()) {
+                return CompletableFuture.completedFuture(Subject.anonymous());
+            }
             Set<Principal> collect = adders.stream()
                     .flatMap(adder -> adder.createPrincipals(context))
                     .collect(Collectors.toSet());

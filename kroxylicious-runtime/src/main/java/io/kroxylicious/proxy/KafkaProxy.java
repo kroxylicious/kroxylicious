@@ -122,8 +122,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
 
         private static int resolveThreadCount(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
-            return Optional.ofNullable(configuration.network())
-                    .map(settingsSupplier)
+            return getNettySettings(configuration, settingsSupplier)
                     .flatMap(NettySettings::workerThreadCount)
                     .orElse(Runtime.getRuntime().availableProcessors());
         }
@@ -218,10 +217,11 @@ public final class KafkaProxy implements AutoCloseable {
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
+            Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -244,6 +244,11 @@ public final class KafkaProxy implements AutoCloseable {
         }
     }
 
+    private static Optional<NettySettings> getNettySettings(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
+        return Optional.ofNullable(configuration.network())
+                .map(settingsSupplier);
+    }
+
     private void enableNettyMetrics(final EventGroupConfig... eventGroups) {
         Metrics.bindNettyAllocatorMetrics(ByteBufAllocator.DEFAULT);
         for (final var group : eventGroups) {
@@ -256,16 +261,21 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     private Map<ApiKeys, Short> getApiKeyMaxVersionOverride(Configuration config) {
-        Map<String, Number> apiKeyIdMaxVersion = config.development()
-                .map(m -> m.get("apiKeyIdMaxVersionOverride"))
-                .filter(Map.class::isInstance)
-                .map(Map.class::cast)
-                .orElse(Map.of());
+        Map<String, Number> apiKeyIdMaxVersion = extractApiVersionOverrides(config);
 
         return apiKeyIdMaxVersion.entrySet()
                 .stream()
                 .collect(Collectors.toMap(e -> ApiKeys.valueOf(e.getKey()),
                         e -> e.getValue().shortValue()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Number> extractApiVersionOverrides(Configuration config) {
+        return config.development()
+                .map(m -> m.get("apiKeyIdMaxVersionOverride"))
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .orElse(Map.of());
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {
@@ -277,6 +287,7 @@ public final class KafkaProxy implements AutoCloseable {
                 .childOption(ChannelOption.TCP_NODELAY, true);
     }
 
+    @SuppressWarnings("resource") // suppressing resource as ExecutorService is not closeable in Java 17 (our runtime target)
     private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {
         return Optional.ofNullable(managementConfiguration)
                 .map(mc -> {
