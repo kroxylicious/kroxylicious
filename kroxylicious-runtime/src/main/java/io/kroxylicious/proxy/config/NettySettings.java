@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 public record NettySettings(Optional<Integer> workerThreadCount, Optional<Integer> shutdownQuietPeriodSeconds,
-                            @JsonSerialize(contentUsing = DurationSerde.Serializer.class) @JsonDeserialize(contentUsing = DurationSerde.Deserializer.class) Optional<Duration> unAuthenticatedIdleTimeout,
+                            @JsonSerialize(contentUsing = DurationSerde.Serializer.class) @JsonDeserialize(contentUsing = DurationSerde.Deserializer.class) Optional<Duration> unauthenticatedIdleTimeout,
                             @JsonSerialize(contentUsing = DurationSerde.Serializer.class) @JsonDeserialize(contentUsing = DurationSerde.Deserializer.class) Optional<Duration> authenticatedIdleTimeout) {
 
 }

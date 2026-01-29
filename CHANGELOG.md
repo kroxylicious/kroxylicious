@@ -29,7 +29,7 @@ Format `<github issue/pr number>: <short description>`.
 * Curly-brace style topicName tokens are no longer supported in the Record Encryption TemplateKekSelector template. `template` should use `$(topicName)` instead of `${topicName}`.
   The was deprecated in version 0.11.0.
 * Idle connection timeout support added with two optional configuration properties under `network.proxy`:
-  * `unAuthenticatedIdleTimeout` - Applies to connections where authentication cannot be detected
+  * `unauthenticatedIdleTimeout` - Applies to connections where authentication cannot be detected
   * `authenticatedIdleTimeout` - Applies to connections with established identities
   Both properties use Go-style duration format (e.g., `30s`, `5m`, `1h30m`) with supported units: `d`, `h`, `m`, `s`, `ms`, `μs`/`us`, `ns`.
 * A new metric `kroxylicious_client_to_proxy_disconnects_total` tracks client-to-proxy disconnections with a `cause` label to distinguish between:

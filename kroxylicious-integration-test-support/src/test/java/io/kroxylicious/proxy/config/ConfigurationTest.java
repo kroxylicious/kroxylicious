@@ -506,7 +506,7 @@ class ConfigurationTest {
                         """
                                 network:
                                     proxy:
-                                        unAuthenticatedIdleTimeout: 1m30s
+                                        unauthenticatedIdleTimeout: 1m30s
                                 virtualClusters:
                                   - name: demo
                                     targetCluster:

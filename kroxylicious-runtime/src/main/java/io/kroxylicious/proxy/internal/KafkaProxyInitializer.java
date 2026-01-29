@@ -65,7 +65,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Optional<NettySettings> proxyNettySettings;
     private final Counter clientToProxyErrorCounter;
     @Nullable
-    private final Long unAuthenticatedIdleMillis;
+    private final Long unauthenticatedIdleMillis;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
@@ -85,7 +85,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
-        unAuthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
+        unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
     }
 
     @Override
@@ -262,8 +262,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     private void addIdleHandlerToPipeline(ChannelPipeline pipeline) {
-        if (Objects.nonNull(unAuthenticatedIdleMillis)) {
-            pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(0, 0, unAuthenticatedIdleMillis, TimeUnit.MILLISECONDS));
+        if (Objects.nonNull(unauthenticatedIdleMillis)) {
+            pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(0, 0, unauthenticatedIdleMillis, TimeUnit.MILLISECONDS));
         }
     }
 
@@ -271,7 +271,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @CheckReturnValue
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private Long getUnAuthenticatedIdleMillis(Optional<NettySettings> nettySettings) {
-        return nettySettings.flatMap(NettySettings::unAuthenticatedIdleTimeout).map(Duration::toMillis).orElse(null);
+        return nettySettings.flatMap(NettySettings::unauthenticatedIdleTimeout).map(Duration::toMillis).orElse(null);
     }
 
     @Sharable

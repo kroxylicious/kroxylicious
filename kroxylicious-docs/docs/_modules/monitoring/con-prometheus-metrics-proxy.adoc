@@ -92,7 +92,7 @@ The following relationship holds:
 |Counter
 |`virtual_cluster`, `node_id`, `cause`
 |Incremented by one every time a client connection is closed by the proxy. The `cause` label indicates the reason for disconnection: +
- `idle_timeout` - Connection exceeded the configured idle timeout duration (requires idle timeouts configured via `network.proxy.unAuthenticatedIdleTimeout` or `network.proxy.authenticatedIdleTimeout`). +
+ `idle_timeout` - Connection exceeded the configured idle timeout duration (requires idle timeouts configured via `network.proxy.unauthenticatedIdleTimeout` or `network.proxy.authenticatedIdleTimeout`). +
  `client_closed` - Client initiated the connection close. +
  `server_closed` - Backend server closed the connection, causing the proxy to close the client connection. +
  Note: Error-based disconnects are tracked separately via `kroxylicious_client_to_proxy_errors_total`, not this metric.
