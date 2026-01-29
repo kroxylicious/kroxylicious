@@ -15,15 +15,15 @@ The virtual cluster references the following resources, which must be in the sam
 * A `KafkaProxy` resource that the proxy is part of.
 * One or more `KafkaProxyIngress` resources that expose the virtual cluster to Kafka clients and provide virtual-cluster-specific configuration to the ingress (such as TLS certificates and other parameters).
 * A `KafkaService` resource that defines the backend Kafka cluster.
-* Zero or more `KafkaProtocolFilter` resources defining the filter(s) that will be applied to the Kafka protocol traffic passing between clients and the backend Kafka cluster.
+* Zero or more `KafkaProtocolFilter` resources define the filters applied to Kafka protocol traffic between clients and the backend Kafka cluster.
 The order of the filters in the `filterRefs` array defines the order that the filters are applied.
-Requests from the client flow first through the filter at index `0`, then index `1` and so on until index `n`.
-Responses from the broker go through the filters in the reverse order.
+Client requests pass through the filters starting at index `0`, then `1`, and continuing to index `n`.
+Broker responses pass through the same filters in the reverse order.
 
-This example shows a `VirtualKafkaCluster`, exposing it to Kafka clients running on the same Kubernetes cluster.
-Protocol traffic will be filtered by the filter named `my-filter`.
+The following example shows configuration for a `VirtualKafkaCluster` that is exposed it to Kafka clients running on the same Kubernetes cluster.
+Protocol traffic is filtered by the `my-filter` filter.
 
-.Example `VirtualKafkaCluster` configuration with single ingress and a single filter.
+.Example `VirtualKafkaCluster` configuration with a single ingress and filter.
 [source,yaml]
 ----
 kind: VirtualKafkaCluster
@@ -44,16 +44,16 @@ spec:
 
 ----
 <1> Identifies the `KafkaProxy` resource that this virtual cluster is part of.
-<2> The `KafkaService` that defines the Kafka cluster proxied by the virtual cluster.
-<3> Ingresses that expose the virtual cluster.
+<2> Specifies the `KafkaService` that defines the Kafka cluster proxied by the virtual cluster.
+<3> Defines the ingresses that expose the virtual cluster.
   Each ingress references a `KafkaProxyIngress` by name.
-<4> The list of filters to be applied to the Kafka protocol traffic.
+<4> Specifies the list of filters applied to Kafka protocol traffic.
 
-This example shows a `VirtualKafkaCluster`, exposing it to Kafka clients running both on and off-cluster, both using TLS.
+The following example shows configuration for a `VirtualKafkaCluster` that is exposed to Kafka clients running both on and off the cluster, using TLS.
 Because TLS is used, the ingress configuration must reference a TLS server certificate.
 This example has two filters.
 
-.Example `VirtualKafkaCluster` configuration with two ingresses using TLS.
+.Example `VirtualKafkaCluster` configuration with two TLS-enabled ingresses
 [source,yaml]
 ----
 kind: VirtualKafkaCluster
@@ -81,8 +81,8 @@ spec:
     - name: my-filter-1
     - name: my-filter-2
 ----
-<1> Reference to a secret containing the server certificate for the `clusterIP` ingress.
-<2> Reference to a secret containing the server certificate for the `loadBalancer` ingress.
+<1> References a secret containing the server certificate for the `clusterIP` ingress.
+<2> References a secret containing the server certificate for the `loadBalancer` ingress.
 
 include::./con-virtualkafkacluster-clusterip-generate-tls-certificates.adoc[leveloffset=+1]
 include::./con-virtualkafkacluster-loadbalancer-generate-tls-certificates.adoc[leveloffset=+1]
