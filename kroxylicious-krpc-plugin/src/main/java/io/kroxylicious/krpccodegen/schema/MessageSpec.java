@@ -9,6 +9,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -139,12 +143,68 @@ public final class MessageSpec {
 
     public String dataClassName() {
         return switch (type) {
-            case HEADER, REQUEST, RESPONSE ->
-                    // We append the Data suffix to request/response/header classes to avoid
-                    // collisions with existing objects. This can go away once the protocols
-                    // have all been converted and we begin using the generated types directly.
-                    struct.name() + "Data";
+            case HEADER, REQUEST, RESPONSE -> struct.name() + "Data";
             default -> struct.name();
         };
+    }
+
+    /**
+     * Returns true if this message spec has at least one field of one of the given entity field types.
+     *
+     * @param entityFieldTypeNames entity field types
+     * @return true if present, false otherwise
+     */
+    public boolean hasAtLeastOneEntityField(Set<EntityType> entityFieldTypeNames) {
+        return hasAtLeastOneEntityField(fields(), entityFieldTypeNames);
+    }
+
+    private boolean hasAtLeastOneEntityField(List<FieldSpec> fields, Set<EntityType> entityFieldTypeNames) {
+        var found = fields.stream().anyMatch(f -> entityFieldTypeNames.contains(f.entityType()));
+        if (found) {
+            return true;
+        }
+        return fields.stream().anyMatch(f -> hasAtLeastOneEntityField(f.fields(), entityFieldTypeNames));
+    }
+
+    /**
+     * Returns the intersected versions used by fields of this messages that are of the
+     * given entity types.
+     *
+     * @param entityFieldTypeNames entity field types
+     * @return intersected versions
+     */
+    public List<Short> intersectedVersionsForEntityFields(Set<EntityType> entityFieldTypeNames) {
+        return intersectedVersionsForEntityFields(fields(), entityFieldTypeNames).stream().toList();
+    }
+
+    private Set<Short> intersectedVersionsForEntityFields(List<FieldSpec> fields, Set<EntityType> entityFields) {
+        var versions = fields.stream()
+                .filter(f -> entityFields.contains(f.entityType()))
+                .map(f -> validVersions().intersect(f.versions()))
+                .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
+                .distinct()
+                .sorted()
+                .boxed()
+                .map(Integer::shortValue)
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        versions.addAll(fields.stream()
+                .flatMap(f -> intersectedVersionsForEntityFields(f.fields(), entityFields).stream())
+                .collect(Collectors.toSet()));
+
+        return versions;
+    }
+
+    @Override
+    public String toString() {
+        return "MessageSpec{" +
+                "struct=" + struct +
+                ", apiKey=" + apiKey +
+                ", type=" + type +
+                ", commonStructs=" + commonStructs +
+                ", flexibleVersions=" + flexibleVersions +
+                ", listeners=" + listeners +
+                ", latestVersionUnstable=" + latestVersionUnstable +
+                '}';
     }
 }

@@ -1,0 +1,28 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: DELETE_RECORDS
+  disabled: false
+  version: 2
+  request:
+    payload:
+      topics:
+        - name: foo
+          partitions:
+            - partitionIndex: 0
+              offset: 0
+      timeoutMs: 0
+    diff: []
+  response:
+    payload:
+      topics:
+        - name: foo
+          partitions:
+            - partitionIndex: 0
+              lowWatermark: 0
+              errorCode: 0
+      throttleTimeMs: 0
+    diff: []
