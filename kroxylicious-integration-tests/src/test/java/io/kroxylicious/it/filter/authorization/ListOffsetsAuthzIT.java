@@ -124,6 +124,9 @@ class ListOffsetsAuthzIT extends AuthzIT {
         @Override
         public ListOffsetsRequestData requestData(String user, BaseClusterFixture clusterFixture) {
             ListOffsetsRequestData listOffsetsRequestData = new ListOffsetsRequestData();
+            // Field doc for ReplicaId says "The broker ID of the requester, or -1 if this request is being made by a normal consumer."
+            // our use-case is a client use-case, so we must use -1.
+            listOffsetsRequestData.setReplicaId(-1);
             ListOffsetsRequestData.ListOffsetsTopic topicA = createListOffsetsTopic(ALICE_TO_DESCRIBE_TOPIC_NAME, 0, NON_EXISTANT_PARTITION);
             ListOffsetsRequestData.ListOffsetsTopic topicB = createListOffsetsTopic(BOB_TO_DESCRIBE_TOPIC_NAME, 0, NON_EXISTANT_PARTITION);
             ListOffsetsRequestData.ListOffsetsTopic topicC = createListOffsetsTopic(EXISTING_TOPIC_NAME, 0, NON_EXISTANT_PARTITION);
