@@ -31,8 +31,10 @@ import io.netty.handler.timeout.IdleStateHandler;
 
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
@@ -52,12 +54,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
-    public static final String SOURCE_ADDRESS = "1.1.1.1";
-    public static final int SOURCE_PORT = 18466;
-    public static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
-            SOURCE_ADDRESS, "1.0.0.1", SOURCE_PORT, 9090);
     public static final DelegatingDecodePredicate DELEGATING_PREDICATE = new DelegatingDecodePredicate();
     public static final NettySettings NETTY_SETTINGS = new NettySettings(Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(Duration.ofSeconds(33)));
+    private static final String CLUSTER_NAME = "TestCluster";
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private ChannelPipeline channelPipeline;
@@ -71,7 +70,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Mock
     EndpointReconciler endpointReconciler;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     VirtualClusterModel virtualCluster;
 
     @Mock
@@ -102,6 +101,10 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 endpointBinding,
                 proxyChannelStateMachine,
                 Optional.empty());
+
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.DEFAULT, CLUSTER_NAME);
+        when(virtualCluster.getTopicNameCacheFilter()).thenReturn(topicNameCacheFilter);
+
     }
 
     @Test
