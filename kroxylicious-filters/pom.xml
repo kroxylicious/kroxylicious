@@ -29,7 +29,7 @@
         <module>kroxylicious-oauthbearer-validation</module>
         <module>kroxylicious-sasl-inspection</module>
         <module>kroxylicious-authorization</module>
-        <module>kroxylicious-user-namespace</module>
+        <module>kroxylicious-resource-isolation</module>
     </modules>
 
     <build>

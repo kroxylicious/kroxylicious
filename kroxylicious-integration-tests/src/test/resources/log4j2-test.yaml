@@ -49,7 +49,7 @@ Configuration:
          additivity: false
          level: INFO
 
-      -  name: io.kroxylicious.filter.usernamespace
+      -  name: io.kroxylicious.filter.resourceisolation
          additivity: false
          level: DEBUG
 

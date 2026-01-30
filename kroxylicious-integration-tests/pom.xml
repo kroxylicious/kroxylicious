@@ -125,7 +125,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-user-namespace</artifactId>
+            <artifactId>kroxylicious-resource-isolation</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
