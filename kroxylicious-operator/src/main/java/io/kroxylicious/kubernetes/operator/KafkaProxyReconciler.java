@@ -375,19 +375,24 @@ public class KafkaProxyReconciler implements
                                                                                      @Nullable TlsClientAuthentication clientAuthentication,
                                                                                      Path parent) {
         return Optional.ofNullable(trustAnchorRef)
-                .filter(tar -> ResourcesUtil.isConfigMap(tar.getRef()))
+                .filter(tar -> ResourcesUtil.isConfigMap(tar.getRef()) || ResourcesUtil.isSecret(tar.getRef()))
                 .map(tar -> {
                     var ref = tar.getRef();
+                    var volName = ResourcesUtil.volumeName("", ResourcesUtil.isSecret(ref) ? "secrets" : "configmaps", ref.getName());
+
                     var volume = new VolumeBuilder()
-                            .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
-                            .withNewConfigMap()
-                            .withName(ref.getName())
-                            .endConfigMap()
-                            .build();
+                            .withName(volName);
+
+                    if (ResourcesUtil.isSecret(ref)) {
+                        volume.withNewSecret().withSecretName(ref.getName()).endSecret();
+                    } else if (ResourcesUtil.isConfigMap(ref)) {
+                        volume.withNewConfigMap().withName(ref.getName()).endConfigMap();
+                    }
+
                     Path mountPath = parent.resolve(ref.getName());
 
                     var mount = new VolumeMountBuilder()
-                            .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
+                            .withName(volName)
                             .withMountPath(mountPath.toString())
                             .withReadOnly(true)
                             .build();
@@ -396,8 +401,9 @@ public class KafkaProxyReconciler implements
                             null,
                             "PEM",
                             forServer ? buildTlsServerOptions(clientAuthentication) : null);
+
                     return new ConfigurationFragment<>(Optional.of(trustProvider),
-                            Set.of(volume),
+                            Set.of(volume.build()),
                             Set.of(mount));
                 }).orElse(ConfigurationFragment.empty());
     }
