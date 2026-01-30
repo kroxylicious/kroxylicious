@@ -4,7 +4,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-FROM registry.access.redhat.com/ubi9/openjdk-21:1.24-2.1769108681 AS builder
+FROM registry.access.redhat.com/ubi9/openjdk-21:1.24-2.1769595322 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
