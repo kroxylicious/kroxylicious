@@ -9,16 +9,28 @@ package io.kroxylicious.filter.resourceisolation;
 import java.util.Objects;
 import java.util.Optional;
 
+import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.Unique;
 import io.kroxylicious.proxy.authentication.User;
 
-class UserPrincipalPrefixingResourceNameMapper implements ResourceNameMapper {
+class PrincipalResourceNameMapper implements ResourceNameMapper {
 
     private static final String SEPARATOR = "-";
 
+    private Class<? extends Principal> uniquePrincipalType;
+
+    PrincipalResourceNameMapper(Class<? extends Principal> uniquePrincipalType) {
+        this.uniquePrincipalType = Objects.requireNonNull(uniquePrincipalType);
+        if (!uniquePrincipalType.isAnnotationPresent(Unique.class)) {
+            throw new IllegalArgumentException(uniquePrincipalType.getName() + " is not a unique principal type");
+        }
+    }
+
     @Override
     public String map(MapperContext mapperContext, ResourceIsolation.ResourceType resourceType, String unmappedResourceName) {
-        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject());
+        uniquePrincipalType = User.class;
+        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject(), uniquePrincipalType);
         return user.map(authId -> doMap(authId, unmappedResourceName))
                 .orElse(unmappedResourceName);
     }
@@ -29,7 +41,7 @@ class UserPrincipalPrefixingResourceNameMapper implements ResourceNameMapper {
 
     @Override
     public String unmap(MapperContext mapperContext, ResourceIsolation.ResourceType resourceType, String mappedResourceName) {
-        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject());
+        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject(), User.class);
         return user.map(authId -> doUnmap(authId, mappedResourceName))
                 .orElse(mappedResourceName);
     }
@@ -46,15 +58,15 @@ class UserPrincipalPrefixingResourceNameMapper implements ResourceNameMapper {
 
     @Override
     public boolean isInNamespace(MapperContext mapperContext, ResourceIsolation.ResourceType resourceType, String mappedResourceName) {
-        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject());
+        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject(), User.class);
         return user.map(authId -> mappedResourceName.startsWith(authId + SEPARATOR))
                 .orElse(false);
     }
 
-    private static Optional<String> getAuthenticatedPrincipal(Subject authenticateSubject) {
+    private static Optional<String> getAuthenticatedPrincipal(Subject authenticateSubject, Class<? extends Principal> uniquePrincipalType) {
         var authenticatedSubject = Objects.requireNonNull(authenticateSubject);
-        return authenticatedSubject.uniquePrincipalOfType(User.class)
-                .map(User::name);
+        return authenticatedSubject.uniquePrincipalOfType(uniquePrincipalType)
+                .map(Principal::name);
     }
 
 }

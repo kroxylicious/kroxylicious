@@ -38,9 +38,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.kroxylicious.filter.resourceisolation.PrincipalResourceNameMapperService;
 import io.kroxylicious.filter.resourceisolation.ResourceIsolation;
-import io.kroxylicious.filter.resourceisolation.UserPrincipalPrefixingResourceNameMapperService;
 import io.kroxylicious.filter.sasl.inspection.SaslInspection;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
@@ -101,7 +102,7 @@ class ResourceIsolationIT {
     }
 
     private void checkGroupIsolationMaintained(ConsumerStyle consumerStyle, KafkaCluster cluster, Topic topic, boolean useDescribe) {
-        var configBuilder = buildConfig(cluster);
+        var configBuilder = buildCProxyonfig(cluster);
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         var bobConfig = buildClientConfig("bob", "pwd");
@@ -132,7 +133,7 @@ class ResourceIsolationIT {
     void consumerGroupOffsetMaintainGroupIsolation(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
             @SaslMechanism.Principal(user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
 
-        var configBuilder = buildConfig(cluster);
+        var configBuilder = buildCProxyonfig(cluster);
         var aliceConfig = buildClientConfig("alice", "pwd",
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
@@ -188,7 +189,7 @@ class ResourceIsolationIT {
     @Test
     void listConsumerGroupOffsets(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd") }) KafkaCluster cluster, Topic topic) {
 
-        var configBuilder = buildConfig(cluster);
+        var configBuilder = buildCProxyonfig(cluster);
         var aliceConfig = buildClientConfig("alice", "pwd",
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
@@ -232,7 +233,7 @@ class ResourceIsolationIT {
 
     @Test
     void deleteConsumerGroups(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd") }) KafkaCluster cluster, Topic topic) {
-        var configBuilder = buildConfig(cluster);
+        var configBuilder = buildCProxyonfig(cluster);
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         try (var tester = kroxyliciousTester(configBuilder);
@@ -249,7 +250,7 @@ class ResourceIsolationIT {
         }
     }
 
-    private static ConfigurationBuilder buildConfig(KafkaCluster cluster) {
+    private static ConfigurationBuilder buildCProxyonfig(KafkaCluster cluster) {
         var configBuilder = KroxyliciousConfigUtils.proxy(cluster);
 
         var saslInspectionFilter = new NamedFilterDefinitionBuilder(
@@ -264,7 +265,8 @@ class ResourceIsolationIT {
                 ResourceIsolation.class.getName());
 
         userNamespaceFilter.withConfig("resourceTypes", List.of("GROUP_ID"),
-                "mapper", UserPrincipalPrefixingResourceNameMapperService.class.getSimpleName());
+                "mapper", PrincipalResourceNameMapperService.class.getSimpleName(),
+                "mapperConfig", Map.of("principalType", User.class.getName()));
         var userNamespace = userNamespaceFilter.build();
 
         configBuilder.addToFilterDefinitions(saslInspection, userNamespace)

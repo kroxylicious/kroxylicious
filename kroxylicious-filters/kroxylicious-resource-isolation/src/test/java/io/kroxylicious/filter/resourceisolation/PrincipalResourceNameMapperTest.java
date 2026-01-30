@@ -14,28 +14,33 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class UserPrincipalPrefixingResourceNameMapperTest {
+class PrincipalResourceNameMapperTest {
 
     private static final String PRINCIPAL_NAME = "bob";
-    private final UserPrincipalPrefixingResourceNameMapper mapper = new UserPrincipalPrefixingResourceNameMapper();
-    @Mock
+
+    @Mock(strictness = Mock.Strictness.LENIENT)
     Subject subject;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     User user;
+
+    private PrincipalResourceNameMapper mapper;
 
     @BeforeEach
     void beforeEach() {
         when(user.name()).thenReturn(PRINCIPAL_NAME);
         when(subject.uniquePrincipalOfType(User.class)).thenReturn(Optional.of(user));
+        mapper = new PrincipalResourceNameMapper(User.class);
     }
 
     @Test
@@ -70,6 +75,13 @@ class UserPrincipalPrefixingResourceNameMapperTest {
     void notInNamespace() {
         assertThat(mapper.isInNamespace(buildMapperContext(subject), ResourceIsolation.ResourceType.TOPIC_NAME, "alice-foo"))
                 .isFalse();
+    }
+
+    @Test
+    void shouldRejectNonUniquePrincipal() {
+        var notAUniquePrincipal = mock(Principal.class).getClass();
+        assertThatThrownBy(() -> new PrincipalResourceNameMapper(notAUniquePrincipal))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private MapperContext buildMapperContext(Subject s) {
