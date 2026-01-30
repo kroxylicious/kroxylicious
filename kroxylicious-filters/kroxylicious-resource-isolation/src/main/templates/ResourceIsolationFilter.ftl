@@ -33,6 +33,8 @@ ${pad}if (shouldMap(ResourceIsolation.ResourceType.${field.entityType}) && inVer
 ${pad}    ${dataVar}.${setter}(map(mapperContext, ResourceIsolation.ResourceType.${field.entityType}, ${dataVar}.${getter}()));
             <#elseif field.type == '[]string'>
 ${pad}    ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(mapperContext, ResourceIsolation.ResourceType.${field.entityType}, orig)).toList());
+            <#else>
+                <#stop "unexpected field type">
             </#if>
 ${pad}}
         </#items>
@@ -86,6 +88,8 @@ ${pad}    if (!${dataVar}.${getter}().isEmpty()) {
 ${pad}        ${collectionIterator}.remove();
 ${pad}    }
                 </#if>
+            <#else>
+                <#stop "unexpected field type">
             </#if>
 ${pad}}
         </#items>
