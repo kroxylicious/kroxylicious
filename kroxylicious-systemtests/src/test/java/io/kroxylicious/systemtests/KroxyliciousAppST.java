@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousApp;
+import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
@@ -53,7 +54,10 @@ class KroxyliciousAppST extends AbstractST {
         assumeTrue(DeploymentUtils.checkLoadBalancerIsWorking(Constants.KAFKA_DEFAULT_NAMESPACE), "Load balancer is not working fine, if you are using"
                 + "minikube please run 'minikube tunnel' before running the tests");
         LOGGER.info("Deploying Kafka in {} namespace", Constants.KAFKA_DEFAULT_NAMESPACE);
-        resourceManager.createResourceFromBuilderWithWait(KafkaTemplates.kafkaPersistentWithExternalIp(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3, 3));
+        int kafkaReplicas = 3;
+        resourceManager.createResourceFromBuilderWithWait(
+                KafkaNodePoolTemplates.poolWithDualRoleAndPersistentStorage(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas),
+                KafkaTemplates.kafkaWithExternalIp(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas));
     }
 
     /**
