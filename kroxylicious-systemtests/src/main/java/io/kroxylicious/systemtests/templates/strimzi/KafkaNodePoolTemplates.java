@@ -9,7 +9,7 @@ package io.kroxylicious.systemtests.templates.strimzi;
 import java.util.List;
 import java.util.Map;
 
-import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.EphemeralStorage;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePoolBuilder;
 import io.strimzi.api.kafka.model.nodepool.ProcessRoles;
 
@@ -20,102 +20,90 @@ import io.kroxylicious.systemtests.Constants;
  */
 public class KafkaNodePoolTemplates {
 
+    private static final String KAFKA_NODE_NAME_DUAL_ROLE = "kafka";
+    private static final String KAFKA_NODE_NAME_BROKER_ROLE = "kafka-broker";
+    private static final String KAFKA_NODE_NAME_CONTROLLER_ROLE = "kafka-controller";
+
     private KafkaNodePoolTemplates() {
     }
 
     /**
-     * Default kafka node pool kafka node pool builder.
+     * Creates a KafkaNodePool builder with specified roles and basic configuration.
      *
      * @param namespaceName the namespace name
-     * @param nodePoolName the node pool name
-     * @param kafkaClusterName the kafka cluster name
-     * @param kafkaReplicas the kafka replicas
-     * @return the kafka node pool builder
+     * @param kafkaClusterName the name of the Kafka cluster this pool belongs to
+     * @param kafkaReplicas the number of replicas for this node pool
+     * @param roles the process roles assigned to nodes (BROKER, CONTROLLER, or both)
+     * @return a KafkaNodePoolBuilder with  storage defaulted to ephemeral
      */
-    public static KafkaNodePoolBuilder defaultKafkaNodePool(String namespaceName, String nodePoolName, String kafkaClusterName, int kafkaReplicas) {
+    private static KafkaNodePoolBuilder defaultKafkaNodePool(String namespaceName, String kafkaClusterName, int kafkaReplicas, List<ProcessRoles> roles) {
         return new KafkaNodePoolBuilder()
-                .withNewMetadata()
+                .editOrNewMetadata()
                 .withNamespace(namespaceName)
-                .withName(nodePoolName)
                 .withLabels(Map.of(Constants.STRIMZI_CLUSTER_LABEL, kafkaClusterName))
                 .endMetadata()
                 .withNewSpec()
                 .withReplicas(kafkaReplicas)
-                .endSpec();
-    }
-
-    /**
-     * Kafka node pool with broker role.
-     *
-     * @param namespaceName the namespace name
-     * @param nodePoolName the node pool name
-     * @param kafkaClusterName the kafka cluster name
-     * @param kafkaReplicas the kafka replicas
-     * @return the kafka node pool builder
-     */
-    public static KafkaNodePoolBuilder kafkaNodePoolWithBrokerRole(String namespaceName, String nodePoolName, String kafkaClusterName, int kafkaReplicas) {
-        return defaultKafkaNodePool(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
-                .editOrNewSpec()
-                .addToRoles(ProcessRoles.BROKER)
-                .endSpec();
-    }
-
-    /**
-     * Creates a KafkaNodePoolBuilder for a Kafka instance with both BROKER and CONTROLLER roles.
-     *
-     * @param nodePoolName The name of the node pool.
-     * @param kafka The Kafka instance (Model of Kafka).
-     * @param kafkaNodePoolReplicas The number of kafka broker replicas for the given node pool.
-     * @return KafkaNodePoolBuilder configured with both BROKER and CONTROLLER roles.
-     */
-    public static KafkaNodePoolBuilder kafkaBasedNodePoolWithDualRole(String nodePoolName, Kafka kafka, int kafkaNodePoolReplicas) {
-        return kafkaBasedNodePoolWithRole(nodePoolName, kafka, List.of(ProcessRoles.BROKER, ProcessRoles.CONTROLLER), kafkaNodePoolReplicas);
-    }
-
-    private static KafkaNodePoolBuilder kafkaBasedNodePoolWithRole(String nodePoolName, Kafka kafka, List<ProcessRoles> roles, int kafkaNodePoolReplicas) {
-        return new KafkaNodePoolBuilder()
-                .withNewMetadata()
-                .withName(nodePoolName)
-                .withNamespace(kafka.getMetadata().getNamespace())
-                .withLabels(Map.of(Constants.STRIMZI_CLUSTER_LABEL, kafka.getMetadata().getName()))
-                .endMetadata()
-                .withNewSpec()
+                .withStorage(new EphemeralStorage())
                 .withRoles(roles)
-                .withReplicas(kafkaNodePoolReplicas)
-                .withStorage(kafka.getSpec().getKafka().getStorage())
-                .withJvmOptions(kafka.getSpec().getKafka().getJvmOptions())
-                .withResources(kafka.getSpec().getKafka().getResources())
                 .endSpec();
     }
 
     /**
-     * Kafka node pool with controller role.
+     * Creates a KafkaNodePool builder configured with BROKER role and ephemeral storage.
      *
      * @param namespaceName the namespace name
-     * @param nodePoolName the node pool name
-     * @param kafkaClusterName the kafka cluster name
-     * @param kafkaReplicas the kafka replicas
-     * @return the kafka node pool builder
+     * @param kafkaClusterName the name of the Kafka cluster this pool belongs to
+     * @param kafkaReplicas the number of broker replicas for this pool
+     * @return a KafkaNodePoolBuilder with BROKER role and name "kafka-broker"
      */
-    public static KafkaNodePoolBuilder kafkaNodePoolWithControllerRole(String namespaceName, String nodePoolName, String kafkaClusterName, int kafkaReplicas) {
-        return defaultKafkaNodePool(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
-                .editOrNewSpec()
-                .addToRoles(ProcessRoles.CONTROLLER)
-                .endSpec();
+    public static KafkaNodePoolBuilder poolWithBrokerRole(String namespaceName, String kafkaClusterName, int kafkaReplicas) {
+        return defaultKafkaNodePool(namespaceName, kafkaClusterName, kafkaReplicas, List.of(ProcessRoles.BROKER))
+                .editOrNewMetadata()
+                .withName(KafkaNodePoolTemplates.KAFKA_NODE_NAME_BROKER_ROLE)
+                .endMetadata();
     }
 
     /**
-     * Kafka node pool with controller role and persistent storage.
+     * Creates a KafkaNodePool builder configured with CONTROLLER role and ephemeral storage.
      *
      * @param namespaceName the namespace name
-     * @param nodePoolName the node pool name
-     * @param kafkaClusterName the kafka cluster name
-     * @param kafkaReplicas the kafka replicas
-     * @return the kafka node pool builder
+     * @param kafkaClusterName the name of the Kafka cluster this pool belongs to
+     * @param kafkaReplicas the number of broker (controller) replicas for this pool
+     * @return a KafkaNodePoolBuilder with CONTROLLER role and name "kafka-controller"
      */
-    public static KafkaNodePoolBuilder kafkaNodePoolWithControllerRoleAndPersistentStorage(String namespaceName, String nodePoolName, String kafkaClusterName,
-                                                                                           int kafkaReplicas) {
-        return kafkaNodePoolWithControllerRole(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
+    public static KafkaNodePoolBuilder poolWithControllerRole(String namespaceName, String kafkaClusterName, int kafkaReplicas) {
+        return defaultKafkaNodePool(namespaceName, kafkaClusterName, kafkaReplicas, List.of(ProcessRoles.CONTROLLER))
+                .editOrNewMetadata()
+                .withName(KafkaNodePoolTemplates.KAFKA_NODE_NAME_CONTROLLER_ROLE)
+                .endMetadata();
+    }
+
+    /**
+     * Creates a KafkaNodePoolBuilder for a Kafka instance with both BROKER and CONTROLLER roles and ephemeral storage.
+     *
+     * @param namespaceName the namespace name
+     * @param kafkaClusterName the name of the Kafka cluster this pool belongs to
+     * @param kafkaReplicas the number of replicas for the given node pool
+     * @return KafkaNodePoolBuilder configured with both BROKER and CONTROLLER roles
+     */
+    public static KafkaNodePoolBuilder poolWithDualRole(String namespaceName, String kafkaClusterName, int kafkaReplicas) {
+        return defaultKafkaNodePool(namespaceName, kafkaClusterName, kafkaReplicas, List.of(ProcessRoles.BROKER, ProcessRoles.CONTROLLER))
+                .editOrNewMetadata()
+                .withName(KafkaNodePoolTemplates.KAFKA_NODE_NAME_DUAL_ROLE)
+                .endMetadata();
+    }
+
+    /**
+     * Creates a KafkaNodePool builder configured with BROKER role and persistent storage.
+     *
+     * @param namespaceName the namespace name
+     * @param kafkaClusterName the name of the Kafka cluster this pool belongs to
+     * @param kafkaReplicas the number of broker replicas for this pool
+     * @return a KafkaNodePoolBuilder with BROKER role, name "kafka-broker" and persistent storage
+     */
+    public static KafkaNodePoolBuilder poolWithBrokerRoleAndPersistentStorage(String namespaceName, String kafkaClusterName, int kafkaReplicas) {
+        return poolWithBrokerRole(namespaceName, kafkaClusterName, kafkaReplicas)
                 .editOrNewSpec()
                 .withNewPersistentClaimStorage()
                 .withSize("1Gi")
@@ -125,17 +113,33 @@ public class KafkaNodePoolTemplates {
     }
 
     /**
-     * Kafka node pool with broker role and persistent storage.
+     * Creates a KafkaNodePool builder configured with CONTROLLER role and persistent storage.
      *
      * @param namespaceName the namespace name
-     * @param nodePoolName the node pool name
-     * @param kafkaClusterName the kafka cluster name
-     * @param kafkaReplicas the kafka replicas
-     * @return the kafka node pool builder
+     * @param kafkaClusterName the name of the Kafka cluster this pool belongs to
+     * @param kafkaReplicas the number of kafka (controller) replicas for this pool
+     * @return a KafkaNodePoolBuilder with CONTROLLER role, name "kafka-controller" and persistent storage
      */
-    public static KafkaNodePoolBuilder kafkaNodePoolWithBrokerRoleAndPersistentStorage(String namespaceName, String nodePoolName, String kafkaClusterName,
-                                                                                       int kafkaReplicas) {
-        return kafkaNodePoolWithBrokerRole(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
+    public static KafkaNodePoolBuilder poolWithControllerRoleAndPersistentStorage(String namespaceName, String kafkaClusterName, int kafkaReplicas) {
+        return poolWithControllerRole(namespaceName, kafkaClusterName, kafkaReplicas)
+                .editOrNewSpec()
+                .withNewPersistentClaimStorage()
+                .withSize("1Gi")
+                .withDeleteClaim(true)
+                .endPersistentClaimStorage()
+                .endSpec();
+    }
+
+    /**
+     * Creates a KafkaNodePool builder configured with both roles (BROKER, CONTROLLER) and persistent storage.
+     *
+     * @param namespaceName the namespace name
+     * @param kafkaClusterName the name of the Kafka cluster this pool belongs to
+     * @param kafkaReplicas the number of kafka (broker, controller) replicas for this pool
+     * @return a KafkaNodePoolBuilder with both roles, name "kafka" and persistent storage
+     */
+    public static KafkaNodePoolBuilder poolWithDualRoleAndPersistentStorage(String namespaceName, String kafkaClusterName, int kafkaReplicas) {
+        return poolWithDualRole(namespaceName, kafkaClusterName, kafkaReplicas)
                 .editOrNewSpec()
                 .withNewPersistentClaimStorage()
                 .withSize("1Gi")
