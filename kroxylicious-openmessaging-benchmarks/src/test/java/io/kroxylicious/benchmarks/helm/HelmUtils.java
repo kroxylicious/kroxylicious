@@ -136,10 +136,15 @@ public class HelmUtils {
 
     /**
      * Parses YAML output containing multiple Kubernetes resources (separated by ---).
+     * <p>
+     * Note: We manually split by "---" rather than using Jackson's MappingIterator because
+     * Helm templates include source comments (e.g., "# Source: chart/templates/file.yaml")
+     * and license headers that must be filtered out before parsing.
+     * </p>
      *
      * @param yaml YAML string potentially containing multiple documents
      * @return List of parsed resources as Maps
-     * @throws IOException if parsing fails
+     * @throws IOException if YAML parsing fails
      */
     @SuppressWarnings("unchecked")
     public static List<Map<String, Object>> parseKubernetesManifests(String yaml) throws IOException {
@@ -149,26 +154,39 @@ public class HelmUtils {
         String[] documents = yaml.split("---");
 
         for (String doc : documents) {
-            // Remove comment lines (Helm source comments and license headers)
-            StringBuilder cleanDoc = new StringBuilder();
-            for (String line : doc.split("\n")) {
-                if (!line.trim().startsWith("#")) {
-                    cleanDoc.append(line).append("\n");
-                }
-            }
+            String cleaned = removeCommentLines(doc);
 
-            String trimmed = cleanDoc.toString().trim();
-            if (trimmed.isEmpty()) {
+            if (cleaned.isEmpty()) {
                 continue; // Skip empty documents
             }
 
-            Map<String, Object> resource = YAML_MAPPER.readValue(trimmed, Map.class);
-            if (resource != null && !resource.isEmpty()) {
-                resources.add(resource);
+            try {
+                Map<String, Object> resource = YAML_MAPPER.readValue(cleaned, Map.class);
+                if (resource != null && !resource.isEmpty()) {
+                    resources.add(resource);
+                }
+            }
+            catch (IOException e) {
+                throw new IOException("Failed to parse YAML document: " + e.getMessage() +
+                        "\nDocument content (first 200 chars): " + cleaned.substring(0, Math.min(200, cleaned.length())), e);
             }
         }
 
         return resources;
+    }
+
+    /**
+     * Removes comment lines from YAML content.
+     * Filters out Helm source comments and license headers.
+     *
+     * @param yaml YAML content with potential comments
+     * @return YAML content with comments removed
+     */
+    private static String removeCommentLines(String yaml) {
+        return yaml.lines()
+                .filter(line -> !line.trim().startsWith("#"))
+                .collect(java.util.stream.Collectors.joining("\n"))
+                .trim();
     }
 
     /**
