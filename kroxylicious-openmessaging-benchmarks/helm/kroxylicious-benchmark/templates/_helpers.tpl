@@ -5,15 +5,12 @@ Licensed under the Apache Software License version 2.0, available at http://www.
 */}}
 
 {{/*
-Generate Kafka bootstrap servers list
+Generate bootstrap servers - routes to Kroxylicious proxy if enabled, otherwise direct to Kafka
 */}}
 {{- define "kroxylicious-benchmark.kafkaBootstrapServers" -}}
-{{- range $i, $e := until (int .Values.kafka.replicas) }}{{- if $i }},{{- end }}kafka-{{ $i }}.kafka:9092{{- end }}
-{{- end }}
-
-{{/*
-Generate Kafka controller quorum voters list
-*/}}
-{{- define "kroxylicious-benchmark.kafkaControllerQuorum" -}}
-{{- range $i, $e := until (int .Values.kafka.replicas) }}{{- if $i }},{{- end }}kafka-{{ $i }}@kafka-{{ $i }}.kafka:9093{{- end }}
+{{- if .Values.kroxylicious.enabled -}}
+kroxylicious-service:9092
+{{- else -}}
+kafka-kafka-bootstrap:9092
+{{- end -}}
 {{- end }}

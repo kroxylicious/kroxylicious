@@ -4,11 +4,10 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-# Kafka cluster configuration
+# Kafka cluster configuration (Strimzi-based)
 kafka:
   replicas: 3
-  image: apache/kafka-native:4.1.1
-  imagePullPolicy: IfNotPresent
+  version: "4.1.1"  # Kafka version for Strimzi
   # Replication settings (defaults match replica count for safety)
   replicationFactor: 3  # Should be <= replicas
   minInSyncReplicas: 2  # Should be < replicationFactor

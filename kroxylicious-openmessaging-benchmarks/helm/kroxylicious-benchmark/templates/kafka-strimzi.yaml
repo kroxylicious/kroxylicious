@@ -1,0 +1,68 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: kafka
+  labels:
+    app: kafka
+spec:
+  kafka:
+    version: {{ .Values.kafka.version }}
+    replicas: {{ .Values.kafka.replicas }}
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+    config:
+      offsets.topic.replication.factor: {{ .Values.kafka.replicationFactor }}
+      transaction.state.log.replication.factor: {{ .Values.kafka.replicationFactor }}
+      transaction.state.log.min.isr: {{ .Values.kafka.minInSyncReplicas }}
+      default.replication.factor: {{ .Values.kafka.replicationFactor }}
+      min.insync.replicas: {{ .Values.kafka.minInSyncReplicas }}
+    storage:
+      type: jbod
+      volumes:
+      - id: 0
+        type: persistent-claim
+        size: {{ .Values.kafka.storage.size }}
+        {{- if .Values.kafka.storage.storageClass }}
+        class: {{ .Values.kafka.storage.storageClass }}
+        {{- end }}
+        deleteClaim: false
+    resources:
+{{ toYaml .Values.kafka.resources | nindent 6 }}
+    livenessProbe:
+      initialDelaySeconds: 30
+      timeoutSeconds: 5
+    readinessProbe:
+      initialDelaySeconds: 10
+      timeoutSeconds: 3
+    template:
+      pod:
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          fsGroup: 1000
+        metadata:
+          labels:
+            app: kafka
+      podSet:
+        metadata:
+          labels:
+            app: kafka
+      kafkaContainer:
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

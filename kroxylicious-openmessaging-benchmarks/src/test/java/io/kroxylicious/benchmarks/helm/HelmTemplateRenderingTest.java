@@ -53,17 +53,18 @@ class HelmTemplateRenderingTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void shouldRenderKafkaStatefulSet() throws IOException {
-        // When: Rendering templates and finding Kafka StatefulSet
+    void shouldRenderKafkaCustomResource() throws IOException {
+        // When: Rendering templates and finding Kafka custom resource
         String yaml = HelmUtils.renderTemplate();
         List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
-        Map<String, Object> kafkaStatefulSet = HelmUtils.findResource(resources, "StatefulSet", "kafka");
+        Map<String, Object> kafka = HelmUtils.findResource(resources, "Kafka", "kafka");
 
-        // Then: Kafka StatefulSet should have default replica count
-        assertThat(kafkaStatefulSet).isNotNull();
-        Map<String, Object> spec = (Map<String, Object>) kafkaStatefulSet.get("spec");
-        assertThat(spec.get("replicas"))
-                .as("Kafka StatefulSet should have default 3 replicas")
+        // Then: Kafka CR should have default replica count
+        assertThat(kafka).isNotNull();
+        Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
+        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
+        assertThat(kafkaSpec.get("replicas"))
+                .as("Kafka CR should have default 3 replicas")
                 .isEqualTo(3);
     }
 
@@ -74,32 +75,32 @@ class HelmTemplateRenderingTest {
         // When: Rendering with custom replica count
         String yaml = HelmUtils.renderTemplate(Map.of("kafka.replicas", String.valueOf(replicas)));
         List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
-        Map<String, Object> kafkaStatefulSet = HelmUtils.findResource(resources, "StatefulSet", "kafka");
+        Map<String, Object> kafka = HelmUtils.findResource(resources, "Kafka", "kafka");
 
-        // Then: StatefulSet should have configured replica count
-        assertThat(kafkaStatefulSet).isNotNull();
-        Map<String, Object> spec = (Map<String, Object>) kafkaStatefulSet.get("spec");
-        assertThat(spec.get("replicas"))
-                .as("Kafka StatefulSet should have %d replicas", replicas)
+        // Then: Kafka CR should have configured replica count
+        assertThat(kafka).isNotNull();
+        Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
+        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
+        assertThat(kafkaSpec.get("replicas"))
+                .as("Kafka CR should have %d replicas", replicas)
                 .isEqualTo(replicas);
     }
 
-    @ParameterizedTest
-    @ValueSource(ints = { 1, 3, 5 })
+    @Test
     @SuppressWarnings("unchecked")
-    void shouldGenerateCorrectControllerQuorumVoters(int replicas) throws IOException {
-        // When: Rendering with custom replica count
-        String yaml = HelmUtils.renderTemplate(Map.of("kafka.replicas", String.valueOf(replicas)));
+    void shouldConfigureKafkaVersion() throws IOException {
+        // When: Rendering templates and finding Kafka custom resource
+        String yaml = HelmUtils.renderTemplate();
         List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
-        Map<String, Object> kafkaStatefulSet = HelmUtils.findResource(resources, "StatefulSet", "kafka");
+        Map<String, Object> kafka = HelmUtils.findResource(resources, "Kafka", "kafka");
 
-        // Then: KAFKA_CONTROLLER_QUORUM_VOTERS should be correctly formatted
-        assertThat(kafkaStatefulSet).isNotNull();
-        String quorumVoters = HelmUtils.extractEnvVar(kafkaStatefulSet, "KAFKA_CONTROLLER_QUORUM_VOTERS");
-        String expectedVoters = HelmUtils.generateExpectedQuorumVoters(replicas);
-        assertThat(quorumVoters)
-                .as("Controller quorum voters should be correctly formatted for %d replicas", replicas)
-                .isEqualTo(expectedVoters);
+        // Then: Kafka CR should have version configured
+        assertThat(kafka).isNotNull();
+        Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
+        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
+        assertThat(kafkaSpec.get("version"))
+                .as("Kafka CR should have version specified")
+                .isEqualTo("4.1.1");
     }
 
     @Test
@@ -108,14 +109,15 @@ class HelmTemplateRenderingTest {
         // When: Rendering templates
         String yaml = HelmUtils.renderTemplate();
         List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
-        Map<String, Object> kafkaStatefulSet = HelmUtils.findResource(resources, "StatefulSet", "kafka");
+        Map<String, Object> kafka = HelmUtils.findResource(resources, "Kafka", "kafka");
 
         // Then: Pod security context should be configured correctly
-        assertThat(kafkaStatefulSet).isNotNull();
-        Map<String, Object> spec = (Map<String, Object>) kafkaStatefulSet.get("spec");
-        Map<String, Object> template = (Map<String, Object>) spec.get("template");
-        Map<String, Object> podSpec = (Map<String, Object>) template.get("spec");
-        Map<String, Object> securityContext = (Map<String, Object>) podSpec.get("securityContext");
+        assertThat(kafka).isNotNull();
+        Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
+        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
+        Map<String, Object> template = (Map<String, Object>) kafkaSpec.get("template");
+        Map<String, Object> pod = (Map<String, Object>) template.get("pod");
+        Map<String, Object> securityContext = (Map<String, Object>) pod.get("securityContext");
 
         assertThat(securityContext.get("runAsNonRoot"))
                 .as("Pod should run as non-root")
@@ -128,15 +130,14 @@ class HelmTemplateRenderingTest {
         // When: Rendering templates
         String yaml = HelmUtils.renderTemplate();
         List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
-        Map<String, Object> kafkaStatefulSet = HelmUtils.findResource(resources, "StatefulSet", "kafka");
+        Map<String, Object> kafka = HelmUtils.findResource(resources, "Kafka", "kafka");
 
         // Then: Container security context should drop all capabilities
-        assertThat(kafkaStatefulSet).isNotNull();
-        Map<String, Object> spec = (Map<String, Object>) kafkaStatefulSet.get("spec");
-        Map<String, Object> template = (Map<String, Object>) spec.get("template");
-        Map<String, Object> podSpec = (Map<String, Object>) template.get("spec");
-        List<Map<String, Object>> containers = (List<Map<String, Object>>) podSpec.get("containers");
-        Map<String, Object> kafkaContainer = containers.get(0);
+        assertThat(kafka).isNotNull();
+        Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
+        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
+        Map<String, Object> template = (Map<String, Object>) kafkaSpec.get("template");
+        Map<String, Object> kafkaContainer = (Map<String, Object>) template.get("kafkaContainer");
         Map<String, Object> containerSecurityContext = (Map<String, Object>) kafkaContainer.get("securityContext");
 
         assertThat(containerSecurityContext.get("allowPrivilegeEscalation"))

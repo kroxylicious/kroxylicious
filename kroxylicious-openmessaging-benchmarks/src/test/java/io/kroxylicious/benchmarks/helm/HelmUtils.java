@@ -191,44 +191,4 @@ public class HelmUtils {
                 .orElse(null);
     }
 
-    /**
-     * Extracts an environment variable value from a StatefulSet resource.
-     *
-     * @param statefulSet The StatefulSet resource
-     * @param envVarName The environment variable name to find
-     * @return The environment variable value, or null if not found
-     */
-    @SuppressWarnings("unchecked")
-    public static String extractEnvVar(Map<String, Object> statefulSet, String envVarName) {
-        Map<String, Object> spec = (Map<String, Object>) statefulSet.get("spec");
-        Map<String, Object> template = (Map<String, Object>) spec.get("template");
-        Map<String, Object> podSpec = (Map<String, Object>) template.get("spec");
-        List<Map<String, Object>> containers = (List<Map<String, Object>>) podSpec.get("containers");
-
-        for (Map<String, Object> container : containers) {
-            List<Map<String, Object>> env = (List<Map<String, Object>>) container.get("env");
-            if (env != null) {
-                for (Map<String, Object> envVar : env) {
-                    if (envVarName.equals(envVar.get("name"))) {
-                        return (String) envVar.get("value");
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Generates the expected KRaft controller quorum voters string for a given replica count.
-     *
-     * @param replicas Number of Kafka replicas
-     * @return Expected quorum voters string
-     */
-    public static String generateExpectedQuorumVoters(int replicas) {
-        List<String> voters = new ArrayList<>();
-        for (int i = 0; i < replicas; i++) {
-            voters.add(String.format("kafka-%d@kafka-%d.kafka:9093", i, i));
-        }
-        return String.join(",", voters);
-    }
 }

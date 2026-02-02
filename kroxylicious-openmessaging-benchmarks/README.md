@@ -39,7 +39,7 @@ kroxylicious-openmessaging-benchmarks/
 │       ├── values.yaml
 │       ├── templates/
 │       │   ├── _helpers.tpl
-│       │   ├── kafka-statefulset.yaml
+│       │   ├── kafka-strimzi.yaml
 │       │   ├── omb-workers-deployment.yaml
 │       │   ├── omb-benchmark-pod.yaml
 │       │   └── configmaps/
@@ -56,11 +56,23 @@ kroxylicious-openmessaging-benchmarks/
 - Kubernetes cluster (minikube, kind, or cloud provider)
 - `kubectl` configured to access the cluster
 - `helm` 3.0+
+- **Strimzi Kafka Operator** installed in the cluster
 - Sufficient resources: 8 CPU cores, 16GB RAM recommended
 
 ## Quick Start
 
-### 1. Install Baseline Scenario
+### 1. Install Strimzi Operator
+
+```bash
+# Install Strimzi operator
+kubectl create namespace kafka
+kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
+
+# Wait for operator to be ready
+kubectl wait --for=condition=ready pod -l name=strimzi-cluster-operator -n kafka --timeout=300s
+```
+
+### 2. Install Baseline Scenario
 
 ```bash
 cd kroxylicious-openmessaging-benchmarks
@@ -69,13 +81,16 @@ cd kroxylicious-openmessaging-benchmarks
 helm install benchmark ./helm/kroxylicious-benchmark \
   -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml
 
+# Wait for Kafka cluster to be ready
+kubectl wait kafka/kafka --for=condition=Ready --timeout=300s
+
 # Wait for all pods to be ready
-kubectl wait --for=condition=ready pod -l app=kafka --timeout=300s
+kubectl wait --for=condition=ready pod -l strimzi.io/cluster=kafka --timeout=300s
 kubectl wait --for=condition=ready pod -l app=omb-worker --timeout=300s
 kubectl wait --for=condition=ready pod -l app=omb-benchmark --timeout=300s
 ```
 
-### 2. Run Benchmark
+### 3. Run Benchmark
 
 The `omb-benchmark` pod is ready for manual benchmark execution:
 
@@ -93,21 +108,22 @@ kubectl exec -it omb-benchmark -- \
 # Results will be printed to console
 ```
 
-### 3. Cleanup
+### 4. Cleanup
 
 ```bash
 helm uninstall benchmark
-kubectl delete pvc -l app=kafka  # Clean up persistent volumes
+kubectl delete pvc -l strimzi.io/cluster=kafka  # Clean up persistent volumes
 ```
 
 ## Configuration
 
-### Kafka Cluster Size
+### Kafka Cluster Configuration
 
-The number of Kafka brokers is configurable (default: 3):
+The Kafka cluster uses Strimzi. Key settings (default: 3 brokers):
 
 ```yaml
 kafka:
+  version: "4.1.1"  # Kafka version
   replicas: 5  # Number of Kafka brokers
   replicationFactor: 5  # Should be <= replicas
   minInSyncReplicas: 3  # Should be < replicationFactor
@@ -116,6 +132,7 @@ kafka:
 Or via `--set`:
 ```bash
 helm install benchmark ./helm/kroxylicious-benchmark \
+  --set kafka.version=4.1.1 \
   --set kafka.replicas=5 \
   --set kafka.replicationFactor=5 \
   --set kafka.minInSyncReplicas=3
@@ -173,9 +190,8 @@ mvn test -Dtest=HelmLintTest
 Validates that Helm templates render correctly:
 - Templates render without errors
 - Valid Kubernetes resources are produced
-- Kafka StatefulSet has correct default replica count (3)
+- Strimzi Kafka CR has correct default replica count (3)
 - Configurable broker replica counts (1, 3, 5)
-- KRaft controller quorum voters generation
 - Pod security context (runAsNonRoot)
 - Container security context (allowPrivilegeEscalation)
 
@@ -237,7 +253,7 @@ kubectl get pods -l app=omb-worker -o wide
 
 Check if Kafka is accessible from benchmark pod:
 ```bash
-kubectl exec omb-benchmark -- kafka-topics --bootstrap-server kafka-0.kafka:9092 --list
+kubectl exec omb-benchmark -- kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
 ```
 
 ## Contributing
