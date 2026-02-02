@@ -103,6 +103,15 @@ jwsSignatureValidation:
           "alg": "RS256",
           "n": "lx-5h_lkVJGc8-NxgKGkfxobBlM7DDCjqAloEieCf8c9KbPJ12V0Bm8arOX-lm0wRSLxmWzQ3NTM6S9pDbSc7fQt77THlMD1zEDMwIAJxfoMt3U_VrMHVdiOvO6YpU3jWBp7BfQNYHJjCSiaxIHqDPuDCh2GTflkU32Nfim7W3iLBuH4_K8ADYHz3QdeX29vzl49PDbUiiJEsjnEconsfuYjrFaN3uGn41mGzjedc7oxlcID8fDxq5bvZvOFBAIqdrxs5qPYw1QlVupB3LT0AMU1qKWOB_vkM1n54eDIxP9Xd__WnvX4wagYqA1OZ9LPBenhBX7_Rbnrap2QNQ58-Q",
           "e": "AQAB"
+        },
+        {
+          "kty": "EC",
+          "kid": "EC JWK",
+          "key_ops": [ "verify" ],
+          "crv": "P-256",
+          "alg": "ES256",
+          "x": "f83OJ3D2xF4h2Jm2VvZd7uKQ6GFDp4zQpN9qzZPJxG8",
+          "y": "x_FEzRu9PZxC5H5KJ5-3HqWQX5J8V4a5j8nY1JvG9r0"
         }
       ]
     }
@@ -122,6 +131,15 @@ jwsSignatureValidation:
 * The JWS signature validation rule verifies the JWS only and does not perform
   https://datatracker.ietf.org/doc/html/rfc7519[JSON Web Token (JWT)]
   claim validation. Token claims such as expiration and issuer are not checked.
-* `jwsSignatureValidation.algorithms.allowed` and `jwsSignatureValidation.algorithms.denied` specify which signature algorithms are permitted. 
-If both `allowed` and `denied` are specified, only the algorithms listed in `allowed` are permitted.
+* `jwsSignatureValidation.algorithms.allowed` and `jwsSignatureValidation.algorithms.denied` specify which signature algorithms are permitted.
+** If both `allowed` and `denied` are omitted or empty, all algorithms are blocked and JWS signature verification fails.
+** If only `allowed` is specified, only the algorithms listed in `allowed` are permitted.
+** If only `denied` is specified, all algorithms except those listed in `denied` are permitted.
+** If both `allowed` and `denied` are specified, only the algorithms listed in `allowed` are permitted.
+* `jwsSignatureValidation.recordHeader.key` specifies the Kafka record header key that contains the JWS.
+  The default value is `kroxylicious.io/jws`.
+* `jwsSignatureValidation.recordHeader.required` specifies whether the JWS record header must be present.
+  If set to `false`, validation is skipped when the header is missing.
+* `jwsSignatureValidation.content.detached` specifies whether the record buffer is used as the JWS payload
+  (detached content, as defined in https://datatracker.ietf.org/doc/html/rfc7515#appendix-F[RFC 7515 Appendix F]).
 --
