@@ -378,14 +378,21 @@ public class KafkaProxyReconciler implements
                 .filter(tar -> ResourcesUtil.isConfigMap(tar.getRef()) || ResourcesUtil.isSecret(tar.getRef()))
                 .map(tar -> {
                     var ref = tar.getRef();
-                    var volName = ResourcesUtil.volumeName("", ResourcesUtil.isSecret(ref) ? "secrets" : "configmaps", ref.getName());
+
+                    // if ref.getKind is null(), we assume that the resource is a ConfigMap
+                    boolean isSecret = ref.getKind() != null && ResourcesUtil.isSecret(ref);
+
+                    // Ensure volume name matches the resource type used
+                    String volType = isSecret ? "secrets" : "configmaps";
+                    String volName = ResourcesUtil.volumeName("", volType, ref.getName());
 
                     var volume = new VolumeBuilder()
                             .withName(volName);
 
-                    if (ResourcesUtil.isSecret(ref)) {
+                    if (isSecret) {
                         volume.withNewSecret().withSecretName(ref.getName()).endSecret();
-                    } else if (ResourcesUtil.isConfigMap(ref)) {
+                    }
+                    else {
                         volume.withNewConfigMap().withName(ref.getName()).endConfigMap();
                     }
 
