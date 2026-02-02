@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -43,12 +45,14 @@ class HelmTemplateRenderingTest {
     void shouldRenderValidKubernetesResources() throws IOException {
         // When: Rendering and parsing templates
         String yaml = HelmUtils.renderTemplate();
-        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
 
         // Then: Should parse into Kubernetes resources
         assertThat(resources)
                 .as("Should parse into valid Kubernetes resources")
-                .isNotEmpty();
+                .isNotEmpty()
+                .allMatch(r -> r.getKind() != null, "All resources should have a kind")
+                .allMatch(r -> r.getMetadata() != null, "All resources should have metadata");
     }
 
     @Test
@@ -56,11 +60,14 @@ class HelmTemplateRenderingTest {
     void shouldRenderKafkaCustomResource() throws IOException {
         // When: Rendering templates and finding Kafka custom resource
         String yaml = HelmUtils.renderTemplate();
-        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
-        Map<String, Object> kafka = HelmUtils.findResource(resources, "Kafka", "kafka");
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
 
         // Then: Kafka CR should have default replica count
         assertThat(kafka).isNotNull();
+        assertThat(kafka.getKind()).isEqualTo("Kafka");
+        assertThat(kafka.getApiVersion()).isEqualTo("kafka.strimzi.io/v1beta2");
+
         Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
         Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
         assertThat(kafkaSpec.get("replicas"))
@@ -74,8 +81,8 @@ class HelmTemplateRenderingTest {
     void shouldRenderWithConfigurableReplicaCount(int replicas) throws IOException {
         // When: Rendering with custom replica count
         String yaml = HelmUtils.renderTemplate(Map.of("kafka.replicas", String.valueOf(replicas)));
-        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
-        Map<String, Object> kafka = HelmUtils.findResource(resources, "Kafka", "kafka");
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
 
         // Then: Kafka CR should have configured replica count
         assertThat(kafka).isNotNull();
@@ -91,8 +98,8 @@ class HelmTemplateRenderingTest {
     void shouldConfigureKafkaVersion() throws IOException {
         // When: Rendering templates and finding Kafka custom resource
         String yaml = HelmUtils.renderTemplate();
-        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
-        Map<String, Object> kafka = HelmUtils.findResource(resources, "Kafka", "kafka");
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
 
         // Then: Kafka CR should have version configured
         assertThat(kafka).isNotNull();
@@ -108,8 +115,8 @@ class HelmTemplateRenderingTest {
     void shouldSetPodSecurityContext() throws IOException {
         // When: Rendering templates
         String yaml = HelmUtils.renderTemplate();
-        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
-        Map<String, Object> kafka = HelmUtils.findResource(resources, "Kafka", "kafka");
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
 
         // Then: Pod security context should be configured correctly
         assertThat(kafka).isNotNull();
@@ -129,8 +136,8 @@ class HelmTemplateRenderingTest {
     void shouldSetContainerSecurityContext() throws IOException {
         // When: Rendering templates
         String yaml = HelmUtils.renderTemplate();
-        List<Map<String, Object>> resources = HelmUtils.parseKubernetesManifests(yaml);
-        Map<String, Object> kafka = HelmUtils.findResource(resources, "Kafka", "kafka");
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
 
         // Then: Container security context should drop all capabilities
         assertThat(kafka).isNotNull();

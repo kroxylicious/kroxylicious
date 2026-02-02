@@ -19,6 +19,8 @@ import java.util.concurrent.TimeUnit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
+import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
+
 /**
  * Utility class for executing Helm CLI commands and parsing Kubernetes YAML manifests.
  */
@@ -205,6 +207,62 @@ public class HelmUtils {
                     Map<String, Object> metadata = (Map<String, Object>) r.get("metadata");
                     return metadata != null && name.equals(metadata.get("name"));
                 })
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Parses YAML output into typed Kubernetes resources using Fabric8 models.
+     * <p>
+     * This provides type-safe access to Kubernetes resources, eliminating raw Map casting.
+     * Resources are parsed as GenericKubernetesResource which provides type-safe access to
+     * metadata and keeps spec as a Map for flexibility.
+     * </p>
+     *
+     * @param yaml YAML string potentially containing multiple documents
+     * @return List of parsed Kubernetes resources
+     * @throws IOException if YAML parsing fails
+     */
+    public static List<GenericKubernetesResource> parseKubernetesResourcesTyped(String yaml) throws IOException {
+        List<GenericKubernetesResource> resources = new ArrayList<>();
+
+        // Split by YAML document separator
+        String[] documents = yaml.split("---");
+
+        for (String doc : documents) {
+            String cleaned = removeCommentLines(doc);
+
+            if (cleaned.isEmpty()) {
+                continue;
+            }
+
+            try {
+                GenericKubernetesResource resource = YAML_MAPPER.readValue(cleaned, GenericKubernetesResource.class);
+                if (resource != null && resource.getKind() != null) {
+                    resources.add(resource);
+                }
+            }
+            catch (IOException e) {
+                throw new IOException("Failed to parse YAML document: " + e.getMessage() +
+                        "\nDocument content (first 200 chars): " + cleaned.substring(0, Math.min(200, cleaned.length())), e);
+            }
+        }
+
+        return resources;
+    }
+
+    /**
+     * Finds a typed resource by kind and name.
+     *
+     * @param resources List of Kubernetes resources
+     * @param kind Resource kind (e.g., "Kafka", "Service")
+     * @param name Resource name
+     * @return The matching resource, or null if not found
+     */
+    public static GenericKubernetesResource findResourceTyped(List<GenericKubernetesResource> resources, String kind, String name) {
+        return resources.stream()
+                .filter(r -> kind.equals(r.getKind()))
+                .filter(r -> r.getMetadata() != null && name.equals(r.getMetadata().getName()))
                 .findFirst()
                 .orElse(null);
     }
