@@ -67,7 +67,7 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
             Map<Boolean, List<Pair<K>>> partitioned = list.stream().collect(Collectors.partitioningBy(x -> x.kekId == null));
             Set<String> unresolvedTopicNames = partitioned.get(true).stream().map(Pair::topicName).collect(toSet());
             Map<String, K> topicNametoKey = partitioned.get(false).stream().collect(toMap(topicKek -> topicKek.topicName, topicKek -> topicKek.kekId));
-            return new TopicNameKekSelection<>(topicNametoKey, unresolvedTopicNames);
+            return new TopicNameKekSelection<>(topicNametoKey, Set.of(), unresolvedTopicNames);
         });
     }
 

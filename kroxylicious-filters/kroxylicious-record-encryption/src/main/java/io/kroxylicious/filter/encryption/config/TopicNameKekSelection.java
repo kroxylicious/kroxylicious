@@ -16,10 +16,22 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * Selection of keys
  * @param topicNameToKekId topic name to key, key must not be null
+ * @param passthroughTopicNames topic names which should be passed through unencrypted
  * @param unresolvedTopicNames topic names which could not have a key selected
  * @param <K> the type of key
  */
-public record TopicNameKekSelection<K>(@NonNull Map<String, K> topicNameToKekId, @NonNull Set<String> unresolvedTopicNames) {
+public record TopicNameKekSelection<K>(@NonNull Map<String, K> topicNameToKekId, @NonNull Set<String> passthroughTopicNames, @NonNull Set<String> unresolvedTopicNames) {
+
+    /**
+     * Construct a TopicNameKekSelection with no topics to passthrough. Added for backwards compatibility.
+     * @param topicNameToKekId topic name to key, key must not be null
+     * @param unresolvedTopicNames topic names which could not have a key selected
+     */
+    @Deprecated(forRemoval = true, since = "0.19.0")
+    public TopicNameKekSelection(@NonNull Map<String, K> topicNameToKekId, @NonNull Set<String> unresolvedTopicNames) {
+        this(topicNameToKekId, Set.of(), unresolvedTopicNames);
+    }
+
     public TopicNameKekSelection {
         Objects.requireNonNull(topicNameToKekId);
         List<Map.Entry<String, K>> entriesWithNullValue = topicNameToKekId.entrySet().stream().filter(e -> e.getValue() == null).toList();
@@ -28,5 +40,6 @@ public record TopicNameKekSelection<K>(@NonNull Map<String, K> topicNameToKekId,
             throw new IllegalArgumentException("values in topicNameToKekId must not be null, keys with null values: " + topicNames);
         }
         Objects.requireNonNull(unresolvedTopicNames);
+        Objects.requireNonNull(passthroughTopicNames);
     }
 }

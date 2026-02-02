@@ -22,25 +22,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TopicNameKekSelectionTest {
 
     public static Stream<Arguments> invalidConstructorArgs() {
-        Arguments nullSelection = Arguments.of(null, Set.of(), NullPointerException.class);
-        Arguments nullUnresolved = Arguments.of(Map.of(), null, NullPointerException.class);
+        Arguments nullSelection = Arguments.of(null, Set.of(), Set.of(), NullPointerException.class);
+        Arguments nullUnresolved = Arguments.of(Map.of(), Set.of(), null, NullPointerException.class);
+        Arguments nullPassthrough = Arguments.of(Map.of(), null, Set.of(), NullPointerException.class);
         HashMap<Object, Object> map = new HashMap<>();
         map.put("abc", null);
-        Arguments nullMapValue = Arguments.of(map, Set.of(), IllegalArgumentException.class);
-        return Stream.of(nullSelection, nullUnresolved, nullMapValue);
+        Arguments nullMapValue = Arguments.of(map, Set.of(), Set.of(), IllegalArgumentException.class);
+        return Stream.of(nullSelection, nullPassthrough, nullUnresolved, nullMapValue);
     }
 
     @ParameterizedTest
     @MethodSource
-    void invalidConstructorArgs(Map<String, Integer> selection, Set<String> unresolvedTopicNames, Class<Exception> exceptionClass) {
-        Assertions.assertThatThrownBy(() -> new TopicNameKekSelection<>(selection, unresolvedTopicNames)).isInstanceOf(exceptionClass);
+    void invalidConstructorArgs(Map<String, Integer> selection, Set<String> passthroughTopicNames, Set<String> unresolvedTopicNames, Class<Exception> exceptionClass) {
+        Assertions.assertThatThrownBy(() -> new TopicNameKekSelection<>(selection, passthroughTopicNames, unresolvedTopicNames)).isInstanceOf(exceptionClass);
     }
 
     @Test
     void validConstructor() {
         Map<String, Integer> selection = Map.of("abc", 1);
         Set<String> unresolved = Set.of("def");
-        TopicNameKekSelection<Integer> kekSelection = new TopicNameKekSelection<>(selection, unresolved);
+        TopicNameKekSelection<Integer> kekSelection = new TopicNameKekSelection<>(selection, Set.of(), unresolved);
         assertThat(kekSelection.topicNameToKekId()).isEqualTo(selection);
         assertThat(kekSelection.unresolvedTopicNames()).isEqualTo(unresolved);
     }
