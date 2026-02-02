@@ -7,8 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
-build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0 #3171
-
+* [#3242](https://github.com/kroxylicious/kroxylicious/pull/3242): chore: remove deprecated template kek selector brace style
 * [#3224](https://github.com/kroxylicious/kroxylicious/pull/3224): Add support for using Secret in `trustAnchorRef` field of the KafkaService and the VirtualKafkaCluster CRs.
 * [#3171](https://github.com/kroxylicious/kroxylicious/pull/3171): build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0
 * [#3147](https://github.com/kroxylicious/kroxylicious/pull/3129): Deprecate Java 17. Upgrade to Java 21 in containers.
@@ -26,6 +25,8 @@ build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0 #3171
 * The four argument forms of `RequestFilter#onRequest` and `ResponseFilter#onResponse` are deprecated and will be removed in a future release.
   Implement the five argument form, which includes the `apiVersion` instead.
 * A JSON Web Signature (JWS) Signature validator has been added. WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
+* Curly-brace style topicName tokens are no longer supported in the Record Encryption TemplateKekSelector template. `template` should use `$(topicName)` instead of `${topicName}`.
+  The was deprecated in version 0.11.0.
 
 ## 0.18.0
 
