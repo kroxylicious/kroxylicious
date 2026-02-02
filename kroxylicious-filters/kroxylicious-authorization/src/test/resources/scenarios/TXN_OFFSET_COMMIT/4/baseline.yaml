@@ -19,7 +19,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        transactionalId: "random-string-171"
+        transactionalId: "my-transactional-id"
         groupId: "random-string-748"
         producerId: 913
         producerEpoch: 776
@@ -48,6 +48,10 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "READ"
+      - subject: "alice"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "WRITE"
   topicNames: null
 when:
   subject: "alice"
@@ -57,7 +61,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    transactionalId: "random-string-171"
+    transactionalId: "my-transactional-id"
     groupId: "random-string-748"
     producerId: 913
     producerEpoch: 776

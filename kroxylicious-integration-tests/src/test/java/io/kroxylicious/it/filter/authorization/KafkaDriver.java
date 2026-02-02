@@ -124,7 +124,7 @@ class KafkaDriver {
                     FindCoordinatorResponseData.class);
             Errors actual = Errors.forCode(response.errorCode());
             assertThat(actual)
-                    .as("FindCoordinator response from %s (errorMessage=%s)", cluster, response.errorMessage())
+                    .as("FindCoordinator response from %s (errorMessage=%s) for user %s", cluster.clientBootstrap(), response.errorMessage(), username)
                     .isEqualTo(Errors.NONE);
         });
     }
