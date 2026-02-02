@@ -300,6 +300,16 @@
             <groupId>io.apicurio</groupId>
             <artifactId>apicurio-registry-java-sdk-common</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>kiota-http-vertx</artifactId>
+                    <groupId>io.kiota</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <artifactId>kiota-http-jdk</artifactId>
+            <groupId>io.kiota</groupId>
         </dependency>
         <dependency>
             <groupId>io.apicurio</groupId>

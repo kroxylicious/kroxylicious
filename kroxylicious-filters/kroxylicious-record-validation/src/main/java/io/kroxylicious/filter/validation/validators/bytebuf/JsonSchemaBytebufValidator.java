@@ -20,8 +20,8 @@ import io.apicurio.registry.serde.BaseSerde;
 import io.apicurio.registry.serde.Default4ByteIdHandler;
 import io.apicurio.registry.serde.IdHandler;
 import io.apicurio.registry.serde.Legacy8ByteIdHandler;
-import io.apicurio.registry.serde.headers.DefaultHeadersHandler;
-import io.apicurio.registry.serde.headers.HeadersHandler;
+import io.apicurio.registry.serde.kafka.headers.DefaultHeadersHandler;
+import io.apicurio.registry.serde.kafka.headers.HeadersHandler;
 import io.apicurio.schema.validation.json.JsonValidationResult;
 import io.apicurio.schema.validation.json.JsonValidator;
 

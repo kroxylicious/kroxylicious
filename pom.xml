@@ -70,8 +70,9 @@
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
-        <apicurio-schema-validation.version>0.1.2</apicurio-schema-validation.version>
-        <apicurio-registry.version>3.1.2</apicurio-registry.version>
+        <apicurio-schema-validation.version>0.1.4</apicurio-schema-validation.version>
+        <apicurio-registry.version>3.1.8</apicurio-registry.version>
+        <kiota.version>0.0.31</kiota.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
@@ -326,6 +327,11 @@
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-java-sdk-common</artifactId>
                 <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.kiota</groupId>
+                <artifactId>kiota-http-jdk</artifactId>
+                <version>${kiota.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bitbucket.b_c</groupId>

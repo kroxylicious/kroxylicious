@@ -21,8 +21,9 @@ import org.junit.jupiter.api.Test;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 
+import io.apicurio.registry.resolver.config.SchemaResolverConfig;
 import io.apicurio.registry.serde.BaseSerde;
-import io.apicurio.registry.serde.headers.KafkaSerdeHeaders;
+import io.apicurio.registry.serde.kafka.headers.KafkaSerdeHeaders;
 
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
@@ -90,7 +91,9 @@ class JsonSchemaBytebufValidatorTest {
                                 .withHeader("Content-Type", "application/json")
                                 .withBody("[]")));
 
-        apicurioConfig = Map.of("apicurio.registry.url", registryServer.baseUrl() + "/apis/registry/v3");
+        apicurioConfig = Map.of(
+                "apicurio.registry.url", registryServer.baseUrl() + "/apis/registry/v3",
+                SchemaResolverConfig.HTTP_ADAPTER, "JDK");
     }
 
     @AfterAll
