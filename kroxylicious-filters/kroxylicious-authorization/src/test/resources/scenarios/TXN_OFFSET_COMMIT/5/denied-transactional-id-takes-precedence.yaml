@@ -8,7 +8,10 @@
 metadata:
   apiKeys: "TXN_OFFSET_COMMIT"
   apiVersion: 5
-  scenario: "if all topics in request are denied, then the filter short circuit responds"
+  scenario: |
+    if the actor does not have write permissions for the transactional id:
+    - short circuit error respond with TRANSACTIONAL_ID_AUTHORIZATION_FAILED for all partitions
+    This takes precedence over topic authorization failures
 given:
   mockedUpstreamResponses: []
   authorizerRules:
@@ -20,7 +23,7 @@ given:
       - subject: "alice"
         resourceName: "my-transactional-id"
         resourceClass: "TRANSACTIONAL_ID"
-        resourceType: "WRITE"
+        resourceType: "DESCRIBE" # write is required
   topicNames: null
 when:
   subject: "alice"
@@ -53,4 +56,4 @@ then:
       - name: "unauthorized"
         partitions:
           - partitionIndex: 537
-            errorCode: 29
+            errorCode: 53 #TRANSACTIONAL_ID_AUTHORIZATION_FAILED
