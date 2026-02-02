@@ -1,0 +1,127 @@
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// record-validation-guide/index.adoc
+
+[id='proc-configuring-record-validation-filter-{context}']
+= (Preview) Setting up the Record Validation filter
+
+[role="_abstract"]
+This procedure describes how to set up the Record Validation filter.
+You provide the filter configuration and rules used to validate Kafka record keys and values.
+
+.Prerequisites
+
+* An instance of Kroxylicious.
+ifdef::OpenShiftOnly[]
+For information about deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information about deploying Kroxylicious, see the {ProxyGuide} or the {OperatorGuide}.
+endif::OpenShiftOnly[]
+* A ConfigMap for Kroxylicious that includes the configuration required to create a virtual cluster.
+* Apicurio Registry, if you want to use schema validation.
+
+.Procedure
+
+. Configure a filter of type `RecordValidation`.
+
+ifdef::include-platform-bare-metal[]
+* For a standalone proxy deployment, see <<con-example-proxy-config-{context}>>.
+endif::[]
+ifdef::include-platform-kubernetes[]
+* For a Kubernetes deployment, configure a `KafkaProtocolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>.
+endif::[]
+
+. Replace the `<rule definition>` token in the YAML configuration with a validation rule that matches your requirements.
++
+Choose one of the following rule types:
+
+* *Schema validation*, to validate record keys or values against a schema stored in an Apicurio Registry.
+* *JSON syntax validation*, to validate that record keys or values contain syntactically valid JSON.
+* *JWS signature validation*, to validate a JSON Web Signature (JWS) provided in a Kafka record header.
++
+The following examples show how to configure each rule type.
++
+Example schema validation rule:
++
+--
+[source,yaml]
+----
+schemaValidationConfig:
+  apicurioGlobalId: 1001
+  apicurioRegistryUrl: http://registry.local:8080
+allowNulls: true
+allowEmpty: true
+----
+
+* `schemaValidationConfig.apicurioGlobalId` specifies the Apicurio Registry global ID of the schema to enforce.
+  If the record key or value does not conform to the schema identified by this ID, the record is rejected.
+  If a Kafka producer embeds a global ID in the record, the filter validates it against this value and rejects the record if the IDs do not match.
+* `schemaValidationConfig.apicurioRegistryUrl` specifies the endpoint URL of the Apicurio Registry.
+* `allowNulls` specifies whether the validator allows record keys or values to be `null`. The default is `false`.
+* `allowEmpty` specifies whether the validator allows record keys or values to be empty. The default is `false`.
+* The filter can extract the global ID from either the Apicurio `globalId` record header or from the initial bytes of the serialized content. 
+For more information about embedding the global ID in a record, see the
+  {apicurio-docs}/getting-started/assembly-using-kafka-client-serdes.html#_consumer_schema_configuration[Apicurio documentation^].
+--
++
+NOTE: Schema validation currently supports enforcing JSON schemas only ({github-issues}/1431[issue]).
++
+Example JSON syntax validation rule:
++
+--
+[source,yaml]
+----
+syntacticallyCorrectJson:
+  validateObjectKeysUnique: true
+allowNulls: true
+allowEmpty: true
+----
+
+* `syntacticallyCorrectJson.validateObjectKeysUnique` specifies whether JSON object keys must be unique. The default is `false`.
+* `allowNulls` specifies whether the validator allows record keys or values to be `null`. The default is `false`.
+* `allowEmpty` specifies whether the validator allows record keys or values to be empty. The default is `false`.
+--
++
+This rule rejects records that contain syntactically invalid JSON in the record key or value.
++
+Example JWS signature validation rule:
++
+--
+[source,yaml]
+----
+jwsSignatureValidation:
+  trustedJsonWebKeySet: |
+    {
+      "keys": [
+        {
+          "kty": "RSA",
+          "kid": "RSA JWK",
+          "key_ops": [ "verify" ],
+          "alg": "RS256",
+          "n": "lx-5h_lkVJGc8-NxgKGkfxobBlM7DDCjqAloEieCf8c9KbPJ12V0Bm8arOX-lm0wRSLxmWzQ3NTM6S9pDbSc7fQt77THlMD1zEDMwIAJxfoMt3U_VrMHVdiOvO6YpU3jWBp7BfQNYHJjCSiaxIHqDPuDCh2GTflkU32Nfim7W3iLBuH4_K8ADYHz3QdeX29vzl49PDbUiiJEsjnEconsfuYjrFaN3uGn41mGzjedc7oxlcID8fDxq5bvZvOFBAIqdrxs5qPYw1QlVupB3LT0AMU1qKWOB_vkM1n54eDIxP9Xd__WnvX4wagYqA1OZ9LPBenhBX7_Rbnrap2QNQ58-Q",
+          "e": "AQAB"
+        }
+      ]
+    }
+  algorithms:
+    allowed:
+      - ES256
+      - RS256
+  recordHeader:
+    key: kroxylicious.io/jws
+    required: true
+  content:
+    detached: false
+----
+
+* `jwsSignatureValidation.trustedJsonWebKeySet` specifies the set of JSON Web Keys (JWK) used to verify
+  https://datatracker.ietf.org/doc/html/rfc7515[JSON Web Signature (JWS)] signatures.
+* The JWS signature validation rule verifies the JWS only and does not perform
+  https://datatracker.ietf.org/doc/html/rfc7519[JSON Web Token (JWT)]
+  claim validation. Token claims such as expiration and issuer are not checked.
+* `jwsSignatureValidation.algorithms.allowed` and `jwsSignatureValidation.algorithms.denied` specify which signature algorithms are permitted. 
+If both `allowed` and `denied` are specified, only the algorithms listed in `allowed` are permitted.
+--
