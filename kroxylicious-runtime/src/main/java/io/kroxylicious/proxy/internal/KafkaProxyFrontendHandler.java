@@ -41,7 +41,6 @@ import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
-import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -307,7 +306,7 @@ public class KafkaProxyFrontendHandler
     }
 
     private void onTransportSubjectBuilt() {
-        if (Objects.requireNonNull(clientSubjectManager).authenticatedSubject() != Subject.anonymous()) {
+        if (!Objects.requireNonNull(clientSubjectManager).authenticatedSubject().isAnonymous()) {
             proxyChannelStateMachine.onSessionTransportAuthenticated();
         }
         maybeUnblock();
