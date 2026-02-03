@@ -28,6 +28,13 @@
             <scope>test</scope>
             <type>pom</type>
         </dependency>
+        <!-- Making parent dependency explict to avoid Avoids https://github.com/apache/maven-dependency-plugin/issues/1028 -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-parent</artifactId>
+            <version>${project.version}</version>
+            <type>pom</type>
+        </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-runtime</artifactId>
@@ -126,7 +133,10 @@
                                 <configuration>
                                     <outputDirectory>${project.build.directory}/local-repo</outputDirectory>
                                     <copyPom>true</copyPom>
+<!--
+Avoids https://github.com/apache/maven-dependency-plugin/issues/1028
                                     <addParentPoms>true</addParentPoms>
+-->
                                     <useRepositoryLayout>true</useRepositoryLayout>
                                 </configuration>
                             </execution>
@@ -135,6 +145,8 @@
                                 <configuration>
                                     <ignoredUnusedDeclaredDependencies>
                                         <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-bom
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-parent
                                         </ignoredUnusedDeclaredDependency>
                                         <ignoredUnusedDeclaredDependency>
                                             io.kroxylicious:kroxylicious-integration-test-support
