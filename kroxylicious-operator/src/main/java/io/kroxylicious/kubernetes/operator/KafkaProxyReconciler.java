@@ -379,6 +379,8 @@ public class KafkaProxyReconciler implements
                 .map(tar -> {
                     var ref = tar.getRef();
 
+                    // VirtualKafkaCluster and KafkaService CRD both default their trustAnchorRef.kind fields to `ConfigMap`
+
                     // if ref.getKind is null(), we assume that the resource is a ConfigMap
                     boolean isSecret = ref.getKind() != null && ResourcesUtil.isSecret(ref);
 
@@ -386,14 +388,14 @@ public class KafkaProxyReconciler implements
                     String volType = isSecret ? "secrets" : "configmaps";
                     String volName = ResourcesUtil.volumeName("", volType, ref.getName());
 
-                    var volume = new VolumeBuilder()
+                    var volumeBuilder = new VolumeBuilder()
                             .withName(volName);
 
                     if (isSecret) {
-                        volume.withNewSecret().withSecretName(ref.getName()).endSecret();
+                        volumeBuilder.withNewSecret().withSecretName(ref.getName()).endSecret();
                     }
                     else {
-                        volume.withNewConfigMap().withName(ref.getName()).endConfigMap();
+                        volumeBuilder.withNewConfigMap().withName(ref.getName()).endConfigMap();
                     }
 
                     Path mountPath = parent.resolve(ref.getName());
@@ -410,7 +412,7 @@ public class KafkaProxyReconciler implements
                             forServer ? buildTlsServerOptions(clientAuthentication) : null);
 
                     return new ConfigurationFragment<>(Optional.of(trustProvider),
-                            Set.of(volume.build()),
+                            Set.of(volumeBuilder.build()),
                             Set.of(mount));
                 }).orElse(ConfigurationFragment.empty());
     }

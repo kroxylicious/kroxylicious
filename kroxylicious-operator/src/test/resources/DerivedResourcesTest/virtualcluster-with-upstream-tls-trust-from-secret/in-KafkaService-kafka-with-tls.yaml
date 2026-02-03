@@ -19,13 +19,7 @@ spec:
     trustAnchorRef:
       name: upstream-ca
       kind: Secret
-      key: cas.crt
-    cipherSuites:
-      allow:
-      - foobar
-    protocols:
-      deny:
-      - TLS1.2
+      key: cas.pem
 status:
   bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
   observedGeneration: 3

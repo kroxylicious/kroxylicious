@@ -41,14 +41,8 @@ data:
             privateKeyFile: "/opt/kroxylicious/target-cluster/client-certs/upstream-tls-cert/tls.key"
             certificateFile: "/opt/kroxylicious/target-cluster/client-certs/upstream-tls-cert/tls.crt"
           trust:
-            storeFile: "/opt/kroxylicious/target-cluster/trusted-certs/upstream-ca/cas.crt"
+            storeFile: "/opt/kroxylicious/target-cluster/trusted-certs/upstream-ca/cas.pem"
             storeType: "PEM"
-          cipherSuites:
-            allowed:
-            - "foobar"
-          protocols:
-            denied:
-            - "TLS1.2"
         bootstrapServerSelection:
           strategy: "round-robin"
       gateways:

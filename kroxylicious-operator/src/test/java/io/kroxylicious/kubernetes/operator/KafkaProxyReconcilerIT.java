@@ -239,10 +239,10 @@ class KafkaProxyReconcilerIT {
     }
 
     @Test
-    void testCreateWithKafkaServiceTlsUsingSecret() {
+    void testCreateWithKafkaServiceTlsUsingTrustAnchorFromSecret() {
         // given
         testActor.create(tlsKeyAndCertSecret(UPSTREAM_TLS_CERTIFICATE_SECRET_NAME));
-        testActor.create(trustAnchorSecret(CA_CERT_SECRET_NAME));
+        testActor.create(secretContainingTrustAnchor(CA_CERT_SECRET_NAME));
         KafkaService kafkaService = kafkaServiceWithTlsWithTrustAnchorRefAsSecret();
 
         // when
@@ -1254,7 +1254,7 @@ class KafkaProxyReconcilerIT {
                 .build();
     }
 
-    private Secret trustAnchorSecret(String name) {
+    private Secret secretContainingTrustAnchor(String name) {
         return new SecretBuilder()
                 .withNewMetadata()
                 .withName(name)
