@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.internal;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +29,8 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.timeout.IdleStateHandler;
 
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
@@ -39,7 +41,6 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
-import io.kroxylicious.proxy.internal.subject.PrincipalAdder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -286,6 +287,9 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Test
     void shouldMarkSessionAuthenticatedWhenSessionTransportAuthenticated() throws Exception {
         // Given
+        TransportSubjectBuilder subjectBuilder = mock(TransportSubjectBuilder.class);
+        Subject subject = new Subject(new User("bob"));
+        when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(subject));
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -293,7 +297,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 endpointReconciler,
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
-                new DefaultSubjectBuilder(List.of(new PrincipalAdder(ctx -> Stream.of("Bob"), List.of(), User::new))),
+                subjectBuilder,
                 endpointBinding,
                 proxyChannelStateMachine,
                 Optional.empty());
