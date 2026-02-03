@@ -71,7 +71,7 @@ jobs:
 
       - name: Login to container registry
         if: steps.build_configuration.outputs.push_images == 'true'
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ${{ vars.REGISTRY_SERVER }}
           username: ${{ vars.REGISTRY_USERNAME }}

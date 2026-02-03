@@ -76,13 +76,13 @@
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
-        <strimzi.version>0.48.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
+        <strimzi.version>0.50.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
         <kubernetes-client.version>7.5.1</kubernetes-client.version>
         <maven.core.version>3.9.12</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
         <testcontainers.version>2.0.3</testcontainers.version>
-        <azure.security.keyvault.keys.version>4.10.4</azure.security.keyvault.keys.version>
-        <lowkey.version>7.0.9</lowkey.version>
+        <azure.security.keyvault.keys.version>4.10.5</azure.security.keyvault.keys.version>
+        <lowkey.version>7.1.0</lowkey.version>
         <bouncycastle.version>1.83</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.0</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.1</wiremock.version>
@@ -91,7 +91,7 @@
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
         <opentest4j.version>1.3.0</opentest4j.version>
-        <azure.core.version>1.57.0</azure.core.version>
+        <azure.core.version>1.57.1</azure.core.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
         <logcaptor.version>2.12.2</logcaptor.version>
