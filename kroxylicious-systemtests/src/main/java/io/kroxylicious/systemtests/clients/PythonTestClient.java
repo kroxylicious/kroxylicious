@@ -54,7 +54,13 @@ public class PythonTestClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(PythonTestClient.class);
     private static final TypeReference<PythonTestClientConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
+    private static final String DISPLAY_NAME = "Python";
     private String deployNamespace;
+
+    @Override
+    public String toString() {
+        return DISPLAY_NAME;
+    }
 
     @Override
     public KafkaClient inNamespace(String namespace) {

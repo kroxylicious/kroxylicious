@@ -50,8 +50,14 @@ public class StrimziTestClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(StrimziTestClient.class);
     private static final TypeReference<StrimziTestClientConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
+    private static final String DISPLAY_NAME = "Strimzi";
     private String deployNamespace;
     private String marker;
+
+    @Override
+    public String toString() {
+        return DISPLAY_NAME;
+    }
 
     /**
      * Instantiates a new Strimzi Test client.

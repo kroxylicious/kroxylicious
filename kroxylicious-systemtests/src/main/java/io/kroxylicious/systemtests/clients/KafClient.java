@@ -48,7 +48,13 @@ public class KafClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafClient.class);
     private static final TypeReference<KafConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
+    private static final String DISPLAY_NAME = "KafkaGo";
     private String deployNamespace;
+
+    @Override
+    public String toString() {
+        return DISPLAY_NAME;
+    }
 
     /**
      * Instantiates a new Kaf client.

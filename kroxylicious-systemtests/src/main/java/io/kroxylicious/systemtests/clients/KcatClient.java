@@ -47,7 +47,13 @@ public class KcatClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(KcatClient.class);
     private static final TypeReference<KcatConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
+    private static final String DISPLAY_NAME = "Kcat";
     private String deployNamespace;
+
+    @Override
+    public String toString() {
+        return DISPLAY_NAME;
+    }
 
     /**
      * Instantiates a new Kcat client.
