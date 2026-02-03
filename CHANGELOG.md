@@ -9,6 +9,7 @@ Format `<github issue/pr number>: <short description>`.
 
 build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0 #3171
 
+* [#3224](https://github.com/kroxylicious/kroxylicious/pull/3224): Add support for using Secret in `trustAnchorRef` field of the KafkaService and the VirtualKafkaCluster CRs.
 * [#3171](https://github.com/kroxylicious/kroxylicious/pull/3171): build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0
 * [#3147](https://github.com/kroxylicious/kroxylicious/pull/3129): Deprecate Java 17. Upgrade to Java 21 in containers.
 * [#3127](https://github.com/kroxylicious/kroxylicious/pull/3127): build(deps): bump kubernetes-client.version from 7.4.0 to 7.5.0
@@ -17,7 +18,6 @@ build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0 #3171
 * [#2969](https://github.com/kroxylicious/kroxylicious/issues/2969): Give `ResponseFilter#onResponse` access to the api-version
 * [#3035](https://github.com/kroxylicious/kroxylicious/issues/3035): fix(sasl inspector): Fix config parsing error if SaslInspector with subject builder
 * [#2861](https://github.com/kroxylicious/kroxylicious/pull/2861): Add JWS Signature validator
-* [#3224](https://github.com/kroxylicious/kroxylicious/pull/3224): Add support for using Secret in `trustAnchorRef` field of the KafkaService and the VirtualKafkaCluster CRs.
 
 ### Changes, deprecations and removals
 

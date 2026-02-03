@@ -132,6 +132,8 @@ public class KafkaProxyReconciler implements
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
+    private static final String SECRET_PLURAL = "secrets";
+    private static final String CONFIGMAP_PLURAL = "configmaps";
     public static final Path MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/");
     private static final Path TARGET_CLUSTER_MOUNTS_BASE = MOUNTS_BASE_DIR.resolve("target-cluster");
     private static final Path CLIENT_CERTS_BASE_DIR = TARGET_CLUSTER_MOUNTS_BASE.resolve("client-certs");
@@ -350,14 +352,14 @@ public class KafkaProxyReconciler implements
                 .filter(ResourcesUtil::isSecret)
                 .map(ref -> {
                     var volume = new VolumeBuilder()
-                            .withName(ResourcesUtil.volumeName("", "secrets", ref.getName()))
+                            .withName(ResourcesUtil.volumeName("", SECRET_PLURAL, ref.getName()))
                             .withNewSecret()
                             .withSecretName(ref.getName())
                             .endSecret()
                             .build();
                     Path mountPath = parent.resolve(ref.getName());
                     var mount = new VolumeMountBuilder()
-                            .withName(ResourcesUtil.volumeName("", "secrets", ref.getName()))
+                            .withName(ResourcesUtil.volumeName("", SECRET_PLURAL, ref.getName()))
                             .withMountPath(mountPath.toString())
                             .withReadOnly(true)
                             .build();
@@ -385,7 +387,7 @@ public class KafkaProxyReconciler implements
                     boolean isSecret = ref.getKind() != null && ResourcesUtil.isSecret(ref);
 
                     // Ensure volume name matches the resource type used
-                    String volType = isSecret ? "secrets" : "configmaps";
+                    String volType = isSecret ? SECRET_PLURAL : CONFIGMAP_PLURAL;
                     String volName = ResourcesUtil.volumeName("", volType, ref.getName());
 
                     var volumeBuilder = new VolumeBuilder()

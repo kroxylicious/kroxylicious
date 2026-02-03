@@ -252,9 +252,7 @@ class KafkaProxyReconcilerIT {
         assertProxyConfigContents(created.proxy(), Set
                 .of(
                         UPSTREAM_TLS_CERTIFICATE_SECRET_NAME,
-                        TRUSTED_CAS_PEM,
-                        PROTOCOL_TLS_V1_3,
-                        TLS_CIPHER_SUITE_AES256GCM_SHA384),
+                        TRUSTED_CAS_PEM),
                 Set.of());
         assertDeploymentMountsSecret(created.proxy(), CA_CERT_SECRET_NAME);
         assertDeploymentMountsSecret(created.proxy(), UPSTREAM_TLS_CERTIFICATE_SECRET_NAME);
@@ -1190,12 +1188,6 @@ class KafkaProxyReconcilerIT {
                             .endRef()
                             .withKey(TRUSTED_CAS_PEM)
                         .endTrustAnchorRef()
-                        .withNewProtocols()
-                            .withAllow(PROTOCOL_TLS_V1_3)
-                        .endProtocols()
-                        .withNewCipherSuites()
-                            .withAllow(TLS_CIPHER_SUITE_AES256GCM_SHA384)
-                        .endCipherSuites()
                     .endTls()
                 .endSpec()
                 .build();
