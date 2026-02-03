@@ -31,10 +31,10 @@ We would not recommend using it in a production environment.
 //configuring the record-validation filter
 include::_modules/record-validation/proc-configuring-record-validation-filter.adoc[leveloffset=+1]
 ifdef::include-platform-bare-metal[]
-include::../_modules/record-validation/con-example-proxy-config.adoc[leveloffset=+2]
+include::_modules/record-validation/con-example-proxy-config.adoc[leveloffset=+2]
 endif::[]
 ifdef::include-platform-kubernetes[]
-include::../_modules/record-validation/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+2]
+include::_modules/record-validation/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+2]
 endif::[]
 
 //monitoring the record validation filter

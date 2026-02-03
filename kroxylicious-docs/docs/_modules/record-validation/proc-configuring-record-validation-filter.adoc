@@ -20,7 +20,9 @@ endif::OpenShiftOnly[]
 ifndef::OpenShiftOnly[]
 For information about deploying Kroxylicious, see the {ProxyGuide} or the {OperatorGuide}.
 endif::OpenShiftOnly[]
-* A ConfigMap for Kroxylicious that includes the configuration required to create a virtual cluster.
+ifdef::include-platform-kubernetes[]
+* A `ConfigMap` for Kroxylicious that includes the configuration required to create a virtual cluster.
+endif::[]
 * Apicurio Registry, if you want to use schema validation.
 
 .Procedure
