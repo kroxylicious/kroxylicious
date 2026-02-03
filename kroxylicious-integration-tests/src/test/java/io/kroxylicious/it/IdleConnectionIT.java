@@ -40,7 +40,7 @@ class IdleConnectionIT extends BaseIT {
     @Test
     void shouldDisconnectIdleClient(KafkaCluster cluster) {
 
-        NetworkDefinition networkDefinition = new NetworkDefinitionBuilder().withNewProxy().withUnAuthenticatedIdleTimeout(Duration.ofMillis(500)).endProxy().build();
+        NetworkDefinition networkDefinition = new NetworkDefinitionBuilder().withNewProxy().withUnauthenticatedIdleTimeout(Duration.ofMillis(500)).endProxy().build();
         var config = proxy(cluster)
                 .withNetwork(networkDefinition)
                 .withNewManagement()
