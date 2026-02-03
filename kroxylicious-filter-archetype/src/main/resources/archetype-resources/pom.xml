@@ -11,6 +11,21 @@
     <name>Sample filters</name>
     <description>Some exemplar filters</description>
 
+    <!-- TODO allows archetype build to pull in the Kafka 4.2 RC.  Remove me before merge to main -->
+    <repositories>
+        <repository>
+            <id>apache-kafka-staging</id>
+            <name>Apache Kafka Staging Repository</name>
+            <url>https://repository.apache.org/content/groups/staging/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <properties>
         <kroxylicious.extension.version>@kroxy.extension.version@</kroxylicious.extension.version>
         <kroxylicious.version>@project.version@</kroxylicious.version>

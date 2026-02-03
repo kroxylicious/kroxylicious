@@ -29,7 +29,7 @@ class ListOffsetsEnforcement extends ApiEnforcement<ListOffsetsRequestData, List
     }
 
     short maxSupportedVersion() {
-        return 10;
+        return 11;
     }
 
     @Override
