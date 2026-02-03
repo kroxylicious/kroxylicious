@@ -132,6 +132,8 @@ public class KafkaProxyReconciler implements
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
+    private static final String SECRET_PLURAL = "secrets";
+    private static final String CONFIGMAP_PLURAL = "configmaps";
     public static final Path MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/");
     private static final Path TARGET_CLUSTER_MOUNTS_BASE = MOUNTS_BASE_DIR.resolve("target-cluster");
     private static final Path CLIENT_CERTS_BASE_DIR = TARGET_CLUSTER_MOUNTS_BASE.resolve("client-certs");
@@ -350,14 +352,14 @@ public class KafkaProxyReconciler implements
                 .filter(ResourcesUtil::isSecret)
                 .map(ref -> {
                     var volume = new VolumeBuilder()
-                            .withName(ResourcesUtil.volumeName("", "secrets", ref.getName()))
+                            .withName(ResourcesUtil.volumeName("", SECRET_PLURAL, ref.getName()))
                             .withNewSecret()
                             .withSecretName(ref.getName())
                             .endSecret()
                             .build();
                     Path mountPath = parent.resolve(ref.getName());
                     var mount = new VolumeMountBuilder()
-                            .withName(ResourcesUtil.volumeName("", "secrets", ref.getName()))
+                            .withName(ResourcesUtil.volumeName("", SECRET_PLURAL, ref.getName()))
                             .withMountPath(mountPath.toString())
                             .withReadOnly(true)
                             .build();
@@ -375,19 +377,33 @@ public class KafkaProxyReconciler implements
                                                                                      @Nullable TlsClientAuthentication clientAuthentication,
                                                                                      Path parent) {
         return Optional.ofNullable(trustAnchorRef)
-                .filter(tar -> ResourcesUtil.isConfigMap(tar.getRef()))
+                .filter(tar -> ResourcesUtil.isConfigMap(tar.getRef()) || ResourcesUtil.isSecret(tar.getRef()))
                 .map(tar -> {
                     var ref = tar.getRef();
-                    var volume = new VolumeBuilder()
-                            .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
-                            .withNewConfigMap()
-                            .withName(ref.getName())
-                            .endConfigMap()
-                            .build();
+
+                    // VirtualKafkaCluster and KafkaService CRD both default their trustAnchorRef.kind fields to `ConfigMap`
+
+                    // if ref.getKind is null(), we assume that the resource is a ConfigMap
+                    boolean isSecret = ref.getKind() != null && ResourcesUtil.isSecret(ref);
+
+                    // Ensure volume name matches the resource type used
+                    String volType = isSecret ? SECRET_PLURAL : CONFIGMAP_PLURAL;
+                    String volName = ResourcesUtil.volumeName("", volType, ref.getName());
+
+                    var volumeBuilder = new VolumeBuilder()
+                            .withName(volName);
+
+                    if (isSecret) {
+                        volumeBuilder.withNewSecret().withSecretName(ref.getName()).endSecret();
+                    }
+                    else {
+                        volumeBuilder.withNewConfigMap().withName(ref.getName()).endConfigMap();
+                    }
+
                     Path mountPath = parent.resolve(ref.getName());
 
                     var mount = new VolumeMountBuilder()
-                            .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
+                            .withName(volName)
                             .withMountPath(mountPath.toString())
                             .withReadOnly(true)
                             .build();
@@ -396,8 +412,9 @@ public class KafkaProxyReconciler implements
                             null,
                             "PEM",
                             forServer ? buildTlsServerOptions(clientAuthentication) : null);
+
                     return new ConfigurationFragment<>(Optional.of(trustProvider),
-                            Set.of(volume),
+                            Set.of(volumeBuilder.build()),
                             Set.of(mount));
                 }).orElse(ConfigurationFragment.empty());
     }
