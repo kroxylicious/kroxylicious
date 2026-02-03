@@ -55,7 +55,7 @@ import static org.mockito.Mockito.when;
 class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
     public static final DelegatingDecodePredicate DELEGATING_PREDICATE = new DelegatingDecodePredicate();
-    public static final NettySettings NETTY_SETTINGS = new NettySettings(Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(Duration.ofSeconds(33)));
+    public static final NettySettings NETTY_SETTINGS = new NettySettings(Optional.empty(), Optional.empty(), Optional.of(Duration.ofSeconds(33)), Optional.empty());
     private static final String CLUSTER_NAME = "TestCluster";
 
     @Mock(strictness = Mock.Strictness.LENIENT)

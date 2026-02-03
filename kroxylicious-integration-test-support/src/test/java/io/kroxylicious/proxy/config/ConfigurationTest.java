@@ -501,7 +501,7 @@ class ConfigurationTest {
                                 """),
                 argumentSet("UnAuthenticatedIdleTimeout",
                         new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork()
-                                .withNewProxy().withUnAuthenticatedIdleTimeout(Duration.ofSeconds(90)).endProxy()
+                                .withNewProxy().withUnauthenticatedIdleTimeout(Duration.ofSeconds(90)).endProxy()
                                 .endNetwork().build(),
                         """
                                 network:
