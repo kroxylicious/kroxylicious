@@ -95,14 +95,14 @@ class ProduceAuthzIT extends AuthzIT {
 
     @BeforeEach
     void prepClusters() {
-        this.topicIdsInUnproxiedCluster = prepCluster(kafkaClusterWithAuthzAdmin, List.of(topicName), aclBindings);
-        this.topicIdsInProxiedCluster = prepCluster(kafkaClusterNoAuthzAdmin, List.of(topicName), List.of());
+        this.topicIdsInUnproxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(topicName), aclBindings);
+        this.topicIdsInProxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(topicName), List.of());
     }
 
     @AfterEach
     void tidyClusters() {
-        deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(topicName), aclBindings);
-        deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(topicName), List.of());
+        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(topicName), aclBindings);
+        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(topicName), List.of());
     }
 
     class ProduceEquivalence extends Equivalence<ProduceRequestData, ProduceResponseData> {

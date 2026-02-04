@@ -12,17 +12,12 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AclBinding;
-import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
@@ -135,25 +130,9 @@ abstract class AbstractAuthzEquivalenceIT extends BaseIT {
     protected static Map<String, Uuid> prepCluster(KafkaCluster unproxiedCluster,
                                                    List<String> topicNames,
                                                    List<AclBinding> bindings) {
-        Map<String, Uuid> result;
         try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration("super", "Super"))) {
-            var res = admin.createTopics(topicNames.stream().map(topicName -> new NewTopic(topicName, 1, (short) 1)).toList());
-            res.all().toCompletionStage().toCompletableFuture().join();
-            result = topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> {
-                try {
-                    return res.topicId(topicName).get();
-                }
-                catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            }));
-
-            if (!bindings.isEmpty()) {
-                admin.createAcls(bindings).all()
-                        .toCompletionStage().toCompletableFuture().join();
-            }
+            return ClusterPrepUtils.createTopicsAndAcls(admin, topicNames, bindings);
         }
-        return result;
     }
 
     protected static void deleteTopicsAndAcls(KafkaCluster unproxiedCluster,
@@ -161,21 +140,7 @@ abstract class AbstractAuthzEquivalenceIT extends BaseIT {
                                               List<AclBinding> bindings) {
 
         try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration("super", "Super"))) {
-            try {
-                admin.deleteTopics(TopicCollection.ofTopicNames(topicNames))
-                        .all().toCompletionStage().toCompletableFuture().join();
-            }
-            catch (CompletionException e) {
-                if (!(e.getCause() instanceof UnknownTopicOrPartitionException)) {
-                    throw e;
-                }
-            }
-
-            if (!bindings.isEmpty()) {
-                var filters = bindings.stream().map(AclBinding::toFilter).toList();
-                admin.deleteAcls(filters).all()
-                        .toCompletionStage().toCompletableFuture().join();
-            }
+            ClusterPrepUtils.deleteTopicsAndAcls(admin, topicNames, bindings);
         }
     }
 
