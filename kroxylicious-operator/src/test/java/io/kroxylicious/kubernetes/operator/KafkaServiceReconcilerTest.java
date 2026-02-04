@@ -404,7 +404,7 @@ class KafkaServiceReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_INVALID,
-                                    "spec.tls.trustAnchorRef.key should end with .pem, .p12 or .jks")));
+                                    "spec.tls.trustAnchorRef.key should end with .pem, .p12 or .jks or enter the `storeType` if using other key files like .crt")));
         }
 
         // no client cert, pem trust bundle

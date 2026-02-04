@@ -17,7 +17,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
  * A reference, used in a kubernetes resource, to a resource containing trust anchor(s).
  */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "ref", "key" })
+@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "ref", "key", "storeType" })
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 @javax.annotation.processing.Generated("io.fabric8.java.generator.CRGeneratorRunner")
 @lombok.ToString()
@@ -69,8 +69,21 @@ public class TrustAnchorRef
         this.key = key;
     }
 
+    @com.fasterxml.jackson.annotation.JsonProperty("storeType")
+    @io.fabric8.generator.annotation.Nullable
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    private String storeType;
+
+    public String getStoreType() {
+        return storeType;
+    }
+
+    public void setStoreType(String storeType) {
+        this.storeType = storeType;
+    }
+
     public String toString() {
-        return this.getClass() + "(ref=" + this.getRef() + ", key=" + this.getKey() + ")";
+        return this.getClass() + "(ref=" + this.getRef() + ", key=" + this.getKey() + ", storeType=" + this.getStoreType() + ")";
     }
 
     @Override
@@ -89,7 +102,8 @@ public class TrustAnchorRef
         }
         TrustAnchorRef other = (TrustAnchorRef) obj;
         return Objects.equals(getRef(), other.getRef())
-                && Objects.equals(getKey(), other.getKey());
+                && Objects.equals(getKey(), other.getKey())
+                && Objects.equals(getStoreType(), other.getStoreType());
 
     }
 

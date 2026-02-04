@@ -120,6 +120,9 @@ spec:
                           description: The API group of the resource containing the TLS client certificate.
                           type: string
                           default: ""
+                        storeType:
+                          description: The type of the certificate
+                          type: string
                         name:
                           description: The name of the resource containing the TLS client certificate.
                           type: string

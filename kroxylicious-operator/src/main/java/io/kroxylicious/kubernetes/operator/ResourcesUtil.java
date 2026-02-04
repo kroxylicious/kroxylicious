@@ -525,10 +525,12 @@ public class ResourcesUtil {
                             Condition.REASON_INVALID,
                             path + " must specify 'key'"), List.of());
                 }
-                if (isSupportedFileType(key)) {
+                if (isSupportedFileType(key) && trustAnchorRef.getStoreType() == null) {
                     return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                             Condition.REASON_INVALID,
-                            path + ".key should end with .pem, .p12 or .jks"), List.of());
+                            path + ".key should end with .pem, .p12 or .jks or"
+                                    + " enter the `storeType` if using other key files like .crt"),
+                            List.of());
                 }
                 else {
                     return handleSupportedFileExtension(resource, trustAnchorRef, path, statusFactory, configMapOpt.get());
