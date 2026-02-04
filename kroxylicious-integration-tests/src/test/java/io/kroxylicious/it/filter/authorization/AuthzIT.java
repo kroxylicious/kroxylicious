@@ -8,32 +8,24 @@ package io.kroxylicious.it.filter.authorization;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.common.KafkaFuture;
-import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
@@ -45,7 +37,6 @@ import org.apache.kafka.common.protocol.Message;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
-import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -83,7 +74,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 /**
  * <p>A base class for integration tests covering some subset of the protocol
@@ -125,7 +115,6 @@ public abstract class AuthzIT extends BaseIT {
             ALICE, "Alice",
             BOB, "Bob",
             EVE, "Eve");
-    private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60)).pollDelay(Duration.ofMillis(100));
 
     @SaslMechanism(principals = {
             @SaslMechanism.Principal(user = SUPER, password = "Super"),
@@ -396,66 +385,6 @@ public abstract class AuthzIT extends BaseIT {
         }
     }
 
-    protected static Map<String, Uuid> prepCluster(Admin admin,
-                                                   List<String> topicNames,
-                                                   List<AclBinding> bindings) {
-        if (!bindings.isEmpty()) {
-            admin.createAcls(bindings).all()
-                    .toCompletionStage().toCompletableFuture().join();
-        }
-        var res = admin.createTopics(topicNames.stream().map(topicName -> new NewTopic(topicName, 1, (short) 1)).toList());
-        res.all().toCompletionStage().toCompletableFuture().join();
-        AWAIT.alias("await until topics visible and partitions have leader")
-                .untilAsserted(() -> {
-                    var readyTopics = describeTopics(topicNames, admin)
-                            .filter(AuthzIT::topicPartitionsHaveALeader)
-                            .map(TopicDescription::name)
-                            .collect(Collectors.toSet());
-                    assertThat(topicNames).containsExactlyInAnyOrderElementsOf(readyTopics);
-                });
-        return topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> res.topicId(topicName).toCompletionStage().toCompletableFuture().join()));
-    }
-
-    private static Stream<TopicDescription> describeTopics(List<String> topics, Admin admin) {
-        return admin.describeTopics(topics).topicNameValues().values().stream()
-                .map(f -> f.toCompletionStage().toCompletableFuture())
-                .filter(AuthzIT::filterUnknownTopics)
-                .map(CompletableFuture::join);
-    }
-
-    public static boolean allTopicPartitionsHaveALeader(Admin admin, List<String> topicNames) {
-        Map<String, TopicDescription> join = admin.describeTopics(topicNames).allTopicNames().toCompletionStage().toCompletableFuture().join();
-        return join.values().stream()
-                .allMatch(AuthzIT::topicPartitionsHaveALeader);
-    }
-
-    protected static void deleteTopicsAndAcls(Admin admin,
-                                              List<String> topicNames,
-                                              List<AclBinding> bindings) {
-
-        try {
-            KafkaFuture<Void> result = admin.deleteTopics(TopicCollection.ofTopicNames(topicNames))
-                    .all();
-            result.toCompletionStage().toCompletableFuture().join();
-        }
-        catch (CompletionException e) {
-            if (!(e.getCause() instanceof UnknownTopicOrPartitionException)) {
-                throw e;
-            }
-        }
-        finally {
-            if (!bindings.isEmpty()) {
-                var filters = bindings.stream().map(AclBinding::toFilter).toList();
-                admin.deleteAcls(filters).all()
-                        .toCompletionStage().toCompletableFuture().join();
-            }
-
-            AWAIT.alias("await visibility of topic removal.")
-                    .untilAsserted(() -> assertThat(describeTopics(topicNames, admin)).isEmpty());
-
-        }
-    }
-
     /**
      * @param bootstrapServers The cluster to connect to.
      * @return A KafkaClient connected to the given cluster.
@@ -603,7 +532,7 @@ public abstract class AuthzIT extends BaseIT {
                 .isEqualTo(mapValues(unproxiedResponsesByUser,
                         x1 -> convertAndClobberUserResponse.apply(x1, referenceCluster)));
 
-        AWAIT.alias("assertions about visible side effects").untilAsserted(() -> {
+        ClusterPrepUtils.AWAIT.alias("assertions about visible side effects").untilAsserted(() -> {
             var referenceObservation = scenario.observedVisibleSideEffects(referenceCluster);
             scenario.assertVisibleSideEffects(referenceCluster);
 
@@ -643,20 +572,4 @@ public abstract class AuthzIT extends BaseIT {
         }
     }
 
-    private static boolean filterUnknownTopics(CompletableFuture<TopicDescription> f) {
-        try {
-            f.join();
-            return true;
-        }
-        catch (CompletionException ce) {
-            if (ce.getCause() instanceof UnknownTopicOrPartitionException) {
-                return false;
-            }
-            throw new RuntimeException(ce);
-        }
-    }
-
-    private static boolean topicPartitionsHaveALeader(TopicDescription td) {
-        return td.partitions().stream().allMatch(p -> p.leader() != null);
-    }
 }

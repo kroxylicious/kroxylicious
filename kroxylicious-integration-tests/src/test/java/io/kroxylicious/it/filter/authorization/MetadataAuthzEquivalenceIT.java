@@ -272,12 +272,8 @@ class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
 
         if (topics == null || !topics.isEmpty()) {
             // When topics are requested, we expect alice and bob to be able to see them
-            JsonNode path = unproxiedResponsesByUser.get("alice").path("topics");
-            assertThat(path.isArray()).isTrue();
-            assertThat(path.size()).isGreaterThan(0);
-            path = unproxiedResponsesByUser.get("bob").path("topics");
-            assertThat(path.isArray()).isTrue();
-            assertThat(path.size()).isGreaterThan(0);
+            assertUnproxiedTopics("alice", unproxiedResponsesByUser);
+            assertUnproxiedTopics("bob", unproxiedResponsesByUser);
         }
 
         NamedFilterDefinition saslTermination = new NamedFilterDefinitionBuilder(
@@ -310,5 +306,15 @@ class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
             assertThat(clobberMap(proxiedResponsesByUser))
                     .isEqualTo(clobberMap(unproxiedResponsesByUser));
         }
+    }
+
+    private static void assertUnproxiedTopics(String name, Map<String, ObjectNode> map) {
+        var topicNode = map.get(name).get("topics");
+        assertThat(topicNode.isArray())
+                .withFailMessage("unproxied topic response for %s is not an array", name)
+                .isTrue();
+        assertThat(topicNode.size())
+                .withFailMessage("unproxied topic response for %s has zero topics", name)
+                .isGreaterThan(0);
     }
 }
