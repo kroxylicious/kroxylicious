@@ -24,20 +24,68 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicCollection;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.filter.sasl.inspection.SaslInspection;
+import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
+import io.kroxylicious.it.testplugins.ProtocolCounter;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.proxy.internal.subject.DefaultSaslSubjectBuilderService;
 import io.kroxylicious.test.tester.KroxyliciousTester;
+import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
 public abstract class BaseIT {
+
+    static ConfigurationBuilder buildProxyConfigWithSaslInspection(KafkaCluster cluster, @Nullable Set<String> enableMechanisms,
+                                                                   @Nullable DefaultSaslSubjectBuilderService.Config subjectBuilderConfig) {
+        var saslInspection = buildSaslInspector(enableMechanisms, subjectBuilderConfig);
+        var counter = new NamedFilterDefinitionBuilder(
+                ProtocolCounter.class.getName(),
+                ProtocolCounter.class.getName())
+                .withConfig(
+                        "countRequests", Set.of(ApiKeys.SASL_AUTHENTICATE),
+                        "countResponses", Set.of(ApiKeys.SASL_AUTHENTICATE))
+                .build();
+        var lawyer = new NamedFilterDefinitionBuilder(
+                ClientAuthAwareLawyer.class.getName(),
+                ClientAuthAwareLawyer.class.getName())
+                .build();
+        return proxy(cluster)
+                .addToFilterDefinitions(saslInspection, counter, lawyer)
+                .addToDefaultFilters(saslInspection.name(), counter.name(), lawyer.name());
+    }
+
+    private static NamedFilterDefinition buildSaslInspector(@Nullable Set<String> enableMechanisms,
+                                                            @Nullable DefaultSaslSubjectBuilderService.Config subjectBuilderConfig) {
+        var saslInspectorBuilder = new NamedFilterDefinitionBuilder(
+                SaslInspection.class.getName(),
+                SaslInspection.class.getName());
+
+        var saslInspectorConfig = new HashMap<String, Object>();
+        Optional.ofNullable(enableMechanisms).ifPresent(value -> saslInspectorConfig.put("enabledMechanisms", value));
+        Optional.ofNullable(subjectBuilderConfig).ifPresent(value -> {
+            saslInspectorConfig.put("subjectBuilder", DefaultSaslSubjectBuilderService.class.getName());
+            saslInspectorConfig.put("subjectBuilderConfig", subjectBuilderConfig);
+        });
+        saslInspectorBuilder.withConfig(saslInspectorConfig);
+
+        return saslInspectorBuilder.build();
+    }
 
     protected CreateTopicsResult createTopics(Admin admin, NewTopic... topics) {
         List<NewTopic> topicsList = List.of(topics);
