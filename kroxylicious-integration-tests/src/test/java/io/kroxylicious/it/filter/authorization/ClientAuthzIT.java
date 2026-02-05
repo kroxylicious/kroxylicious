@@ -152,13 +152,13 @@ class ClientAuthzIT extends AuthzIT {
 
     @BeforeEach
     void prepClusters() {
-        this.topicIdsInUnproxiedCluster = prepCluster(kafkaClusterWithAuthzAdmin, List.of(), aclBindings);
+        this.topicIdsInUnproxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(), aclBindings);
     }
 
     @AfterEach
     void tidyClusters() {
-        deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(TOPIC_A), aclBindings);
-        deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(TOPIC_A), List.of());
+        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(TOPIC_A), aclBindings);
+        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(TOPIC_A), List.of());
     }
 
     public sealed interface Outcome<V> permits Success, Fail {
@@ -611,10 +611,10 @@ class ClientAuthzIT extends AuthzIT {
 
             try (var setup = clientFactory.newAdmin(setupUser, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "setup"))) {
                 setup.createTopic(topicA);
-                Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> allTopicPartitionsHaveALeader(setup.admin, List.of(TOPIC_A)));
+                Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(setup.admin, List.of(TOPIC_A)));
                 try (var admin = clientFactory.newAdmin(adminUser, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "admin"))) {
                     admin.createPartitions(topicA, 2);
-                    Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> allTopicPartitionsHaveALeader(admin.admin, List.of(TOPIC_A)));
+                    Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(admin.admin, List.of(TOPIC_A)));
                     admin.describeTopic(topicA);
                     admin.describeConfigs(ConfigResource.Type.TOPIC, topicA);
                     admin.alterConfigs(ConfigResource.Type.TOPIC, topicA, new ConfigEntry(TopicConfig.COMPRESSION_TYPE_CONFIG, "zstd"));
