@@ -51,14 +51,12 @@ spec:
         resources:
           {{- toYaml .Values.omb.resources | nindent 10 }}
         livenessProbe:
-          httpGet:
-            path: /
+          tcpSocket:
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
-          httpGet:
-            path: /
+          tcpSocket:
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5
