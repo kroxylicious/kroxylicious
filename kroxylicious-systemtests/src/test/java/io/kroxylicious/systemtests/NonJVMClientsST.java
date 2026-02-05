@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -23,7 +24,6 @@ import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.systemtests.clients.KafkaClient;
 import io.kroxylicious.systemtests.clients.KafkaClients;
-import io.kroxylicious.systemtests.clients.KcatClient;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
@@ -34,7 +34,6 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 import static io.kroxylicious.systemtests.TestTags.EXTERNAL_KAFKA_CLIENTS;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * System tests for non-JVM Kafka client (Kcat, Python, KafkaGo) interoperability
@@ -49,6 +48,8 @@ class NonJVMClientsST extends AbstractST {
 
     /**
      * Provides all combinations of Kafka clients for interoperability testing.
+     * Kcat combinations are only included on x86_64/amd64 architectures as the
+     * kcat Docker image is x86-only (can work via emulation for local minikube).
      *
      * @return stream of (producer, consumer) client combinations
      */
@@ -58,21 +59,30 @@ class NonJVMClientsST extends AbstractST {
         KafkaClient kaf = KafkaClients.kaf();
         KafkaClient kcat = KafkaClients.kcat();
 
-        return Stream.of(
+        List<Arguments> combinations = new ArrayList<>(List.of(
                 // Non-JVM → Non-JVM clients
-                Arguments.of(kcat, kcat),
                 Arguments.of(python, python),
                 Arguments.of(kaf, kaf),
 
                 // Non-JVM → JVM clients
-                Arguments.of(kcat, strimzi),
                 Arguments.of(python, strimzi),
                 Arguments.of(kaf, strimzi),
 
                 // JVM → Non-JVM clients
-                Arguments.of(strimzi, kcat),
                 Arguments.of(strimzi, python),
-                Arguments.of(strimzi, kaf));
+                Arguments.of(strimzi, kaf)));
+
+        // Only include kcat combinations on x86_64/amd64 architectures
+        String arch = Environment.ARCHITECTURE;
+        if (arch.equalsIgnoreCase(Constants.ARCHITECTURE_X86)
+                || arch.equalsIgnoreCase(Constants.ARCHITECTURE_AMD64)) {
+            combinations.addAll(List.of(
+                    Arguments.of(kcat, kcat),
+                    Arguments.of(kcat, strimzi),
+                    Arguments.of(strimzi, kcat)));
+        }
+
+        return combinations.stream();
     }
 
     /**
@@ -82,18 +92,9 @@ class NonJVMClientsST extends AbstractST {
      * @param consumer the Kafka client implementation for consuming messages
      * @param namespace the Kubernetes namespace to deploy resources in
      */
-    @ParameterizedTest(name = "testProducingClient{0}ConsumingClient{1}")
+    @ParameterizedTest(name = "testClientsProducer{0}Consumer{1}")
     @MethodSource("clientCombinations")
-    void produceAndConsumeMessages(KafkaClient producer, KafkaClient consumer, String namespace) {
-        // Skip Kcat tests on ARM architecture - kcat only provides x86 binaries
-        if (producer instanceof KcatClient || consumer instanceof KcatClient) {
-            String localArch = Environment.ARCHITECTURE;
-            assumeThat(localArch.equalsIgnoreCase(Constants.ARCHITECTURE_X86)
-                    || localArch.equalsIgnoreCase(Constants.ARCHITECTURE_AMD64))
-                    .as("Kcat only supports x86_64/amd64 architectures, but running on: " + localArch)
-                    .isTrue();
-        }
-
+    void produceConsumeMessagesWithClients(KafkaClient producer, KafkaClient consumer, String namespace) {
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);

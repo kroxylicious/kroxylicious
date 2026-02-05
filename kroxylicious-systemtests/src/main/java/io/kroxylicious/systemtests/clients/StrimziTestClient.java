@@ -25,6 +25,7 @@ import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.StrimziTestClientConsumerRecord;
 import io.kroxylicious.systemtests.executor.ExecResult;
@@ -50,7 +51,7 @@ public class StrimziTestClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(StrimziTestClient.class);
     private static final TypeReference<StrimziTestClientConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
-    private static final String DISPLAY_NAME = "Strimzi";
+    private static final String DISPLAY_NAME = "Strimzi-" + Environment.KAFKA_VERSION;
     private String deployNamespace;
     private String marker;
 

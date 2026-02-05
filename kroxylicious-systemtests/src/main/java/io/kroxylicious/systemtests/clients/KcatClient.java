@@ -47,7 +47,7 @@ public class KcatClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(KcatClient.class);
     private static final TypeReference<KcatConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
-    private static final String DISPLAY_NAME = "Kcat";
+    private static final String DISPLAY_NAME = "Kcat-" + KafkaClient.extractVersionFromImage(Constants.KCAT_CLIENT_IMAGE);
     private String deployNamespace;
 
     @Override

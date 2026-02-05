@@ -54,7 +54,7 @@ public class PythonTestClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(PythonTestClient.class);
     private static final TypeReference<PythonTestClientConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
-    private static final String DISPLAY_NAME = "Python";
+    private static final String DISPLAY_NAME = "Confluent-Python-" + KafkaClient.extractVersionFromImage(Constants.PYTHON_CLIENT_IMAGE);
     private String deployNamespace;
 
     @Override
