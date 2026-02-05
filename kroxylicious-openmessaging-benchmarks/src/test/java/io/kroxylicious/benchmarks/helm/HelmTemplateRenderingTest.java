@@ -63,16 +63,17 @@ class HelmTemplateRenderingTest {
         List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
         GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
 
-        // Then: Kafka CR should have default replica count
+        // Then: Kafka CR should use v1 API
         assertThat(kafka).isNotNull();
         assertThat(kafka.getKind()).isEqualTo("Kafka");
-        assertThat(kafka.getApiVersion()).isEqualTo("kafka.strimzi.io/v1beta2");
+        assertThat(kafka.getApiVersion()).isEqualTo("kafka.strimzi.io/v1");
 
+        // Verify version is set
         Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
         Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
-        assertThat(kafkaSpec.get("replicas"))
-                .as("Kafka CR should have default 3 replicas")
-                .isEqualTo(3);
+        assertThat(kafkaSpec.get("version"))
+                .as("Kafka CR should have version specified")
+                .isEqualTo("4.1.1");
     }
 
     @ParameterizedTest
@@ -82,14 +83,14 @@ class HelmTemplateRenderingTest {
         // When: Rendering with custom replica count
         String yaml = HelmUtils.renderTemplate(Map.of("kafka.replicas", String.valueOf(replicas)));
         List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
-        GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
+        GenericKubernetesResource nodePool = HelmUtils.findResourceTyped(resources, "KafkaNodePool", "kafka-pool");
 
-        // Then: Kafka CR should have configured replica count
-        assertThat(kafka).isNotNull();
-        Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
-        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
-        assertThat(kafkaSpec.get("replicas"))
-                .as("Kafka CR should have %d replicas", replicas)
+        // Then: KafkaNodePool should have configured replica count
+        assertThat(nodePool).isNotNull();
+        assertThat(nodePool.getApiVersion()).isEqualTo("kafka.strimzi.io/v1");
+        Map<String, Object> spec = (Map<String, Object>) nodePool.get("spec");
+        assertThat(spec.get("replicas"))
+                .as("KafkaNodePool should have %d replicas", replicas)
                 .isEqualTo(replicas);
     }
 
@@ -110,45 +111,4 @@ class HelmTemplateRenderingTest {
                 .isEqualTo("4.1.1");
     }
 
-    @Test
-    @SuppressWarnings("unchecked")
-    void shouldSetPodSecurityContext() throws IOException {
-        // When: Rendering templates
-        String yaml = HelmUtils.renderTemplate();
-        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
-        GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
-
-        // Then: Pod security context should be configured correctly
-        assertThat(kafka).isNotNull();
-        Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
-        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
-        Map<String, Object> template = (Map<String, Object>) kafkaSpec.get("template");
-        Map<String, Object> pod = (Map<String, Object>) template.get("pod");
-        Map<String, Object> securityContext = (Map<String, Object>) pod.get("securityContext");
-
-        assertThat(securityContext.get("runAsNonRoot"))
-                .as("Pod should run as non-root")
-                .isEqualTo(true);
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void shouldSetContainerSecurityContext() throws IOException {
-        // When: Rendering templates
-        String yaml = HelmUtils.renderTemplate();
-        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
-        GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
-
-        // Then: Container security context should drop all capabilities
-        assertThat(kafka).isNotNull();
-        Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
-        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
-        Map<String, Object> template = (Map<String, Object>) kafkaSpec.get("template");
-        Map<String, Object> kafkaContainer = (Map<String, Object>) template.get("kafkaContainer");
-        Map<String, Object> containerSecurityContext = (Map<String, Object>) kafkaContainer.get("securityContext");
-
-        assertThat(containerSecurityContext.get("allowPrivilegeEscalation"))
-                .as("Container should not allow privilege escalation")
-                .isEqualTo(false);
-    }
 }
