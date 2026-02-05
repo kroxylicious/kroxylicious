@@ -5,6 +5,11 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,9 +24,11 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
@@ -35,6 +42,9 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.CheckReturnValue;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
@@ -42,6 +52,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private static final ChannelInboundHandlerAdapter LOGGING_INBOUND_ERROR_HANDLER = new LoggingInboundErrorHandler();
     @VisibleForTesting
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
+    public static final String PRE_SESSION_IDLE_HANDLER = "preSessionIdleHandler";
 
     private final boolean haproxyProtocol;
     private final boolean tls;
@@ -50,15 +61,21 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private final Optional<NettySettings> proxyNettySettings;
     private final Counter clientToProxyErrorCounter;
+    @Nullable
+    private final Long unauthenticatedIdleMillis;
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
-                                 ApiVersionsServiceImpl apiVersionsService) {
+                                 ApiVersionsServiceImpl apiVersionsService,
+                                 Optional<NettySettings> proxyNettySettings) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
@@ -66,7 +83,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.bindingResolver = bindingResolver;
         this.filterChainFactory = filterChainFactory;
         this.apiVersionsService = apiVersionsService;
+        this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
+        unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
     }
 
     @Override
@@ -79,11 +98,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         else {
             initPlainChannel(ch);
         }
+        addIdleHandlerToPipeline(ch.pipeline());
         addLoggingErrorHandler(ch.pipeline());
     }
 
     private void initPlainChannel(Channel ch) {
         ch.pipeline().addLast("plainResolver", new ChannelInboundHandlerAdapter() {
+            @SuppressWarnings("java:S1181")
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
 
@@ -109,8 +130,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         });
     }
 
-    // deep inheritance tree of SniHandler not something we can fix
-    @SuppressWarnings({ "java:S110" })
+    // deep inheritance tree of SniHandler not something we can fix, throwable is the right choice as we are forwarding it on.
+    @SuppressWarnings({ "java:S110", "java:S1181" })
     private void initTlsChannel(Channel ch) {
         LOGGER.debug("Adding SSL/SNI handler");
         ch.pipeline().addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
@@ -210,7 +231,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 dp,
                 virtualCluster.subjectBuilder(pfr),
                 binding,
-                proxyChannelStateMachine);
+                proxyChannelStateMachine, proxyNettySettings);
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);
@@ -238,6 +259,19 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private static void addLoggingErrorHandler(ChannelPipeline pipeline) {
         pipeline.addLast(LOGGING_INBOUND_ERROR_HANDLER_NAME, LOGGING_INBOUND_ERROR_HANDLER);
+    }
+
+    private void addIdleHandlerToPipeline(ChannelPipeline pipeline) {
+        if (Objects.nonNull(unauthenticatedIdleMillis)) {
+            pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(0, 0, unauthenticatedIdleMillis, TimeUnit.MILLISECONDS));
+        }
+    }
+
+    @Nullable
+    @CheckReturnValue
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private Long getUnAuthenticatedIdleMillis(Optional<NettySettings> nettySettings) {
+        return nettySettings.flatMap(NettySettings::unauthenticatedIdleTimeout).map(Duration::toMillis).orElse(null);
     }
 
     @Sharable

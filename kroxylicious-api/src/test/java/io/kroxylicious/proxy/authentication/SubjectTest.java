@@ -70,4 +70,34 @@ class SubjectTest {
         Assertions.assertThat(subject2.allPrincipalsOfType(FakeUniquePrincipal.class)).isEmpty();
         Assertions.assertThat(Subject.anonymous().allPrincipalsOfType(FakeUniquePrincipal.class)).isEmpty();
     }
+
+    @Test
+    void shouldConsiderEmptySetOfPrinciplesAnonymous() {
+        // Given
+        Subject emptySubject = new Subject(Set.of());
+
+        // When
+        // Then
+        Assertions.assertThat(emptySubject.isAnonymous()).isTrue();
+    }
+
+    @Test
+    void shouldNotConsiderSetOfPrinciplesAnonymous() {
+        // Given
+        Subject emptySubject = new Subject(user1, foo);
+
+        // When
+        // Then
+        Assertions.assertThat(emptySubject.isAnonymous()).isFalse();
+    }
+
+    @Test
+    void shouldConsiderEmptySetOfPrinciplesEqual() {
+        // Given
+        Subject emptySubject = new Subject(Set.of());
+
+        // When
+        // Then
+        Assertions.assertThat(emptySubject).isEqualTo(Subject.anonymous());
+    }
 }

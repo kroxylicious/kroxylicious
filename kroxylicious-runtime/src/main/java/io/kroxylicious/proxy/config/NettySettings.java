@@ -6,8 +6,14 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.time.Duration;
 import java.util.Optional;
 
-public record NettySettings(Optional<Integer> workerThreadCount, Optional<Integer> shutdownQuietPeriodSeconds) {
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+public record NettySettings(Optional<Integer> workerThreadCount, Optional<Integer> shutdownQuietPeriodSeconds,
+                            @JsonSerialize(contentUsing = DurationSerde.Serializer.class) @JsonDeserialize(contentUsing = DurationSerde.Deserializer.class) Optional<Duration> authenticatedIdleTimeout,
+                            @JsonSerialize(contentUsing = DurationSerde.Serializer.class) @JsonDeserialize(contentUsing = DurationSerde.Deserializer.class) Optional<Duration> unauthenticatedIdleTimeout) {
 
 }
