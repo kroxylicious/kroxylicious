@@ -313,8 +313,8 @@ class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
         assertThat(topicNode.isArray())
                 .withFailMessage("unproxied topic response for %s is not an array", name)
                 .isTrue();
-        assertThat(topicNode.size())
+        assertThat(topicNode)
                 .withFailMessage("unproxied topic response for %s has zero topics", name)
-                .isGreaterThan(0);
+                .hasSizeGreaterThan(0);
     }
 }
