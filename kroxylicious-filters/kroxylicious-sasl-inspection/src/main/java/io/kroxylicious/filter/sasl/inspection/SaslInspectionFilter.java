@@ -25,6 +25,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.spi.LoggingEventBuilder;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
@@ -315,7 +316,6 @@ class SaslInspectionFilter
                         .setMessage(
                                 "Server has accepted an expired SASL credentials on channel {}. Client must re-authenticate on the next request, or the server will disconnect.")
                         .addArgument(context::channelDescriptor)
-                        .addArgument(authorizationIdFromClient)
                         .log();
                 context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizationIdFromClient, new SaslException("expired credential"));
             }
@@ -372,6 +372,13 @@ class SaslInspectionFilter
                 e = exception;
             }
             else {
+                LoggingEventBuilder eventBuilder = LOGGER.atWarn()
+                        .setMessage("Exception caught while trying to build subject (enable debug to see the stacktrace). {}")
+                        .addArgument(throwable.getMessage());
+                if (LOGGER.isDebugEnabled()) {
+                    eventBuilder = eventBuilder.setCause(throwable);
+                }
+                eventBuilder.log();
                 e = new SubjectBuildingException("SaslSubjectBuilder " + subjectBuilder.getClass() + " threw an unexpected exception", throwable);
             }
             context.clientSaslAuthenticationFailure(saslObserver.mechanismName(),

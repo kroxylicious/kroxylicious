@@ -7,10 +7,12 @@ package io.kroxylicious.proxy.internal;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
@@ -24,6 +26,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -34,10 +37,14 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.IdleStateHandler;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -76,6 +83,11 @@ public class KafkaProxyFrontendHandler
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
+    public static final int DEFAULT_IDLE_TIME_SECONDS = 31;
+    public static final long DEFAULT_IDLE_SECONDS = 31L;
+    private static final Long NO_TIMEOUT = null;
+    private static final String AUTH_IDLE_HANDLER_NAME = "authenticatedSessionIdleHandler";
+
     private final boolean logNetwork;
     private final boolean logFrames;
     private final VirtualClusterModel virtualClusterModel;
@@ -89,6 +101,8 @@ public class KafkaProxyFrontendHandler
     private final List<NamedFilterDefinition> namedFilterDefinitions;
     private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
     private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
+
+    private final Long authenticatedIdleTimeMillis;
 
     private @Nullable ChannelHandlerContext clientCtx;
     @VisibleForTesting
@@ -119,6 +133,7 @@ public class KafkaProxyFrontendHandler
                 .orElse(null);
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     KafkaProxyFrontendHandler(
                               PluginFactoryRegistry pfr,
                               FilterChainFactory filterChainFactory,
@@ -128,7 +143,8 @@ public class KafkaProxyFrontendHandler
                               DelegatingDecodePredicate dp,
                               TransportSubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
-                              ProxyChannelStateMachine proxyChannelStateMachine) {
+                              ProxyChannelStateMachine proxyChannelStateMachine,
+                              Optional<NettySettings> proxyNettySettings) {
         this.endpointBinding = endpointBinding;
         this.pfr = pfr;
         this.filterChainFactory = filterChainFactory;
@@ -142,6 +158,7 @@ public class KafkaProxyFrontendHandler
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
+        authenticatedIdleTimeMillis = getAuthenticatedIdleMillis(proxyNettySettings);
     }
 
     @Override
@@ -184,9 +201,14 @@ public class KafkaProxyFrontendHandler
             }
         }
         else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent
-                && handshakeCompletionEvent.isSuccess()) {
+                && handshakeCompletionEvent.isSuccess() && Objects.nonNull(this.clientSubjectManager)) {
             this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder, this::onTransportSubjectBuilt);
         }
+        else if (event instanceof IdleStateEvent idleStateEvent && idleStateEvent.state() == IdleState.ALL_IDLE) {
+            // No traffic has been observed on the channel for the configured period
+            proxyChannelStateMachine.onClientIdle();
+        }
+
         super.userEventTriggered(ctx, event);
     }
 
@@ -284,6 +306,9 @@ public class KafkaProxyFrontendHandler
     }
 
     private void onTransportSubjectBuilt() {
+        if (!Objects.requireNonNull(clientSubjectManager).authenticatedSubject().isAnonymous()) {
+            proxyChannelStateMachine.onSessionTransportAuthenticated();
+        }
         maybeUnblock();
     }
 
@@ -354,7 +379,8 @@ public class KafkaProxyFrontendHandler
      * with the given {@code filters}.
      * @param remote upstream broker target
      */
-    void initiateConnect(HostPort remote) {
+    void initiateConnect(
+                         HostPort remote) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Connecting to backend broker {}",
                     this.proxyChannelStateMachine.sessionId(), remote);
@@ -372,7 +398,10 @@ public class KafkaProxyFrontendHandler
         // Start the upstream connection attempt.
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
 
-        LOGGER.debug("{}: Connecting to outbound {}", this.proxyChannelStateMachine.sessionId(), remote);
+        LOGGER.atDebug().setMessage("{}: Connecting to outbound {}")
+                .addArgument(this.proxyChannelStateMachine::sessionId)
+                .addArgument(remote)
+                .log();
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
         Channel outboundChannel = serverTcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
@@ -606,6 +635,19 @@ public class KafkaProxyFrontendHandler
         return channel != null ? channel.id() : null;
     }
 
+    public void onSessionAuthenticated() {
+        ChannelPipeline channelPipeline = Objects.requireNonNull(clientCtx).pipeline();
+        ChannelHandler preSessionHandler = channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER);
+        // sessions can be re-authenticated however we only need to act on the first instance or it may already have been removed due to MTLS auth
+        if (preSessionHandler != null) {
+            channelPipeline.remove(preSessionHandler);
+        }
+        if (!Objects.isNull(authenticatedIdleTimeMillis) && !channelPipeline.names().contains(AUTH_IDLE_HANDLER_NAME)) {
+            channelPipeline.addFirst(AUTH_IDLE_HANDLER_NAME,
+                    new IdleStateHandler(0, 0, authenticatedIdleTimeMillis, TimeUnit.MILLISECONDS));
+        }
+    }
+
     protected String remoteHost() {
         SocketAddress socketAddress = clientCtx().channel().remoteAddress();
         if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
@@ -624,6 +666,12 @@ public class KafkaProxyFrontendHandler
         else {
             return -1;
         }
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    @Nullable
+    private Long getAuthenticatedIdleMillis(Optional<NettySettings> nettySettings) {
+        return nettySettings.flatMap(NettySettings::authenticatedIdleTimeout).map(Duration::toMillis).orElse(NO_TIMEOUT);
     }
 
 }

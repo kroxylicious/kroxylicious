@@ -94,14 +94,14 @@ class CreatePartitionsAuthzIT extends AuthzIT {
                 ALICE_TOPIC_NAME,
                 BOB_TOPIC_NAME,
                 EVE_TOPIC_NAME);
-        prepCluster(kafkaClusterWithAuthzAdmin, createTopics, aclBindings);
-        prepCluster(kafkaClusterNoAuthzAdmin, createTopics, List.of());
+        ClusterPrepUtils.createTopicsAndAcls(kafkaClusterWithAuthzAdmin, createTopics, aclBindings);
+        ClusterPrepUtils.createTopicsAndAcls(kafkaClusterNoAuthzAdmin, createTopics, List.of());
     }
 
     @AfterEach
     void tidyClusters() {
-        deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, aclBindings);
-        deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, List.of());
+        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, aclBindings);
+        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, List.of());
     }
 
     class CreatePartitionsEquivalence extends Equivalence<CreatePartitionsRequestData, CreatePartitionsResponseData> {

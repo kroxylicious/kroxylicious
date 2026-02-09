@@ -59,6 +59,10 @@ public record Subject(Set<Principal> principals) {
         return uniquePrincipalOfType(this.principals, uniquePrincipalType);
     }
 
+    public boolean isAnonymous() {
+        return this.principals.isEmpty();
+    }
+
     private static <P extends Principal> Optional<P> uniquePrincipalOfType(Set<Principal> principals, Class<P> uniquePrincipalType) {
         if (uniquePrincipalType.isAnnotationPresent(Unique.class)) {
             return principals.stream()

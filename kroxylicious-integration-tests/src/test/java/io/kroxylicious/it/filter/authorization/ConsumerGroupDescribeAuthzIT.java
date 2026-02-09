@@ -134,8 +134,8 @@ public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
 
     @BeforeEach
     void prepClusters() {
-        this.topicIdsInUnproxiedCluster = prepCluster(kafkaClusterWithAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, aclBindings);
-        this.topicIdsInProxiedCluster = prepCluster(kafkaClusterNoAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, List.of());
+        this.topicIdsInUnproxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterWithAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, aclBindings);
+        this.topicIdsInProxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterNoAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, List.of());
         produceToAll(kafkaClusterWithAuthzProducer, ALL_TOPIC_NAMES_IN_TEST);
         establishConsumerGroup(aliceKafkaClusterWithAuthzConsumer, List.of(ALICE_TOPIC_NAME));
         establishConsumerGroup(bobKafkaClusterWithAuthzConsumer, List.of(BOB_TOPIC_NAME));
@@ -169,8 +169,8 @@ public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
         bobKafkaClusterNoAuthzConsumer.unsubscribe();
         aliceKafkaClusterWithAuthzConsumer.unsubscribe();
         bobKafkaClusterWithAuthzConsumer.unsubscribe();
-        deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, aclBindings);
-        deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, List.of());
+        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, aclBindings);
+        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, List.of());
     }
 
     class ConsumerGroupDescribeEquivalence extends Equivalence<ConsumerGroupDescribeRequestData, ConsumerGroupDescribeResponseData> {

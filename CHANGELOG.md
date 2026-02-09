@@ -7,8 +7,9 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
-build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0 #3171
-
+* [#3046](https://github.com/kroxylicious/kroxylicious/pull/3046): Add configurable idle connection timeouts for client connections
+* [#3242](https://github.com/kroxylicious/kroxylicious/pull/3242): chore: remove deprecated template kek selector brace style
+* [#3224](https://github.com/kroxylicious/kroxylicious/pull/3224): Add support for using Secret in `trustAnchorRef` field of the KafkaService and the VirtualKafkaCluster CRs.
 * [#3171](https://github.com/kroxylicious/kroxylicious/pull/3171): build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0
 * [#3147](https://github.com/kroxylicious/kroxylicious/pull/3129): Deprecate Java 17. Upgrade to Java 21 in containers.
 * [#3127](https://github.com/kroxylicious/kroxylicious/pull/3127): build(deps): bump kubernetes-client.version from 7.4.0 to 7.5.0
@@ -25,6 +26,16 @@ build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0 #3171
 * The four argument forms of `RequestFilter#onRequest` and `ResponseFilter#onResponse` are deprecated and will be removed in a future release.
   Implement the five argument form, which includes the `apiVersion` instead.
 * A JSON Web Signature (JWS) Signature validator has been added. WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
+* Curly-brace style topicName tokens are no longer supported in the Record Encryption TemplateKekSelector template. `template` should use `$(topicName)` instead of `${topicName}`.
+  The was deprecated in version 0.11.0.
+* Idle connection timeout support added with two optional configuration properties under `network.proxy`:
+  * `unauthenticatedIdleTimeout` - Applies to connections where authentication cannot be detected
+  * `authenticatedIdleTimeout` - Applies to connections with established identities
+  Both properties use Go-style duration format (e.g., `30s`, `5m`, `1h30m`) with supported units: `d`, `h`, `m`, `s`, `ms`, `μs`/`us`, `ns`.
+* A new metric `kroxylicious_client_to_proxy_disconnects_total` tracks client-to-proxy disconnections with a `cause` label to distinguish between:
+  * `idle_timeout` - Connection exceeded the configured idle timeout duration
+  * `client_closed` - Client initiated the connection close
+  * `server_closed` - Backend server closed the connection, causing the proxy to close the client connection
 
 ## 0.18.0
 

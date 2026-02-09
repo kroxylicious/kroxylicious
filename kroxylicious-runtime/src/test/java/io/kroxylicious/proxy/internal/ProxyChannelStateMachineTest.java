@@ -85,19 +85,22 @@ class ProxyChannelStateMachineTest {
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
     private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("", Optional.empty()), false, false,
             List.of());
+    public static final KafkaSession TEST_KAFKA_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
     private ProxyChannelStateMachine proxyChannelStateMachine;
+
+    @Mock
     private KafkaProxyBackendHandler backendHandler;
+
     @Mock(strictness = Mock.Strictness.LENIENT)
     private KafkaProxyFrontendHandler frontendHandler;
     private SimpleMeterRegistry simpleMeterRegistry;
 
     @BeforeEach
     void setUp() {
-        proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
-        backendHandler = mock(KafkaProxyBackendHandler.class);
         simpleMeterRegistry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(simpleMeterRegistry);
+        proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
     }
 
@@ -401,6 +404,7 @@ class ProxyChannelStateMachineTest {
         verify(frontendHandler).bufferMsg(msg);
     }
 
+    @SuppressWarnings("DataFlowIssue")
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
     void inSelectingServerShouldTransitionToConnectingWhenOnInitiateConnectCalled(boolean configureSsl) throws SSLException {
@@ -563,6 +567,22 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
+    void inForwardingShouldTransitionToClosedOnClientIdle() {
+        // Given
+        stateMachineInForwarding();
+        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler).inClosed(null);
+
+        // When
+        proxyChannelStateMachine.onClientIdle();
+
+        // Then
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        assertThat(proxyChannelStateMachine.getKafkaSession().currentState()).isEqualTo(KafkaSessionState.TERMINATING);
+        verify(frontendHandler).inClosed(null);
+        verify(backendHandler).inClosed();
+    }
+
+    @Test
     void shouldNotTransitionToClosedMultipleTimes() {
         // Given
         stateMachineInClosed();
@@ -702,6 +722,18 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.clientToProxyBackpressureTimer).isNull();
     }
 
+    @Test
+    void shouldNotifyFrontendHandlerThatAuthenticationHasCompleted() {
+        // Given
+        stateMachineInForwarding();
+
+        // When
+        proxyChannelStateMachine.onSessionSaslAuthenticated();
+
+        // Then
+        verify(frontendHandler).onSessionAuthenticated();
+    }
+
     public Stream<Arguments> clientErrorStates() {
         return Stream.of(
                 argumentSet("STARTING TLS on", (Runnable) () -> {
@@ -744,28 +776,32 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.ClientActive(),
                 frontendHandler,
-                null);
+                null,
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInHaProxy() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
                 frontendHandler,
-                null);
+                null,
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInSelectingServer() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.SelectingServer(null, null, null),
                 frontendHandler,
-                null);
+                null,
+                TEST_KAFKA_SESSION);
     }
 
     private void stateMachineInConnecting() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Connecting(null, null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
-                backendHandler);
+                backendHandler,
+                TEST_KAFKA_SESSION);
     }
 
     private ProxyChannelState.Forwarding stateMachineInForwarding() {
@@ -773,7 +809,8 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 forwarding,
                 frontendHandler,
-                backendHandler);
+                backendHandler,
+                TEST_KAFKA_SESSION);
         return forwarding;
     }
 
@@ -781,7 +818,8 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Closed(),
                 frontendHandler,
-                backendHandler);
+                backendHandler,
+                TEST_KAFKA_SESSION);
     }
 
     private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {
@@ -930,11 +968,131 @@ class ProxyChannelStateMachineTest {
                 .isEqualTo(initialServerCount); // unchanged
     }
 
+    @Test
+    void shouldFlushToServerWhenClientReadCompletes() {
+        // Given
+        stateMachineInForwarding();
+
+        // When
+        proxyChannelStateMachine.clientReadComplete();
+
+        // Then
+        verify(backendHandler).flushToServer();
+    }
+
+    @Test
+    void shouldFlushToClientWhenServerReadCompletes() {
+        // Given
+        stateMachineInForwarding();
+
+        // When
+        proxyChannelStateMachine.serverReadComplete();
+
+        // Then
+        verify(frontendHandler).flushToClient();
+    }
+
     private int getVirtualNodeClientToProxyActiveConnections() {
         return io.kroxylicious.proxy.internal.util.Metrics.clientToProxyConnectionCounter(VIRTUAL_CLUSTER_NODE).get();
     }
 
     private int getVirtualNodeProxyToServerActiveConnections() {
         return io.kroxylicious.proxy.internal.util.Metrics.proxyToServerConnectionCounter(VIRTUAL_CLUSTER_NODE).get();
+    }
+
+    @org.junit.jupiter.api.Nested
+    class DisconnectMetricsTest {
+
+        @Test
+        void shouldIncrementIdleTimeoutCauseOnClientIdle() {
+            // Given
+            stateMachineInForwarding();
+
+            // When
+            proxyChannelStateMachine.onClientIdle();
+
+            // Then
+            assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
+                    .tag("virtual_cluster", CLUSTER_NAME)
+                    .tag("node_id", "bootstrap")
+                    .tag("cause", "idle_timeout")
+                    .counter())
+                    .isNotNull()
+                    .satisfies(counter -> assertThat(counter.count()).isEqualTo(1.0));
+        }
+
+        @Test
+        void shouldIncrementClientClosedCauseOnClientInactive() {
+            // Given
+            stateMachineInForwarding();
+
+            // When
+            proxyChannelStateMachine.onClientInactive();
+
+            // Then
+            assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
+                    .tag("virtual_cluster", CLUSTER_NAME)
+                    .tag("node_id", "bootstrap")
+                    .tag("cause", "client_closed")
+                    .counter())
+                    .isNotNull()
+                    .satisfies(counter -> assertThat(counter.count()).isEqualTo(1.0));
+        }
+
+        @Test
+        void shouldIncrementServerClosedCauseOnServerInactive() {
+            // Given
+            stateMachineInForwarding();
+
+            // When
+            proxyChannelStateMachine.onServerInactive();
+
+            // Then
+            assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
+                    .tag("virtual_cluster", CLUSTER_NAME)
+                    .tag("node_id", "bootstrap")
+                    .tag("cause", "server_closed")
+                    .counter())
+                    .isNotNull()
+                    .satisfies(counter -> assertThat(counter.count()).isEqualTo(1.0));
+        }
+
+        @Test
+        void shouldNotDoubleCountOnSubsequentCloseAfterIdle() {
+            // Given
+            stateMachineInForwarding();
+
+            // When - idle timeout followed by client inactive
+            proxyChannelStateMachine.onClientIdle();
+            proxyChannelStateMachine.onClientInactive();
+
+            // Then - should only count once for idle, not again for client_closed
+            assertThat(simpleMeterRegistry.counter("kroxylicious_client_to_proxy_disconnects",
+                    "virtual_cluster", CLUSTER_NAME,
+                    "node_id", "bootstrap",
+                    "cause", "idle_timeout").count())
+                    .isEqualTo(1.0);
+            assertThat(simpleMeterRegistry.counter("kroxylicious_client_to_proxy_disconnects",
+                    "virtual_cluster", CLUSTER_NAME,
+                    "node_id", "bootstrap",
+                    "cause", "client_closed").count())
+                    .isEqualTo(0.0); // Should not be incremented
+        }
+
+        @Test
+        void shouldNotIncrementDisconnectMetricsOnErrors() {
+            // Given
+            stateMachineInForwarding();
+
+            // When - error causes disconnect
+            proxyChannelStateMachine.onClientException(new RuntimeException("test error"), false);
+
+            // Then - client_closed disconnect counter should not be incremented
+            assertThat(simpleMeterRegistry.counter("kroxylicious_client_to_proxy_disconnects",
+                    "virtual_cluster", CLUSTER_NAME,
+                    "node_id", "bootstrap",
+                    "cause", "client_closed").count())
+                    .isEqualTo(0.0);
+        }
     }
 }

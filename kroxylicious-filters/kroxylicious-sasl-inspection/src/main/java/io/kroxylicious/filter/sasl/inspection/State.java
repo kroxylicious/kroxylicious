@@ -78,6 +78,11 @@ sealed interface State
         public AwaitingHandshakeResponse nextState(SaslObserver saslObserver) {
             return new AwaitingHandshakeResponse(saslObserver, NegotiationType.INITIAL);
         }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
+        }
     }
 
     /** We're waiting for a SASL handshake response from the server. */
@@ -96,6 +101,11 @@ sealed interface State
          */
         public RequiringAuthenticateRequest nextState() {
             return new RequiringAuthenticateRequest(saslObserver(), negotiationType);
+        }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
         }
 
     }
@@ -122,6 +132,11 @@ sealed interface State
             // authentication request, or the apiVersion is > 0 we know that the client supports reauth.
             var clientSupportsReauthentication = negotiationType == NegotiationType.REAUTH || authRequestApiSupportsReauth;
             return new AwaitingAuthenticateResponse(saslObserver(), negotiationType, clientSupportsReauthentication);
+        }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
         }
     }
 
@@ -156,6 +171,11 @@ sealed interface State
                 return new RequiringAuthenticateRequest(saslObserver(), negotiationType);
             }
         }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
+        }
     }
 
     /**
@@ -182,6 +202,10 @@ sealed interface State
             return new AwaitingHandshakeResponse(saslObserver, NegotiationType.REAUTH);
         }
 
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
+        }
     }
 
     /**
@@ -190,6 +214,11 @@ sealed interface State
      */
     final class DisallowingAuthenticateRequest implements State {
         private DisallowingAuthenticateRequest() {
+        }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName();
         }
     }
 
