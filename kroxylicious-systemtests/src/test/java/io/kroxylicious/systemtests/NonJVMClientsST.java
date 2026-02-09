@@ -7,18 +7,22 @@
 package io.kroxylicious.systemtests;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
 
+import io.kroxylicious.systemtests.clients.KafkaClient;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
@@ -30,235 +34,92 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 import static io.kroxylicious.systemtests.TestTags.EXTERNAL_KAFKA_CLIENTS;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
- * The non-JVM clients system tests.
+ * System tests for non-JVM Kafka client (Kcat, Python, KafkaGo) interoperability
+ * producing or consuming messages through Kroxylicious
  */
 @Tag(EXTERNAL_KAFKA_CLIENTS)
 class NonJVMClientsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(NonJVMClientsST.class);
     private final String clusterName = "non-jvm-clients-cluster";
     private static final String MESSAGE = "Hello-world";
-    private String bootstrap;
     private KroxyliciousOperator kroxyliciousOperator;
 
     /**
-     * Produce and consume message with kcat.
+     * Provides all combinations of Kafka clients for interoperability testing.
+     * Kcat combinations are only included on x86_64/amd64 architectures as the
+     * kcat Docker image is x86-only (can work via emulation for local minikube).
      *
-     * @param namespace the namespace
+     * @return stream of (producer, consumer) client combinations
      */
-    @Test
-    void produceAndConsumeWithKcatClients(String namespace) {
-        checkKcatCompatibility();
-        int numberOfMessages = 2;
-        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
+    static Stream<Arguments> clientCombinations() {
+        KafkaClient strimzi = KafkaClients.strimziTestClient();
+        KafkaClient python = KafkaClients.pythonTestClient();
+        KafkaClient kaf = KafkaClients.kaf();
+        KafkaClient kcat = KafkaClients.kcat();
 
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+        List<Arguments> combinations = new ArrayList<>(List.of(
+                // Non-JVM → Non-JVM clients
+                Arguments.of(python, python),
+                Arguments.of(kaf, kaf),
 
-        assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getPayload)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                // Non-JVM → JVM clients
+                Arguments.of(python, strimzi),
+                Arguments.of(kaf, strimzi),
+
+                // JVM → Non-JVM clients
+                Arguments.of(strimzi, python),
+                Arguments.of(strimzi, kaf)));
+
+        // Only include kcat combinations on x86_64/amd64 architectures
+        String arch = Environment.ARCHITECTURE;
+        if (arch.equalsIgnoreCase(Constants.ARCHITECTURE_X86)
+                || arch.equalsIgnoreCase(Constants.ARCHITECTURE_AMD64)) {
+            combinations.addAll(List.of(
+                    Arguments.of(kcat, kcat),
+                    Arguments.of(kcat, strimzi),
+                    Arguments.of(strimzi, kcat)));
+        }
+
+        return combinations.stream();
     }
 
     /**
-     * Produce and consume message with python client.
+     * Tests producing and consuming messages through Kroxylicious using different client combinations.
      *
-     * @param namespace the namespace
+     * @param producer the Kafka client implementation for producing messages
+     * @param consumer the Kafka client implementation for consuming messages
+     * @param namespace the Kubernetes namespace to deploy resources in
      */
-    @Test
-    void produceAndConsumeWithPythonClients(String namespace) {
-        int numberOfMessages = 2;
-        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.pythonTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
-
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.pythonTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-
-        assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getPayload)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
-    }
-
-    /**
-     * Produce and consume message with kaf.
-     *
-     * @param namespace the namespace
-     */
-    @Test
-    void produceAndConsumeWithKafkaGoClients(String namespace) {
-        int numberOfMessages = 2;
-        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
-
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-
-        assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getPayload)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
-    }
-
-    /**
-     * Produce with kcat and consume message with java test clients.
-     *
-     * @param namespace the namespace
-     */
-    @Test
-    void produceWithKcatAndConsumeWithTestClients(String namespace) {
-        checkKcatCompatibility();
-        int numberOfMessages = 2;
-        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
-
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-
-        assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getPayload)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
-    }
-
-    /**
-     * Produce with python and consume message with java test clients.
-     *
-     * @param namespace the namespace
-     */
-    @Test
-    void produceWithPythonAndConsumeWithTestClients(String namespace) {
-        int numberOfMessages = 2;
-        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.pythonTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
-
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-
-        assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getPayload)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
-    }
-
-    /**
-     * Produce with java test clients and consume message with kcat.
-     *
-     * @param namespace the namespace
-     */
-    @Test
-    void produceWithTestClientsAndConsumeWithKcat(String namespace) {
-        checkKcatCompatibility();
-        int numberOfMessages = 2;
-        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
-
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-
-        assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getPayload)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
-    }
-
-    /**
-     * Produce with java test clients and consume message with python client.
-     *
-     * @param namespace the namespace
-     */
-    @Test
-    void produceWithTestClientsAndConsumeWithPython(String namespace) {
-        int numberOfMessages = 2;
-        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
-
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.pythonTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-
-        assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getPayload)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
-    }
-
-    /**
-     * Produce with kaf and consume message with java test clients.
-     *
-     * @param namespace the namespace
-     */
-    @Test
-    void produceWithKafkaGoAndConsumeWithTestClients(String namespace) {
-        int numberOfMessages = 2;
-        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
-
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-
-        assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getPayload)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
-    }
-
-    /**
-     * Produce with java test clients and consume message with kaf.
-     *
-     * @param namespace the namespace
-     */
-    @Test
-    void produceWithTestClientsAndConsumeWithKafkaGo(String namespace) {
-        int numberOfMessages = 2;
-        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
-
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-
-        assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getPayload)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
-    }
-
-    @BeforeEach
-    void setUpBeforeEach(String namespace) {
+    @ParameterizedTest(name = "testClientsProducer{0}Consumer{1}")
+    @MethodSource("clientCombinations")
+    void produceConsumeMessagesWithClients(KafkaClient producer, KafkaClient consumer, String namespace) {
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
-        bootstrap = kroxylicious.getBootstrap(clusterName);
+        final String bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
+
+        final int numberOfMessages = 2;
+
+        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'")
+                .addArgument(MESSAGE).addArgument(topicName).log();
+        producer.inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
+
+        LOGGER.atInfo().log("Then the messages are consumed");
+        List<ConsumerRecord> result = consumer.inNamespace(namespace)
+                .consumeMessages(topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getPayload)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
-    /**
-     * Sets before all.
-     */
     @BeforeAll
     void setupBefore() {
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
@@ -281,13 +142,5 @@ class NonJVMClientsST extends AbstractST {
     @AfterAll
     void cleanUp() {
         kroxyliciousOperator.delete();
-    }
-
-    // Skip Kcat execution when architecture is different from x86_64 or amd64 because kcat only provides x86 binaries
-    private void checkKcatCompatibility() {
-        // Skip Kcat execution when architecture is different from x86_64 or amd64
-        String localArch = Environment.ARCHITECTURE;
-        assumeThat(localArch.equalsIgnoreCase(Constants.ARCHITECTURE_X86)
-                || localArch.equalsIgnoreCase(Constants.ARCHITECTURE_AMD64)).isTrue();
     }
 }

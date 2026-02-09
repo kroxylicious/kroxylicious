@@ -166,4 +166,15 @@ public interface KafkaClient {
      * @return  the list of ConsumerRecords
      */
     List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig);
+
+    /**
+     * Extracts version from Docker image string.
+     *
+     * @param image the Docker image (e.g., "quay.io/kroxylicious/kcat:1.7.1")
+     * @return  the version (e.g., "1.7.1") or "unknown" if not found
+     */
+    static String extractVersionFromImage(String image) {
+        int colonIndex = image.lastIndexOf(':');
+        return colonIndex != -1 ? image.substring(colonIndex + 1) : "unknown";
+    }
 }
