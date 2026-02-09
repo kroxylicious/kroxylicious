@@ -10,30 +10,13 @@ metadata:
   apiVersion: 4
   scenario: "baseline"
 given:
-  mockedUpstreamResponses:
-    - expectedRequestKey: "ADD_OFFSETS_TO_TXN"
-      expectedRequestVersion: 4
-      expectedRequestHeader:
-        requestApiKey: 25
-        requestApiVersion: 4
-        correlationId: 1
-        clientId: "clientId"
-      expectedRequest:
-        transactionalId: "my-transactional-id"
-        producerId: 246
-        producerEpoch: 624
-        groupId: "random-string-527"
-      upstreamResponseHeader:
-        correlationId: 1
-      upstreamResponse:
-        throttleTimeMs: 877
-        errorCode: 574
+  mockedUpstreamResponses: []
   authorizerRules:
     allowed:
       - subject: "alice"
         resourceName: "my-transactional-id"
         resourceClass: "TRANSACTIONAL_ID"
-        resourceType: "WRITE"
+        resourceType: "DESCRIBE"
   topicNames: null
 when:
   subject: "alice"
@@ -51,5 +34,5 @@ then:
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
-    throttleTimeMs: 877
-    errorCode: 574
+    throttleTimeMs: 0
+    errorCode: 53 # TRANSACTIONAL_ID_AUTHORIZATION_FAILED
