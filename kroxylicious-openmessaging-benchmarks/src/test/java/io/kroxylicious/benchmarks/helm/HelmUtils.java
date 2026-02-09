@@ -31,6 +31,7 @@ public class HelmUtils {
 
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
     private static final Path HELM_CHART_DIR = getHelmChartDirectory();
+    private static final Path TEST_VALUES_FILE = getTestValuesFile();
 
     private static Path getHelmChartDirectory() {
         String chartDirProperty = System.getProperty("helm.chart.directory");
@@ -38,6 +39,15 @@ public class HelmUtils {
             return Paths.get(chartDirProperty);
         }
         return Paths.get("helm/kroxylicious-benchmark").toAbsolutePath();
+    }
+
+    private static Path getTestValuesFile() {
+        // Look for test-values.yaml in test resources
+        String testValuesProperty = System.getProperty("helm.test.values");
+        if (testValuesProperty != null) {
+            return Paths.get(testValuesProperty);
+        }
+        return Paths.get("src/test/resources/test-values.yaml").toAbsolutePath();
     }
 
     /**
@@ -63,6 +73,7 @@ public class HelmUtils {
 
     /**
      * Renders Helm templates with custom values and returns the raw YAML output.
+     * Uses test-values.yaml as base, with optional --set overrides.
      *
      * @param setValues Map of key-value pairs to pass as --set arguments
      * @return rendered template YAML
@@ -74,6 +85,8 @@ public class HelmUtils {
         command.add("template");
         command.add("test-release");
         command.add(HELM_CHART_DIR.toString());
+        command.add("-f");
+        command.add(TEST_VALUES_FILE.toString());
 
         for (Map.Entry<String, String> entry : setValues.entrySet()) {
             command.add("--set");

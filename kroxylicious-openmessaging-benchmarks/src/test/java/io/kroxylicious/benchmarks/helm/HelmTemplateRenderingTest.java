@@ -7,6 +7,8 @@
 package io.kroxylicious.benchmarks.helm;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +17,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,12 +27,32 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Tests that verify Helm templates render correctly.
+ * Tests use test-values.yaml with fixed versions for predictable assertions.
+ * Expected values are loaded from test-values.yaml to avoid duplication.
  */
 class HelmTemplateRenderingTest {
 
+    // Expected values loaded from test-values.yaml
+    private static String testKafkaVersion;
+    private static int testKafkaReplicas;
+    private static int testWorkerReplicas;
+
     @BeforeAll
-    static void checkHelmAvailable() {
+    @SuppressWarnings("unchecked")
+    static void setup() throws IOException {
         assumeTrue(HelmUtils.isHelmAvailable(), "Helm is not installed or not available in PATH");
+
+        // Load test values from test-values.yaml to use as expected values
+        ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
+        String testValuesPath = "src/test/resources/test-values.yaml";
+        Map<String, Object> values = yaml.readValue(Files.readString(Paths.get(testValuesPath)), Map.class);
+
+        Map<String, Object> kafka = (Map<String, Object>) values.get("kafka");
+        testKafkaVersion = (String) kafka.get("version");
+        testKafkaReplicas = (Integer) kafka.get("replicas");
+
+        Map<String, Object> omb = (Map<String, Object>) values.get("omb");
+        testWorkerReplicas = (Integer) omb.get("workerReplicas");
     }
 
     @Test
@@ -73,7 +98,7 @@ class HelmTemplateRenderingTest {
         Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
         assertThat(kafkaSpec)
                 .as("Kafka CR should have version specified")
-                .hasEntrySatisfying("version", v -> assertThat(v).isEqualTo("4.1.1"));
+                .hasEntrySatisfying("version", v -> assertThat(v).isEqualTo(testKafkaVersion));
     }
 
     @ParameterizedTest
@@ -103,7 +128,7 @@ class HelmTemplateRenderingTest {
         assertThat(kafka).isNotNull();
         Map<String, Object> spec = kafka.get("spec");
         Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
-        assertThat(kafkaSpec).as("Kafka CR should have version specified").containsEntry("version", "4.1.1");
+        assertThat(kafkaSpec).as("Kafka CR should have version specified").containsEntry("version", testKafkaVersion);
     }
 
     @Test
