@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -24,9 +25,11 @@ import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
+import org.apache.kafka.common.utils.ProducerIdAndEpoch;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,7 +54,7 @@ class AddOffsetsToTxnTxnlIdAuthzIT extends AuthzIT {
     public static final String GROUP_ID = "group";
     private Path rulesFile;
 
-    public static final List<String> ALL_TRANSACTIONAL_IDS_IN_TEST = List.of(ALICE_TXNL_ID, BOB_TXNL_ID);
+    public static final List<String> ALL_TRANSACTIONAL_ID_PREFIXES_IN_TEST = List.of(ALICE_TXNL_ID, BOB_TXNL_ID);
     private static List<AclBinding> aclBindings;
 
     @Name("kafkaClusterWithAuthz")
@@ -66,8 +69,8 @@ class AddOffsetsToTxnTxnlIdAuthzIT extends AuthzIT {
                 from io.kroxylicious.filter.authorization import TopicResource as Topic,
                                                                  TransactionalIdResource as TxnlId;
 
-                allow User with name = "alice" to * TxnlId with name = "%s";
-                allow User with name = "bob" to {DESCRIBE, WRITE} TxnlId with name = "%s";
+                allow User with name = "alice" to * TxnlId with name like "%s-*";
+                allow User with name = "bob" to {DESCRIBE, WRITE} TxnlId with name like "%s-*";
                 allow User with name = "super" to * TxnlId with name like "*";
                 otherwise deny;
                 """.formatted(ALICE_TXNL_ID, BOB_TXNL_ID));
@@ -86,15 +89,19 @@ class AddOffsetsToTxnTxnlIdAuthzIT extends AuthzIT {
                         new AccessControlEntry("User:" + EVE, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, ALICE_TXNL_ID, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.GROUP, GROUP_ID, PatternType.LITERAL),
+                        new AccessControlEntry("User:" + SUPER, "*",
+                                AclOperation.ALL, AclPermissionType.ALLOW)),
+                new AclBinding(
+                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, ALICE_TXNL_ID, PatternType.PREFIXED),
                         new AccessControlEntry("User:" + ALICE, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, BOB_TXNL_ID, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, BOB_TXNL_ID, PatternType.PREFIXED),
                         new AccessControlEntry("User:" + BOB, "*",
                                 AclOperation.DESCRIBE, AclPermissionType.ALLOW)),
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, BOB_TXNL_ID, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, BOB_TXNL_ID, PatternType.PREFIXED),
                         new AccessControlEntry("User:" + BOB, "*",
                                 AclOperation.WRITE, AclPermissionType.ALLOW)));
     }
@@ -120,8 +127,9 @@ class AddOffsetsToTxnTxnlIdAuthzIT extends AuthzIT {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(
                 AuthorizationFilter.minSupportedApiVersion(ApiKeys.ADD_OFFSETS_TO_TXN),
                 AuthorizationFilter.maxSupportedApiVersion(ApiKeys.ADD_OFFSETS_TO_TXN)).boxed()
-                .flatMap(apiVersion -> ALL_TRANSACTIONAL_IDS_IN_TEST.stream().map(
-                        s -> Arguments.argumentSet("api version " + apiVersion + " transactionalId " + s, new AddOffsetsToTxnEquivalence(apiVersion.shortValue(), s))));
+                .flatMap(apiVersion -> ALL_TRANSACTIONAL_ID_PREFIXES_IN_TEST.stream().map(
+                        transactionalIdPrefix -> Arguments.argumentSet("api version " + apiVersion + " transactionalIdPrefix " + transactionalIdPrefix,
+                                new AddOffsetsToTxnEquivalence(apiVersion.shortValue(), transactionalIdPrefix))));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(
                         ApiKeys.ADD_OFFSETS_TO_TXN.oldestVersion(),
@@ -144,11 +152,11 @@ class AddOffsetsToTxnTxnlIdAuthzIT extends AuthzIT {
 
     class AddOffsetsToTxnEquivalence extends Equivalence<AddOffsetsToTxnRequestData, AddOffsetsToTxnResponseData> {
 
-        private final String transactionalId;
+        private final String transactionalIdPrefix;
 
-        AddOffsetsToTxnEquivalence(short apiVersion, String transactionalId) {
+        AddOffsetsToTxnEquivalence(short apiVersion, String transactionalIdPrefix) {
             super(apiVersion);
-            this.transactionalId = transactionalId;
+            this.transactionalIdPrefix = transactionalIdPrefix;
         }
 
         @Override
@@ -168,12 +176,16 @@ class AddOffsetsToTxnTxnlIdAuthzIT extends AuthzIT {
 
         @Override
         public AddOffsetsToTxnRequestData requestData(String user, BaseClusterFixture clusterFixture) {
-
+            KafkaDriver driver = new KafkaDriver(clusterFixture, clusterFixture.authenticatedClient(AuthzIT.SUPER, SUPER_PASSWORD), AuthzIT.SUPER);
+            String transactionalId = this.transactionalIdPrefix + "-" + UUID.randomUUID();
+            driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.TRANSACTION, transactionalId);
+            driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.GROUP, GROUP_ID);
+            ProducerIdAndEpoch producerIdAndEpoch = driver.initProducerId(transactionalId);
             AddOffsetsToTxnRequestData request = new AddOffsetsToTxnRequestData();
             request.setTransactionalId(transactionalId);
-            request.setProducerId(1L);
+            request.setProducerId(producerIdAndEpoch.producerId);
             request.setGroupId(GROUP_ID);
-            request.setProducerEpoch((short) 1);
+            request.setProducerEpoch(producerIdAndEpoch.epoch);
             return request;
         }
 
