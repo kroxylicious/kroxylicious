@@ -7,6 +7,7 @@
 package io.kroxylicious.it.filter.authorization;
 
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -35,7 +36,9 @@ public final class ProxiedCluster implements BaseClusterFixture {
         this.topicIds = topicIds;
         this.rulesFile = rulesFile;
 
-        ConfigurationBuilder builder = AuthzIT.proxyConfig(cluster, AuthzIT.PASSWORDS, rulesFile);
+        Map<String, String> passwords = new HashMap<>(AuthzIT.PASSWORDS);
+        passwords.put(AuthzIT.SUPER, AuthzIT.SUPER_PASSWORD);
+        ConfigurationBuilder builder = AuthzIT.proxyConfig(cluster, passwords, rulesFile);
         builder.build();
         this.tester = kroxyliciousTester(builder);
     }

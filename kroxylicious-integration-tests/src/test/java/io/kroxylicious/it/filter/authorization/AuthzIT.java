@@ -115,6 +115,7 @@ public abstract class AuthzIT extends BaseIT {
     public static final String ALICE = "alice";
     public static final String BOB = "bob";
     public static final String EVE = "eve";
+    public static final String SUPER_PASSWORD = "Super";
 
     public static final Map<String, String> PASSWORDS = Map.of(
             ALICE, "Alice",
@@ -123,7 +124,7 @@ public abstract class AuthzIT extends BaseIT {
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60)).pollDelay(Duration.ofMillis(100));
 
     @SaslMechanism(principals = {
-            @SaslMechanism.Principal(user = SUPER, password = "Super"),
+            @SaslMechanism.Principal(user = SUPER, password = SUPER_PASSWORD),
             @SaslMechanism.Principal(user = ALICE, password = "Alice"),
             @SaslMechanism.Principal(user = BOB, password = "Bob"),
             @SaslMechanism.Principal(user = EVE, password = "Eve")
@@ -581,13 +582,13 @@ public abstract class AuthzIT extends BaseIT {
     }
 
     protected Set<String> topicListing(BaseClusterFixture cluster) {
-        try (var admin = Admin.create(cluster.backingCluster().getKafkaClientConfiguration(SUPER, "Super"))) {
+        try (var admin = Admin.create(cluster.backingCluster().getKafkaClientConfiguration(SUPER, SUPER_PASSWORD))) {
             return admin.listTopics().names().toCompletionStage().toCompletableFuture().join();
         }
     }
 
     protected Map<TopicPartition, Long> offsets(BaseClusterFixture cluster, String groupId) {
-        try (var admin = Admin.create(cluster.backingCluster().getKafkaClientConfiguration(SUPER, "Super"))) {
+        try (var admin = Admin.create(cluster.backingCluster().getKafkaClientConfiguration(SUPER, SUPER_PASSWORD))) {
             Map<TopicPartition, OffsetAndMetadata> join = admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().toCompletionStage()
                     .toCompletableFuture().join();
             return join.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().offset()));
