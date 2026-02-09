@@ -29,7 +29,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 public class DescribeTransactionsEnforcement extends ApiEnforcement<DescribeTransactionsRequestData, DescribeTransactionsResponseData> {
 
-    public static final TopicDataCollection EMPTY_TOPICS = new TopicDataCollection();
+    private static final TopicDataCollection EMPTY_TOPICS = new TopicDataCollection();
 
     @Override
     short minSupportedVersion() {
