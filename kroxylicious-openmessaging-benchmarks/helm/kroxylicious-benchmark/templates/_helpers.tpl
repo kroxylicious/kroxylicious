@@ -14,3 +14,14 @@ kroxylicious-service:9092
 kafka-kafka-bootstrap:9092
 {{- end -}}
 {{- end }}
+
+{{/*
+Generate OMB worker list as comma-separated URLs
+*/}}
+{{- define "kroxylicious-benchmark.workerList" -}}
+{{- $workers := list -}}
+{{- range $i := until (int .Values.omb.workerReplicas) -}}
+{{- $workers = append $workers (printf "http://omb-worker-%d.omb-worker:8080" $i) -}}
+{{- end -}}
+{{- join "," $workers -}}
+{{- end }}

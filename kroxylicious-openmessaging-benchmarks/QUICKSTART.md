@@ -69,13 +69,15 @@ kubectl get pods -n kafka
 
 ## Run Benchmarks
 
+The benchmark pod has a `$WORKERS` environment variable pre-configured with all worker URLs based on your `omb.workerReplicas` setting.
+
 ### Quick Benchmark (1 topic, 5 minutes)
 
 ```bash
 kubectl exec -it omb-benchmark -n kafka -- \
   bin/benchmark \
   --drivers /config/driver-kafka.yaml \
-  --workers omb-worker-0.omb-worker:8080,omb-worker-1.omb-worker:8080,omb-worker-2.omb-worker:8080 \
+  --workers $WORKERS \
   /workloads/workload.yaml
 ```
 
@@ -98,14 +100,14 @@ Pub Latency avg: 12.3ms | 95th: 28.5ms | 99th: 45.2ms
 kubectl exec -it omb-benchmark -n kafka -- \
   bin/benchmark \
   --drivers /config/driver-kafka.yaml \
-  --workers omb-worker-0.omb-worker:8080,omb-worker-1.omb-worker:8080,omb-worker-2.omb-worker:8080 \
+  --workers $WORKERS \
   /workloads/workload-10topics-1kb.yaml
 
 # 100 topics workload
 kubectl exec -it omb-benchmark -n kafka -- \
   bin/benchmark \
   --drivers /config/driver-kafka.yaml \
-  --workers omb-worker-0.omb-worker:8080,omb-worker-1.omb-worker:8080,omb-worker-2.omb-worker:8080 \
+  --workers $WORKERS \
   /workloads/workload-100topics-1kb.yaml
 ```
 

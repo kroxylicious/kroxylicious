@@ -21,6 +21,9 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
 /**
  * Utility class for executing Helm CLI commands and parsing Kubernetes YAML manifests.
  */
@@ -265,6 +268,42 @@ public class HelmUtils {
                 .filter(r -> r.getMetadata() != null && name.equals(r.getMetadata().getName()))
                 .findFirst()
                 .orElse(null);
+    }
+
+    /**
+     * Gets the value of an environment variable from a Pod's first container.
+     * Uses assertions to validate Pod structure for clear test failure messages.
+     *
+     * @param pod Pod resource
+     * @param envVarName Name of the environment variable
+     * @return Environment variable value
+     */
+    @SuppressWarnings("unchecked")
+    public static String getPodEnvVar(GenericKubernetesResource pod, String envVarName) {
+        assertThat(pod).as("Pod resource should not be null").isNotNull();
+
+        Map<String, Object> spec = pod.get("spec");
+        assertThat(spec)
+                .as("Pod '%s' should have spec", pod.getMetadata().getName())
+                .isNotNull();
+
+        List<Map<String, Object>> containers = (List<Map<String, Object>>) spec.get("containers");
+        assertThat(containers)
+                .as("Pod '%s' should have containers", pod.getMetadata().getName())
+                .isNotNull()
+                .isNotEmpty();
+
+        Map<String, Object> container = containers.get(0);
+        List<Map<String, Object>> env = (List<Map<String, Object>>) container.get("env");
+        assertThat(env)
+                .as("Pod '%s' container should have env section", pod.getMetadata().getName())
+                .isNotNull();
+
+        return env.stream()
+                .filter(e -> envVarName.equals(e.get("name")))
+                .map(e -> (String) e.get("value"))
+                .findFirst()
+                .orElseGet(() -> fail("Pod '%s' does not have environment variable '%s'", pod.getMetadata().getName(), envVarName));
     }
 
 }

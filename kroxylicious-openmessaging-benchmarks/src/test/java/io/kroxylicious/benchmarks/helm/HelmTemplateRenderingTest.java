@@ -69,16 +69,15 @@ class HelmTemplateRenderingTest {
         assertThat(kafka.getApiVersion()).isEqualTo("kafka.strimzi.io/v1");
 
         // Verify version is set
-        Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
+        Map<String, Object> spec = kafka.get("spec");
         Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
-        assertThat(kafkaSpec.get("version"))
+        assertThat(kafkaSpec)
                 .as("Kafka CR should have version specified")
-                .isEqualTo("4.1.1");
+                .hasEntrySatisfying("version", v -> assertThat(v).isEqualTo("4.1.1"));
     }
 
     @ParameterizedTest
     @ValueSource(ints = { 1, 3, 5 })
-    @SuppressWarnings("unchecked")
     void shouldRenderWithConfigurableReplicaCount(int replicas) throws IOException {
         // When: Rendering with custom replica count
         String yaml = HelmUtils.renderTemplate(Map.of("kafka.replicas", String.valueOf(replicas)));
@@ -88,10 +87,8 @@ class HelmTemplateRenderingTest {
         // Then: KafkaNodePool should have configured replica count
         assertThat(nodePool).isNotNull();
         assertThat(nodePool.getApiVersion()).isEqualTo("kafka.strimzi.io/v1");
-        Map<String, Object> spec = (Map<String, Object>) nodePool.get("spec");
-        assertThat(spec.get("replicas"))
-                .as("KafkaNodePool should have %d replicas", replicas)
-                .isEqualTo(replicas);
+        Map<String, Object> spec = nodePool.get("spec");
+        assertThat(spec).as("KafkaNodePool should have %d replicas", replicas).hasEntrySatisfying("replicas", v -> assertThat(v).isEqualTo(replicas));
     }
 
     @Test
@@ -104,11 +101,56 @@ class HelmTemplateRenderingTest {
 
         // Then: Kafka CR should have version configured
         assertThat(kafka).isNotNull();
-        Map<String, Object> spec = (Map<String, Object>) kafka.get("spec");
+        Map<String, Object> spec = kafka.get("spec");
         Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
-        assertThat(kafkaSpec.get("version"))
-                .as("Kafka CR should have version specified")
-                .isEqualTo("4.1.1");
+        assertThat(kafkaSpec).as("Kafka CR should have version specified").containsEntry("version", "4.1.1");
+    }
+
+    @Test
+    void shouldSetWorkersEnvironmentVariable() throws IOException {
+        // When: Rendering templates
+        String yaml = HelmUtils.renderTemplate();
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource benchmarkPod = HelmUtils.findResourceTyped(resources, "Pod", "omb-benchmark");
+
+        // Then: Pod should have WORKERS env var
+        String workersValue = HelmUtils.getPodEnvVar(benchmarkPod, "WORKERS");
+
+        assertThat(workersValue)
+                .as("Pod should have WORKERS environment variable")
+                .isNotNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 1, 3, 5 })
+    void shouldGenerateCorrectNumberOfWorkerUrls(int workerReplicas) throws IOException {
+        // When: Rendering with custom worker replica count
+        String yaml = HelmUtils.renderTemplate(Map.of("omb.workerReplicas", String.valueOf(workerReplicas)));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource benchmarkPod = HelmUtils.findResourceTyped(resources, "Pod", "omb-benchmark");
+
+        // Then: WORKERS env var should contain URL for each replica
+        String workersValue = HelmUtils.getPodEnvVar(benchmarkPod, "WORKERS");
+        String[] workers = workersValue.split(",");
+
+        assertThat(workers)
+                .as("Should have worker URL for each replica")
+                .hasSize(workerReplicas);
+    }
+
+    @Test
+    void shouldFormatWorkerUrlsCorrectly() throws IOException {
+        // When: Rendering templates with 3 workers
+        String yaml = HelmUtils.renderTemplate(Map.of("omb.workerReplicas", "3"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource benchmarkPod = HelmUtils.findResourceTyped(resources, "Pod", "omb-benchmark");
+
+        // Then: Worker URLs should follow expected format
+        String workersValue = HelmUtils.getPodEnvVar(benchmarkPod, "WORKERS");
+
+        assertThat(workersValue)
+                .as("Worker URLs should be comma-separated with correct format")
+                .isEqualTo("http://omb-worker-0.omb-worker:8080,http://omb-worker-1.omb-worker:8080,http://omb-worker-2.omb-worker:8080");
     }
 
 }
