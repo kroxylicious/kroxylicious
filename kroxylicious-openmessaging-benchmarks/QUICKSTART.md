@@ -102,8 +102,8 @@ helm upgrade benchmark ./helm/kroxylicious-benchmark \
   --set omb.workload=10topics-1kb \
   -n kafka
 
-# Wait for pod to restart
-kubectl rollout status deployment/omb-worker -n kafka
+# Wait for pods to restart
+kubectl rollout status statefulset/omb-worker -n kafka
 kubectl delete pod omb-benchmark -n kafka
 kubectl wait --for=condition=ready pod -l app=omb-benchmark -n kafka --timeout=60s
 
@@ -125,11 +125,30 @@ Infrastructure stays running - just re-run the `kubectl exec` command to benchma
 ```bash
 # Remove all benchmark infrastructure
 helm uninstall benchmark -n kafka
+
+# IMPORTANT: Delete Kafka persistent volumes to avoid cluster ID conflicts
 kubectl delete pvc -l strimzi.io/cluster=kafka -n kafka
 
 # (Optional) Delete Strimzi operator
 kubectl delete -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 kubectl delete namespace kafka
+```
+
+## Troubleshooting Kafka Cluster ID Mismatch
+
+If you see `Invalid cluster.id` errors after reinstalling:
+
+```bash
+# Delete old Kafka data
+kubectl delete pvc -l strimzi.io/cluster=kafka -n kafka
+
+# Wait for PVCs to be deleted
+kubectl get pvc -n kafka
+
+# Reinstall benchmark
+helm install benchmark ./helm/kroxylicious-benchmark \
+  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+  -n kafka
 ```
 
 ## Troubleshooting

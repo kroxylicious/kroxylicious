@@ -20,12 +20,13 @@ spec:
     app: omb-worker
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: omb-worker
   labels:
     app: omb-worker
 spec:
+  serviceName: omb-worker
   replicas: {{ .Values.omb.workerReplicas }}
   selector:
     matchLabels:

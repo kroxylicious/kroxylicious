@@ -21,7 +21,7 @@ Generate OMB worker list as comma-separated URLs
 {{- define "kroxylicious-benchmark.workerList" -}}
 {{- $workers := list -}}
 {{- range $i := until (int .Values.omb.workerReplicas) -}}
-{{- $workers = append $workers (printf "http://omb-worker-%d.omb-worker.%s.svc:8080" $i $.Release.Namespace) -}}
+{{- $workers = append $workers (printf "http://omb-worker-%d.omb-worker:8080" $i) -}}
 {{- end -}}
 {{- join "," $workers -}}
 {{- end }}

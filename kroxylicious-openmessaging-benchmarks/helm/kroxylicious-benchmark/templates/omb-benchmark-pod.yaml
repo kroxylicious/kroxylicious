@@ -33,10 +33,12 @@ spec:
       done
       echo "All workers ready"
 
-      # Wait for Kafka to be ready
+      # Wait for Kafka to be ready (TCP port check)
       echo "Waiting for Kafka to be ready..."
-      while ! kafka-topics --bootstrap-server kafka-0.kafka:9092 --list > /dev/null 2>&1; do
-        echo "Waiting for Kafka..."
+      KAFKA_HOST=$(echo "{{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}" | cut -d: -f1)
+      KAFKA_PORT=$(echo "{{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}" | cut -d: -f2)
+      while ! nc -z $KAFKA_HOST $KAFKA_PORT > /dev/null 2>&1; do
+        echo "Waiting for Kafka on $KAFKA_HOST:$KAFKA_PORT..."
         sleep 5
       done
       echo "Kafka is ready"
