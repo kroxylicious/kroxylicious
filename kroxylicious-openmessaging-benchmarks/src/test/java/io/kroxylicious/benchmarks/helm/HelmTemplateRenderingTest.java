@@ -170,12 +170,15 @@ class HelmTemplateRenderingTest {
         List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
         GenericKubernetesResource benchmarkPod = HelmUtils.findResourceTyped(resources, "Pod", "omb-benchmark");
 
-        // Then: Worker URLs should follow expected format
+        // Then: Worker URLs should include namespace for DNS resolution
         String workersValue = HelmUtils.getPodEnvVar(benchmarkPod, "WORKERS");
 
         assertThat(workersValue)
-                .as("Worker URLs should be comma-separated with correct format")
-                .isEqualTo("http://omb-worker-0.omb-worker:8080,http://omb-worker-1.omb-worker:8080,http://omb-worker-2.omb-worker:8080");
+                .as("Worker URLs should include namespace in DNS name")
+                .contains(".svc:")
+                .startsWith("http://omb-worker-0.omb-worker.")
+                .contains("http://omb-worker-1.omb-worker.")
+                .contains("http://omb-worker-2.omb-worker.");
     }
 
 }

@@ -71,14 +71,12 @@ kubectl get pods -n kafka
 
 The benchmark pod has a `$WORKERS` environment variable pre-configured with all worker URLs based on your `omb.workerReplicas` setting.
 
-### Quick Benchmark (1 topic, 5 minutes)
+The default workload is `1topic-1kb` (1 topic, 1KB messages, 5 minute test).
+
+### Run Default Benchmark
 
 ```bash
-kubectl exec -it omb-benchmark -n kafka -- \
-  bin/benchmark \
-  --drivers /config/driver-kafka.yaml \
-  --workers $WORKERS \
-  /workloads/workload.yaml
+kubectl exec -it omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
 ```
 
 **What you'll see:**
@@ -93,23 +91,30 @@ Consume rate: 45,234 msg/s | 44.1 MB/s
 Pub Latency avg: 12.3ms | 95th: 28.5ms | 99th: 45.2ms
 ```
 
-### Other Workloads
+### Switch to Different Workload
+
+To run a different workload, upgrade the Helm release with a different `omb.workload` value:
 
 ```bash
 # 10 topics workload
-kubectl exec -it omb-benchmark -n kafka -- \
-  bin/benchmark \
-  --drivers /config/driver-kafka.yaml \
-  --workers $WORKERS \
-  /workloads/workload-10topics-1kb.yaml
+helm upgrade benchmark ./helm/kroxylicious-benchmark \
+  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+  --set omb.workload=10topics-1kb \
+  -n kafka
 
-# 100 topics workload
-kubectl exec -it omb-benchmark -n kafka -- \
-  bin/benchmark \
-  --drivers /config/driver-kafka.yaml \
-  --workers $WORKERS \
-  /workloads/workload-100topics-1kb.yaml
+# Wait for pod to restart
+kubectl rollout status deployment/omb-worker -n kafka
+kubectl delete pod omb-benchmark -n kafka
+kubectl wait --for=condition=ready pod -l app=omb-benchmark -n kafka --timeout=60s
+
+# Run benchmark
+kubectl exec -it omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
 ```
+
+**Available workloads:**
+- `1topic-1kb` - 1 topic, 1 partition (default)
+- `10topics-1kb` - 10 topics, 1KB messages
+- `100topics-1kb` - 100 topics, 1KB messages
 
 ## Re-running Benchmarks
 
