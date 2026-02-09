@@ -152,11 +152,11 @@ class AddOffsetsToTxnTxnlIdAuthzIT extends AuthzIT {
 
     class AddOffsetsToTxnEquivalence extends Equivalence<AddOffsetsToTxnRequestData, AddOffsetsToTxnResponseData> {
 
-        private final String transactionalId;
+        private final String transactionalIdPrefix;
 
-        AddOffsetsToTxnEquivalence(short apiVersion, String transactionalId) {
+        AddOffsetsToTxnEquivalence(short apiVersion, String transactionalIdPrefix) {
             super(apiVersion);
-            this.transactionalId = transactionalId;
+            this.transactionalIdPrefix = transactionalIdPrefix;
         }
 
         @Override
@@ -177,7 +177,7 @@ class AddOffsetsToTxnTxnlIdAuthzIT extends AuthzIT {
         @Override
         public AddOffsetsToTxnRequestData requestData(String user, BaseClusterFixture clusterFixture) {
             KafkaDriver driver = new KafkaDriver(clusterFixture, clusterFixture.authenticatedClient(AuthzIT.SUPER, SUPER_PASSWORD), AuthzIT.SUPER);
-            String transactionalId = this.transactionalId + "-" + UUID.randomUUID();
+            String transactionalId = this.transactionalIdPrefix + "-" + UUID.randomUUID();
             driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.TRANSACTION, transactionalId);
             driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.GROUP, GROUP_ID);
             ProducerIdAndEpoch producerIdAndEpoch = driver.initProducerId(transactionalId);
