@@ -21,6 +21,7 @@ import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_DOMAIN_NAME;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_NODE_ID;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_VIRTUAL_CLUSTER_NAME;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.validatePortSpecifier;
@@ -52,7 +53,7 @@ public class SniHostIdentifiesNodeIdentificationStrategy
     private final String advertisedBrokerAddressPattern;
 
     private static final Set<String> REQUIRED_TOKEN_SET = Set.of(LITERAL_NODE_ID);
-    private static final Set<String> ALLOWED_TOKEN_SET = Set.of(LITERAL_NODE_ID, LITERAL_VIRTUAL_CLUSTER_NAME);
+    private static final Set<String> ALLOWED_TOKEN_SET = Set.of(LITERAL_NODE_ID, LITERAL_VIRTUAL_CLUSTER_NAME, LITERAL_DOMAIN_NAME);
 
     @JsonIgnore
     private final String parsedBootstrapAddressPattern;
