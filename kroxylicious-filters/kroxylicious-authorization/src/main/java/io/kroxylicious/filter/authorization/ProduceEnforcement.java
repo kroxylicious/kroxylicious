@@ -7,16 +7,24 @@
 package io.kroxylicious.filter.authorization;
 
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.requests.ProduceRequest;
+import org.apache.kafka.common.requests.RequestUtils;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static org.apache.kafka.common.protocol.Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED;
 
 class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceResponseData> {
     @Override
@@ -34,13 +42,21 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
                                                    ProduceRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
+        ProduceRequest produceRequest = new ProduceRequest(request, header.requestApiVersion());
+        boolean hasTransactionalRecords = RequestUtils.hasTransactionalRecords(produceRequest);
+        String transactionalId = request.transactionalId();
+        // fail fast if records flagged as transactional but request has no transactionalId
+        if (hasTransactionalRecords && transactionalId == null) {
+            return transactionalIdErrorResponse(context, produceRequest);
+        }
         boolean requiresResponse = request.acks() != 0;
         var topicWriteActions = request.topicData().stream()
-                .map(t -> new Action(TopicResource.WRITE, t.name()))
-                .toList();
-
-        return authorizationFilter.authorization(context, topicWriteActions).thenCompose(authorization -> {
-
+                .map(t -> new Action(TopicResource.WRITE, t.name()));
+        var transactionalIdActions = hasTransactionalRecords ? Stream.of(new Action(TransactionalIdResource.WRITE, transactionalId)) : Stream.<Action> empty();
+        return authorizationFilter.authorization(context, Stream.concat(topicWriteActions, transactionalIdActions).toList()).thenCompose(authorization -> {
+            if (hasTransactionalRecords && authorization.denied(TransactionalIdResource.WRITE).contains(transactionalId)) {
+                return transactionalIdErrorResponse(context, produceRequest);
+            }
             var topicWriteDecisions = authorization.partition(request.topicData(),
                     TopicResource.WRITE, ProduceRequestData.TopicProduceData::name);
 
@@ -86,6 +102,12 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
             }
             return context.forwardRequest(header, request);
         });
+    }
+
+    @NonNull
+    private static CompletionStage<RequestFilterResult> transactionalIdErrorResponse(FilterContext context, ProduceRequest produceRequest) {
+        ApiMessage response = produceRequest.getErrorResponse(TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception()).data();
+        return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
     }
 
 }

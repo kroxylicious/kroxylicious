@@ -1,0 +1,51 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "PRODUCE"
+  apiVersion: 12
+  scenario: "transactional record batch and transactionalId not authorized, results in error response"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "WRITE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 0
+    requestApiVersion: 12
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "denied-transactional-id"
+    acks: 1
+    timeoutMs: 141
+    topicData:
+      - name: "my-topic"
+        partitionData:
+          - index: 134
+            records: !!binary "AAAAAAAAAAEAAABAAAAAAQJiprm8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEAAAABAAAAARwAAAAGS0VZClZBTFVFAA==" # records containing a transactional batch
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    responses:
+      - name: "my-topic"
+        partitionResponses:
+          - index: 134
+            errorCode: 53
+            baseOffset: -1
+            logAppendTimeMs: -1
+            logStartOffset: -1
+            recordErrors: [ ]
+            errorMessage: null
+    throttleTimeMs: 0
