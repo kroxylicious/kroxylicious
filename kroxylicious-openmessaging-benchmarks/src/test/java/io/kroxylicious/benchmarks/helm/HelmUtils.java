@@ -284,39 +284,79 @@ public class HelmUtils {
     }
 
     /**
-     * Gets the value of an environment variable from a Pod's first container.
-     * Uses assertions to validate Pod structure for clear test failure messages.
+     * Gets the pod template spec from a Deployment.
      *
-     * @param pod Pod resource
+     * @param deployment Deployment resource
+     * @return Pod template spec as a Map
+     */
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> getPodTemplateSpec(GenericKubernetesResource deployment) {
+        assertThat(deployment).as("Deployment resource should not be null").isNotNull();
+        assertThat(deployment.getKind()).as("Resource should be a Deployment").isEqualTo("Deployment");
+
+        Map<String, Object> spec = deployment.get("spec");
+        assertThat(spec)
+                .as("Deployment '%s' should have spec", deployment.getMetadata().getName())
+                .isNotNull();
+
+        Map<String, Object> template = (Map<String, Object>) spec.get("template");
+        assertThat(template)
+                .as("Deployment '%s' should have pod template", deployment.getMetadata().getName())
+                .isNotNull();
+
+        Map<String, Object> podSpec = (Map<String, Object>) template.get("spec");
+        assertThat(podSpec)
+                .as("Deployment '%s' template should have spec", deployment.getMetadata().getName())
+                .isNotNull();
+
+        return podSpec;
+    }
+
+    /**
+     * Gets the value of an environment variable from a Pod's first container.
+     * Works with both Pod and Deployment resources (extracts pod template from Deployment).
+     * Uses assertions to validate structure for clear test failure messages.
+     *
+     * @param resource Pod or Deployment resource
      * @param envVarName Name of the environment variable
      * @return Environment variable value
      */
     @SuppressWarnings("unchecked")
-    public static String getPodEnvVar(GenericKubernetesResource pod, String envVarName) {
-        assertThat(pod).as("Pod resource should not be null").isNotNull();
+    public static String getPodEnvVar(GenericKubernetesResource resource, String envVarName) {
+        assertThat(resource).as("Resource should not be null").isNotNull();
 
-        Map<String, Object> spec = pod.get("spec");
-        assertThat(spec)
-                .as("Pod '%s' should have spec", pod.getMetadata().getName())
-                .isNotNull();
+        Map<String, Object> spec;
+        if ("Deployment".equals(resource.getKind())) {
+            spec = getPodTemplateSpec(resource);
+        }
+        else if ("Pod".equals(resource.getKind())) {
+            spec = resource.get("spec");
+            assertThat(spec)
+                    .as("Pod '%s' should have spec", resource.getMetadata().getName())
+                    .isNotNull();
+        }
+        else {
+            fail("Resource '%s' must be a Pod or Deployment, but was %s", resource.getMetadata().getName(), resource.getKind());
+            return null; // unreachable
+        }
 
         List<Map<String, Object>> containers = (List<Map<String, Object>>) spec.get("containers");
         assertThat(containers)
-                .as("Pod '%s' should have containers", pod.getMetadata().getName())
+                .as("Resource '%s' should have containers", resource.getMetadata().getName())
                 .isNotNull()
                 .isNotEmpty();
 
         Map<String, Object> container = containers.get(0);
         List<Map<String, Object>> env = (List<Map<String, Object>>) container.get("env");
         assertThat(env)
-                .as("Pod '%s' container should have env section", pod.getMetadata().getName())
+                .as("Resource '%s' container should have env section", resource.getMetadata().getName())
                 .isNotNull();
 
         return env.stream()
                 .filter(e -> envVarName.equals(e.get("name")))
                 .map(e -> (String) e.get("value"))
                 .findFirst()
-                .orElseGet(() -> fail("Pod '%s' does not have environment variable '%s'", pod.getMetadata().getName(), envVarName));
+                .orElseGet(() -> fail("Resource '%s' does not have environment variable '%s'", resource.getMetadata().getName(), envVarName));
     }
 
 }

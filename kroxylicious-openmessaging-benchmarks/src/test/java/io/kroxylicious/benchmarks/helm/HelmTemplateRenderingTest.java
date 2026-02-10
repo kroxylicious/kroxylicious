@@ -136,13 +136,13 @@ class HelmTemplateRenderingTest {
         // When: Rendering templates
         String yaml = HelmUtils.renderTemplate();
         List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
-        GenericKubernetesResource benchmarkPod = HelmUtils.findResourceTyped(resources, "Pod", "omb-benchmark");
+        GenericKubernetesResource benchmarkDeployment = HelmUtils.findResourceTyped(resources, "Deployment", "omb-benchmark");
 
-        // Then: Pod should have WORKERS env var
-        String workersValue = HelmUtils.getPodEnvVar(benchmarkPod, "WORKERS");
+        // Then: Deployment pod template should have WORKERS env var
+        String workersValue = HelmUtils.getPodEnvVar(benchmarkDeployment, "WORKERS");
 
         assertThat(workersValue)
-                .as("Pod should have WORKERS environment variable")
+                .as("Benchmark deployment should have WORKERS environment variable")
                 .isNotNull();
     }
 
@@ -152,10 +152,10 @@ class HelmTemplateRenderingTest {
         // When: Rendering with custom worker replica count
         String yaml = HelmUtils.renderTemplate(Map.of("omb.workerReplicas", String.valueOf(workerReplicas)));
         List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
-        GenericKubernetesResource benchmarkPod = HelmUtils.findResourceTyped(resources, "Pod", "omb-benchmark");
+        GenericKubernetesResource benchmarkDeployment = HelmUtils.findResourceTyped(resources, "Deployment", "omb-benchmark");
 
         // Then: WORKERS env var should contain URL for each replica
-        String workersValue = HelmUtils.getPodEnvVar(benchmarkPod, "WORKERS");
+        String workersValue = HelmUtils.getPodEnvVar(benchmarkDeployment, "WORKERS");
         String[] workers = workersValue.split(",");
 
         assertThat(workers)
@@ -168,17 +168,16 @@ class HelmTemplateRenderingTest {
         // When: Rendering templates with 3 workers
         String yaml = HelmUtils.renderTemplate(Map.of("omb.workerReplicas", "3"));
         List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
-        GenericKubernetesResource benchmarkPod = HelmUtils.findResourceTyped(resources, "Pod", "omb-benchmark");
+        GenericKubernetesResource benchmarkDeployment = HelmUtils.findResourceTyped(resources, "Deployment", "omb-benchmark");
 
-        // Then: Worker URLs should include namespace for DNS resolution
-        String workersValue = HelmUtils.getPodEnvVar(benchmarkPod, "WORKERS");
+        // Then: Worker URLs should use short DNS form (same namespace)
+        String workersValue = HelmUtils.getPodEnvVar(benchmarkDeployment, "WORKERS");
 
         assertThat(workersValue)
-                .as("Worker URLs should include namespace in DNS name")
-                .contains(".svc:")
-                .startsWith("http://omb-worker-0.omb-worker.")
-                .contains("http://omb-worker-1.omb-worker.")
-                .contains("http://omb-worker-2.omb-worker.");
+                .as("Worker URLs should use StatefulSet pod DNS names")
+                .contains("http://omb-worker-0.omb-worker:")
+                .contains("http://omb-worker-1.omb-worker:")
+                .contains("http://omb-worker-2.omb-worker:");
     }
 
 }
