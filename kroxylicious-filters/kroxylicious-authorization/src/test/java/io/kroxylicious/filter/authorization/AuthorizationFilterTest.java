@@ -322,7 +322,8 @@ class AuthorizationFilterTest {
                 ApiKeys.INCREMENTAL_ALTER_CONFIGS,
                 ApiKeys.CONSUMER_GROUP_DESCRIBE,
                 ApiKeys.DESCRIBE_GROUPS,
-                ApiKeys.DESCRIBE_TRANSACTIONS);
+                ApiKeys.DESCRIBE_TRANSACTIONS,
+                ApiKeys.LIST_TRANSACTIONS);
         EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.PRODUCE,
                 ApiKeys.FETCH,
                 ApiKeys.OFFSET_COMMIT,
