@@ -124,6 +124,11 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
                 name = KafkaProxyReconciler.CLUSTERS_DEP,
                 type = ClusterServiceDependentResource.class,
                 dependsOn = { KafkaProxyReconciler.DEPLOYMENT_DEP }
+        ),
+        @Dependent(
+                name = KafkaProxyReconciler.ROUTES_DEP,
+                type = ClusterRouteDependentResource.class,
+                dependsOn = { KafkaProxyReconciler.CLUSTERS_DEP }
         )
 })
 // @formatter:on
@@ -139,6 +144,7 @@ public class KafkaProxyReconciler implements
     public static final String CLUSTERS_DEP = "clusters";
     private static final String SECRET_PLURAL = "secrets";
     private static final String CONFIGMAP_PLURAL = "configmaps";
+    public static final String ROUTES_DEP = "routes";
     public static final Path MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/");
     private static final Path TARGET_CLUSTER_MOUNTS_BASE = MOUNTS_BASE_DIR.resolve("target-cluster");
     private static final Path CLIENT_CERTS_BASE_DIR = TARGET_CLUSTER_MOUNTS_BASE.resolve("client-certs");
