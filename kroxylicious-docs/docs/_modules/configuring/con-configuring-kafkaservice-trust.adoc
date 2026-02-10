@@ -32,6 +32,7 @@ spec:
 ----
 <1> The `trustAnchorRef` property references a separate Kubernetes resource which contains the CA certificates to be trusted
 <2> The `kind` is optional and defaults to `ConfigMap`. The users can also use the key from a Kubernetes secret by configuring `kind` as `Secret`. For example:
++
 [source,yaml]
 ----
     trustAnchorRef:
