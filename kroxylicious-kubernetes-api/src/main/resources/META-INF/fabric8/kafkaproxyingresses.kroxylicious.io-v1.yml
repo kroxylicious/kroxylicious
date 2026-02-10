@@ -53,6 +53,7 @@ spec:
               oneOf:
               - required: ["proxyRef", "clusterIP"]
               - required: ["proxyRef", "loadBalancer"]
+              - required: ["proxyRef", "openShiftRoute"]
               properties:
                 proxyRef:
                   # Mapped to Java type io.kroxylicious.kubernetes.api. io.kroxylicious.kubernetes.api.common.common.ProxyRef
@@ -103,6 +104,43 @@ spec:
                       clusters. Responsibility for configuring DNS to resolve these addresses to the LoadBalancer Service 
                       IP is on the user. Must not end with a port specifier."
                       type: string
+                openShiftRoute:
+                  description: |-
+                    specifies that this ingress is for access from outside the OpenShift cluster via an OpenShift Route.
+                  type: object
+                  x-kubernetes-validations:
+                    - rule: "self.resourceRef.kind == 'IngressController'"
+                      message: "resourceRef.kind must equal 'IngressController'"
+                    - rule: "self.resourceRef.group == 'operator.openshift.io'"
+                      message: "resourceRef.group must equal 'operator.openshift.io'"
+                  properties:
+                    resourceRef:
+                      description: |-
+                        Reference to an IngressController resource that will service the set of Route resources
+                      type: object
+                      properties:
+                        kind:
+                          description: |-
+                            The API kind of the resource. If present, must be IngressController, otherwise defaults to
+                            IngressController.
+                          type: string
+                          default: IngressController
+                        group:
+                          description: |-
+                            The API group of the resource. If present, must be operator.openshift.io, otherwise
+                            defaults to operator.openshift.io.
+                          type: string
+                          default: operator.openshift.io
+                        name:
+                          description: |-
+                            IngressController name. If omitted, defaults to default in the openshift-ingress-operator
+                            namespace.
+                          type: string
+                        namespace:
+                          description: |-
+                            Namespace of the IngressController. If omitted, defaults to openshift-ingress-operator.
+                          type: string
+                          default: openshift-ingress-operator
             status:
               type: object
               properties:
