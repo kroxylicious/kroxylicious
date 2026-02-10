@@ -20,6 +20,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRoute;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
@@ -148,6 +149,7 @@ public class NetworkingPlanner {
                                                                                          @Nullable Tls tls) {
         ClusterIP clusterIP = ingress.getSpec().getClusterIP();
         LoadBalancer loadBalancer = ingress.getSpec().getLoadBalancer();
+        OpenShiftRoute openShiftRoute = ingress.getSpec().getOpenShiftRoute();
         if (clusterIP != null) {
             switch (clusterIP.getProtocol()) {
                 case TCP -> {
@@ -163,8 +165,12 @@ public class NetworkingPlanner {
             validateNotNull(tls, "LoadBalancer requires TLS to be provided by the virtualkafkacluster");
             return new LoadBalancerClusterIngressNetworkingDefinition(ingress, cluster, loadBalancer, tls);
         }
+        else if (openShiftRoute != null) {
+            validateNotNull(tls, "OpenShiftRoute requires TLS to be provided by the virtualkafkacluster");
+            return new OpenShiftRouteClusterIngressNetworkingDefinition(primary, ingress, cluster, openShiftRoute, nodeIdRanges, tls);
+        }
         else {
-            throw new NetworkPlanningException("ingress must have clusterIP or loadBalancer specified");
+            throw new NetworkPlanningException("ingress must have either clusterIP, loadBalancer, or openShiftRoute specified");
         }
     }
 
@@ -275,6 +281,30 @@ public class NetworkingPlanner {
                                                                    @Nullable Integer sharedSniPort) {
             validateNotNull(sharedSniPort, "sharedSniPort must be non null for LoadBalancer ingress");
             return new LoadBalancerClusterIngressNetworkingModel(cluster, ingress, loadBalancer, tls, sharedSniPort);
+        }
+
+        @Override
+        public boolean requiresSharedSniPort() {
+            return true;
+        }
+    }
+
+    private record OpenShiftRouteClusterIngressNetworkingDefinition(
+                                                                    KafkaProxy primary,
+                                                                    KafkaProxyIngress ingress,
+                                                                    VirtualKafkaCluster cluster,
+                                                                    OpenShiftRoute openShiftRoute,
+                                                                    List<NodeIdRanges> nodeIdRanges,
+                                                                    Tls tls)
+            implements ClusterIngressNetworkingDefinition {
+
+        @Override
+        @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
+        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
+                                                                   @Nullable Integer lastIdentifyingPort,
+                                                                   @Nullable Integer sharedSniPort) {
+            validateNotNull(sharedSniPort, "sharedSniPort must be non null for OpenShiftRoute ingress");
+            return new RouteClusterIngressNetworkingModel(primary, cluster, ingress, openShiftRoute, nodeIdRanges, tls, sharedSniPort);
         }
 
         @Override
