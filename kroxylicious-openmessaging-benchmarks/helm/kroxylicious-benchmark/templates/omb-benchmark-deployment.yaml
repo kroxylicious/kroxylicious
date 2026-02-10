@@ -27,6 +27,8 @@ spec:
         env:
         - name: WORKERS
           value: {{ include "kroxylicious-benchmark.workerList" . | quote }}
+        - name: JAVA_OPTS
+          value: "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
         command:
         - /bin/bash
         - -c

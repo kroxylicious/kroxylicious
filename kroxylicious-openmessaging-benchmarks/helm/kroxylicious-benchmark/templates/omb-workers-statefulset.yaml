@@ -40,6 +40,9 @@ spec:
       - name: omb-worker
         image: {{ .Values.omb.image }}
         imagePullPolicy: {{ .Values.omb.imagePullPolicy }}
+        env:
+        - name: JAVA_OPTS
+          value: "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
         command:
         - /bin/bash
         - -c
@@ -49,6 +52,9 @@ spec:
         ports:
         - containerPort: 8080
           name: http
+        volumeMounts:
+        - name: driver-config
+          mountPath: /config
         resources:
           {{- toYaml .Values.omb.resources | nindent 10 }}
         livenessProbe:
@@ -61,3 +67,7 @@ spec:
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5
+      volumes:
+      - name: driver-config
+        configMap:
+          name: omb-driver-{{ .Values.omb.driver }}

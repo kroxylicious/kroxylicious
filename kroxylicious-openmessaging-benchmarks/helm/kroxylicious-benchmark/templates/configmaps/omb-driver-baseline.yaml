@@ -18,26 +18,24 @@ data:
     name: Kafka
     driverClass: io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriver
 
-    # Bootstrap servers - direct to Kafka cluster
-    bootstrap.servers: {{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}
+    replicationFactor: 3
 
-    # Producer configuration
-    producer:
-      acks: all
-      linger.ms: 1
-      batch.size: 131072
-      max.in.flight.requests.per.connection: 5
-      buffer.memory: 67108864
-      compression.type: none
+    topicConfig: |
+      min.insync.replicas=2
 
-    # Consumer configuration
-    consumer:
-      auto.offset.reset: earliest
-      enable.auto.commit: false
-      max.poll.records: 10000
-      fetch.min.bytes: 100000
+    commonConfig: |
+      bootstrap.servers={{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}
 
-    # Topic configuration
-    topic:
-      replication.factor: 3
-      min.insync.replicas: 2
+    producerConfig: |
+      acks=all
+      linger.ms=1
+      batch.size=131072
+      max.in.flight.requests.per.connection=5
+      buffer.memory=67108864
+      compression.type=none
+
+    consumerConfig: |
+      auto.offset.reset=earliest
+      enable.auto.commit=false
+      max.poll.records=10000
+      fetch.min.bytes=100000
