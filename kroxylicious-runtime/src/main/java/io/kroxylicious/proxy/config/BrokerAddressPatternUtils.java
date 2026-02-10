@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 final class BrokerAddressPatternUtils {
     static final String LITERAL_NODE_ID = "$(nodeId)";
     static final String LITERAL_VIRTUAL_CLUSTER_NAME = "$(virtualClusterName)";
+    static final String LITERAL_DOMAIN_NAME = "$(domain)";
     private static final Pattern LITERAL_NODE_ID_PATTERN = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
     private static final Pattern PORT_SPECIFIER_RE = Pattern.compile("^(.*):([1-9]\\d*)$");
     private static final Pattern TOKEN_RE = Pattern.compile("(\\$\\([^)]+\\))");
