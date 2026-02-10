@@ -410,7 +410,7 @@ public class KafkaProxyReconciler implements
                     TrustProvider trustProvider = new TrustStore(
                             mountPath.resolve(tar.getKey()).toString(),
                             null,
-                            tar.getStoreType() != null ? tar.getStoreType() : handStoreType(trustAnchorRef),
+                            tar.getStoreType() != null ? tar.getStoreType() : deriveStoreTypeFromKeySuffix(trustAnchorRef),
                             forServer ? buildTlsServerOptions(clientAuthentication) : null);
 
                     return new ConfigurationFragment<>(Optional.of(trustProvider),
@@ -422,8 +422,12 @@ public class KafkaProxyReconciler implements
     /**
      * If `storeType` is null in the KafkaService CR then derive it from the key
      */
-    private static String handStoreType(TrustAnchorRef trustAnchorRef) {
-        return trustAnchorRef.getKey().substring(trustAnchorRef.getKey().length() - 3).toUpperCase();
+    private static String deriveStoreTypeFromKeySuffix(TrustAnchorRef trustAnchorRef) {
+        if (trustAnchorRef.getKey().endsWith(".p12")) {
+            return "PKCS#12";
+        } else {
+            return trustAnchorRef.getKey().substring(trustAnchorRef.getKey().length() - 3).toUpperCase();
+        }
     }
 
     /**

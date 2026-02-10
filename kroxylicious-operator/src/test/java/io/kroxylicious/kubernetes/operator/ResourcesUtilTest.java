@@ -862,6 +862,29 @@ class ResourcesUtilTest {
                 .satisfies(virtualKafkaClusterResourceCheckResult -> assertThat(virtualKafkaClusterResourceCheckResult.resource()).isNull());
     }
 
+    @ParameterizedTest
+    @CsvSource({ "key.crt", "key.cer" })
+    void shouldAcceptNewKeyfileExtensionsIfStoreTypeMentioned(String key) {
+        // Given
+        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder().withKey(key).withStoreType("PEM").withNewRef().withName("configmap").endRef().build();
+        Ingresses ingress = new IngressesBuilder().withNewTls().withTrustAnchorRef(trustAnchorRef).endTls().build();
+        VirtualKafkaCluster vkc = new VirtualKafkaClusterBuilder().withNewSpec().withIngresses(List.of(ingress)).endSpec().build();
+        @SuppressWarnings("unchecked")
+        Context<VirtualKafkaCluster> reconcilerContext = mock(Context.class);
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME))
+                .thenReturn(Optional.ofNullable(
+                        new ConfigMapBuilder().withNewMetadata().withName("configmap").endMetadata().withData(Map.of(key, "I'm a key honnest")).build()));
+
+        // When
+        ResourceCheckResult<VirtualKafkaCluster> actual = ResourcesUtil.checkTrustAnchorRef(vkc, reconcilerContext,
+                VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME, trustAnchorRef,
+                "spec.ingresses[].tls.trustAnchor", new VirtualKafkaClusterStatusFactory(TEST_CLOCK));
+
+        // Then
+        assertThat(actual).isNotNull()
+                .satisfies(virtualKafkaClusterResourceCheckResult -> assertThat(virtualKafkaClusterResourceCheckResult.resource()).isNull());
+    }
+
     static Stream<Arguments> invalidTrustAnchorRefs() {
         return Stream.of(
                 argumentSet("Invalid reference to config map invalid kind.",
@@ -898,12 +921,12 @@ class ResourcesUtilTest {
                         new TrustAnchorRefBuilder().withKey("").withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,
                         Condition.REASON_INVALID,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith(".key should end with .pem, .p12 or .jks")),
-                argumentSet("unsupported key file extension",
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith(".key should end with .pem, .p12 or .jks or use the `storeType` field to specify the store type explicitly")),
+                argumentSet("unsupported key file extension and store type not mentioned",
                         new TrustAnchorRefBuilder().withKey("/path/to/random.key").withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,
                         Condition.REASON_INVALID,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith(".key should end with .pem, .p12 or .jks")),
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith(".key should end with .pem, .p12 or .jks or use the `storeType` field to specify the store type explicitly")),
                 argumentSet("Config map does not contain key",
                         new TrustAnchorRefBuilder().withKey("key.p12").withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,
