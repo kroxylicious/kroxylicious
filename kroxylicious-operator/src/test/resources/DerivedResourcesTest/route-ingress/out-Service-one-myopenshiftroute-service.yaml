@@ -1,0 +1,42 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  annotations:
+    kroxylicious.io/bootstrap-servers: "{\"version\":\"0.13.0\",\"bootstrapServers\"\
+      :[{\"clusterName\":\"one\",\"ingressName\":\"myopenshiftroute\",\"bootstrapServers\"\
+      :\"one-bootstrap.$(domain):443\"}]}"
+  labels:
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious"
+    app.kubernetes.io/component: "proxy"
+    app.kubernetes.io/instance: "minimal"
+  name: "one-myopenshiftroute-service"
+  namespace: "proxy-ns"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "minimal"
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "VirtualKafkaCluster"
+      name: "one"
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxyIngress"
+      name: "myopenshiftroute"
+spec:
+  ports:
+    - name: "one-9291"
+      port: 9291
+      protocol: "TCP"
+      targetPort: 9291
+  selector:
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious"
+    app.kubernetes.io/component: "proxy"
+    app.kubernetes.io/instance: "minimal"
