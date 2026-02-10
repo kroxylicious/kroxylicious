@@ -45,8 +45,10 @@ spec:
           echo "Waiting for Kafka to be ready..."
           KAFKA_HOST=$(echo "{{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}" | cut -d: -f1)
           KAFKA_PORT=$(echo "{{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}" | cut -d: -f2)
-          while ! nc -z $KAFKA_HOST $KAFKA_PORT > /dev/null 2>&1; do
-            echo "Waiting for Kafka on $KAFKA_HOST:$KAFKA_PORT..."
+          echo "Target: $KAFKA_HOST:$KAFKA_PORT"
+
+          while ! timeout 1 bash -c "echo > /dev/tcp/$KAFKA_HOST/$KAFKA_PORT" 2>/dev/null; do
+            echo "Waiting for Kafka on $KAFKA_HOST:$KAFKA_PORT... (connection failed)"
             sleep 5
           done
           echo "Kafka is ready"
