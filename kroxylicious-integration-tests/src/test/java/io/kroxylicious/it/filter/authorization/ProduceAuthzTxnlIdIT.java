@@ -60,13 +60,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ProduceAuthzTxnlIdIT extends AuthzIT {
 
-    private static String topicName = "topic";
+    private String topicName;
     private static String ALICE_TRANSACTIONAL_ID_PREFIX = "alice-transaction";
     private static String BOB_TRANSACTIONAL_ID_PREFIX = "bob-transaction";
     private static final List<String> ALL_TRANSACTIONAL_ID_PREFIXES = List.of(ALICE_TRANSACTIONAL_ID_PREFIX, BOB_TRANSACTIONAL_ID_PREFIX);
     private Path rulesFile;
-
-    private List<AclBinding> aclBindings;
 
     @Name("kafkaClusterWithAuthz")
     static Admin kafkaClusterWithAuthzAdmin;
@@ -83,17 +81,16 @@ class ProduceAuthzTxnlIdIT extends AuthzIT {
                 allow User with name = "super" to * TxnlId with name like "*";
                 otherwise deny;
                 """.formatted(ALICE_TRANSACTIONAL_ID_PREFIX, BOB_TRANSACTIONAL_ID_PREFIX));
-        /*
-         * The correctness of this test is predicated on the equivalence of the Proxy ACLs (above) and the Kafka ACLs (below)
-         * If you add a rule to one you'll need to add an equivalent rule to the other
-         */
-        aclBindings = List.of(
+    }
+
+    private List<AclBinding> aclBindings() {
+        return List.of(
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.TOPIC, getTopicName(), PatternType.LITERAL),
                         new AccessControlEntry("User:" + ALICE, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.TOPIC, getTopicName(), PatternType.LITERAL),
                         new AccessControlEntry("User:" + BOB, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
                 new AclBinding(
@@ -113,14 +110,16 @@ class ProduceAuthzTxnlIdIT extends AuthzIT {
 
     @BeforeEach
     void prepClusters() {
-        this.topicIdsInUnproxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(topicName), aclBindings);
-        this.topicIdsInProxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(topicName), List.of());
+        // prevent any chance of races around deletion/recreation of topics
+        topicName = "topic-" + UUID.randomUUID();
+        this.topicIdsInUnproxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(getTopicName()), aclBindings());
+        this.topicIdsInProxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(getTopicName()), List.of());
     }
 
     @AfterEach
     void tidyClusters() {
-        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(topicName), aclBindings);
-        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(topicName), List.of());
+        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(getTopicName()), aclBindings());
+        ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(getTopicName()), List.of());
     }
 
     class ProduceEquivalence extends Equivalence<ProduceRequestData, ProduceResponseData> {
@@ -161,7 +160,7 @@ class ProduceAuthzTxnlIdIT extends AuthzIT {
             var topicCollection = new ProduceRequestData.TopicProduceDataCollection();
             var t = new ProduceRequestData.TopicProduceData()
                     .setPartitionData(partitionData(user, PASSWORDS.get(user), Objects.requireNonNull(producerIdAndEpoch)));
-            t.setName(topicName);
+            t.setName(getTopicName());
             topicCollection.mustAdd(t);
             data.setTopicData(topicCollection);
             return data;
@@ -204,7 +203,7 @@ class ProduceAuthzTxnlIdIT extends AuthzIT {
             consumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, IsolationLevel.READ_UNCOMMITTED.toString());
             try (var consumer = new KafkaConsumer<>(consumerConfig,
                     new StringDeserializer(), new StringDeserializer())) {
-                var tp = new TopicPartition(topicName, 0);
+                var tp = new TopicPartition(getTopicName(), 0);
                 Long endOffset = consumer.endOffsets(List.of(tp)).values().stream().findFirst().orElseThrow();
                 assertThat(endOffset).isEqualTo(expectedRecords);
                 consumer.assign(List.of(tp));
@@ -227,8 +226,12 @@ class ProduceAuthzTxnlIdIT extends AuthzIT {
             KafkaDriver driver = new KafkaDriver(cluster, cluster.authenticatedClient(AuthzIT.SUPER, SUPER_PASSWORD), AuthzIT.SUPER);
             driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.TRANSACTION, transactionalId);
             producerIdAndEpoch = driver.initProducerId(transactionalId);
-            driver.addPartitionsToTransaction(transactionalId, producerIdAndEpoch, Map.of(topicName, Set.of(0)));
+            driver.addPartitionsToTransaction(transactionalId, producerIdAndEpoch, Map.of(getTopicName(), Set.of(0)));
         }
+    }
+
+    private String getTopicName() {
+        return Objects.requireNonNull(topicName);
     }
 
     @NonNull
