@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.openshift.api.model.RouteBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -42,6 +43,11 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
 
     @Override
     public Stream<ServiceBuilder> services() {
+        return Stream.empty();
+    }
+
+    @Override
+    public Stream<RouteBuilder> routes() {
         return Stream.empty();
     }
 
