@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.openshift.api.model.RouteBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -50,6 +51,8 @@ public interface ClusterIngressNetworkingModel {
      * @return a stream of ServiceBuilders
      */
     Stream<ServiceBuilder> services();
+
+    Stream<RouteBuilder> routes();
 
     /**
      * ContainerPorts to be added to the proxy for this model. These ports will be used to uniquely
