@@ -93,7 +93,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.INIT_PRODUCER_ID, new InitProducerIdEnforcement());
         apiEnforcement.put(ApiKeys.ADD_PARTITIONS_TO_TXN, new AddPartitionsToTxnEnforcement());
         apiEnforcement.put(ApiKeys.ADD_OFFSETS_TO_TXN, new AddOffsetsToTxnEnforcement());
-        apiEnforcement.put(ApiKeys.END_TXN, new Passthrough<>(0, 5));
+        apiEnforcement.put(ApiKeys.END_TXN, new EndTxnEnforcement());
 
         apiEnforcement.put(ApiKeys.DESCRIBE_CONFIGS, new DescribeConfigsEnforcement());
         apiEnforcement.put(ApiKeys.ALTER_CONFIGS, new AlterConfigsEnforcement());
