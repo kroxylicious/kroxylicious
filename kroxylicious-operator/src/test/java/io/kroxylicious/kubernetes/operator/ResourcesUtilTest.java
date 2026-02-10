@@ -921,12 +921,14 @@ class ResourcesUtilTest {
                         new TrustAnchorRefBuilder().withKey("").withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,
                         Condition.REASON_INVALID,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith(".key should end with .pem, .p12 or .jks or use the `storeType` field to specify the store type explicitly")),
+                        (ThrowingConsumer<String>) message -> assertThat(message)
+                                .endsWith(".key should end with .pem, .p12 or .jks or use the `storeType` field to specify the store type explicitly")),
                 argumentSet("unsupported key file extension and store type not mentioned",
                         new TrustAnchorRefBuilder().withKey("/path/to/random.key").withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,
                         Condition.REASON_INVALID,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith(".key should end with .pem, .p12 or .jks or use the `storeType` field to specify the store type explicitly")),
+                        (ThrowingConsumer<String>) message -> assertThat(message)
+                                .endsWith(".key should end with .pem, .p12 or .jks or use the `storeType` field to specify the store type explicitly")),
                 argumentSet("Config map does not contain key",
                         new TrustAnchorRefBuilder().withKey("key.p12").withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,

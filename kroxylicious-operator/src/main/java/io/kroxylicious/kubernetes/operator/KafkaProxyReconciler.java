@@ -425,7 +425,8 @@ public class KafkaProxyReconciler implements
     private static String deriveStoreTypeFromKeySuffix(TrustAnchorRef trustAnchorRef) {
         if (trustAnchorRef.getKey().endsWith(".p12")) {
             return "PKCS#12";
-        } else {
+        }
+        else {
             return trustAnchorRef.getKey().substring(trustAnchorRef.getKey().length() - 3).toUpperCase();
         }
     }
