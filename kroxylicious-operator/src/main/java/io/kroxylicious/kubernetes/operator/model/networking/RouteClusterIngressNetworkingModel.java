@@ -34,7 +34,6 @@ import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.crossNamespaceServiceAddress;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static java.lang.Math.toIntExact;
@@ -91,7 +90,8 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
                 .withMetadata(metadataBuilder.build())
                 .withNewSpec()
                 .withSelector(ProxyDeploymentDependentResource.podLabels(proxy))
-                .withPorts(new ServicePortBuilder().withName(ResourcesUtil.name(cluster) + "-" + CLUSTER_IP_PORT).withProtocol("TCP").withPort(CLUSTER_IP_PORT).withTargetPort(new IntOrString(sharedSniPort)).build())
+                .withPorts(new ServicePortBuilder().withName(ResourcesUtil.name(cluster) + "-" + CLUSTER_IP_PORT).withProtocol("TCP").withPort(CLUSTER_IP_PORT)
+                        .withTargetPort(new IntOrString(sharedSniPort)).build())
                 .endSpec();
     }
 
