@@ -33,6 +33,7 @@ spec:
 ----
 <1> References a separate Kubernetes resource containing the trusted CA certificates.
 <2> The `kind` is optional and defaults to `ConfigMap`. The users can also use the key from a Kubernetes secret by configuring `kind` as `Secret`. For example:
++
 [source,yaml]
 ----
     trustAnchorRef:
