@@ -32,7 +32,14 @@ spec:
         tlsClientAuthentication: REQUIRED <5>
 ----
 <1> References a separate Kubernetes resource containing the trusted CA certificates.
-<2> The `kind` is optional and defaults to `ConfigMap`. The users can also use the key from a Kubernetes secret by configuring `kind` as `Secret`.
+<2> The `kind` is optional and defaults to `ConfigMap`. The users can also use the key from a Kubernetes secret by configuring `kind` as `Secret`. For example:
+[source,yaml]
+----
+    trustAnchorRef:
+      kind: Secret
+      name: trusted-cas
+      key: trusted-cas.pem
+----
 <3> Name of the resource of the given `kind`, which must exist in the same namespace as the `VirtualKafkaCluster`.
 <4> Key identifying the entry in the given resource. The corresponding value must be a set of CA certificates. Supported formats for the bundle are: `PEM`, `PKCS#12`, and `JKS`.
 <5> Specifies whether client authentication is required (`REQUIRED`), requested (`REQUESTED`), or disabled (`NONE`). If a `trustAnchorRef` is specified, the default is `REQUIRED`.
