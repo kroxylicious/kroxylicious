@@ -8,9 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Stream;
 
-import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
@@ -46,8 +44,8 @@ public class ClusterRouteDependentResource
 
     @Override
     public Map<String, Route> desiredResources(
-                                                 KafkaProxy primary,
-                                                 Context<KafkaProxy> context) {
+                                               KafkaProxy primary,
+                                               Context<KafkaProxy> context) {
         KafkaProxyContext kafkaProxyContext = KafkaProxyContext.proxyContext(context);
         var model = kafkaProxyContext.model();
         var clusterNetworkingModels = model.clustersWithValidNetworking().stream()
@@ -64,8 +62,8 @@ public class ClusterRouteDependentResource
 
     @Override
     public Map<String, Route> getSecondaryResources(
-                                                      KafkaProxy primary,
-                                                      Context<KafkaProxy> context) {
+                                                    KafkaProxy primary,
+                                                    Context<KafkaProxy> context) {
         Set<Route> secondaryResources = context.eventSourceRetriever().getEventSourceFor(Route.class)
                 .getSecondaryResources(primary);
         return secondaryResources.stream().collect(toByNameMap());
