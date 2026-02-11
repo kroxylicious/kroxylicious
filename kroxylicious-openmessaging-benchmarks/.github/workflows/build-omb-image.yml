@@ -41,7 +41,8 @@ jobs:
         env:
           OMB_REF: ${{ inputs.omb_ref }}
         run: |
-          # Try to resolve as a ref name (branch or tag)
+          # Try to resolve as a ref name (branch or tag).
+          # git ls-remote output is tab-delimited: <sha>\t<ref>
           OMB_SHA=$(git ls-remote https://github.com/openmessaging/benchmark.git "${OMB_REF}" | cut -f1)
           if [ -z "${OMB_SHA}" ]; then
             # Not a ref name — validate it looks like a commit SHA
