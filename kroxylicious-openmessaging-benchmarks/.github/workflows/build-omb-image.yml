@@ -9,13 +9,14 @@ name: Build OMB Image
 on:
   workflow_dispatch:
     inputs:
-      omb_commit:
-        description: 'Upstream OMB commit SHA to build from'
+      omb_ref:
+        description: 'Upstream OMB commit SHA, branch, or tag to build from'
         required: true
         type: string
-      build_number:
-        description: 'Build number (monotonically increasing for Renovate ordering)'
-        required: true
+      kroxylicious_ref:
+        description: 'Kroxylicious ref (branch, tag, or SHA) for build config'
+        required: false
+        default: 'main'
         type: string
 
 env:
@@ -32,13 +33,25 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.kroxylicious_ref }}
+
+      - name: Resolve OMB commit SHA
+        id: omb
+        run: |
+          OMB_SHA=$(git ls-remote https://github.com/openmessaging/benchmark.git "${{ inputs.omb_ref }}" | cut -f1)
+          if [ -z "${OMB_SHA}" ]; then
+            # Input is already a SHA (not a ref name)
+            OMB_SHA="${{ inputs.omb_ref }}"
+          fi
+          echo "sha=${OMB_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "short=$(echo "${OMB_SHA}" | cut -c1-7)" >> "${GITHUB_OUTPUT}"
 
       - name: Compute image tag
         id: tag
         run: |
-          OMB_SHORT=$(echo "${{ inputs.omb_commit }}" | cut -c1-7)
           KROX_SHORT=$(git rev-parse --short=7 HEAD)
-          IMAGE_TAG="omb-${OMB_SHORT}-krox-${KROX_SHORT}-${{ inputs.build_number }}"
+          IMAGE_TAG="omb-${{ steps.omb.outputs.short }}-krox-${KROX_SHORT}-${{ github.run_number }}"
           echo "image_tag=${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
           echo "Image tag: ${IMAGE_TAG}" >> "${GITHUB_STEP_SUMMARY}"
 
@@ -46,7 +59,7 @@ jobs:
         run: >-
           docker build
           -f Containerfile
-          --build-arg OMB_COMMIT=${{ inputs.omb_commit }}
+          --build-arg OMB_COMMIT=${{ steps.omb.outputs.sha }}
           -t ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.image_tag }}
           .
 
