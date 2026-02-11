@@ -23,6 +23,11 @@ import java.util.concurrent.CompletionStage;
  * <p>Implementations must be thread-safe as the {@link #tlsCredentials(ServerTlsCredentialSupplierContext)}
  * method may be called concurrently from multiple threads.</p>
  *
+ * <h2>Non-Blocking Requirement</h2>
+ * <p>Implementations must not block the calling thread or perform heavy I/O operations synchronously.
+ * Long-running work such as network calls, file I/O, or key generation should be performed
+ * asynchronously, returning a {@link CompletionStage} that completes when the work is done.</p>
+ *
  * <h2>Error Handling</h2>
  * <p>If credential retrieval fails, implementations should return a {@link CompletionStage}
  * that completes exceptionally. The runtime will handle the exception appropriately,
@@ -43,11 +48,11 @@ import java.util.concurrent.CompletionStage;
  *     public CompletionStage<TlsCredentials> tlsCredentials(ServerTlsCredentialSupplierContext context) {
  *         try {
  *             // Load PEM-encoded certificate and private key from files
- *             InputStream certStream = Files.newInputStream(certPath);
- *             InputStream keyStream = Files.newInputStream(keyPath);
+ *             byte[] certBytes = Files.readAllBytes(certPath);
+ *             byte[] keyBytes = Files.readAllBytes(keyPath);
  *
  *             // Use context factory method to create validated TlsCredentials
- *             return context.tlsCredentials(certStream, keyStream);
+ *             return context.tlsCredentials(certBytes, keyBytes);
  *         }
  *         catch (IOException e) {
  *             return CompletableFuture.failedFuture(e);
@@ -61,6 +66,8 @@ import java.util.concurrent.CompletionStage;
  * public class ClientSpecificSupplier implements ServerTlsCredentialSupplier {
  *     private final Map<String, Path> clientCertPaths;
  *     private final Map<String, Path> clientKeyPaths;
+ *     private final Path defaultCertPath;
+ *     private final Path defaultKeyPath;
  *
  *     @Override
  *     public CompletionStage<TlsCredentials> tlsCredentials(ServerTlsCredentialSupplierContext context) {
@@ -79,8 +86,8 @@ import java.util.concurrent.CompletionStage;
  *             if (certPath != null && keyPath != null) {
  *                 try {
  *                     return context.tlsCredentials(
- *                         Files.newInputStream(certPath),
- *                         Files.newInputStream(keyPath)
+ *                         Files.readAllBytes(certPath),
+ *                         Files.readAllBytes(keyPath)
  *                     );
  *                 }
  *                 catch (IOException e) {
@@ -89,8 +96,16 @@ import java.util.concurrent.CompletionStage;
  *             }
  *         }
  *
- *         // Fall back to default credentials from configuration
- *         return context.defaultTlsCredentials();
+ *         // Fall back to shared default credentials
+ *         try {
+ *             return context.tlsCredentials(
+ *                 Files.readAllBytes(defaultCertPath),
+ *                 Files.readAllBytes(defaultKeyPath)
+ *             );
+ *         }
+ *         catch (IOException e) {
+ *             return CompletableFuture.failedFuture(e);
+ *         }
  *     }
  * }
  * }</pre>

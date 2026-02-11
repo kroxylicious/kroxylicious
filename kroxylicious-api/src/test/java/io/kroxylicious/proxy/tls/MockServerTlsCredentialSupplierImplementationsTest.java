@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.tls;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.Set;
@@ -117,6 +115,12 @@ class MockServerTlsCredentialSupplierImplementationsTest {
 
     // Mock supplier that uses client context
     public static class ClientContextAwareSupplier implements ServerTlsCredentialSupplier {
+        private final TlsCredentials defaultCredentials;
+
+        public ClientContextAwareSupplier(TlsCredentials defaultCredentials) {
+            this.defaultCredentials = defaultCredentials;
+        }
+
         @Override
         public CompletionStage<TlsCredentials> tlsCredentials(ServerTlsCredentialSupplierContext context) {
             Optional<ClientTlsContext> clientContext = context.clientTlsContext();
@@ -125,7 +129,7 @@ class MockServerTlsCredentialSupplierImplementationsTest {
                 return CompletableFuture.completedFuture(mock(TlsCredentials.class));
             }
             // Fall back to default credentials
-            return context.defaultTlsCredentials();
+            return CompletableFuture.completedFuture(defaultCredentials);
         }
     }
 
@@ -140,8 +144,8 @@ class MockServerTlsCredentialSupplierImplementationsTest {
         @Override
         public CompletionStage<TlsCredentials> tlsCredentials(ServerTlsCredentialSupplierContext context) {
             // Use factory context to create credentials from PEM data
-            InputStream cert = new ByteArrayInputStream("cert-data".getBytes(StandardCharsets.UTF_8));
-            InputStream key = new ByteArrayInputStream("key-data".getBytes(StandardCharsets.UTF_8));
+            byte[] cert = "cert-data".getBytes(StandardCharsets.UTF_8);
+            byte[] key = "key-data".getBytes(StandardCharsets.UTF_8);
             return context.tlsCredentials(cert, key);
         }
     }
@@ -166,7 +170,7 @@ class MockServerTlsCredentialSupplierImplementationsTest {
 
         @Override
         @NonNull
-        public CompletionStage<TlsCredentials> tlsCredentials(@NonNull InputStream certificateChainPem, @NonNull InputStream privateKeyPem) {
+        public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
             return CompletableFuture.completedFuture(mock(TlsCredentials.class));
         }
     }
@@ -193,13 +197,7 @@ class MockServerTlsCredentialSupplierImplementationsTest {
 
         @Override
         @NonNull
-        public CompletionStage<TlsCredentials> defaultTlsCredentials() {
-            return CompletableFuture.completedFuture(defaultCredentials);
-        }
-
-        @Override
-        @NonNull
-        public CompletionStage<TlsCredentials> tlsCredentials(@NonNull InputStream certificateChainPem, @NonNull InputStream privateKeyPem) {
+        public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
             return CompletableFuture.completedFuture(mock(TlsCredentials.class));
         }
     }
@@ -295,7 +293,8 @@ class MockServerTlsCredentialSupplierImplementationsTest {
     @Test
     void testClientContextAwareSupplier() throws Exception {
         // Given - supplier and context without client certificate
-        ClientContextAwareSupplier supplier = new ClientContextAwareSupplier();
+        TlsCredentials mockDefaultCredentials = mock(TlsCredentials.class);
+        ClientContextAwareSupplier supplier = new ClientContextAwareSupplier(mockDefaultCredentials);
         MockSupplierContext contextWithoutClient = new MockSupplierContext();
 
         // When
@@ -303,7 +302,7 @@ class MockServerTlsCredentialSupplierImplementationsTest {
 
         // Then - falls back to default credentials
         assertThat(result1).isNotNull();
-        assertThat(result1.toCompletableFuture().get()).isNotNull();
+        assertThat(result1.toCompletableFuture().get()).isSameAs(mockDefaultCredentials);
 
         // Given - context with client certificate
         ClientTlsContext mockClientContext = mock(ClientTlsContext.class);

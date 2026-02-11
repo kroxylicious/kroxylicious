@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.tls;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -72,7 +70,7 @@ class ServerTlsCredentialSupplierFactoryContextTest {
 
             @Override
             @NonNull
-            public CompletionStage<TlsCredentials> tlsCredentials(@NonNull InputStream certificateChainPem, @NonNull InputStream privateKeyPem) {
+            public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
                 return CompletableFuture.completedFuture(mockCredentials);
             }
         };
@@ -139,11 +137,11 @@ class ServerTlsCredentialSupplierFactoryContextTest {
     @Test
     void testTlsCredentialsFactoryMethodAcceptsValidInput() throws Exception {
         // Given
-        InputStream certStream = new ByteArrayInputStream("cert-data".getBytes(StandardCharsets.UTF_8));
-        InputStream keyStream = new ByteArrayInputStream("key-data".getBytes(StandardCharsets.UTF_8));
+        byte[] certBytes = "cert-data".getBytes(StandardCharsets.UTF_8);
+        byte[] keyBytes = "key-data".getBytes(StandardCharsets.UTF_8);
 
         // When
-        CompletionStage<TlsCredentials> result = context.tlsCredentials(certStream, keyStream);
+        CompletionStage<TlsCredentials> result = context.tlsCredentials(certBytes, keyBytes);
 
         // Then
         assertThat(result).isNotNull();
@@ -185,7 +183,7 @@ class ServerTlsCredentialSupplierFactoryContextTest {
 
             @Override
             @NonNull
-            public CompletionStage<TlsCredentials> tlsCredentials(@NonNull InputStream certificateChainPem, @NonNull InputStream privateKeyPem) {
+            public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
                 return CompletableFuture.completedFuture(mock(TlsCredentials.class));
             }
         };

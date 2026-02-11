@@ -130,11 +130,6 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  *     targetCluster:
  *       bootstrap_servers: kafka.example.com:9093
  *       tls:
- *         # Optional: default credentials used when supplier returns defaultTlsCredentials()
- *         key:
- *           storeFile: /path/to/default-keystore.p12
- *           storePassword:
- *             passwordFile: /path/to/password.txt
  *         trust:
  *           storeFile: /path/to/truststore.p12
  *           storePassword:

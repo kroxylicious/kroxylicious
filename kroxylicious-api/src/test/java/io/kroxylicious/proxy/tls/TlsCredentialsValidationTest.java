@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.tls;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -36,8 +34,8 @@ class TlsCredentialsValidationTest {
         ServerTlsCredentialSupplierFactoryContext context = createValidatingFactoryContext(
                 "Certificate data is malformed or cannot be parsed");
 
-        InputStream invalidCert = new ByteArrayInputStream("INVALID-CERT-DATA".getBytes(StandardCharsets.UTF_8));
-        InputStream validKey = new ByteArrayInputStream("valid-key-data".getBytes(StandardCharsets.UTF_8));
+        byte[] invalidCert = "INVALID-CERT-DATA".getBytes(StandardCharsets.UTF_8);
+        byte[] validKey = "valid-key-data".getBytes(StandardCharsets.UTF_8);
 
         // When/Then
         assertThatThrownBy(() -> context.tlsCredentials(invalidCert, validKey).toCompletableFuture().get())
@@ -51,8 +49,8 @@ class TlsCredentialsValidationTest {
         ServerTlsCredentialSupplierFactoryContext context = createValidatingFactoryContext(
                 "Private key data is malformed or cannot be parsed");
 
-        InputStream validCert = new ByteArrayInputStream("valid-cert-data".getBytes(StandardCharsets.UTF_8));
-        InputStream invalidKey = new ByteArrayInputStream("INVALID-KEY-DATA".getBytes(StandardCharsets.UTF_8));
+        byte[] validCert = "valid-cert-data".getBytes(StandardCharsets.UTF_8);
+        byte[] invalidKey = "INVALID-KEY-DATA".getBytes(StandardCharsets.UTF_8);
 
         // When/Then
         assertThatThrownBy(() -> context.tlsCredentials(validCert, invalidKey).toCompletableFuture().get())
@@ -66,8 +64,8 @@ class TlsCredentialsValidationTest {
         ServerTlsCredentialSupplierFactoryContext context = createValidatingFactoryContext(
                 "Private key does not match the certificate");
 
-        InputStream cert = new ByteArrayInputStream("cert-for-key-A".getBytes(StandardCharsets.UTF_8));
-        InputStream key = new ByteArrayInputStream("key-B-data".getBytes(StandardCharsets.UTF_8));
+        byte[] cert = "cert-for-key-A".getBytes(StandardCharsets.UTF_8);
+        byte[] key = "key-B-data".getBytes(StandardCharsets.UTF_8);
 
         // When/Then
         assertThatThrownBy(() -> context.tlsCredentials(cert, key).toCompletableFuture().get())
@@ -81,8 +79,8 @@ class TlsCredentialsValidationTest {
         ServerTlsCredentialSupplierFactoryContext context = createValidatingFactoryContext(
                 "Certificate has expired");
 
-        InputStream expiredCert = new ByteArrayInputStream("expired-cert-data".getBytes(StandardCharsets.UTF_8));
-        InputStream key = new ByteArrayInputStream("key-data".getBytes(StandardCharsets.UTF_8));
+        byte[] expiredCert = "expired-cert-data".getBytes(StandardCharsets.UTF_8);
+        byte[] key = "key-data".getBytes(StandardCharsets.UTF_8);
 
         // When/Then
         assertThatThrownBy(() -> context.tlsCredentials(expiredCert, key).toCompletableFuture().get())
@@ -96,8 +94,8 @@ class TlsCredentialsValidationTest {
         ServerTlsCredentialSupplierFactoryContext context = createValidatingFactoryContext(
                 "Certificate chain is structurally invalid");
 
-        InputStream invalidChain = new ByteArrayInputStream("invalid-chain-structure".getBytes(StandardCharsets.UTF_8));
-        InputStream key = new ByteArrayInputStream("key-data".getBytes(StandardCharsets.UTF_8));
+        byte[] invalidChain = "invalid-chain-structure".getBytes(StandardCharsets.UTF_8);
+        byte[] key = "key-data".getBytes(StandardCharsets.UTF_8);
 
         // When/Then
         assertThatThrownBy(() -> context.tlsCredentials(invalidChain, key).toCompletableFuture().get())
@@ -111,8 +109,8 @@ class TlsCredentialsValidationTest {
         TlsCredentials mockCredentials = mock(TlsCredentials.class);
         ServerTlsCredentialSupplierFactoryContext context = createPassingFactoryContext(mockCredentials);
 
-        InputStream validCert = new ByteArrayInputStream("valid-cert-data".getBytes(StandardCharsets.UTF_8));
-        InputStream validKey = new ByteArrayInputStream("valid-key-data".getBytes(StandardCharsets.UTF_8));
+        byte[] validCert = "valid-cert-data".getBytes(StandardCharsets.UTF_8);
+        byte[] validKey = "valid-key-data".getBytes(StandardCharsets.UTF_8);
 
         // When
         CompletionStage<TlsCredentials> result = context.tlsCredentials(validCert, validKey);
@@ -128,8 +126,8 @@ class TlsCredentialsValidationTest {
         ServerTlsCredentialSupplierContext context = createValidatingSupplierContext(
                 "Certificate data is malformed or cannot be parsed");
 
-        InputStream invalidCert = new ByteArrayInputStream("INVALID-CERT-DATA".getBytes(StandardCharsets.UTF_8));
-        InputStream validKey = new ByteArrayInputStream("valid-key-data".getBytes(StandardCharsets.UTF_8));
+        byte[] invalidCert = "INVALID-CERT-DATA".getBytes(StandardCharsets.UTF_8);
+        byte[] validKey = "valid-key-data".getBytes(StandardCharsets.UTF_8);
 
         // When/Then
         assertThatThrownBy(() -> context.tlsCredentials(invalidCert, validKey).toCompletableFuture().get())
@@ -143,8 +141,8 @@ class TlsCredentialsValidationTest {
         ServerTlsCredentialSupplierContext context = createValidatingSupplierContext(
                 "Private key data is malformed or cannot be parsed");
 
-        InputStream validCert = new ByteArrayInputStream("valid-cert-data".getBytes(StandardCharsets.UTF_8));
-        InputStream invalidKey = new ByteArrayInputStream("INVALID-KEY-DATA".getBytes(StandardCharsets.UTF_8));
+        byte[] validCert = "valid-cert-data".getBytes(StandardCharsets.UTF_8);
+        byte[] invalidKey = "INVALID-KEY-DATA".getBytes(StandardCharsets.UTF_8);
 
         // When/Then
         assertThatThrownBy(() -> context.tlsCredentials(validCert, invalidKey).toCompletableFuture().get())
@@ -158,8 +156,8 @@ class TlsCredentialsValidationTest {
         ServerTlsCredentialSupplierContext context = createValidatingSupplierContext(
                 "Private key does not match the certificate");
 
-        InputStream cert = new ByteArrayInputStream("cert-for-key-A".getBytes(StandardCharsets.UTF_8));
-        InputStream key = new ByteArrayInputStream("key-B-data".getBytes(StandardCharsets.UTF_8));
+        byte[] cert = "cert-for-key-A".getBytes(StandardCharsets.UTF_8);
+        byte[] key = "key-B-data".getBytes(StandardCharsets.UTF_8);
 
         // When/Then
         assertThatThrownBy(() -> context.tlsCredentials(cert, key).toCompletableFuture().get())
@@ -173,8 +171,8 @@ class TlsCredentialsValidationTest {
         TlsCredentials mockCredentials = mock(TlsCredentials.class);
         ServerTlsCredentialSupplierContext context = createPassingSupplierContext(mockCredentials);
 
-        InputStream validCert = new ByteArrayInputStream("valid-cert-data".getBytes(StandardCharsets.UTF_8));
-        InputStream validKey = new ByteArrayInputStream("valid-key-data".getBytes(StandardCharsets.UTF_8));
+        byte[] validCert = "valid-cert-data".getBytes(StandardCharsets.UTF_8);
+        byte[] validKey = "valid-key-data".getBytes(StandardCharsets.UTF_8);
 
         // When
         CompletionStage<TlsCredentials> result = context.tlsCredentials(validCert, validKey);
@@ -195,8 +193,8 @@ class TlsCredentialsValidationTest {
 
         ServerTlsCredentialSupplierFactoryContext context = createValidatingFactoryContext(detailedError);
 
-        InputStream cert = new ByteArrayInputStream("expired-cert".getBytes(StandardCharsets.UTF_8));
-        InputStream key = new ByteArrayInputStream("key".getBytes(StandardCharsets.UTF_8));
+        byte[] cert = "expired-cert".getBytes(StandardCharsets.UTF_8);
+        byte[] key = "key".getBytes(StandardCharsets.UTF_8);
 
         // When/Then
         assertThatThrownBy(() -> context.tlsCredentials(cert, key).toCompletableFuture().get())
@@ -215,8 +213,8 @@ class TlsCredentialsValidationTest {
 
         ServerTlsCredentialSupplierContext context = createValidatingSupplierContext(multipleErrors);
 
-        InputStream cert = new ByteArrayInputStream("bad-cert".getBytes(StandardCharsets.UTF_8));
-        InputStream key = new ByteArrayInputStream("bad-key".getBytes(StandardCharsets.UTF_8));
+        byte[] cert = "bad-cert".getBytes(StandardCharsets.UTF_8);
+        byte[] key = "bad-key".getBytes(StandardCharsets.UTF_8);
 
         // When/Then
         assertThatThrownBy(() -> context.tlsCredentials(cert, key).toCompletableFuture().get())
@@ -278,7 +276,7 @@ class TlsCredentialsValidationTest {
 
         @Override
         @NonNull
-        public CompletionStage<TlsCredentials> tlsCredentials(@NonNull InputStream certificateChainPem, @NonNull InputStream privateKeyPem) {
+        public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
             if (errorMessage != null) {
                 return CompletableFuture.failedFuture(new IllegalArgumentException(errorMessage));
             }
@@ -307,13 +305,7 @@ class TlsCredentialsValidationTest {
 
         @Override
         @NonNull
-        public CompletionStage<TlsCredentials> defaultTlsCredentials() {
-            return CompletableFuture.completedFuture(mock(TlsCredentials.class));
-        }
-
-        @Override
-        @NonNull
-        public CompletionStage<TlsCredentials> tlsCredentials(@NonNull InputStream certificateChainPem, @NonNull InputStream privateKeyPem) {
+        public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
             if (errorMessage != null) {
                 return CompletableFuture.failedFuture(new IllegalArgumentException(errorMessage));
             }

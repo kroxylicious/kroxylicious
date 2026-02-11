@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal.tls;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -56,17 +55,28 @@ public class TlsUtil {
     }
 
     /**
-     * Parses a PEM-encoded private key from an InputStream.
+     * Parses a PEM-encoded private key from a byte array.
      *
-     * @param inputStream InputStream containing PEM-encoded private key
+     * @param pemBytes PEM-encoded private key bytes
      * @return The parsed PrivateKey
-     * @throws IOException if the key cannot be read or parsed
+     * @throws IOException if the key cannot be parsed
      */
     @NonNull
-    public static PrivateKey parsePrivateKey(@NonNull InputStream inputStream) throws IOException {
+    public static PrivateKey parsePrivateKey(@NonNull byte[] pemBytes) throws IOException {
+        return parsePrivateKey(pemBytes, null);
+    }
+
+    /**
+     * Parses a PEM-encoded private key from a byte array, with optional password for encrypted keys.
+     *
+     * @param pemBytes PEM-encoded private key bytes
+     * @param password password for decrypting the private key, or {@code null} if unencrypted
+     * @return The parsed PrivateKey
+     * @throws IOException if the key cannot be parsed
+     */
+    @NonNull
+    public static PrivateKey parsePrivateKey(@NonNull byte[] pemBytes, @edu.umd.cs.findbugs.annotations.Nullable char[] password) throws IOException {
         try {
-            // Read all bytes from the input stream
-            byte[] pemBytes = inputStream.readAllBytes();
             String pemString = new String(pemBytes);
 
             // Extract the Base64-encoded key data
@@ -77,6 +87,24 @@ public class TlsUtil {
 
             String base64Key = matcher.group(1).replaceAll("\\s", "");
             byte[] keyBytes = Base64.getDecoder().decode(base64Key);
+
+            // Handle encrypted private keys
+            if (password != null) {
+                try {
+                    javax.crypto.EncryptedPrivateKeyInfo encryptedInfo = new javax.crypto.EncryptedPrivateKeyInfo(keyBytes);
+                    javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance(encryptedInfo.getAlgName());
+                    javax.crypto.SecretKeyFactory skf = javax.crypto.SecretKeyFactory.getInstance(encryptedInfo.getAlgName());
+                    javax.crypto.spec.PBEKeySpec pbeKeySpec = new javax.crypto.spec.PBEKeySpec(password);
+                    javax.crypto.SecretKey pbeKey = skf.generateSecret(pbeKeySpec);
+                    java.security.AlgorithmParameters algParams = encryptedInfo.getAlgParameters();
+                    cipher.init(javax.crypto.Cipher.DECRYPT_MODE, pbeKey, algParams);
+                    PKCS8EncodedKeySpec decryptedSpec = encryptedInfo.getKeySpec(cipher);
+                    keyBytes = decryptedSpec.getEncoded();
+                }
+                catch (Exception e) {
+                    throw new IOException("Failed to decrypt encrypted private key: " + e.getMessage(), e);
+                }
+            }
 
             // Try common key algorithms
             String[] algorithms = { "RSA", "EC", "DSA" };
@@ -100,19 +128,18 @@ public class TlsUtil {
     }
 
     /**
-     * Parses a PEM-encoded certificate chain from an InputStream.
+     * Parses a PEM-encoded certificate chain from a byte array.
      *
-     * @param inputStream InputStream containing PEM-encoded certificates
+     * @param pemBytes PEM-encoded certificate bytes
      * @return Array of parsed X509Certificates
-     * @throws IOException if the certificates cannot be read or parsed
+     * @throws IOException if the certificates cannot be parsed
      */
     @NonNull
-    public static X509Certificate[] parseCertificateChain(@NonNull InputStream inputStream) throws IOException {
+    public static X509Certificate[] parseCertificateChain(@NonNull byte[] pemBytes) throws IOException {
         try {
             CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
             List<X509Certificate> certificates = new ArrayList<>();
 
-            byte[] pemBytes = inputStream.readAllBytes();
             ByteArrayInputStream bais = new ByteArrayInputStream(pemBytes);
 
             while (bais.available() > 0) {

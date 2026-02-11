@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.tls;
 
-import java.io.InputStream;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
@@ -36,8 +35,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  *             // Use client cert info to select appropriate credentials
  *             return selectCredentialsBasedOnClient(clientContext.get());
  *         }
- *         // Fall back to default credentials
- *         return context.defaultTlsCredentials();
+ *         // Fall back to shared default credentials
+ *         try {
+ *             byte[] certBytes = Files.readAllBytes(defaultCertPath);
+ *             byte[] keyBytes = Files.readAllBytes(defaultKeyPath);
+ *             return context.tlsCredentials(certBytes, keyBytes);
+ *         } catch (IOException e) {
+ *             return CompletableFuture.failedFuture(e);
+ *         }
  *     }
  * }
  * }</pre>
@@ -57,22 +62,6 @@ public interface ServerTlsCredentialSupplierContext {
      */
     @NonNull
     Optional<ClientTlsContext> clientTlsContext();
-
-    /**
-     * <p>Returns the default TLS credentials configured for the target cluster.</p>
-     *
-     * <p>These credentials are sourced from the existing {@code TargetCluster.tls}
-     * configuration. If no TLS configuration is present for the target cluster,
-     * the returned CompletionStage completes exceptionally.</p>
-     *
-     * <p>This method is useful for credential suppliers that want to augment or
-     * fall back to the statically configured credentials based on runtime conditions.</p>
-     *
-     * @return CompletionStage that completes with the default TlsCredentials, or
-     *         completes exceptionally if no default credentials are configured
-     */
-    @NonNull
-    CompletionStage<TlsCredentials> defaultTlsCredentials();
 
     /**
      * <p>Creates a TlsCredentials instance from PEM-encoded certificate and private key data.</p>
@@ -100,10 +89,31 @@ public interface ServerTlsCredentialSupplierContext {
      *   <li>Certificate validation fails</li>
      * </ul>
      *
-     * @param certificateChainPem PEM-encoded certificate chain (certificate and any intermediate certificates)
-     * @param privateKeyPem PEM-encoded private key (PKCS#8 or traditional format)
+     * @param certificateChainPem PEM-encoded certificate chain bytes (certificate and any intermediate certificates)
+     * @param privateKeyPem PEM-encoded private key bytes (PKCS#8 or traditional format)
      * @return CompletionStage that completes with validated TlsCredentials or fails with validation errors
      */
     @NonNull
-    CompletionStage<TlsCredentials> tlsCredentials(@NonNull InputStream certificateChainPem, @NonNull InputStream privateKeyPem);
+    default CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem) {
+        return tlsCredentials(certificateChainPem, privateKeyPem, null);
+    }
+
+    /**
+     * <p>Creates a TlsCredentials instance from PEM-encoded certificate and private key data,
+     * with an optional password for encrypted private keys.</p>
+     *
+     * <p>This method supports encrypted PKCS#8 private keys (EncryptedPrivateKeyInfo). When the
+     * private key is encrypted, the password parameter must be provided to decrypt it. For
+     * unencrypted private keys, the password should be {@code null}.</p>
+     *
+     * <p>This factory method performs the same validation as {@link #tlsCredentials(byte[], byte[])}.</p>
+     *
+     * @param certificateChainPem PEM-encoded certificate chain bytes (certificate and any intermediate certificates)
+     * @param privateKeyPem PEM-encoded private key bytes (PKCS#8 or traditional format, may be encrypted)
+     * @param password password for decrypting the private key, or {@code null} if the key is unencrypted
+     * @return CompletionStage that completes with validated TlsCredentials or fails with validation errors
+     */
+    @NonNull
+    CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem,
+                                                   @edu.umd.cs.findbugs.annotations.Nullable char[] password);
 }
