@@ -270,6 +270,9 @@ class AuthorizationFilterTest {
                             result -> assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception()));
                 }
                 else {
+                    assertThat(actual)
+                            .withFailMessage("request unexpectedly resulted in a short-circuit error response")
+                            .isNotInstanceOf(MockFilterContext.ErrorRequestFilterResult.class);
                     if (definition.then().expectedResponseHeader() != null) {
                         ApiMessage forwardedHeader = Objects.requireNonNull(actual.header());
                         String actualHeader = toYaml(
