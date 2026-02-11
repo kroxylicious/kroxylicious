@@ -69,9 +69,8 @@ public class HelmUtils {
      * Renders Helm templates and returns the raw YAML output.
      *
      * @return rendered template YAML
-     * @throws IOException if helm command fails
      */
-    public static String renderTemplate() throws IOException {
+    public static String renderTemplate() {
         return renderTemplate(Map.of());
     }
 
@@ -153,47 +152,6 @@ public class HelmUtils {
     }
 
     /**
-     * Parses YAML output containing multiple Kubernetes resources (separated by ---).
-     * <p>
-     * Note: We manually split by "---" rather than using Jackson's MappingIterator because
-     * Helm templates include source comments (e.g., "# Source: chart/templates/file.yaml")
-     * and license headers that must be filtered out before parsing.
-     * </p>
-     *
-     * @param yaml YAML string potentially containing multiple documents
-     * @return List of parsed resources as Maps
-     * @throws IOException if YAML parsing fails
-     */
-    @SuppressWarnings("unchecked")
-    public static List<Map<String, Object>> parseKubernetesManifests(String yaml) throws IOException {
-        List<Map<String, Object>> resources = new ArrayList<>();
-
-        // Split by YAML document separator
-        String[] documents = yaml.split("---");
-
-        for (String doc : documents) {
-            String cleaned = removeCommentLines(doc);
-
-            if (cleaned.isEmpty()) {
-                continue; // Skip empty documents
-            }
-
-            try {
-                Map<String, Object> resource = YAML_MAPPER.readValue(cleaned, Map.class);
-                if (resource != null && !resource.isEmpty()) {
-                    resources.add(resource);
-                }
-            }
-            catch (IOException e) {
-                throw new IOException("Failed to parse YAML document: " + e.getMessage() +
-                        "\nDocument content (first 200 chars): " + cleaned.substring(0, Math.min(200, cleaned.length())), e);
-            }
-        }
-
-        return resources;
-    }
-
-    /**
      * Removes comment lines from YAML content.
      * Filters out Helm source comments and license headers.
      *
@@ -205,26 +163,6 @@ public class HelmUtils {
                 .filter(line -> !line.trim().startsWith("#"))
                 .collect(java.util.stream.Collectors.joining("\n"))
                 .trim();
-    }
-
-    /**
-     * Finds a resource by kind and name in a list of resources.
-     *
-     * @param resources List of Kubernetes resources
-     * @param kind Resource kind (e.g., "StatefulSet", "ConfigMap")
-     * @param name Resource name
-     * @return The matching resource, or null if not found
-     */
-    @SuppressWarnings("unchecked")
-    public static Map<String, Object> findResource(List<Map<String, Object>> resources, String kind, String name) {
-        return resources.stream()
-                .filter(r -> kind.equals(r.get("kind")))
-                .filter(r -> {
-                    Map<String, Object> metadata = (Map<String, Object>) r.get("metadata");
-                    return metadata != null && name.equals(metadata.get("name"));
-                })
-                .findFirst()
-                .orElse(null);
     }
 
     /**
