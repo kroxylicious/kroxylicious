@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import org.opentest4j.AssertionFailedError;
 
+import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
@@ -152,25 +153,15 @@ public class HelmUtils {
     }
 
     /**
-     * Removes comment lines from YAML content.
-     * Filters out Helm source comments and license headers.
-     *
-     * @param yaml YAML content with potential comments
-     * @return YAML content with comments removed
-     */
-    private static String removeCommentLines(String yaml) {
-        return yaml.lines()
-                .filter(line -> !line.trim().startsWith("#"))
-                .collect(java.util.stream.Collectors.joining("\n"))
-                .trim();
-    }
-
-    /**
      * Parses YAML output into typed Kubernetes resources using Fabric8 models.
      * <p>
      * This provides type-safe access to Kubernetes resources, eliminating raw Map casting.
      * Resources are parsed as GenericKubernetesResource which provides type-safe access to
      * metadata and keeps spec as a Map for flexibility.
+     * </p>
+     * <p>
+     * Uses Jackson's MappingIterator to parse multi-document YAML streams properly.
+     * Jackson's YAML parser handles standard YAML comments natively.
      * </p>
      *
      * @param yaml YAML string potentially containing multiple documents
@@ -180,25 +171,13 @@ public class HelmUtils {
     public static List<GenericKubernetesResource> parseKubernetesResourcesTyped(String yaml) throws IOException {
         List<GenericKubernetesResource> resources = new ArrayList<>();
 
-        // Split by YAML document separator
-        String[] documents = yaml.split("---");
-
-        for (String doc : documents) {
-            String cleaned = removeCommentLines(doc);
-
-            if (cleaned.isEmpty()) {
-                continue;
-            }
-
-            try {
-                GenericKubernetesResource resource = YAML_MAPPER.readValue(cleaned, GenericKubernetesResource.class);
+        // Use Jackson's multi-document YAML parsing
+        try (MappingIterator<GenericKubernetesResource> iterator = YAML_MAPPER.readerFor(GenericKubernetesResource.class).readValues(yaml)) {
+            while (iterator.hasNext()) {
+                GenericKubernetesResource resource = iterator.next();
                 if (resource != null && resource.getKind() != null) {
                     resources.add(resource);
                 }
-            }
-            catch (IOException e) {
-                throw new IOException("Failed to parse YAML document: " + e.getMessage() +
-                        "\nDocument content (first 200 chars): " + cleaned.substring(0, Math.min(200, cleaned.length())), e);
             }
         }
 
