@@ -27,6 +27,7 @@ metadata:
     app: omb-worker
 spec:
   serviceName: omb-worker
+  podManagementPolicy: Parallel
   replicas: {{ .Values.omb.workerReplicas }}
   selector:
     matchLabels:
