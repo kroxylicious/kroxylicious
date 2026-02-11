@@ -1,0 +1,76 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omb-benchmark
+  labels:
+    app: omb-benchmark
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: omb-benchmark
+  template:
+    metadata:
+      labels:
+        app: omb-benchmark
+    spec:
+      containers:
+      - name: benchmark
+        image: {{ .Values.omb.image }}
+        imagePullPolicy: {{ .Values.omb.imagePullPolicy }}
+        env:
+        - name: WORKERS
+          value: {{ include "kroxylicious-benchmark.workerList" . | quote }}
+        - name: JAVA_OPTS
+          value: "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Wait for workers to be ready
+          echo "Waiting for OMB workers to be ready..."
+          for i in $(seq 0 $(({{ .Values.omb.workerReplicas }} - 1))); do
+            while ! curl -s http://omb-worker-${i}.omb-worker:8080 > /dev/null 2>&1; do
+              echo "Waiting for omb-worker-${i}..."
+              sleep 2
+            done
+          done
+          echo "All workers ready"
+
+          # Wait for Kafka to be ready (TCP port check)
+          echo "Waiting for Kafka to be ready..."
+          KAFKA_HOST=$(echo "{{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}" | cut -d: -f1)
+          KAFKA_PORT=$(echo "{{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}" | cut -d: -f2)
+          echo "Target: $KAFKA_HOST:$KAFKA_PORT"
+
+          while ! timeout 1 bash -c "echo > /dev/tcp/$KAFKA_HOST/$KAFKA_PORT" 2>/dev/null; do
+            echo "Waiting for Kafka on $KAFKA_HOST:$KAFKA_PORT... (connection failed)"
+            sleep 5
+          done
+          echo "Kafka is ready"
+
+          # Keep pod running for manual benchmark execution
+          echo "Ready to run benchmarks. Sleeping indefinitely..."
+          echo "To run a benchmark, exec into this pod and run:"
+          echo '  bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
+          sleep infinity
+        volumeMounts:
+        - name: driver-config
+          mountPath: /config
+        - name: workload-config
+          mountPath: /workloads
+        resources:
+          {{- toYaml .Values.omb.resources | nindent 10 }}
+      volumes:
+      - name: driver-config
+        configMap:
+          name: omb-driver-{{ .Values.omb.driver }}
+      - name: workload-config
+        configMap:
+          name: omb-workload-{{ .Values.omb.workload }}
