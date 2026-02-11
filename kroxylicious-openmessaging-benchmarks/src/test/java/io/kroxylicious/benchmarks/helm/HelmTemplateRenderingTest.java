@@ -14,6 +14,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -23,25 +24,21 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Tests that verify Helm templates render correctly.
  * Tests use test-values.yaml with fixed versions for predictable assertions.
  * Expected values are loaded from test-values.yaml to avoid duplication.
  */
+@EnabledIf(value = "io.kroxylicious.benchmarks.helm.HelmUtils#isHelmAvailable", disabledReason = "Helm is not installed or not available in PATH")
 class HelmTemplateRenderingTest {
 
     // Expected values loaded from test-values.yaml
     private static String testKafkaVersion;
-    private static int testKafkaReplicas;
-    private static int testWorkerReplicas;
 
     @BeforeAll
     @SuppressWarnings("unchecked")
     static void setup() throws IOException {
-        assumeTrue(HelmUtils.isHelmAvailable(), "Helm is not installed or not available in PATH");
-
         // Load test values from test-values.yaml to use as expected values
         ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
         String testValuesPath = "src/test/resources/test-values.yaml";
@@ -49,14 +46,10 @@ class HelmTemplateRenderingTest {
 
         Map<String, Object> kafka = (Map<String, Object>) values.get("kafka");
         testKafkaVersion = (String) kafka.get("version");
-        testKafkaReplicas = (Integer) kafka.get("replicas");
-
-        Map<String, Object> omb = (Map<String, Object>) values.get("omb");
-        testWorkerReplicas = (Integer) omb.get("workerReplicas");
     }
 
     @Test
-    void shouldRenderWithoutErrors() throws IOException {
+    void shouldRenderWithoutErrors() {
         // When: Rendering templates with default values
         String yaml = HelmUtils.renderTemplate();
 
@@ -156,6 +149,7 @@ class HelmTemplateRenderingTest {
 
         // Then: WORKERS env var should contain URL for each replica
         String workersValue = HelmUtils.getPodEnvVar(benchmarkDeployment, "WORKERS");
+        assertThat(workersValue).isNotNull();
         String[] workers = workersValue.split(",");
 
         assertThat(workers)
