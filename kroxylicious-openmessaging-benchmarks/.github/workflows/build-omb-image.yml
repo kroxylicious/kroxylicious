@@ -1,0 +1,71 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+name: Build OMB Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      omb_commit:
+        description: 'Upstream OMB commit SHA to build from'
+        required: true
+        type: string
+      build_number:
+        description: 'Build number (monotonically increasing for Renovate ordering)'
+        required: true
+        type: string
+
+env:
+  IMAGE_NAME: kroxylicious-omb
+
+jobs:
+  build-and-push:
+    name: Build and Push OMB Image
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kroxylicious-openmessaging-benchmarks
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          OMB_SHORT=$(echo "${{ inputs.omb_commit }}" | cut -c1-7)
+          KROX_SHORT=$(git rev-parse --short=7 HEAD)
+          IMAGE_TAG="omb-${OMB_SHORT}-krox-${KROX_SHORT}-${{ inputs.build_number }}"
+          echo "image_tag=${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "Image tag: ${IMAGE_TAG}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Build image
+        run: >-
+          docker build
+          -f Containerfile
+          --build-arg OMB_COMMIT=${{ inputs.omb_commit }}
+          -t ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.image_tag }}
+          .
+
+      - name: Log in to registry
+        if: vars.REGISTRY_SERVER != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Push image
+        if: vars.REGISTRY_SERVER != ''
+        run: |
+          FULL_IMAGE=${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.image_tag }}
+          docker tag ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.image_tag }} "${FULL_IMAGE}"
+          docker push "${FULL_IMAGE}"
+          echo "Pushed ${FULL_IMAGE}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Skip push (registry not configured)
+        if: vars.REGISTRY_SERVER == ''
+        run: echo "Registry not configured — image built but not pushed." >> "${GITHUB_STEP_SUMMARY}"
