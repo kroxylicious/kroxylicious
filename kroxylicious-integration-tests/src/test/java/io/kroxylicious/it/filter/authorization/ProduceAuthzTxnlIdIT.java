@@ -61,8 +61,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProduceAuthzTxnlIdIT extends AuthzIT {
 
     private String topicName;
-    private static String ALICE_TRANSACTIONAL_ID_PREFIX = "alice-transaction";
-    private static String BOB_TRANSACTIONAL_ID_PREFIX = "bob-transaction";
+    private static final String ALICE_TRANSACTIONAL_ID_PREFIX = "alice-transaction";
+    private static final String BOB_TRANSACTIONAL_ID_PREFIX = "bob-transaction";
     private static final List<String> ALL_TRANSACTIONAL_ID_PREFIXES = List.of(ALICE_TRANSACTIONAL_ID_PREFIX, BOB_TRANSACTIONAL_ID_PREFIX);
     private Path rulesFile;
 
