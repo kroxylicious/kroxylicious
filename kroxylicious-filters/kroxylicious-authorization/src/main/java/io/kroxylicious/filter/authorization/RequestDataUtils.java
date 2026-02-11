@@ -15,6 +15,14 @@ import org.apache.kafka.common.record.Records;
 import org.apache.kafka.common.requests.ProduceRequest;
 
 public class RequestDataUtils {
+
+    /**
+     * Prevent construction of utility class
+     */
+    private RequestDataUtils() {
+        // prevent construction
+    }
+
     /**
      * Mirrors the logic of
      * {@link org.apache.kafka.common.requests.RequestUtils#hasTransactionalRecords(ProduceRequest)}
@@ -26,8 +34,8 @@ public class RequestDataUtils {
     public static boolean hasTransactionalRecords(ProduceRequestData requestData) {
         for (ProduceRequestData.TopicProduceData tp : Objects.requireNonNull(requestData).topicData()) {
             for (ProduceRequestData.PartitionProduceData p : tp.partitionData()) {
-                if (p.records() instanceof Records) {
-                    Iterator<? extends RecordBatch> iter = (((Records) p.records())).batchIterator();
+                if (p.records() instanceof Records records) {
+                    Iterator<? extends RecordBatch> iter = records.batchIterator();
                     if (iter.hasNext() && iter.next().isTransactional()) {
                         return true;
                     }
