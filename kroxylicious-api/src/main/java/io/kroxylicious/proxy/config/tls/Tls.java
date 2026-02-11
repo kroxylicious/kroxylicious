@@ -27,6 +27,17 @@ public record Tls(@Nullable KeyProvider key,
                   @Nullable TlsCredentialSupplierDefinition tlsCredentialSupplier) {
 
     /**
+     * Compact constructor with validation.
+     */
+    public Tls {
+        if (key != null && tlsCredentialSupplier != null) {
+            throw new IllegalArgumentException(
+                    "Cannot configure both 'key' and 'tlsCredentialSupplier' - they are mutually exclusive. " +
+                            "Use 'key' for static TLS credentials or 'tlsCredentialSupplier' for dynamic credential selection.");
+        }
+    }
+
+    /**
      * Creates a Tls configuration without a TLS credential supplier.
      * This constructor is provided for backward compatibility with v0.18.0.
      * <p>
