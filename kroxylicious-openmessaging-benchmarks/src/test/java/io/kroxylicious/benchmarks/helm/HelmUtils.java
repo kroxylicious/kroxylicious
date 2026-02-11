@@ -11,10 +11,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import org.opentest4j.AssertionFailedError;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -32,6 +36,7 @@ public class HelmUtils {
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
     private static final Path HELM_CHART_DIR = getHelmChartDirectory();
     private static final Path TEST_VALUES_FILE = getTestValuesFile();
+    private static final int PROCESS_TIMEOUT_SECONDS = 30;
 
     private static Path getHelmChartDirectory() {
         String chartDirProperty = System.getProperty("helm.chart.directory");
@@ -54,9 +59,8 @@ public class HelmUtils {
      * Runs helm lint on the chart.
      *
      * @return lint output
-     * @throws IOException if helm command fails
      */
-    public static String lint() throws IOException {
+    public static String lint() {
         List<String> command = List.of("helm", "lint", HELM_CHART_DIR.toString());
         return executeCommand(command);
     }
@@ -77,9 +81,8 @@ public class HelmUtils {
      *
      * @param setValues Map of key-value pairs to pass as --set arguments
      * @return rendered template YAML
-     * @throws IOException if helm command fails
      */
-    public static String renderTemplate(Map<String, String> setValues) throws IOException {
+    public static String renderTemplate(Map<String, String> setValues) {
         List<String> command = new ArrayList<>();
         command.add("helm");
         command.add("template");
@@ -106,7 +109,7 @@ public class HelmUtils {
             executeCommand(List.of("helm", "version"));
             return true;
         }
-        catch (IOException e) {
+        catch (AssertionFailedError e) {
             return false;
         }
     }
@@ -115,41 +118,38 @@ public class HelmUtils {
      * Executes a command and returns its output.
      *
      * @param command Command and arguments to execute
-     * @return Command output
-     * @throws IOException if command fails or times out
+     * @return STD_OUT from executing the command
      */
-    private static String executeCommand(List<String> command) throws IOException {
+    private static String executeCommand(List<String> command) {
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
 
-        Process process = pb.start();
-        StringBuilder output = new StringBuilder();
-
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
-        }
-
         try {
-            boolean finished = process.waitFor(30, TimeUnit.SECONDS);
+            Process process = pb.start();
+            String output;
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                output = reader.lines().collect(Collectors.joining("\n"));
+            }
+
+            boolean finished = process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
-                throw new IOException("Command timed out: " + String.join(" ", command));
+                fail("Command timed out (after %s): %s", Duration.ofSeconds(PROCESS_TIMEOUT_SECONDS), String.join(" ", command));
             }
 
             int exitCode = process.exitValue();
-            if (exitCode != 0) {
-                throw new IOException("Command failed with exit code " + exitCode + ": " + String.join(" ", command) + "\nOutput:\n" + output);
-            }
+            assertThat(exitCode).as("Command failed: %s \nOutput:\n %s", String.join(" ", command), output).isZero();
+            return output;
+        }
+        catch (IOException ioe) {
+            fail("Failed to execute command: %s" + String.join(" ", command), ioe);
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("Command interrupted: " + String.join(" ", command), e);
+            fail("Failed to execute command: %s" + String.join(" ", command), e);
         }
-
-        return output.toString();
+        return null;
     }
 
     /**
