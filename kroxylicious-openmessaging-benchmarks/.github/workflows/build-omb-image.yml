@@ -38,11 +38,18 @@ jobs:
 
       - name: Resolve OMB commit SHA
         id: omb
+        env:
+          OMB_REF: ${{ inputs.omb_ref }}
         run: |
-          OMB_SHA=$(git ls-remote https://github.com/openmessaging/benchmark.git "${{ inputs.omb_ref }}" | cut -f1)
+          # Try to resolve as a ref name (branch or tag)
+          OMB_SHA=$(git ls-remote https://github.com/openmessaging/benchmark.git "${OMB_REF}" | cut -f1)
           if [ -z "${OMB_SHA}" ]; then
-            # Input is already a SHA (not a ref name)
-            OMB_SHA="${{ inputs.omb_ref }}"
+            # Not a ref name — validate it looks like a commit SHA
+            if ! echo "${OMB_REF}" | grep -qE '^[a-f0-9]{7,40}$'; then
+              echo "::error::Invalid omb_ref '${OMB_REF}': not a known ref and not a valid commit SHA"
+              exit 1
+            fi
+            OMB_SHA="${OMB_REF}"
           fi
           echo "sha=${OMB_SHA}" >> "${GITHUB_OUTPUT}"
           echo "short=$(echo "${OMB_SHA}" | cut -c1-7)" >> "${GITHUB_OUTPUT}"
