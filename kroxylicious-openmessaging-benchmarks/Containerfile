@@ -17,6 +17,9 @@ FROM registry.access.redhat.com/ubi9/openjdk-17:1.24-2.1770285121 AS builder
 USER root
 
 ARG OMB_COMMIT
+RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y git && \
+    microdnf clean all
+
 RUN git clone https://github.com/openmessaging/benchmark.git /build && \
     cd /build && git checkout ${OMB_COMMIT}
 
