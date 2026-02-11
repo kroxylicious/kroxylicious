@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.authorization;
 
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
@@ -48,7 +49,7 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
         else {
             var topicWriteActions = request.topicData().stream()
                     .map(t -> new Action(TopicResource.WRITE, t.name()));
-            var transactionalIdActions = hasTransactionalRecords ? Stream.of(new Action(TransactionalIdResource.WRITE, transactionalId)) : Stream.<Action> empty();
+            var transactionalIdActions = Optional.ofNullable(transactionalId).stream().map(t -> new Action(TransactionalIdResource.WRITE, t));
             return authorizationFilter.authorization(context, Stream.concat(topicWriteActions, transactionalIdActions).toList()).thenCompose(authorization -> {
                 if (hasTransactionalRecords && authorization.denied(TransactionalIdResource.WRITE).contains(transactionalId)) {
                     return transactionalIdErrorResponse(context, header, request, requiresResponse);
