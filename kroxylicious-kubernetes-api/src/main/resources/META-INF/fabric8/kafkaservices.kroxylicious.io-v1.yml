@@ -121,12 +121,12 @@ spec:
                           type: string
                           default: ""
                         storeType:
-                          description: The type of the certificate
+                          description: The store type of the certificate
                           type: string
                           enum:
                             - PEM
                             - JKS
-                            - PKCS#12
+                            - PKCS12
                         name:
                           description: The name of the resource containing the TLS client certificate.
                           type: string

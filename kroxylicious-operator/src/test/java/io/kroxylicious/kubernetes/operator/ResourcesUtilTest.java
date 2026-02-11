@@ -840,40 +840,17 @@ class ResourcesUtilTest {
     }
 
     @ParameterizedTest
-    @CsvSource({ "key.pem", "key.p12", "key.jks" })
-    void shouldAcceptSupportedKeyfileExtensions(String key) {
+    @CsvSource(value = { "key.pem, null", "key.p12, null", "key.jks, null", "key.crt, PEM", "key.cer, PEM" }, nullValues = { "null" })
+    void shouldAcceptSupportedKeyfileExtensions(String key, @Nullable String storeType) {
         // Given
-        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder().withKey(key).withNewRef().withName("configmap").endRef().build();
+        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder().withKey(key).withStoreType(storeType).withNewRef().withName("configmap").endRef().build();
         Ingresses ingress = new IngressesBuilder().withNewTls().withTrustAnchorRef(trustAnchorRef).endTls().build();
         VirtualKafkaCluster vkc = new VirtualKafkaClusterBuilder().withNewSpec().withIngresses(List.of(ingress)).endSpec().build();
         @SuppressWarnings("unchecked")
         Context<VirtualKafkaCluster> reconcilerContext = mock(Context.class);
         when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME))
                 .thenReturn(Optional.ofNullable(
-                        new ConfigMapBuilder().withNewMetadata().withName("configmap").endMetadata().withData(Map.of(key, "I'm a key honnest")).build()));
-
-        // When
-        ResourceCheckResult<VirtualKafkaCluster> actual = ResourcesUtil.checkTrustAnchorRef(vkc, reconcilerContext,
-                VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME, trustAnchorRef,
-                "spec.ingresses[].tls.trustAnchor", new VirtualKafkaClusterStatusFactory(TEST_CLOCK));
-
-        // Then
-        assertThat(actual).isNotNull()
-                .satisfies(virtualKafkaClusterResourceCheckResult -> assertThat(virtualKafkaClusterResourceCheckResult.resource()).isNull());
-    }
-
-    @ParameterizedTest
-    @CsvSource({ "key.crt", "key.cer" })
-    void shouldAcceptNewKeyfileExtensionsIfStoreTypeMentioned(String key) {
-        // Given
-        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder().withKey(key).withStoreType("PEM").withNewRef().withName("configmap").endRef().build();
-        Ingresses ingress = new IngressesBuilder().withNewTls().withTrustAnchorRef(trustAnchorRef).endTls().build();
-        VirtualKafkaCluster vkc = new VirtualKafkaClusterBuilder().withNewSpec().withIngresses(List.of(ingress)).endSpec().build();
-        @SuppressWarnings("unchecked")
-        Context<VirtualKafkaCluster> reconcilerContext = mock(Context.class);
-        when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME))
-                .thenReturn(Optional.ofNullable(
-                        new ConfigMapBuilder().withNewMetadata().withName("configmap").endMetadata().withData(Map.of(key, "I'm a key honnest")).build()));
+                        new ConfigMapBuilder().withNewMetadata().withName("configmap").endMetadata().withData(Map.of(key, "I'm a key honest")).build()));
 
         // When
         ResourceCheckResult<VirtualKafkaCluster> actual = ResourcesUtil.checkTrustAnchorRef(vkc, reconcilerContext,

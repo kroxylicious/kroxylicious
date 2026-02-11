@@ -525,7 +525,7 @@ public class ResourcesUtil {
                             Condition.REASON_INVALID,
                             path + " must specify 'key'"), List.of());
                 }
-                if (isSupportedFileType(key) && trustAnchorRef.getStoreType() == null) {
+                if (isUnSupportedFileType(key) && trustAnchorRef.getStoreType() == null) {
                     return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                             Condition.REASON_INVALID,
                             path + ".key should end with .pem, .p12 or .jks or"
@@ -659,7 +659,7 @@ public class ResourcesUtil {
         return !configMap.getData().containsKey(trustAnchorRef.getKey());
     }
 
-    private static boolean isSupportedFileType(String key) {
+    private static boolean isUnSupportedFileType(String key) {
         return !key.endsWith(".pem")
                 && !key.endsWith(".p12")
                 && !key.endsWith(".jks");

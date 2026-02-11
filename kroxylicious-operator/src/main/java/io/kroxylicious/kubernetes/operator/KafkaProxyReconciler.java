@@ -422,13 +422,21 @@ public class KafkaProxyReconciler implements
     /**
      * If `storeType` is null in the KafkaService CR then derive it from the key
      */
-    private static String deriveStoreTypeFromKeySuffix(TrustAnchorRef trustAnchorRef) {
-        if (trustAnchorRef.getKey().endsWith(".p12")) {
-            return "PKCS#12";
-        }
-        else {
-            return trustAnchorRef.getKey().substring(trustAnchorRef.getKey().length() - 3).toUpperCase();
-        }
+    static String deriveStoreTypeFromKeySuffix(TrustAnchorRef trustAnchorRef) {
+        String ext = getKeyExtension(trustAnchorRef.getKey());
+        return switch (ext) {
+            case "p12" -> "PKCS12";
+            case "jks" -> "JKS";
+            case "pem" -> "PEM";
+            default -> throw new IllegalArgumentException("Unsupported key extension");
+        };
+    }
+
+    /**
+     * Gets the extension of the key
+     */
+    static String getKeyExtension(String key) {
+        return key.substring(key.length() - 3);
     }
 
     /**

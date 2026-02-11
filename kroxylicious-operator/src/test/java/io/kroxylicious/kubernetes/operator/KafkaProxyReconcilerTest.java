@@ -37,8 +37,11 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -1012,6 +1015,20 @@ class KafkaProxyReconcilerTest {
                             .extracting(KafkaProxyStatus::getReplicas)
                             .isEqualTo(0); // No status implies no replicas running
                 });
+    }
+
+    @Test
+    void testDeriveStoreTypeFromKeySuffix() {
+        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder()
+                .withKey("key.pem")
+                .withRef(new AnyLocalRefBuilder()
+                        .withName("test")
+                        .withKind("ConfigMap")
+                        .build())
+                .build();
+
+        String storeType = KafkaProxyReconciler.deriveStoreTypeFromKeySuffix(trustAnchorRef);
+        assertThat(storeType).isEqualTo("PEM");
     }
 
     private KafkaProxy buildProxy(String name) {
