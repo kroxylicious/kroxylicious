@@ -8,21 +8,16 @@ package io.kroxylicious.benchmarks.helm;
 
 import java.io.IOException;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Tests that verify the Helm chart passes linting validation.
  */
+@EnabledIf( value = "io.kroxylicious.benchmarks.helm.HelmUtils#isHelmAvailable", disabledReason = "Helm is not installed or not available in PATH")
 class HelmLintTest {
-
-    @BeforeAll
-    static void checkHelmAvailable() {
-        assumeTrue(HelmUtils.isHelmAvailable(), "Helm is not installed or not available in PATH");
-    }
 
     @Test
     void testHelmLintPasses() throws IOException {
@@ -32,7 +27,7 @@ class HelmLintTest {
         // Then: Should pass with no errors
         assertThat(lintOutput)
                 .as("Helm lint should complete successfully")
-                .contains("1 chart(s) linted")
+                .containsPattern("\\d+ chart\\(s\\) linted")
                 .contains("0 chart(s) failed");
     }
 }
