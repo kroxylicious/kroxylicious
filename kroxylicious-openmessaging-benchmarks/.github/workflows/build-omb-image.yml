@@ -41,16 +41,17 @@ jobs:
         env:
           OMB_REF: ${{ inputs.omb_ref }}
         run: |
-          # Try to resolve as a ref name (branch or tag).
-          # git ls-remote output is tab-delimited: <sha>\t<ref>
-          OMB_SHA=$(git ls-remote https://github.com/openmessaging/benchmark.git "${OMB_REF}" | cut -f1)
-          if [ -z "${OMB_SHA}" ]; then
-            # Not a ref name — validate it looks like a commit SHA
-            if ! echo "${OMB_REF}" | grep -qE '^[a-f0-9]{7,40}$'; then
-              echo "::error::Invalid omb_ref '${OMB_REF}': not a known ref and not a valid commit SHA"
+          if echo "${OMB_REF}" | grep -qE '^[a-f0-9]{7,40}$'; then
+            # Looks like a commit SHA — use it directly
+            OMB_SHA="${OMB_REF}"
+          else
+            # Try to resolve as a ref name (branch or tag).
+            # git ls-remote output is tab-delimited: <sha>\t<ref>
+            OMB_SHA=$(git ls-remote https://github.com/openmessaging/benchmark.git "${OMB_REF}" | cut -f1)
+            if [ -z "${OMB_SHA}" ]; then
+              echo "::error::Invalid omb_ref '${OMB_REF}': not a known ref in the upstream OMB repository"
               exit 1
             fi
-            OMB_SHA="${OMB_REF}"
           fi
           echo "sha=${OMB_SHA}" >> "${GITHUB_OUTPUT}"
           echo "short=$(echo "${OMB_SHA}" | cut -c1-7)" >> "${GITHUB_OUTPUT}"
