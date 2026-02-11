@@ -7,7 +7,6 @@
 package io.kroxylicious.it;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Map;
@@ -159,57 +158,25 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                 });
 
                 // Create TLS credentials from the generated keys
-                try (InputStream certStream = Files.newInputStream(keys.selfSignedCertificatePem());
-                        InputStream keyStream = Files.newInputStream(keys.privateKeyPem())) {
-                    return context.tlsCredentials(certStream, keyStream);
+                try {
+                    byte[] certBytes = Files.readAllBytes(keys.selfSignedCertificatePem());
+                    byte[] keyBytes = Files.readAllBytes(keys.privateKeyPem());
+                    return context.tlsCredentials(certBytes, keyBytes);
                 }
                 catch (IOException e) {
                     return CompletableFuture.failedFuture(e);
                 }
             }
 
-            // Test fallback to default credentials when client has no certificate
-            if (sharedContext.config.defaultCertLabel() != null && sharedContext.config.defaultCertLabel().equals("fallback")) {
-                return context.defaultTlsCredentials();
-            }
-
             // Use default shared credentials
-            try (InputStream certStream = Files.newInputStream(sharedContext.defaultKeys.selfSignedCertificatePem());
-                    InputStream keyStream = Files.newInputStream(sharedContext.defaultKeys.privateKeyPem())) {
-                return context.tlsCredentials(certStream, keyStream);
+            try {
+                byte[] certBytes = Files.readAllBytes(sharedContext.defaultKeys.selfSignedCertificatePem());
+                byte[] keyBytes = Files.readAllBytes(sharedContext.defaultKeys.privateKeyPem());
+                return context.tlsCredentials(certBytes, keyBytes);
             }
             catch (IOException e) {
                 return CompletableFuture.failedFuture(e);
             }
-        }
-    }
-
-    /**
-     * Factory that always returns empty/null credentials to test fallback behavior.
-     */
-    @Plugin(configType = Void.class)
-    public static class EmptyCredentialSupplierFactory
-            implements ServerTlsCredentialSupplierFactory<Void, Void> {
-
-        @Override
-        public Void initialize(ServerTlsCredentialSupplierFactoryContext context, Void config) {
-            return null;
-        }
-
-        @Override
-        public ServerTlsCredentialSupplier create(ServerTlsCredentialSupplierFactoryContext context, Void initializationData) {
-            return new EmptyCredentialSupplier();
-        }
-    }
-
-    /**
-     * Supplier that delegates to default credentials for testing fallback.
-     */
-    static class EmptyCredentialSupplier implements ServerTlsCredentialSupplier {
-        @Override
-        public CompletionStage<TlsCredentials> tlsCredentials(ServerTlsCredentialSupplierContext context) {
-            // Always fall back to default credentials
-            return context.defaultTlsCredentials();
         }
     }
 
@@ -441,100 +408,4 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
         }
     }
 
-    /**
-     * Tests fallback to default credentials when supplier returns empty.
-     * Verifies that the system gracefully handles empty responses from suppliers.
-     */
-    @Test
-    void testFallbackToDefaultCredentialsWhenSupplierReturnsEmpty(KafkaCluster cluster, Topic topic) throws Exception {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
-        var proxyKeystoreLocation = downstreamCertificateGenerator.getKeyStoreLocation();
-
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                            .withBootstrapServers(bootstrapServers)
-                            .withNewTls()
-                                .withNewInsecureTlsTrust(true)
-                                .withTlsCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition(
-                                    TestCredentialSupplierFactory.class.getName(),
-                                    new TestSupplierConfig("demo", "fallback")))
-                            .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
-                                    .withNewKeyStoreKey()
-                                        .withStoreFile(proxyKeystoreLocation)
-                                        .withStorePasswordProvider(constructPasswordProvider(InlinePassword.class, proxyKeystorePassword))
-                                    .endKeyStoreKey()
-                                .endTls()
-                                .build())
-                        .build());
-        // @formatter:on
-
-        try (var tester = kroxyliciousTester(builder)) {
-            try (Producer<String, String> producer = tester.producer("demo",
-                    Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                            SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                            SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword))) {
-
-                // This should work using default credentials from the context
-                producer.send(new ProducerRecord<>(topic.name(), "key", "value")).get();
-                producer.flush();
-
-                // Verify connection succeeded with fallback
-                assertThat(true).isTrue();
-            }
-        }
-    }
-
-    /**
-     * Tests using EmptyCredentialSupplier that always delegates to default credentials.
-     * Verifies the fallback mechanism works correctly.
-     */
-    @Test
-    void testEmptySupplierFallbackToDefault(KafkaCluster cluster, Topic topic) throws Exception {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
-        var proxyKeystoreLocation = downstreamCertificateGenerator.getKeyStoreLocation();
-
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(new VirtualClusterBuilder()
-                        .withName("demo")
-                        .withNewTargetCluster()
-                            .withBootstrapServers(bootstrapServers)
-                            .withNewTls()
-                                .withNewInsecureTlsTrust(true)
-                                .withTlsCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition(
-                                    EmptyCredentialSupplierFactory.class.getName(),
-                                    null))
-                            .endTls()
-                        .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
-                                    .withNewKeyStoreKey()
-                                        .withStoreFile(proxyKeystoreLocation)
-                                        .withStorePasswordProvider(constructPasswordProvider(InlinePassword.class, proxyKeystorePassword))
-                                    .endKeyStoreKey()
-                                .endTls()
-                                .build())
-                        .build());
-        // @formatter:on
-
-        try (var tester = kroxyliciousTester(builder)) {
-            try (Admin admin = tester.admin("demo",
-                    Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                            SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                            SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword))) {
-
-                // Verify connection works with fallback to default credentials
-                CreateTopicsResult result = createTopic(admin, topic.name(), 1);
-                assertThat(result.all()).succeedsWithin(Duration.ofSeconds(10));
-            }
-        }
-    }
 }

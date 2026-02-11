@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.tls;
 
-import java.io.InputStream;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
@@ -116,10 +115,31 @@ public interface ServerTlsCredentialSupplierFactoryContext {
      *   <li>Certificate validation fails</li>
      * </ul>
      *
-     * @param certificateChainPem PEM-encoded certificate chain (certificate and any intermediate certificates)
-     * @param privateKeyPem PEM-encoded private key (PKCS#8 or traditional format)
+     * @param certificateChainPem PEM-encoded certificate chain bytes (certificate and any intermediate certificates)
+     * @param privateKeyPem PEM-encoded private key bytes (PKCS#8 or traditional format)
      * @return CompletionStage that completes with validated TlsCredentials or fails with validation errors
      */
     @NonNull
-    CompletionStage<TlsCredentials> tlsCredentials(@NonNull InputStream certificateChainPem, @NonNull InputStream privateKeyPem);
+    default CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem) {
+        return tlsCredentials(certificateChainPem, privateKeyPem, null);
+    }
+
+    /**
+     * <p>Creates a TlsCredentials instance from PEM-encoded certificate and private key data,
+     * with an optional password for encrypted private keys.</p>
+     *
+     * <p>This method supports encrypted PKCS#8 private keys (EncryptedPrivateKeyInfo). When the
+     * private key is encrypted, the password parameter must be provided to decrypt it. For
+     * unencrypted private keys, the password should be {@code null}.</p>
+     *
+     * <p>This factory method performs the same validation as {@link #tlsCredentials(byte[], byte[])}.</p>
+     *
+     * @param certificateChainPem PEM-encoded certificate chain bytes (certificate and any intermediate certificates)
+     * @param privateKeyPem PEM-encoded private key bytes (PKCS#8 or traditional format, may be encrypted)
+     * @param password password for decrypting the private key, or {@code null} if the key is unencrypted
+     * @return CompletionStage that completes with validated TlsCredentials or fails with validation errors
+     */
+    @NonNull
+    CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem,
+                                                   @edu.umd.cs.findbugs.annotations.Nullable char[] password);
 }

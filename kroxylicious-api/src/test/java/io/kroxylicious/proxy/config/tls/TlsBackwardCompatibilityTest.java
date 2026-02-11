@@ -36,22 +36,36 @@ class TlsBackwardCompatibilityTest {
 
     @Test
     void testTlsConfigWithCredentialSupplierIsValid() {
-        // Given - TLS config with credential supplier (new feature)
+        // Given - TLS config with credential supplier only (no static key due to mutual exclusivity)
         TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("MySupplier", null);
 
         Tls tls = new Tls(
-                new KeyPair("/path/to/key", "/path/to/cert", null),
+                null, // No static key - using credential supplier
                 new TrustStore("/path/to/truststore", null, "JKS"),
                 null,
                 null,
                 supplierDef);
 
         // Then
-        assertThat(tls.definesKey()).isTrue();
-        assertThat(tls.key()).isNotNull();
+        assertThat(tls.definesKey()).isFalse();
+        assertThat(tls.key()).isNull();
         assertThat(tls.trust()).isNotNull();
         assertThat(tls.tlsCredentialSupplier()).isNotNull();
         assertThat(tls.tlsCredentialSupplier().type()).isEqualTo("MySupplier");
+    }
+
+    @Test
+    void testMutualExclusivityValidationMessage() {
+        // Given - attempting to configure both key and tlsCredentialSupplier
+        KeyProvider key = new KeyPair("/path/to/key", "/path/to/cert", null);
+        TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("TestSupplier", null);
+
+        // When/Then - should throw with descriptive error message
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> new Tls(key, null, null, null, supplierDef)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("mutually exclusive")
+                .hasMessageContaining("key")
+                .hasMessageContaining("tlsCredentialSupplier");
     }
 
     @Test
@@ -70,21 +84,20 @@ class TlsBackwardCompatibilityTest {
     }
 
     @Test
-    void testTlsConfigWithBothStaticAndDynamicCredentials() {
-        // Given - TLS config with both static credentials and credential supplier
+    void testTlsConfigWithBothStaticAndDynamicCredentialsIsRejected() {
+        // Given - TLS config attempting to use both static credentials and credential supplier
         TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("FallbackSupplier", null);
 
-        Tls tls = new Tls(
+        // Then - should throw IllegalArgumentException due to mutual exclusivity
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> new Tls(
                 new KeyPair("/path/to/key", "/path/to/cert", null),
                 null,
                 null,
                 null,
-                supplierDef);
-
-        // Then - both are available
-        assertThat(tls.definesKey()).isTrue();
-        assertThat(tls.key()).isNotNull();
-        assertThat(tls.tlsCredentialSupplier()).isNotNull();
+                supplierDef)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot configure both 'key' and 'tlsCredentialSupplier'")
+                .hasMessageContaining("mutually exclusive");
     }
 
     @Test
@@ -149,7 +162,7 @@ class TlsBackwardCompatibilityTest {
 
     @Test
     void testTlsConfigWithAllFeaturesIncludingCredentialSupplier() {
-        // Given - comprehensive TLS config with all features
+        // Given - comprehensive TLS config with credential supplier (no static key due to mutual exclusivity)
         TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("AdvancedSupplier",
                 java.util.Map.of("option", "value"));
 
@@ -161,15 +174,15 @@ class TlsBackwardCompatibilityTest {
                 java.util.Set.of());
 
         Tls tls = new Tls(
-                new KeyPair("/path/to/key", "/path/to/cert", null),
+                null, // No static key - using credential supplier instead
                 new TrustStore("/path/to/truststore", null, "JKS"),
                 cipherSuites,
                 protocols,
                 supplierDef);
 
-        // Then - all features are present and accessible
-        assertThat(tls.definesKey()).isTrue();
-        assertThat(tls.key()).isNotNull();
+        // Then - all features except static key are present and accessible
+        assertThat(tls.definesKey()).isFalse();
+        assertThat(tls.key()).isNull();
         assertThat(tls.trust()).isNotNull();
         assertThat(tls.cipherSuites()).isNotNull();
         assertThat(tls.protocols()).isNotNull();

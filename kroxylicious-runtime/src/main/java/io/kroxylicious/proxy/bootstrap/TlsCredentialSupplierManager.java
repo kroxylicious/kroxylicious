@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.bootstrap;
 
-import java.io.InputStream;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
@@ -36,12 +35,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * </p>
  * <ol>
  *     <li>{@link ServerTlsCredentialSupplierFactory#initialize} - validate config, create shared resources</li>
- *     <li>{@link ServerTlsCredentialSupplierFactory#create} - create supplier instances (may be called multiple times)</li>
+ *     <li>{@link ServerTlsCredentialSupplierFactory#create} - create supplier instances (called once per connection)</li>
  *     <li>{@link ServerTlsCredentialSupplierFactory#close} - release resources</li>
  * </ol>
  *
- * <p>One factory instance is created per target cluster during proxy startup.
- * The factory lifecycle is managed correctly (initialize → create → close), and
+ * <p>One manager instance is created per virtual cluster during proxy startup and stored
+ * in the {@link io.kroxylicious.proxy.model.VirtualClusterModel}. The factory is initialized
+ * once at cluster creation time, and supplier instances are created on-demand for each connection.
+ * The manager follows the per-cluster lifecycle and is closed when the virtual cluster is shut down.
  * {@link PluginConfigurationException} is thrown for invalid plugin configurations at startup.</p>
  */
 public class TlsCredentialSupplierManager implements AutoCloseable {
@@ -147,7 +148,8 @@ public class TlsCredentialSupplierManager implements AutoCloseable {
 
                 @Override
                 @NonNull
-                public CompletionStage<TlsCredentials> tlsCredentials(@NonNull InputStream certificateChainPem, @NonNull InputStream privateKeyPem) {
+                public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem,
+                                                                      @edu.umd.cs.findbugs.annotations.Nullable char[] password) {
                     throw new IllegalStateException("tlsCredentials() not available at factory initialization time");
                 }
             };

@@ -383,7 +383,7 @@ class ConfigParserTest {
                         bootstrapAddress: cluster1:9192
                 """);
         // When
-        var actualValidClusters = configurationModel.virtualClusterModel();
+        var actualValidClusters = configurationModel.virtualClusterModel(null);
 
         // Then
         assertThat(actualValidClusters).singleElement().extracting("clusterName").isEqualTo("myAwesomeCluster");
@@ -404,7 +404,7 @@ class ConfigParserTest {
                         bootstrapAddress: cluster1:9192
                 """);
         // When/Then
-        assertThatThrownBy(configuration::virtualClusterModel).isInstanceOf(IllegalConfigurationException.class)
+        assertThatThrownBy(() -> configuration.virtualClusterModel(null)).isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageStartingWith("Virtual cluster 'mycluster1', gateway 'default': 'tls' object is missing the mandatory attribute 'key'.");
         // We can't assert the full message as the link will change with every release
     }
@@ -808,7 +808,7 @@ class ConfigParserTest {
                                 advertisedBrokerAddressPattern: cluster1-broker-$(nodeId).example:9192
                 """.formatted(keyStore, TlsTestConstants.STOREPASS.getProvidedPassword(), bootstrapAddress));
         // When
-        var models = configurationModel.virtualClusterModel();
+        var models = configurationModel.virtualClusterModel(null);
 
         // Then
         assertThat(models)
@@ -833,7 +833,7 @@ class ConfigParserTest {
                                 bootstrapAddress: "%s"
                 """.formatted(bootstrapAddress));
         // When
-        var models = configurationModel.virtualClusterModel();
+        var models = configurationModel.virtualClusterModel(null);
 
         // Then
         assertThat(models)
