@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.bootstrap;
 
-import java.io.InputStream;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -178,7 +177,7 @@ class TlsCredentialSupplierManagerTest {
 
             @Override
             @NonNull
-            public CompletionStage<TlsCredentials> tlsCredentials(@NonNull InputStream certificateChainPem, @NonNull InputStream privateKeyPem) {
+            public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
                 return CompletableFuture.completedFuture(mock(TlsCredentials.class));
             }
         };
