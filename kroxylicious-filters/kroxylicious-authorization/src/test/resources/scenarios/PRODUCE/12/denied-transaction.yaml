@@ -35,17 +35,4 @@ when:
           - index: 134
             records: !!binary "AAAAAAAAAAEAAABAAAAAAQJiprm8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEAAAABAAAAARwAAAAGS0VZClZBTFVFAA==" # records containing a transactional batch
 then:
-  expectedResponseHeader:
-    correlationId: 1
-  expectedResponse:
-    responses:
-      - name: "my-topic"
-        partitionResponses:
-          - index: 134
-            errorCode: 53
-            baseOffset: -1
-            logAppendTimeMs: -1
-            logStartOffset: -1
-            recordErrors: [ ]
-            errorMessage: null
-    throttleTimeMs: 0
+  expectedErrorResponse: "TRANSACTIONAL_ID_AUTHORIZATION_FAILED"

@@ -12,10 +12,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.requests.ProduceRequest;
-import org.apache.kafka.common.requests.RequestUtils;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
@@ -41,13 +38,12 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
                                                    ProduceRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        ProduceRequest produceRequest = new ProduceRequest(request, header.requestApiVersion());
         boolean requiresResponse = request.acks() != 0;
-        boolean hasTransactionalRecords = RequestUtils.hasTransactionalRecords(produceRequest);
+        boolean hasTransactionalRecords = RequestDataUtils.hasTransactionalRecords(request);
         String transactionalId = request.transactionalId();
         // fail fast if records flagged as transactional but request has no transactionalId
         if (hasTransactionalRecords && transactionalId == null) {
-            return transactionalIdErrorResponse(context, produceRequest, requiresResponse);
+            return transactionalIdErrorResponse(context, header, request, requiresResponse);
         }
         else {
             var topicWriteActions = request.topicData().stream()
@@ -55,7 +51,7 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
             var transactionalIdActions = hasTransactionalRecords ? Stream.of(new Action(TransactionalIdResource.WRITE, transactionalId)) : Stream.<Action> empty();
             return authorizationFilter.authorization(context, Stream.concat(topicWriteActions, transactionalIdActions).toList()).thenCompose(authorization -> {
                 if (hasTransactionalRecords && authorization.denied(TransactionalIdResource.WRITE).contains(transactionalId)) {
-                    return transactionalIdErrorResponse(context, produceRequest, requiresResponse);
+                    return transactionalIdErrorResponse(context, header, request, requiresResponse);
                 }
                 return authorizeTopics(header, request, context, authorizationFilter, authorization, requiresResponse);
             });
@@ -111,10 +107,10 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
         return context.forwardRequest(header, request);
     }
 
-    private static CompletionStage<RequestFilterResult> transactionalIdErrorResponse(FilterContext context, ProduceRequest produceRequest, boolean requiresResponse) {
+    private static CompletionStage<RequestFilterResult> transactionalIdErrorResponse(FilterContext context, RequestHeaderData header, ProduceRequestData produceRequest,
+                                                                                     boolean requiresResponse) {
         if (requiresResponse) {
-            ApiMessage response = produceRequest.getErrorResponse(TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception()).data();
-            return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
+            return context.requestFilterResultBuilder().errorResponse(header, produceRequest, TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception()).completed();
         }
         else {
             return context.requestFilterResultBuilder().drop().completed();
