@@ -505,18 +505,26 @@ public class ResourcesUtil {
      *
      * @param <T> custom resource type
      */
+    @SuppressWarnings("java:S3776")
     public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkTrustAnchorRef(T resource,
                                                                                               Context<T> context,
                                                                                               String eventSourceName,
                                                                                               TrustAnchorRef trustAnchorRef,
                                                                                               String path,
                                                                                               StatusFactory<T> statusFactory) {
-        if (isConfigMap(trustAnchorRef.getRef())) {
-            Optional<ConfigMap> configMapOpt = context.getSecondaryResource(ConfigMap.class, eventSourceName);
-            if (configMapOpt.isEmpty()) {
-                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                        Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced configmap not found"), List.of());
+        if (isConfigMap(trustAnchorRef.getRef())
+                || (trustAnchorRef.getRef().getKind() != null && isSecret(trustAnchorRef.getRef()))) {
+
+            boolean isSecret = trustAnchorRef.getRef().getKind() != null && isSecret(trustAnchorRef.getRef());
+
+            Class<? extends HasMetadata> resourceClass = isSecret ? Secret.class : ConfigMap.class;
+            Optional<? extends HasMetadata> resourceOpt = context.getSecondaryResource(resourceClass, eventSourceName);
+
+            if (resourceOpt.isEmpty()) {
+                String typeName = isSecret ? "secret" : "configmap";
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(
+                        resource, ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
+                        path + ": referenced " + typeName + " not found"), List.of());
             }
             else {
                 String key = trustAnchorRef.getKey();
@@ -531,7 +539,12 @@ public class ResourcesUtil {
                             path + ".key should end with .pem, .p12 or .jks"), List.of());
                 }
                 else {
-                    return handleSupportedFileExtension(resource, trustAnchorRef, path, statusFactory, configMapOpt.get());
+                    if (!isSecret) {
+                        return handleSupportedFileExtensionConfigMap(resource, trustAnchorRef, path, statusFactory, (ConfigMap) resourceOpt.get());
+                    }
+                    else {
+                        return handleSupportedFileExtensionSecret(resource, trustAnchorRef, path, statusFactory, (Secret) resourceOpt.get());
+                    }
                 }
             }
         }
@@ -588,8 +601,10 @@ public class ResourcesUtil {
                 .findFirst());
     }
 
-    private static <T extends CustomResource<?, ?>> @NonNull ResourceCheckResult<T> handleSupportedFileExtension(T resource, TrustAnchorRef trustAnchorRef, String path,
-                                                                                                                 StatusFactory<T> statusFactory, ConfigMap configMap) {
+    private static <T extends CustomResource<?, ?>> @NonNull ResourceCheckResult<T> handleSupportedFileExtensionConfigMap(T resource, TrustAnchorRef trustAnchorRef,
+                                                                                                                          String path,
+                                                                                                                          StatusFactory<T> statusFactory,
+                                                                                                                          ConfigMap configMap) {
         if (keyIsMissingFromConfigMap(trustAnchorRef, configMap)) {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_INVALID_REFERENCED_RESOURCE,
@@ -597,6 +612,19 @@ public class ResourcesUtil {
         }
         else {
             return new ResourceCheckResult<>(null, List.of(configMap));
+        }
+    }
+
+    private static <T extends CustomResource<?, ?>> @NonNull ResourceCheckResult<T> handleSupportedFileExtensionSecret(T resource, TrustAnchorRef trustAnchorRef,
+                                                                                                                       String path,
+                                                                                                                       StatusFactory<T> statusFactory, Secret secret) {
+        if (keyIsMissingFromSecret(trustAnchorRef, secret)) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                    path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
+        }
+        else {
+            return new ResourceCheckResult<>(null, List.of(secret));
         }
     }
 
@@ -655,6 +683,10 @@ public class ResourcesUtil {
 
     private static boolean keyIsMissingFromConfigMap(TrustAnchorRef trustAnchorRef, ConfigMap configMap) {
         return !configMap.getData().containsKey(trustAnchorRef.getKey());
+    }
+
+    private static boolean keyIsMissingFromSecret(TrustAnchorRef trustAnchorRef, Secret secret) {
+        return !secret.getData().containsKey(trustAnchorRef.getKey());
     }
 
     private static boolean isSupportedFileType(String key) {
