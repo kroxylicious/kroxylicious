@@ -31,6 +31,7 @@ import io.kroxylicious.proxy.internal.ConfigurationChangeHandler;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -179,16 +180,7 @@ public class ConfigurationReloadOrchestrator {
         FilterChainFactory oldFactory = filterChainFactoryRef.get();
 
         // 3. Build change context with both old and new factories
-        List<VirtualClusterModel> oldModels = currentConfiguration.virtualClusterModel(pluginFactoryRegistry);
-        List<VirtualClusterModel> newModels = newConfig.virtualClusterModel(pluginFactoryRegistry);
-
-        ConfigurationChangeContext changeContext = new ConfigurationChangeContext(
-                currentConfiguration,
-                newConfig,
-                oldModels,
-                newModels,
-                oldFactory,    // oldFilterChainFactory for detectors to reference
-                newFactory);   // newFilterChainFactory for detectors to reference
+        ConfigurationChangeContext changeContext = getConfigurationChangeContext(newConfig, oldFactory, newFactory);
 
         // 4. Execute configuration changes (virtual cluster restarts, etc.)
         return configurationChangeHandler.handleConfigurationChange(changeContext)
@@ -235,6 +227,20 @@ public class ConfigurationReloadOrchestrator {
                     }
                     throw new CompletionException("Configuration reload failed: " + errorMessage, error);
                 });
+    }
+
+    @NonNull
+    private ConfigurationChangeContext getConfigurationChangeContext(Configuration newConfig, FilterChainFactory oldFactory, FilterChainFactory newFactory) {
+        List<VirtualClusterModel> oldModels = currentConfiguration.virtualClusterModel();
+        List<VirtualClusterModel> newModels = newConfig.virtualClusterModel();
+
+        return new ConfigurationChangeContext(
+                currentConfiguration,
+                newConfig,
+                oldModels,
+                newModels,
+                oldFactory,
+                newFactory);
     }
 
     /**

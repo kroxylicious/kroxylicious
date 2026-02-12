@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
@@ -83,8 +84,6 @@ public class KafkaProxyFrontendHandler
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
-    public static final int DEFAULT_IDLE_TIME_SECONDS = 31;
-    public static final long DEFAULT_IDLE_SECONDS = 31L;
     private static final Long NO_TIMEOUT = null;
     private static final String AUTH_IDLE_HANDLER_NAME = "authenticatedSessionIdleHandler";
 
@@ -98,7 +97,7 @@ public class KafkaProxyFrontendHandler
     private final @Nullable ConnectionDrainManager connectionDrainManager;
     private final TransportSubjectBuilder subjectBuilder;
     private final PluginFactoryRegistry pfr;
-    private final FilterChainFactory filterChainFactory;
+    private final AtomicReference<FilterChainFactory> filterChainFactoryRef;
     private final List<NamedFilterDefinition> namedFilterDefinitions;
     private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
     private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
@@ -138,7 +137,7 @@ public class KafkaProxyFrontendHandler
     @VisibleForTesting
     KafkaProxyFrontendHandler(
                               PluginFactoryRegistry pfr,
-                              FilterChainFactory filterChainFactory,
+                              AtomicReference<FilterChainFactory> filterChainFactoryRef,
                               List<NamedFilterDefinition> namedFilterDefinitions,
                               EndpointReconciler endpointReconciler,
                               ApiVersionsServiceImpl apiVersionsService,
@@ -146,26 +145,15 @@ public class KafkaProxyFrontendHandler
                               TransportSubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
                               ProxyChannelStateMachine proxyChannelStateMachine,
-                              Optional<NettySettings> proxyNettySettings) {
+                              Optional<NettySettings> proxyNettySettings,
+                              @Nullable ConnectionDrainManager connectionDrainManager) {
         this.endpointBinding = endpointBinding;
         this.pfr = pfr;
-        this.filterChainFactory = filterChainFactory;
+        this.filterChainFactoryRef = filterChainFactoryRef;
         this.namedFilterDefinitions = namedFilterDefinitions;
         this.endpointReconciler = endpointReconciler;
         this.apiVersionsIntersectFilter = new ApiVersionsIntersectFilter(apiVersionsService);
         this.apiVersionsDowngradeFilter = new ApiVersionsDowngradeFilter(apiVersionsService);
-                              ProxyChannelStateMachine proxyChannelStateMachine) {
-        this(netFilter, dp, endpointBinding, proxyChannelStateMachine, null);
-    }
-
-    @VisibleForTesting
-    KafkaProxyFrontendHandler(
-                              NetFilter netFilter,
-                              SaslDecodePredicate dp,
-                              EndpointBinding endpointBinding,
-                              ProxyChannelStateMachine proxyChannelStateMachine,
-                              @Nullable ConnectionDrainManager connectionDrainManager) {
-        this.netFilter = netFilter;
         this.dp = dp;
         this.subjectBuilder = Objects.requireNonNull(subjectBuilder);
         this.virtualClusterModel = endpointBinding.endpointGateway().virtualCluster();
@@ -361,8 +349,11 @@ public class KafkaProxyFrontendHandler
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
 
         NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
-        List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
-        filterAndInvokers.addAll(filterChain);
+
+        FilterChainFactory currentFactory = filterChainFactoryRef.get();
+        List<FilterAndInvoker> filterChain = currentFactory.createFilters(filterContext, this.namedFilterDefinitions);;
+
+            filterAndInvokers.addAll(filterChain);
 
         if (endpointBinding.restrictUpstreamToMetadataDiscovery()) {
             filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));

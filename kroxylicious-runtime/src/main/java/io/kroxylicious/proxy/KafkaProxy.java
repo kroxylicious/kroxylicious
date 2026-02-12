@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy;
 
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -277,14 +276,13 @@ public final class KafkaProxy implements AutoCloseable {
 
             // Pass atomic reference (not factory directly) to initializers for dynamic factory swaps
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
+
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
-                    new KafkaProxyInitializer(filterChainFactoryRef, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(),
-                            apiVersionsService, connectionTracker, connectionDrainManager, inFlightTracker));
+                    new KafkaProxyInitializer(filterChainFactoryRef, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings,
+                            connectionTracker, connectionDrainManager, inFlightTracker));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
-                    new KafkaProxyInitializer(filterChainFactoryRef, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(),
-                            apiVersionsService, connectionTracker, connectionDrainManager, inFlightTracker));
+                    new KafkaProxyInitializer(filterChainFactoryRef, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings,
+                            connectionTracker, connectionDrainManager, inFlightTracker));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -351,7 +349,6 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     @SuppressWarnings("resource") // suppressing resource as ExecutorService is not closeable in Java 17 (our runtime target)
-    private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {
     private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig,
                                                                  MeterRegistries meterRegistries,
                                                                  @Nullable ConfigurationReloadOrchestrator reloadOrchestrator) {

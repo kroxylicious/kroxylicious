@@ -112,10 +112,8 @@ class KafkaProxyInitializerTest {
         virtualClusterModel = buildVirtualCluster(false, false);
         pfr = new ServiceBasedPluginFactoryRegistry();
         bindingStage = CompletableFuture.completedStage(endpointBinding);
-        filterChainFactory = new FilterChainFactory(pfr, List.of());
-        proxyNettySettings = null; // use defaults
-        bindingStage = CompletableFuture.completedStage(vcb);
         filterChainFactoryRef = new AtomicReference<>(new FilterChainFactory(pfr, List.of()));
+        proxyNettySettings = null; // use defaults
         final InetSocketAddress localhost = new InetSocketAddress(0);
         ChannelId channelId = DefaultChannelId.newInstance();
         when(channel.id()).thenReturn(channelId);
@@ -280,53 +278,6 @@ class KafkaProxyInitializerTest {
         Mockito.verifyNoMoreInteractions(channelPipeline);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = { true, false })
-    void shouldAddAuthnHandlersOnBindingComplete(boolean tls) {
-        // Given
-        virtualClusterModel = buildVirtualCluster(false, false);
-        when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
-        final AuthenticateCallbackHandler plainHandler = mock(AuthenticateCallbackHandler.class);
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of(KafkaAuthnHandler.SaslMechanism.PLAIN, plainHandler));
-
-        // When
-        kafkaProxyInitializer.addHandlers(channel, vcb);
-
-        // Then
-        final InOrder orderedVerifier = inOrder(channelPipeline);
-        verifyErrorHandlerRemoved(orderedVerifier);
-        verifyEncoderAndOrdererAdded(orderedVerifier);
-        orderedVerifier.verify(channelPipeline).addLast(any(KafkaAuthnHandler.class));
-        verifyFrontendHandlerAdded(orderedVerifier);
-        verifyErrorHandlerAdded(orderedVerifier);
-        Mockito.verifyNoMoreInteractions(channelPipeline);
-    }
-
-    @Test
-    void shouldCreateFilters() {
-        // Given
-        final FilterChainFactory fcf = mock(FilterChainFactory.class);
-        final AtomicReference<FilterChainFactory> fcfRef = new AtomicReference<>(fcf);
-        when(vcb.upstreamTarget()).thenReturn(new HostPort("upstream.broker.kafka", 9090));
-        ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
-        final KafkaProxyInitializer.InitalizerNetFilter initalizerNetFilter = new KafkaProxyInitializer.InitalizerNetFilter(mock(SaslDecodePredicate.class),
-                channel,
-                vcb,
-                pfr,
-                fcfRef,
-                List.of(),
-                (virtualCluster1, upstreamNodes) -> null,
-                new ApiVersionsIntersectFilter(apiVersionsService),
-                new ApiVersionsDowngradeFilter(apiVersionsService));
-        final NetFilter.NetFilterContext netFilterContext = mock(NetFilter.NetFilterContext.class);
-
-        // When
-        initalizerNetFilter.selectServer(netFilterContext);
-
-        // Then
-        verify(fcf).createFilters(any(FilterFactoryContext.class), any(List.class));
-    }
-
     @Test
     void shouldInitialiseTlsChannel() {
         // Given
@@ -390,9 +341,6 @@ class KafkaProxyInitializerTest {
     @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
-        return new KafkaProxyInitializer(filterChainFactory,
-                                                              EndpointBindingResolver bindingResolver,
-                                                              Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
         return new KafkaProxyInitializer(filterChainFactoryRef,
                 pfr,
                 tls,
@@ -400,9 +348,10 @@ class KafkaProxyInitializerTest {
                 (virtualCluster, upstreamNodes) -> null,
                 false,
                 new ApiVersionsServiceImpl(),
-                Optional.ofNullable(proxyNettySettings));
-                authnMechanismHandlers,
-                new ApiVersionsServiceImpl(), null, null, null);
+                Optional.ofNullable(proxyNettySettings),
+                null,
+                null,
+                null);
     }
 
     private void assertErrorHandlerAdded() {

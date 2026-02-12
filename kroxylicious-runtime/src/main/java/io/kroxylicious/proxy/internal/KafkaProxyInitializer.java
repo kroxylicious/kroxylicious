@@ -9,9 +9,6 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -76,7 +73,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final InFlightMessageTracker inFlightTracker;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
     public KafkaProxyInitializer(AtomicReference<FilterChainFactory> filterChainFactoryRef,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
@@ -84,9 +80,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
                                  ApiVersionsServiceImpl apiVersionsService,
-                                 Optional<NettySettings> proxyNettySettings) {
-                                 Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
-                                 ApiVersionsServiceImpl apiVersionsService,
+                                 Optional<NettySettings> proxyNettySettings,
                                  ConnectionTracker connectionTracker,
                                  ConnectionDrainManager connectionDrainManager,
                                  InFlightMessageTracker inFlightTracker) {
@@ -212,7 +206,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
 
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId());
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId(), connectionTracker, inFlightTracker);
 
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {
@@ -248,11 +242,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 dp,
                 virtualCluster.subjectBuilder(pfr),
                 binding,
-                proxyChannelStateMachine, proxyNettySettings);
-                new ApiVersionsIntersectFilter(apiVersionsService),
-                new ApiVersionsDowngradeFilter(apiVersionsService));
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId(), connectionTracker, inFlightTracker);
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding, proxyChannelStateMachine, connectionDrainManager);
+                proxyChannelStateMachine, proxyNettySettings,
+                connectionDrainManager);
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);
@@ -285,62 +276,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private void addIdleHandlerToPipeline(ChannelPipeline pipeline) {
         if (Objects.nonNull(unauthenticatedIdleMillis)) {
             pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(0, 0, unauthenticatedIdleMillis, TimeUnit.MILLISECONDS));
-    @VisibleForTesting
-    static class InitalizerNetFilter implements NetFilter {
-
-        private final SaslDecodePredicate decodePredicate;
-        private final Channel ch;
-        private final EndpointGateway gateway;
-        private final EndpointBinding binding;
-        private final PluginFactoryRegistry pfr;
-        // Shared mutable reference to FilterChainFactory - gets current factory on each connection
-        private final AtomicReference<FilterChainFactory> filterChainFactoryRef;
-        private final List<NamedFilterDefinition> filterDefinitions;
-        private final EndpointReconciler endpointReconciler;
-        private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
-        private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
-
-        InitalizerNetFilter(SaslDecodePredicate decodePredicate,
-                            Channel ch,
-                            EndpointBinding binding,
-                            PluginFactoryRegistry pfr,
-                            AtomicReference<FilterChainFactory> filterChainFactoryRef,
-                            List<NamedFilterDefinition> filterDefinitions,
-                            EndpointReconciler endpointReconciler,
-                            ApiVersionsIntersectFilter apiVersionsIntersectFilter,
-                            ApiVersionsDowngradeFilter apiVersionsDowngradeFilter) {
-            this.decodePredicate = decodePredicate;
-            this.ch = ch;
-            this.gateway = binding.endpointGateway();
-            this.binding = binding;
-            this.pfr = pfr;
-            this.filterChainFactoryRef = filterChainFactoryRef;
-            this.filterDefinitions = filterDefinitions;
-            this.endpointReconciler = endpointReconciler;
-            this.apiVersionsIntersectFilter = apiVersionsIntersectFilter;
-            this.apiVersionsDowngradeFilter = apiVersionsDowngradeFilter;
         }
     }
 
-        @Override
-        public void selectServer(NetFilter.NetFilterContext context) {
-            List<FilterAndInvoker> apiVersionFilters = decodePredicate.isAuthenticationOffloadEnabled() ? List.of()
-                    : FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
-
-            NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
-
-            // Get current FilterChainFactory (may have been swapped during hot reload)
-            FilterChainFactory currentFactory = filterChainFactoryRef.get();
-            List<FilterAndInvoker> filterChain = currentFactory.createFilters(filterContext, filterDefinitions);
-
-            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)", new BrokerAddressFilter(gateway, endpointReconciler));
-            var filters = new ArrayList<>(apiVersionFilters);
-            filters.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
-            filters.addAll(filterChain);
-            if (binding.restrictUpstreamToMetadataDiscovery()) {
-                filters.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
-            }
-            filters.addAll(brokerAddressFilters);
 
     @Nullable
     @CheckReturnValue
