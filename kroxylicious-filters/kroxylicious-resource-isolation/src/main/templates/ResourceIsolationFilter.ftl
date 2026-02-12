@@ -39,7 +39,6 @@ ${pad}    ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(m
 ${pad}}
         </#items>
     </#list>
-${pad}
     <#list fields?filter(field -> field.type.isArray && field.fields?size != 0) >
 ${pad}// recursively process sub-fields
         <#items as field>
@@ -242,74 +241,127 @@ class ResourceIsolationFilter implements RequestFilter, ResponseFilter {
         return versions.contains(apiVersions);
     }
 
+    private void onFindCoordinatorRequest(RequestHeaderData header,
+                                          FindCoordinatorRequestData findCoordinatorRequestData,
+                                          FilterContext filterContext,
+                                          MapperContext mapperContext) {
+        log(filterContext, "request", ApiKeys.FIND_COORDINATOR, findCoordinatorRequestData);
+        if (resourceTypes.contains(ResourceIsolation.ResourceType.GROUP_ID) && findCoordinatorRequestData.keyType() == 0) {
+
+            if (inVersion(header.requestApiVersion(), VersionRange.of((short) 0, (short) 3))) {
+                findCoordinatorRequestData.setKey(map(mapperContext, ResourceIsolation.ResourceType.GROUP_ID, findCoordinatorRequestData.key()));
+            }
+            else {
+                findCoordinatorRequestData.setCoordinatorKeys(findCoordinatorRequestData.coordinatorKeys().stream().map(k -> map(mapperContext, ResourceIsolation.ResourceType.GROUP_ID, k)).toList());
+            }
+        }
+        log(filterContext, "request result", ApiKeys.FIND_COORDINATOR, findCoordinatorRequestData);
+    }
+
+<#list messageSpecs?filter(ms -> ms.type == 'REQUEST' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
+    <#items as messageSpec>
+        <#assign key=retrieveApiKey(messageSpec)
+        dataClass="${messageSpec.dataClassName}"
+        namePad=""?left_pad(messageSpec.name?length) />
+    private void on${messageSpec.name}(RequestHeaderData header,
+                    ${namePad}${dataClass} request,
+                    ${namePad}FilterContext filterContext,
+                    ${namePad}MapperContext mapperContext) {
+        log(filterContext, "${messageSpec.type?c_lower_case}", ApiKeys.${key}, request);
+    <@mapRequestFields messageSpec=messageSpec dataVar="request" constStem=key fields=messageSpec.fields indent=2/>
+        log(filterContext, "${messageSpec.type?c_lower_case} result", ApiKeys.${key}, request);
+    }
+    </#items>
+</#list>
+
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
                                                           short apiVersion,
                                                           RequestHeaderData header,
                                                           ApiMessage request,
-                                                          FilterContext context) {
-        var mapperContext = buildMapperContext(context);
+                                                          FilterContext filterContext) {
+        var mapperContext = buildMapperContext(filterContext);
         switch (apiKey) {
-            case FIND_COORDINATOR -> {
-                FindCoordinatorRequestData findCoordinatorRequestData = (FindCoordinatorRequestData) request;
-                log(context, "request", ApiKeys.FIND_COORDINATOR, findCoordinatorRequestData);
-                if (resourceTypes.contains(ResourceIsolation.ResourceType.GROUP_ID) && findCoordinatorRequestData.keyType() == 0) {
-                    if (inVersion(header.requestApiVersion(), VersionRange.of( (short) 0, (short) 3))) {
-                        findCoordinatorRequestData.setKey(map(mapperContext, ResourceIsolation.ResourceType.GROUP_ID, findCoordinatorRequestData.key()));
-                    }
-                    else {
-                        findCoordinatorRequestData.setCoordinatorKeys(findCoordinatorRequestData.coordinatorKeys().stream().map(k -> map(mapperContext, ResourceIsolation.ResourceType.GROUP_ID, k)).toList());
-                    }
-                }
-                log(context, "request result", ApiKeys.FIND_COORDINATOR, findCoordinatorRequestData);
-            }
+            case FIND_COORDINATOR -> onFindCoordinatorRequest(header,
+                        (FindCoordinatorRequestData) request,
+                        filterContext,
+                        mapperContext);
 <#list messageSpecs?filter(ms -> ms.type == 'REQUEST' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
     <#items as messageSpec>
         <#assign key=retrieveApiKey(messageSpec)
-                 dataClass="${messageSpec.dataClassName}"
-                 dataVar="${messageSpec.dataClassName?uncap_first}"/>
-            case ${key} -> {
-                var ${dataVar} = (${dataClass}) request;
-                log(context, "${messageSpec.type?c_lower_case}", ApiKeys.${key}, ${dataVar});
-                <@mapRequestFields messageSpec dataVar key messageSpec.fields 4/>
-                log(context, "${messageSpec.type?c_lower_case} result", ApiKeys.${key}, ${dataVar});
-            }
+        dataClass="${messageSpec.dataClassName}" />
+            case ${key} -> on${messageSpec.name}(header,
+                        (${dataClass}) request,
+                        filterContext,
+                        mapperContext);
     </#items>
 </#list>
         }
-        return context.forwardRequest(header, request);
+        return filterContext.forwardRequest(header, request);
     }
+
+    private void onFindCoordinatorResponse(short apiVersion,
+                                           ResponseHeaderData header,
+                                           FindCoordinatorResponseData response,
+                                           FilterContext context,
+                                           MapperContext mapperContext) {
+        log(context, "response", ApiKeys.FIND_COORDINATOR, response);
+        response.coordinators().forEach(
+                coordinator -> coordinator.setKey(unmap(mapperContext, ResourceIsolation.ResourceType.GROUP_ID, coordinator.key())));
+        log(context, "response result", ApiKeys.FIND_COORDINATOR, response);
+    }
+
+<#list messageSpecs?filter(ms -> ms.type == 'RESPONSE' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
+    <#items as messageSpec>
+        <#assign key=retrieveApiKey(messageSpec)
+        dataClass="${messageSpec.dataClassName}"
+        namePad=""?left_pad(messageSpec.name?length) />
+    private void on${messageSpec.name}(short apiVersion,
+                    ${namePad}ResponseHeaderData header,
+                    ${namePad}${messageSpec.dataClassName} response,
+                    ${namePad}FilterContext filterContext,
+                    ${namePad}MapperContext mapperContext) {
+        log(filterContext, "${messageSpec.type?c_lower_case}", ApiKeys.${key}, response);
+        <@mapAndFilterResponseFields messageSpec=messageSpec
+                                     collectionIterator=""
+                                     dataVar="response"
+                                     dataClass=dataClass
+                                     constStem=key
+                                     fields=messageSpec.fields
+                                     indent=2/>
+        log(filterContext, "${messageSpec.type?c_lower_case} result", ApiKeys.${key}, response);
+    }
+
+    </#items>
+</#list>
 
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
                                                             short apiVersion,
                                                             ResponseHeaderData header,
                                                             ApiMessage response,
-                                                            FilterContext context) {
-        var mapperContext = buildMapperContext(context);
+                                                            FilterContext filterContext) {
+        var mapperContext = buildMapperContext(filterContext);
         switch (apiKey) {
-            case FIND_COORDINATOR -> {
-                FindCoordinatorResponseData findCoordinatorResponseData = (FindCoordinatorResponseData) response;
-                log(context, "response", ApiKeys.FIND_COORDINATOR, findCoordinatorResponseData);
-                findCoordinatorResponseData.coordinators().forEach(
-                        coordinator -> coordinator.setKey(unmap(mapperContext, ResourceIsolation.ResourceType.GROUP_ID, coordinator.key())));
-                log(context, "response result", ApiKeys.FIND_COORDINATOR, findCoordinatorResponseData);
-            }
+            case FIND_COORDINATOR -> onFindCoordinatorResponse(apiVersion,
+                        header,
+                        (FindCoordinatorResponseData) response,
+                        filterContext,
+                        mapperContext);
 <#list messageSpecs?filter(ms -> ms.type == 'RESPONSE' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
     <#items as messageSpec>
         <#assign key=retrieveApiKey(messageSpec)
                  dataClass="${messageSpec.dataClassName}"
-                 dataVar="${messageSpec.dataClassName?uncap_first}"/>
-            case ${key} -> {
-                var ${dataVar} = (${dataClass}) response;
-                log(context, "${messageSpec.type?c_lower_case}", ApiKeys.${key}, ${dataVar});
-                <@mapAndFilterResponseFields messageSpec "" dataVar dataClass key messageSpec.fields 4/>
-                log(context, "${messageSpec.type?c_lower_case} result", ApiKeys.${key}, ${dataVar});
-            }
+                 dataVar="${messageSpec.dataClassName?uncap_first}" />
+            case ${key} -> on${messageSpec.name}(apiVersion,
+                 header,
+                 (${dataClass}) response,
+                 filterContext,
+                 mapperContext);
     </#items>
 </#list>
         }
-        return context.forwardResponse(header, response);
+        return filterContext.forwardResponse(header, response);
     }
 
     private boolean shouldMap(ResourceIsolation.ResourceType entityType) {
