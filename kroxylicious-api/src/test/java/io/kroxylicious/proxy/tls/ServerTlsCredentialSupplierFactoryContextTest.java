@@ -6,10 +6,10 @@
 
 package io.kroxylicious.proxy.tls;
 
-import java.nio.charset.StandardCharsets;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,11 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
-/**
- * Unit tests for ServerTlsCredentialSupplierFactoryContext interface contracts.
- * These tests verify that implementations correctly provide plugin composition,
- * runtime resources, and TLS credential factory methods.
- */
 class ServerTlsCredentialSupplierFactoryContextTest {
 
     private ServerTlsCredentialSupplierFactoryContext context;
@@ -70,25 +65,20 @@ class ServerTlsCredentialSupplierFactoryContextTest {
 
             @Override
             @NonNull
-            public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
-                return CompletableFuture.completedFuture(mockCredentials);
+            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+                return mockCredentials;
             }
         };
     }
 
     @Test
     void testPluginInstanceReturnsValidPlugin() {
-        // When
         TestPlugin plugin = context.pluginInstance(TestPlugin.class, "TestImpl");
-
-        // Then
-        assertThat(plugin).isNotNull();
-        assertThat(plugin).isInstanceOf(TestPluginImpl.class);
+        assertThat(plugin).isNotNull().isInstanceOf(TestPluginImpl.class);
     }
 
     @Test
     void testPluginInstanceThrowsForUnknownImplementation() {
-        // When/Then
         assertThatThrownBy(() -> context.pluginInstance(TestPlugin.class, "UnknownImpl"))
                 .isInstanceOf(UnknownPluginInstanceException.class);
     }
@@ -97,18 +87,13 @@ class ServerTlsCredentialSupplierFactoryContextTest {
     void testPluginInstanceThrowsForUnknownPluginClass() {
         interface UnknownPlugin {
         }
-
-        // When/Then
         assertThatThrownBy(() -> context.pluginInstance(UnknownPlugin.class, "SomeImpl"))
                 .isInstanceOf(UnknownPluginInstanceException.class);
     }
 
     @Test
     void testPluginImplementationNamesReturnsKnownImplementations() {
-        // When
         Set<String> names = context.pluginImplementationNames(TestPlugin.class);
-
-        // Then
         assertThat(names).containsExactlyInAnyOrder("TestImpl", "AnotherImpl");
     }
 
@@ -116,45 +101,27 @@ class ServerTlsCredentialSupplierFactoryContextTest {
     void testPluginImplementationNamesReturnsEmptyForUnknownPluginClass() {
         interface UnknownPlugin {
         }
-
-        // When
-        Set<String> names = context.pluginImplementationNames(UnknownPlugin.class);
-
-        // Then
-        assertThat(names).isEmpty();
+        assertThat(context.pluginImplementationNames(UnknownPlugin.class)).isEmpty();
     }
 
     @Test
     void testFilterDispatchExecutorReturnsValidExecutor() {
-        // When
-        FilterDispatchExecutor executor = context.filterDispatchExecutor();
-
-        // Then
-        assertThat(executor).isNotNull();
-        assertThat(executor).isSameAs(mockExecutor);
+        assertThat(context.filterDispatchExecutor()).isSameAs(mockExecutor);
     }
 
     @Test
-    void testTlsCredentialsFactoryMethodAcceptsValidInput() throws Exception {
-        // Given
-        byte[] certBytes = "cert-data".getBytes(StandardCharsets.UTF_8);
-        byte[] keyBytes = "key-data".getBytes(StandardCharsets.UTF_8);
+    void testTlsCredentialsFactoryMethodAcceptsValidInput() {
+        PrivateKey mockKey = mock(PrivateKey.class);
+        Certificate[] mockChain = new Certificate[]{ mock(X509Certificate.class) };
 
-        // When
-        CompletionStage<TlsCredentials> result = context.tlsCredentials(certBytes, keyBytes);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.toCompletableFuture().join()).isSameAs(mockCredentials);
+        TlsCredentials result = context.tlsCredentials(mockKey, mockChain);
+        assertThat(result).isSameAs(mockCredentials);
     }
 
     @Test
     void testContextSupportsMultiplePluginRequests() {
-        // When - request same plugin multiple times
         TestPlugin plugin1 = context.pluginInstance(TestPlugin.class, "TestImpl");
         TestPlugin plugin2 = context.pluginInstance(TestPlugin.class, "TestImpl");
-
-        // Then - should return new instances each time
         assertThat(plugin1).isNotNull();
         assertThat(plugin2).isNotNull();
         assertThat(plugin1).isNotSameAs(plugin2);
@@ -162,8 +129,6 @@ class ServerTlsCredentialSupplierFactoryContextTest {
 
     @Test
     void testFilterDispatchExecutorNotAvailableAtInitializationTime() {
-        // This test verifies the contract that filterDispatchExecutor should throw
-        // IllegalStateException when called during initialization (tested in manager tests)
         ServerTlsCredentialSupplierFactoryContext initContext = new ServerTlsCredentialSupplierFactoryContext() {
             @Override
             public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
@@ -183,12 +148,11 @@ class ServerTlsCredentialSupplierFactoryContextTest {
 
             @Override
             @NonNull
-            public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
-                return CompletableFuture.completedFuture(mock(TlsCredentials.class));
+            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+                return mock(TlsCredentials.class);
             }
         };
 
-        // When/Then
         assertThatThrownBy(initContext::filterDispatchExecutor)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("not available at factory initialization time");
@@ -196,10 +160,7 @@ class ServerTlsCredentialSupplierFactoryContextTest {
 
     @Test
     void testPluginImplementationNamesIsReadOnly() {
-        // When
         Set<String> names = context.pluginImplementationNames(TestPlugin.class);
-
-        // Then - attempting to modify should throw (assuming implementation returns unmodifiable set)
         assertThatThrownBy(() -> names.add("NewImpl"))
                 .isInstanceOf(UnsupportedOperationException.class);
     }

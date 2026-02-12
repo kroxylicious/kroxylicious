@@ -6,7 +6,9 @@
 
 package io.kroxylicious.proxy.tls;
 
-import java.nio.charset.StandardCharsets;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -27,17 +29,13 @@ import static org.mockito.Mockito.mock;
 
 /**
  * Tests for mock implementations of ServerTlsCredentialSupplier and related interfaces.
- * These mocks can be used by plugin authors for testing their implementations.
  */
 class MockServerTlsCredentialSupplierImplementationsTest {
 
-    // Simple mock configuration
     record SimpleConfig(String value) {}
 
-    // Mock factory with configuration
     @Plugin(configType = SimpleConfig.class)
     public static class MockSupplierFactory implements ServerTlsCredentialSupplierFactory<SimpleConfig, SimpleConfig> {
-
         @Override
         public SimpleConfig initialize(ServerTlsCredentialSupplierFactoryContext context, SimpleConfig config)
                 throws PluginConfigurationException {
@@ -50,10 +48,8 @@ class MockServerTlsCredentialSupplierImplementationsTest {
         }
     }
 
-    // Mock factory without configuration
     @Plugin(configType = Void.class)
     public static class NoConfigMockFactory implements ServerTlsCredentialSupplierFactory<Void, Void> {
-
         @Override
         public Void initialize(ServerTlsCredentialSupplierFactoryContext context, Void config) {
             return null;
@@ -65,20 +61,17 @@ class MockServerTlsCredentialSupplierImplementationsTest {
         }
     }
 
-    // Mock factory with shared resources
     record SharedResourceConfig(String resourceName) {}
 
     record SharedContext(SharedResourceConfig config, String sharedResource) {}
 
     @Plugin(configType = SharedResourceConfig.class)
     public static class SharedResourceMockFactory implements ServerTlsCredentialSupplierFactory<SharedResourceConfig, SharedContext> {
-
         @Override
         public SharedContext initialize(ServerTlsCredentialSupplierFactoryContext context, SharedResourceConfig config)
                 throws PluginConfigurationException {
             SharedResourceConfig validated = Plugins.requireConfig(this, config);
-            String resource = "SharedResource-" + validated.resourceName();
-            return new SharedContext(validated, resource);
+            return new SharedContext(validated, "SharedResource-" + validated.resourceName());
         }
 
         @Override
@@ -88,12 +81,9 @@ class MockServerTlsCredentialSupplierImplementationsTest {
 
         @Override
         public void close(SharedContext initializationData) {
-            // Clean up shared resource
-            // In real implementation, would close connections, etc.
         }
     }
 
-    // Mock supplier implementation
     static class MockSupplier implements ServerTlsCredentialSupplier {
         private final String identifier;
 
@@ -103,9 +93,7 @@ class MockServerTlsCredentialSupplierImplementationsTest {
 
         @Override
         public CompletionStage<TlsCredentials> tlsCredentials(ServerTlsCredentialSupplierContext context) {
-            // Mock implementation returns mock credentials
-            TlsCredentials mockCredentials = mock(TlsCredentials.class);
-            return CompletableFuture.completedFuture(mockCredentials);
+            return CompletableFuture.completedFuture(mock(TlsCredentials.class));
         }
 
         String getIdentifier() {
@@ -113,7 +101,6 @@ class MockServerTlsCredentialSupplierImplementationsTest {
         }
     }
 
-    // Mock supplier that uses client context
     public static class ClientContextAwareSupplier implements ServerTlsCredentialSupplier {
         private final TlsCredentials defaultCredentials;
 
@@ -125,32 +112,28 @@ class MockServerTlsCredentialSupplierImplementationsTest {
         public CompletionStage<TlsCredentials> tlsCredentials(ServerTlsCredentialSupplierContext context) {
             Optional<ClientTlsContext> clientContext = context.clientTlsContext();
             if (clientContext.isPresent() && clientContext.get().clientCertificate().isPresent()) {
-                // Use client certificate info to select credentials
                 return CompletableFuture.completedFuture(mock(TlsCredentials.class));
             }
-            // Fall back to default credentials
             return CompletableFuture.completedFuture(defaultCredentials);
         }
     }
 
-    // Mock supplier that uses factory context to create credentials
     public static class FactoryBasedSupplier implements ServerTlsCredentialSupplier {
-        private final ServerTlsCredentialSupplierContext factoryContext;
+        private final PrivateKey key;
+        private final Certificate[] chain;
 
-        FactoryBasedSupplier(ServerTlsCredentialSupplierContext factoryContext) {
-            this.factoryContext = factoryContext;
+        FactoryBasedSupplier(PrivateKey key, Certificate[] chain) {
+            this.key = key;
+            this.chain = chain;
         }
 
         @Override
         public CompletionStage<TlsCredentials> tlsCredentials(ServerTlsCredentialSupplierContext context) {
-            // Use factory context to create credentials from PEM data
-            byte[] cert = "cert-data".getBytes(StandardCharsets.UTF_8);
-            byte[] key = "key-data".getBytes(StandardCharsets.UTF_8);
-            return context.tlsCredentials(cert, key);
+            TlsCredentials creds = context.tlsCredentials(key, chain);
+            return CompletableFuture.completedFuture(creds);
         }
     }
 
-    // Mock factory context for testing
     public static class MockFactoryContext implements ServerTlsCredentialSupplierFactoryContext {
         @Override
         public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
@@ -170,23 +153,20 @@ class MockServerTlsCredentialSupplierImplementationsTest {
 
         @Override
         @NonNull
-        public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
-            return CompletableFuture.completedFuture(mock(TlsCredentials.class));
+        public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+            return mock(TlsCredentials.class);
         }
     }
 
-    // Mock supplier context for testing
     public static class MockSupplierContext implements ServerTlsCredentialSupplierContext {
         private final Optional<ClientTlsContext> clientContext;
-        private final TlsCredentials defaultCredentials;
 
         MockSupplierContext() {
-            this(Optional.empty(), mock(TlsCredentials.class));
+            this(Optional.empty());
         }
 
-        MockSupplierContext(Optional<ClientTlsContext> clientContext, TlsCredentials defaultCredentials) {
+        MockSupplierContext(Optional<ClientTlsContext> clientContext) {
             this.clientContext = clientContext;
-            this.defaultCredentials = defaultCredentials;
         }
 
         @Override
@@ -197,195 +177,125 @@ class MockServerTlsCredentialSupplierImplementationsTest {
 
         @Override
         @NonNull
-        public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
-            return CompletableFuture.completedFuture(mock(TlsCredentials.class));
+        public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+            return mock(TlsCredentials.class);
         }
     }
 
     // Tests
 
     @Test
-    void testMockSupplierFactoryLifecycle() throws Exception {
-        // Given
+    void testMockSupplierFactoryLifecycle() {
         MockSupplierFactory factory = new MockSupplierFactory();
         MockFactoryContext context = new MockFactoryContext();
         SimpleConfig config = new SimpleConfig("test-value");
 
-        // When - initialize
         SimpleConfig initData = factory.initialize(context, config);
-
-        // Then
         assertThat(initData).isNotNull();
         assertThat(initData.value()).isEqualTo("test-value");
 
-        // When - create
         ServerTlsCredentialSupplier supplier = factory.create(context, initData);
-
-        // Then
-        assertThat(supplier).isNotNull();
-        assertThat(supplier).isInstanceOf(MockSupplier.class);
+        assertThat(supplier).isNotNull().isInstanceOf(MockSupplier.class);
         assertThat(((MockSupplier) supplier).getIdentifier()).isEqualTo("test-value");
     }
 
     @Test
-    void testNoConfigMockFactory() throws Exception {
-        // Given
+    void testNoConfigMockFactory() {
         NoConfigMockFactory factory = new NoConfigMockFactory();
         MockFactoryContext context = new MockFactoryContext();
 
-        // When - initialize with null config
         Void initData = factory.initialize(context, null);
-
-        // Then
         assertThat(initData).isNull();
 
-        // When - create
         ServerTlsCredentialSupplier supplier = factory.create(context, initData);
-
-        // Then
-        assertThat(supplier).isNotNull();
-        assertThat(supplier).isInstanceOf(MockSupplier.class);
+        assertThat(supplier).isNotNull().isInstanceOf(MockSupplier.class);
     }
 
     @Test
-    void testSharedResourceMockFactory() throws Exception {
-        // Given
+    void testSharedResourceMockFactory() {
         SharedResourceMockFactory factory = new SharedResourceMockFactory();
         MockFactoryContext context = new MockFactoryContext();
         SharedResourceConfig config = new SharedResourceConfig("resource-1");
 
-        // When - initialize
         SharedContext initData = factory.initialize(context, config);
-
-        // Then - shared resource is created
         assertThat(initData).isNotNull();
         assertThat(initData.sharedResource()).isEqualTo("SharedResource-resource-1");
 
-        // When - create multiple suppliers
         ServerTlsCredentialSupplier supplier1 = factory.create(context, initData);
         ServerTlsCredentialSupplier supplier2 = factory.create(context, initData);
-
-        // Then - both use the same shared resource
-        assertThat(supplier1).isInstanceOf(MockSupplier.class);
-        assertThat(supplier2).isInstanceOf(MockSupplier.class);
         assertThat(((MockSupplier) supplier1).getIdentifier()).isEqualTo("SharedResource-resource-1");
         assertThat(((MockSupplier) supplier2).getIdentifier()).isEqualTo("SharedResource-resource-1");
 
-        // When - close
         factory.close(initData);
-        // Then - no exception (cleanup successful)
     }
 
     @Test
     void testMockSupplier() throws Exception {
-        // Given
         MockSupplier supplier = new MockSupplier("test-supplier");
         MockSupplierContext context = new MockSupplierContext();
 
-        // When
         CompletionStage<TlsCredentials> result = supplier.tlsCredentials(context);
-
-        // Then
-        assertThat(result).isNotNull();
         assertThat(result.toCompletableFuture().get()).isNotNull();
     }
 
     @Test
     void testClientContextAwareSupplier() throws Exception {
-        // Given - supplier and context without client certificate
         TlsCredentials mockDefaultCredentials = mock(TlsCredentials.class);
         ClientContextAwareSupplier supplier = new ClientContextAwareSupplier(mockDefaultCredentials);
         MockSupplierContext contextWithoutClient = new MockSupplierContext();
 
-        // When
         CompletionStage<TlsCredentials> result1 = supplier.tlsCredentials(contextWithoutClient);
-
-        // Then - falls back to default credentials
-        assertThat(result1).isNotNull();
         assertThat(result1.toCompletableFuture().get()).isSameAs(mockDefaultCredentials);
 
-        // Given - context with client certificate
         ClientTlsContext mockClientContext = mock(ClientTlsContext.class);
-        MockSupplierContext contextWithClient = new MockSupplierContext(
-                Optional.of(mockClientContext),
-                mock(TlsCredentials.class));
+        MockSupplierContext contextWithClient = new MockSupplierContext(Optional.of(mockClientContext));
 
-        // When
         CompletionStage<TlsCredentials> result2 = supplier.tlsCredentials(contextWithClient);
-
-        // Then - uses client-specific credentials
-        assertThat(result2).isNotNull();
         assertThat(result2.toCompletableFuture().get()).isNotNull();
     }
 
     @Test
     void testFactoryBasedSupplier() throws Exception {
-        // Given
+        PrivateKey mockKey = mock(PrivateKey.class);
+        Certificate[] mockChain = new Certificate[]{ mock(X509Certificate.class) };
         MockSupplierContext context = new MockSupplierContext();
-        FactoryBasedSupplier supplier = new FactoryBasedSupplier(context);
+        FactoryBasedSupplier supplier = new FactoryBasedSupplier(mockKey, mockChain);
 
-        // When
         CompletionStage<TlsCredentials> result = supplier.tlsCredentials(context);
-
-        // Then
-        assertThat(result).isNotNull();
         assertThat(result.toCompletableFuture().get()).isNotNull();
     }
 
     @Test
     void testMockFactoryContextPluginComposition() {
-        // Given
         MockFactoryContext context = new MockFactoryContext();
-
-        // When/Then - plugin instance returns null (not implemented)
         assertThat(context.pluginInstance(Object.class, "SomePlugin")).isNull();
-
-        // When/Then - implementation names returns empty set
         assertThat(context.pluginImplementationNames(Object.class)).isEmpty();
     }
 
     @Test
     void testMockSupplierContextWithClientContext() {
-        // Given
         ClientTlsContext mockClientContext = mock(ClientTlsContext.class);
-        MockSupplierContext context = new MockSupplierContext(
-                Optional.of(mockClientContext),
-                mock(TlsCredentials.class));
-
-        // When
-        Optional<ClientTlsContext> result = context.clientTlsContext();
-
-        // Then
-        assertThat(result).isPresent();
-        assertThat(result.get()).isSameAs(mockClientContext);
+        MockSupplierContext context = new MockSupplierContext(Optional.of(mockClientContext));
+        assertThat(context.clientTlsContext()).isPresent();
+        assertThat(context.clientTlsContext().get()).isSameAs(mockClientContext);
     }
 
     @Test
     void testMockSupplierContextWithoutClientContext() {
-        // Given
         MockSupplierContext context = new MockSupplierContext();
-
-        // When
-        Optional<ClientTlsContext> result = context.clientTlsContext();
-
-        // Then
-        assertThat(result).isEmpty();
+        assertThat(context.clientTlsContext()).isEmpty();
     }
 
     @Test
     void testMockSupplierFactoryRequiresConfig() {
-        // Given
         MockSupplierFactory factory = new MockSupplierFactory();
         MockFactoryContext context = new MockFactoryContext();
-
-        // When/Then - null config should throw
         assertThatThrownBy(() -> factory.initialize(context, null))
                 .isInstanceOf(PluginConfigurationException.class);
     }
 
     @Test
-    void testMockFactoryWithDefaultCloseMethod() throws Exception {
-        // Given - factory that doesn't override close()
+    void testMockFactoryWithDefaultCloseMethod() {
         @Plugin(configType = SimpleConfig.class)
         class DefaultCloseFactory implements ServerTlsCredentialSupplierFactory<SimpleConfig, SimpleConfig> {
             @Override
@@ -397,13 +307,10 @@ class MockServerTlsCredentialSupplierImplementationsTest {
             public ServerTlsCredentialSupplier create(ServerTlsCredentialSupplierFactoryContext context, SimpleConfig initializationData) {
                 return new MockSupplier(initializationData.value());
             }
-            // close() not overridden - uses default no-op implementation
         }
 
         DefaultCloseFactory factory = new DefaultCloseFactory();
         SimpleConfig config = new SimpleConfig("test");
-
-        // When/Then - close should not throw
         factory.close(config);
     }
 }

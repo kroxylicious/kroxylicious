@@ -7,16 +7,11 @@
 package io.kroxylicious.proxy.internal.tls;
 
 import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierContext;
@@ -29,8 +24,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Runtime implementation of ServerTlsCredentialSupplierContext.
  */
 public class ServerTlsCredentialSupplierContextImpl implements ServerTlsCredentialSupplierContext {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(ServerTlsCredentialSupplierContextImpl.class);
 
     private final Optional<ClientTlsContext> clientTlsContext;
 
@@ -46,48 +39,24 @@ public class ServerTlsCredentialSupplierContextImpl implements ServerTlsCredenti
 
     @NonNull
     @Override
-    public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem,
-                                                          @edu.umd.cs.findbugs.annotations.Nullable char[] password) {
-        Objects.requireNonNull(certificateChainPem, "certificateChainPem must not be null");
-        Objects.requireNonNull(privateKeyPem, "privateKeyPem must not be null");
-
-        try {
-            // Parse the private key and certificate chain from PEM data
-            PrivateKey privateKey = TlsUtil.parsePrivateKey(privateKeyPem, password);
-            X509Certificate[] certChain = TlsUtil.parseCertificateChain(certificateChainPem);
-
-            // Perform comprehensive certificate validation
-            // This validates:
-            // - Certificate chain structure and order
-            // - Private key corresponds to the certificate
-            // - Certificate validity dates
-            // - Chain integrity (signatures)
-            // - No root CA included (per API contract)
-            TlsUtil.validateCertificateChain(privateKey, certChain);
-
-            // Additional validation through Netty to ensure the credentials work with the TLS layer
-            try {
-                SslContextBuilder builder = SslContextBuilder.forClient()
-                        .keyManager(privateKey, certChain);
-                builder.build();
-            }
-            catch (Exception e) {
-                throw new IllegalStateException(
-                        "Credentials validation failed at Netty TLS layer: " + e.getMessage() +
-                                ". The certificate chain or private key may be incompatible with the TLS implementation.",
-                        e);
-            }
-
-            return CompletableFuture.completedFuture(new TlsCredentialsImpl(privateKey, certChain));
+    public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+        Objects.requireNonNull(key, "key must not be null");
+        Objects.requireNonNull(certificateChain, "certificateChain must not be null");
+        if (certificateChain.length == 0) {
+            throw new IllegalArgumentException("certificateChain must not be empty");
         }
-        catch (IllegalArgumentException | IllegalStateException e) {
-            // Re-throw validation exceptions with original message
-            LOGGER.error("TLS credentials validation failed: {}", e.getMessage());
-            return CompletableFuture.failedFuture(e);
-        }
-        catch (Exception e) {
-            LOGGER.error("Failed to create TLS credentials from PEM data", e);
-            return CompletableFuture.failedFuture(new IllegalStateException("Failed to parse or validate TLS credentials: " + e.getMessage(), e));
-        }
+
+        X509Certificate[] x509Chain = Arrays.stream(certificateChain)
+                .map(cert -> {
+                    if (!(cert instanceof X509Certificate)) {
+                        throw new IllegalArgumentException("All certificates in chain must be X509Certificate instances");
+                    }
+                    return (X509Certificate) cert;
+                })
+                .toArray(X509Certificate[]::new);
+
+        TlsUtil.validateCertificateChain(key, x509Chain);
+
+        return new TlsCredentialsImpl(key, x509Chain);
     }
 }
