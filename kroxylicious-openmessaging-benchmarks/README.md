@@ -8,6 +8,48 @@ This project provides Helm charts and automation scripts for benchmarking Kroxyl
 
 **Key Insight:** Kroxylicious is a transparent Kafka proxy. We simply change `bootstrap.servers` to point to Kroxylicious instead of Kafka directly.
 
+## OMB Container Image
+
+The published `openmessaging/openmessaging-benchmark:latest` image ships Kafka client 1.0.0 on Java 8 and is no longer suitable for benchmarking modern Kafka.
+We build our own image from the current upstream source (Kafka 3.6.1, JDK 17) using the `Containerfile` in this directory.
+
+### Image tag convention
+
+Image tags follow the format `omb-<omb-sha7>-krox-<krox-sha7>-<build>`, for example `omb-8559989-krox-a1b2c3d-42`.
+This encodes the upstream OMB commit, the Kroxylicious commit used for build configuration, and a monotonically increasing build number.
+The Helm chart's `omb.image` in `values.yaml` references a specific tag — never a floating tag like `latest` — so builds are always reproducible.
+
+### Building locally
+
+```bash
+podman build -f Containerfile -t kroxylicious-omb:test .
+```
+
+To build from a different upstream OMB commit:
+
+```bash
+podman build -f Containerfile \
+  --build-arg OMB_COMMIT=<commit-sha> \
+  -t kroxylicious-omb:test .
+```
+
+### CI workflow
+
+The GitHub Actions workflow at `/.github/workflows/build-omb-image.yml` (in the repository root) builds and pushes images on demand via `workflow_dispatch`.
+It accepts two inputs:
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| `omb_ref` | Yes | Upstream OMB commit SHA, branch, or tag to build from |
+| `kroxylicious_ref` | No (default: `main`) | Kroxylicious ref (branch, tag, or SHA) for build config |
+
+The workflow resolves the OMB ref to a full SHA, computes the image tag, builds the image, and pushes it to the registry configured via repository variables (`REGISTRY_SERVER`, `REGISTRY_ORGANISATION`, `REGISTRY_USERNAME`, `REGISTRY_TOKEN`).
+When registry variables are not configured (e.g. on forks), the image is built but not pushed.
+
+### Renovate
+
+A Renovate custom manager in `/.github/renovate.json` (in the repository root) tracks the `omb.image` reference in `values.yaml` and opens PRs when new image builds are pushed to the registry.
+
 ## Current Status: Phase 1 Complete ✅
 
 **Phase 1 (Baseline Scenario)** is implemented and ready for testing:
@@ -33,6 +75,8 @@ OpenMessaging Benchmark (Kafka driver)
 ```
 kroxylicious-openmessaging-benchmarks/
 ├── README.md (this file)
+├── Containerfile
+├── .dockerignore
 ├── helm/
 │   └── kroxylicious-benchmark/
 │       ├── Chart.yaml

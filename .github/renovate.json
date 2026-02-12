@@ -175,6 +175,17 @@
       ],
       "depNameTemplate": "strimzi/strimzi-kafka-operator",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/values.yaml"
+      ],
+      "matchStrings": [
+        "(?<depName>quay\\.io/kroxylicious/kroxylicious-omb):(?<currentValue>omb-[a-f0-9]+-krox-[a-f0-9]+-\\d+)"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "regex:^omb-[a-f0-9]+-krox-[a-f0-9]+-(?<major>\\d+)$"
     }
   ],
   "managerFilePatterns": [
