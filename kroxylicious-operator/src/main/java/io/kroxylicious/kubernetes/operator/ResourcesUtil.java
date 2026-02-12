@@ -512,46 +512,58 @@ public class ResourcesUtil {
                                                                                               TrustAnchorRef trustAnchorRef,
                                                                                               String path,
                                                                                               StatusFactory<T> statusFactory) {
-        if (isConfigMap(trustAnchorRef.getRef())
-                || (trustAnchorRef.getRef().getKind() != null && isSecret(trustAnchorRef.getRef()))) {
-
-            boolean isSecret = trustAnchorRef.getRef().getKind() != null && isSecret(trustAnchorRef.getRef());
-
-            Class<? extends HasMetadata> resourceClass = isSecret ? Secret.class : ConfigMap.class;
-            Optional<? extends HasMetadata> resourceOpt = context.getSecondaryResource(resourceClass, eventSourceName);
-
-            if (resourceOpt.isEmpty()) {
-                String typeName = isSecret ? "secret" : "configmap";
-                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(
-                        resource, ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced " + typeName + " not found"), List.of());
-            }
-            else {
-                String key = trustAnchorRef.getKey();
-                if (key == null) {
-                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                            Condition.REASON_INVALID,
-                            path + " must specify 'key'"), List.of());
-                }
-                if (isSupportedFileType(key)) {
-                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                            Condition.REASON_INVALID,
-                            path + ".key should end with .pem, .p12 or .jks"), List.of());
-                }
-                else {
-                    if (!isSecret) {
-                        return handleSupportedFileExtensionConfigMap(resource, trustAnchorRef, path, statusFactory, (ConfigMap) resourceOpt.get());
-                    }
-                    else {
-                        return handleSupportedFileExtensionSecret(resource, trustAnchorRef, path, statusFactory, (Secret) resourceOpt.get());
-                    }
-                }
-            }
+        if (isConfigMap(trustAnchorRef.getRef())) {
+           var configMapOpt = context.getSecondaryResource(ConfigMap.class, eventSourceName);
+            return doCheckTrustAnchorRef(resource, trustAnchorRef, path, statusFactory, configMapOpt, "configmap", hasMetadata -> ((ConfigMap) hasMetadata).getData());
+        }
+        else if (isSecret(trustAnchorRef.getRef())) {
+            var secretOpt = context.getSecondaryResource(Secret.class, eventSourceName);
+            return doCheckTrustAnchorRef(resource, trustAnchorRef, path, statusFactory, secretOpt, "secret", hasMetadata -> ((Secret) hasMetadata).getData());
         }
         else {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                    path + " supports referents: configmaps"), List.of());
+                    path + " supports referents: configmaps or secrets"), List.of());
+        }
+    }
+
+    @NonNull
+    private static <T extends CustomResource<?, ?>> ResourceCheckResult<T> doCheckTrustAnchorRef(T resource,
+                                                                                                 TrustAnchorRef trustAnchorRef,
+                                                                                                 String path,
+                                                                                                 StatusFactory<T> statusFactory,
+                                                                                                 Optional<? extends HasMetadata> dataBearing,
+                                                                                                 String dataBearingTypeName,
+                                                                                                 Function<HasMetadata, Map<String, String>> dataSupplier) {
+        if (dataBearing.isEmpty()) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REFS_NOT_FOUND,
+                    "%s: referenced %s not found".formatted(path, dataBearingTypeName)), List.of());
+        }
+        else {
+            String key = trustAnchorRef.getKey();
+            if (key == null) {
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                        Condition.REASON_INVALID,
+                        path + " must specify 'key'"), List.of());
+            }
+            if (isSupportedFileType(key)) {
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                        Condition.REASON_INVALID,
+                        path + ".key should end with .pem, .p12 or .jks"), List.of());
+            }
+            else {
+                var dataBearingResource = dataBearing.get();
+                var dataMap = dataSupplier.apply(dataBearingResource);
+                if (!dataMap.containsKey(trustAnchorRef.getKey())) {
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                            Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                            path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
+                }
+                else {
+                    return new ResourceCheckResult<>(null, List.of(dataBearingResource));
+                }
+            }
         }
     }
 
@@ -599,33 +611,6 @@ public class ResourcesUtil {
                 .filter(listenerStatus -> listenerStatus.getName()
                         .equals(service.getSpec().getStrimziKafkaRef().getListenerName()))
                 .findFirst());
-    }
-
-    private static <T extends CustomResource<?, ?>> @NonNull ResourceCheckResult<T> handleSupportedFileExtensionConfigMap(T resource, TrustAnchorRef trustAnchorRef,
-                                                                                                                          String path,
-                                                                                                                          StatusFactory<T> statusFactory,
-                                                                                                                          ConfigMap configMap) {
-        if (keyIsMissingFromConfigMap(trustAnchorRef, configMap)) {
-            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                    path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
-        }
-        else {
-            return new ResourceCheckResult<>(null, List.of(configMap));
-        }
-    }
-
-    private static <T extends CustomResource<?, ?>> @NonNull ResourceCheckResult<T> handleSupportedFileExtensionSecret(T resource, TrustAnchorRef trustAnchorRef,
-                                                                                                                       String path,
-                                                                                                                       StatusFactory<T> statusFactory, Secret secret) {
-        if (keyIsMissingFromSecret(trustAnchorRef, secret)) {
-            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                    path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
-        }
-        else {
-            return new ResourceCheckResult<>(null, List.of(secret));
-        }
     }
 
     private static <T extends CustomResource<?, ?>> ResourceCheckResult<T> handleListener(T resource, StrimziKafkaRef strimziKafkaRef,
@@ -681,12 +666,8 @@ public class ResourcesUtil {
                         .equals(strimziKafkaRef.getListenerName()));
     }
 
-    private static boolean keyIsMissingFromConfigMap(TrustAnchorRef trustAnchorRef, ConfigMap configMap) {
-        return !configMap.getData().containsKey(trustAnchorRef.getKey());
-    }
-
-    private static boolean keyIsMissingFromSecret(TrustAnchorRef trustAnchorRef, Secret secret) {
-        return !secret.getData().containsKey(trustAnchorRef.getKey());
+    private static boolean keyIsMissing(TrustAnchorRef trustAnchorRef, Map<String, String> dataMap) {
+        return !dataMap.containsKey(trustAnchorRef.getKey());
     }
 
     private static boolean isSupportedFileType(String key) {

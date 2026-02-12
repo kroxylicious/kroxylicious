@@ -294,7 +294,7 @@ class KafkaServiceReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                                    "spec.tls.trustAnchorRef supports referents: configmaps")));
+                                    "spec.tls.trustAnchorRef supports referents: configmaps or secrets")));
         }
 
         // no client cert, trust bundle ref missing key
