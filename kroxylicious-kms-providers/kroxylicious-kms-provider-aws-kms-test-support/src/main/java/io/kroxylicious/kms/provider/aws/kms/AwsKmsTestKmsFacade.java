@@ -11,14 +11,14 @@ import java.net.URI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.DockerClientFactory;
-import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private static final Logger LOG = LoggerFactory.getLogger(AwsKmsTestKmsFacade.class);
-    private static final DockerImageName LOCALSTACK_IMAGE = DockerImageName.parse("localstack/localstack:4.10.0");
+    private static final DockerImageName LOCALSTACK_IMAGE = DockerImageName.parse("localstack/localstack:4.13.1");
     private @Nullable LocalStackContainer localStackContainer;
 
     @Override
@@ -48,7 +48,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
                     return super.withFileSystemBind(hostPath, containerPath);
                 }
             }
-        }.withServices(LocalStackContainer.Service.KMS);
+        }.withServices("kms");
 
         localStackContainer.start();
     }
@@ -62,7 +62,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
 
     @Override
     protected URI getAwsUrl() {
-        return localStackContainer.getEndpointOverride(LocalStackContainer.Service.KMS);
+        return localStackContainer.getEndpoint().resolve("kms");
     }
 
     @Override

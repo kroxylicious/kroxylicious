@@ -10,19 +10,28 @@
 [role="_abstract"]
 If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
 
-Here's a complete example of a `filterDefinitions` entry configured for Oauth Bearer validation:
+Here's a complete example of a `filterDefinitions` entry configured for SASL inspection:
 
-.Example `filterDefinitions` configuration
 [source, yaml]
 ----
 filterDefinitions:
   - name: my-sasl-inspection-filter
     type: SaslInspection
     config:
-      enabledMechanisms: [ "OAUTHBEARER" ] # <1>
+      enabledMechanisms: [ "OAUTHBEARER" ]
+      requireAuthentication: true
+      subjectBuilder: <class name>
+      subjectBuilderConfig: <object providing configuration for the subject builder>
 ----
-<1> Restricts the filter to the given SASL mechanism(s).
-Refer to SASL mechanism by its name given in the xref:supported-mechansisms-{context}[supported mechanisms] table.
+where:
+
+* `enabledMechanisms` restricts the filter to the given SASL mechanism(s).
+Refer to SASL mechanism by its name given in the xref:supported-mechanisms-{context}[supported mechanisms] table.
 If omitted, the SASL mechanisms `SCRAM-SHA-256`, `SCRAM-SHA-512` and `OAUTHBEARER` will be enabled by default.
+*  if `requireAuthentication` is true, a successful authentication is required before the filter forwards any requests other than those strictly required to perform SASL authentication.
+If false then the filter will forward all requests regardless of whether SASL authentication has been attempted or was successful. Defaults to false.
+* `subjectBuilder` is the name of a plugin class implementing `io.kroxylicious.proxy.authentication.SaslSubjectBuilderService`.
+If omitted, a default subject builder creates a principal with name matching the SASL authorized ID.
+* `subjectBuilderConfig` provides subject builder configuration.
 
 Refer to the {ProxyGuide} for more information about configuring the proxy.

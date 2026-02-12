@@ -1,0 +1,59 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FIND_COORDINATOR"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FIND_COORDINATOR"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 10
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        key: "random-string-600"
+        keyType: 17
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1003
+        errorCode: 127
+        errorMessage: "random-string-922"
+        nodeId: 681
+        host: "random-string-549"
+        port: 487
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 10
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    key: "random-string-600"
+    keyType: 17
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1003
+    errorCode: 127
+    errorMessage: "random-string-922"
+    nodeId: 681
+    host: "random-string-549"
+    port: 487

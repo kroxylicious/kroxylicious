@@ -1,0 +1,96 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_CONFIGS"
+  apiVersion: 1
+  scenario: "allowed topic is forwarded, denied topic response is added"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_CONFIGS"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 32
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        resources:
+          - resourceType: 2
+            resourceName: "my-topic"
+            configurationKeys:
+              - "random-string-467"
+        includeSynonyms: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 640
+        results:
+          - errorCode: 421
+            errorMessage: "random-string-756"
+            resourceType: 2
+            resourceName: "my-topic"
+            configs:
+              - name: "random-string-275"
+                value: "random-string-904"
+                readOnly: false
+                configSource: 15
+                isSensitive: false
+                synonyms:
+                  - name: "random-string-702"
+                    value: "random-string-952"
+                    source: 0
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE_CONFIGS"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 32
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    resources:
+      - resourceType: 2
+        resourceName: "my-topic"
+        configurationKeys:
+          - "random-string-467"
+      - resourceType: 2
+        resourceName: "my-topic2"
+        configurationKeys:
+          - "random-string-467"
+    includeSynonyms: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 640
+    results:
+      - errorCode: 421
+        errorMessage: "random-string-756"
+        resourceType: 2
+        resourceName: "my-topic"
+        configs:
+          - name: "random-string-275"
+            value: "random-string-904"
+            readOnly: false
+            configSource: 15
+            isSensitive: false
+            synonyms:
+              - name: "random-string-702"
+                value: "random-string-952"
+                source: 0
+      - errorCode: 29
+        errorMessage: "Topic authorization failed."
+        resourceType: 2
+        resourceName: "my-topic2"
+        configs: [ ]

@@ -13,7 +13,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.18.0-SNAPSHOT</version>
+        <version>0.19.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-operator</artifactId>
@@ -21,10 +21,12 @@
     <description>An operator for running the Kroxylicious Proxy on Kubernetes</description>
 
     <properties>
-        <josdk.version>5.1.4</josdk.version>
+        <josdk.version>5.1.5</josdk.version>
         <prometheus-metrics.version>1.4.3</prometheus-metrics.version>
         <io.kroxylicious.operator.image.name>quay.io/kroxylicious/operator:${project.version}</io.kroxylicious.operator.image.name>
         <io.kroxylicious.operator.image.archive>target/kroxylicious-operator.img.tar.gz</io.kroxylicious.operator.image.archive>
+        <sonar.projectName>Kroxylicious Operator</sonar.projectName>
+        <sonar.projectkey>kroxylicious_kroxylicious</sonar.projectkey>
     </properties>
 
     <dependencyManagement>

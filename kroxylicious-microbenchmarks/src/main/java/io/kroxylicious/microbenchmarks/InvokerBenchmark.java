@@ -11,10 +11,10 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.infra.Blackhole;
 
-import io.kroxylicious.filters.EightInterfaceFilter;
-import io.kroxylicious.filters.FourInterfaceFilter;
-import io.kroxylicious.filters.OneInterfaceFilter;
-import io.kroxylicious.filters.TwoInterfaceFilter;
+import io.kroxylicious.microbenchmarks.filters.EightInterfaceFilter;
+import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter;
+import io.kroxylicious.microbenchmarks.filters.OneInterfaceFilter;
+import io.kroxylicious.microbenchmarks.filters.TwoInterfaceFilter;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 

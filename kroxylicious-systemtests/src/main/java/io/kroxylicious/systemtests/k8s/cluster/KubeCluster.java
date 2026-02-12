@@ -9,7 +9,6 @@ package io.kroxylicious.systemtests.k8s.cluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
 import io.kroxylicious.systemtests.k8s.KubeClient;
@@ -20,11 +19,6 @@ import io.kroxylicious.systemtests.k8s.exception.NoClusterException;
  * Abstraction for a Kubernetes cluster, for example {@code oc cluster up} or {@code minikube}.
  */
 public interface KubeCluster {
-
-    /**
-     * The constant CONFIG.
-     */
-    Config CONFIG = Config.autoConfigure(null);
 
     /** Return true iff this kind of cluster installed on the local machine.
      * @return the boolean
@@ -39,7 +33,7 @@ public interface KubeCluster {
     /** Return a default CMD cmdClient for this kind of cluster.
      * @return the kube cmd client
      */
-    KubeCmdClient defaultCmdClient();
+    KubeCmdClient<?> defaultCmdClient();
 
     /**
      * Default client kube client.

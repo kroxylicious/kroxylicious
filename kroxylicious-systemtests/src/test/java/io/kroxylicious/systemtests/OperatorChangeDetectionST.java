@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,14 +42,13 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Protocol;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.InfrastructureBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
@@ -71,9 +69,10 @@ import static org.awaitility.Awaitility.await;
 class OperatorChangeDetectionST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
+    private static final String PREFIX = "optr-cd";
     private static Kroxylicious kroxylicious;
     private static CertManager certManager;
-    private final String kafkaClusterName = "my-cluster";
+    private final String kafkaClusterName = PREFIX + "-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
 
     @Test
@@ -100,7 +99,7 @@ class OperatorChangeDetectionST extends AbstractST {
         // @formatter:off
         KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                 .withNewSpec()
-                .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
+                .withType("io.kroxylicious.filter.simpletransform.ProduceRequestTransformation")
                 .withConfigTemplate(Map.of("findPattern", "foo", "replacementValue", "bar"))
                 .endSpec();
         // @formatter:on
@@ -133,7 +132,7 @@ class OperatorChangeDetectionST extends AbstractST {
     void shouldUpdateDeploymentWhenDownstreamTlsCertUpdated(String namespace) {
         // Given
         var issuer = certManager.issuer(namespace);
-        var cert = certManager.certFor(namespace, "my-cluster-cluster-ip." + namespace + ".svc.cluster.local");
+        var cert = certManager.certFor(namespace, PREFIX + "-cluster-ip." + namespace + ".svc.cluster.local");
 
         resourceManager.createOrUpdateResourceWithWait(issuer, cert);
 
@@ -159,7 +158,7 @@ class OperatorChangeDetectionST extends AbstractST {
     void shouldUpdateDeploymentWhenDownstreamTrustUpdated(String namespace) {
         // Given
         var issuer = certManager.issuer(namespace);
-        var cert = certManager.certFor(namespace, "my-cluster-cluster-ip." + namespace + ".svc.cluster.local");
+        var cert = certManager.certFor(namespace, PREFIX + "-cluster-ip." + namespace + ".svc.cluster.local");
 
         resourceManager.createOrUpdateResourceWithWait(issuer, cert);
 
@@ -184,31 +183,23 @@ class OperatorChangeDetectionST extends AbstractST {
     void shouldUpdateWhenFilterConfigurationChanges(String namespace) {
         // Given
         // @formatter:off
-        KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
+        var arbitraryFilterBuilder = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                 .withNewSpec()
-                    .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
+                    .withType("io.kroxylicious.filter.simpletransform.ProduceRequestTransformation")
                     .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findPattern", "foo", "replacementValue", "bar")))
                 .endSpec();
         // @formatter:on
-        KubeClient kubeClient = kubeClient(namespace);
-        resourceManager.createOrUpdateResourceWithWait(arbitraryFilter);
+        resourceManager.createOrUpdateResourceWithWait(arbitraryFilterBuilder);
         kroxylicious.deployPortIdentifiesNodeWithFilters(kafkaClusterName, List.of("arbitrary-filter"));
 
-        String originalChecksum = getInitialChecksum(namespace);
-
-        // @formatter:off
-        KafkaProtocolFilterBuilder updatedProtocolFilter = kubeClient.getClient().resources(KafkaProtocolFilter.class)
-                .inNamespace(namespace)
-                .withName("arbitrary-filter")
-                .get()
-                .edit()
-                    .editSpec()
-                    .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findPattern", "foo", "replacementValue", "updated")))
-                .endSpec();
-        // @formatter:on
+        var originalChecksum = getInitialChecksum(namespace);
+        var arbitraryFilter = arbitraryFilterBuilder.build();
+        var replacementConfig = Map.of("transformation", "Replacing", "transformationConfig", Map.of("findPattern", "foo", "replacementValue", "updated"));
 
         // When
-        resourceManager.createOrUpdateResourceWithWait(updatedProtocolFilter);
+        resourceManager.replaceResourceWithRetries(arbitraryFilter, current -> {
+            current.getSpec().setConfigTemplate(replacementConfig);
+        });
         LOGGER.info("Kafka proxy filter updated");
 
         // Then
@@ -227,21 +218,20 @@ class OperatorChangeDetectionST extends AbstractST {
         var customResourceRequests = Map.of("cpu", Quantity.parse("599m"), "memory", Quantity.parse("515Mi"));
 
         // @formatter:off
-        KafkaProxyBuilder updatedKafkaProxy = kafkaProxy.edit()
-                .editOrNewSpec()
-                .withNewInfrastructure()
+        var infra = new InfrastructureBuilder()
                 .withNewProxyContainer()
                 .withResources(new ResourceRequirementsBuilder()
-                        .withLimits(customResourceLimits)
-                        .withRequests(customResourceRequests)
-                        .build())
-                .endProxyContainer()
-                .endInfrastructure()
-                .endSpec();
+                    .withLimits(customResourceLimits)
+                    .withRequests(customResourceRequests)
+                    .build())
+            .endProxyContainer()
+            .build();
         // @formatter:on
 
         // When
-        resourceManager.createOrUpdateResourceWithWait(updatedKafkaProxy);
+        resourceManager.replaceResourceWithRetries(kafkaProxy, current -> {
+            current.getSpec().setInfrastructure(infra);
+        });
         LOGGER.info("Kafka proxy updated");
 
         // Then
@@ -275,15 +265,10 @@ class OperatorChangeDetectionST extends AbstractST {
         KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
                 .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
 
-        // @formatter:off
-        KafkaProxyBuilder updatedKafkaProxy = kafkaProxy.edit()
-                .editOrNewSpec()
-                .withReplicas(2)
-                .endSpec();
-        // @formatter:on
-
         // When
-        resourceManager.createOrUpdateResourceWithWait(updatedKafkaProxy);
+        resourceManager.replaceResourceWithRetries(kafkaProxy, current -> {
+            current.getSpec().setReplicas(2);
+        });
         LOGGER.info("Kafka proxy updated");
 
         // Then
@@ -298,7 +283,7 @@ class OperatorChangeDetectionST extends AbstractST {
                         .withData(Map.of("tls.crt", "whatever", "tls.key", "whatever")),
                 KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                         .withNewSpec()
-                        .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
+                        .withType("io.kroxylicious.filter.simpletransform.ProduceRequestTransformation")
                         .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",
                                 Map.of("findPattern", "foo", "pathToReplacementValue", "${secret:kilted-kiwi:tls.key}")))
                         .endSpec());
@@ -353,7 +338,7 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     @BeforeEach
-    void setUp(String namespace) throws IOException {
+    void setUp(String namespace) {
         kroxylicious = new Kroxylicious(namespace);
         certManager = new CertManager();
         certManager.deploy();

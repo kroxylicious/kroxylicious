@@ -1,7 +1,7 @@
 {
   "spec": {
     "containers": [{
-      "name": "%NAME%",
+      "name": "%CONTAINER_NAME%",
       "securityContext": {
         "allowPrivilegeEscalation": false,
         "runAsNonRoot": true,

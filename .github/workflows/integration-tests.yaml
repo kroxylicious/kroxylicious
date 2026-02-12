@@ -25,12 +25,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  integration_test_proxy:
+  discover_integration_test_chunks:
     runs-on: ubuntu-latest
-
+    outputs:
+      test_chunks: ${{ steps.discover.outputs.test_chunks }}
     steps:
       - name: 'Check out repository'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: 'Discover ITs'
+        working-directory: kroxylicious-integration-tests
+        id: discover
+        run: |
+          TESTS_PER_CHUNK=5
+          TEST_CHUNKS="[$(find . -type f -name "*IT.java" -exec basename {} .java \; | xargs -L ${TESTS_PER_CHUNK} | tr ' ' , | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
+          echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
+  run_integration_tests:
+    needs: discover_integration_test_chunks
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tests: ${{ fromJson(needs.discover_integration_test_chunks.outputs.test_chunks) }}
+    steps:
+      - name: Log tests to run
+        run: echo "Running tests on classes '${{ matrix.tests }}'"
+      - name: 'Check out repository'
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: 'Set up Java'
@@ -39,7 +61,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: 'Cache Maven packages'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
@@ -58,7 +80,53 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
         working-directory: kroxylicious-integration-tests
-        run: mvn -B verify -DskipUTs
+        run: mvn -B verify -DskipUTs -Dit.test="${{ matrix.tests }}"
+  integration_test_proxy:
+    runs-on: ubuntu-latest
+    needs: run_integration_tests
+    if: always()
+    permissions:
+      actions: read
+    steps:
+    - name: 'Check all matrix builds'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        FAILED_JSON=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
+          --jq '.jobs[] | select(.conclusion=="failure") | {name: .name, url: .html_url}')
+        if [ -z "$FAILED_JSON" ]; then
+          echo "All jobs passed!" >> $GITHUB_STEP_SUMMARY
+          echo "No failures detected."
+          exit 0
+        fi
+        echo "Failed Matrix Jobs" >> $GITHUB_STEP_SUMMARY
+        echo "The following instances failed:"
+        echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> $GITHUB_STEP_SUMMARY
+        echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
+        exit 1
+  integration_test_filter_archetype:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: 'Set up Java'
+        uses: actions/setup-java@v5
+        with:
+          java-version: 21
+          distribution: 'temurin'
+      - name: 'Cache Maven packages'
+        uses: actions/cache@v5
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: 'Build Kroxylicious archetype'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mvn -B install -DskipTests -Dmaven.javadoc.skip=true -DskipDocs=true -Dcheckstyle.skip=true -Dspotbugs.skip=true -Djapicmp.skip=true -pl :kroxylicious-bom,:kroxylicious-filter-archetype -am
       - name: 'run filter archetype integration tests'
         working-directory: kroxylicious-filter-archetype
         run: mvn -B verify

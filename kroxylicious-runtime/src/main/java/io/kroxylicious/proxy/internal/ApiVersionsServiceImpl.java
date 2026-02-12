@@ -95,18 +95,14 @@ public class ApiVersionsServiceImpl {
         short mutualMin = (short) Math.max(
                 key.minVersion(),
                 apiKey.messageType.lowestSupportedVersion());
-        if (mutualMin != key.minVersion()) {
-            if (ApiKeys.PRODUCE.equals(apiKey)) {
-                // Kafka 4 removed support for ProduceRequest v0-v2 however there is an issue with libRDKafka versions <= v2.11.0 that meant this broke compression support
-                // https://issues.apache.org/jira/browse/KAFKA-18659 marks v0-v2 as supported versions however the broker will reject all uses of these old requests.
-                // The proxy needs to replicate this special case handling so we can proxy older libRDKafka based clients (just about anything that isn't Java)
-                LOGGER.trace("{}: {} min version unchanged (is: {}) to support KAFKA-18659", sessionId, apiKey, mutualMin);
-                key.setMinVersion(apiKey.messageType.lowestDeprecatedVersion());
-            }
-            else {
-                LOGGER.trace("{}: {} min version changed to {} (was: {})", sessionId, apiKey, mutualMin, key.maxVersion());
-                key.setMinVersion(mutualMin);
-            }
+        if (ApiKeys.PRODUCE.equals(apiKey)
+                && key.minVersion() <= apiKey.messageType.lowestSupportedVersion()) {
+            LOGGER.trace("{}: {} min version downgraded to v0 (is: {}) to support KAFKA-18659", sessionId, apiKey, key.minVersion());
+            key.setMinVersion(apiKey.messageType.lowestDeprecatedVersion());
+        }
+        else if (mutualMin != key.minVersion()) {
+            LOGGER.trace("{}: {} min version changed to {} (was: {})", sessionId, apiKey, mutualMin, key.maxVersion());
+            key.setMinVersion(mutualMin);
         }
         else {
             LOGGER.trace("{}: {} min version unchanged (is: {})", sessionId, apiKey, mutualMin);

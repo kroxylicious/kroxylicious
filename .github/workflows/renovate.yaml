@@ -40,7 +40,7 @@ jobs:
       - name: "Set actor from Kroxylicious secret"
         if: env.KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET == 'true'
         run: |
-          WHOAMI=$(curl --fail --silent -L \
+          WHOAMI=$(curl --fail --silent --proto "=https" --location \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${EFFECTIVE_TOKEN}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -54,11 +54,11 @@ jobs:
         run: |
           echo "RENOVATE_GIT_AUTHOR=${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>" >> $GITHUB_ENV
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
       - name: Renovate
-        uses: renovatebot/github-action@c5fdc9f98fdf9e9bb16b5760f7e560256eb79326
+        uses: renovatebot/github-action@3c68caaa9db5ff24332596591dc7c4fed8de16ce
         with:
           configurationFile: .github/renovate.json
           token: ${{ env.EFFECTIVE_TOKEN }}

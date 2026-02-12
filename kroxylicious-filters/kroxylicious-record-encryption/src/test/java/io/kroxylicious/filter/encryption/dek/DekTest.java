@@ -13,7 +13,6 @@ import java.security.NoSuchAlgorithmException;
 import javax.crypto.AEADBadTagException;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
-import javax.security.auth.DestroyFailedException;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -89,7 +88,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroyUnusedDek(CipherManager cipherManager) throws DestroyFailedException {
+    void destroyUnusedDek(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 100);
@@ -102,13 +101,13 @@ class DekTest {
 
         dek.destroy(); // This should be safe
 
-        assertThatThrownBy(() -> dek.decryptor()).isExactlyInstanceOf(DestroyedDekException.class);
+        assertThatThrownBy(dek::decryptor).isExactlyInstanceOf(DestroyedDekException.class);
         assertThatThrownBy(() -> dek.encryptor(1)).isExactlyInstanceOf(DestroyedDekException.class);
     }
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy1Encryptor_destroyThenClose(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy1Encryptor_destroyThenClose(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 100);
@@ -129,7 +128,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy1Encryptor_closeThenDestroy(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy1Encryptor_closeThenDestroy(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 100);
@@ -149,7 +148,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy2Encryptor(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy2Encryptor(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 101);
@@ -181,7 +180,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy2EncryptorMultiClose(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy2EncryptorMultiClose(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 100);
@@ -209,7 +208,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy1Decryptor_destroyThenClose(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy1Decryptor_destroyThenClose(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 0);
@@ -230,7 +229,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy1Decryptor_closeThenDestroy(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy1Decryptor_closeThenDestroy(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 0);
@@ -249,7 +248,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy2Decryptor(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy2Decryptor(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 1);
@@ -282,7 +281,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy2DecryptorMultiClose(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy2DecryptorMultiClose(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 0);
@@ -310,7 +309,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy1Encryptor1Decryptor_destroy(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy1Encryptor1Decryptor_destroy(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 100);
@@ -337,7 +336,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy1Encryptor1Decryptor_destroyForEncrypt(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy1Encryptor1Decryptor_destroyForEncrypt(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 100);
@@ -368,7 +367,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroy1Encryptor1Decryptor_destroyForDecrypt(CipherManager cipherManager) throws DestroyFailedException {
+    void destroy1Encryptor1Decryptor_destroyForDecrypt(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 100);
@@ -399,7 +398,7 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void destroyWhen0InitialEncryptions(CipherManager cipherManager) throws DestroyFailedException {
+    void destroyWhen0InitialEncryptions(CipherManager cipherManager) {
         // Given
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 0);
@@ -515,14 +514,9 @@ class DekTest {
                 .isZero();
 
         // Shouldn't be able to use the Encryptor again
-        assertThatThrownBy(() -> encryptor.generateParameters(size -> ByteBuffer.allocate(size)))
+        assertThatThrownBy(() -> encryptor.generateParameters(ByteBuffer::allocate))
                 .isExactlyInstanceOf(DekUsageException.class)
                 .hasMessage("The Encryptor has no more operations allowed");
-        // assertThatThrownBy(() -> encryptor.encrypt(plaintextBuffer,
-        // null,
-        // size -> ByteBuffer.allocate(size)))
-        // .isExactlyInstanceOf(DekUsageException.class)
-        // .hasMessage("The Encryptor has no more operations allowed");
         assertThat(plaintextBuffer.position())
                 .describedAs("Position should be unchanged")
                 .isZero();

@@ -144,7 +144,8 @@ public class BlockExtractor implements AutoCloseable {
 
     private static String deHtmlEntities(String content) {
         return content.replace("&lt;", "<")
-                .replace("&gt;", ">");
+                .replace("&gt;", ">")
+                .replace("&amp;", "&");
     }
 
     /**

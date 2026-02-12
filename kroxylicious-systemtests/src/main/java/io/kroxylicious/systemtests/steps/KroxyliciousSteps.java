@@ -8,13 +8,19 @@ package io.kroxylicious.systemtests.steps;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.kafka.common.record.CompressionType;
 
+import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
+import io.kroxylicious.systemtests.executor.ExecResult;
+import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
  * The type Kroxylicious steps.
@@ -25,6 +31,29 @@ public class KroxyliciousSteps {
     }
 
     /**
+     * Gets additional SASL props.
+     *
+     * @param namespace the namespace
+     * @param user the user
+     * @param password the password
+     * @return  the additional SASL props
+     */
+    public static Map<String, String> getAdditionalSaslProps(String namespace, String user, String password) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).getAdditionalSaslProps(user, password);
+    }
+
+    /**
+     * Gets consumer log.
+     *
+     * @param namespace the namespace
+     * @return  the consumer log
+     */
+    public static String getConsumerLog(String namespace) {
+        String podName = KafkaUtils.getPodNameByPrefix(namespace, Constants.KAFKA_CONSUMER_CLIENT_LABEL, Duration.ofSeconds(30));
+        return kubeClient().logsInSpecificNamespace(namespace, podName);
+    }
+
+    /**
      * Produce messages.
      *
      * @param namespace the namespace
@@ -32,9 +61,10 @@ public class KroxyliciousSteps {
      * @param bootstrap the bootstrap
      * @param message the message
      * @param numberOfMessages the number of messages
+     * @return  the exec result
      */
-    public static void produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages) {
-        KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, numberOfMessages);
+    public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, numberOfMessages);
     }
 
     /**
@@ -46,10 +76,40 @@ public class KroxyliciousSteps {
      * @param message the message
      * @param compressionType the compression type
      * @param numberOfMessages the number of messages
+     * @return  the exec result
      */
-    public static void produceMessages(String namespace, String topicName, String bootstrap, String message, @NonNull CompressionType compressionType,
-                                       int numberOfMessages) {
-        KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, compressionType, numberOfMessages);
+    public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, @NonNull CompressionType compressionType,
+                                             int numberOfMessages) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, compressionType, numberOfMessages);
+    }
+
+    /**
+     * Produce messages.
+     *
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param numberOfMessages the number of messages
+     * @param additionalConfig the additional config
+     * @return  the exec result
+     */
+    public static ExecResult produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages,
+                                             Map<String, String> additionalConfig) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, null, numberOfMessages, additionalConfig);
+    }
+
+    /**
+     * Produce messages without wait.
+     *
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param numberOfMessages the number of messages
+     */
+    public static void produceMessagesWithoutWait(String namespace, String topicName, String bootstrap, String message, int numberOfMessages) {
+        KafkaClients.getKafkaClient().inNamespace(namespace).produceMessagesWithoutWait(topicName, bootstrap, message, null, numberOfMessages);
     }
 
     /**
@@ -60,10 +120,26 @@ public class KroxyliciousSteps {
      * @param bootstrap the bootstrap
      * @param numberOfMessages the number of messages
      * @param timeout the timeout
-     * @return the list of ConsumerRecords
+     * @return  the list of ConsumerRecords
      */
     public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
-        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout);
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, Map.of());
+    }
+
+    /**
+     * Consume messages.
+     *
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numberOfMessages the number of messages
+     * @param timeout the timeout
+     * @param additionalConfig the additional config
+     * @return  the list of ConsumerRecords
+     */
+    public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout,
+                                                       Map<String, String> additionalConfig) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig);
     }
 
     /**
@@ -75,7 +151,7 @@ public class KroxyliciousSteps {
      * @param kafkaNamespace the namespace in which the broker is operating
      * @param numberOfMessages the number of messages
      * @param timeout maximum time to wait for the expectedMessage to appear
-     * @return the list of consumer records
+     * @return  the list of consumer records
      */
     public static List<ConsumerRecord> consumeMessageFromKafkaCluster(String clientNamespace, String topicName, String kafkaClusterName,
                                                                       String kafkaNamespace, int numberOfMessages,

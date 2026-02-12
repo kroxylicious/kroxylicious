@@ -43,7 +43,7 @@ public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
         if (config.createExceptionMsg() != null) {
             throw new RuntimeException(config.createExceptionMsg());
         }
-        return new Filter(context, configuration, this.getClass());
+        return new Filter(context, this.getClass());
     }
 
     @Override
@@ -57,17 +57,15 @@ public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
 
     public static class Filter implements RequestFilter, TestFilter {
         private final FilterFactoryContext context;
-        private final FlakyConfig exampleConfig;
         private final Class<? extends FilterFactory> contributorClass;
 
-        public Filter(FilterFactoryContext context, FlakyConfig exampleConfig, Class<? extends FilterFactory> contributorClass) {
+        public Filter(FilterFactoryContext context, Class<? extends FilterFactory> contributorClass) {
             this.context = context;
-            this.exampleConfig = exampleConfig;
             this.contributorClass = contributorClass;
         }
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
             throw new IllegalStateException("not implemented!");
         }
 

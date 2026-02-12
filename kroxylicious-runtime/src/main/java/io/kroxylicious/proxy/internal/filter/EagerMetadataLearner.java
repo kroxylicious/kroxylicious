@@ -39,13 +39,17 @@ public class EagerMetadataLearner implements RequestFilter {
     /**
      * The set of the API keys that are permitted before the client would normally send a METADATA request.
      */
-    private final static Set<ApiKeys> KAFKA_PRELUDE = Set.of(ApiKeys.API_VERSIONS, ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_AUTHENTICATE);
+    private static final Set<ApiKeys> KAFKA_PRELUDE = Set.of(ApiKeys.API_VERSIONS, ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_AUTHENTICATE);
 
+    /**
+     * Create EagerMetadataLearner
+     */
     public EagerMetadataLearner() {
+        // explicit default constructor for javadoc
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, FilterContext context) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, FilterContext context) {
         if (KAFKA_PRELUDE.contains(apiKey)) {
             return context.requestFilterResultBuilder().forward(header, body).completed();
         }
@@ -57,7 +61,7 @@ public class EagerMetadataLearner implements RequestFilter {
             var request = useClientRequest ? (MetadataRequestData) body : new MetadataRequestData();
 
             var future = new CompletableFuture<RequestFilterResult>();
-            var unused = context.<MetadataResponseData> sendRequest(requestHeader, request)
+            context.<MetadataResponseData> sendRequest(requestHeader, request)
                     .thenAccept(metadataResponse -> {
                         // closing the connection is important. This client connection is connected to bootstrap (it could
                         // be any broker or maybe not something else). we must close the connection to force the client to

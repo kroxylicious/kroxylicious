@@ -6,9 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Function;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -23,8 +21,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
-import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
@@ -39,6 +35,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
@@ -62,14 +59,8 @@ import static org.slf4j.LoggerFactory.getLogger;
  *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives a PROXY header
  *  │  {@link ProxyChannelState.HaProxy HaProxy} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  ╰───┤
- *  ╭───┤
- *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives an ApiVersions request
- *  │  {@link ProxyChannelState.ApiVersions ApiVersions} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *  ╰───┤
  *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any other KRPC request
  *     {@link ProxyChannelState.SelectingServer SelectingServer} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *      │
- *      ↓ netFilter.{@link NetFilter#selectServer(NetFilter.NetFilterContext) selectServer} calls frontend.{@link KafkaProxyFrontendHandler#initiateConnect(HostPort, List) initiateConnect}
  *     {@link ProxyChannelState.Connecting Connecting} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *      │
  *      ↓
@@ -101,11 +92,36 @@ import static org.slf4j.LoggerFactory.getLogger;
  */
 @SuppressWarnings("java:S1133")
 public class ProxyChannelStateMachine {
-    private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "NetFilter called NetFilterContext.initiateConnect() more than once";
+    private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "onInitiateConnect called more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
+
+    /**
+     * Enumeration of disconnect causes for tracking client to proxy disconnections.
+     */
+    public enum DisconnectCause {
+        /** Connection closed due to exceeding idle timeout */
+        IDLE_TIMEOUT("idle_timeout"),
+        /** Client initiated connection close */
+        CLIENT_CLOSED("client_closed"),
+        /** Server (backend Kafka broker) initiated connection close */
+        SERVER_CLOSED("server_closed");
+
+        private final String label;
+
+        DisconnectCause(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
 
     // Connection metrics
     private final Counter clientToProxyErrorCounter;
+    private final Counter clientToProxyDisconnectsIdleCounter;
+    private final Counter clientToProxyDisconnectsClientClosedCounter;
+    private final Counter clientToProxyDisconnectsServerClosedCounter;
     private final Counter clientToProxyConnectionCounter;
     private final Counter proxyToServerConnectionCounter;
     private final Counter proxyToServerErrorCounter;
@@ -128,8 +144,9 @@ public class ProxyChannelStateMachine {
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
-    @Nullable
-    private String sessionId;
+    @NonNull
+    // Ideally this would be final, however that breaks forceState which is used heavily in testing.
+    private KafkaSession kafkaSession;
 
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
@@ -145,8 +162,13 @@ public class ProxyChannelStateMachine {
         this.inFlightTracker = inFlightTracker;
 
         VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
+        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+
         // Connection metrics
         clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
+        clientToProxyDisconnectsIdleCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.IDLE_TIMEOUT.label()).withTags();
+        clientToProxyDisconnectsClientClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.CLIENT_CLOSED.label()).withTags();
+        clientToProxyDisconnectsServerClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.SERVER_CLOSED.label()).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
         proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
         proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
@@ -179,7 +201,7 @@ public class ProxyChannelStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualClusterModel, NetFilter)}
+     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort, VirtualClusterModel)}
      * has been called
      */
     @VisibleForTesting
@@ -195,9 +217,10 @@ public class ProxyChannelStateMachine {
      * Sonar will complain if one uses this in prod code listen to it.
      */
     @VisibleForTesting
-    void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler) {
+    void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler, KafkaSession kafkaSession) {
         LOGGER.info("Forcing state to {} with {} and {}", state, frontendHandler, backendHandler);
         this.state = state;
+        this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
         this.backendHandler = backendHandler;
     }
@@ -274,10 +297,9 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
-            allocateSessionId(); // this is just keeping the tooling happy it should never be null at this point
             LOGGER.atDebug()
                     .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
-                    .addArgument(sessionId)
+                    .addArgument(kafkaSession.sessionId())
                     .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
                     .addArgument(this.frontendHandler.remotePort())
                     .log();
@@ -288,28 +310,19 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    @VisibleForTesting
-    void allocateSessionId() {
-        this.sessionId = UUID.randomUUID().toString();
-    }
-
     /**
-     * Notify the statemachine that the netfilter has chosen an outbound peer.
+     * Notify the statemachine that the connection to the backend has started.
      * @param peer the upstream host to connect to.
-     * @param filters the set of filters to be applied to the session
      * @param virtualClusterModel the virtual cluster the client is connecting too
-     * @param netFilter the netFilter which selected the upstream peer.
      */
-    void onNetFilterInitiateConnect(
-                                    HostPort peer,
-                                    List<FilterAndInvoker> filters,
-                                    VirtualClusterModel virtualClusterModel,
-                                    NetFilter netFilter) {
+    void onInitiateConnect(
+                           HostPort peer,
+                           VirtualClusterModel virtualClusterModel) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
-            toConnecting(selectingServerState.toConnecting(peer), filters, virtualClusterModel);
+            toConnecting(selectingServerState.toConnecting(peer), virtualClusterModel);
         }
         else {
-            illegalState(DUPLICATE_INITIATE_CONNECT_ERROR + " : netFilter='" + netFilter + "'");
+            illegalState(DUPLICATE_INITIATE_CONNECT_ERROR);
         }
     }
 
@@ -390,11 +403,9 @@ public class ProxyChannelStateMachine {
 
     /**
      * The proxy has received something from the client. The current state of the session determines what happens to it.
-     * @param dp the decode predicate to be used if the session is still being negotiated
      * @param msg the RPC received from the downstream client
      */
     void onClientRequest(
-                         SaslDecodePredicate dp,
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
 
@@ -406,18 +417,8 @@ public class ProxyChannelStateMachine {
         if (state() instanceof Forwarding) { // post-backend connection
             messageFromClient(msg);
         }
-        else if (!onClientRequestBeforeForwarding(dp, msg)) {
+        else if (!onClientRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
-        }
-    }
-
-    /**
-     * ensure the state machine is in the connecting state.
-     * @param msg to be logged if in another state.
-     */
-    void assertIsConnecting(String msg) {
-        if (!(state instanceof ProxyChannelState.Connecting)) {
-            illegalState(msg);
         }
     }
 
@@ -457,8 +458,7 @@ public class ProxyChannelStateMachine {
         if (inFlightTracker != null && backendHandler != null) {
             inFlightTracker.onChannelClosed(clusterName, backendHandler.serverCtx().channel());
         }
-
-        toClosed(null);
+        toClosed(null, DisconnectCause.SERVER_CLOSED);
     }
 
     /**
@@ -477,7 +477,17 @@ public class ProxyChannelStateMachine {
             inFlightTracker.onChannelClosed(clusterName, frontendHandler.clientCtx().channel());
         }
 
-        toClosed(null);
+        toClosed(null, DisconnectCause.CLIENT_CLOSED);
+    }
+
+    /**
+     * Notify the statemachine that the connection to the downstream client is idle.
+     * <p>
+     * This will result in the proxy session being torn down.
+     * </p>
+     */
+    void onClientIdle() {
+        toClosed(null, DisconnectCause.IDLE_TIMEOUT);
     }
 
     /**
@@ -530,7 +540,24 @@ public class ProxyChannelStateMachine {
      * @return Return the session ID which connects a frontend channel with a backend channel
      */
     public String sessionId() {
-        return Objects.requireNonNull(sessionId);
+        return kafkaSession.sessionId();
+    }
+
+    /**
+     * @return Return the session for this connection.
+     */
+    public KafkaSession getKafkaSession() {
+        return kafkaSession;
+    }
+
+    public void onSessionTransportAuthenticated() {
+        this.kafkaSession.transitionTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
+        Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
+    }
+
+    public void onSessionSaslAuthenticated() {
+        this.kafkaSession.transitionTo(KafkaSessionState.SASL_AUTHENTICATED);
+        Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
     @SuppressWarnings("java:S5738")
@@ -539,6 +566,7 @@ public class ProxyChannelStateMachine {
                                 KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
         frontendHandler.inClientActive();
+
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
         // Track downstream connection establishment
@@ -550,15 +578,14 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     private void toConnecting(
                               ProxyChannelState.Connecting connecting,
-                              List<FilterAndInvoker> filters,
                               VirtualClusterModel virtualClusterModel) {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
-        Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), filters, backendHandler);
+        Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()
                 .setMessage("{}: Upstream connection to {} established for client at {}:{}")
-                .addArgument(sessionId)
+                .addArgument(kafkaSession.sessionId())
                 .addArgument(connecting.remote())
                 .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
                 .addArgument(this.frontendHandler.remotePort())
@@ -568,6 +595,7 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
+        kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).inForwarding();
         proxyToServerConnectionToken.acquire();
         // Track upstream connection establishment
@@ -578,20 +606,16 @@ public class ProxyChannelStateMachine {
 
     /**
      * handle a message received from the client prior to connecting to the upstream node
-     * @param dp DecodePredicate to cope with SASL offload
      * @param msg Message received from the downstream client.
      * @return <code>false</code> for unsupported message types
      */
-    private boolean onClientRequestBeforeForwarding(SaslDecodePredicate dp, Object msg) {
+    private boolean onClientRequestBeforeForwarding(Object msg) {
         Objects.requireNonNull(frontendHandler).bufferMsg(msg);
         if (state() instanceof ProxyChannelState.ClientActive clientActive) {
-            return onClientRequestInClientActiveState(dp, msg, clientActive);
+            return onClientRequestInClientActiveState(msg, clientActive);
         }
         else if (state() instanceof ProxyChannelState.HaProxy haProxy) {
-            return onClientRequestInHaProxyState(dp, msg, haProxy);
-        }
-        else if (state() instanceof ProxyChannelState.ApiVersions apiVersions) {
-            return onClientRequestInApiVersionsState(dp, msg, apiVersions);
+            return onClientRequestInHaProxyState(msg, haProxy);
         }
         else if (state() instanceof ProxyChannelState.SelectingServer) {
             return msg instanceof RequestFrame;
@@ -601,37 +625,18 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    @SuppressWarnings({ "java:S1172", "java:S1135" })
-    // We keep dp as we should need it and it gives consistency with the other onClientRequestIn methods (sue me)
-    private boolean onClientRequestInApiVersionsState(SaslDecodePredicate dp, Object msg, ProxyChannelState.ApiVersions apiVersions) {
-        if (msg instanceof RequestFrame) {
-            // TODO if dp.isAuthenticationOffloadEnabled() then we need to forward to that handler
-            // TODO we only do the connection once we know the authenticated identity
-            toSelectingServer(apiVersions.toSelectingServer());
-            return true;
-        }
-        return false;
-    }
-
-    private boolean onClientRequestInHaProxyState(SaslDecodePredicate dp, Object msg, ProxyChannelState.HaProxy haProxy) {
-        return transitionClientRequest(dp, msg, haProxy::toApiVersions, haProxy::toSelectingServer);
+    private boolean onClientRequestInHaProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
+        return transitionClientRequest(msg, haProxy::toSelectingServer);
     }
 
     private boolean transitionClientRequest(
-                                            SaslDecodePredicate dp,
                                             Object msg,
-                                            Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.ApiVersions> apiVersionsFactory,
                                             Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.SelectingServer> selectingServerFactory) {
         if (isMessageApiVersionsRequest(msg)) {
             // We know it's an API Versions request even if the compiler doesn't
             @SuppressWarnings("unchecked")
             DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
-            if (dp.isAuthenticationOffloadEnabled()) {
-                toApiVersions(apiVersionsFactory.apply(apiVersionsFrame), apiVersionsFrame);
-            }
-            else {
-                toSelectingServer(selectingServerFactory.apply(apiVersionsFrame));
-            }
+            toSelectingServer(selectingServerFactory.apply(apiVersionsFrame));
             return true;
         }
         else if (msg instanceof RequestFrame) {
@@ -641,25 +646,18 @@ public class ProxyChannelStateMachine {
         return false;
     }
 
-    private boolean onClientRequestInClientActiveState(SaslDecodePredicate dp, Object msg, ProxyChannelState.ClientActive clientActive) {
+    private boolean onClientRequestInClientActiveState(Object msg, ProxyChannelState.ClientActive clientActive) {
         if (msg instanceof HAProxyMessage haProxyMessage) {
             toHaProxy(clientActive.toHaProxy(haProxyMessage));
             return true;
         }
         else {
-            return transitionClientRequest(dp, msg, clientActive::toApiVersions, clientActive::toSelectingServer);
+            return transitionClientRequest(msg, clientActive::toSelectingServer);
         }
     }
 
     private void toHaProxy(ProxyChannelState.HaProxy haProxy) {
         setState(haProxy);
-    }
-
-    private void toApiVersions(
-                               ProxyChannelState.ApiVersions apiVersions,
-                               DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-        setState(apiVersions);
-        Objects.requireNonNull(frontendHandler).inApiVersions(apiVersionsFrame);
     }
 
     private void toSelectingServer(ProxyChannelState.SelectingServer selectingServer) {
@@ -668,11 +666,19 @@ public class ProxyChannelStateMachine {
     }
 
     private void toClosed(@Nullable Throwable errorCodeEx) {
+        toClosed(errorCodeEx, null);
+    }
+
+    private void toClosed(@Nullable Throwable errorCodeEx, @Nullable DisconnectCause disconnectCause) {
         if (state instanceof Closed) {
             return;
         }
 
         setState(new Closed());
+
+        incrementAppropriateDisconnectsMetric(disconnectCause);
+
+        kafkaSession.transitionTo(KafkaSessionState.TERMINATING);
         // Close the server connection
         if (backendHandler != null) {
             backendHandler.inClosed();
@@ -686,6 +692,23 @@ public class ProxyChannelStateMachine {
         }
     }
 
+    private void incrementAppropriateDisconnectsMetric(@Nullable DisconnectCause disconnectCause) {
+        // Increment disconnect counter based on cause (if not an error)
+        if (disconnectCause != null) {
+            switch (disconnectCause) {
+                case IDLE_TIMEOUT:
+                    clientToProxyDisconnectsIdleCounter.increment();
+                    break;
+                case CLIENT_CLOSED:
+                    clientToProxyDisconnectsClientClosedCounter.increment();
+                    break;
+                case SERVER_CLOSED:
+                    clientToProxyDisconnectsServerClosedCounter.increment();
+                    break;
+            }
+        }
+    }
+
     private void setState(ProxyChannelState state) {
         LOGGER.trace("{} transitioning to {}", this, state);
         this.state = state;
@@ -695,4 +718,5 @@ public class ProxyChannelStateMachine {
         return msg instanceof DecodedRequestFrame
                 && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS;
     }
+
 }

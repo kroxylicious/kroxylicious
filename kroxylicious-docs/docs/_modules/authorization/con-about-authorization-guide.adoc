@@ -1,0 +1,10 @@
+:_mod-docs-content-type: CONCEPT
+
+
+[discrete]
+[id='con-about-authorization-guide-{context}']
+= About this guide
+
+[role="_abstract"]
+This guide covers using the **Kroxylicious Authorization filter** to enforce authorization rules on client requests before they reach the Kafka brokers.
+Refer to other Kroxylicious guides for information about running the proxy or for advanced topics such as plugin development.

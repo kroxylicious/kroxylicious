@@ -9,6 +9,7 @@ package io.kroxylicious.kubernetes.operator.assertj;
 import java.time.Instant;
 
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.ThrowableAssert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -91,7 +92,7 @@ class ConditionAssertTest {
         // When
 
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasObservedGeneration(BASE_GENERATION + 1));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasObservedGeneration(BASE_GENERATION + 1));
     }
 
     @Test
@@ -109,7 +110,7 @@ class ConditionAssertTest {
         // When
 
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasType(Condition.Type.Accepted));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasType(Condition.Type.Accepted));
     }
 
     @Test
@@ -127,7 +128,7 @@ class ConditionAssertTest {
         // When
 
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasMessage("But if you try sometime you'll find\n"
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasMessage("But if you try sometime you'll find\n"
                 + "You get what you need"));
     }
 
@@ -146,7 +147,7 @@ class ConditionAssertTest {
         // When
 
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasNoMessage());
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasNoMessage());
     }
 
     @Test
@@ -164,7 +165,7 @@ class ConditionAssertTest {
         // When
 
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasReason("OK_COMPUTER"));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasReason("OK_COMPUTER"));
     }
 
     @Test
@@ -182,7 +183,7 @@ class ConditionAssertTest {
         // When
 
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(failedRefsCondition).hasStatus(Condition.Status.TRUE));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(failedRefsCondition).hasStatus(Condition.Status.TRUE));
     }
 
     @Test
@@ -200,7 +201,7 @@ class ConditionAssertTest {
         // When
 
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(failedRefsCondition).hasLastTransitionTime(BASE_TIME.plusSeconds(30)));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(failedRefsCondition).hasLastTransitionTime(BASE_TIME.plusSeconds(30)));
     }
 
     @Test
@@ -219,7 +220,7 @@ class ConditionAssertTest {
                 .build();
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasObservedGenerationInSyncWithMetadataOf(thingWithMetadata));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(readyCondition).hasObservedGenerationInSyncWithMetadataOf(thingWithMetadata));
     }
 
     @Test
@@ -240,7 +241,7 @@ class ConditionAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(readyCondition).isAcceptedTrue());
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(readyCondition).isAcceptedTrue());
     }
 
     @Test
@@ -249,13 +250,13 @@ class ConditionAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(passedRefsCondition).isAcceptedTrue());
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(passedRefsCondition).isAcceptedTrue());
     }
 
     @Test
     void shouldPassAcceptedTrueForAcceptedCondition() {
         // Given
-        var acceptedCondition = new ConditionBuilder()
+        var accepted = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.Accepted)
@@ -264,7 +265,7 @@ class ConditionAssertTest {
                 .withReason("Accepted")
                 .build();
         // When
-        ConditionAssert.assertThat(acceptedCondition).isAcceptedTrue();
+        ConditionAssert.assertThat(accepted).isAcceptedTrue();
 
         // Then
     }
@@ -276,7 +277,7 @@ class ConditionAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(acceptedCondition).isAcceptedTrue(thingWithMetadata));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(acceptedCondition).isAcceptedTrue(thingWithMetadata));
     }
 
     @Test
@@ -296,7 +297,7 @@ class ConditionAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(readyCondition).isAcceptedFalse(READY_REASON, READY_MESSAGE));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(readyCondition).isAcceptedFalse(READY_REASON, READY_MESSAGE));
     }
 
     @Test
@@ -305,14 +306,14 @@ class ConditionAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(
+        assertAssertionErrorThrownBy(
                 () -> ConditionAssert.assertThat(passedRefsCondition).isAcceptedFalse(passedRefsCondition.getReason(), passedRefsCondition.getMessage()));
     }
 
     @Test
     void shouldPassAcceptedFalseForAcceptedCondition() {
         // Given
-        var acceptedCondition = new ConditionBuilder()
+        var accepted = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.Accepted)
@@ -322,14 +323,14 @@ class ConditionAssertTest {
                 .build();
 
         // When
-        ConditionAssert.assertThat(acceptedCondition).isAcceptedFalse("NotFound", "Its false like");
+        ConditionAssert.assertThat(accepted).isAcceptedFalse("NotFound", "Its false like");
         // Then
     }
 
     @Test
     void shouldFailAcceptedFalseForWrongReason() {
         // Given
-        var acceptedCondition = new ConditionBuilder()
+        var accepted = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.Accepted)
@@ -339,14 +340,14 @@ class ConditionAssertTest {
                 .build();
 
         // When
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(acceptedCondition).isAcceptedFalse(READY_REASON, "Its false like"));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(accepted).isAcceptedFalse(READY_REASON, "Its false like"));
         // Then
     }
 
     @Test
     void shouldFailAcceptedFalseForWrongMessage() {
         // Given
-        var acceptedCondition = new ConditionBuilder()
+        var accepted = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.Accepted)
@@ -356,7 +357,7 @@ class ConditionAssertTest {
                 .build();
 
         // When
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(acceptedCondition).isAcceptedFalse("NotFound", "an other message"));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(accepted).isAcceptedFalse("NotFound", "an other message"));
         // Then
     }
 
@@ -366,7 +367,7 @@ class ConditionAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(readyCondition).isResolvedRefsUnknown(READY_REASON, READY_MESSAGE));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(readyCondition).isResolvedRefsUnknown(READY_REASON, READY_MESSAGE));
     }
 
     @Test
@@ -375,7 +376,7 @@ class ConditionAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(
+        assertAssertionErrorThrownBy(
                 () -> ConditionAssert.assertThat(passedRefsCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(), passedRefsCondition.getMessage()));
     }
 
@@ -391,7 +392,7 @@ class ConditionAssertTest {
     @Test
     void shouldFailResolvedRefsUnknownFalseForWrongReason() {
         // Given
-        var resolvedRefsUnknownCondition = new ConditionBuilder()
+        var resolvedRefsUnknown = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.ResolvedRefs)
@@ -401,14 +402,14 @@ class ConditionAssertTest {
                 .build();
 
         // When
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(resolvedRefsUnknownCondition).isResolvedRefsUnknown(READY_REASON, "Its false like"));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(resolvedRefsUnknown).isResolvedRefsUnknown(READY_REASON, "Its false like"));
         // Then
     }
 
     @Test
     void shouldFailResolvedRefsUnknownFalseForWrongMessage() {
         // Given
-        var resolvedRefsUnknownCondition = new ConditionBuilder()
+        var resolvedRefsUnknown = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.ResolvedRefs)
@@ -418,7 +419,7 @@ class ConditionAssertTest {
                 .build();
 
         // When
-        Assertions.assertThatThrownBy(() -> ConditionAssert.assertThat(resolvedRefsUnknownCondition).isResolvedRefsFalse("NotFound", "an other message"));
+        assertAssertionErrorThrownBy(() -> ConditionAssert.assertThat(resolvedRefsUnknown).isResolvedRefsFalse("NotFound", "an other message"));
         // Then
     }
 
@@ -434,7 +435,7 @@ class ConditionAssertTest {
     @Test
     void shouldFailResolvedRefsTrueForResolvedRefsTrueConditionWithMessage() {
         // Given
-        var resolvedRefsTrueCondition = new ConditionBuilder()
+        var resolvedRefsTrue = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.ResolvedRefs)
@@ -445,8 +446,8 @@ class ConditionAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(
-                () -> ConditionAssert.assertThat(resolvedRefsTrueCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(), passedRefsCondition.getMessage()));
+        assertAssertionErrorThrownBy(
+                () -> ConditionAssert.assertThat(resolvedRefsTrue).isResolvedRefsUnknown(passedRefsCondition.getReason(), passedRefsCondition.getMessage()));
     }
 
     @Test
@@ -466,7 +467,7 @@ class ConditionAssertTest {
         // Given
         // When
         // Then
-        Assertions.assertThatThrownBy(
+        assertAssertionErrorThrownBy(
                 () -> ConditionAssert.assertThat(resolvedRefsTrueCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(),
                         resolvedRefsTrueCondition.getMessage()));
     }
@@ -474,12 +475,11 @@ class ConditionAssertTest {
     @Test
     void shouldFailResolvedRefsTrueForResolvedRefsUnknownCondition() {
         // Given
-        var unknownRefsCondition =
-                // When
-                // Then
-                Assertions.assertThatThrownBy(
-                        () -> ConditionAssert.assertThat(resolvedRefsUnknownCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(),
-                                passedRefsCondition.getMessage()));
+        // When
+        // Then
+        assertAssertionErrorThrownBy(
+                () -> ConditionAssert.assertThat(resolvedRefsUnknownCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(),
+                        passedRefsCondition.getMessage()));
     }
 
     @Test
@@ -488,14 +488,14 @@ class ConditionAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(
+        assertAssertionErrorThrownBy(
                 () -> ConditionAssert.assertThat(failedRefsCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(), passedRefsCondition.getMessage()));
     }
 
     @Test
     void shouldPassIsReadyUnknownForReadyUnknownCondition() {
         // Given
-        var readyCondition = new ConditionBuilder()
+        var ready = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.Ready)
@@ -507,13 +507,13 @@ class ConditionAssertTest {
         // When
 
         // Then
-        ConditionAssert.assertThat(readyCondition).isReadyUnknown(readyCondition.getReason(), readyCondition.getMessage());
+        ConditionAssert.assertThat(ready).isReadyUnknown(ready.getReason(), ready.getMessage());
     }
 
     @Test
     void shouldPassIsReadyFalseForReadyFalseCondition() {
         // Given
-        var readyCondition = new ConditionBuilder()
+        var ready = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.Ready)
@@ -525,13 +525,13 @@ class ConditionAssertTest {
         // When
 
         // Then
-        ConditionAssert.assertThat(readyCondition).isReadyFalse(readyCondition.getReason(), readyCondition.getMessage());
+        ConditionAssert.assertThat(ready).isReadyFalse(ready.getReason(), ready.getMessage());
     }
 
     @Test
     void shouldPassIsReadyTrueForReadyTrueCondition() {
         // Given
-        var readyCondition = new ConditionBuilder()
+        var ready = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.Ready)
@@ -543,13 +543,13 @@ class ConditionAssertTest {
         // When
 
         // Then
-        ConditionAssert.assertThat(readyCondition).isReadyTrue();
+        ConditionAssert.assertThat(ready).isReadyTrue();
     }
 
     @Test
     void shouldPassIsAcceptedUnknownForAcceptedUnknownCondition() {
         // Given
-        var acceptedCondition = new ConditionBuilder()
+        var accepted = new ConditionBuilder()
                 .withLastTransitionTime(BASE_TIME)
                 .withObservedGeneration(BASE_GENERATION)
                 .withType(Condition.Type.Accepted)
@@ -561,6 +561,12 @@ class ConditionAssertTest {
         // When
 
         // Then
-        ConditionAssert.assertThat(acceptedCondition).isAcceptedUnknown(acceptedCondition.getReason(), acceptedCondition.getMessage());
+        ConditionAssert.assertThat(accepted).isAcceptedUnknown(accepted.getReason(), accepted.getMessage());
     }
+
+    private static void assertAssertionErrorThrownBy(ThrowableAssert.ThrowingCallable throwingCallable) {
+        Assertions.assertThatThrownBy(throwingCallable)
+                .isInstanceOf(AssertionError.class);
+    }
+
 }

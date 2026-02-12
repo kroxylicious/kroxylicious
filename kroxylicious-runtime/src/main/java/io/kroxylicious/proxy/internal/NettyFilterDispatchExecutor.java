@@ -49,7 +49,7 @@ public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
     @Override
     public <T> CompletionStage<T> completeOnFilterDispatchThread(CompletionStage<T> completionStage) {
         Objects.requireNonNull(completionStage, "completionStage was null");
-        CompletableFuture<T> future = new InternalCompletableFuture<>(this);
+        CompletableFuture<T> future = new InternalCompletableFuture<>(eventLoop);
         completionStage.whenComplete((value, throwable) -> {
             if (isInFilterDispatchThread()) {
                 forward(value, throwable, future);
@@ -61,7 +61,7 @@ public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
         return future.minimalCompletionStage();
     }
 
-    private static <T> void forward(T value, @Nullable Throwable throwable, CompletableFuture<T> future) {
+    private static <T> void forward(@Nullable T value, @Nullable Throwable throwable, CompletableFuture<T> future) {
         if (throwable != null) {
             future.completeExceptionally(throwable);
         }

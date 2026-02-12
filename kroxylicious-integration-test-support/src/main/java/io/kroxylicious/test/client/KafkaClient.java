@@ -6,7 +6,6 @@
 
 package io.kroxylicious.test.client;
 
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +37,8 @@ import io.kroxylicious.test.codec.DecodedResponseFrame;
 import io.kroxylicious.test.codec.KafkaRequestEncoder;
 import io.kroxylicious.test.codec.KafkaResponseDecoder;
 import io.kroxylicious.test.codec.RequestFrame;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * KafkaClient for testing.
@@ -103,7 +104,7 @@ public final class KafkaClient implements AutoCloseable {
      * the request to it and inform the client when we have received a response.
      * The channel is closed after we have received the message.
      * @param request request to send to kafka
-     * @return a future that will be completed with the response from the kafka broker (translated to JsonNode)
+     * @return a future that will be completed with the response from the kafka broker (translated to JsonNode), or null if we sent a zero-ack produce request
      */
     public CompletableFuture<Response> get(Request request) {
         DecodedRequestFrame<?> decodedRequestFrame = toApiRequest(request);
@@ -121,7 +122,7 @@ public final class KafkaClient implements AutoCloseable {
      * The channel is closed after we have received the message. Prefer {@link #get(Request)} for most cases,
      * this enables advanced cases like sending opaque frames.
      * @param frame to send to kafka
-     * @return a future that will be completed with the response from the kafka broker (translated to JsonNode)
+     * @return a future that will be completed with the response from the kafka broker (translated to JsonNode), or null if we sent a zero-ack produce request
      */
     public CompletableFuture<Response> get(RequestFrame frame) {
         return ensureChannel(correlationManager, kafkaClientHandler)
@@ -201,7 +202,11 @@ public final class KafkaClient implements AutoCloseable {
         return c;
     }
 
-    private static Response toResponse(SequencedResponse sequencedResponse) {
+    @Nullable
+    private static Response toResponse(@Nullable SequencedResponse sequencedResponse) {
+        if (sequencedResponse == null) {
+            return null;
+        }
         DecodedResponseFrame<?> frame = sequencedResponse.frame();
         return new Response(new ResponsePayload(frame.apiKey(), frame.apiVersion(), frame.body()), sequencedResponse.sequenceNumber());
     }
@@ -217,13 +222,15 @@ public final class KafkaClient implements AutoCloseable {
 
     private static class TrustingTrustManager implements X509TrustManager {
 
+        @SuppressWarnings("java:S4830")
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType) {
             // we are trust all - nothing to do.
         }
 
+        @SuppressWarnings("java:S4830")
         @Override
-        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+        public void checkServerTrusted(X509Certificate[] chain, String authType) {
             // we are trust all - nothing to do.
         }
 

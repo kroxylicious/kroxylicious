@@ -1,0 +1,93 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FETCH"
+  apiVersion: 5
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FETCH"
+      expectedRequestVersion: 5
+      expectedRequestHeader:
+        requestApiKey: 1
+        requestApiVersion: 5
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 162
+        maxWaitMs: 962
+        minBytes: 884
+        maxBytes: 396
+        isolationLevel: 61
+        topics:
+          - topic: "my-topic"
+            partitions:
+              - partition: 262
+                fetchOffset: 156
+                logStartOffset: 500
+                partitionMaxBytes: 960
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 294
+        responses:
+          - topic: "my-topic"
+            partitions:
+              - partitionIndex: 591
+                errorCode: 619
+                highWatermark: 281
+                lastStableOffset: 665
+                logStartOffset: 849
+                abortedTransactions:
+                  - producerId: 264
+                    firstOffset: 393
+                records: !!binary ""
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 1
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    replicaId: 162
+    maxWaitMs: 962
+    minBytes: 884
+    maxBytes: 396
+    isolationLevel: 61
+    topics:
+      - topic: "my-topic"
+        partitions:
+          - partition: 262
+            fetchOffset: 156
+            logStartOffset: 500
+            partitionMaxBytes: 960
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 294
+    responses:
+      - topic: "my-topic"
+        partitions:
+          - partitionIndex: 591
+            errorCode: 619
+            highWatermark: 281
+            lastStableOffset: 665
+            logStartOffset: 849
+            abortedTransactions:
+              - producerId: 264
+                firstOffset: 393
+            records: !!binary ""

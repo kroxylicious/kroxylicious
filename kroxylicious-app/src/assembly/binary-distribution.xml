@@ -45,6 +45,20 @@
         <include>log4j2.yaml</include>
       </includes>
     </fileSet>
+      <fileSet>
+          <directory>${project.build.directory}/libs/native/</directory>
+          <outputDirectory>libs/native/</outputDirectory>
+          <!-- derived form snappy's resource-config.json -->
+          <includes>
+              <include>**/*.dylib</include>
+              <include>**/*.jnilib</include>
+              <include>**/*.so</include>
+              <include>**/*.a</include>
+          </includes>
+          <excludes>
+              <exclude>**/*.class</exclude>
+          </excludes>
+      </fileSet>
   </fileSets>
   <dependencySets>
     <dependencySet>

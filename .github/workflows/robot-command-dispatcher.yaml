@@ -27,7 +27,7 @@ jobs:
     if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@kroxylicious-robot')  && !contains(github.event.comment.body, '@kroxylicious-robot run')}}
     steps:
       - name: 'Check out repository'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
 
@@ -81,7 +81,7 @@ jobs:
     if: ${{ needs.process-command.outputs.unrecognized == 'true' }}
     steps:
       - name: 'Check out repository'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
 

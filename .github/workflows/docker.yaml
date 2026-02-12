@@ -17,6 +17,7 @@ on:
   push:
     branches:
       - 'main'
+      - 'release/**'
     tags:
       - 'v*.*.*'
   pull_request:
@@ -26,21 +27,27 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: 'Test for Slack secret'
+        env:
+          KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+        run: |
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Determine Build Configuration
         id: build_configuration
@@ -52,17 +59,19 @@ jobs:
             echo "proxy_tags=kroxylicious-proxy:${RELEASE_VERSION}" >> $GITHUB_OUTPUT
             echo "operator_tags=kroxylicious-operator:${RELEASE_VERSION}" >> $GITHUB_OUTPUT
             echo "push_images=false" >> $GITHUB_OUTPUT
+            echo "platforms=linux/amd64" >> $GITHUB_OUTPUT
           else
             PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
             OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
             echo "proxy_tags=${PROXY_IMAGE}:${RELEASE_VERSION}" >> $GITHUB_OUTPUT
             echo "operator_tags=${OPERATOR_IMAGE}:${RELEASE_VERSION},${OPERATOR_IMAGE}:latest" >> $GITHUB_OUTPUT
             echo "push_images=true" >> $GITHUB_OUTPUT
+            echo "platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
           fi
 
       - name: Login to container registry
         if: steps.build_configuration.outputs.push_images == 'true'
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ${{ vars.REGISTRY_SERVER }}
           username: ${{ vars.REGISTRY_USERNAME }}
@@ -72,7 +81,7 @@ jobs:
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ steps.build_configuration.outputs.platforms }}
           push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
             KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
@@ -85,10 +94,18 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.operator
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ steps.build_configuration.outputs.platforms }}
           push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
             KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
           tags: ${{ steps.build_configuration.outputs.operator_tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max,compression=zstd
+      - name: Slack Notification on Failure
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true'
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+          SLACK_COLOR: 'danger'
+          SLACK_TITLE: 'Failure Alert: ${{ github.repository }}'
+          SLACK_MESSAGE: 'The docker build workflow failed on branch ${{ github.ref_name }}.'

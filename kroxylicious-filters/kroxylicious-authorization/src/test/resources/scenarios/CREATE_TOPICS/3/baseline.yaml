@@ -1,0 +1,79 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "CREATE_TOPICS"
+  apiVersion: 3
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CREATE_TOPICS"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 19
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - name: "my-topic"
+            numPartitions: 998
+            replicationFactor: 625
+            assignments:
+              - partitionIndex: 1002
+                brokerIds:
+                  - 90
+            configs:
+              - name: "random-string-377"
+                value: "random-string-192"
+        timeoutMs: 330
+        validateOnly: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 395
+        topics:
+          - name: "random-string-517"
+            errorCode: 852
+            errorMessage: "random-string-875"
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "CREATE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 19
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - name: "my-topic"
+        numPartitions: 998
+        replicationFactor: 625
+        assignments:
+          - partitionIndex: 1002
+            brokerIds:
+              - 90
+        configs:
+          - name: "random-string-377"
+            value: "random-string-192"
+    timeoutMs: 330
+    validateOnly: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 395
+    topics:
+      - name: "random-string-517"
+        errorCode: 852
+        errorMessage: "random-string-875"

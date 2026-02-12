@@ -1,0 +1,57 @@
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// assembly-preparing-azure-key-vault.adoc
+
+[id='proc-azure-key-vault-key-creation-{context}']
+= Creating Azure Key Vault keys
+
+[role="_abstract"]
+This procedure describes how to create a `key` with `wrapKey` and `unwrapKey` operations enabled for use with the Record Encryption filter. The procedure uses the Azure CLI to create a key and, optionally, apply a rotation policy.
+
+.Prerequisites
+
+* Access to the Azure CLI.
+* A user with the _Key Vault Crypto Officer_ role or equivalent RBAC permissions to manage keys in Azure Key Vault.
+* Familiarity with basic Azure Key Vault key management operations.
+
+.Procedure
+
+. Establish a naming convention for keys within key vault for easy identification and use with the Record Encryption filter. Use separate key vaults per application, environment, and region. This ensures separation between the filter’s keys and those used by other systems.
+
+. Select a key type.
++
+NOTE: Available key types depend on your Azure Key Vault service tier. See the Azure Key Vault documentation for background information on key types.
++
+The filter accepts the following key types and their associated wrapping algorithms:
+
+* *Symmetric Keys (`oct` or `oct-HSM`):* Uses the quantum-resistant `A256GCM` (256-bit AES GCM) wrapping algorithm, which requires a Managed HSM subscription.
+* *Asymmetric Keys (`RSA` or `RSA-HSM`):* Uses the `RSA-OAEP-256` (RSAES-OAEP with SHA-256 hash and MGF1/SHA-256 mask) wrapping algorithm, which is not quantum-resistant. This wrapping algorithm does not require a Managed HSM subscription to use (however, `RSA-HSM` is not available without a premium Azure Key Vault subscription).
+
+. Create a key with the Azure CLI:
++
+[source,shell]
+----
+KEY_VAULT_NAME="kroxylicious-key-vault"
+KEY_NAME="KEK-<name>"
+KEY_TYPE="rsa"
+az keyvault key create --vault-name ${KEY_VAULT_NAME} --name ${KEY_NAME} --kty ${KEY_TYPE} --ops wrapKey unwrapKey
+----
+* Change `KEY_TYPE` if you want to use a key type other than RSA.
+* The `wrapKey` and `unwrapKey` operations must be enabled.
+
+. (Optional) Enable a key rotation policy.
++
+
+
+.. Save your policy to a JSON file. You can refer to an example policy in the Azure CLI documentation.
+
+.. Apply the rotation policy:
++
+[source,shell]
+----
+az keyvault key rotation-policy update --vault-name ${VAULT_NAME} --name ${KEY_NAME} --value path/to/my_policy.json
+----
++
+TIP: It is recommended to use a key rotation policy.

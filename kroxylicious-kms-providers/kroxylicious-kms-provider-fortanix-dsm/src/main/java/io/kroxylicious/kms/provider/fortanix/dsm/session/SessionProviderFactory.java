@@ -31,19 +31,15 @@ public interface SessionProviderFactory {
     /**
      * Default session provider implementation.
      */
-    SessionProviderFactory DEFAULT = new SessionProviderFactory() {
-        @Override
-        public SessionProvider createSessionProvider(Config config,
-                                                     HttpClient client) {
-            Objects.requireNonNull(config);
-            Objects.requireNonNull(client);
-            var configException = new KmsException("Config %s must define exactly one session provider".formatted(config));
-            if (config.apiKeySessionProviderConfig() != null) {
-                return new ApiKeySessionProvider(config, client);
-            }
-            else {
-                throw configException;
-            }
+    SessionProviderFactory DEFAULT = (config, client) -> {
+        Objects.requireNonNull(config);
+        Objects.requireNonNull(client);
+        var configException = new KmsException("Config %s must define exactly one session provider".formatted(config));
+        if (config.apiKeySessionProviderConfig() != null) {
+            return new ApiKeySessionProvider(config, client);
+        }
+        else {
+            throw configException;
         }
     };
 }

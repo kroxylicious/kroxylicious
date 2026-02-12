@@ -72,13 +72,13 @@ class ApiKeySessionProviderTest {
     private HttpClient client;
 
     @BeforeAll
-    public static void initMockRegistry() {
+    static void initMockRegistry() {
         server = new WireMockServer(wireMockConfig().dynamicPort());
         server.start();
     }
 
     @AfterAll
-    public static void shutdownMockRegistry() {
+    static void shutdownMockRegistry() {
         server.shutdown();
     }
 

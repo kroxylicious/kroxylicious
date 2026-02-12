@@ -1,0 +1,79 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "CREATE_TOPICS"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CREATE_TOPICS"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 19
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - name: "my-topic"
+            numPartitions: 982
+            replicationFactor: 858
+            assignments:
+              - partitionIndex: 362
+                brokerIds:
+                  - 419
+            configs:
+              - name: "random-string-46"
+                value: "random-string-342"
+        timeoutMs: 95
+        validateOnly: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 706
+        topics:
+          - name: "random-string-709"
+            errorCode: 112
+            errorMessage: "random-string-808"
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "CREATE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 19
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - name: "my-topic"
+        numPartitions: 982
+        replicationFactor: 858
+        assignments:
+          - partitionIndex: 362
+            brokerIds:
+              - 419
+        configs:
+          - name: "random-string-46"
+            value: "random-string-342"
+    timeoutMs: 95
+    validateOnly: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 706
+    topics:
+      - name: "random-string-709"
+        errorCode: 112
+        errorMessage: "random-string-808"

@@ -75,13 +75,13 @@ class Ec2MetadataCredentialsProviderTest {
     private Ec2MetadataCredentialsProviderConfig config;
 
     @BeforeAll
-    public static void initMockRegistry() {
+    static void initMockRegistry() {
         metadataServer = new WireMockServer(wireMockConfig().dynamicPort());
         metadataServer.start();
     }
 
     @AfterAll
-    public static void shutdownMockRegistry() {
+    static void shutdownMockRegistry() {
         metadataServer.shutdown();
     }
 

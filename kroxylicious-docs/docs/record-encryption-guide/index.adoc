@@ -23,8 +23,9 @@ To use the filter, follow these steps:
 The filter integrates with a Key Management Service (KMS), which is responsible for the safe storage of sensitive key material.
 Kroxylicious supports the following KMS providers:
 
-* HashiCorp Vault
+* HashiCorp Vault (On-premise, HashiCorp Cloud Platform Vault and Enterprise are supported. Free tier HCP Vault Secrets is not).
 * AWS Key Management Service.
+* Azure Key Vault
 ifdef::include-fortanix-dsm-kms[]
 * Fortanix DSM
 endif::[]
@@ -37,16 +38,22 @@ include::_modules/record-encryption/con-record-encryption-overview.adoc[leveloff
 
 // preparing the KMS (might be done by a KMS admin, rather
 // than the person setting up the filter)
-include::_assemblies/assembly-preparing-kms.adoc[leveloffset=+1]
+include::_assemblies/record-encryption/assembly-kms-preparing.adoc[leveloffset=+1]
 
 //configuring the record encryption filter
-include::_assemblies/assembly-configuring-record-encryption-filter.adoc[leveloffset=+1]
+include::_assemblies/record-encryption/assembly-configuring-record-encryption-filter.adoc[leveloffset=+1]
+
+// key creation (might be done by a KMS key manager)
+include::_assemblies/record-encryption/assembly-kms-key-creation.adoc[leveloffset=+1]
 
 //monitoring the record encryption filter
-include::_assemblies/assembly-monitoring-record-encryption-filter.adoc[leveloffset=+1]
+include::_assemblies/record-encryption/assembly-monitoring-record-encryption-filter.adoc[leveloffset=+1]
 
 //operational issues affecting the record encryption filter
-include::_assemblies/assembly-operations-record-encryption-filter.adoc[leveloffset=+1]
+include::_assemblies/record-encryption/assembly-operations-record-encryption-filter.adoc[leveloffset=+1]
 
 //trademark notices
 include::_assets/trademarks.adoc[leveloffset=+1]
+
+// glossary
+include::_modules/record-encryption/ref-glossary.adoc[leveloffset=+1]

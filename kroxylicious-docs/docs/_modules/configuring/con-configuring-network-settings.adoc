@@ -1,0 +1,31 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-configuring-network-settings-{context}']
+= Configuring network and Netty settings
+
+[role="_abstract"]
+The proxy allows configuration of network settings for both the proxy endpoints (client-facing) and management endpoints using the `network.proxy` and `network.management` properties.
+These settings control low-level Netty behavior and are optional, with sensible defaults provided.
+
+.Configuration fragment showing network settings
+[source,yaml]
+----
+network:
+  proxy: # <1>
+    workerThreadCount: 8 # <2>
+    shutdownQuietPeriodSeconds: 10 # <3>
+  management: # <4>
+    workerThreadCount: 2
+    shutdownQuietPeriodSeconds: 5
+virtualClusters:
+  # ...
+----
+<1> Network settings for the proxy endpoints that handle client connections.
+<2> Optional: Number of Netty worker threads for handling concurrent connections. Defaults to twice the number of available processors.
+<3> Optional: Grace period in seconds during which the proxy continues processing existing connections before shutting down. Defaults to 0.
+<4> Network settings for the management HTTP endpoints. Can be configured independently from proxy settings.
+
+* All network settings are optional. The proxy will use sensible defaults if not specified.
+* The `workerThreadCount` setting allows tuning for high-concurrency deployments. Increasing this value can improve throughput when handling many simultaneous client connections.
+* The `shutdownQuietPeriodSeconds` setting provides a graceful shutdown window, allowing in-flight requests to complete before the proxy terminates.
+* Proxy and management endpoints can have different thread pool sizes and shutdown behaviors based on their different workload characteristics.

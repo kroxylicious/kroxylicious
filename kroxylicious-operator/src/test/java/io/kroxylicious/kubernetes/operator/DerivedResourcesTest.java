@@ -15,7 +15,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +28,6 @@ import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
-import org.mockito.stubbing.Answer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -309,11 +307,6 @@ class DerivedResourcesTest {
                                                     List<KafkaService> kafkaServiceRefs,
                                                     List<KafkaProxyIngress> ingresses)
             throws IOException {
-        Answer<?> throwOnUnmockedInvocation = invocation -> {
-            var stringifiedArgs = Arrays.stream(invocation.getArguments()).map(String::valueOf).collect(
-                    Collectors.joining(", "));
-            throw new RuntimeException("Unmocked method: " + invocation.getMethod() + "(" + stringifiedArgs + ")");
-        };
         Context<KafkaProxy> context = mock(Context.class);
 
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);

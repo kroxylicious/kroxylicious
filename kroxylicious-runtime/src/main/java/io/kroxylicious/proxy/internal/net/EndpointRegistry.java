@@ -336,20 +336,22 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         else {
             // set of nodeIds differ
             return rec.reconciliationStage().thenCompose(u -> {
-                ReconciliationRecord updated;
                 var cand = ReconciliationRecord.createReconcileRecord(upstreamNodes, new CompletableFuture<>());
                 if (vcr.reconciliationRecord().compareAndSet(rec, cand)) {
                     // reconcile - work out which bindings are to be registered and which are to be removed.
                     doReconcile(virtualClusterModel, upstreamNodes, cand.reconciliationStage().toCompletableFuture(), vcr);
                     return cand.reconciliationStage();
                 }
-                else if ((updated = vcr.reconciliationRecord().get()).upstreamNodeMap().equals(upstreamNodes)) {
-                    // another thread has since reconciled/started to reconcile the same set of nodes
-                    return updated.reconciliationStage();
-                }
                 else {
-                    // another thread has since reconciled to a different set of nodes.
-                    return reconcile(virtualClusterModel, upstreamNodes);
+                    ReconciliationRecord updated = vcr.reconciliationRecord().get();
+                    if (updated.upstreamNodeMap().equals(upstreamNodes)) {
+                        // another thread has since reconciled/started to reconcile the same set of nodes
+                        return updated.reconciliationStage();
+                    }
+                    else {
+                        // another thread has since reconciled to a different set of nodes.
+                        return reconcile(virtualClusterModel, upstreamNodes);
+                    }
                 }
             });
         }
@@ -367,7 +369,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         var deregs = allOfStage(listeningChannels.values().stream()
                 .filter(lcr -> lcr.unbindingStage.get() == null)
                 .map(lcr -> lcr.bindingStage()
-                        .thenCompose((acceptorChannel -> {
+                        .thenCompose(acceptorChannel -> {
                             var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                             if (bindings == null || bindings.get() == null) {
                                 // nothing to do for this channel
@@ -375,14 +377,15 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                             }
                             var bindingMap = bindings.get();
 
-                            return allOfStage(bindingMap.values().stream()
+                            List<NodeSpecificEndpointBinding> nodeSpecificBindings = bindingMap.values().stream()
                                     .filter(vcb -> vcb.endpointGateway().equals(virtualClusterModel))
                                     .filter(NodeSpecificEndpointBinding.class::isInstance)
-                                    .map(NodeSpecificEndpointBinding.class::cast)
-                                    .peek(creations::remove) // side effect
+                                    .map(NodeSpecificEndpointBinding.class::cast).toList();
+                            nodeSpecificBindings.forEach(creations::remove);
+                            return allOfStage(nodeSpecificBindings.stream()
                                     .filter(eb -> !allBrokerIds.contains(eb.nodeId()))
                                     .map(eb -> deregisterBinding(virtualClusterModel, eb::equals)));
-                        }))));
+                        })));
 
         // chain any binding registrations and organise for the reconciliations entry to complete
         deregs.thenCompose(u1 -> allOfStage(creations.stream()
@@ -601,7 +604,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                                                                          Endpoint endpoint,
                                                                          @Nullable String sniHostname) {
         return new EndpointResolutionException(
-                ("%s binding address: %s, port: %d, sniHostname: %s, tls: %b").formatted(prefix,
+                "%s binding address: %s, port: %d, sniHostname: %s, tls: %b".formatted(prefix,
                         endpoint.bindingAddress().orElse("<any>"),
                         endpoint.port(),
                         sniHostname == null ? "<none>" : sniHostname,

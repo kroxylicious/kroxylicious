@@ -22,10 +22,6 @@ import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.channel.uring.IoUring;
-import io.netty.channel.uring.IoUringIoHandler;
-import io.netty.channel.uring.IoUringServerSocketChannel;
-import io.netty.channel.uring.IoUringSocketChannel;
 
 public record EventGroupConfig(
                                Class<? extends SocketChannel> clientChannelClass,
@@ -35,11 +31,7 @@ public record EventGroupConfig(
         final Class<? extends SocketChannel> clientChannelClass;
         final Class<? extends ServerSocketChannel> serverChannelClass;
 
-        if (IoUring.isAvailable()) {
-            clientChannelClass = IoUringSocketChannel.class;
-            serverChannelClass = IoUringServerSocketChannel.class;
-        }
-        else if (Epoll.isAvailable()) {
+        if (Epoll.isAvailable()) {
             clientChannelClass = EpollSocketChannel.class;
             serverChannelClass = EpollServerSocketChannel.class;
         }
@@ -56,10 +48,7 @@ public record EventGroupConfig(
 
     private static EventLoopGroup newGroup() {
         final IoHandlerFactory ioHandlerFactory;
-        if (IoUring.isAvailable()) {
-            ioHandlerFactory = IoUringIoHandler.newFactory();
-        }
-        else if (Epoll.isAvailable()) {
+        if (Epoll.isAvailable()) {
             ioHandlerFactory = EpollIoHandler.newFactory();
         }
         else if (KQueue.isAvailable()) {

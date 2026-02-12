@@ -62,20 +62,33 @@ public class KafkaUtils {
      * @param message the message
      * @param podName the pod name
      * @param clientName the client name
+     * @return  the exec result
      */
-    public static void produceMessagesWithCmd(String deployNamespace, List<String> executableCommand, String message, String podName, String clientName) {
+    public static ExecResult produceMessagesWithCmd(String deployNamespace, List<String> executableCommand, String message, String podName, String clientName) {
         LOGGER.atInfo().setMessage("Executing command: {} for running {} producer").addArgument(executableCommand).addArgument(clientName).log();
         ExecResult result = Exec.exec(String.valueOf(message), executableCommand, Duration.ofSeconds(30), true, false, null);
 
-        String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         if (result.isSuccess()) {
-            LOGGER.atInfo().setMessage("{} client produce log: {}").addArgument(clientName).addArgument(log).log();
+            LOGGER.atInfo().setMessage("{} client produce log: {}").addArgument(clientName).addArgument(result.out()).log();
             deletePod(deployNamespace, podName);
         }
         else {
-            LOGGER.atError().setMessage("error producing messages with {}: {}").addArgument(clientName).addArgument(log).log();
-            throw new KubeClusterException("error producing messages with " + clientName + ": " + log);
+            LOGGER.atError().setMessage("error producing messages with {}: {}").addArgument(clientName).addArgument(result.err()).log();
+            throw new KubeClusterException("error producing messages with " + clientName + ": " + result.err());
         }
+        return result;
+    }
+
+    /**
+     * Produce messages with cmd without wait.
+     *
+     * @param executableCommand the executable command
+     * @param message the message
+     * @param clientName the client name
+     */
+    public static void produceMessagesWithCmdWithoutWait(List<String> executableCommand, String message, String clientName) {
+        LOGGER.atInfo().setMessage("Executing command: {} for running {} producer without waiting for it").addArgument(executableCommand).addArgument(clientName).log();
+        Exec.execWithoutWait(String.valueOf(message), executableCommand);
     }
 
     /**
@@ -97,7 +110,7 @@ public class KafkaUtils {
      * @param clientJob the client job
      */
     public static void deleteJob(Job clientJob) {
-        kubeClient().getClient().batch().v1().jobs().resource(clientJob).withTimeout(30, TimeUnit.SECONDS).delete();
+        kubeClient().getClient().batch().v1().jobs().resource(clientJob).withGracePeriod(10).withTimeout(30, TimeUnit.SECONDS).delete();
     }
 
     /**
@@ -121,6 +134,20 @@ public class KafkaUtils {
      */
     public static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {
         List<Pod> pods = await().atMost(timeout).until(() -> kubeClient().listPods(deployNamespace, labelKey, labelValue),
+                p -> !p.isEmpty());
+        return pods.get(pods.size() - 1).getMetadata().getName();
+    }
+
+    /**
+     * Gets pod name by prefix.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param prefix the prefix
+     * @param timeout the timeout
+     * @return  the pod name by prefix
+     */
+    public static String getPodNameByPrefix(String deployNamespace, String prefix, Duration timeout) {
+        List<Pod> pods = await().atMost(timeout).until(() -> kubeClient().listPodsByPrefixInName(deployNamespace, prefix),
                 p -> !p.isEmpty());
         return pods.get(pods.size() - 1).getMetadata().getName();
     }

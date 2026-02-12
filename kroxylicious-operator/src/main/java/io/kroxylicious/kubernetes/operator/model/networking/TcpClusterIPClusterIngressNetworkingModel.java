@@ -160,7 +160,7 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
         if (nodeIdRanges.isEmpty()) {
             throw new IllegalArgumentException("nodeIdRanges cannot be empty");
         }
-        return nodeIdRanges.stream().mapToInt(range -> toIntExact((range.getEnd() - range.getStart()) + 1)).sum();
+        return nodeIdRanges.stream().mapToInt(range -> toIntExact(range.getEnd() - range.getStart() + 1)).sum();
     }
 
 }

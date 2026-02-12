@@ -14,25 +14,32 @@ import java.util.concurrent.CompletionStage;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import io.netty.channel.EventLoop;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.metadata.TopLevelMetadataErrorException;
 import io.kroxylicious.proxy.filter.metadata.TopicLevelMetadataErrorException;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
+import io.kroxylicious.proxy.internal.util.RequestHeaderTagger;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,6 +49,8 @@ class TopicNameRetrieverTest {
     private static final Uuid UUID = new Uuid(5L, 5L);
     public static final String TOPIC_NAME = "topicName";
     public static final String TOPIC_NAME_2 = "topicName2";
+    @Mock
+    private EventLoop eventExecutor;
 
     @Mock
     private FilterContext filterContext;
@@ -49,7 +58,7 @@ class TopicNameRetrieverTest {
 
     @BeforeEach
     void setUp() {
-        retriever = new TopicNameRetriever(filterContext);
+        retriever = new TopicNameRetriever(filterContext, eventExecutor);
     }
 
     @Test
@@ -66,6 +75,34 @@ class TopicNameRetrieverTest {
                     assertThat(topicNamesMapping.anyFailures()).isFalse();
                     assertThat(topicNamesMapping.topicNames()).containsExactly(entry(UUID, TOPIC_NAME));
                 });
+    }
+
+    @Test
+    void retrieveTopicNamesRequestHeaderContainsTag() {
+        // given
+        MetadataResponseData response = new MetadataResponseData();
+        response.topics().add(getResponseTopic(UUID, TOPIC_NAME));
+        givenSendRequestResponse(completedFuture(response));
+        // when
+        getTopicNamesMapping(Set.of(UUID));
+        // then
+        ArgumentCaptor<RequestHeaderData> argumentCaptor = ArgumentCaptor.forClass(RequestHeaderData.class);
+        verify(filterContext).sendRequest(argumentCaptor.capture(), any());
+        assertThat(RequestHeaderTagger.containsTag(argumentCaptor.getValue(), RequestHeaderTagger.Tag.LEARN_TOPIC_NAMES)).isTrue();
+    }
+
+    @Test
+    void retrieveEmptyTopicNamesMapping() {
+        // when
+        CompletionStage<TopicNameMapping> topicNames = getTopicNamesMapping(Set.of());
+        // then
+        assertThat(topicNames).succeedsWithin(Duration.ZERO)
+                .satisfies(topicNamesMapping -> {
+                    assertThat(topicNamesMapping.anyFailures()).isFalse();
+                    assertThat(topicNamesMapping.topicNames()).isEmpty();
+                    assertThat(topicNamesMapping.failures()).isEmpty();
+                });
+        verify(filterContext, never()).sendRequest(any(), any());
     }
 
     @Test

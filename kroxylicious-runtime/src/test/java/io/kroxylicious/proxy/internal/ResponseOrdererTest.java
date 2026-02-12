@@ -65,7 +65,7 @@ class ResponseOrdererTest {
 
         @Override
         public void encode(ByteBufAccessor out) {
-
+            throw new IllegalStateException("Not implemented");
         }
 
         @Override
@@ -101,7 +101,7 @@ class ResponseOrdererTest {
     }
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         embeddedChannel = new EmbeddedChannel();
         orderer = new ResponseOrderer();
         embeddedChannel.pipeline().addFirst(orderer);

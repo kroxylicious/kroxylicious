@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +25,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.tomakehurst.wiremock.WireMockServer;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
@@ -50,18 +52,18 @@ class VaultKmsTest {
     private VaultKms kms;
 
     @BeforeAll
-    public static void initMockServer() {
+    static void initMockServer() {
         server = new WireMockServer(wireMockConfig().dynamicPort());
         server.start();
     }
 
     @AfterAll
-    public static void shutdownMockServer() {
+    static void shutdownMockServer() {
         server.shutdown();
     }
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         var vaultAddress = URI.create(server.baseUrl()).resolve("/v1/transit");
         var config = new Config(vaultAddress, new InlinePassword("token"), null);
         vaultKmsService = new VaultKmsService();
@@ -245,6 +247,16 @@ class VaultKmsTest {
         assertThatThrownBy(() -> new VaultKms(uri, "token", Duration.ZERO, builder -> builder))
                 .isInstanceOf(IllegalArgumentException.class);
 
+    }
+
+    @Test
+    void decodeJsonFailure() {
+        TypeReference<VaultResponse<VaultResponse.ReadKeyData>> typeRef = new TypeReference<>() {
+        };
+        byte[] invalidBytes = { 1, 2, 3 };
+        assertThatThrownBy(() -> VaultKms.decodeJson(typeRef, invalidBytes))
+                .isInstanceOf(UncheckedIOException.class)
+                .hasMessageContaining("Failed to decode Vault response as JSON");
     }
 
 }

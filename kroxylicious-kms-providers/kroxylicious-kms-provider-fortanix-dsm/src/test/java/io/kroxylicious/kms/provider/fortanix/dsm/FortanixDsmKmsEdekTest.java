@@ -22,7 +22,7 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class FortanixDsmKmsEdekTest {
 
-    public static Stream<Arguments> illegalDeks() {
+    static Stream<Arguments> illegalDeks() {
         return Stream.of(
                 argumentSet("empty kek", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("", IV, new byte[]{ 1 })),
                 argumentSet("empty bytes", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("k", IV, new byte[]{})),

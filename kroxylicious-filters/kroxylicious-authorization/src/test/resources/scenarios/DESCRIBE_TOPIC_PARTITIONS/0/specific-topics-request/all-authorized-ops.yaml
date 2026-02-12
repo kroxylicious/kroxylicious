@@ -1,0 +1,137 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_TOPIC_PARTITIONS"
+  apiVersion: 0
+  scenario: >
+    upstream topic authorized ops more permissive. 
+    mock upstream responds with authorized ops value 3576 (READ,WRITE,CREATE,DELETE,ALTER,DESCRIBE,DESCRIBE_CONFIGS,ALTER_CONFIGS) for topic my-topic
+    authorizer says topic my-topic is only permitted to (READ,WRITE,CREATE,DELETE,ALTER,DESCRIBE,DESCRIBE_CONFIGS,ALTER_CONFIGS) 
+    so response is 3576
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_TOPIC_PARTITIONS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 75
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        topics:
+          - name: "my-topic"
+        responsePartitionLimit: 534
+        cursor:
+          topicName: "my-topic"
+          partitionIndex: 421
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 343
+        topics:
+          - errorCode: 0
+            name: "my-topic"
+            topicId: "i4YiqCLdQi2cideBU8SZgQ"
+            isInternal: false
+            partitions:
+              - errorCode: 0
+                partitionIndex: 869
+                leaderId: 871
+                leaderEpoch: 198
+                replicaNodes:
+                  - 6
+                isrNodes:
+                  - 27
+                eligibleLeaderReplicas:
+                  - 215
+                lastKnownElr:
+                  - 172
+                offlineReplicas:
+                  - 392
+            topicAuthorizedOperations: 3576
+        nextCursor:
+          topicName: "my-topic"
+          partitionIndex: 551
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "WRITE"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "CREATE"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DELETE"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "ALTER"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE_CONFIGS"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "ALTER_CONFIGS"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 75
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    topics:
+      - name: "my-topic"
+    responsePartitionLimit: 534
+    cursor:
+      topicName: "my-topic"
+      partitionIndex: 421
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 343
+    topics:
+      - errorCode: 0
+        name: "my-topic"
+        topicId: "i4YiqCLdQi2cideBU8SZgQ"
+        isInternal: false
+        partitions:
+          - errorCode: 0
+            partitionIndex: 869
+            leaderId: 871
+            leaderEpoch: 198
+            replicaNodes:
+              - 6
+            isrNodes:
+              - 27
+            eligibleLeaderReplicas:
+              - 215
+            lastKnownElr:
+              - 172
+            offlineReplicas:
+              - 392
+        topicAuthorizedOperations: 3576
+    nextCursor:
+      topicName: "my-topic"
+      partitionIndex: 551

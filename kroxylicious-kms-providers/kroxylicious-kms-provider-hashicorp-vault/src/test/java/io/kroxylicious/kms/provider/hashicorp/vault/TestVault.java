@@ -29,7 +29,7 @@ public class TestVault implements Closeable {
     public static final int PLAIN_PORT = 8200;
     private static final String VAULT_TOKEN = "token";
 
-    private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.21.0");
+    private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.21.3");
 
     private final VaultContainer<?> vault;
     private final URI endpoint;
@@ -42,16 +42,18 @@ public class TestVault implements Closeable {
         if (clientKeys != null && serverKeys == null) {
             throw new IllegalArgumentException("server TLS key/cert must be supplied if we want to configure client TLS auth");
         }
-        VaultContainer<?> vault = new VaultContainer<>(HASHICORP_VAULT)
+        VaultContainer<?> vaultContainer = new VaultContainer<>(HASHICORP_VAULT)
                 .withVaultToken(VAULT_TOKEN)
                 .withEnv("VAULT_FORMAT", "json")
                 .withInitCommand("secrets enable transit");
         if (serverKeys != null) {
-            withTls(vault, serverKeys, clientKeys);
+            withTls(vaultContainer, serverKeys, clientKeys);
         }
-        vault.start();
-        this.vault = vault;
-        endpoint = URI.create(serverKeys == null ? vault.getHttpHostAddress() : String.format("https://%s:%s", vault.getHost(), vault.getMappedPort(TLS_PORT)))
+        vaultContainer.start();
+        this.vault = vaultContainer;
+        endpoint = URI
+                .create(serverKeys == null ? vaultContainer.getHttpHostAddress()
+                        : String.format("https://%s:%s", vaultContainer.getHost(), vaultContainer.getMappedPort(TLS_PORT)))
                 .resolve("v1/transit");
     }
 

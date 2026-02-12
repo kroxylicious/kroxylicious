@@ -6,20 +6,17 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.List;
 import java.util.Objects;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
-import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
@@ -35,7 +32,6 @@ sealed interface ProxyChannelState permits
         Startup,
         ClientActive,
         HaProxy,
-        ApiVersions,
         SelectingServer,
         Connecting,
         Forwarding,
@@ -67,23 +63,6 @@ sealed interface ProxyChannelState permits
         }
 
         /**
-         * Transition to {@link ApiVersions}, because an ApiVersions request has been received
-         * @return The ApiVersions state
-         */
-        public ApiVersions toApiVersions(
-                                         DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-            // TODO check the format of the strings using a regex
-            // Needed to reproduce the exact behaviour for how a broker handles this
-            // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
-            var clientSoftwareName = apiVersionsFrame.body().clientSoftwareName();
-            var clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
-            return new ApiVersions(
-                    null,
-                    clientSoftwareName,
-                    clientSoftwareVersion);
-        }
-
-        /**
          * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
          * @return The Connecting state
          */
@@ -104,22 +83,6 @@ sealed interface ProxyChannelState permits
             implements ProxyChannelState {
 
         /**
-         * Transition to {@link ApiVersions}, because an ApiVersions request has been received
-         * @return The ApiVersions state
-         */
-        public ApiVersions toApiVersions(DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-            // TODO check the format of the strings using a regex
-            // Needed to reproduce the exact behaviour for how a broker handles this
-            // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
-            var clientSoftwareName = apiVersionsFrame.body().clientSoftwareName();
-            var clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
-            return new ApiVersions(
-                    haProxyMessage,
-                    clientSoftwareName,
-                    clientSoftwareVersion);
-        }
-
-        /**
          * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
          * @return The Connecting state
          */
@@ -132,32 +95,7 @@ sealed interface ProxyChannelState permits
     }
 
     /**
-     * The client has sent an ApiVersions request
-     * @param haProxyMessage
-     * @param clientSoftwareName
-     * @param clientSoftwareVersion
-     */
-    record ApiVersions(@Nullable HAProxyMessage haProxyMessage,
-                       @Nullable String clientSoftwareName, // optional in the protocol
-                       @Nullable String clientSoftwareVersion // optional in the protocol
-    ) implements ProxyChannelState {
-
-        /**
-         * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
-         * @return The Connecting state
-         */
-        public SelectingServer toSelectingServer() {
-            return new SelectingServer(
-                    haProxyMessage,
-                    clientSoftwareName,
-                    clientSoftwareVersion);
-        }
-    }
-
-    /**
-     * A channel to the server is now required, but
-     * {@link io.kroxylicious.proxy.filter.NetFilter#selectServer(NetFilter.NetFilterContext)}
-     * has not yet been called.
+     * A channel to the server is now required.
      * @param haProxyMessage
      * @param clientSoftwareName
      * @param clientSoftwareVersion
@@ -168,10 +106,8 @@ sealed interface ProxyChannelState permits
             implements ProxyChannelState {
 
         /**
-         * Transition to {@link Connecting}, because the NetFilter
-         * has invoked
-         * {@link io.kroxylicious.proxy.filter.NetFilter.NetFilterContext#initiateConnect(HostPort, List)}.
-         * @return The Connecting2 state
+         * Transition to {@link Connecting}
+         * @return The Connecting state
          */
         public Connecting toConnecting(HostPort remote) {
             return new Connecting(haProxyMessage, clientSoftwareName,
@@ -180,8 +116,7 @@ sealed interface ProxyChannelState permits
     }
 
     /**
-     * The NetFilter has determined the server to connect to,
-     * but the channel to it is not yet active.
+     * The connection has started but the channel to it is not yet active.
      *
      * @param haProxyMessage
      * @param clientSoftwareName

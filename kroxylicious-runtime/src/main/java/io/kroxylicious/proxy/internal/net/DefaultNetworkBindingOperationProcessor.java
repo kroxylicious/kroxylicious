@@ -65,7 +65,7 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
             return;
         }
 
-        var unused = networkBindingExecutor.submit(() -> {
+        networkBindingExecutor.submit(() -> {
             try {
                 do {
                     var networkBindingOperation = queue.take();
@@ -74,14 +74,7 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
                     }
 
                     var bootstrap = networkBindingOperation.tls() ? tlsServerBootstrap : plainServerBootstrap;
-                    try {
-                        networkBindingOperation.performBindingOperation(bootstrap, networkBindingExecutor);
-                    }
-                    catch (Exception e) {
-                        // We don't expect performBindingOperation to throw an exception but if it does,
-                        // we don't want to break the executor loop.
-                        LOGGER.error("Unexpected error performing the binding operation", e);
-                    }
+                    performBindingOperation(networkBindingOperation, bootstrap);
                 } while (!Thread.interrupted());
             }
             catch (InterruptedException e) {
@@ -96,6 +89,17 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
         });
     }
 
+    private void performBindingOperation(NetworkBindingOperation<?> networkBindingOperation, ServerBootstrap bootstrap) {
+        try {
+            networkBindingOperation.performBindingOperation(bootstrap, networkBindingExecutor);
+        }
+        catch (Exception e) {
+            // We don't expect performBindingOperation to throw an exception but if it does,
+            // we don't want to break the executor loop.
+            LOGGER.error("Unexpected error performing the binding operation", e);
+        }
+    }
+
     @Override
     public void close() {
         if (!running.compareAndSet(true, false)) {
@@ -104,20 +108,18 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
         }
 
         enqueueNetworkBindingEvent(POISON_PILL);
-        boolean shutdown = false;
         try {
             POISON_PILL.getFuture().get(1, TimeUnit.MINUTES);
         }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
         catch (Exception e) {
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
             throw new RuntimeException(e);
         }
         finally {
-            if (!shutdown) {
-                networkBindingExecutor.shutdownNow();
-            }
+            networkBindingExecutor.shutdownNow();
         }
     }
 }

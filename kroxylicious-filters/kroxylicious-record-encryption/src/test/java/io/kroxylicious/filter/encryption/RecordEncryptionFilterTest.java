@@ -20,9 +20,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 import org.apache.kafka.common.InvalidRecordException;
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.NetworkException;
@@ -36,6 +38,8 @@ import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.message.ShareFetchResponseData;
+import org.apache.kafka.common.message.ShareFetchResponseData.ShareFetchableTopicResponse;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
@@ -76,6 +80,8 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -100,14 +106,14 @@ import static org.mockito.Mockito.when;
 class RecordEncryptionFilterTest {
 
     private static final String UNRESOLVED_TOPIC = "unresolved";
+    private static final Uuid UNRESOLVED_TOPIC_ID = Uuid.randomUuid();
     private static final String ENCRYPTED_TOPIC = "encrypt_me";
-    private static final String KEK_ID_1 = "KEK_ID_1";
+    private static final Uuid ENCRYPTED_TOPIC_ID = Uuid.randomUuid();
+    private static final String KEK_ID_1 = "KEK-ID-1";
     private static final byte[] HELLO_PLAIN_WORLD = "Hello World".getBytes(UTF_8);
     private static final byte[] HELLO_CIPHER_WORLD = "Hello Ciphertext World!".getBytes(UTF_8);
 
     private static final byte[] ENCRYPTED_MESSAGE_BYTES = "xslkajfd;ljsaefjjKLDJlkDSJFLJK';,kSDKF'".getBytes(UTF_8);
-    private static final short OLD_FETCH_API_VERSION = 9;
-    private static final short MODERN_FETCH_API_VERSION = FetchResponseData.HIGHEST_SUPPORTED_VERSION;
 
     @Mock(strictness = LENIENT)
     EncryptionManager<String> encryptionManager;
@@ -155,12 +161,8 @@ class RecordEncryptionFilterTest {
         final Map<String, String> topicNameToKekId = new HashMap<>();
         topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
 
-        when(kekSelector.selectKek(anySet())).thenAnswer(invocationOnMock -> {
-            Set<String> wanted = invocationOnMock.getArgument(0);
-            var copy = new HashMap<>(topicNameToKekId);
-            copy.keySet().retainAll(wanted);
-            return CompletableFuture.completedFuture(new TopicNameKekSelection<>(topicNameToKekId, Set.of(UNRESOLVED_TOPIC)));
-        });
+        when(kekSelector.selectKek(anySet()))
+                .thenAnswer(invocationOnMock -> CompletableFuture.completedFuture(new TopicNameKekSelection<>(topicNameToKekId, Set.of(UNRESOLVED_TOPIC))));
 
         when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
@@ -257,7 +259,7 @@ class RecordEncryptionFilterTest {
         verify(encryptionManager).encrypt(any(), anyInt(), any(),
                 argThat(records -> assertThat(records.records())
                         .hasSize(1)
-                        .allSatisfy(record -> assertThat(record.value()).isEqualTo(ByteBuffer.wrap(HELLO_CIPHER_WORLD)))),
+                        .allSatisfy(kafkaRecord -> assertThat(kafkaRecord.value()).isEqualTo(ByteBuffer.wrap(HELLO_CIPHER_WORLD)))),
                 any());
     }
 
@@ -306,6 +308,23 @@ class RecordEncryptionFilterTest {
         // Then
         verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
                 .isInstanceOf(FetchResponseData.class).isEqualTo(fetchResponseData)));
+    }
+
+    @Test
+    void shouldPassThroughUnencryptedShareRecords() {
+        // Given
+        givenTopicNameMapping(Set.of(UNRESOLVED_TOPIC_ID), Map.of(UNRESOLVED_TOPIC_ID, UNRESOLVED_TOPIC));
+        var fetchResponseData = buildShareFetchResponseData(new ShareFetchableTopicResponse()
+                .setTopicId(UNRESOLVED_TOPIC_ID)
+                .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+
+        // When
+        encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
+                .isInstanceOf(ShareFetchResponseData.class).isEqualTo(fetchResponseData)));
     }
 
     @Test
@@ -366,6 +385,72 @@ class RecordEncryptionFilterTest {
     }
 
     @Test
+    void shouldPropagateShareResponseExceptions() {
+        // Given
+        givenTopicNameMapping(Set.of(ENCRYPTED_TOPIC_ID), Map.of(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC));
+        var fetchResponseData = buildShareFetchResponseData(new ShareFetchableTopicResponse()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        RuntimeException exception = new RuntimeException("boom");
+        when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+
+        // When
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
+    }
+
+    @Test
+    void topicNameMappingLookupFailureOnShareFetch() {
+        // Given
+        givenTopicNameMappingFailure(Set.of(ENCRYPTED_TOPIC_ID), Errors.UNKNOWN_TOPIC_OR_PARTITION);
+        var fetchResponseData = buildShareFetchResponseData(new ShareFetchableTopicResponse()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+
+        // When
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        assertThat(stage).succeedsWithin(Duration.ZERO);
+
+        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
+                .asInstanceOf(InstanceOfAssertFactories.type(ShareFetchResponseData.class))
+                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
+                .extracting(ShareFetchResponseData::responses)
+                .satisfies(ftr -> {
+                    assertThat(ftr).hasSize(1);
+                    for (ShareFetchableTopicResponse topicResponse : ftr) {
+                        assertThat(topicResponse.partitions()).hasSize(1).allSatisfy(partitionData -> {
+                            assertThat(partitionData.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
+                        });
+                    }
+                })));
+    }
+
+    private void givenTopicNameMappingFailure(Set<Uuid> failedTopicIds, final Errors error) {
+        when(context.topicNames(failedTopicIds)).thenReturn(CompletableFuture.completedFuture(new TopicNameMapping() {
+            @Override
+            public boolean anyFailures() {
+                return true;
+            }
+
+            @Override
+            public Map<Uuid, String> topicNames() {
+                return Map.of();
+            }
+
+            @Override
+            public Map<Uuid, TopicNameMappingException> failures() {
+                return failedTopicIds.stream().collect(Collectors.toMap(id -> id, id -> new TopicNameMappingException(error)));
+            }
+        }));
+    }
+
+    @Test
     void shouldPropagateUnknownKeyToClientAsResourceUnknownError() {
         // Given
         var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
@@ -387,6 +472,32 @@ class RecordEncryptionFilterTest {
                 .extracting(FetchResponseData::responses, InstanceOfAssertFactories.list(FetchResponseData.FetchableTopicResponse.class))
                 .singleElement()
                 .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC, Errors.RESOURCE_NOT_FOUND))));
+    }
+
+    @Test
+    void shouldPropagateUnknownKeyToClientAsResourceUnknownErrorShareFetch() {
+        // Given
+        givenTopicNameMapping(Set.of(ENCRYPTED_TOPIC_ID), Map.of(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC));
+        var fetchResponseData = buildShareFetchResponseData(new ShareFetchableTopicResponse()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        RuntimeException exception = new UnknownKeyException("boom");
+        when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+
+        // When
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        assertThat(stage).succeedsWithin(Duration.ZERO);
+
+        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
+                .asInstanceOf(InstanceOfAssertFactories.type(ShareFetchResponseData.class))
+                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
+                .extracting(shareFetchResponseData -> shareFetchResponseData.responses().stream().toList(),
+                        InstanceOfAssertFactories.list(ShareFetchableTopicResponse.class))
+                .singleElement()
+                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC_ID, Errors.RESOURCE_NOT_FOUND))));
     }
 
     @Test
@@ -422,8 +533,53 @@ class RecordEncryptionFilterTest {
         ));
     }
 
+    @Test
+    void shouldIdentifyTheTopicPartitionThatSufferedUnknownKeyShareFetch() {
+        // Given
+        Uuid anotherTopicId = Uuid.randomUuid();
+        String anotherTopicName = "anotherTopic";
+        givenTopicNameMapping(Set.of(anotherTopicId, ENCRYPTED_TOPIC_ID), Map.of(anotherTopicId, anotherTopicName, ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC));
+        var missingKeyResponse = new ShareFetchableTopicResponse()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD))));
+        var anotherResponse = new ShareFetchableTopicResponse()
+                .setTopicId(anotherTopicId)
+                .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD))));
+
+        var fetchResponseData = buildShareFetchResponseData(anotherResponse, missingKeyResponse);
+        RuntimeException exception = new UnknownKeyException("boom");
+        when(decryptionManager.decrypt(eq(ENCRYPTED_TOPIC), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+        when(decryptionManager.decrypt(eq(anotherTopicName), anyInt(), any(), any())).thenReturn(CompletableFuture.completedStage(makeRecord(HELLO_PLAIN_WORLD)));
+
+        // When
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        assertThat(stage).succeedsWithin(Duration.ZERO);
+
+        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
+                .asInstanceOf(InstanceOfAssertFactories.type(ShareFetchResponseData.class))
+                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
+                .extracting(shareFetchResponseData -> shareFetchResponseData.responses().stream().toList(),
+                        InstanceOfAssertFactories.list(ShareFetchableTopicResponse.class))
+                .hasSize(2)
+                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, anotherTopicId, Errors.NONE), atIndex(0))
+                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC_ID, Errors.RESOURCE_NOT_FOUND), atIndex(1))));
+    }
+
     private static void assertHasSingleEmptyPartitionData(FetchableTopicResponse ftr, String expectedTopicName, Errors expectedError) {
         assertThat(ftr.topic()).isEqualTo(expectedTopicName);
+        assertThat(ftr.partitions())
+                .singleElement()
+                .satisfies(pd -> {
+                    assertThat(pd.errorCode()).isEqualTo(expectedError.code());
+                    assertThat(pd.records()).isSameAs(MemoryRecords.EMPTY);
+                });
+    }
+
+    private static void assertHasSingleEmptyPartitionData(ShareFetchableTopicResponse ftr, Uuid expectedTopicId, Errors expectedError) {
+        assertThat(ftr.topicId()).isEqualTo(expectedTopicId);
         assertThat(ftr.partitions())
                 .singleElement()
                 .satisfies(pd -> {
@@ -552,8 +708,33 @@ class RecordEncryptionFilterTest {
         return resultBuilder;
     }
 
+    private void givenTopicNameMapping(Set<Uuid> unresolvedTopicId, Map<Uuid, String> mapping) {
+        when(context.topicNames(unresolvedTopicId)).thenReturn(CompletableFuture.completedFuture(new TopicNameMapping() {
+            @Override
+            public boolean anyFailures() {
+                return false;
+            }
+
+            @Override
+            public Map<Uuid, String> topicNames() {
+                return mapping;
+            }
+
+            @Override
+            public Map<Uuid, TopicNameMappingException> failures() {
+                return Map.of();
+            }
+        }));
+    }
+
     private static FetchResponseData buildFetchResponseData(FetchableTopicResponse... topicResponses) {
         var data = new FetchResponseData();
+        data.responses().addAll(Arrays.asList(topicResponses));
+        return data;
+    }
+
+    private static ShareFetchResponseData buildShareFetchResponseData(ShareFetchableTopicResponse... topicResponses) {
+        var data = new ShareFetchResponseData();
         data.responses().addAll(Arrays.asList(topicResponses));
         return data;
     }

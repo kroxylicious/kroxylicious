@@ -6,16 +6,44 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.List;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
+import nl.altindag.log.LogCaptor;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ServiceBasedPluginFactoryRegistryTest {
+
+    private static LogCaptor logCaptor;
+
+    @BeforeAll
+    static void setupLogCaptor() {
+        logCaptor = LogCaptor.forClass(ServiceBasedPluginFactoryRegistry.class);
+    }
+
+    @AfterEach
+    void clearLogs() {
+        logCaptor.clearLogs();
+    }
+
+    @AfterAll
+    static void tearDown() {
+        logCaptor.close();
+    }
 
     @Test
     @SuppressWarnings("DataFlowIssue")
@@ -63,14 +91,105 @@ class ServiceBasedPluginFactoryRegistryTest {
                 factory.pluginInstance(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getName()));
     }
 
+    static List<Arguments> shouldLogWarningOnInstantiation() {
+        return List.of(
+                Arguments.argumentSet("@Deprecated",
+                        "io.kroxylicious.proxy.config.DeprecatedImplementation",
+                        "io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                                + "with name 'io.kroxylicious.proxy.config.DeprecatedImplementation' is deprecated."),
+                Arguments.argumentSet("shouldWarnAboutRenamedPluginLoadedWithOldFqName",
+                        "io.kroxylicious.proxy.config.ImplementationWithDeprecatedName",
+                        "io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                                + "with name 'io.kroxylicious.proxy.config.ImplementationWithDeprecatedName' "
+                                + "should now be referred to using the name 'io.kroxylicious.proxy.config.RenamedImplementation'. "
+                                + "The plugin has been renamed and in the future the old name "
+                                + "'io.kroxylicious.proxy.config.ImplementationWithDeprecatedName' will cease to work."),
+                Arguments.argumentSet("shouldWarnAboutRenamedPluginLoadedWithOldSimpleName",
+                        "ImplementationWithDeprecatedName",
+                        "io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                                + "with name 'ImplementationWithDeprecatedName' "
+                                + "should now be referred to using the name 'io.kroxylicious.proxy.config.RenamedImplementation'. "
+                                + "The plugin has been renamed and in the future the old name "
+                                + "'ImplementationWithDeprecatedName' will cease to work."),
+                Arguments.argumentSet("shouldWarnAboutRepackagedPluginLoadedWithOldFqName",
+                        "io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation",
+                        "io.kroxylicious.proxy.config.ServiceWithBaggage plugin "
+                                + "with name 'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' "
+                                + "should now be referred to using the name 'io.kroxylicious.proxy.config.newpkg.RepackagedImplementation'. "
+                                + "The plugin has been renamed and in the future the old name "
+                                + "'io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation' will cease to work."));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void shouldLogWarningOnInstantiation(String instanceName, String expectedMessage) {
+        // Given
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
+        // When
+        var instance = factory.pluginInstance(instanceName);
+        // Then
+        assertThat(instance).isNotNull();
+        assertThat(logCaptor.hasWarnMessage(expectedMessage)).isTrue();
+    }
+
+    static List<Arguments> shouldNotLogWarningOnInstantiation() {
+        return List.of(
+                Arguments.argumentSet("for RenamedPluginLoadedWithNewFqName",
+                        "io.kroxylicious.proxy.config.RenamedImplementation"),
+                Arguments.argumentSet("for RenamedPluginLoadedWithNewSimpleName",
+                        "RenamedImplementation"),
+                Arguments.argumentSet("for RepackagedPluginLoadedWithNewFqName",
+                        "io.kroxylicious.proxy.config.newpkg.RepackagedImplementation"),
+                Arguments.argumentSet("shouldNotWarnAboutRepackagedPluginLoadedWithSimpleName",
+                        "RepackagedImplementation"));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void shouldNotLogWarningOnInstantiation(String instanceName) {
+        // Given
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithBaggage.class);
+        // When
+        var instance = factory.pluginInstance("RepackagedImplementation");
+        // Then
+        assertThat(instance).isNotNull();
+        assertThat(logCaptor.getWarnLogs()).isEmpty();
+    }
+
     @Test
     void shouldNotReturnPluginInstanceForAmbiguousName() {
-        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class);
+        PluginFactory<ServiceWithAmbiguousImpls> factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class);
         String ambiguous1 = io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getSimpleName();
         String ambiguous2 = io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getSimpleName();
 
         assertThrows(UnknownPluginInstanceException.class, () -> factory.pluginInstance(ambiguous1));
         assertThrows(UnknownPluginInstanceException.class, () -> factory.pluginInstance(ambiguous2));
+    }
+
+    @Test
+    void shouldThrowForAmbiguousNameWithDeprecatedName() {
+        ServiceBasedPluginFactoryRegistry serviceBasedPluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
+        assertThatThrownBy(() -> serviceBasedPluginFactoryRegistry.pluginFactory(ServiceWithCollidingAlias.class))
+                .isExactlyInstanceOf(RuntimeException.class)
+                .hasMessage("Ambiguous plugin implementation name 'io.kroxylicious.proxy.config.ServiceWithCollidingAliasX'");
+        assertThat(logCaptor.hasWarnMessage("Plugin implementation class io.kroxylicious.proxy.config.ServiceWithCollidingAliasY "
+                + "is annotated with @DeprecatedPluginName(oldName=\"io.kroxylicious.proxy.config.ServiceWithCollidingAliasX\") "
+                + "which collides with the plugin implementation class io.kroxylicious.proxy.config.ServiceWithCollidingAliasX. "
+                + "You must remove one of these classes from the class path."))
+                .isTrue();
+    }
+
+    @Test
+    void shouldThrowForAmbiguousNameWithDeprecatedName2() {
+        ServiceBasedPluginFactoryRegistry serviceBasedPluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
+        assertThatThrownBy(() -> serviceBasedPluginFactoryRegistry.pluginFactory(ServiceWithCollidingAlias2.class))
+                .isExactlyInstanceOf(RuntimeException.class)
+                .hasMessage("Ambiguous plugin implementation name 'io.kroxylicious.proxy.config.ServiceWithCollidingAlias2Z'");
+        assertThat(logCaptor.hasWarnMessage("Plugin implementation class io.kroxylicious.proxy.config.ServiceWithCollidingAlias2X "
+                + "is annotated with @DeprecatedPluginName(oldName=\"io.kroxylicious.proxy.config.ServiceWithCollidingAlias2Z\") "
+                + "which collides with the plugin implementation class io.kroxylicious.proxy.config.ServiceWithCollidingAlias2Y. "
+                + "You must remove one of these classes from the class path."))
+                .isTrue();
     }
 
     @Test

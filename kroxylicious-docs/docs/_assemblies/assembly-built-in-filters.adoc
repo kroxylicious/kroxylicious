@@ -10,6 +10,11 @@
 [role="_abstract"]
 Kroxylicious comes with a suite of built-in filters designed to enhance the functionality and security of your Kafka clusters.
 
+== Authorization filter
+
+The Kroxylicious Authorization filter enables the proxy to enforce authorization rules on client requests before they reach the Kafka brokers.
+For information on using the filter, see the {AuthorizationGuide}.
+
 == Record Encryption filter
 
 The Kroxylicious Record Encryption filter enables encryption-at-rest for Apache Kafka clusters.
@@ -30,3 +35,7 @@ For information on using the filter, see the {MultiTenancyGuide}.
 The Kroxylicious Oauth Bearer Validation filter enables a validation on the JWT token received from client before forwarding it to cluster.
 For information on using the filter, see the {OauthBearerValidationGuide}.
 
+== SASL Inspection filter
+
+The Kroxylicious SASL Inspection filter extracts the authenticated principal from a successful SASL exchange between Kafka Client
+and Kafka Broker and makes it available to the other filters in the chain.

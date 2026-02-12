@@ -90,6 +90,12 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
     }
 
+    @Override
+    public Map<String, Object> clientConfiguration() {
+        var vc = onlyVirtualCluster();
+        return buildDefaultClientConfiguration(vc, DEFAULT_GATEWAY_NAME);
+    }
+
     private KroxyliciousClients clients(String virtualCluster, String gateway) {
         GatewayId key = new GatewayId(virtualCluster, gateway);
         return clients.computeIfAbsent(key,

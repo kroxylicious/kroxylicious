@@ -1,0 +1,81 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "JOIN_GROUP"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "JOIN_GROUP"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 11
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-941"
+        sessionTimeoutMs: 885
+        rebalanceTimeoutMs: 653
+        memberId: "random-string-803"
+        protocolType: "random-string-612"
+        protocols:
+          - name: "random-string-178"
+            metadata: !!binary |-
+              8DRBf2I=
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 463
+        errorCode: 902
+        generationId: 801
+        protocolName: "random-string-939"
+        leader: "random-string-120"
+        memberId: "random-string-608"
+        members:
+          - memberId: "random-string-369"
+            metadata: !!binary |-
+              JF3/W64=
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 11
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-941"
+    sessionTimeoutMs: 885
+    rebalanceTimeoutMs: 653
+    memberId: "random-string-803"
+    protocolType: "random-string-612"
+    protocols:
+      - name: "random-string-178"
+        metadata: !!binary |-
+          8DRBf2I=
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 463
+    errorCode: 902
+    generationId: 801
+    protocolName: "random-string-939"
+    leader: "random-string-120"
+    memberId: "random-string-608"
+    members:
+      - memberId: "random-string-369"
+        metadata: !!binary |-
+          JF3/W64=

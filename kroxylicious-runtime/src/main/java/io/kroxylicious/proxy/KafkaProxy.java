@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -84,6 +86,9 @@ public final class KafkaProxy implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
     private static final Logger STARTUP_SHUTDOWN_LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
 
+    private static final int JRE_FEATURE_VERSION = Runtime.version().feature();
+    private static final TreeSet<Integer> TESTED_JRE_VERSIONS = new TreeSet<>(Set.of(21, 25));
+
     @VisibleForTesting
     record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
 
@@ -128,8 +133,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
 
         private static int resolveThreadCount(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
-            return Optional.ofNullable(configuration.network())
-                    .map(settingsSupplier)
+            return getNettySettings(configuration, settingsSupplier)
                     .flatMap(NettySettings::workerThreadCount)
                     .orElse(Runtime.getRuntime().availableProcessors());
         }
@@ -161,9 +165,9 @@ public final class KafkaProxy implements AutoCloseable {
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, @Nullable Path configFilePath) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
+        this.virtualClusterModels = config.virtualClusterModel();
         this.features = features;
         this.configFilePath = configFilePath;
-        this.virtualClusterModels = config.virtualClusterModel(pfr);
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
 
@@ -234,6 +238,20 @@ public final class KafkaProxy implements AutoCloseable {
             throw new IllegalStateException("This proxy is already running");
         }
         try {
+            if (!TESTED_JRE_VERSIONS.contains(JRE_FEATURE_VERSION)) {
+                String versionStatus = "untested";
+                String deprecatedMessage = "";
+
+                if (JRE_FEATURE_VERSION < TESTED_JRE_VERSIONS.first()) {
+                    versionStatus = "deprecated";
+                    deprecatedMessage = " The ability to run Kroxylicious on JRE %s will be removed in a future release.".formatted(JRE_FEATURE_VERSION);
+                }
+
+                STARTUP_SHUTDOWN_LOGGER.warn(
+                        "Detected {} JRE version: {}.{} Running Kroxylicious is only tested on LTS releases >={}. If you find any issues, please try to re-create them on one of the tested JREs.",
+                        versionStatus, JRE_FEATURE_VERSION, deprecatedMessage, TESTED_JRE_VERSIONS.first());
+            }
+
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is starting");
             meterRegistries = new MeterRegistries(pfr, micrometerConfig);
             initVersionInfoMetric();
@@ -258,10 +276,13 @@ public final class KafkaProxy implements AutoCloseable {
             this.filterChainFactoryRef.set(initialFactory);
 
             // Pass atomic reference (not factory directly) to initializers for dynamic factory swaps
+            Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
                     new KafkaProxyInitializer(filterChainFactoryRef, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(),
                             apiVersionsService, connectionTracker, connectionDrainManager, inFlightTracker));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
                     new KafkaProxyInitializer(filterChainFactoryRef, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(),
                             apiVersionsService, connectionTracker, connectionDrainManager, inFlightTracker));
 
@@ -280,9 +301,15 @@ public final class KafkaProxy implements AutoCloseable {
             return this;
         }
         catch (RuntimeException e) {
+            STARTUP_SHUTDOWN_LOGGER.error("Exception during startup, shutting down", e);
             shutdown();
-            throw e;
+            throw new LifecycleException("Startup completed exceptionally", e);
         }
+    }
+
+    private static Optional<NettySettings> getNettySettings(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
+        return Optional.ofNullable(configuration.network())
+                .map(settingsSupplier);
     }
 
     private void enableNettyMetrics(final EventGroupConfig... eventGroups) {
@@ -297,16 +324,21 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     private Map<ApiKeys, Short> getApiKeyMaxVersionOverride(Configuration config) {
-        Map<String, Number> apiKeyIdMaxVersion = config.development()
-                .map(m -> m.get("apiKeyIdMaxVersionOverride"))
-                .filter(Map.class::isInstance)
-                .map(Map.class::cast)
-                .orElse(Map.of());
+        Map<String, Number> apiKeyIdMaxVersion = extractApiVersionOverrides(config);
 
         return apiKeyIdMaxVersion.entrySet()
                 .stream()
                 .collect(Collectors.toMap(e -> ApiKeys.valueOf(e.getKey()),
                         e -> e.getValue().shortValue()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Number> extractApiVersionOverrides(Configuration config) {
+        return config.development()
+                .map(m -> m.get("apiKeyIdMaxVersionOverride"))
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .orElse(Map.of());
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {
@@ -318,6 +350,8 @@ public final class KafkaProxy implements AutoCloseable {
                 .childOption(ChannelOption.TCP_NODELAY, true);
     }
 
+    @SuppressWarnings("resource") // suppressing resource as ExecutorService is not closeable in Java 17 (our runtime target)
+    private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {
     private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig,
                                                                  MeterRegistries meterRegistries,
                                                                  @Nullable ConfigurationReloadOrchestrator reloadOrchestrator) {
@@ -383,12 +417,8 @@ public final class KafkaProxy implements AutoCloseable {
                     currentFactory.close();
                 }
                 if (t != null) {
-                    if (t instanceof RuntimeException re) {
-                        throw re;
-                    }
-                    else {
-                        throw new RuntimeException(t);
-                    }
+                    STARTUP_SHUTDOWN_LOGGER.warn("Shutdown future completed exceptionally", t);
+                    throw new LifecycleException("Shutdown future completed exceptionally", t);
                 }
                 return null;
             }).toCompletableFuture().join();

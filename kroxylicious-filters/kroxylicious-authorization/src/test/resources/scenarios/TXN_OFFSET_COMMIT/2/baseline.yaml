@@ -1,0 +1,77 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "TXN_OFFSET_COMMIT"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "TXN_OFFSET_COMMIT"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 28
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "random-string-658"
+        groupId: "random-string-274"
+        producerId: 955
+        producerEpoch: 469
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 713
+                committedOffset: 718
+                committedLeaderEpoch: 535
+                committedMetadata: "random-string-567"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 640
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 224
+                errorCode: 668
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 28
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-658"
+    groupId: "random-string-274"
+    producerId: 955
+    producerEpoch: 469
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 713
+            committedOffset: 718
+            committedLeaderEpoch: 535
+            committedMetadata: "random-string-567"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 640
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 224
+            errorCode: 668

@@ -1,0 +1,51 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DELETE_RECORDS"
+  apiVersion: 1
+  scenario: "empty topics forwarded"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DELETE_RECORDS"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 21
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        topics: []
+        timeoutMs: 812
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 953
+        topics: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DELETE"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 21
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    topics: []
+    timeoutMs: 812
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 953
+    topics: []

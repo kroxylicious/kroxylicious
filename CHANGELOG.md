@@ -7,8 +7,87 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3046](https://github.com/kroxylicious/kroxylicious/pull/3046): Add configurable idle connection timeouts for client connections
+* [#3242](https://github.com/kroxylicious/kroxylicious/pull/3242): chore: remove deprecated template kek selector brace style
+* [#3224](https://github.com/kroxylicious/kroxylicious/pull/3224): Add support for using Secret in `trustAnchorRef` field of the KafkaService and the VirtualKafkaCluster CRs.
+* [#3171](https://github.com/kroxylicious/kroxylicious/pull/3171): build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0
+* [#3147](https://github.com/kroxylicious/kroxylicious/pull/3129): Deprecate Java 17. Upgrade to Java 21 in containers.
+* [#3127](https://github.com/kroxylicious/kroxylicious/pull/3127): build(deps): bump kubernetes-client.version from 7.4.0 to 7.5.0
+* [#3112](https://github.com/kroxylicious/kroxylicious/pull/3112): cache topic name lookups per VirtualCluster
+* [#3129](https://github.com/kroxylicious/kroxylicious/pull/3129): build(deps): bump netty.version from 4.2.7.Final to 4.2.9.Final
+* [#2969](https://github.com/kroxylicious/kroxylicious/issues/2969): Give `ResponseFilter#onResponse` access to the api-version
+* [#3035](https://github.com/kroxylicious/kroxylicious/issues/3035): fix(sasl inspector): Fix config parsing error if SaslInspector with subject builder
+* [#2861](https://github.com/kroxylicious/kroxylicious/pull/2861): Add JWS Signature validator
+
+### Changes, deprecations and removals
+
+* Running Kroxylicious on Java 17 is deprecated. The minimum required Java version will be raised to 21 in a future release.
+* Containers have been upgraded to use Java 21.
+* The four argument forms of `RequestFilter#onRequest` and `ResponseFilter#onResponse` are deprecated and will be removed in a future release.
+  Implement the five argument form, which includes the `apiVersion` instead.
+* A JSON Web Signature (JWS) Signature validator has been added. WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
+* Curly-brace style topicName tokens are no longer supported in the Record Encryption TemplateKekSelector template. `template` should use `$(topicName)` instead of `${topicName}`.
+  The was deprecated in version 0.11.0.
+* Idle connection timeout support added with two optional configuration properties under `network.proxy`:
+  * `unauthenticatedIdleTimeout` - Applies to connections where authentication cannot be detected
+  * `authenticatedIdleTimeout` - Applies to connections with established identities
+  Both properties use Go-style duration format (e.g., `30s`, `5m`, `1h30m`) with supported units: `d`, `h`, `m`, `s`, `ms`, `μs`/`us`, `ns`.
+* A new metric `kroxylicious_client_to_proxy_disconnects_total` tracks client-to-proxy disconnections with a `cause` label to distinguish between:
+  * `idle_timeout` - Connection exceeded the configured idle timeout duration
+  * `client_closed` - Client initiated the connection close
+  * `server_closed` - Backend server closed the connection, causing the proxy to close the client connection
+
+## 0.18.0
+
+* [#2922](https://github.com/kroxylicious/kroxylicious/pull/2922): build(deps): bump kafka.version from 4.1.0 to 4.1.1
 * [#1318](https://github.com/kroxylicious/kroxylicious/issues/1318): Add FilterContext#topicNames to enable filters to retrieve names for topic ids
 * [#2821](https://github.com/kroxylicious/kroxylicious/pull/2821): Fix OauthBearerValidationFilter unnecessarily copying the authentication bytes from an incoming request to a failed response 
+* [#2893](https://github.com/kroxylicious/kroxylicious/pull/2893): Add Subject, replace FilterContext#clientSaslAuthenticationSuccess
+* [#2899](https://github.com/kroxylicious/kroxylicious/pull/2898): Add SaslSubjectBuilder API
+* [#2913](https://github.com/kroxylicious/kroxylicious/pull/2913): Add TransportSubjectBuilder API, enable user to configure one per virtual cluster
+* [#2899](https://github.com/kroxylicious/kroxylicious/pull/2899): Add the Authorizer API
+* [#2903](https://github.com/kroxylicious/kroxylicious/pull/2903): Add an ACL Authorizer implementation
+* [#2909](https://github.com/kroxylicious/kroxylicious/pull/2909): Add an Authorizer Filter that can authorize Topic operations
+* [#2904](https://github.com/kroxylicious/kroxylicious/pull/2904): SaslInspection Filter publishes Subject using pluggable SaslSubjectBuilder
+* [#2951](https://github.com/kroxylicious/kroxylicious/pull/2951): Allow SaslInspection to function as a barrier
+
+### Changes, deprecations and removals
+
+* `Subject`, `Principal` and `User` principal added to `io.kroxylicious.proxy.authentication` package.
+* `Subject authenticatedSubject();` added to `FilterContext`, enabling Filters to access the current authenticated Subject.
+* `io.kroxylicious.proxy.authentication.SaslSubjectBuilder` has been added to `kroxylicious-api`. This is an optional
+  Service interface that SASL-oriented Filters can choose to load.
+* `FilterContext#clientSaslAuthenticationSuccess(String mechanism, String authorizedId)` is deprecated. Use
+  `FilterContext#clientSaslAuthenticationSuccess(String mechanism, Subject subject)` instead. Initially the framework
+   expects the Subject to contain a single `io.kroxylicious.proxy.authentication.User` principal which contains the
+   `authorizedId`, though this may change in the future.
+* A Virtual Cluster now has a pluggable `io.kroxylicious.proxy.authentication.TransportSubjectBuilder` associated with it.
+  This new Service is responsible for building a `Subject` from mTLS certificates presented by the client to the proxy.
+  This is configurable on the virtual cluster using the `subjectBuilder`:
+  ```yaml
+  virtualClusters:
+    - name: demo
+      subjectBuilder:
+        type: YourSubjectBuilderType
+        config:
+          your: "configObject"
+  ```
+* A new module `kroxylicious-authorizer-api` has been added. This contains `io.kroxylicious.authorizer.service.Authorizer`,
+  an interface which abstracts making an allow/deny decision about some Subject performing some Action on a resource.
+* The `SaslInspection` filter can be configured with a pluggable `SaslSubjectBuilder` using configuration like:
+  ```yaml
+  type: SaslInspection
+  config:
+    subjectBuilder: YourSubjectBuilder
+    subjectBuilderConfig:
+      your: "config"
+    enabledMechanisms:
+      - SCRAM-SHA-512
+  ```
+* `AuthorizationFilter` is added to the binary distribution and image. Note this is a new experimental Filter, not yet
+  ready for production environments.
+* `FilterContext` now offers a `topicNames` method to map from topic ids to topic names. Caching the result is initially
+  a Filter responsibility.
 
 ## 0.17.1
 

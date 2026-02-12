@@ -16,7 +16,7 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.MockConsumer;
-import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.clients.consumer.internals.AutoOffsetResetStrategy.StrategyType;
 import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -54,7 +54,7 @@ class KroxyliciousClientsTest {
                     public <K, V> Consumer<K, V> newConsumer(Map<String, Object> clientConfiguration, Deserializer<K> keyDeserializer,
                                                              Deserializer<V> valueDeserializer) {
                         assertThat(clientConfiguration).contains(Map.entry(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"));
-                        return new MockConsumer<>(OffsetResetStrategy.LATEST);
+                        return new MockConsumer<>(StrategyType.LATEST.toString());
                     }
 
                     @Override

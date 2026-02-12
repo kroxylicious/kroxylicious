@@ -1,0 +1,18 @@
+:_mod-docs-content-type: SNIPPET
+
+== Replacement matchers
+
+Replacement matchers control how field values are matched and transformed.
+A replacement matcher is defined using this format:
+
+[source]
+----
+/<matching regular expression>/<replacement>/<flags>
+----
+where:
+
+* `<matching regular expression>` is the regular expression used to test the field value.
+* `<replacement>` defines the replacement value to use when the regular expression is matched.
+The replacement can use back references (`$1` etc) to refer to capturing groups defined within the regular expression.
+* `<flags>` (optional) can be either `L` or `U` for lower or upper-casing respectively.
+The case transformation is applied to the replacement value after any back reference resolution.

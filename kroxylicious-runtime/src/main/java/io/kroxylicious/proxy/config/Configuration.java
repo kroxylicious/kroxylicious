@@ -132,7 +132,9 @@ public record Configuration(
                 virtualCluster.targetCluster(),
                 virtualCluster.logNetwork(),
                 virtualCluster.logFrames(),
-                filterDefinitions);
+                filterDefinitions,
+                virtualCluster.topicNameCacheConfig(),
+                virtualCluster.subjectBuilder());
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
@@ -156,7 +158,7 @@ public record Configuration(
         return useIoUring();
     }
 
-    public List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
+    public List<VirtualClusterModel> virtualClusterModel() {
         var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
                 .stream()
                 .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));

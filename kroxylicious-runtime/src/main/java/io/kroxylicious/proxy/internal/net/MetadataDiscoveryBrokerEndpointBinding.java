@@ -32,11 +32,6 @@ public record MetadataDiscoveryBrokerEndpointBinding(EndpointGateway endpointGat
     }
 
     @Override
-    public Integer nodeId() {
-        return nodeId;
-    }
-
-    @Override
     public boolean restrictUpstreamToMetadataDiscovery() {
         return true;
     }

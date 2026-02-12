@@ -1,0 +1,69 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_FETCH"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_FETCH"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 9
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-978"
+        topics:
+          - name: "my-topic"
+            partitionIndexes:
+              - 822
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 1023
+                committedOffset: 679
+                metadata: "random-string-988"
+                errorCode: 511
+        errorCode: 173
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 9
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-978"
+    topics:
+      - name: "my-topic"
+        partitionIndexes:
+          - 822
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 1023
+            committedOffset: 679
+            metadata: "random-string-988"
+            errorCode: 511
+    errorCode: 173

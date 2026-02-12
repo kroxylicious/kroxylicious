@@ -28,9 +28,14 @@ import org.slf4j.LoggerFactory;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilderService;
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
@@ -39,8 +44,11 @@ import io.kroxylicious.proxy.config.tls.SslContextBuildException;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -66,17 +74,34 @@ public class VirtualClusterModel {
     private final List<NamedFilterDefinition> filters;
 
     private final Optional<SslContext> upstreamSslContext;
+    private final CacheConfiguration topicNameCacheConfig;
+    private final @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig;
+    // lazily initialize to delay statistics registration until after the meter registry has been configured
+    @Nullable
+    private TopicNameCacheFilter topicNameCacheFilter = null;
 
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
                                boolean logNetwork,
                                boolean logFrames,
                                List<NamedFilterDefinition> filters) {
+        this(clusterName, targetCluster, logNetwork, logFrames, filters, new CacheConfiguration(null, null, null), null);
+    }
+
+    public VirtualClusterModel(String clusterName,
+                               TargetCluster targetCluster,
+                               boolean logNetwork,
+                               boolean logFrames,
+                               List<NamedFilterDefinition> filters,
+                               CacheConfiguration topicNameCacheConfig,
+                               @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.targetCluster = Objects.requireNonNull(targetCluster);
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.filters = filters;
+        this.topicNameCacheConfig = topicNameCacheConfig;
+        this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
@@ -256,6 +281,35 @@ public class VirtualClusterModel {
 
     public Map<String, EndpointGateway> gateways() {
         return Collections.unmodifiableMap(gateways);
+    }
+
+    public TransportSubjectBuilder subjectBuilder(PluginFactoryRegistry pfr) {
+        var pf = pfr.pluginFactory(TransportSubjectBuilderService.class);
+        String type;
+        Object config;
+        if (this.transportSubjectBuilderConfig == null) {
+            type = DefaultTransportSubjectBuilderService.class.getName();
+            config = new DefaultTransportSubjectBuilderService.Config(List.of());
+        }
+        else {
+            type = this.transportSubjectBuilderConfig.type();
+            config = this.transportSubjectBuilderConfig.config();
+        }
+        Class<?> configType = pf.configType(type);
+        if (config != null && !configType.isInstance(config)) {
+            throw new PluginConfigurationException("SubjectBuilder " + type + " accepts config of type " +
+                    configType.getName() + " but provided with config of type " + config.getClass().getName());
+        }
+        TransportSubjectBuilderService subjectBuilderService = pf.pluginInstance(type);
+        subjectBuilderService.initialize(config);
+        return subjectBuilderService.build();
+    }
+
+    public TopicNameCacheFilter getTopicNameCacheFilter() {
+        if (topicNameCacheFilter == null) {
+            topicNameCacheFilter = new TopicNameCacheFilter(topicNameCacheConfig, clusterName);
+        }
+        return topicNameCacheFilter;
     }
 
     @Override

@@ -27,8 +27,8 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
     protected abstract Logger log();
 
-    KafkaMessageDecoder(int socketFrameMaxSize,
-                        @Nullable KafkaMessageListener listener) {
+    protected KafkaMessageDecoder(int socketFrameMaxSize,
+                                  @Nullable KafkaMessageListener listener) {
         this.socketFrameMaxSize = socketFrameMaxSize;
         this.listener = listener;
     }
@@ -48,18 +48,7 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 }
                 // TODO handle too-large frames
                 if (readable >= frameSize) { // We can read the whole frame
-                    var idx = in.readerIndex();
-                    var frame = decodeHeaderAndBody(ctx,
-                            in.readSlice(frameSize), // Prevent decodeHeaderAndBody() from reading beyond the frame
-                            frameSize);
-                    out.add(frame);
-                    if (listener != null) {
-                        listener.onMessage(frame, frameSize + Frame.FRAME_SIZE_LENGTH);
-                    }
-                    log().trace("{}: readable: {}, having read {}", ctx, in.readableBytes(), in.readerIndex() - idx);
-                    if (in.readerIndex() - idx != frameSize) {
-                        throw new RuntimeException("decodeHeaderAndBody did not read all of the buffer " + in);
-                    }
+                    validateRead(ctx, in, out, frameSize);
                 }
                 else {
                     in.readerIndex(sof);
@@ -67,9 +56,32 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 }
             }
             catch (Exception e) {
-                log().error("{}: Error in decoder", ctx, e);
+                log().atError()
+                        .setMessage("{}: Error in decoder: " + e.getMessage())
+                        .addArgument(ctx)
+                        .setCause(log().isDebugEnabled() ? e : null).log();
                 throw e;
             }
+        }
+    }
+
+    private int readSingleFrame(ChannelHandlerContext ctx, ByteBuf in, List<Object> out, int frameSize) {
+        var idx = in.readerIndex();
+        var frame = decodeHeaderAndBody(ctx,
+                in.readSlice(frameSize), // Prevent decodeHeaderAndBody() from reading beyond the frame
+                frameSize);
+        out.add(frame);
+        if (listener != null) {
+            listener.onMessage(frame, frameSize + Frame.FRAME_SIZE_LENGTH);
+        }
+        return idx;
+    }
+
+    private void validateRead(ChannelHandlerContext ctx, ByteBuf in, List<Object> out, int frameSize) {
+        var idx = readSingleFrame(ctx, in, out, frameSize);
+        log().trace("{}: readable: {}, having read {}", ctx, in.readableBytes(), in.readerIndex() - idx);
+        if (in.readerIndex() - idx != frameSize) {
+            throw new IllegalStateException("decodeHeaderAndBody did not read all of the buffer " + in);
         }
     }
 

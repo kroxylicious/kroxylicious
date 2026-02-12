@@ -69,20 +69,20 @@ class FortanixDsmKmsTest {
     private static final String KEYS_EXPORT_ENDPOINT = "/crypto/v1/keys/export";
     private static final String ENCRYPT_ENDPOINT = "/crypto/v1/encrypt";
     private static final String DECRYPT_ENDPOINT = "/crypto/v1/decrypt";
-    public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static WireMockServer server;
     private FortanixDsmKmsService kmsService;
     private FortanixDsmKms kms;
     private Config config;
 
     @BeforeAll
-    public static void initMockRegistry() {
+    static void initMockRegistry() {
         server = new WireMockServer(wireMockConfig().dynamicPort());
         server.start();
     }
 
     @AfterAll
-    public static void shutdownMockRegistry() {
+    static void shutdownMockRegistry() {
         server.shutdown();
     }
 

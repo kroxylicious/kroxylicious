@@ -13,7 +13,6 @@ import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -185,7 +184,7 @@ public class KrpcGenerator {
         JSON_SERDE.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
         JSON_SERDE.configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, true);
         JSON_SERDE.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
-        JSON_SERDE.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+        JSON_SERDE.setDefaultPropertyInclusion(JsonInclude.Include.NON_EMPTY);
     }
 
     private final Logger logger;
@@ -195,13 +194,11 @@ public class KrpcGenerator {
     private final String messageSpecFilter;
 
     private final File templateDir;
-    private final Charset templateEncoding = StandardCharsets.UTF_8;
     private final List<String> templateNames;
 
     private final String outputPackage;
     private final File outputDir;
     private final String outputFilePattern;
-    private final Charset outputEncoding = StandardCharsets.UTF_8;
 
     @SuppressWarnings("java:S107") // Methods should not have too many parameters - ignored as use-case with builder seems reasonable.
     private KrpcGenerator(Logger logger, GeneratorMode mode, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames,
@@ -316,7 +313,7 @@ public class KrpcGenerator {
         Path tempPath = outPath.resolve(tempOutputFileName);
         Path finalPath = outPath.resolve(finalFileName);
         logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
-        try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
+        try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), StandardCharsets.UTF_8)) {
             consumer.accept(writer, finalPath.toFile());
         }
         if (!filesEqual(tempPath, finalPath)) {
@@ -348,7 +345,7 @@ public class KrpcGenerator {
         }
         try {
             long mismatch = Files.mismatch(generatedFile, finalFile);
-            return (mismatch == -1);
+            return mismatch == -1;
         }
         catch (IOException e) {
             throw new UncheckedIOException("IO exception while comparing files for mismatch", e);
@@ -361,16 +358,6 @@ public class KrpcGenerator {
     private long renderMulti(Configuration cfg, Set<MessageSpec> messageSpecs) {
         logger.log(Level.DEBUG, "Processing message specs");
 
-        // TODO not actually used right now
-        // var structRegistry = new StructRegistry();
-        // try {
-        // for (MessageSpec messageSpec : messageSpecs) {
-        // structRegistry.register(messageSpec);
-        // }
-        // }
-        // catch (Exception e) {
-        // throw new RuntimeException(e);
-        // }
         return templateNames.stream().mapToLong(templateName -> {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
@@ -438,7 +425,7 @@ public class KrpcGenerator {
 
         // Set the preferred charset template files are stored in. UTF-8 is
         // a good choice in most applications:
-        cfg.setDefaultEncoding(templateEncoding.name());
+        cfg.setDefaultEncoding(StandardCharsets.UTF_8.name());
 
         // Sets how errors will appear.
         // During web page *development* TemplateExceptionHandler.HTML_DEBUG_HANDLER is better.

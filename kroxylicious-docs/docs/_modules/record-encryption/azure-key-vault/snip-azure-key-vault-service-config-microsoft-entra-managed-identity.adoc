@@ -1,0 +1,22 @@
+:_mod-docs-content-type: SNIPPET
+
+// file included in the following:
+//
+// con-azure-key-vault-plugin-configuration.adoc
+
+.Configuration for authenticating with Managed Identities for Azure resources
+[source, yaml]
+----
+kms: AzureKeyVault
+kmsConfig:
+  keyVaultName: my-key-vault
+  keyVaultHost: vault.azure.net
+  tls:
+    # ... client trust configuration for Azure Key Vault
+  managedIdentityCredentials:
+    targetResource: https://vault.azure.net/
+----
+* `kms` specifies the name of the KMS provider. Use AzureKeyVault.
+* `keyVaultName` is the name of the key vault the filter uses.
+* `keyVaultHost` is the key vault host name, without the key vault name prefix.
+* `targetResource` is the App ID URI of the resource that the proxy authenticates to (your Azure Key Vault URI).

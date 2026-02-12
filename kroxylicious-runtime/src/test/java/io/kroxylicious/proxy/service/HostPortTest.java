@@ -6,9 +6,13 @@
 
 package io.kroxylicious.proxy.service;
 
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -17,38 +21,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HostPortTest {
 
-    @Test
-    void validBareHost() {
-        var hp = HostPort.parse("localhost:12345");
-        assertThat(hp.host()).isEqualTo("localhost");
-        assertThat(hp.port()).isEqualTo(12345);
+    public static Stream<Arguments> parse() {
+        return Stream.of(Arguments.argumentSet("bare host", "localhost:12345", "localhost", 12345),
+                Arguments.argumentSet("FQDN", "kafka.example.com:12345", "kafka.example.com", 12345),
+                Arguments.argumentSet("Ipv4", "192.168.0.1:12345", "192.168.0.1", 12345),
+                Arguments.argumentSet("Ipv6", "[2001:db8::1]:12345", "[2001:db8::1]", 12345));
+    }
+
+    @MethodSource
+    @ParameterizedTest
+    void parse(String address, String expectedHost, int expectedPort) {
+        var hp = HostPort.parse(address);
+        assertThat(hp.host()).isEqualTo(expectedHost);
+        assertThat(hp.port()).isEqualTo(expectedPort);
     }
 
     @Test
     void asString() {
         var hp = HostPort.asString("localhost", 12345);
         assertThat(hp).isEqualTo("localhost:12345");
-    }
-
-    @Test
-    void validFQDN() {
-        var hp = HostPort.parse("kafka.example.com:12345");
-        assertThat(hp.host()).isEqualTo("kafka.example.com");
-        assertThat(hp.port()).isEqualTo(12345);
-    }
-
-    @Test
-    void validIpv4() {
-        var hp = HostPort.parse("192.168.0.1:12345");
-        assertThat(hp.host()).isEqualTo("192.168.0.1");
-        assertThat(hp.port()).isEqualTo(12345);
-    }
-
-    @Test
-    void validIpv6() {
-        var hp = HostPort.parse("[2001:db8::1]:12345");
-        assertThat(hp.host()).isEqualTo("[2001:db8::1]");
-        assertThat(hp.port()).isEqualTo(12345);
     }
 
     @ParameterizedTest
@@ -60,16 +51,14 @@ class HostPortTest {
         var l = HostPort.parse(left);
         var r = HostPort.parse(right);
         assertThat(l).isEqualTo(r);
-        assertThat(r).isEqualTo(l);
-        assertThat(r.hashCode()).isEqualTo(l.hashCode());
+        assertThat(r).isEqualTo(l)
+                .hasSameHashCodeAs(l);
     }
 
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = { " ", "localhost", ":1000", ":onethousand", "something:really:odd" })
-    public void shouldThrowExceptionForMalformedInput(String input) {
-        assertThatThrownBy(() -> {
-            HostPort.parse(input);
-        }).isInstanceOf(IllegalArgumentException.class);
+    void shouldThrowExceptionForMalformedInput(String input) {
+        assertThatThrownBy(() -> HostPort.parse(input)).isInstanceOf(IllegalArgumentException.class);
     }
 }

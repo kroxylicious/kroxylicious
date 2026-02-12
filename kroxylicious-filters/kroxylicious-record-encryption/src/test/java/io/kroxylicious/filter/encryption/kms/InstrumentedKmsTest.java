@@ -148,8 +148,8 @@ class InstrumentedKmsTest {
     void testEdekSerdeDelegation() {
         Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         when(kms.edekSerde()).thenReturn(serde);
-        Serde<String> serde = instrument.edekSerde();
-        assertThat(serde).isSameAs(this.serde);
+        Serde<String> edekSerde = instrument.edekSerde();
+        assertThat(edekSerde).isSameAs(this.serde);
     }
 
 }

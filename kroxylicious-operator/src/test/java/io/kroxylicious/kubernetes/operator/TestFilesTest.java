@@ -86,7 +86,7 @@ class TestFilesTest {
     }
 
     @Test
-    void recursiveFilesForTestingEmpty(@TempDir Path tempDir) throws IOException {
+    void recursiveFilesForTestingEmpty(@TempDir Path tempDir) {
         List<Path> paths = TestFiles.recursiveFilesInDirectory("*", tempDir);
         assertThat(paths).isEmpty();
     }

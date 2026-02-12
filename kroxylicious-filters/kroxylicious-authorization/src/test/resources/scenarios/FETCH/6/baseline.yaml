@@ -1,0 +1,93 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FETCH"
+  apiVersion: 6
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FETCH"
+      expectedRequestVersion: 6
+      expectedRequestHeader:
+        requestApiKey: 1
+        requestApiVersion: 6
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 421
+        maxWaitMs: 340
+        minBytes: 259
+        maxBytes: 297
+        isolationLevel: 67
+        topics:
+          - topic: "my-topic"
+            partitions:
+              - partition: 940
+                fetchOffset: 391
+                logStartOffset: 999
+                partitionMaxBytes: 998
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 874
+        responses:
+          - topic: "my-topic"
+            partitions:
+              - partitionIndex: 803
+                errorCode: 836
+                highWatermark: 353
+                lastStableOffset: 97
+                logStartOffset: 941
+                abortedTransactions:
+                  - producerId: 184
+                    firstOffset: 256
+                records: !!binary ""
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 1
+    requestApiVersion: 6
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    replicaId: 421
+    maxWaitMs: 340
+    minBytes: 259
+    maxBytes: 297
+    isolationLevel: 67
+    topics:
+      - topic: "my-topic"
+        partitions:
+          - partition: 940
+            fetchOffset: 391
+            logStartOffset: 999
+            partitionMaxBytes: 998
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 874
+    responses:
+      - topic: "my-topic"
+        partitions:
+          - partitionIndex: 803
+            errorCode: 836
+            highWatermark: 353
+            lastStableOffset: 97
+            logStartOffset: 941
+            abortedTransactions:
+              - producerId: 184
+                firstOffset: 256
+            records: !!binary ""

@@ -1,0 +1,67 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "INIT_PRODUCER_ID"
+  apiVersion: 6
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "INIT_PRODUCER_ID"
+      expectedRequestVersion: 6
+      expectedRequestHeader:
+        requestApiKey: 22
+        requestApiVersion: 6
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "random-string-619"
+        transactionTimeoutMs: 264
+        producerId: 564
+        producerEpoch: 554
+        enable2Pc: true
+        keepPreparedTxn: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 201
+        errorCode: 197
+        producerId: 712
+        producerEpoch: 773
+        ongoingTxnProducerId: 399
+        ongoingTxnProducerEpoch: 314
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 22
+    requestApiVersion: 6
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-619"
+    transactionTimeoutMs: 264
+    producerId: 564
+    producerEpoch: 554
+    enable2Pc: true
+    keepPreparedTxn: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 201
+    errorCode: 197
+    producerId: 712
+    producerEpoch: 773
+    ongoingTxnProducerId: 399
+    ongoingTxnProducerEpoch: 314

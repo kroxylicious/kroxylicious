@@ -7,14 +7,17 @@
 package io.kroxylicious.proxy.internal;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
+import org.assertj.core.api.AbstractAssert;
+import org.assertj.core.matcher.AssertionMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +28,7 @@ import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
@@ -41,22 +45,19 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.filter.NetFilter;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static io.kroxylicious.proxy.internal.KafkaProxyInitializer.LOGGING_INBOUND_ERROR_HANDLER_NAME;
@@ -69,12 +70,16 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyInitializerTest {
+
+    private static final Duration CONFIGURED_IDLE_DURATION = Duration.ofSeconds(12);
+    private static final long CONFIGURED_IDLE_DURATION_MILLIS = CONFIGURED_IDLE_DURATION.toMillis();
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private SocketChannel channel;
@@ -83,7 +88,7 @@ class KafkaProxyInitializerTest {
     private ChannelPipeline channelPipeline;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
-    private EndpointBinding vcb;
+    private EndpointBinding endpointBinding;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private EventLoop eventLoop;
@@ -99,11 +104,16 @@ class KafkaProxyInitializerTest {
     private CompletionStage<EndpointBinding> bindingStage;
     private VirtualClusterModel virtualClusterModel;
     private AtomicReference<FilterChainFactory> filterChainFactoryRef;
+    private FilterChainFactory filterChainFactory;
+    private NettySettings proxyNettySettings;
 
     @BeforeEach
     void setUp() {
         virtualClusterModel = buildVirtualCluster(false, false);
         pfr = new ServiceBasedPluginFactoryRegistry();
+        bindingStage = CompletableFuture.completedStage(endpointBinding);
+        filterChainFactory = new FilterChainFactory(pfr, List.of());
+        proxyNettySettings = null; // use defaults
         bindingStage = CompletableFuture.completedStage(vcb);
         filterChainFactoryRef = new AtomicReference<>(new FilterChainFactory(pfr, List.of()));
         final InetSocketAddress localhost = new InetSocketAddress(0);
@@ -115,7 +125,7 @@ class KafkaProxyInitializerTest {
         when(channel.localAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 9099));
 
         when(acceptingSocketChannel.localAddress()).thenReturn(localhost);
-        when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
     }
 
     private VirtualClusterModel buildVirtualCluster(boolean logNetwork, boolean logFrames) {
@@ -128,9 +138,41 @@ class KafkaProxyInitializerTest {
     }
 
     @Test
+    void shouldRegisterIdleStateHandlerWithConfiguredDuration() {
+        // Given
+        proxyNettySettings = new NettySettings(Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(CONFIGURED_IDLE_DURATION));
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline).addFirst(eq("preSessionIdleHandler"), argThat(
+                argument -> assertThat(argument).isInstanceOfSatisfying(IdleStateHandler.class,
+                        actualIdleStateHandler -> {
+                            assertThat(actualIdleStateHandler.getAllIdleTimeInMillis()).isEqualTo(CONFIGURED_IDLE_DURATION_MILLIS);
+                            assertThat(actualIdleStateHandler.getReaderIdleTimeInMillis()).isZero();
+                            assertThat(actualIdleStateHandler.getWriterIdleTimeInMillis()).isZero();
+                        })));
+    }
+
+    @Test
+    void shouldNotRegisterIdleStateHandlerWithoutConfiguredDuration() {
+        // Given
+        proxyNettySettings = null;
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline, never()).addFirst(eq("preSessionIdleHandler"), any());
+    }
+
+    @Test
     void shouldInitialisePlainChannel() {
         // Given
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
         // When
         kafkaProxyInitializer.initChannel(channel);
 
@@ -145,7 +187,7 @@ class KafkaProxyInitializerTest {
         // Given
         final EndpointBindingResolver bindingResolver = mock(EndpointBindingResolver.class);
         when(bindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
         when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
         kafkaProxyInitializer.initChannel(channel);
@@ -163,7 +205,7 @@ class KafkaProxyInitializerTest {
         // Given
         final EndpointBindingResolver bindingResolver = mock(EndpointBindingResolver.class);
         when(bindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
         when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
         kafkaProxyInitializer.initChannel(channel);
@@ -180,12 +222,12 @@ class KafkaProxyInitializerTest {
     @ValueSource(booleans = { true, false })
     void shouldAddCommonHandlersOnBindingComplete(boolean tls) {
         // Given
-        when(vcb.endpointGateway())
+        when(endpointBinding.endpointGateway())
                 .thenReturn(virtualClusterModel.gateways().values().iterator().next());
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, vcb);
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
 
         // Then
         final InOrder orderedVerifyer = inOrder(channelPipeline);
@@ -201,11 +243,11 @@ class KafkaProxyInitializerTest {
     void shouldAddFrameLoggerOnBindingComplete(boolean tls) {
         // Given
         virtualClusterModel = buildVirtualCluster(false, true);
-        when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, vcb);
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
 
         // Then
         final InOrder orderedVerifyer = inOrder(channelPipeline);
@@ -222,11 +264,11 @@ class KafkaProxyInitializerTest {
     void shouldAddNetworkLoggerOnBindingComplete(boolean tls) {
         // Given
         virtualClusterModel = buildVirtualCluster(true, false);
-        when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
-        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, vcb);
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
 
         // Then
         final InOrder orderedVerifyer = inOrder(channelPipeline);
@@ -288,7 +330,7 @@ class KafkaProxyInitializerTest {
     @Test
     void shouldInitialiseTlsChannel() {
         // Given
-        kafkaProxyInitializer = createKafkaProxyInitializer(true, (endpoint, sniHostname) -> bindingStage, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(true, (endpoint, sniHostname) -> bindingStage);
 
         // When
         kafkaProxyInitializer.initChannel(channel);
@@ -303,7 +345,7 @@ class KafkaProxyInitializerTest {
         // Given
         var endpointBindingResolver = mock(EndpointBindingResolver.class);
         var embeddedChannel = new EmbeddedChannel(acceptingSocketChannel, DefaultChannelId.newInstance(), true, false);
-        kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver, Map.of());
+        kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver);
         kafkaProxyInitializer.initChannel(embeddedChannel);
         when(endpointBindingResolver.resolve(any(), eq("chat4.leancloud.cn"))).thenReturn(CompletableFuture.failedStage(new EndpointResolutionException("not resolved")));
 
@@ -345,7 +387,10 @@ class KafkaProxyInitializerTest {
         assertThatCode(embeddedChannel::checkException).doesNotThrowAnyException();
     }
 
+    @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
+                                                              EndpointBindingResolver bindingResolver) {
+        return new KafkaProxyInitializer(filterChainFactory,
                                                               EndpointBindingResolver bindingResolver,
                                                               Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
         return new KafkaProxyInitializer(filterChainFactoryRef,
@@ -354,6 +399,8 @@ class KafkaProxyInitializerTest {
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
+                new ApiVersionsServiceImpl(),
+                Optional.ofNullable(proxyNettySettings));
                 authnMechanismHandlers,
                 new ApiVersionsServiceImpl(), null, null, null);
     }
@@ -385,6 +432,27 @@ class KafkaProxyInitializerTest {
     private void verifyEncoderAndOrdererAdded(InOrder orderedVerifyer) {
         orderedVerifyer.verify(channelPipeline).addLast(eq("requestDecoder"), any(ByteToMessageDecoder.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseEncoder"), any(MessageToByteEncoder.class));
+        orderedVerifyer.verify(channelPipeline).addLast(eq("saslV0Rejecter"), any(SaslV0RejectionHandler.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
     }
+
+    public static <T> T argThat(Consumer<T> assertions) {
+        return MockitoHamcrest.argThat(new AssertionMatcher<>() {
+
+            String underlyingDescription;
+
+            @Override
+            public void assertion(T actual) throws AssertionError {
+                AbstractAssert.setDescriptionConsumer(description -> underlyingDescription = description.value());
+                assertions.accept(actual);
+            }
+
+            @Override
+            public void describeTo(org.hamcrest.Description description) {
+                super.describeTo(description);
+                description.appendValue(Objects.requireNonNullElse(underlyingDescription, "custom argument matcher"));
+            }
+        });
+    }
+
 }

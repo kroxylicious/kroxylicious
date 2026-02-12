@@ -254,7 +254,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         var headerKeysSorted = allHeaders.keySet().stream().sorted(Comparator.comparing(n -> n.toLowerCase(Locale.ROOT))).toList();
         for (String key : headerKeysSorted) {
             hashedHeaders.add(key.toLowerCase(Locale.ROOT));
-            canonicalRequestLines.add(key.toLowerCase(Locale.ROOT) + ":" + normalizeHeaderValue((allHeaders).get(key)));
+            canonicalRequestLines.add(key.toLowerCase(Locale.ROOT) + ":" + normalizeHeaderValue(allHeaders.get(key)));
         }
         canonicalRequestLines.add(null);
         var signedHeaders = String.join(";", hashedHeaders);

@@ -1,0 +1,16 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// assembly-kms-preparing.adoc
+
+[id='assembly-preparing-fortanix-dsm-{context}']
+= Preparing Fortanix Data Security Manager (DSM)
+
+[role="_abstract"]
+To prepare Fortanix Data Security Manager (DSM) for use with the Record Encryption filter, use the following setup:
+
+* Establish a naming convention for keys and choose a Fortanix group where the keys will reside.
+* Create an application identity, with an API key, for the Record Encryption filter.
+
+include::../../../_modules/record-encryption/fortanix-dsm/con-fortanix-dsm-setup.adoc[leveloffset=+1]

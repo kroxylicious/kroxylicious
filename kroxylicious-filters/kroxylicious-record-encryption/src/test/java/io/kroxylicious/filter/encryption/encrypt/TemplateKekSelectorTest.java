@@ -45,15 +45,8 @@ class TemplateKekSelectorTest {
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         Optional.ofNullable(kmsService).ifPresent(UnitTestingKmsService::close);
-    }
-
-    @Test
-    void shouldRejectUnknownPlaceholders_curly() {
-        assertThatThrownBy(() -> getSelector(null, "foo-${topicId}-bar"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Unknown template parameter: topicId");
     }
 
     @Test
@@ -61,22 +54,6 @@ class TemplateKekSelectorTest {
         assertThatThrownBy(() -> getSelector(null, "foo-$(topicId)-bar"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unknown template parameter: topicId");
-    }
-
-    @Test
-    void shouldResolveWhenAliasExists_curly() {
-        kmsService.initialize(new UnitTestingKmsService.Config());
-        var kms = kmsService.buildKms();
-        var selector = getSelector(kms, "topic-${topicName}");
-
-        var kek = kms.generateKey();
-        kms.createAlias(kek, "topic-my-topic");
-        TopicNameKekSelection<UUID> selection = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
-        var map = selection.topicNameToKekId();
-        assertThat(map)
-                .hasSize(1)
-                .containsEntry("my-topic", kek);
-        assertThat(selection.unresolvedTopicNames()).isEmpty();
     }
 
     @Test
@@ -93,21 +70,6 @@ class TemplateKekSelectorTest {
                 .hasSize(1)
                 .containsEntry("my-topic", kek);
         assertThat(selection.unresolvedTopicNames()).isEmpty();
-    }
-
-    @Test
-    void shouldNotThrowWhenAliasDoesNotExist_curly() {
-        kmsService.initialize(new UnitTestingKmsService.Config());
-        var kms = kmsService.buildKms();
-        var selector = getSelector(kms, "topic-${topicName}");
-
-        TopicNameKekSelection<UUID> selection = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
-        var unresolvedTopicNames = selection.unresolvedTopicNames();
-        assertThat(unresolvedTopicNames)
-                .hasSize(1)
-                .containsExactly("my-topic");
-
-        assertThat(selection.topicNameToKekId()).isEmpty();
     }
 
     @Test
@@ -129,7 +91,7 @@ class TemplateKekSelectorTest {
     void shouldNotThrowWhenAliasDoesNotExist_UnknownAliasExceptionWrappedInCompletionException() throws ExecutionException, InterruptedException {
         var kms = mock(InMemoryKms.class);
         var result = CompletableFuture.completedFuture(null)
-                .<UUID> thenApply((u) -> {
+                .<UUID> thenApply(u -> {
                     // this exception will be wrapped by a CompletionException
                     throw new UnknownAliasException("mock alias exception");
                 });

@@ -157,7 +157,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
+    void testApiVersionsExactlyOneFrame_opaque(short apiVersion) {
         Filter filter = new ApiVersionsRequestFilter() {
 
             @Override
@@ -229,7 +229,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         assertEquals(expectRead, byteBuf.readerIndex());
     }
 
-    private static KafkaRequestDecoder getKafkaRequestDecoder(DecodePredicate predicate, int socketFrameMaxSizeBytes) {
+    public static KafkaRequestDecoder getKafkaRequestDecoder(DecodePredicate predicate, int socketFrameMaxSizeBytes) {
         return new KafkaRequestDecoder(
                 predicate,
                 socketFrameMaxSizeBytes, new ApiVersionsServiceImpl(), null);
@@ -293,7 +293,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
      */
     @ParameterizedTest
     @MethodSource("produceRequestApiVersions")
-    void testAcksParsingWhenNotDecoding(short produceVersion, short acks) throws Exception {
+    void testAcksParsingWhenNotDecoding(short produceVersion, short acks) {
 
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)
@@ -347,7 +347,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         AbstractCodecTest::deserializeRequestHeaderUsingKafkaApis,
                         RequestDecoderTest::deserializeProduceRequestUsingKafkaApis,
                         getKafkaRequestDecoder(DECODE_EVERYTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES),
-                        DecodedRequestFrame.class, ((RequestHeaderData head) -> head), acks != 0),
+                        DecodedRequestFrame.class, (RequestHeaderData head) -> head, acks != 0),
                 "Unexpected correlation id");
     }
 

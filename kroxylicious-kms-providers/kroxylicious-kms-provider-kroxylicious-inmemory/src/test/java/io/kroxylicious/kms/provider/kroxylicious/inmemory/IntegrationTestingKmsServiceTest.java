@@ -37,12 +37,12 @@ class IntegrationTestingKmsServiceTest {
     private IntegrationTestingKmsService service;
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         service = IntegrationTestingKmsService.newInstance();
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         Optional.ofNullable(service).ifPresent(IntegrationTestingKmsService::close);
     }
 

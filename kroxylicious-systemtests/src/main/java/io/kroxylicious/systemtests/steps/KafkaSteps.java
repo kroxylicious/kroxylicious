@@ -9,9 +9,15 @@ package io.kroxylicious.systemtests.steps;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.ScramMechanism;
+import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +40,10 @@ public class KafkaSteps {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaSteps.class);
     private static final String TOPIC_COMMAND = "topic";
     private static final String BOOTSTRAP_ARG = "--bootstrap-server=";
+    private static final String TOPIC_ARG = "--topic=";
+    private static final String TOPIC_PARTITIONS_ARG = "--topic-partitions=";
+    private static final String TOPIC_REP_FACTOR_ARG = "--topic-rep-factor=";
+    private static final String TOPIC_CONFIG_ARG = "--topic-config=";
 
     private KafkaSteps() {
     }
@@ -61,21 +71,62 @@ public class KafkaSteps {
      * @param replicas the replicas
      * @param compressionType the compression type
      */
-    public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas, @NonNull CompressionType compressionType) {
+    public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas,
+                                   @NonNull CompressionType compressionType) {
         LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
         List<String> args = new ArrayList<>(
-                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
-                        "--topic-rep-factor=" + replicas));
+                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, TOPIC_ARG + topicName, TOPIC_PARTITIONS_ARG + partitions,
+                        TOPIC_REP_FACTOR_ARG + replicas));
 
+        List<String> topicConfig = new ArrayList<>();
         if (!CompressionType.NONE.equals(compressionType)) {
-            args.add("--topic-config=" + TopicConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType);
+            topicConfig.add(TopicConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType);
+        }
+
+        if (!topicConfig.isEmpty()) {
+            args.add(TOPIC_CONFIG_ARG + String.join(",", topicConfig));
         }
 
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofMinutes(1));
+        LOGGER.atDebug().setMessage("Admin client create pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
+    }
+
+    /**
+     * Create topic with authentication.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param partitions the partitions
+     * @param replicas the replicas
+     * @param usernamePasswords the username passwords
+     */
+    public static void createTopicWithAuthentication(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas,
+                                                     Map<String, String> usernamePasswords) {
+        if (!usernamePasswords.containsKey(Constants.KROXYLICIOUS_ADMIN_USER)) {
+            throw new ConfigException("'admin' user not found! It is necessary to manage the topics");
+        }
+
+        LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
+        String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
+        List<String> args = new ArrayList<>(
+                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, TOPIC_ARG + topicName, TOPIC_PARTITIONS_ARG + partitions,
+                        TOPIC_REP_FACTOR_ARG + replicas));
+
+        // Build SASL configuration string for admin client to be passed as additional config env variable
+        String additionalConfig = CommonClientConfigs.SECURITY_PROTOCOL_CONFIG + "=" + SecurityProtocol.SASL_PLAINTEXT.name + "\n" +
+                SaslConfigs.SASL_MECHANISM + "=" + ScramMechanism.SCRAM_SHA_512.mechanismName() + "\n" +
+                SaslConfigs.SASL_JAAS_CONFIG + "=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" +
+                Constants.KROXYLICIOUS_ADMIN_USER + "\" password=\"" + usernamePasswords.get(Constants.KROXYLICIOUS_ADMIN_USER) + "\";";
+
+        Job adminClientJob = TestClientsJobTemplates.authenticationAdminClientJob(name, args, additionalConfig).build();
+        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
+        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofMinutes(5));
         LOGGER.atDebug().setMessage("Admin client create pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
     }
 
@@ -89,7 +140,7 @@ public class KafkaSteps {
     public static void deleteTopic(String deployNamespace, String topicName, String bootstrap) {
         LOGGER.atDebug().setMessage("Deleting '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-delete";
-        List<String> args = List.of(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--if-exists", "--topic=" + topicName);
+        List<String> args = List.of(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--if-exists", TOPIC_ARG + topicName);
 
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();

@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.18.0-SNAPSHOT</version>
+        <version>0.19.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -23,6 +23,10 @@
 
     <name>Proxy application</name>
     <description>A runnable proxy application. Provides the main() method.</description>
+    <properties>
+        <!-- derived from snappy's resource-config.json -->
+        <native.library.include.patterns>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</native.library.include.patterns>
+    </properties>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
@@ -106,7 +110,6 @@
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
-
         <!-- third party dependencies - test -->
         <dependency>
             <groupId>org.assertj</groupId>
@@ -185,6 +188,91 @@
             </properties>
             <build>
                 <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>unpack-netty-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>netty-transport-native-epoll,netty-transport-native-unix-common,netty-transport-native-io_uring,netty-transport-native-kqueue</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/netty</outputDirectory>
+                                    <!-- derived form snappy's resource-config.json -->
+                                    <includes>${native.library.include.patterns}</includes>
+                                    <fileMappers>
+                                        <org.codehaus.plexus.components.io.filemappers.FlattenFileMapper/>
+                                    </fileMappers>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-snappy-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>snappy-java</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/snappy</outputDirectory>
+                                    <includes>${native.library.include.patterns}</includes>
+                                    <!-- when built into the container paths are cases sensitive and the container build variables for arch and platform  are lower case-->
+                                    <fileMappers>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>AIX</pattern>
+                                            <replacement>aix</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>FreeBSD</pattern>
+                                            <replacement>freebsd</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>Linux</pattern>
+                                            <replacement>linux</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>Mac</pattern>
+                                            <replacement>darwin</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>SunOS</pattern>
+                                            <replacement>sunos</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>Windows</pattern>
+                                            <replacement>windows</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                    </fileMappers>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-zstd-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>zstd-jni</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/zstd-jni</outputDirectory>
+                                    <includes>${native.library.include.patterns}</includes>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-lz4-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>lz4-java</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/lz4-java</outputDirectory>
+                                    <includes>${native.library.include.patterns}</includes>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-assembly-plugin</artifactId>
@@ -298,7 +386,67 @@
                     <artifactId>kroxylicious-sasl-inspection</artifactId>
                     <scope>runtime</scope>
                 </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-authorization</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-authorizer-acl</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
             </dependencies>
+        </profile>
+        <profile>
+            <id>with-profiling-libs</id>
+            <activation>
+                <property>
+                    <name>withProfilingLibs</name>
+                    <value>!false</value>
+                </property>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>tools.profiler</groupId>
+                    <artifactId>async-profiler</artifactId>
+                    <version>${async-profiler.version}</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>unpack-async-profiler-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>async-profiler</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/async-profiler</outputDirectory>
+                                    <includes>${native.library.include.patterns}</includes>
+                                    <!-- use file mappers to provide a consistent directory structure -->
+                                    <fileMappers>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>(.*)-(.*)</pattern>
+                                            <replacement>$1/$2</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>x64</pattern>
+                                            <replacement>amd64</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                    </fileMappers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

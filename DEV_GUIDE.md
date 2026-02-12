@@ -49,8 +49,8 @@ This document gives a detailed breakdown of the various build processes and opti
 
 ## Build Prerequisites
 
-- [JDK](https://openjdk.org/projects/jdk/17/) (version 21 and above) - JDK
-- [`mvn`](https://maven.apache.org/index.html) (version 3.6.3 and above) - [Apache Maven®](https://maven.apache.org)
+- [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
+- [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - [Apache Maven®](https://maven.apache.org)
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 
 > :warning: **If you are using Podman please see [these notes](#running-integration-tests-on-podman) below**
@@ -62,7 +62,7 @@ This document gives a detailed breakdown of the various build processes and opti
 JDK version 21 or newer, and [Apache Maven®](https://maven.apache.org) are required for building this project.
 
 Kroxylicious targets language level 17, except for the `integrationtests` module
-which targets 21 to access some new language features.
+which targets 21 to access some new language features. At production runtime, Java 17 remains supported but is deprecated. Use Java 21 or later.
 
 Build the project like this:
 
@@ -265,7 +265,7 @@ as a suggestion if you used sdkman to install it).
 
 In the IDEA Maven dialogue click on `Generate Sources and Update Folders For All Projects`.
 
-Build the entire project by running `Build > Build Project` and then check that you can run `io.kroxylicious.proxy.FilterIT`
+Build the entire project by running `Build > Build Project` and then check that you can run `io.kroxylicious.it.FilterIT`
 
 If you encounter any further issues with generated sources, you can try running `mvn clean install -DskipTests` again or running 
 `Generate Sources and Update Folders` for the specific module that is having problems.
@@ -299,15 +299,15 @@ While Kroxylicious is a java application we've had reports of issues running the
       Expect output similar to: 
       ```shell
       > java --version
-   openjdk 19.0.2 2023-01-17
-   OpenJDK Runtime Environment Temurin-19.0.2+7 (build 19.0.2+7)
-   OpenJDK 64-Bit Server VM Temurin-19.0.2+7 (build 19.0.2+7, mixed mode, sharing)
+   openjdk 21.0.8 2025-07-15 LTS
+   OpenJDK Runtime Environment Temurin-21.0.8+9 (build 21.0.8+9-LTS)
+   OpenJDK 64-Bit Server VM Temurin-21.0.8+9 (build 21.0.8+9-LTS, mixed mode, sharing
    ```
     2. Update if needed: sample update command like:
     ```shell
     sudo apt update
     sudo apt upgrade
-    sudo apt install openjdk-18-jre-headless
+    sudo apt install openjdk-21-jre-headless
     ```
 4. Ensure GIT is available
    1. ```shell
@@ -438,7 +438,7 @@ the container engine. Default value: `$HOME/.docker/config.json`
 * `AWS_SECRET_ACCESS_KEY`: secret access key of the aws account with admin permissions to be used for KMS management. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_KROXYLICIOUS_ACCESS_KEY_ID`: key id of the aws account to be used for Kroxylicious config Map to encrypt/decrypt the messages. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_KROXYLICIOUS_SECRET_ACCESS_KEY`: secret access key of the aws account to be used for Kroxylicious config Map to encrypt/decrypt the messages. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
-* `CURL_IMAGE`: curl image to be used in the corresponding arch for metrics tests. Default value: `mirror.gcr.io/curlimages/curl:8.17.0`
+* `CURL_IMAGE`: curl image to be used in the corresponding arch for metrics tests. Default value: `mirror.gcr.io/curlimages/curl:8.18.0`
 
 ### Launch system tests
 First of all, the code must be compiled and the distribution artifacts created:
@@ -584,6 +584,15 @@ You can check that worked with something like
 
 ```bash
 kubectl logs -n kroxylicious-operator deployment/kroxylicious-operator -c operator
+```
+
+## Changing the Operand Image deployed by the Operator
+
+Sometimes we want to use the Operator to deploy a different Proxy image than the default. We can control this by setting 
+the KROXYLICIOUS_IMAGE environment variable on the operators container.
+
+```bash
+kubectl set env deployment/kroxylicious-operator -nkroxylicious-operator KROXYLICIOUS_IMAGE=${YOUR IMAGE}
 ```
 
 ## Creating a `KafkaProxy`

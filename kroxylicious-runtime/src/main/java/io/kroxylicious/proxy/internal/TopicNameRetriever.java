@@ -22,27 +22,35 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
+import io.netty.util.concurrent.ThreadAwareExecutor;
+
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.metadata.TopLevelMetadataErrorException;
 import io.kroxylicious.proxy.filter.metadata.TopicLevelMetadataErrorException;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
+import io.kroxylicious.proxy.internal.util.RequestHeaderTagger;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static java.util.Collections.unmodifiableMap;
 import static java.util.stream.Collectors.toMap;
 
-final class TopicNameRetriever {
+public final class TopicNameRetriever {
     // Version 12 was the first version that uses topic ids.
-    private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
+    public static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
     private final FilterContext filterContext;
+    private final ThreadAwareExecutor filterDispatchExecutor;
 
-    TopicNameRetriever(FilterContext filterContext) {
+    TopicNameRetriever(FilterContext filterContext, ThreadAwareExecutor filterDispatchExecutor) {
         this.filterContext = filterContext;
+        this.filterDispatchExecutor = filterDispatchExecutor;
     }
 
     CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
         Objects.requireNonNull(topicIds);
+        if (topicIds.isEmpty()) {
+            return InternalCompletableFuture.completedFuture(filterDispatchExecutor, MapTopicNameMapping.EMPTY).minimalCompletionStage();
+        }
         CompletionStage<ApiMessage> apiMessageCompletionStage = requestTopicMetadata(topicIds);
         return apiMessageCompletionStage
                 .thenApply(message -> extractTopicNames(topicIds, message))
@@ -69,6 +77,7 @@ final class TopicNameRetriever {
         RequestHeaderData requestHeaderData = new RequestHeaderData();
         requestHeaderData.setRequestApiKey(ApiKeys.METADATA.id);
         requestHeaderData.setRequestApiVersion(METADATA_API_VER_WITH_TOPIC_ID_SUPPORT);
+        RequestHeaderTagger.tag(requestHeaderData, RequestHeaderTagger.Tag.LEARN_TOPIC_NAMES);
         return filterContext.sendRequest(requestHeaderData, request);
     }
 
@@ -115,6 +124,8 @@ final class TopicNameRetriever {
      * @param failures failed topic name mappings, non-null
      */
     private record MapTopicNameMapping(Map<Uuid, String> topicNames, Map<Uuid, TopicNameMappingException> failures) implements TopicNameMapping {
+
+        private static final TopicNameMapping EMPTY = new MapTopicNameMapping(Map.of(), Map.of());
 
         private MapTopicNameMapping {
             Objects.requireNonNull(topicNames);

@@ -22,7 +22,7 @@ abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder
     @Nullable
     private final KafkaMessageListener listener;
 
-    KafkaMessageEncoder(@Nullable KafkaMessageListener listener) {
+    protected KafkaMessageEncoder(@Nullable KafkaMessageListener listener) {
         this.listener = listener;
     }
 

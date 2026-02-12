@@ -6,8 +6,8 @@
 
 package io.kroxylicious.doctools.validator;
 
+import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 import org.asciidoctor.ast.StructuralNode;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,11 +26,11 @@ class YamlCodeblockValidationDT {
 
     private final Yaml yaml = new Yaml();
 
-    static Stream<Arguments> yamlSourceBlocks() {
+    static List<Arguments> yamlSourceBlocks() {
         try (var extractor = new BlockExtractor()) {
             return Utils.asciiDocFilesMatching(Utils.ALL_ASCIIDOC_FILES)
                     .flatMap(p -> extractor.extract(p, YamlCodeblockValidationDT::isYamlBlock).stream())
-                    .map(Arguments::of);
+                    .map(Arguments::of).toList();
         }
     }
 

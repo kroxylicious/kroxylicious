@@ -1,0 +1,34 @@
+:_mod-docs-content-type: SNIPPET
+
+// file included in the following:
+//
+// con-azure-key-vault-plugin-configuration.adoc
+
+.Configuration for authenticating with Microsoft Identity Platform via OAuth 2.0
+[source, yaml]
+----
+kms: AzureKeyVault
+kmsConfig:
+  keyVaultName: my-key-vault
+  keyVaultHost: vault.azure.net
+  tls:
+    # ... client trust configuration for Azure Key Vault
+  oauth2ClientCredentials:
+    oauthEndpoint: https://login.microsoftonline.com
+    tenantId: "00000000-0000-0000-0000-000000000000"
+    clientId:
+      passwordFile: /path/to/id
+    clientSecret:
+      passwordFile: /path/to/secret
+    scope: https://vault.azure.net/.default
+    tls:
+      # ... client trust configuration for Microsoft Identity Platform OAuth2
+----
+* `kms` specifies the name of the KMS provider. Use `AzureKeyVault`.
+* `keyVaultName` is the name of the key vault the filter uses.
+* `keyVaultHost` is the key vault host name, without the key vault name prefix.
+* `oauthEndpoint` is the URL used for the OAuth 2.0 Client Credentials flow.
+* `tenantId` is the 32-character identifier for the Microsoft Entra tenant where the OAuth credentials were created.
+* `clientId.passwordFile` specifies the file that contains the OAuth client ID.
+* `clientSecret.passwordFile` specifies the file that contains the OAuth client secret.
+* `scope` is the App ID URI of the target resource that the proxy authenticates to (your Azure Key Vault URI).

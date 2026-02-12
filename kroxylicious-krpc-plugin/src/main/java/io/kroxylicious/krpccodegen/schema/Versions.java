@@ -7,18 +7,17 @@ package io.kroxylicious.krpccodegen.schema;
 
 import java.util.Collection;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
  * A version range.
- *
+ * <p>
  * A range consists of two 16-bit numbers: the lowest version which is accepted, and the highest.
  * Ranges are inclusive, meaning that both the lowest and the highest version are valid versions.
  * The only exception to this is the NONE range, which contains no versions at all.
- *
+ * <p>
  * Version ranges can be represented as strings.
- *
+ * <p>
  * A single supported version V is represented as "V".
  * A bounded range from A to B is represented as "A-B".
  * All versions greater than A is represented as "A+".
@@ -33,7 +32,7 @@ public final class Versions {
             return defaultVersions;
         }
         String trimmedInput = input.trim();
-        if (trimmedInput.length() == 0) {
+        if (trimmedInput.isEmpty()) {
             return defaultVersions;
         }
         if (trimmedInput.equals(NONE_STRING)) {
@@ -55,8 +54,6 @@ public final class Versions {
                     Short.parseShort(trimmedInput.substring(dashIndex + 1)));
         }
     }
-
-    public static final Versions ALL = new Versions((short) 0, Short.MAX_VALUE);
 
     public static final Versions NONE = new Versions();
 
@@ -122,7 +119,7 @@ public final class Versions {
     /**
      * Return a new version range that trims some versions from this range, if possible.
      * We can't trim any versions if the resulting range would be disjoint.
-     *
+     * <p>
      * Some examples:
      * 1-4.trim(1-2) = 3-4
      * 3+.trim(4+) = 3
@@ -198,6 +195,6 @@ public final class Versions {
     }
 
     public Collection<Integer> range() {
-        return IntStream.rangeClosed(lowest(), highest()).boxed().collect(Collectors.toList());
+        return IntStream.rangeClosed(lowest(), highest()).boxed().toList();
     }
 }

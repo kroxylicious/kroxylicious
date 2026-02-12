@@ -12,6 +12,8 @@ import java.nio.file.Files;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
@@ -24,6 +26,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ConfigParseTest {
+    private static final Logger LOG = LoggerFactory.getLogger(ConfigParseTest.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
@@ -57,7 +60,9 @@ class ConfigParseTest {
             assertThat(config.vaultTransitEngineUrl()).isEqualTo(URI.create("http://vault"));
         }
         finally {
-            var unused = tmp.toFile().delete();
+            if (!tmp.toFile().delete()) {
+                LOG.warn("Could not delete {}", tmp.toFile().getAbsolutePath());
+            }
         }
     }
 

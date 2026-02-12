@@ -76,21 +76,17 @@ public final class FieldSpec {
         this.type = FieldType.parse(Objects.requireNonNull(type));
         this.mapKey = mapKey;
         this.nullableVersions = Versions.parse(nullableVersions, Versions.NONE);
-        if (!this.nullableVersions.empty()) {
-            if (!this.type.canBeNullable()) {
-                throw new RuntimeException("Type " + this.type + " cannot be nullable.");
-            }
+        if (!this.nullableVersions.empty() && !this.type.canBeNullable()) {
+            throw new RuntimeException("Type " + this.type + " cannot be nullable.");
         }
         this.fieldDefault = fieldDefault == null ? "" : fieldDefault;
         this.ignorable = ignorable;
-        this.entityType = (entityType == null) ? EntityType.UNKNOWN : entityType;
+        this.entityType = entityType == null ? EntityType.UNKNOWN : entityType;
         this.entityType.verifyTypeMatches(name, this.type);
 
         this.about = about == null ? "" : about;
-        if (!this.fields().isEmpty()) {
-            if (!this.type.isArray() && !this.type.isStruct()) {
-                throw new RuntimeException("Non-array or Struct field " + name + " cannot have fields");
-            }
+        if (!this.fields().isEmpty() && !this.type.isArray() && !this.type.isStruct()) {
+            throw new RuntimeException("Non-array or Struct field " + name + " cannot have fields");
         }
 
         if (flexibleVersions == null || flexibleVersions.isEmpty()) {
@@ -247,18 +243,6 @@ public final class FieldSpec {
     @JsonProperty("zeroCopy")
     public boolean zeroCopy() {
         return zeroCopy;
-    }
-
-    private void validateNullDefault() {
-        if (!(nullableVersions().contains(versions))) {
-            throw new RuntimeException("null cannot be the default for field " +
-                    name + ", because not all versions of this field are " +
-                    "nullable.");
-        }
-    }
-
-    static String collectionType(String baseType) {
-        return baseType + "Collection";
     }
 
 }

@@ -1,0 +1,97 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "TXN_OFFSET_COMMIT"
+  apiVersion: 5
+  scenario: |
+    request contains some allowed topics and some denied
+    allowed topics are forwarded upstream
+    denied topics are not forwarded upstream
+    denied topic errors are augmented into response to client
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "TXN_OFFSET_COMMIT"
+      expectedRequestVersion: 5
+      expectedRequestHeader:
+        requestApiKey: 28
+        requestApiVersion: 5
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "random-string-186"
+        groupId: "random-string-717"
+        producerId: 0
+        producerEpoch: 104
+        generationId: 988
+        memberId: "random-string-854"
+        groupInstanceId: "random-string-46"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 537
+                committedOffset: 954
+                committedLeaderEpoch: 409
+                committedMetadata: "random-string-353"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 709
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 241
+                errorCode: 612
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 28
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-186"
+    groupId: "random-string-717"
+    producerId: 0
+    producerEpoch: 104
+    generationId: 988
+    memberId: "random-string-854"
+    groupInstanceId: "random-string-46"
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 537
+            committedOffset: 954
+            committedLeaderEpoch: 409
+            committedMetadata: "random-string-353"
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 537
+            committedOffset: 954
+            committedLeaderEpoch: 409
+            committedMetadata: "random-string-353"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 709
+    topics:
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 537
+            errorCode: 29
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 241
+            errorCode: 612

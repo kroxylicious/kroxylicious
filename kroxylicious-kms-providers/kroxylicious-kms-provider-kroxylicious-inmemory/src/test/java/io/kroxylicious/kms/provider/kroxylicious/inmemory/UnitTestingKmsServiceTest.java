@@ -30,13 +30,13 @@ class UnitTestingKmsServiceTest {
     private UnitTestingKmsService service;
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         service = UnitTestingKmsService.newInstance();
         service.initialize(new UnitTestingKmsService.Config());
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         Optional.ofNullable(service).ifPresent(UnitTestingKmsService::close);
     }
 

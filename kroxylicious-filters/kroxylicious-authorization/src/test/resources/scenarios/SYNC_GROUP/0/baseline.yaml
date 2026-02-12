@@ -1,0 +1,63 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "SYNC_GROUP"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "SYNC_GROUP"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 14
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-275"
+        generationId: 696
+        memberId: "random-string-724"
+        assignments:
+          - memberId: "random-string-195"
+            assignment: !!binary |-
+              0SLf10U=
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 812
+        assignment: !!binary |-
+          oZ+79i8=
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 14
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-275"
+    generationId: 696
+    memberId: "random-string-724"
+    assignments:
+      - memberId: "random-string-195"
+        assignment: !!binary |-
+          0SLf10U=
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    errorCode: 812
+    assignment: !!binary |-
+      oZ+79i8=

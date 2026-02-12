@@ -1,0 +1,115 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_TOPIC_PARTITIONS"
+  apiVersion: 0
+  scenario: >
+    if multiple topics are present in the request and some, but not all, are unauthorized, we only forward on the
+    authorized topics. Then we merge back in authorization failures into the response. Note that we do not set
+    topic authorized ops on these unauthorized topics, the client is not permitted to know them.
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_TOPIC_PARTITIONS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 75
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        topics:
+          - name: "my-topic"
+        responsePartitionLimit: 534
+        cursor:
+          topicName: "my-topic"
+          partitionIndex: 421
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 343
+        topics:
+          - errorCode: 0
+            name: "my-topic"
+            topicId: "i4YiqCLdQi2cideBU8SZgQ"
+            isInternal: false
+            partitions:
+              - errorCode: 0
+                partitionIndex: 869
+                leaderId: 871
+                leaderEpoch: 198
+                replicaNodes:
+                  - 6
+                isrNodes:
+                  - 27
+                eligibleLeaderReplicas:
+                  - 215
+                lastKnownElr:
+                  - 172
+                offlineReplicas:
+                  - 392
+            topicAuthorizedOperations: 3576
+        nextCursor:
+          topicName: "my-topic"
+          partitionIndex: 551
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 75
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    topics:
+      - name: "my-topic"
+      - name: "unauthorized"
+    responsePartitionLimit: 534
+    cursor:
+      topicName: "my-topic"
+      partitionIndex: 421
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 343
+    topics:
+      - errorCode: 0
+        name: "my-topic"
+        topicId: "i4YiqCLdQi2cideBU8SZgQ"
+        isInternal: false
+        partitions:
+          - errorCode: 0
+            partitionIndex: 869
+            leaderId: 871
+            leaderEpoch: 198
+            replicaNodes:
+              - 6
+            isrNodes:
+              - 27
+            eligibleLeaderReplicas:
+              - 215
+            lastKnownElr:
+              - 172
+            offlineReplicas:
+              - 392
+        topicAuthorizedOperations: 256
+      - errorCode: 29
+        name: "unauthorized"
+        topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+        isInternal: false
+        partitions: [ ]
+        topicAuthorizedOperations: -2147483648
+    nextCursor:
+      topicName: "my-topic"
+      partitionIndex: 551

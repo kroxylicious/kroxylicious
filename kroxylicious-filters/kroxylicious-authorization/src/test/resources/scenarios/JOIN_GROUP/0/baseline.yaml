@@ -1,0 +1,77 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "JOIN_GROUP"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "JOIN_GROUP"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 11
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-739"
+        sessionTimeoutMs: 256
+        memberId: "random-string-541"
+        protocolType: "random-string-693"
+        protocols:
+          - name: "random-string-205"
+            metadata: !!binary |-
+              L7BsOiY=
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 484
+        generationId: 614
+        protocolName: "random-string-771"
+        leader: "random-string-4"
+        memberId: "random-string-509"
+        members:
+          - memberId: "random-string-2"
+            metadata: !!binary |-
+              1Pg4axQ=
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 11
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-739"
+    sessionTimeoutMs: 256
+    memberId: "random-string-541"
+    protocolType: "random-string-693"
+    protocols:
+      - name: "random-string-205"
+        metadata: !!binary |-
+          L7BsOiY=
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    errorCode: 484
+    generationId: 614
+    protocolName: "random-string-771"
+    leader: "random-string-4"
+    memberId: "random-string-509"
+    members:
+      - memberId: "random-string-2"
+        metadata: !!binary |-
+          1Pg4axQ=

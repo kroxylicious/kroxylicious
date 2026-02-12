@@ -518,8 +518,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         var key = ControlRecordType.ABORT.recordKey();
         var bb = ByteBuffer.allocate(key.sizeOf());
         key.writeTo(bb);
-        SimpleRecord controlRecord = new SimpleRecord(bb.array(), "control-value".getBytes(StandardCharsets.UTF_8));
-        return controlRecord;
+        return new SimpleRecord(bb.array(), "control-value".getBytes(StandardCharsets.UTF_8));
     }
 
     // we can reuse the ByteBufferOutputStream between instantiations of the builder

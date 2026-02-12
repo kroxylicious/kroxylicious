@@ -1,0 +1,60 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DELETE_RECORDS"
+  apiVersion: 0
+  scenario: "denied topic not forwarded, error for denied topic augmented into response"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DELETE_RECORDS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 21
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        topics: []
+        timeoutMs: 682
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 63
+        topics: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DELETE"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 21
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    topics:
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 266
+            offset: 455
+    timeoutMs: 682
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 63
+    topics:
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 266
+            lowWatermark: -1
+            errorCode: 29

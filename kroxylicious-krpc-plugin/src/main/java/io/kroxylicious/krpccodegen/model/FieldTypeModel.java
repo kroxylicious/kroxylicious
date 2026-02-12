@@ -24,37 +24,25 @@ class FieldTypeModel implements TemplateHashModel, TemplateScalarModel, AdapterT
 
     @Override
     public TemplateModel get(String key) throws TemplateModelException {
-        switch (key) {
-            case "isArray":
-                return wrapper.wrap(fieldType.isArray());
-            case "isStruct":
-                return wrapper.wrap(fieldType.isStruct());
-            case "isBytes":
-                return wrapper.wrap(fieldType.isBytes());
-            case "canBeNullable":
-                return wrapper.wrap(fieldType.canBeNullable());
-            case "fixedLength":
-                return wrapper.wrap(fieldType.fixedLength());
-            case "isStructArray":
-                return wrapper.wrap(fieldType.isStructArray());
-            case "isFloat":
-                return wrapper.wrap(fieldType.isFloat());
-            case "isRecords":
-                return wrapper.wrap(fieldType.isRecords());
-            case "isVariableLength":
-                return wrapper.wrap(fieldType.isVariableLength());
-            case "serializationIsDifferentInFlexibleVersions":
-                return wrapper.wrap(fieldType.serializationIsDifferentInFlexibleVersions());
-            case "elementType":
-                return wrapper.wrap(((FieldType.ArrayType) fieldType).elementType());
-            case "elementName":
-                return wrapper.wrap(((FieldType.ArrayType) fieldType).elementName());
-        }
-        throw new TemplateModelException(fieldType.getClass().getSimpleName() + " doesn't have property " + key);
+        return switch (key) {
+            case "isArray" -> wrapper.wrap(fieldType.isArray());
+            case "isStruct" -> wrapper.wrap(fieldType.isStruct());
+            case "isBytes" -> wrapper.wrap(fieldType.isBytes());
+            case "canBeNullable" -> wrapper.wrap(fieldType.canBeNullable());
+            case "fixedLength" -> wrapper.wrap(fieldType.fixedLength());
+            case "isStructArray" -> wrapper.wrap(fieldType.isStructArray());
+            case "isFloat" -> wrapper.wrap(fieldType.isFloat());
+            case "isRecords" -> wrapper.wrap(fieldType.isRecords());
+            case "isVariableLength" -> wrapper.wrap(fieldType.isVariableLength());
+            case "serializationIsDifferentInFlexibleVersions" -> wrapper.wrap(fieldType.serializationIsDifferentInFlexibleVersions());
+            case "elementType" -> wrapper.wrap(((FieldType.ArrayType) fieldType).elementType());
+            case "elementName" -> wrapper.wrap(((FieldType.ArrayType) fieldType).elementName());
+            default -> throw new TemplateModelException(fieldType.getClass().getSimpleName() + " doesn't have property " + key);
+        };
     }
 
     @Override
-    public boolean isEmpty() throws TemplateModelException {
+    public boolean isEmpty() {
         return false;
     }
 
@@ -64,7 +52,7 @@ class FieldTypeModel implements TemplateHashModel, TemplateScalarModel, AdapterT
     }
 
     @Override
-    public String getAsString() throws TemplateModelException {
+    public String getAsString() {
         return fieldType.toString();
     }
 }

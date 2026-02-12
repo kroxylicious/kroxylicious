@@ -1,0 +1,69 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "ADD_PARTITIONS_TO_TXN"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "ADD_PARTITIONS_TO_TXN"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 24
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        v3AndBelowTransactionalId: "random-string-67"
+        v3AndBelowProducerId: 180
+        v3AndBelowProducerEpoch: 312
+        v3AndBelowTopics:
+          - name: "my-topic"
+            partitions:
+              - 863
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 333
+        resultsByTopicV3AndBelow:
+          - name: "my-topic"
+            resultsByPartition:
+              - partitionIndex: 547
+                partitionErrorCode: 75
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "WRITE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 24
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    v3AndBelowTransactionalId: "random-string-67"
+    v3AndBelowProducerId: 180
+    v3AndBelowProducerEpoch: 312
+    v3AndBelowTopics:
+      - name: "my-topic"
+        partitions:
+          - 863
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 333
+    resultsByTopicV3AndBelow:
+      - name: "my-topic"
+        resultsByPartition:
+          - partitionIndex: 547
+            partitionErrorCode: 75

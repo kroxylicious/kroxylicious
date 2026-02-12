@@ -17,22 +17,19 @@ public interface CredentialsProviderFactory {
 
     CredentialsProvider createCredentialsProvider(Config config);
 
-    CredentialsProviderFactory DEFAULT = new CredentialsProviderFactory() {
-        @Override
-        public CredentialsProvider createCredentialsProvider(Config config) {
-            var configException = new KmsException("Config %s must define exactly one credential provider".formatted(config));
-            if (config.longTermCredentialsProviderConfig() != null) {
-                if (config.ec2MetadataCredentialsProviderConfig() != null) {
-                    throw configException;
-                }
-                return new LongTermCredentialsProvider(config.longTermCredentialsProviderConfig());
-            }
-            else if (config.ec2MetadataCredentialsProviderConfig() != null) {
-                return new Ec2MetadataCredentialsProvider(config.ec2MetadataCredentialsProviderConfig());
-            }
-            else {
+    CredentialsProviderFactory DEFAULT = config -> {
+        var configException = new KmsException("Config %s must define exactly one credential provider".formatted(config));
+        if (config.longTermCredentialsProviderConfig() != null) {
+            if (config.ec2MetadataCredentialsProviderConfig() != null) {
                 throw configException;
             }
+            return new LongTermCredentialsProvider(config.longTermCredentialsProviderConfig());
+        }
+        else if (config.ec2MetadataCredentialsProviderConfig() != null) {
+            return new Ec2MetadataCredentialsProvider(config.ec2MetadataCredentialsProviderConfig());
+        }
+        else {
+            throw configException;
         }
     };
 }

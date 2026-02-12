@@ -11,9 +11,12 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.builder.Builder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.client.http.StandardHttpClient;
 import io.skodjob.testframe.interfaces.ResourceType;
 import io.skodjob.testframe.resources.ConfigMapType;
 import io.skodjob.testframe.resources.CustomResourceDefinitionType;
@@ -37,7 +40,26 @@ import io.kroxylicious.systemtests.resources.strimzi.KafkaType;
  * The type Resource manager.
  */
 public class ResourceManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
+
     private static ResourceManager instance;
+
+    // Debug for https://github.com/kroxylicious/kroxylicious/issues/3065
+    static {
+        var shcLogger = LoggerFactory.getLogger(StandardHttpClient.class);
+        LOGGER.warn("#3065: Debug enabled for {} : {}", shcLogger.getName(), shcLogger.isDebugEnabled());
+        shcLogger.debug("#3065: Debug log test");
+
+        // Belt and brace - log the creates/deletes the resource manager thinks it is making.
+        KubeResourceManager.get().addCreateCallback(hm -> {
+            var metadata = hm.getMetadata();
+            LOGGER.info("Created {}/{}/{}", hm.getKind(), metadata.getNamespace(), metadata.getName());
+        });
+        KubeResourceManager.get().addDeleteCallback(hm -> {
+            var metadata = hm.getMetadata();
+            LOGGER.info("Deleted {}/{}/{})", hm.getKind(), metadata.getNamespace(), metadata.getName());
+        });
+    }
 
     private ResourceManager() {
     }
@@ -114,7 +136,7 @@ public class ResourceManager {
      */
     @SafeVarargs
     public final void createResourceFromBuilderWithWait(Builder<? extends HasMetadata>... resources) {
-        KubeResourceManager.get().createResourceWithWait(Arrays.stream(resources).map(Builder::build).toList().toArray(new HasMetadata[0]));
+        KubeResourceManager.get().createOrUpdateResourceWithWait(Arrays.stream(resources).map(Builder::build).toList().toArray(new HasMetadata[0]));
     }
 
     /**
@@ -124,7 +146,8 @@ public class ResourceManager {
      */
     @SafeVarargs
     public final void createResourceFromBuilder(Builder<? extends HasMetadata>... resources) {
-        KubeResourceManager.get().createResourceWithWait(Arrays.stream(resources).filter(Objects::nonNull).map(Builder::build).toList().toArray(new HasMetadata[0]));
+        KubeResourceManager.get()
+                .createOrUpdateResourceWithWait(Arrays.stream(resources).filter(Objects::nonNull).map(Builder::build).toList().toArray(new HasMetadata[0]));
     }
 
     @SafeVarargs

@@ -166,6 +166,7 @@ public class CertificateGenerator {
                        TrustStore pkcs12NoPasswordClientTruststore,
                        KeyStore jksServerKeystore) {}
 
+    @SuppressWarnings("java:S2068") // java:S2068 concerns hardcoded passwords. This code is used exclusively in tests so it is considered acceptable.
     public static Keys generate() {
         String password = "changeit";
         KeyPair pair = generateRsaKeyPair();

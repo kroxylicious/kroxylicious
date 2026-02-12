@@ -122,6 +122,7 @@ class KafkaProxyReconcilerIT {
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
     public static final String UPSTREAM_TLS_CERTIFICATE_SECRET_NAME = "upstream-tls-certificate";
     public static final String CA_BUNDLE_CONFIG_MAP_NAME = "ca-bundle";
+    public static final String CA_CERT_SECRET_NAME = "ca-secret";
     public static final String TRUSTED_CAS_PEM = "trusted-cas.pem";
     public static final String PROTOCOL_TLS_V1_3 = "TLSv1.3";
     public static final String TLS_CIPHER_SUITE_AES256GCM_SHA384 = "TLS_AES_256_GCM_SHA384";
@@ -209,7 +210,7 @@ class KafkaProxyReconcilerIT {
 
         // when
         var created = doCreate(kafkaService, kafkaProxy(PROXY_A, desiredReplicaCount));
-        Deployment deployment = assertDeploymentReplicaCount(created.proxy(), desiredReplicaCount);
+        assertDeploymentReplicaCount(created.proxy(), desiredReplicaCount);
 
         // then
         assertStausReplicaCount(created.proxy(), desiredReplicaCount);
@@ -234,6 +235,26 @@ class KafkaProxyReconcilerIT {
                         TLS_CIPHER_SUITE_AES256GCM_SHA384),
                 Set.of());
         assertDeploymentMountsConfigMap(created.proxy(), CA_BUNDLE_CONFIG_MAP_NAME);
+        assertDeploymentMountsSecret(created.proxy(), UPSTREAM_TLS_CERTIFICATE_SECRET_NAME);
+    }
+
+    @Test
+    void testCreateWithKafkaServiceTlsUsingTrustAnchorFromSecret() {
+        // given
+        testActor.create(tlsKeyAndCertSecret(UPSTREAM_TLS_CERTIFICATE_SECRET_NAME));
+        testActor.create(secretContainingTrustAnchor(CA_CERT_SECRET_NAME));
+        KafkaService kafkaService = kafkaServiceWithTlsWithTrustAnchorRefAsSecret();
+
+        // when
+        var created = doCreate(kafkaService);
+
+        // then
+        assertProxyConfigContents(created.proxy(), Set
+                .of(
+                        UPSTREAM_TLS_CERTIFICATE_SECRET_NAME,
+                        TRUSTED_CAS_PEM),
+                Set.of());
+        assertDeploymentMountsSecret(created.proxy(), CA_CERT_SECRET_NAME);
         assertDeploymentMountsSecret(created.proxy(), UPSTREAM_TLS_CERTIFICATE_SECRET_NAME);
     }
 
@@ -824,7 +845,7 @@ class KafkaProxyReconcilerIT {
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
                     .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
-            assertThat(service.getSpec().getPorts().size()).describedAs("number of ports").isEqualTo(4);
+            assertThat(service.getSpec().getPorts()).describedAs("number of ports").hasSize(4);
         });
     }
 
@@ -1152,6 +1173,27 @@ class KafkaProxyReconcilerIT {
         // @formatter:on
     }
 
+    private static KafkaService kafkaServiceWithTlsWithTrustAnchorRefAsSecret() {
+        // @formatter:off
+        return new KafkaServiceBuilder(kafkaService(KafkaProxyReconcilerIT.CLUSTER_BAR_REF, KafkaProxyReconcilerIT.CLUSTER_BAR_BOOTSTRAP))
+                .editSpec()
+                    .withNewTls()
+                        .withNewCertificateRef()
+                            .withName(UPSTREAM_TLS_CERTIFICATE_SECRET_NAME)
+                        .endCertificateRef()
+                        .withNewTrustAnchorRef()
+                            .withNewRef()
+                                .withName(CA_CERT_SECRET_NAME)
+                                .withKind("Secret")
+                            .endRef()
+                            .withKey(TRUSTED_CAS_PEM)
+                        .endTrustAnchorRef()
+                    .endTls()
+                .endSpec()
+                .build();
+        // @formatter:on
+    }
+
     private static KafkaService kafkaService(String serviceName, String clusterBootstrap) {
         return new KafkaServiceBuilder().withNewMetadata().withName(serviceName).endMetadata()
                 .withNewSpec()
@@ -1201,6 +1243,15 @@ class KafkaProxyReconcilerIT {
                 .endMetadata()
                 .addToData(TRUSTED_CAS_PEM, TestKeyMaterial.TEST_CERT_PEM)
                 .addToData("key", TRUSTED_CAS_PEM)
+                .build();
+    }
+
+    private Secret secretContainingTrustAnchor(String name) {
+        return new SecretBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .endMetadata()
+                .addToData(TRUSTED_CAS_PEM, "aGVsbG93b3JsZA==")
                 .build();
     }
 

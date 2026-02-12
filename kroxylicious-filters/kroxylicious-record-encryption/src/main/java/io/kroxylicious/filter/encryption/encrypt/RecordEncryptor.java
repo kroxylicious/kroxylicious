@@ -98,33 +98,33 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
 
     @Nullable
     private ByteBuffer doTransformValue(@NonNull Record kafkaRecord) throws BufferTooSmallException {
-        final ByteBuffer transformedValue;
+        final ByteBuffer transformed;
         if (kafkaRecord.hasValue()) {
-            transformedValue = writeWrapper(kafkaRecord, recordBuffer);
+            transformed = writeWrapper(kafkaRecord, recordBuffer);
         }
         else {
-            transformedValue = null;
+            transformed = null;
         }
-        return transformedValue;
+        return transformed;
     }
 
     private Header[] doTransformHeaders(@NonNull Record kafkaRecord) {
-        final Header[] transformedHeaders;
+        final Header[] transformed;
         if (kafkaRecord.hasValue()) {
             Header[] oldHeaders = kafkaRecord.headers();
             if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES) || oldHeaders.length == 0) {
-                transformedHeaders = encryptionHeader;
+                transformed = encryptionHeader;
             }
             else {
-                transformedHeaders = new Header[1 + oldHeaders.length];
-                transformedHeaders[0] = encryptionHeader[0];
-                System.arraycopy(oldHeaders, 0, transformedHeaders, 1, oldHeaders.length);
+                transformed = new Header[1 + oldHeaders.length];
+                transformed[0] = encryptionHeader[0];
+                System.arraycopy(oldHeaders, 0, transformed, 1, oldHeaders.length);
             }
         }
         else {
-            transformedHeaders = kafkaRecord.headers();
+            transformed = kafkaRecord.headers();
         }
-        return transformedHeaders;
+        return transformed;
     }
 
     @Nullable

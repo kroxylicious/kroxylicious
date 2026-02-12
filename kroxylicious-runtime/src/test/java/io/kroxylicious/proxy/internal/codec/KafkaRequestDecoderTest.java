@@ -15,6 +15,7 @@ import java.util.function.IntPredicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -125,7 +126,7 @@ class KafkaRequestDecoderTest {
 
     // after ApiVersions negotiation we should never encounter a request from the client for an api version unknown to the proxy
     @Test
-    void throwsOnUnsupportedVersionOfNonApiVersionsRequests() {
+    void throwsOnUnsupportedVersion_NonApiVersionsRequestsAheadOfProxyMaximum() {
         EmbeddedChannel embeddedChannel = newEmbeddedChannel(new ApiVersionsServiceImpl(), RequestDecoderTest.DECODE_EVERYTHING);
         short maxSupportedVersion = ApiKeys.METADATA.latestVersion(true);
         short unsupportedVersion = (short) (maxSupportedVersion + 1);
@@ -140,8 +141,28 @@ class KafkaRequestDecoderTest {
         accessor.writeInt(messageSize);
         header.write(accessor, cache, requestHeaderVersion);
         accessor.writeByteArray(arbitraryBodyBytes);
-        assertThatThrownBy(() -> embeddedChannel.writeInbound(buffer)).isInstanceOf(DecoderException.class).cause().isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> embeddedChannel.writeInbound(buffer)).isInstanceOf(DecoderException.class).cause().isInstanceOf(UnsupportedVersionException.class)
                 .hasMessage("client apiVersion %d ahead of proxy maximum %d for api key: METADATA", unsupportedVersion, maxSupportedVersion);
+    }
+
+    @Test
+    void throwsOnUnsupportedVersionRequestBelowProxyMinimum() {
+        EmbeddedChannel embeddedChannel = newEmbeddedChannel(new ApiVersionsServiceImpl(), RequestDecoderTest.DECODE_EVERYTHING);
+        short minSupportedVersion = ApiKeys.PRODUCE.oldestVersion();
+        short unsupportedVersion = (short) (minSupportedVersion - 1);
+        RequestHeaderData header = latestVersionHeaderWithAllFields(ApiKeys.PRODUCE, unsupportedVersion);
+        byte[] arbitraryBodyBytes = new byte[]{ 1, 2, 3, 4 };
+        ObjectSerializationCache cache = new ObjectSerializationCache();
+        short requestHeaderVersion = ApiKeys.PRODUCE.requestHeaderVersion(ApiKeys.PRODUCE.latestVersion());
+        int headerSize = header.size(cache, requestHeaderVersion);
+        int messageSize = headerSize + arbitraryBodyBytes.length;
+        ByteBuf buffer = Unpooled.buffer();
+        ByteBufAccessorImpl accessor = new ByteBufAccessorImpl(buffer);
+        accessor.writeInt(messageSize);
+        header.write(accessor, cache, requestHeaderVersion);
+        accessor.writeByteArray(arbitraryBodyBytes);
+        assertThatThrownBy(() -> embeddedChannel.writeInbound(buffer)).isInstanceOf(DecoderException.class).cause().isInstanceOf(UnsupportedVersionException.class)
+                .hasMessage("client apiVersion %d below proxy minimum %d for api key: PRODUCE", unsupportedVersion, minSupportedVersion);
     }
 
     private static Stream<Arguments> produceRequestCases() {

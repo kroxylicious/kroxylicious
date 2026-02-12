@@ -1,0 +1,91 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "JOIN_GROUP"
+  apiVersion: 9
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "JOIN_GROUP"
+      expectedRequestVersion: 9
+      expectedRequestHeader:
+        requestApiKey: 11
+        requestApiVersion: 9
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-898"
+        sessionTimeoutMs: 948
+        rebalanceTimeoutMs: 16
+        memberId: "random-string-294"
+        groupInstanceId: "random-string-155"
+        protocolType: "random-string-573"
+        protocols:
+          - name: "random-string-66"
+            metadata: !!binary |-
+              FjPpKJY=
+        reason: "random-string-980"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 42
+        errorCode: 786
+        generationId: 805
+        protocolType: "random-string-874"
+        protocolName: "random-string-408"
+        leader: "random-string-199"
+        skipAssignment: true
+        memberId: "random-string-677"
+        members:
+          - memberId: "random-string-815"
+            groupInstanceId: "random-string-895"
+            metadata: !!binary |-
+              97dM46k=
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 11
+    requestApiVersion: 9
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-898"
+    sessionTimeoutMs: 948
+    rebalanceTimeoutMs: 16
+    memberId: "random-string-294"
+    groupInstanceId: "random-string-155"
+    protocolType: "random-string-573"
+    protocols:
+      - name: "random-string-66"
+        metadata: !!binary |-
+          FjPpKJY=
+    reason: "random-string-980"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 42
+    errorCode: 786
+    generationId: 805
+    protocolType: "random-string-874"
+    protocolName: "random-string-408"
+    leader: "random-string-199"
+    skipAssignment: true
+    memberId: "random-string-677"
+    members:
+      - memberId: "random-string-815"
+        groupInstanceId: "random-string-895"
+        metadata: !!binary |-
+          97dM46k=

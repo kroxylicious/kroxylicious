@@ -5,28 +5,28 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSession;
+
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -36,13 +36,20 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.IdleStateHandler;
 
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NettySettings;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
-import io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
@@ -50,14 +57,21 @@ import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
+import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
+import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
+import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
+import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
@@ -65,30 +79,37 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 
 public class KafkaProxyFrontendHandler
-        extends ChannelInboundHandlerAdapter
-        implements NetFilter.NetFilterContext {
+        extends ChannelInboundHandlerAdapter {
 
-    private static final String NET_FILTER_INVOKED_IN_WRONG_STATE = "NetFilterContext invoked in wrong session state";
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
-    /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
-    private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
+    public static final int DEFAULT_IDLE_TIME_SECONDS = 31;
+    public static final long DEFAULT_IDLE_SECONDS = 31L;
+    private static final Long NO_TIMEOUT = null;
+    private static final String AUTH_IDLE_HANDLER_NAME = "authenticatedSessionIdleHandler";
 
     private final boolean logNetwork;
     private final boolean logFrames;
     private final VirtualClusterModel virtualClusterModel;
     private final EndpointBinding endpointBinding;
-    private final NetFilter netFilter;
-    private final SaslDecodePredicate dp;
+    private final EndpointReconciler endpointReconciler;
+    private final DelegatingDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
     private final @Nullable ConnectionDrainManager connectionDrainManager;
+    private final TransportSubjectBuilder subjectBuilder;
+    private final PluginFactoryRegistry pfr;
+    private final FilterChainFactory filterChainFactory;
+    private final List<NamedFilterDefinition> namedFilterDefinitions;
+    private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
+    private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
+
+    private final Long authenticatedIdleTimeMillis;
 
     private @Nullable ChannelHandlerContext clientCtx;
     @VisibleForTesting
     @Nullable
     List<Object> bufferedMsgs;
     private boolean pendingClientFlushes;
-    private @Nullable AuthenticationEvent authentication;
     private @Nullable String sniHostname;
 
     // Flag if we receive a channelReadComplete() prior to outbound connection activation
@@ -96,23 +117,43 @@ public class KafkaProxyFrontendHandler
     // once the outbound channel is active
     private boolean pendingReadComplete = true;
 
-    private boolean isClientBlocked = true;
+    private @Nullable ClientSubjectManager clientSubjectManager;
+    private int progressionLatch = -1;
 
-    static {
-        var objectMapper = new ObjectMapper();
-        try (var parser = KafkaProxyFrontendHandler.class.getResourceAsStream("/ApiVersions-3.2.json")) {
-            API_VERSIONS_RESPONSE = ApiVersionsResponseDataJsonConverter.read(objectMapper.readTree(parser), (short) 3);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    /**
+     * @return the SSL session, or null if a session does not (currently) exist.
+     */
+    @Nullable
+    SSLSession sslSession() {
+        // The SslHandler is added to the pipeline by the SniHandler (replacing it) after the ClientHello.
+        // It is added using the fully-qualified class name.
+        SslHandler sslHandler = (SslHandler) this.clientCtx().pipeline().get(SslHandler.class.getName());
+        return Optional.ofNullable(sslHandler)
+                .map(SslHandler::engine)
+                .map(SSLEngine::getSession)
+                .orElse(null);
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     @VisibleForTesting
     KafkaProxyFrontendHandler(
-                              NetFilter netFilter,
-                              SaslDecodePredicate dp,
+                              PluginFactoryRegistry pfr,
+                              FilterChainFactory filterChainFactory,
+                              List<NamedFilterDefinition> namedFilterDefinitions,
+                              EndpointReconciler endpointReconciler,
+                              ApiVersionsServiceImpl apiVersionsService,
+                              DelegatingDecodePredicate dp,
+                              TransportSubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
+                              ProxyChannelStateMachine proxyChannelStateMachine,
+                              Optional<NettySettings> proxyNettySettings) {
+        this.endpointBinding = endpointBinding;
+        this.pfr = pfr;
+        this.filterChainFactory = filterChainFactory;
+        this.namedFilterDefinitions = namedFilterDefinitions;
+        this.endpointReconciler = endpointReconciler;
+        this.apiVersionsIntersectFilter = new ApiVersionsIntersectFilter(apiVersionsService);
+        this.apiVersionsDowngradeFilter = new ApiVersionsDowngradeFilter(apiVersionsService);
                               ProxyChannelStateMachine proxyChannelStateMachine) {
         this(netFilter, dp, endpointBinding, proxyChannelStateMachine, null);
     }
@@ -126,11 +167,12 @@ public class KafkaProxyFrontendHandler
                               @Nullable ConnectionDrainManager connectionDrainManager) {
         this.netFilter = netFilter;
         this.dp = dp;
-        this.endpointBinding = endpointBinding;
+        this.subjectBuilder = Objects.requireNonNull(subjectBuilder);
         this.virtualClusterModel = endpointBinding.endpointGateway().virtualCluster();
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
+        authenticatedIdleTimeMillis = getAuthenticatedIdleMillis(proxyNettySettings);
         this.connectionDrainManager = connectionDrainManager;
     }
 
@@ -144,10 +186,9 @@ public class KafkaProxyFrontendHandler
                 + ", proxyChannelState=" + this.proxyChannelStateMachine.currentState()
                 + ", number of bufferedMsgs=" + (bufferedMsgs == null ? 0 : bufferedMsgs.size())
                 + ", pendingClientFlushes=" + pendingClientFlushes
-                + ", authentication=" + authentication
                 + ", sniHostname='" + sniHostname + '\''
                 + ", pendingReadComplete=" + pendingReadComplete
-                + ", isClientBlocked=" + isClientBlocked
+                + ", blocked=" + progressionLatch
                 + '}';
     }
 
@@ -174,9 +215,15 @@ public class KafkaProxyFrontendHandler
                 throw new IllegalStateException("SNI failed", sniCompletionEvent.cause());
             }
         }
-        else if (event instanceof AuthenticationEvent authenticationEvent) {
-            this.authentication = authenticationEvent;
+        else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent
+                && handshakeCompletionEvent.isSuccess() && Objects.nonNull(this.clientSubjectManager)) {
+            this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder, this::onTransportSubjectBuilt);
         }
+        else if (event instanceof IdleStateEvent idleStateEvent && idleStateEvent.state() == IdleState.ALL_IDLE) {
+            // No traffic has been observed on the channel for the configured period
+            proxyChannelStateMachine.onClientIdle();
+        }
+
         super.userEventTriggered(ctx, event);
     }
 
@@ -198,7 +245,7 @@ public class KafkaProxyFrontendHandler
         }
 
         this.proxyChannelStateMachine.onClientActive(this);
-        super.channelActive(this.clientCtx);
+
     }
 
     /**
@@ -239,7 +286,7 @@ public class KafkaProxyFrontendHandler
     public void channelRead(
                             ChannelHandlerContext ctx,
                             Object msg) {
-        proxyChannelStateMachine.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(msg);
     }
 
     /**
@@ -266,48 +313,66 @@ public class KafkaProxyFrontendHandler
     void inClientActive() {
         Channel clientChannel = clientCtx().channel();
         LOGGER.trace("{}: channelActive", clientChannel.id());
-        // Initially the channel is not auto reading, so read the first batch of requests
+        this.clientSubjectManager = new ClientSubjectManager();
+        this.progressionLatch = 2; // we require two events before unblocking
+        if (!this.endpointBinding.endpointGateway().isUseTls()) {
+            this.clientSubjectManager.subjectFromTransport(null, this.subjectBuilder, this::onTransportSubjectBuilt);
+        }
+
+        // install filters before first read
+        List<FilterAndInvoker> filters = buildFilters();
+        addFiltersToPipeline(filters, clientCtx().pipeline(), clientCtx().channel());
+        // Set the decode predicate now that we have the filters
+        dp.setDelegate(DecodePredicate.forFilters(filters));
+        // Initially the channel is not auto reading
         clientChannel.config().setAutoRead(false);
-        // TODO why doesn't the initializer set autoread to false so we don't have to set it here?
         clientChannel.read();
     }
 
-    /**
-     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link ApiVersions} state.
-     */
-    void inApiVersions(DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-        // This handler can respond to ApiVersions itself
-        writeApiVersionsResponse(clientCtx(), apiVersionsFrame);
-        // Request to read the following request
-        this.clientCtx().channel().read();
+    private void onTransportSubjectBuilt() {
+        if (!Objects.requireNonNull(clientSubjectManager).authenticatedSubject().isAnonymous()) {
+            proxyChannelStateMachine.onSessionTransportAuthenticated();
+        }
+        maybeUnblock();
+    }
+
+    private void onReadyToForwardMore() {
+        maybeUnblock();
+    }
+
+    private void maybeUnblock() {
+        if (--this.progressionLatch == 0) {
+            unblockClient();
+        }
     }
 
     /**
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link SelectingServer} state.
      */
     void inSelectingServer() {
-        // Pass this as the filter context, so that
-        // filter.initiateConnect() call's back on
-        // our initiateConnect() method
-        this.netFilter.selectServer(this);
-        this.proxyChannelStateMachine
-                .assertIsConnecting("NetFilter.selectServer() did not callback on NetFilterContext.initiateConnect(): filter='" + this.netFilter + "'");
+        var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
+        initiateConnect(target);
     }
 
-    /**
-     * Sends an ApiVersions response from this handler to the client
-     * if the proxy is handling authentication
-     * (i.e. prior to having a backend connection)
-     */
-    private void writeApiVersionsResponse(ChannelHandlerContext ctx,
-                                          DecodedRequestFrame<ApiVersionsRequestData> frame) {
-        short apiVersion = frame.apiVersion();
-        int correlationId = frame.correlationId();
-        ResponseHeaderData header = new ResponseHeaderData()
-                .setCorrelationId(correlationId);
-        LOGGER.debug("{}: Writing ApiVersions response", ctx.channel());
-        ctx.writeAndFlush(new DecodedResponseFrame<>(
-                apiVersion, correlationId, header, API_VERSIONS_RESPONSE));
+    @NonNull
+    private List<FilterAndInvoker> buildFilters() {
+        List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
+        var filterAndInvokers = new ArrayList<>(apiVersionFilters);
+        filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
+
+        NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
+        List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
+        filterAndInvokers.addAll(filterChain);
+
+        if (endpointBinding.restrictUpstreamToMetadataDiscovery()) {
+            filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
+        }
+        filterAndInvokers.addAll(FilterAndInvoker.build("VirtualCluster TopicNameCache (internal)", virtualClusterModel.getTopicNameCacheFilter()));
+        List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)",
+                new BrokerAddressFilter(endpointBinding.endpointGateway(), endpointReconciler));
+        filterAndInvokers.addAll(brokerAddressFilters);
+
+        return filterAndInvokers;
     }
 
     /**
@@ -332,132 +397,19 @@ public class KafkaProxyFrontendHandler
     }
 
     /**
-     * Accessor exposing the client host to a {@link NetFilter}.
-     * <p>Called by the {@link #netFilter}.</p>
-     * @return The client host
-     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
-     */
-    @Override
-    public String clientHost() {
-        final SelectingServer selectingServer = proxyChannelStateMachine
-                .enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
-        if (selectingServer.haProxyMessage() != null) {
-            return selectingServer.haProxyMessage().sourceAddress();
-        }
-        else {
-            return remoteHost();
-        }
-    }
-
-    /**
-     * Accessor exposing the client port to a {@link NetFilter}.
-     * <p>Called by the {@link #netFilter}.</p>
-     * @return The client port.
-     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
-     */
-    @Override
-    public int clientPort() {
-        final SelectingServer selectingServer = proxyChannelStateMachine
-                .enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
-        if (selectingServer.haProxyMessage() != null) {
-            return selectingServer.haProxyMessage().sourcePort();
-        }
-        else {
-            return remotePort();
-        }
-    }
-
-    /**
-     * Accessor exposing the source address to a {@link NetFilter}.
-     * <p>Called by the {@link #netFilter}.</p>
-     * @return The source address.
-     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
-     */
-    @Override
-    public SocketAddress srcAddress() {
-        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
-        return clientCtx().channel().remoteAddress();
-    }
-
-    /**
-     * Accessor exposing the local address to a {@link NetFilter}.
-     * <p>Called by the {@link #netFilter}.</p>
-     * @return The local address.
-     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
-     */
-    @Override
-    public SocketAddress localAddress() {
-        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
-        return clientCtx().channel().localAddress();
-    }
-
-    /**
-     * Accessor exposing the authorizedId to a {@link NetFilter}.
-     * <p>Called by the {@link #netFilter}.</p>
-     * @return The authorized id, or null.
-     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
-     */
-    @Override
-    public @Nullable String authorizedId() {
-        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
-        return authentication != null ? authentication.authorizationId() : null;
-    }
-
-    /**
-     * Accessor exposing the name of the client library to a {@link NetFilter}.
-     * <p>Called by the {@link #netFilter}.</p>
-     * @return The name of the client library, or null.
-     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
-     */
-    @Override
-    @Nullable
-    public String clientSoftwareName() {
-        return proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE).clientSoftwareName();
-    }
-
-    /**
-     * Accessor exposing the version of the client library to a {@link NetFilter}.
-     * <p>Called by the {@link #netFilter}.</p>
-     * @return The version of the client library, or null.
-     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
-     */
-    @Override
-    @Nullable
-    public String clientSoftwareVersion() {
-        return proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE).clientSoftwareVersion();
-    }
-
-    /**
-     * Accessor exposing the SNI host name to a {@link NetFilter}.
-     * <p>Called by the {@link #netFilter}.</p>
-     * @return The SNI host name, or null.
-     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
-     */
-    @Override
-    @Nullable
-    public String sniHostname() {
-        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
-        return sniHostname;
-    }
-
-    /**
      * Initiates the connection to a server.
      * Changes {@link #proxyChannelStateMachine} from {@link SelectingServer} to {@link Connecting}
      * Initializes the {@code backendHandler} and configures its pipeline
      * with the given {@code filters}.
-     * <p>Called by the {@link #netFilter}.</p>
      * @param remote upstream broker target
-     * @param filters The protocol filters
      */
-    @Override
-    public void initiateConnect(
-                                HostPort remote,
-                                List<FilterAndInvoker> filters) {
+    void initiateConnect(
+                         HostPort remote) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
-                    this.proxyChannelStateMachine.sessionId(), remote, filters);
+            LOGGER.debug("{}: Connecting to backend broker {}",
+                    this.proxyChannelStateMachine.sessionId(), remote);
         }
-        this.proxyChannelStateMachine.onNetFilterInitiateConnect(remote, filters, virtualClusterModel, netFilter);
+        this.proxyChannelStateMachine.onInitiateConnect(remote, virtualClusterModel);
     }
 
     /**
@@ -465,13 +417,15 @@ public class KafkaProxyFrontendHandler
      */
     void inConnecting(
                       HostPort remote,
-                      List<FilterAndInvoker> filters,
                       KafkaProxyBackendHandler backendHandler) {
         final Channel inboundChannel = clientCtx().channel();
         // Start the upstream connection attempt.
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
 
-        LOGGER.debug("{}: Connecting to outbound {}", this.proxyChannelStateMachine.sessionId(), remote);
+        LOGGER.atDebug().setMessage("{}: Connecting to outbound {}")
+                .addArgument(this.proxyChannelStateMachine::sessionId)
+                .addArgument(remote)
+                .log();
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
         Channel outboundChannel = serverTcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
@@ -486,7 +440,6 @@ public class KafkaProxyFrontendHandler
         if (logFrames) {
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger", LogLevel.INFO));
         }
-        addFiltersToPipeline(filters, pipeline, inboundChannel);
 
         var encoderListener = buildMetricsMessageListenerForEncode();
         var decoderListener = buildMetricsMessageListenerForDecode();
@@ -506,10 +459,6 @@ public class KafkaProxyFrontendHandler
         serverTcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
                 LOGGER.trace("{}: Outbound connected", clientCtx().channel().id());
-                // Now we know which filters are to be used we need to update the DecodePredicate
-                // so that the decoder starts decoding the messages that the filters want to intercept
-                dp.setDelegate(DecodePredicate.forFilters(filters));
-
                 // This branch does not cause the transition to Connected:
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }
@@ -570,13 +519,11 @@ public class KafkaProxyFrontendHandler
 
         if (pendingReadComplete) {
             pendingReadComplete = false;
-            channelReadComplete(Objects.requireNonNull(this.clientCtx));
+            channelReadComplete(this.clientCtx());
         }
 
-        if (isClientBlocked) {
-            // once buffered message has been forwarded we enable auto-read to start accepting further messages
-            unblockClient();
-        }
+        // once buffered message has been forwarded we enable auto-read to start accepting further messages
+        onReadyToForwardMore();
     }
 
     /**
@@ -644,13 +591,14 @@ public class KafkaProxyFrontendHandler
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
+
         int num = 0;
-        var clientSaslManager = new ClientSaslManager();
+
         for (var protocolFilter : filters) {
             // TODO configurable timeout
             // Handler name must be unique, but filters are allowed to appear multiple times
-            String handlerName = "filter-" + (++num) + "-" + protocolFilter.filterName();
-            pipeline.addFirst(
+            String handlerName = "filter-" + ++num + "-" + protocolFilter.filterName();
+            pipeline.addBefore(clientCtx().name(),
                     handlerName,
                     new FilterHandler(
                             protocolFilter,
@@ -658,13 +606,12 @@ public class KafkaProxyFrontendHandler
                             sniHostname,
                             virtualClusterModel,
                             inboundChannel,
-                            clientSaslManager,
-                            proxyChannelStateMachine));
+                            proxyChannelStateMachine,
+                            clientSubjectManager));
         }
     }
 
     private void unblockClient() {
-        isClientBlocked = false;
         var inboundChannel = clientCtx().channel();
         inboundChannel.config().setAutoRead(true);
         proxyChannelStateMachine.onClientWritable();
@@ -712,6 +659,19 @@ public class KafkaProxyFrontendHandler
         return channel != null ? channel.id() : null;
     }
 
+    public void onSessionAuthenticated() {
+        ChannelPipeline channelPipeline = Objects.requireNonNull(clientCtx).pipeline();
+        ChannelHandler preSessionHandler = channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER);
+        // sessions can be re-authenticated however we only need to act on the first instance or it may already have been removed due to MTLS auth
+        if (preSessionHandler != null) {
+            channelPipeline.remove(preSessionHandler);
+        }
+        if (!Objects.isNull(authenticatedIdleTimeMillis) && !channelPipeline.names().contains(AUTH_IDLE_HANDLER_NAME)) {
+            channelPipeline.addFirst(AUTH_IDLE_HANDLER_NAME,
+                    new IdleStateHandler(0, 0, authenticatedIdleTimeMillis, TimeUnit.MILLISECONDS));
+        }
+    }
+
     protected String remoteHost() {
         SocketAddress socketAddress = clientCtx().channel().remoteAddress();
         if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
@@ -730,6 +690,12 @@ public class KafkaProxyFrontendHandler
         else {
             return -1;
         }
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    @Nullable
+    private Long getAuthenticatedIdleMillis(Optional<NettySettings> nettySettings) {
+        return nettySettings.flatMap(NettySettings::authenticatedIdleTimeout).map(Duration::toMillis).orElse(NO_TIMEOUT);
     }
 
 }

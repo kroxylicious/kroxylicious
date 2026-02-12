@@ -14,7 +14,7 @@ If you don't have a Fortanix DSM SaaS account, create a trial account.   Create 
 "API Key" as the authentication method.   The "API Key" has two sub-options - a single sting API Key, or a username/password form.
 It is the former that we use.   Copy the single string "API Key".  Use those values to set the two API_KEY environment variables.
 
-Once you've done these steps you can run the the io.kroxylicious.kms.service.KmsIT and io.kroxylicious.proxy.encryption.RecordEncryptionFilterIT.
+Once you've done these steps you can run the io.kroxylicious.it.kms.service.KmsIT and io.kroxylicious.it.filter.encryption.RecordEncryptionFilterIT.
 The integration test will execute the Fortanix KMS integration. You can set `KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER` to `.*Fortanix.*` so that
 only the integrations for the other KMS providers are skipped.
 

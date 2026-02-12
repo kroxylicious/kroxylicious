@@ -12,7 +12,7 @@ import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.InstanceOfAssertFactory;
 
 public class ConsumerRecordAssert extends AbstractAssert<ConsumerRecordAssert, ConsumerRecord<?, ?>> {
-    protected ConsumerRecordAssert(ConsumerRecord consumerRecord) {
+    protected ConsumerRecordAssert(ConsumerRecord<?, ?> consumerRecord) {
         super(consumerRecord, ConsumerRecordAssert.class);
     }
 

@@ -21,20 +21,15 @@ class VaultEdekTest {
         assertThat(edek1)
                 .isEqualTo(edek1)
                 .isNotEqualTo(new Object())
-                .isNotEqualTo(null);
-
-        assertThat(edek1)
+                .isNotEqualTo(null)
                 .isEqualTo(edek2)
-                .hasSameHashCodeAs(edek2);
-        assertThat(edek2).isEqualTo(edek1);
-
-        assertThat(edek1)
+                .hasSameHashCodeAs(edek2)
                 .isNotEqualTo(keyRefDiffer)
-                .doesNotHaveSameHashCodeAs(keyRefDiffer);
-
-        assertThat(edek1)
+                .doesNotHaveSameHashCodeAs(keyRefDiffer)
                 .isNotEqualTo(edekBytesDiffer)
                 .doesNotHaveSameHashCodeAs(edekBytesDiffer);
+
+        assertThat(edek2).isEqualTo(edek1);
     }
 
     @Test

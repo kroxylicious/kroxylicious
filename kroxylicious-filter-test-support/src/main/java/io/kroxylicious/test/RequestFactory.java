@@ -13,7 +13,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -76,7 +76,7 @@ public class RequestFactory {
             ApiKeys.UPDATE_METADATA);
 
     @VisibleForTesting
-    protected static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = new EnumMap<>(ApiKeys.class);
+    protected static final Map<ApiKeys, BiConsumer<ApiMessage, Short>> messagePopulators = new EnumMap<>(ApiKeys.class);
 
     static {
         messagePopulators.put(ApiKeys.PRODUCE, RequestFactory::populateProduceRequest);
@@ -135,10 +135,14 @@ public class RequestFactory {
                 .flatMap(Collection::stream)
                 .filter(Predicate.not(x -> x.messageType.requestSchemas().length == 0 && x.messageType.responseSchemas().length == 0)) // TOOD is there a better way?
                 .map(apiKey -> {
-                    final ApiMessage apiMessage = apiMessageForApiKey(apiKey);
                     final Short apiVersion = versionFunction.apply(apiKey);
-                    return new ApiMessageVersion(apiMessage, apiVersion);
+                    return apiMessageFor(apiKey, apiVersion);
                 });
+    }
+
+    public static ApiMessageVersion apiMessageFor(ApiKeys apiKey, short apiVersion) {
+        final ApiMessage apiMessage = apiMessageForApiKey(apiKey, apiVersion);
+        return new ApiMessageVersion(apiMessage, apiVersion);
     }
 
     public record ApiMessageVersion(ApiMessage apiMessage, short apiVersion) {
@@ -147,14 +151,14 @@ public class RequestFactory {
         }
     }
 
-    private static @NonNull ApiMessage apiMessageForApiKey(ApiKeys apiKey) {
+    private static @NonNull ApiMessage apiMessageForApiKey(ApiKeys apiKey, short apiVersion) {
         final ApiMessage apiMessage = apiKey.messageType.newRequest();
-        messagePopulators.getOrDefault(apiKey, message -> {
-        }).accept(apiMessage);
+        messagePopulators.getOrDefault(apiKey, (message, version) -> {
+        }).accept(apiMessage, apiVersion);
         return apiMessage;
     }
 
-    private static void populateProduceRequest(ApiMessage apiMessage) {
+    private static void populateProduceRequest(ApiMessage apiMessage, short apiVersion) {
         final ProduceRequestData produceRequestData = (ProduceRequestData) apiMessage;
         produceRequestData.setAcks(ACKS_ALL);
         final ProduceRequestData.TopicProduceDataCollection v = new ProduceRequestData.TopicProduceDataCollection(1);
@@ -166,7 +170,7 @@ public class RequestFactory {
         produceRequestData.setTopicData(v);
     }
 
-    private static void populateListOffsetsRequest(ApiMessage apiMessage) {
+    private static void populateListOffsetsRequest(ApiMessage apiMessage, short apiVersion) {
         final ListOffsetsRequestData listOffsetsRequestData = (ListOffsetsRequestData) apiMessage;
         final ListOffsetsRequestData.ListOffsetsPartition p1 = new ListOffsetsRequestData.ListOffsetsPartition();
         p1.setPartitionIndex(0);
@@ -178,13 +182,12 @@ public class RequestFactory {
         listOffsetsRequestData.setTopics(List.of(listOffsetsTopic));
     }
 
-    private static void populateOffsetFetchRequest(ApiMessage apiMessage) {
+    private static void populateOffsetFetchRequest(ApiMessage apiMessage, short apiVersion) {
         final OffsetFetchRequestData offsetFetchRequestData = (OffsetFetchRequestData) apiMessage;
         final OffsetFetchRequestData.OffsetFetchRequestTopic t1 = new OffsetFetchRequestData.OffsetFetchRequestTopic();
         t1.setName(MobyNamesGenerator.getRandomName());
         t1.setPartitionIndexes(List.of(0, 1));
-        offsetFetchRequestData.setGroupId(MobyNamesGenerator.getRandomName());
-        offsetFetchRequestData.setTopics(List.of(t1));
+
         OffsetFetchRequestData.OffsetFetchRequestGroup group = new OffsetFetchRequestData.OffsetFetchRequestGroup();
         group.setGroupId(MobyNamesGenerator.getRandomName());
         OffsetFetchRequestData.OffsetFetchRequestTopics topics = new OffsetFetchRequestData.OffsetFetchRequestTopics();
@@ -192,10 +195,20 @@ public class RequestFactory {
         topics.setTopicId(Uuid.ONE_UUID);
         topics.setPartitionIndexes(List.of(0, 1));
         group.setTopics(List.of(topics));
-        offsetFetchRequestData.setGroups(List.of(group));
+
+        if (apiVersion <= 7) {
+            offsetFetchRequestData.setGroups(List.of());
+            offsetFetchRequestData.setGroupId(MobyNamesGenerator.getRandomName());
+            offsetFetchRequestData.setTopics(List.of(t1));
+        }
+        else {
+            offsetFetchRequestData.setGroups(List.of(group));
+            offsetFetchRequestData.setGroupId("");
+            offsetFetchRequestData.setTopics(List.of());
+        }
     }
 
-    private static void populateMetadataRequest(ApiMessage apiMessage) {
+    private static void populateMetadataRequest(ApiMessage apiMessage, short apiVersion) {
         final MetadataRequestData metadataRequestData = (MetadataRequestData) apiMessage;
         final MetadataRequestData.MetadataRequestTopic t1 = new MetadataRequestData.MetadataRequestTopic();
         t1.setName(MobyNamesGenerator.getRandomName());
@@ -203,29 +216,34 @@ public class RequestFactory {
         metadataRequestData.setTopics(List.of(t1));
     }
 
-    private static void populateLeaveGroupRequest(ApiMessage apiMessage) {
+    private static void populateLeaveGroupRequest(ApiMessage apiMessage, short apiVersion) {
         final LeaveGroupRequestData leaveGroupRequestData = (LeaveGroupRequestData) apiMessage;
-        final LeaveGroupRequestData.MemberIdentity memberIdentity = new LeaveGroupRequestData.MemberIdentity();
-        memberIdentity.setMemberId(MobyNamesGenerator.getRandomName());
-        leaveGroupRequestData.setMembers(List.of(memberIdentity));
+        if (apiVersion >= 3) {
+            leaveGroupRequestData.setMembers(List.of(
+                    new LeaveGroupRequestData.MemberIdentity()
+                            .setMemberId(MobyNamesGenerator.getRandomName())));
+        }
+        else {
+            leaveGroupRequestData.setMembers(List.of());
+        }
     }
 
-    private static void populateDescribeGroupsRequest(ApiMessage apiMessage) {
+    private static void populateDescribeGroupsRequest(ApiMessage apiMessage, short apiVersion) {
         final DescribeGroupsRequestData describeGroupsRequestData = (DescribeGroupsRequestData) apiMessage;
         describeGroupsRequestData.setGroups(List.of(MobyNamesGenerator.getRandomName(), MobyNamesGenerator.getRandomName()));
     }
 
-    private static void populateConsumeGroupDescribeRequest(ApiMessage apiMessage) {
+    private static void populateConsumeGroupDescribeRequest(ApiMessage apiMessage, short apiVersion) {
         final ConsumerGroupDescribeRequestData consumerGroupDescribeRequestData = (ConsumerGroupDescribeRequestData) apiMessage;
         consumerGroupDescribeRequestData.setGroupIds(List.of(MobyNamesGenerator.getRandomName(), MobyNamesGenerator.getRandomName()));
     }
 
-    private static void populateDeleteGroupRequest(ApiMessage apiMessage) {
+    private static void populateDeleteGroupRequest(ApiMessage apiMessage, short apiVersion) {
         final DeleteGroupsRequestData deleteGroupsRequestData = (DeleteGroupsRequestData) apiMessage;
         deleteGroupsRequestData.setGroupsNames(List.of(MobyNamesGenerator.getRandomName(), MobyNamesGenerator.getRandomName()));
     }
 
-    private static void populateOffsetCommitRequest(ApiMessage apiMessage) {
+    private static void populateOffsetCommitRequest(ApiMessage apiMessage, short apiVersion) {
         final OffsetCommitRequestData offsetCommitRequestData = (OffsetCommitRequestData) apiMessage;
         offsetCommitRequestData.setGroupId(MobyNamesGenerator.getRandomName());
         offsetCommitRequestData.setMemberId(MobyNamesGenerator.getRandomName());
@@ -238,7 +256,7 @@ public class RequestFactory {
         offsetCommitRequestData.setTopics(List.of(t1));
     }
 
-    private static void populateCreateTopicsRequest(ApiMessage apiMessage) {
+    private static void populateCreateTopicsRequest(ApiMessage apiMessage, short apiVersion) {
         final CreateTopicsRequestData createTopicsRequestData = (CreateTopicsRequestData) apiMessage;
         final CreateTopicsRequestData.CreatableTopicCollection creatableTopicCollection = new CreateTopicsRequestData.CreatableTopicCollection();
         final CreateTopicsRequestData.CreatableTopic t1 = new CreateTopicsRequestData.CreatableTopic();
@@ -248,16 +266,18 @@ public class RequestFactory {
         createTopicsRequestData.setTopics(creatableTopicCollection);
     }
 
-    private static void populateDeleteTopicsRequest(ApiMessage apiMessage) {
+    private static void populateDeleteTopicsRequest(ApiMessage apiMessage, short apiVersion) {
         final DeleteTopicsRequestData deleteTopicsRequestData = (DeleteTopicsRequestData) apiMessage;
         final DeleteTopicsRequestData.DeleteTopicState t1 = new DeleteTopicsRequestData.DeleteTopicState();
         t1.setTopicId(Uuid.randomUuid());
         t1.setName(MobyNamesGenerator.getRandomName());
-        deleteTopicsRequestData.setTopics(List.of(t1));
+        if (apiVersion >= 6) {
+            deleteTopicsRequestData.setTopics(List.of(t1));
+        }
         deleteTopicsRequestData.setTopicNames(List.of(t1.name()));
     }
 
-    private static void populateDeleteRecordsRequest(ApiMessage apiMessage) {
+    private static void populateDeleteRecordsRequest(ApiMessage apiMessage, short apiVersion) {
         final DeleteRecordsRequestData deleteRecordsRequestData = (DeleteRecordsRequestData) apiMessage;
         final DeleteRecordsRequestData.DeleteRecordsTopic t1 = new DeleteRecordsRequestData.DeleteRecordsTopic();
         t1.setName(MobyNamesGenerator.getRandomName());
@@ -268,14 +288,19 @@ public class RequestFactory {
         deleteRecordsRequestData.setTopics(List.of(t1));
     }
 
-    private static void populateInitProducerIdRequest(ApiMessage apiMessage) {
+    private static void populateInitProducerIdRequest(ApiMessage apiMessage, short apiVersion) {
         final InitProducerIdRequestData initProducerIdRequestData = (InitProducerIdRequestData) apiMessage;
-        initProducerIdRequestData.setProducerId(234567L);
+        if (apiVersion >= 3) {
+            initProducerIdRequestData.setProducerId(234567L);
+        }
+        else {
+            initProducerIdRequestData.setProducerId(-1);
+        }
         initProducerIdRequestData.setTransactionTimeoutMs(1_000);
         initProducerIdRequestData.setTransactionalId(MobyNamesGenerator.getRandomName());
     }
 
-    private static void populateCreateAclsRequest(ApiMessage apiMessage) {
+    private static void populateCreateAclsRequest(ApiMessage apiMessage, short apiVersion) {
         final CreateAclsRequestData createAclsRequestData = (CreateAclsRequestData) apiMessage;
         final CreateAclsRequestData.AclCreation aclCreation = new CreateAclsRequestData.AclCreation();
         aclCreation.setPrincipal(MobyNamesGenerator.getRandomName());
@@ -286,7 +311,7 @@ public class RequestFactory {
         createAclsRequestData.setCreations(List.of(aclCreation));
     }
 
-    private static void populateDescribeAclsRequest(ApiMessage apiMessage) {
+    private static void populateDescribeAclsRequest(ApiMessage apiMessage, short apiVersion) {
         final DescribeAclsRequestData describeAclsRequestData = (DescribeAclsRequestData) apiMessage;
         describeAclsRequestData.setPatternTypeFilter(PatternType.ANY.code());
         describeAclsRequestData.setOperation(AclOperation.ANY.code());
@@ -295,7 +320,7 @@ public class RequestFactory {
         describeAclsRequestData.setResourceTypeFilter(ResourceType.ANY.code());
     }
 
-    private static void populateDeleteAclsRequest(ApiMessage apiMessage) {
+    private static void populateDeleteAclsRequest(ApiMessage apiMessage, short apiVersion) {
         final DeleteAclsRequestData deleteAclsRequestData = (DeleteAclsRequestData) apiMessage;
         final DeleteAclsRequestData.DeleteAclsFilter daf = new DeleteAclsRequestData.DeleteAclsFilter();
         daf.setPatternTypeFilter(PatternType.ANY.code());
@@ -306,7 +331,7 @@ public class RequestFactory {
         deleteAclsRequestData.setFilters(List.of(daf));
     }
 
-    private static void populateOffsetForLeaderEpochRequest(ApiMessage apiMessage) {
+    private static void populateOffsetForLeaderEpochRequest(ApiMessage apiMessage, short apiVersion) {
         final OffsetForLeaderEpochRequestData offsetForLeaderEpochRequestData = (OffsetForLeaderEpochRequestData) apiMessage;
         final OffsetForLeaderEpochRequestData.OffsetForLeaderTopicCollection topicCollection = new OffsetForLeaderEpochRequestData.OffsetForLeaderTopicCollection();
         final OffsetForLeaderEpochRequestData.OffsetForLeaderTopic offsetForLeaderTopic = new OffsetForLeaderEpochRequestData.OffsetForLeaderTopic();
@@ -318,52 +343,52 @@ public class RequestFactory {
         offsetForLeaderEpochRequestData.setTopics(topicCollection);
     }
 
-    private static void populateShareGroupDescribeRequest(ApiMessage apiMessage) {
+    private static void populateShareGroupDescribeRequest(ApiMessage apiMessage, short apiVersion) {
         final ShareGroupDescribeRequestData shareGroupDescribeRequestData = (ShareGroupDescribeRequestData) apiMessage;
         shareGroupDescribeRequestData.setGroupIds(List.of(MobyNamesGenerator.getRandomName()));
     }
 
-    private static void populateInitializeShareGroupStateRequest(ApiMessage apiMessage) {
+    private static void populateInitializeShareGroupStateRequest(ApiMessage apiMessage, short apiVersion) {
         final InitializeShareGroupStateRequestData shareGroupDescribeRequestData = (InitializeShareGroupStateRequestData) apiMessage;
         final InitializeShareGroupStateRequestData.InitializeStateData initializeStateData = new InitializeShareGroupStateRequestData.InitializeStateData();
         initializeStateData.setPartitions(List.of(new InitializeShareGroupStateRequestData.PartitionData()));
         shareGroupDescribeRequestData.setTopics(List.of(initializeStateData));
     }
 
-    private static void populateReadShareGroupStateRequest(ApiMessage apiMessage) {
+    private static void populateReadShareGroupStateRequest(ApiMessage apiMessage, short apiVersion) {
         final ReadShareGroupStateRequestData readShareGroupStateRequestData = (ReadShareGroupStateRequestData) apiMessage;
         final ReadShareGroupStateRequestData.ReadStateData readStateData = new ReadShareGroupStateRequestData.ReadStateData();
         readStateData.setPartitions(List.of(new ReadShareGroupStateRequestData.PartitionData()));
         readShareGroupStateRequestData.setTopics(List.of(readStateData));
     }
 
-    private static void populateWriteShareGroupStateRequest(ApiMessage apiMessage) {
+    private static void populateWriteShareGroupStateRequest(ApiMessage apiMessage, short apiVersion) {
         final WriteShareGroupStateRequestData writeShareGroupStateRequestData = (WriteShareGroupStateRequestData) apiMessage;
         final WriteShareGroupStateRequestData.WriteStateData writeStateData = new WriteShareGroupStateRequestData.WriteStateData();
         writeStateData.setPartitions(List.of(new WriteShareGroupStateRequestData.PartitionData()));
         writeShareGroupStateRequestData.setTopics(List.of(writeStateData));
     }
 
-    private static void populateDeleteShareGroupStateRequest(ApiMessage apiMessage) {
+    private static void populateDeleteShareGroupStateRequest(ApiMessage apiMessage, short apiVersion) {
         final DeleteShareGroupStateRequestData deleteShareGroupStateRequestData = (DeleteShareGroupStateRequestData) apiMessage;
         final DeleteShareGroupStateRequestData.DeleteStateData deleteStateData = new DeleteShareGroupStateRequestData.DeleteStateData();
         deleteStateData.setPartitions(List.of(new DeleteShareGroupStateRequestData.PartitionData()));
         deleteShareGroupStateRequestData.setTopics(List.of(deleteStateData));
     }
 
-    private static void populateReadShareGroupStateSummaryRequest(ApiMessage apiMessage) {
+    private static void populateReadShareGroupStateSummaryRequest(ApiMessage apiMessage, short apiVersion) {
         final ReadShareGroupStateSummaryRequestData readShareGroupStateSummaryRequestData = (ReadShareGroupStateSummaryRequestData) apiMessage;
         final ReadShareGroupStateSummaryRequestData.ReadStateSummaryData readStateData = new ReadShareGroupStateSummaryRequestData.ReadStateSummaryData();
         readStateData.setPartitions(List.of(new ReadShareGroupStateSummaryRequestData.PartitionData()));
         readShareGroupStateSummaryRequestData.setTopics(List.of(readStateData));
     }
 
-    private static void populateStreamsGroupDescribeRequest(ApiMessage apiMessage) {
+    private static void populateStreamsGroupDescribeRequest(ApiMessage apiMessage, short apiVersion) {
         final StreamsGroupDescribeRequestData readShareGroupStateSummaryRequestData = (StreamsGroupDescribeRequestData) apiMessage;
         readShareGroupStateSummaryRequestData.setGroupIds(List.of(MobyNamesGenerator.getRandomName()));
     }
 
-    private static void populateDescribeShareGroupOffsetsRequest(ApiMessage apiMessage) {
+    private static void populateDescribeShareGroupOffsetsRequest(ApiMessage apiMessage, short apiVersion) {
         final DescribeShareGroupOffsetsRequestData describeShareGroupOffsetsRequest = (DescribeShareGroupOffsetsRequestData) apiMessage;
         DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup group = new DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup();
         group.setGroupId(MobyNamesGenerator.getRandomName());
@@ -374,9 +399,14 @@ public class RequestFactory {
         describeShareGroupOffsetsRequest.setGroups(List.of(group));
     }
 
-    private static void populateListConfigResourcesRequest(ApiMessage apiMessage) {
+    private static void populateListConfigResourcesRequest(ApiMessage apiMessage, short apiVersion) {
         final ListConfigResourcesRequestData listConfigResourcesRequestData = (ListConfigResourcesRequestData) apiMessage;
-        listConfigResourcesRequestData.setResourceTypes(List.of(ConfigResource.Type.CLIENT_METRICS.id())); // the only type you can use with v0 LIST_CONFIG_RESOURCES
+        if (apiVersion == 0) {
+            listConfigResourcesRequestData.setResourceTypes(List.of());
+        }
+        else {
+            listConfigResourcesRequestData.setResourceTypes(List.of(ConfigResource.Type.CLIENT_METRICS.id()));
+        }
     }
 
 }

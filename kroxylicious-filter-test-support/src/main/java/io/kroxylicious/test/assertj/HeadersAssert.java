@@ -25,9 +25,8 @@ public class HeadersAssert extends AbstractAssert<HeadersAssert, Headers> {
 
     private IterableAssert<Header> headerIterable() {
         isNotNull();
-        IterableAssert<Header> records = IterableAssert.assertThatIterable(actual)
+        return IterableAssert.assertThatIterable(actual)
                 .describedAs("headers");
-        return records;
     }
 
     public HeaderAssert firstHeader() {

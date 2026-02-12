@@ -24,6 +24,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param logNetwork if true, network will be logged
  * @param logFrames if true, kafka rpcs will be logged
  * @param filters filers.
+ * @param subjectBuilder subject builder configuration (optional)
  */
 @SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
 public record VirtualCluster(@JsonProperty(required = true) String name,
@@ -31,11 +32,13 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                              @JsonProperty(required = true) List<VirtualClusterGateway> gateways,
                              boolean logNetwork,
                              boolean logFrames,
-                             @Nullable List<String> filters) {
+                             @Nullable List<String> filters,
+                             @Nullable TransportSubjectBuilderConfig subjectBuilder,
+                             @Nullable CacheConfiguration topicNameCache) {
 
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
 
-    @SuppressWarnings({ "removal", "java:S2789" }) // S2789 - checking for null tls is the intent
+    @SuppressWarnings("java:S2789") // S2789 - checking for null tls is the intent
     public VirtualCluster {
         Objects.requireNonNull(name);
         Objects.requireNonNull(targetCluster);
@@ -51,6 +54,15 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
             throw new IllegalConfigurationException("one or more gateways were null for virtual cluster '" + name + "'");
         }
         validateNoDuplicatedGatewayNames(gateways);
+    }
+
+    public VirtualCluster(@JsonProperty(required = true) String name,
+                          @JsonProperty(required = true) TargetCluster targetCluster,
+                          @JsonProperty(required = true) List<VirtualClusterGateway> gateways,
+                          boolean logNetwork,
+                          boolean logFrames,
+                          @Nullable List<String> filters) {
+        this(name, targetCluster, gateways, logNetwork, logFrames, filters, null, null);
     }
 
     boolean isDnsLabel(String name) {
@@ -74,6 +86,10 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                     "Gateway names for a virtual cluster must be unique. The following gateway names are duplicated: [%s]".formatted(
                             String.join(", ", duplicates)));
         }
+    }
+
+    CacheConfiguration topicNameCacheConfig() {
+        return topicNameCache == null ? CacheConfiguration.DEFAULT : topicNameCache;
     }
 
 }

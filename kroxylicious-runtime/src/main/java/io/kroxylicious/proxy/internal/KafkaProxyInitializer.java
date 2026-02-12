@@ -5,12 +5,15 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,30 +28,26 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
-import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
-import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
-import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
-import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
-import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.CheckReturnValue;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
@@ -57,9 +56,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private static final ChannelInboundHandlerAdapter LOGGING_INBOUND_ERROR_HANDLER = new LoggingInboundErrorHandler();
     @VisibleForTesting
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
+    public static final String PRE_SESSION_IDLE_HANDLER = "preSessionIdleHandler";
 
     private final boolean haproxyProtocol;
-    private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
     private final boolean tls;
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
@@ -67,17 +66,25 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     // Shared mutable reference to FilterChainFactory - enables hot reload of filter configurations
     private final AtomicReference<FilterChainFactory> filterChainFactoryRef;
     private final ApiVersionsServiceImpl apiVersionsService;
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private final Optional<NettySettings> proxyNettySettings;
     private final Counter clientToProxyErrorCounter;
+    @Nullable
+    private final Long unauthenticatedIdleMillis;
     private final ConnectionTracker connectionTracker;
     private final ConnectionDrainManager connectionDrainManager;
     private final InFlightMessageTracker inFlightTracker;
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
     public KafkaProxyInitializer(AtomicReference<FilterChainFactory> filterChainFactoryRef,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
+                                 ApiVersionsServiceImpl apiVersionsService,
+                                 Optional<NettySettings> proxyNettySettings) {
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
                                  ApiVersionsServiceImpl apiVersionsService,
                                  ConnectionTracker connectionTracker,
@@ -86,12 +93,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
-        this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.tls = tls;
         this.bindingResolver = bindingResolver;
         this.filterChainFactoryRef = filterChainFactoryRef;
         this.apiVersionsService = apiVersionsService;
+        this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
+        unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
         this.connectionTracker = connectionTracker;
         this.connectionDrainManager = connectionDrainManager;
         this.inFlightTracker = inFlightTracker;
@@ -107,11 +115,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         else {
             initPlainChannel(ch);
         }
+        addIdleHandlerToPipeline(ch.pipeline());
         addLoggingErrorHandler(ch.pipeline());
     }
 
     private void initPlainChannel(Channel ch) {
         ch.pipeline().addLast("plainResolver", new ChannelInboundHandlerAdapter() {
+            @SuppressWarnings("java:S1181")
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
 
@@ -137,8 +147,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         });
     }
 
-    // deep inheritance tree of SniHandler not something we can fix
-    @SuppressWarnings({ "java:S110" })
+    // deep inheritance tree of SniHandler not something we can fix, throwable is the right choice as we are forwarding it on.
+    @SuppressWarnings({ "java:S110", "java:S1181" })
     private void initTlsChannel(Channel ch) {
         LOGGER.debug("Adding SSL/SNI handler");
         ch.pipeline().addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
@@ -202,14 +212,18 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
 
-        // Add handler here
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId());
+
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {
-            LOGGER.debug("Adding haproxy handler");
+            LOGGER.debug("Adding haproxy handlers");
             pipeline.addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
+            // HAProxyMessageHandler intercepts HAProxyMessage and forwards it to the state machine,
+            // preventing it from propagating to filters that only expect Kafka protocol messages
+            pipeline.addLast("HAProxyMessageHandler", new HAProxyMessageHandler(proxyChannelStateMachine));
         }
 
-        var dp = new SaslDecodePredicate(!authnHandlers.isEmpty());
+        var dp = new DelegatingDecodePredicate();
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
 
@@ -219,23 +233,22 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp, virtualCluster.socketFrameMaxSizeBytes(), apiVersionsService, decoderListener);
         pipeline.addLast("requestDecoder", decoder);
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder(encoderListener));
+        pipeline.addLast("saslV0Rejecter", new SaslV0RejectionHandler());
         pipeline.addLast("responseOrderer", new ResponseOrderer());
         if (virtualCluster.isLogFrames()) {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
 
-        if (!authnHandlers.isEmpty()) {
-            LOGGER.debug("Adding authn handler for handlers {}", authnHandlers);
-            pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers));
-        }
-
-        final NetFilter netFilter = new InitalizerNetFilter(dp,
-                ch,
-                binding,
+        var frontendHandler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactoryRef,
                 virtualCluster.getFilters(),
                 endpointReconciler,
+                apiVersionsService,
+                dp,
+                virtualCluster.subjectBuilder(pfr),
+                binding,
+                proxyChannelStateMachine, proxyNettySettings);
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
         ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId(), connectionTracker, inFlightTracker);
@@ -269,6 +282,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast(LOGGING_INBOUND_ERROR_HANDLER_NAME, LOGGING_INBOUND_ERROR_HANDLER);
     }
 
+    private void addIdleHandlerToPipeline(ChannelPipeline pipeline) {
+        if (Objects.nonNull(unauthenticatedIdleMillis)) {
+            pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(0, 0, unauthenticatedIdleMillis, TimeUnit.MILLISECONDS));
     @VisibleForTesting
     static class InitalizerNetFilter implements NetFilter {
 
@@ -304,6 +320,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             this.apiVersionsIntersectFilter = apiVersionsIntersectFilter;
             this.apiVersionsDowngradeFilter = apiVersionsDowngradeFilter;
         }
+    }
 
         @Override
         public void selectServer(NetFilter.NetFilterContext context) {
@@ -325,14 +342,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             }
             filters.addAll(brokerAddressFilters);
 
-            var target = binding.upstreamTarget();
-            if (target == null) {
-                // This condition should never happen.
-                throw new IllegalStateException("A target address for binding %s is not known.".formatted(binding));
-            }
-
-            context.initiateConnect(target, filters);
-        }
+    @Nullable
+    @CheckReturnValue
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private Long getUnAuthenticatedIdleMillis(Optional<NettySettings> nettySettings) {
+        return nettySettings.flatMap(NettySettings::unauthenticatedIdleTimeout).map(Duration::toMillis).orElse(null);
     }
 
     @Sharable

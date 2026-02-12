@@ -1,0 +1,89 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "JOIN_GROUP"
+  apiVersion: 8
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "JOIN_GROUP"
+      expectedRequestVersion: 8
+      expectedRequestHeader:
+        requestApiKey: 11
+        requestApiVersion: 8
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-868"
+        sessionTimeoutMs: 34
+        rebalanceTimeoutMs: 186
+        memberId: "random-string-616"
+        groupInstanceId: "random-string-57"
+        protocolType: "random-string-828"
+        protocols:
+          - name: "random-string-209"
+            metadata: !!binary |-
+              4zPnc18=
+        reason: "random-string-830"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 187
+        errorCode: 437
+        generationId: 981
+        protocolType: "random-string-940"
+        protocolName: "random-string-635"
+        leader: "random-string-842"
+        memberId: "random-string-942"
+        members:
+          - memberId: "random-string-338"
+            groupInstanceId: "random-string-625"
+            metadata: !!binary |-
+              geEGAHI=
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 11
+    requestApiVersion: 8
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-868"
+    sessionTimeoutMs: 34
+    rebalanceTimeoutMs: 186
+    memberId: "random-string-616"
+    groupInstanceId: "random-string-57"
+    protocolType: "random-string-828"
+    protocols:
+      - name: "random-string-209"
+        metadata: !!binary |-
+          4zPnc18=
+    reason: "random-string-830"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 187
+    errorCode: 437
+    generationId: 981
+    protocolType: "random-string-940"
+    protocolName: "random-string-635"
+    leader: "random-string-842"
+    memberId: "random-string-942"
+    members:
+      - memberId: "random-string-338"
+        groupInstanceId: "random-string-625"
+        metadata: !!binary |-
+          geEGAHI=

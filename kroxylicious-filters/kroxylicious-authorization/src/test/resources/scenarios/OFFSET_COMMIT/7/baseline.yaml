@@ -1,0 +1,77 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_COMMIT"
+  apiVersion: 7
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_COMMIT"
+      expectedRequestVersion: 7
+      expectedRequestHeader:
+        requestApiKey: 8
+        requestApiVersion: 7
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-605"
+        generationIdOrMemberEpoch: 704
+        memberId: "random-string-138"
+        groupInstanceId: "random-string-191"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 517
+                committedOffset: 208
+                committedLeaderEpoch: 831
+                committedMetadata: "random-string-193"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 43
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 372
+                errorCode: 46
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 8
+    requestApiVersion: 7
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-605"
+    generationIdOrMemberEpoch: 704
+    memberId: "random-string-138"
+    groupInstanceId: "random-string-191"
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 517
+            committedOffset: 208
+            committedLeaderEpoch: 831
+            committedMetadata: "random-string-193"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 43
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 372
+            errorCode: 46

@@ -46,6 +46,8 @@ class KroxyliciousTest {
     private AtomicReference<Features> features = new AtomicReference<>(null);
 
     @BeforeEach
+    void setup() {
+        Kroxylicious app = new Kroxylicious((ffm, configuration, features) -> {
     public void setup() {
         Kroxylicious app = new Kroxylicious((ffm, configuration, features, configFilePath) -> {
             if (!this.features.compareAndSet(null, features)) {

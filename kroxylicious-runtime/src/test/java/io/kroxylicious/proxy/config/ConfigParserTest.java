@@ -76,6 +76,20 @@ class ConfigParserTest {
                               portIdentifiesNode:
                                   bootstrapAddress: cluster1:9192
                         """),
+                argumentSet("Virtual cluster - topic name cache config", """
+                        virtualClusters:
+                          - name: demo1
+                            topicNameCache:
+                              maxSize: 10000
+                              expireAfterWrite: 10h
+                              expireAfterAccess: 58m
+                            targetCluster:
+                              bootstrapServers: kafka.example:1234
+                            gateways:
+                            - name: default
+                              portIdentifiesNode:
+                                  bootstrapAddress: cluster1:9192
+                        """),
                 argumentSet("Virtual cluster (portIdentifiesNode with start port)", """
                         virtualClusters:
                           - name: demo1
@@ -369,7 +383,7 @@ class ConfigParserTest {
                         bootstrapAddress: cluster1:9192
                 """);
         // When
-        var actualValidClusters = configurationModel.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
+        var actualValidClusters = configurationModel.virtualClusterModel();
 
         // Then
         assertThat(actualValidClusters).singleElement().extracting("clusterName").isEqualTo("myAwesomeCluster");
@@ -389,11 +403,8 @@ class ConfigParserTest {
                       portIdentifiesNode:
                         bootstrapAddress: cluster1:9192
                 """);
-        ServiceBasedPluginFactoryRegistry registry = new ServiceBasedPluginFactoryRegistry();
         // When/Then
-        assertThatThrownBy(() -> {
-            configuration.virtualClusterModel(registry);
-        }).isInstanceOf(IllegalConfigurationException.class)
+        assertThatThrownBy(configuration::virtualClusterModel).isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageStartingWith("Virtual cluster 'mycluster1', gateway 'default': 'tls' object is missing the mandatory attribute 'key'.");
         // We can't assert the full message as the link will change with every release
     }
@@ -797,7 +808,7 @@ class ConfigParserTest {
                                 advertisedBrokerAddressPattern: cluster1-broker-$(nodeId).example:9192
                 """.formatted(keyStore, TlsTestConstants.STOREPASS.getProvidedPassword(), bootstrapAddress));
         // When
-        var models = configurationModel.virtualClusterModel(null);
+        var models = configurationModel.virtualClusterModel();
 
         // Then
         assertThat(models)
@@ -822,7 +833,7 @@ class ConfigParserTest {
                                 bootstrapAddress: "%s"
                 """.formatted(bootstrapAddress));
         // When
-        var models = configurationModel.virtualClusterModel(null);
+        var models = configurationModel.virtualClusterModel();
 
         // Then
         assertThat(models)

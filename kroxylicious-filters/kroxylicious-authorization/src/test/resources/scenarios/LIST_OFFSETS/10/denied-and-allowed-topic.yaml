@@ -1,0 +1,95 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "LIST_OFFSETS"
+  apiVersion: 10
+  scenario: |
+    request contains denied and allowed topics
+    allowed topics are forwarded
+    denied topics are not forwarded
+    denied topic errors are augmented into response
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_OFFSETS"
+      expectedRequestVersion: 10
+      expectedRequestHeader:
+        requestApiKey: 2
+        requestApiVersion: 10
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 674
+        isolationLevel: 119
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 342
+                currentLeaderEpoch: 635
+                timestamp: 903
+        timeoutMs: 563
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 803
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 955
+                errorCode: 272
+                timestamp: 535
+                offset: 322
+                leaderEpoch: 274
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 2
+    requestApiVersion: 10
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    replicaId: 674
+    isolationLevel: 119
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 342
+            currentLeaderEpoch: 635
+            timestamp: 903
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 342
+            currentLeaderEpoch: 635
+            timestamp: 903
+    timeoutMs: 563
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 803
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 955
+            errorCode: 272
+            timestamp: 535
+            offset: 322
+            leaderEpoch: 274
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 342
+            errorCode: 29
+            timestamp: -1
+            offset: -1
+            leaderEpoch: -1
