@@ -513,7 +513,7 @@ public class ResourcesUtil {
                                                                                               String path,
                                                                                               StatusFactory<T> statusFactory) {
         if (isConfigMap(trustAnchorRef.getRef())) {
-           var configMapOpt = context.getSecondaryResource(ConfigMap.class, eventSourceName);
+            var configMapOpt = context.getSecondaryResource(ConfigMap.class, eventSourceName);
             return doCheckTrustAnchorRef(resource, trustAnchorRef, path, statusFactory, configMapOpt, "configmap", hasMetadata -> ((ConfigMap) hasMetadata).getData());
         }
         else if (isSecret(trustAnchorRef.getRef())) {
