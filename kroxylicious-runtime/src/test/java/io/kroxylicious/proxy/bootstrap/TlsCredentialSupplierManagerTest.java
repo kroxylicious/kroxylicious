@@ -7,8 +7,6 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -177,8 +175,8 @@ class TlsCredentialSupplierManagerTest {
 
             @Override
             @NonNull
-            public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem, char[] password) {
-                return CompletableFuture.completedFuture(mock(TlsCredentials.class));
+            public TlsCredentials tlsCredentials(@NonNull java.security.PrivateKey key, @NonNull java.security.cert.Certificate[] certificateChain) {
+                return mock(TlsCredentials.class);
             }
         };
     }

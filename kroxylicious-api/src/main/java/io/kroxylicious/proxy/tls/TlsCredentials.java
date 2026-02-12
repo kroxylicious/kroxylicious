@@ -20,11 +20,11 @@ package io.kroxylicious.proxy.tls;
  *
  * <h2>Usage Example</h2>
  * <pre>{@code
- * // Received from ServerTlsCredentialSupplier
- * CompletionStage<TlsCredentials> credentialsStage = supplier.tlsCredentials(context);
- * credentialsStage.thenAccept(credentials -> {
- *     // Runtime uses these credentials to configure TLS
- * });
+ * // Created via the context factory method
+ * TlsCredentials credentials = context.tlsCredentials(privateKey, certificateChain);
+ *
+ * // Returned to the runtime via CompletionStage
+ * return CompletableFuture.completedFuture(credentials);
  * }</pre>
  */
 public interface TlsCredentials {

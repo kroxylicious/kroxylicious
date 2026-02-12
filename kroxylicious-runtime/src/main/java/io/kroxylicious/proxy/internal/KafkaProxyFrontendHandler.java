@@ -509,12 +509,9 @@ public class KafkaProxyFrontendHandler
             }
 
             @Override
-            public java.util.concurrent.CompletionStage<TlsCredentials> tlsCredentials(
-                                                                                       byte[] certificateChainPem,
-                                                                                       byte[] privateKeyPem,
-                                                                                       char[] password) {
+            public TlsCredentials tlsCredentials(java.security.PrivateKey key, java.security.cert.Certificate[] certificateChain) {
                 ServerTlsCredentialSupplierContextImpl context = new ServerTlsCredentialSupplierContextImpl(null);
-                return context.tlsCredentials(certificateChainPem, privateKeyPem, password);
+                return context.tlsCredentials(key, certificateChain);
             }
         };
     }

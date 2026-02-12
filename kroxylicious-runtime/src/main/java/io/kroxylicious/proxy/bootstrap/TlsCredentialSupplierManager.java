@@ -7,7 +7,6 @@ package io.kroxylicious.proxy.bootstrap;
 
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
@@ -148,8 +147,7 @@ public class TlsCredentialSupplierManager implements AutoCloseable {
 
                 @Override
                 @NonNull
-                public CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem,
-                                                                      @edu.umd.cs.findbugs.annotations.Nullable char[] password) {
+                public TlsCredentials tlsCredentials(@NonNull java.security.PrivateKey key, @NonNull java.security.cert.Certificate[] certificateChain) {
                     throw new IllegalStateException("tlsCredentials() not available at factory initialization time");
                 }
             };

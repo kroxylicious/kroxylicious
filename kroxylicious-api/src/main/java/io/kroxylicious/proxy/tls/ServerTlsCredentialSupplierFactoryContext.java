@@ -6,8 +6,9 @@
 
 package io.kroxylicious.proxy.tls;
 
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.util.Set;
-import java.util.concurrent.CompletionStage;
 
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
@@ -52,11 +53,6 @@ public interface ServerTlsCredentialSupplierFactoryContext {
     /**
      * <p>Gets a plugin instance for the given plugin type and implementation name.</p>
      *
-     * <p>This method allows credential supplier factories to depend on other plugins,
-     * enabling composition and reuse of existing functionality. For example, a
-     * credential supplier might use a key management service plugin to retrieve
-     * private keys or a certificate authority plugin to issue certificates.</p>
-     *
      * @param <P> The plugin interface type
      * @param pluginClass The plugin interface class
      * @param implementationName The specific plugin implementation name to instantiate
@@ -68,9 +64,6 @@ public interface ServerTlsCredentialSupplierFactoryContext {
     /**
      * <p>Returns the implementation names of all registered instances of a plugin type.</p>
      *
-     * <p>This method is useful for discovering available plugins at runtime, for example
-     * when validating configuration or providing informative error messages.</p>
-     *
      * @param <P> The plugin interface type
      * @param pluginClass The plugin interface class
      * @return Set of known implementation names registered for the given plugin type
@@ -80,66 +73,30 @@ public interface ServerTlsCredentialSupplierFactoryContext {
     /**
      * <p>Returns the filter dispatch executor for asynchronous operations.</p>
      *
-     * <p>This executor allows credential supplier factories to perform asynchronous work
-     * while maintaining thread safety guarantees. All work scheduled on this executor
-     * runs on the filter dispatch thread associated with the connection.</p>
-     *
      * @return The filter dispatch executor for this context
      */
     @NonNull
     FilterDispatchExecutor filterDispatchExecutor();
 
     /**
-     * <p>Creates a TlsCredentials instance from PEM-encoded certificate and private key data.</p>
+     * <p>Creates a {@link TlsCredentials} instance from the given private key and certificate chain.</p>
      *
-     * <p>This factory method performs certificate validation before creating the TlsCredentials
-     * instance. The validation ensures that:</p>
+     * <p>This factory method validates the provided credentials before creating the
+     * {@link TlsCredentials} instance. The validation ensures that:</p>
      * <ul>
      *   <li>The certificate chain is structurally valid</li>
-     *   <li>The private key matches the certificate's public key</li>
-     *   <li>The certificate dates are valid (not expired)</li>
+     *   <li>The private key matches the leaf certificate's public key</li>
      * </ul>
      *
-     * <p>Additional validation will be performed by the Netty TLS layer when the credentials
-     * are used to establish TLS connections, including:</p>
-     * <ul>
-     *   <li>Chain of trust verification</li>
-     *   <li>Hostname verification (if configured)</li>
-     *   <li>Protocol and cipher suite negotiation</li>
-     * </ul>
+     * <p>The equivalent method on {@link ServerTlsCredentialSupplierContext} can be used
+     * when the credentials are determined at per-connection time.</p>
      *
-     * <p>The returned CompletionStage completes exceptionally if:</p>
-     * <ul>
-     *   <li>The certificate or key data is malformed or cannot be parsed</li>
-     *   <li>The private key does not match the certificate</li>
-     *   <li>Certificate validation fails</li>
-     * </ul>
-     *
-     * @param certificateChainPem PEM-encoded certificate chain bytes (certificate and any intermediate certificates)
-     * @param privateKeyPem PEM-encoded private key bytes (PKCS#8 or traditional format)
-     * @return CompletionStage that completes with validated TlsCredentials or fails with validation errors
+     * @param key The private key corresponding to the leaf certificate.
+     * @param certificateChain The certificate chain, starting with the leaf certificate
+     *        and including any intermediate certificates up to (but not including) the root CA.
+     * @return Validated TlsCredentials instance
+     * @throws IllegalArgumentException if the key does not match the certificate or the chain is invalid
      */
     @NonNull
-    default CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem) {
-        return tlsCredentials(certificateChainPem, privateKeyPem, null);
-    }
-
-    /**
-     * <p>Creates a TlsCredentials instance from PEM-encoded certificate and private key data,
-     * with an optional password for encrypted private keys.</p>
-     *
-     * <p>This method supports encrypted PKCS#8 private keys (EncryptedPrivateKeyInfo). When the
-     * private key is encrypted, the password parameter must be provided to decrypt it. For
-     * unencrypted private keys, the password should be {@code null}.</p>
-     *
-     * <p>This factory method performs the same validation as {@link #tlsCredentials(byte[], byte[])}.</p>
-     *
-     * @param certificateChainPem PEM-encoded certificate chain bytes (certificate and any intermediate certificates)
-     * @param privateKeyPem PEM-encoded private key bytes (PKCS#8 or traditional format, may be encrypted)
-     * @param password password for decrypting the private key, or {@code null} if the key is unencrypted
-     * @return CompletionStage that completes with validated TlsCredentials or fails with validation errors
-     */
-    @NonNull
-    CompletionStage<TlsCredentials> tlsCredentials(@NonNull byte[] certificateChainPem, @NonNull byte[] privateKeyPem,
-                                                   @edu.umd.cs.findbugs.annotations.Nullable char[] password);
+    TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain);
 }
