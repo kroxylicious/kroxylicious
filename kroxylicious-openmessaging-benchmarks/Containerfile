@@ -20,7 +20,7 @@ ARG OMB_COMMIT
 RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y git && \
     microdnf clean all
 
-RUN git clone https://github.com/openmessaging/benchmark.git /build && \
+RUN git clone https://github.com/openmessaging/opt/benchmark.git /build && \
     cd /build && git checkout ${OMB_COMMIT}
 
 WORKDIR /build
@@ -28,15 +28,13 @@ RUN mvn clean package -DskipTests
 
 # ---------- Stage 2: runtime ----------
 FROM registry.access.redhat.com/ubi9/openjdk-17-runtime:1.24-2.1770236042
-
 USER root
-# curl is used by the Helm chart to poll OMB worker readiness
-RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y curl && \
-    microdnf clean all
 
 COPY --from=builder /build/package/target/openmessaging-benchmark-*-bin.tar.gz /tmp/omb.tar.gz
-RUN mkdir -p /benchmark && \
-    tar -xzf /tmp/omb.tar.gz --strip-components=1 -C /benchmark && \
+RUN mkdir -p /opt/benchmark && \
+    tar -xzf /tmp/omb.tar.gz --strip-components=1 -C /opt/benchmark && \
+    chown -R 185:0 /opt/benchmark && \
     rm /tmp/omb.tar.gz
 
-WORKDIR /benchmark
+USER 185
+WORKDIR /opt/benchmark
