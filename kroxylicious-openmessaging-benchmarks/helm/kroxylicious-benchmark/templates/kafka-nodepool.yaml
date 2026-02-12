@@ -1,0 +1,30 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: kafka-pool
+  labels:
+    strimzi.io/cluster: kafka
+    app: kafka
+spec:
+  replicas: {{ .Values.kafka.replicas }}
+  roles:
+    - controller
+    - broker
+  storage:
+    type: jbod
+    volumes:
+    - id: 0
+      type: persistent-claim
+      size: {{ .Values.kafka.storage.size }}
+      {{- if .Values.kafka.storage.storageClass }}
+      class: {{ .Values.kafka.storage.storageClass }}
+      {{- end }}
+      deleteClaim: false
+  resources:
+{{ toYaml .Values.kafka.resources | nindent 4 }}

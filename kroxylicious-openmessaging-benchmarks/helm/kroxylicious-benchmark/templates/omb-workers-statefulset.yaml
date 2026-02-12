@@ -1,0 +1,74 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: omb-worker
+  labels:
+    app: omb-worker
+spec:
+  clusterIP: None
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: omb-worker
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: omb-worker
+  labels:
+    app: omb-worker
+spec:
+  serviceName: omb-worker
+  podManagementPolicy: Parallel
+  replicas: {{ .Values.omb.workerReplicas }}
+  selector:
+    matchLabels:
+      app: omb-worker
+  template:
+    metadata:
+      labels:
+        app: omb-worker
+    spec:
+      containers:
+      - name: omb-worker
+        image: {{ .Values.omb.image }}
+        imagePullPolicy: {{ .Values.omb.imagePullPolicy }}
+        env:
+        - name: JAVA_OPTS
+          value: "-Xmx2g -Xms2g -Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Start OMB worker
+          bin/benchmark-worker
+        ports:
+        - containerPort: 8080
+          name: http
+        volumeMounts:
+        - name: driver-config
+          mountPath: /config
+        resources:
+          {{- toYaml .Values.omb.resources | nindent 10 }}
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: driver-config
+        configMap:
+          name: omb-driver-{{ .Values.omb.driver }}
