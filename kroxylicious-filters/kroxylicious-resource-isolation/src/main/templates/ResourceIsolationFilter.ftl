@@ -15,7 +15,7 @@
 </#macro>
 
 <#macro fieldVersionSet messageSpec versions>
-Set.of(<#list messageSpec.validVersions.intersect(versions) as version> (short) ${version}<#sep>, </#list>)</#macro>
+VersionRange.of(<#local v = messageSpec.validVersions.intersect(versions)/> (short) ${v.lowest}, (short) ${v.highest})</#macro>
 
 <#macro mapRequestFields messageSpec dataVar constStem fields indent>
     <#local pad = ""?left_pad(4*indent)/>
@@ -121,7 +121,7 @@ ${pad}}
             <#local snakeFieldName>
                 <@camelNameToSnakeName field.name/>
             </#local>
-    private static final Set<Short> ${snakeFieldName?c_upper_case}_${stem}_${messageSpec.type}_VERSIONS = <@fieldVersionSet messageSpec field.versions/>;
+    private static final VersionRange ${snakeFieldName?c_upper_case}_${stem}_${messageSpec.type}_VERSIONS = <@fieldVersionSet messageSpec field.versions/>;
         </#items>
     </#list>
     <#list fields?filter(field -> field.type.isArray && field.fields?size != 0) >
@@ -129,7 +129,7 @@ ${pad}}
             <#local snakeFieldName>
                 <@camelNameToSnakeName field.name/>
             </#local>
-    private static final Set<Short> ${snakeFieldName?c_upper_case}_${stem}_${messageSpec.type}_VERSIONS = <@fieldVersionSet messageSpec field.versions/>;
+    private static final VersionRange ${snakeFieldName?c_upper_case}_${stem}_${messageSpec.type}_VERSIONS = <@fieldVersionSet messageSpec field.versions/>;
             <@writeFieldConstants messageSpec "${snakeFieldName?c_upper_case}_${stem}" field.fields />
         </#items>
     </#list>
@@ -194,7 +194,7 @@ class ResourceIsolationFilter implements RequestFilter, ResponseFilter {
         <#items as messageSpec>
             <#assign key=retrieveApiKey(messageSpec)/>
     // Constants for ${key}_${messageSpec.type}
-    private static final Set<Short> ${key}_${messageSpec.type}_VERSIONS = Set.of(<#list messageSpec.intersectedVersionsForEntityFields(filteredEntityTypes) as version>(short) ${version}<#sep>, </#list>);
+    private static final VersionRange ${key}_${messageSpec.type}_VERSIONS = VersionRange.of(<#assign v = messageSpec.intersectedVersionsForEntityFields(filteredEntityTypes)>(short) ${v[0]}, (short) ${v[v?size - 1]});
             <@writeFieldConstants messageSpec key messageSpec.fields/>
 
         </#items>
@@ -238,7 +238,7 @@ class ResourceIsolationFilter implements RequestFilter, ResponseFilter {
         };
     }
 
-    private static boolean inVersion(short apiVersions, Set<Short> versions) {
+    private static boolean inVersion(short apiVersions, VersionRange versions) {
         return versions.contains(apiVersions);
     }
 
@@ -254,7 +254,7 @@ class ResourceIsolationFilter implements RequestFilter, ResponseFilter {
                 FindCoordinatorRequestData findCoordinatorRequestData = (FindCoordinatorRequestData) request;
                 log(context, "request", ApiKeys.FIND_COORDINATOR, findCoordinatorRequestData);
                 if (resourceTypes.contains(ResourceIsolation.ResourceType.GROUP_ID) && findCoordinatorRequestData.keyType() == 0) {
-                    if (inVersion(header.requestApiVersion(), Set.of( (short) 0,  (short) 1,  (short) 2,  (short) 3))) {
+                    if (inVersion(header.requestApiVersion(), VersionRange.of( (short) 0, (short) 3))) {
                         findCoordinatorRequestData.setKey(map(mapperContext, ResourceIsolation.ResourceType.GROUP_ID, findCoordinatorRequestData.key()));
                     }
                     else {
