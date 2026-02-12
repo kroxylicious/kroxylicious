@@ -128,7 +128,7 @@ class KafkaServiceBootstrapReconcilerIT {
     }
 
     @Test
-    void shouldEventuallyResolveOnceTrustAnchorCreated() {
+    void shouldEventuallyResolveOnceTrustAnchorConfigMapCreated() {
         // Given
         KafkaService resource = kafkaService(SERVICE_A, null, CONFIG_MAP_T, null);
 
@@ -147,7 +147,7 @@ class KafkaServiceBootstrapReconcilerIT {
     }
 
     @Test
-    void shouldEventuallyResolveOnceTrustAnchorCreatedSecret() {
+    void shouldEventuallyResolveOnceTrustAnchorSecretCreated() {
         // Given
         KafkaService resource = kafkaService(SERVICE_A, null, SECRET_T, "Secret");
 
@@ -195,7 +195,7 @@ class KafkaServiceBootstrapReconcilerIT {
     }
 
     @Test
-    void shouldUpdateStatusOnceTrustAnchorDeleted() {
+    void shouldUpdateStatusOnceTrustAnchorConfigMapDeleted() {
         // Given
         var trustedCaCerts = testActor.create(trustAnchorConfigMap(CONFIG_MAP_T));
         KafkaService resource = testActor.create(kafkaService(SERVICE_A, null, CONFIG_MAP_T, null));
