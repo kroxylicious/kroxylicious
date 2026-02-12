@@ -43,6 +43,7 @@ class KafkaServiceBootstrapReconcilerIT {
     private static final String BAR_BOOTSTRAP_9090 = "bar.bootstrap:9090";
     public static final String SERVICE_A = "service-a";
     public static final String SECRET_X = "secret-x";
+    public static final String SECRET_T = "secret-t";
     public static final String CONFIG_MAP_T = "configmap-t";
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
@@ -71,7 +72,7 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldImmediatelyResolveWhenNoReferents() {
         // Given
-        KafkaService resource = kafkaService(SERVICE_A, null, null);
+        KafkaService resource = kafkaService(SERVICE_A, null, null, null);
 
         // When
         testActor.create(resource);
@@ -96,7 +97,7 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldEventuallyResolveOnceCertSecretCreated() {
         // Given
-        KafkaService resource = kafkaService(SERVICE_A, SECRET_X, null);
+        KafkaService resource = kafkaService(SERVICE_A, SECRET_X, null, null);
 
         // When
         final KafkaService kafkaService = testActor.create(resource);
@@ -116,7 +117,7 @@ class KafkaServiceBootstrapReconcilerIT {
     void shouldUpdateStatusOnceTlsCertificateSecretDeleted() {
         // Given
         var tlsCertSecret = testActor.create(tlsCertificateSecret(SECRET_X));
-        KafkaService resource = testActor.create(kafkaService(SERVICE_A, SECRET_X, null));
+        KafkaService resource = testActor.create(kafkaService(SERVICE_A, SECRET_X, null, null));
         assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090, true);
 
         // When
@@ -127,9 +128,9 @@ class KafkaServiceBootstrapReconcilerIT {
     }
 
     @Test
-    void shouldEventuallyResolveOnceTrustAnchorCreated() {
+    void shouldEventuallyResolveOnceTrustAnchorConfigMapCreated() {
         // Given
-        KafkaService resource = kafkaService(SERVICE_A, null, CONFIG_MAP_T);
+        KafkaService resource = kafkaService(SERVICE_A, null, CONFIG_MAP_T, null);
 
         // When
         final KafkaService kafkaService = testActor.create(resource);
@@ -146,10 +147,29 @@ class KafkaServiceBootstrapReconcilerIT {
     }
 
     @Test
+    void shouldEventuallyResolveOnceTrustAnchorSecretCreated() {
+        // Given
+        KafkaService resource = kafkaService(SERVICE_A, null, SECRET_T, "Secret");
+
+        // When
+        final KafkaService kafkaService = testActor.create(resource);
+
+        // Then
+        assertResolvedRefsFalse(kafkaService, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced secret not found");
+
+        // And When
+        testActor.create(trustAnchorSecret(SECRET_T));
+
+        // Then
+        assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090, true);
+
+    }
+
+    @Test
     void shouldUpdateReferentAnnotationWhenTrustAnchorConfigMapModified() {
         // Given
         testActor.create(trustAnchorConfigMap(CONFIG_MAP_T));
-        KafkaService resource = kafkaService(SERVICE_A, null, CONFIG_MAP_T);
+        KafkaService resource = kafkaService(SERVICE_A, null, CONFIG_MAP_T, null);
         final KafkaService kafkaService = testActor.create(resource);
         String checksum = awaitReferentsChecksumSpecified(resource);
 
@@ -164,7 +184,7 @@ class KafkaServiceBootstrapReconcilerIT {
     void shouldUpdateReferentAnnotationWhenCertificateSecretModified() {
         // Given
         testActor.create(tlsCertificateSecret(SECRET_X));
-        KafkaService resource = testActor.create(kafkaService(SERVICE_A, SECRET_X, null));
+        KafkaService resource = testActor.create(kafkaService(SERVICE_A, SECRET_X, null, null));
         String checksum = awaitReferentsChecksumSpecified(resource);
 
         // When
@@ -175,10 +195,10 @@ class KafkaServiceBootstrapReconcilerIT {
     }
 
     @Test
-    void shouldUpdateStatusOnceTrustAnchorDeleted() {
+    void shouldUpdateStatusOnceTrustAnchorConfigMapDeleted() {
         // Given
         var trustedCaCerts = testActor.create(trustAnchorConfigMap(CONFIG_MAP_T));
-        KafkaService resource = testActor.create(kafkaService(SERVICE_A, null, CONFIG_MAP_T));
+        KafkaService resource = testActor.create(kafkaService(SERVICE_A, null, CONFIG_MAP_T, null));
         assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090, true);
 
         // When
@@ -199,6 +219,17 @@ class KafkaServiceBootstrapReconcilerIT {
         // @formatter:on
     }
 
+    private Secret trustAnchorSecret(String name) {
+        // @formatter:off
+        return new SecretBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .endMetadata()
+                .addToData("ca-bundle.pem", "whatever")
+                .build();
+        // @formatter:on
+    }
+
     private static Secret tlsCertificateSecret(String name) {
         // @formatter:off
         return new SecretBuilder()
@@ -212,7 +243,7 @@ class KafkaServiceBootstrapReconcilerIT {
         // @formatter:on
     }
 
-    private static KafkaService kafkaService(String name, @Nullable String certSecretName, @Nullable String trustResourceName) {
+    private static KafkaService kafkaService(String name, @Nullable String certSecretName, @Nullable String trustResourceName, @Nullable String trustResourceKind) {
         // @formatter:off
         KafkaService result = new KafkaServiceBuilder()
                 .withNewMetadata()
@@ -240,6 +271,7 @@ class KafkaServiceBootstrapReconcilerIT {
                             .withNewTrustAnchorRef()
                                 .withNewRef()
                                     .withName(trustResourceName)
+                                    .withKind(trustResourceKind)
                                 .endRef()
                                 .withKey("ca-bundle.pem")
                             .endTrustAnchorRef()
