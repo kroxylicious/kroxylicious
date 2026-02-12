@@ -666,10 +666,6 @@ public class ResourcesUtil {
                         .equals(strimziKafkaRef.getListenerName()));
     }
 
-    private static boolean keyIsMissing(TrustAnchorRef trustAnchorRef, Map<String, String> dataMap) {
-        return !dataMap.containsKey(trustAnchorRef.getKey());
-    }
-
     private static boolean isSupportedFileType(String key) {
         return !key.endsWith(".pem")
                 && !key.endsWith(".p12")
