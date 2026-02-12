@@ -133,6 +133,30 @@
     {
       "customType": "regex",
       "fileMatch": [
+        ".github/workflows/system-tests-pr.yaml",
+        ".github/workflows/documentation-tests.yml"
+      ],
+      "matchStrings": [
+        "minikube version.*:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "kubernetes/minikube",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
+        ".github/workflows/system-tests-pr.yaml",
+        ".github/workflows/documentation-tests.yml"
+      ],
+      "matchStrings": [
+        "kubernetes version.*:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "kubernetes/kubernetes",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
         "kroxylicious-docs/docs/record-encryption-quickstart/index.adoc"
       ],
       "matchStrings": [
