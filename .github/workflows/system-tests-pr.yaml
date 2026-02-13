@@ -19,6 +19,16 @@ name: System Tests for Pull-Requests
 on:
   pull_request:
     types: [ opened, synchronize, reopened ]
+    paths-ignore:
+      - '**/**.md'
+      - '**/**.txt'
+      - '.github/**'
+      - '!.github/workflows/system-tests-pr.yaml'
+      - 'kroxylicious-docs**/**'
+      - 'kroxylicious-integration-test**/**'
+      - 'kroxylicious-*benchmarks/**'
+    branches:
+      - "main"
   workflow_dispatch:
     inputs:
       groups:
@@ -80,7 +90,7 @@ jobs:
       - name: 'Run system tests'
         timeout-minutes: 120
         run: |
-          mvn --quiet --batch-mode verify --activate-profiles systemtest -Pdist -DskipDocs=true -Dgroups=${{ github.event.inputs.groups }}
+          mvn --quiet --batch-mode verify --activate-profiles systemtest -Pdist -DskipDocs=true -Dgroups=${{ github.event_name == 'pull_request' && 'regression' || github.event.inputs.groups }}
 
       - name: Archive JUnit test results
         if: ${{ always() }}
