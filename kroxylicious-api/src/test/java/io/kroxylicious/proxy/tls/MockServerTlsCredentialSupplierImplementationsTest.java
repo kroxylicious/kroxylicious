@@ -104,7 +104,7 @@ class MockServerTlsCredentialSupplierImplementationsTest {
     public static class ClientContextAwareSupplier implements ServerTlsCredentialSupplier {
         private final TlsCredentials defaultCredentials;
 
-        public ClientContextAwareSupplier(TlsCredentials defaultCredentials) {
+        ClientContextAwareSupplier(TlsCredentials defaultCredentials) {
             this.defaultCredentials = defaultCredentials;
         }
 
