@@ -303,4 +303,58 @@ class HelmTemplateRenderingTest {
         assertThat(ingress.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
     }
 
+    @Test
+    void shouldRenderKafkaServiceWhenEnabled() throws IOException {
+        // When: Rendering with kroxylicious enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafkaService = HelmUtils.findResourceTyped(resources, "KafkaService", "kafka");
+
+        // Then: KafkaService CR should exist with correct API version
+        assertThat(kafkaService).as("KafkaService 'kafka' should be rendered when kroxylicious is enabled").isNotNull();
+        assertThat(kafkaService.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 1, 3, 5 })
+    @SuppressWarnings("unchecked")
+    void shouldConfigureNodeIdRangesForReplicaCount(int replicas) throws IOException {
+        // When: Rendering with kroxylicious enabled and custom replica count
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true", "kafka.replicas", String.valueOf(replicas)));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafkaService = HelmUtils.findResourceTyped(resources, "KafkaService", "kafka");
+
+        // Then: nodeIdRanges end should be replicas - 1
+        assertThat(kafkaService).isNotNull();
+        Map<String, Object> spec = kafkaService.get("spec");
+        List<Map<String, Object>> nodeIdRanges = (List<Map<String, Object>>) spec.get("nodeIdRanges");
+        assertThat(nodeIdRanges).hasSize(1);
+        assertThat(nodeIdRanges.get(0))
+                .as("nodeIdRanges end should be %d for %d replicas", replicas - 1, replicas)
+                .containsEntry("start", 0)
+                .containsEntry("end", replicas - 1);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldRenderVirtualKafkaClusterWhenEnabled() throws IOException {
+        // When: Rendering with kroxylicious enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource vkc = HelmUtils.findResourceTyped(resources, "VirtualKafkaCluster", "kafka");
+
+        // Then: VirtualKafkaCluster CR should exist with correct references and no filters
+        assertThat(vkc).as("VirtualKafkaCluster 'kafka' should be rendered when kroxylicious is enabled").isNotNull();
+        assertThat(vkc.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+
+        Map<String, Object> spec = vkc.get("spec");
+        Map<String, Object> proxyRef = (Map<String, Object>) spec.get("proxyRef");
+        assertThat(proxyRef).containsEntry("name", "benchmark-proxy");
+
+        Map<String, Object> targetRef = (Map<String, Object>) spec.get("targetKafkaServiceRef");
+        assertThat(targetRef).containsEntry("name", "kafka");
+
+        assertThat(spec).as("No filters should be configured for no-filters scenario").doesNotContainKey("filterRefs");
+    }
+
 }
