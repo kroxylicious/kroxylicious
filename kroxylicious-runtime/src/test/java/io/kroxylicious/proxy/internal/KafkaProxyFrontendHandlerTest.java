@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -85,7 +86,7 @@ class KafkaProxyFrontendHandlerTest {
     private KafkaProxyBackendHandler backendHandler;
     private ProxyChannelStateMachine proxyChannelStateMachine;
     private PluginFactoryRegistry pfr;
-    private FilterChainFactory fcf;
+    private AtomicReference<FilterChainFactory> fcf;
 
     private void writeRequest(short apiVersion, ApiMessage body) {
         int downstreamCorrelationId = corrId++;
@@ -112,7 +113,9 @@ class KafkaProxyFrontendHandlerTest {
         corrId = 0;
         proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
         this.pfr = mock(PluginFactoryRegistry.class);
-        this.fcf = mock(FilterChainFactory.class);
+        FilterChainFactory mockFilterChainFactory = mock(FilterChainFactory.class);
+        when(mockFilterChainFactory.createFilters(any(), any())).thenReturn(List.of());
+        this.fcf = new AtomicReference<>(mockFilterChainFactory);
     }
 
     @AfterEach
@@ -299,7 +302,8 @@ class KafkaProxyFrontendHandlerTest {
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
                 proxyChannelStateMachine,
-                Optional.empty()) {
+                Optional.empty(),
+                null) {
 
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
@@ -474,7 +478,7 @@ class KafkaProxyFrontendHandlerTest {
         assertTrue(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound now active");
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Forwarding.class);
-        verify(fcf).createFilters(any(FilterFactoryContext.class), any(List.class));
+        verify(fcf.get()).createFilters(any(FilterFactoryContext.class), any(List.class));
     }
 
     private List<String> outboundClientSoftwareNames() {

@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import javax.net.ssl.SSLException;
@@ -437,14 +438,14 @@ class ProxyChannelStateMachineEndToEndTest {
                                               EndpointBinding endpointBinding) {
         var pfr = mock(PluginFactoryRegistry.class);
         return new KafkaProxyFrontendHandler(pfr,
-                new FilterChainFactory(pfr, List.of()),
+                new AtomicReference<>(new FilterChainFactory(pfr, List.of())),
                 List.of(),
                 mock(EndpointReconciler.class),
                 new ApiVersionsServiceImpl(),
                 dp,
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
-                proxyChannelStateMachine, Optional.empty()) {
+                proxyChannelStateMachine, Optional.empty(), null) {
             @NonNull
             @Override
             Bootstrap configureBootstrap(@NonNull KafkaProxyBackendHandler capturedBackendHandler, @NonNull Channel inboundChannel) {

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
@@ -83,8 +84,6 @@ public class KafkaProxyFrontendHandler
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
-    public static final int DEFAULT_IDLE_TIME_SECONDS = 31;
-    public static final long DEFAULT_IDLE_SECONDS = 31L;
     private static final Long NO_TIMEOUT = null;
     private static final String AUTH_IDLE_HANDLER_NAME = "authenticatedSessionIdleHandler";
 
@@ -95,9 +94,10 @@ public class KafkaProxyFrontendHandler
     private final EndpointReconciler endpointReconciler;
     private final DelegatingDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
+    private final @Nullable ConnectionDrainManager connectionDrainManager;
     private final TransportSubjectBuilder subjectBuilder;
     private final PluginFactoryRegistry pfr;
-    private final FilterChainFactory filterChainFactory;
+    private final AtomicReference<FilterChainFactory> filterChainFactoryRef;
     private final List<NamedFilterDefinition> namedFilterDefinitions;
     private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
     private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
@@ -134,9 +134,10 @@ public class KafkaProxyFrontendHandler
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    @VisibleForTesting
     KafkaProxyFrontendHandler(
                               PluginFactoryRegistry pfr,
-                              FilterChainFactory filterChainFactory,
+                              AtomicReference<FilterChainFactory> filterChainFactoryRef,
                               List<NamedFilterDefinition> namedFilterDefinitions,
                               EndpointReconciler endpointReconciler,
                               ApiVersionsServiceImpl apiVersionsService,
@@ -144,10 +145,11 @@ public class KafkaProxyFrontendHandler
                               TransportSubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
                               ProxyChannelStateMachine proxyChannelStateMachine,
-                              Optional<NettySettings> proxyNettySettings) {
+                              Optional<NettySettings> proxyNettySettings,
+                              @Nullable ConnectionDrainManager connectionDrainManager) {
         this.endpointBinding = endpointBinding;
         this.pfr = pfr;
-        this.filterChainFactory = filterChainFactory;
+        this.filterChainFactoryRef = filterChainFactoryRef;
         this.namedFilterDefinitions = namedFilterDefinitions;
         this.endpointReconciler = endpointReconciler;
         this.apiVersionsIntersectFilter = new ApiVersionsIntersectFilter(apiVersionsService);
@@ -159,6 +161,7 @@ public class KafkaProxyFrontendHandler
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
         authenticatedIdleTimeMillis = getAuthenticatedIdleMillis(proxyNettySettings);
+        this.connectionDrainManager = connectionDrainManager;
     }
 
     @Override
@@ -220,6 +223,15 @@ public class KafkaProxyFrontendHandler
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         this.clientCtx = ctx;
+
+        // Check if we should accept this connection (not draining)
+        String clusterName = virtualClusterModel.getClusterName();
+        if (connectionDrainManager != null && !connectionDrainManager.shouldAcceptConnection(clusterName)) {
+            LOGGER.info("Rejecting new connection for draining cluster '{}'", clusterName);
+            ctx.close();
+            return;
+        }
+
         this.proxyChannelStateMachine.onClientActive(this);
 
     }
@@ -337,8 +349,11 @@ public class KafkaProxyFrontendHandler
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
 
         NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
-        List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
-        filterAndInvokers.addAll(filterChain);
+
+        FilterChainFactory currentFactory = filterChainFactoryRef.get();
+        List<FilterAndInvoker> filterChain = currentFactory.createFilters(filterContext, this.namedFilterDefinitions);;
+
+            filterAndInvokers.addAll(filterChain);
 
         if (endpointBinding.restrictUpstreamToMetadataDiscovery()) {
             filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
@@ -593,7 +608,7 @@ public class KafkaProxyFrontendHandler
         proxyChannelStateMachine.onClientWritable();
     }
 
-    private ChannelHandlerContext clientCtx() {
+    ChannelHandlerContext clientCtx() {
         return Objects.requireNonNull(this.clientCtx, "clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
     }
 

@@ -222,6 +222,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
+    ChannelHandlerContext serverCtx() {
+        return Objects.requireNonNull(this.serverCtx, "serverCtx was null while in state " + this.proxyChannelStateMachine.currentState());
+    }
+
     @Override
     public String toString() {
         // Don't include proxyChannelStateMachine's toString here

@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -53,9 +55,17 @@ import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
+import io.kroxylicious.proxy.internal.ConfigurationChangeHandler;
+import io.kroxylicious.proxy.internal.ConnectionDrainManager;
+import io.kroxylicious.proxy.internal.ConnectionTracker;
+import io.kroxylicious.proxy.internal.FilterChangeDetector;
+import io.kroxylicious.proxy.internal.admin.reload.ConfigurationReloadOrchestrator;
+import io.kroxylicious.proxy.internal.InFlightMessageTracker;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
+import io.kroxylicious.proxy.internal.VirtualClusterChangeDetector;
+import io.kroxylicious.proxy.internal.VirtualClusterManager;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
@@ -128,26 +138,70 @@ public final class KafkaProxy implements AutoCloseable {
         }
     }
 
-    private final Configuration config;
+    private Configuration config;
+    private Features features;
     private final @Nullable ManagementConfiguration managementConfiguration;
     private final List<MicrometerDefinition> micrometerConfig;
-    private final List<VirtualClusterModel> virtualClusterModels;
+    private List<VirtualClusterModel> virtualClusterModels;
     private final AtomicBoolean running = new AtomicBoolean();
     private final CompletableFuture<Void> shutdown = new CompletableFuture<>();
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
+    private final ConnectionTracker connectionTracker = new ConnectionTracker();
+    private final InFlightMessageTracker inFlightTracker = new InFlightMessageTracker();
+    private final ConnectionDrainManager connectionDrainManager;
+    private final VirtualClusterManager virtualClusterManager;
+    private final ConfigurationChangeHandler configurationChangeHandler;
+    private final @Nullable ConfigurationReloadOrchestrator reloadOrchestrator;
+    private final @Nullable Path configFilePath;
     private @Nullable MeterRegistries meterRegistries;
-    private @Nullable FilterChainFactory filterChainFactory;
+    // Shared mutable reference to FilterChainFactory - enables atomic swaps during hot reload
+    private AtomicReference<FilterChainFactory> filterChainFactoryRef;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
 
-    public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
+    public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, @Nullable Path configFilePath) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
         this.virtualClusterModels = config.virtualClusterModel();
+        this.features = features;
+        this.configFilePath = configFilePath;
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
+
+        // Initialize connection management components
+        this.connectionDrainManager = new ConnectionDrainManager(connectionTracker, inFlightTracker);
+        this.virtualClusterManager = new VirtualClusterManager(endpointRegistry, connectionDrainManager);
+
+        // Initialize configuration change handler with direct list of detectors
+        this.configurationChangeHandler = new ConfigurationChangeHandler(
+                List.of(
+                        new VirtualClusterChangeDetector(),
+                        new FilterChangeDetector()),
+                virtualClusterManager);
+
+        // Create AtomicReference for FilterChainFactory (will be initialized in startup())
+        // This reference is shared with both KafkaProxyInitializer and ConfigurationReloadOrchestrator
+        this.filterChainFactoryRef = new AtomicReference<>();
+
+        // Initialize reload orchestrator for HTTP endpoint (receives shared factory reference)
+        this.reloadOrchestrator = new ConfigurationReloadOrchestrator(
+                config,
+                configurationChangeHandler,
+                pfr,
+                features,
+                configFilePath,
+                filterChainFactoryRef);
+        LOGGER.info("Configuration reload orchestrator initialized for HTTP endpoint support");
+    }
+
+    /**
+     * Constructor for backward compatibility (used by tests).
+     * Creates a KafkaProxy without config file path - auto-persist will be disabled.
+     */
+    public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
+        this(pfr, config, features, null);
     }
 
     @VisibleForTesting
@@ -211,17 +265,24 @@ public final class KafkaProxy implements AutoCloseable {
 
             enableNettyMetrics(managementEventGroup, proxyEventGroup);
 
-            var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries);
+            var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries, reloadOrchestrator);
 
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
-            this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
+            // Create initial FilterChainFactory and store in shared atomic reference
+            FilterChainFactory initialFactory = new FilterChainFactory(pfr, config.filterDefinitions());
+            this.filterChainFactoryRef.set(initialFactory);
+
+            // Pass atomic reference (not factory directly) to initializers for dynamic factory swaps
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
+
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
+                    new KafkaProxyInitializer(filterChainFactoryRef, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings,
+                            connectionTracker, connectionDrainManager, inFlightTracker));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
+                    new KafkaProxyInitializer(filterChainFactoryRef, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings,
+                            connectionTracker, connectionDrainManager, inFlightTracker));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -288,13 +349,15 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     @SuppressWarnings("resource") // suppressing resource as ExecutorService is not closeable in Java 17 (our runtime target)
-    private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {
+    private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig,
+                                                                 MeterRegistries meterRegistries,
+                                                                 @Nullable ConfigurationReloadOrchestrator reloadOrchestrator) {
         return Optional.ofNullable(managementConfiguration)
                 .map(mc -> {
                     var metricsBootstrap = new ServerBootstrap().group(eventGroupConfig.bossGroup(), eventGroupConfig.workerGroup())
                             .option(ChannelOption.SO_REUSEADDR, true)
                             .channel(eventGroupConfig.clazz())
-                            .childHandler(new ManagementInitializer(meterRegistries, mc));
+                            .childHandler(new ManagementInitializer(meterRegistries, mc, reloadOrchestrator));
                     LOGGER.info("Binding management endpoint: {}:{}", mc.getEffectiveBindAddress(), mc.getEffectivePort());
 
                     var future = new CompletableFuture<Void>();
@@ -332,6 +395,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
         try {
             STARTUP_SHUTDOWN_LOGGER.info("Shutting down");
+
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
@@ -344,8 +408,10 @@ public final class KafkaProxy implements AutoCloseable {
                     closeFutures.addAll(managementEventGroup.shutdownGracefully(shutdownQuietPeriodSeconds));
                 }
                 closeFutures.forEach(Future::syncUninterruptibly);
-                if (filterChainFactory != null) {
-                    filterChainFactory.close();
+                // Close current FilterChainFactory
+                FilterChainFactory currentFactory = filterChainFactoryRef.get();
+                if (currentFactory != null) {
+                    currentFactory.close();
                 }
                 if (t != null) {
                     STARTUP_SHUTDOWN_LOGGER.warn("Shutdown future completed exceptionally", t);
@@ -356,12 +422,15 @@ public final class KafkaProxy implements AutoCloseable {
             if (meterRegistries != null) {
                 meterRegistries.close();
             }
+
+            // Close connection management components
+            connectionDrainManager.close();
         }
         finally {
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;
-            filterChainFactory = null;
+            filterChainFactoryRef.set(null);
             shutdown.complete(null);
             LOGGER.info("Shut down completed.");
 
