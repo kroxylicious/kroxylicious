@@ -133,8 +133,7 @@
     {
       "customType": "regex",
       "fileMatch": [
-        ".github/workflows/system-tests-pr.yaml",
-        ".github/workflows/documentation-tests.yml"
+        "^\\.github\\/workflows\\/.*\\.ya?ml$"
       ],
       "matchStrings": [
         "minikube version.*:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
@@ -145,8 +144,7 @@
     {
       "customType": "regex",
       "fileMatch": [
-        ".github/workflows/system-tests-pr.yaml",
-        ".github/workflows/documentation-tests.yml"
+        "^\\.github\\/workflows\\/.*\\.ya?ml$"
       ],
       "matchStrings": [
         "kubernetes version.*:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
