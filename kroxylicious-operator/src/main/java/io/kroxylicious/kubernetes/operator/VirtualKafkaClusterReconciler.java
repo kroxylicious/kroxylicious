@@ -92,7 +92,8 @@ public final class VirtualKafkaClusterReconciler implements
     static final String INGRESSES_EVENT_SOURCE_NAME = "ingresses";
     static final String FILTERS_EVENT_SOURCE_NAME = "filters";
     static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
-    static final String CONFIGMAPS_EVENT_SOURCE_NAME = "configmaps";
+    static final String CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "configmapsTrustAnchorRef";
+    static final String SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsTrustAnchorRef";
     static final String KUBERNETES_SERVICES_EVENT_SOURCE_NAME = "kubernetesServices";
     private static final String KAFKA_PROXY_INGRESS_KIND = getKind(KafkaProxyIngress.class);
     private static final String KAFKA_PROXY_KIND = getKind(KafkaProxy.class);
@@ -160,9 +161,16 @@ public final class VirtualKafkaClusterReconciler implements
                 .filter(Objects::nonNull)
                 .map(Tls::getTrustAnchorRef)
                 .filter(Objects::nonNull)
-                .flatMap(trustAnchorRef -> context.getSecondaryResourcesAsStream(ConfigMap.class)
-                        .filter(cm -> KubernetesResourceUtil.getName(cm).equals(trustAnchorRef.getRef().getName())))
-                .forEach(checksumGenerator::appendMetadata);
+                .flatMap(trustAnchorRef -> {
+                    if (trustAnchorRef.getRef().getKind() != null && trustAnchorRef.getRef().getKind().equals("Secret")) {
+                        return context.getSecondaryResourcesAsStream(Secret.class)
+                                .filter(secret -> KubernetesResourceUtil.getName(secret).equals(trustAnchorRef.getRef().getName()));
+                    }
+                    else {
+                        return context.getSecondaryResourcesAsStream(ConfigMap.class)
+                                .filter(cm -> KubernetesResourceUtil.getName(cm).equals(trustAnchorRef.getRef().getName()));
+                    }
+                }).forEach(checksumGenerator::appendMetadata);
     }
 
     /**
@@ -226,7 +234,14 @@ public final class VirtualKafkaClusterReconciler implements
             var trustAnchorCheck = trustRefs.stream()
                     .map(trustAnchorRef -> {
                         var path = "spec.ingresses[].tls.trustAnchor";
-                        return ResourcesUtil.checkTrustAnchorRef(cluster, context, CONFIGMAPS_EVENT_SOURCE_NAME, trustAnchorRef, path, statusFactory).resource();
+                        if (trustAnchorRef.getRef().getKind() != null && trustAnchorRef.getRef().getKind().equals("Secret")) {
+                            return ResourcesUtil.checkTrustAnchorRef(cluster, context, SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME, trustAnchorRef, path,
+                                    statusFactory).resource();
+                        }
+                        else {
+                            return ResourcesUtil.checkTrustAnchorRef(cluster, context, CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME, trustAnchorRef, path,
+                                    statusFactory).resource();
+                        }
                     })
                     .filter(Objects::nonNull)
                     .findFirst();
@@ -437,9 +452,17 @@ public final class VirtualKafkaClusterReconciler implements
         InformerEventSourceConfiguration<ConfigMap> clusterToConfigMap = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 VirtualKafkaCluster.class)
-                .withName(CONFIGMAPS_EVENT_SOURCE_NAME)
+                .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper(virtualKafkaClusterToConfigMap())
-                .withSecondaryToPrimaryMapper(configMapToVirtualKafkaCluster(context))
+                .withSecondaryToPrimaryMapper(configMapTrustAnchorRefToVirtualKafkaCluster(context))
+                .build();
+
+        InformerEventSourceConfiguration<Secret> clusterToSecretTrustAnchorRef = InformerEventSourceConfiguration.from(
+                Secret.class,
+                VirtualKafkaCluster.class)
+                .withName(SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper(virtualKafkaClusterToConfigMap())
+                .withSecondaryToPrimaryMapper(secretTrustAnchorRefToVirtualKafkaCluster(context))
                 .build();
 
         return List.of(
@@ -450,7 +473,8 @@ public final class VirtualKafkaClusterReconciler implements
                 new InformerEventSource<>(clusterToFilters, context),
                 new InformerEventSource<>(clusterToKubeService, context),
                 new InformerEventSource<>(clusterToSecret, context),
-                new InformerEventSource<>(clusterToConfigMap, context));
+                new InformerEventSource<>(clusterToConfigMap, context),
+                new InformerEventSource<>(clusterToSecretTrustAnchorRef, context));
     }
 
     /**
@@ -546,9 +570,22 @@ public final class VirtualKafkaClusterReconciler implements
     }
 
     @VisibleForTesting
-    static SecondaryToPrimaryMapper<ConfigMap> configMapToVirtualKafkaCluster(EventSourceContext<VirtualKafkaCluster> context) {
+    static SecondaryToPrimaryMapper<ConfigMap> configMapTrustAnchorRefToVirtualKafkaCluster(EventSourceContext<VirtualKafkaCluster> context) {
         return configMap -> ResourcesUtil.findReferrersMulti(context,
                 configMap,
+                VirtualKafkaCluster.class,
+                cluster -> cluster.getSpec().getIngresses().stream()
+                        .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
+                        .map(Tls::getTrustAnchorRef)
+                        .filter(Objects::nonNull)
+                        .map(TrustAnchorRef::getRef)
+                        .toList());
+    }
+
+    @VisibleForTesting
+    static SecondaryToPrimaryMapper<Secret> secretTrustAnchorRefToVirtualKafkaCluster(EventSourceContext<VirtualKafkaCluster> context) {
+        return secret -> ResourcesUtil.findReferrersMulti(context,
+                secret,
                 VirtualKafkaCluster.class,
                 cluster -> cluster.getSpec().getIngresses().stream()
                         .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
