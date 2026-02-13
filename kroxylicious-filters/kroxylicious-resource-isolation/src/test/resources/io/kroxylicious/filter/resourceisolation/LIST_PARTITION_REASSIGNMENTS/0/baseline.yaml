@@ -1,0 +1,29 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: LIST_PARTITION_REASSIGNMENTS
+  disabled: false
+  version: 0
+  request:
+    payload:
+      timeoutMs: 0
+      topics:
+        - name: foo
+          partitionIndexes: [0]
+    diff: []
+  response:
+    payload:
+      throttleTimeMs: 0
+      errorCode: 0
+      errorMessage:
+      topics:
+        - name: foo
+          partitions:
+            - partitionIndex: 0
+              replicas: [0]
+              addingReplicas: [0]
+              removingReplicas: [0]
+    diff: []
