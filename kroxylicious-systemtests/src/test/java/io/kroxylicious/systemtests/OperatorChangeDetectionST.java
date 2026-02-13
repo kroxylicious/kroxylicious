@@ -58,6 +58,7 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
 
 import static io.kroxylicious.systemtests.TestTags.OPERATOR;
+import static io.kroxylicious.systemtests.TestTags.REGRESSION;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -66,6 +67,7 @@ import static org.awaitility.Awaitility.await;
  * The Kroxylicious system tests.
  */
 @Tag(OPERATOR)
+@Tag(REGRESSION)
 class OperatorChangeDetectionST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
