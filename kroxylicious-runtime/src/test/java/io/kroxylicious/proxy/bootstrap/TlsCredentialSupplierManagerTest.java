@@ -43,20 +43,20 @@ class TlsCredentialSupplierManagerTest {
     @Plugin(configType = TestConfig.class)
     public static class TestSupplierFactory implements ServerTlsCredentialSupplierFactory<TestConfig, TestConfig> {
 
-        private static int initializeCallCount = 0;
-        private static int createCallCount = 0;
-        private static int closeCallCount = 0;
+        private static final java.util.concurrent.atomic.AtomicInteger initializeCallCount = new java.util.concurrent.atomic.AtomicInteger(0);
+        private static final java.util.concurrent.atomic.AtomicInteger createCallCount = new java.util.concurrent.atomic.AtomicInteger(0);
+        private static final java.util.concurrent.atomic.AtomicInteger closeCallCount = new java.util.concurrent.atomic.AtomicInteger(0);
 
         public static void resetCounters() {
-            initializeCallCount = 0;
-            createCallCount = 0;
-            closeCallCount = 0;
+            initializeCallCount.set(0);
+            createCallCount.set(0);
+            closeCallCount.set(0);
         }
 
         @Override
         public TestConfig initialize(ServerTlsCredentialSupplierFactoryContext context, TestConfig config)
                 throws PluginConfigurationException {
-            initializeCallCount++;
+            initializeCallCount.incrementAndGet();
             TestConfig validated = Plugins.requireConfig(this, config);
             if (validated.value().equals("invalid")) {
                 throw new PluginConfigurationException("Invalid configuration");
@@ -66,13 +66,13 @@ class TlsCredentialSupplierManagerTest {
 
         @Override
         public ServerTlsCredentialSupplier create(ServerTlsCredentialSupplierFactoryContext context, TestConfig initializationData) {
-            createCallCount++;
+            createCallCount.incrementAndGet();
             return mock(ServerTlsCredentialSupplier.class);
         }
 
         @Override
         public void close(TestConfig initializationData) {
-            closeCallCount++;
+            closeCallCount.incrementAndGet();
         }
     }
 
@@ -196,13 +196,13 @@ class TlsCredentialSupplierManagerTest {
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             assertThat(manager.isConfigured()).isTrue();
-            assertThat(TestSupplierFactory.initializeCallCount).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount).isEqualTo(0);
-            assertThat(TestSupplierFactory.closeCallCount).isEqualTo(0);
+            assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(0);
+            assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(0);
         }
 
         // Verify close was called
-        assertThat(TestSupplierFactory.closeCallCount).isEqualTo(1);
+        assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(1);
     }
 
     @Test
@@ -231,8 +231,8 @@ class TlsCredentialSupplierManagerTest {
             assertThat(supplier3).isNotNull();
 
             // Initialize called once, create called three times
-            assertThat(TestSupplierFactory.initializeCallCount).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount).isEqualTo(3);
+            assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(3);
         }
     }
 
@@ -430,7 +430,7 @@ class TlsCredentialSupplierManagerTest {
         manager.close();
 
         // Close should be called only once on the factory
-        assertThat(TestSupplierFactory.closeCallCount).isEqualTo(1);
+        assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(1);
     }
 
     @Test
@@ -447,27 +447,27 @@ class TlsCredentialSupplierManagerTest {
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             // After construction, initialize should have been called
-            assertThat(TestSupplierFactory.initializeCallCount).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount).isEqualTo(0);
-            assertThat(TestSupplierFactory.closeCallCount).isEqualTo(0);
+            assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(0);
+            assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(0);
 
             // After first create
             manager.createSupplier(creationContext);
-            assertThat(TestSupplierFactory.initializeCallCount).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount).isEqualTo(1);
-            assertThat(TestSupplierFactory.closeCallCount).isEqualTo(0);
+            assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(1);
+            assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(0);
 
             // After second create
             manager.createSupplier(creationContext);
-            assertThat(TestSupplierFactory.initializeCallCount).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount).isEqualTo(2);
-            assertThat(TestSupplierFactory.closeCallCount).isEqualTo(0);
+            assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(2);
+            assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(0);
         }
 
         // After close
-        assertThat(TestSupplierFactory.initializeCallCount).isEqualTo(1);
-        assertThat(TestSupplierFactory.createCallCount).isEqualTo(2);
-        assertThat(TestSupplierFactory.closeCallCount).isEqualTo(1);
+        assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
+        assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(2);
+        assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(1);
     }
 
     @Test
@@ -665,8 +665,8 @@ class TlsCredentialSupplierManagerTest {
             }
 
             // Initialize called once, create called threadCount times
-            assertThat(TestSupplierFactory.initializeCallCount).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount).isEqualTo(threadCount);
+            assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(threadCount);
         }
     }
 }

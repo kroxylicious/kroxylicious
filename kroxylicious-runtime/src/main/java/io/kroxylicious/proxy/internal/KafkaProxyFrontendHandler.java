@@ -491,7 +491,7 @@ public class KafkaProxyFrontendHandler
     /**
      * Creates a ServerTlsCredentialSupplierFactoryContext for supplier creation.
      */
-    private ServerTlsCredentialSupplierFactoryContext createFactoryContext(PluginFactoryRegistry pfr, FilterDispatchExecutor executor) {
+    ServerTlsCredentialSupplierFactoryContext createFactoryContext(PluginFactoryRegistry pfr, FilterDispatchExecutor executor) {
         return new ServerTlsCredentialSupplierFactoryContext() {
             @Override
             public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
@@ -519,7 +519,7 @@ public class KafkaProxyFrontendHandler
     /**
      * Applies the obtained TLS credentials to the channel by building an SslContext and adding an SslHandler.
      */
-    private void applySslContextToChannel(TlsCredentials credentials, HostPort remote, Channel outboundChannel, ChannelPipeline pipeline) {
+    void applySslContextToChannel(TlsCredentials credentials, HostPort remote, Channel outboundChannel, ChannelPipeline pipeline) {
         try {
             if (!(credentials instanceof TlsCredentialsImpl)) {
                 throw new IllegalStateException("Unexpected TlsCredentials implementation: " + credentials.getClass().getName());
