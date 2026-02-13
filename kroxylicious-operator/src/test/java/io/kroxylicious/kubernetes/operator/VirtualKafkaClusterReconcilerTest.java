@@ -91,6 +91,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final String NAMESPACE = "my-namespace";
     public static final String SERVER_CERT_SECRET_NAME = "server-cert";
     public static final String TRUST_ANCHOR_CERT_CONFIGMAP_NAME = "trust-anchor-cert";
+    public static final String TRUST_ANCHOR_CERT_SECRET_NAME = "trust-anchor-secret";
 
     // @formatter:off
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
@@ -127,7 +128,7 @@ class VirtualKafkaClusterReconcilerTest {
             .endSpec()
             .build();
 
-    private static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
+    private static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
             .editOrNewSpec()
                 .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
                     .withNewTls()
@@ -142,6 +143,25 @@ class VirtualKafkaClusterReconcilerTest {
                         .endTrustAnchorRef()
                     .endTls()
                 .build())
+            .endSpec()
+            .build();
+
+    private static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
+            .editOrNewSpec()
+                .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
+                    .withNewTls()
+                        .withNewCertificateRef()
+                            .withName(SERVER_CERT_SECRET_NAME)
+                        .endCertificateRef()
+                        .withNewTrustAnchorRef()
+                            .withNewRef()
+                                .withKind("Secret")
+                                .withName(TRUST_ANCHOR_CERT_SECRET_NAME)
+                            .endRef()
+                        .withKey("ca-bundle.pem")
+                        .endTrustAnchorRef()
+                    .endTls()
+                    .build())
             .endSpec()
             .build();
 
@@ -302,12 +322,23 @@ class VirtualKafkaClusterReconcilerTest {
             .addToData("tls.key", "value")
             .build();
 
-    public static final ConfigMap PEM_CONFIG_MAP = new ConfigMapBuilder()
+    public static final ConfigMap TRUST_ANCHOR_PEM_CONFIG_MAP = new ConfigMapBuilder()
             .withNewMetadata()
                 .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
                 .withNamespace(NAMESPACE)
                 .withGeneration(42L)
                 .withUid(UUID.randomUUID().toString())
+            .endMetadata()
+            .addToData("ca-bundle.pem", "value")
+            .build();
+    // @formatter:on
+
+    public static final Secret TRUST_ANCHOR_PEM_SECRET = new SecretBuilder()
+            .withNewMetadata()
+            .withName(TRUST_ANCHOR_CERT_SECRET_NAME)
+            .withNamespace(NAMESPACE)
+            .withGeneration(42L)
+            .withUid(UUID.randomUUID().toString())
             .endMetadata()
             .addToData("ca-bundle.pem", "value")
             .build();
@@ -328,7 +359,7 @@ class VirtualKafkaClusterReconcilerTest {
         List<Arguments> result = new ArrayList<>();
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, null, Set.of());
 
             result.add(Arguments.argumentSet("no filter",
                     CLUSTER_NO_FILTERS,
@@ -342,7 +373,7 @@ class VirtualKafkaClusterReconcilerTest {
             ConfigMap proxyConfigMap = buildProxyConfigMapWithPatch(CLUSTER_ONE_FILTER);
             Set<KafkaProtocolFilter> filters = Set.of(FILTER_MY_FILTER);
 
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, proxyConfigMap, filters);
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, proxyConfigMap, null, filters);
 
             result.add(Arguments.argumentSet("one filter",
                     CLUSTER_ONE_FILTER,
@@ -358,7 +389,7 @@ class VirtualKafkaClusterReconcilerTest {
                     new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editMetadata().withGeneration(40L).endMetadata().build());
             Set<KafkaProtocolFilter> filters = Set.of(FILTER_MY_FILTER);
 
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, proxyConfigMap, filters);
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, proxyConfigMap, null, filters);
 
             result.add(Arguments.argumentSet("one filter with stale configmap",
                     new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editOrNewStatus().withObservedGeneration(ResourcesUtil.generation(CLUSTER_NO_FILTERS))
@@ -370,7 +401,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(null, CLUSTERIP_INGRESS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(null, CLUSTERIP_INGRESS, SERVICE, null, null, Set.of());
 
             result.add(Arguments.argumentSet("proxy not found",
                     CLUSTER_NO_FILTERS,
@@ -383,7 +414,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, null, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, null, null, null, Set.of());
             result.add(Arguments.argumentSet("service not found",
                     CLUSTER_NO_FILTERS,
                     reconcilerContext,
@@ -397,7 +428,7 @@ class VirtualKafkaClusterReconcilerTest {
         {
 
             KafkaProxyIngress ingress = CLUSTERIP_INGRESS.edit().editSpec().withNewProxyRef().withName("not-my-proxy").endProxyRef().endSpec().build();
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, ingress, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, ingress, SERVICE, null, null, Set.of());
 
             result.add(Arguments.argumentSet("ingress refers to a different proxy than virtual cluster",
                     CLUSTER_NO_FILTERS,
@@ -418,7 +449,7 @@ class VirtualKafkaClusterReconcilerTest {
                     .withReason("NO_FILTERS")
                     .withMessage("no filters found")
                     .endCondition().endStatus().build();
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, service, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, service, null, null, Set.of());
 
             result.add(Arguments.argumentSet("service has ResolvedRefs=False condition",
                     CLUSTER_NO_FILTERS,
@@ -431,7 +462,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, null, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, null, SERVICE, null, null, Set.of());
             result.add(Arguments.argumentSet("ingress not found",
                     CLUSTER_NO_FILTERS,
                     reconcilerContext,
@@ -452,7 +483,7 @@ class VirtualKafkaClusterReconcilerTest {
                     .withMessage("no filters found")
                     .endCondition().endStatus().build();
 
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, ingress, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, ingress, SERVICE, null, null, Set.of());
 
             result.add(Arguments.argumentSet("ingress has ResolvedRefs=False condition",
                     CLUSTER_NO_FILTERS,
@@ -465,7 +496,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, null, Set.of());
 
             result.add(Arguments.argumentSet("filter not found",
                     CLUSTER_ONE_FILTER,
@@ -487,7 +518,7 @@ class VirtualKafkaClusterReconcilerTest {
                     .withReason("RESOLVE_FAILURE")
                     .withMessage("failed to resolve")
                     .endCondition().endStatus().build());
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, filters);
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, null, filters);
 
             result.add(Arguments.argumentSet("filter has ResolvedRefs=False condition",
                     CLUSTER_ONE_FILTER,
@@ -500,7 +531,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, null, Set.of());
             mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
 
             result.add(Arguments.argumentSet("cluster with tls",
@@ -512,7 +543,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, null, Set.of());
 
             mockGetSecret(reconcilerContext, Optional.empty());
 
@@ -527,7 +558,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, null, Set.of());
 
             mockGetSecret(reconcilerContext, Optional.of(NON_KUBE_TLS_CERT_SECRET));
 
@@ -542,7 +573,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, null, Set.of());
 
             mockGetSecret(reconcilerContext, Optional.empty());
 
@@ -557,13 +588,13 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, null, Set.of());
 
             mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
-            mockGetConfigMap(reconcilerContext, Optional.of(PEM_CONFIG_MAP));
+            mockGetConfigMapTrustAnchorRef(reconcilerContext, Optional.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
 
-            result.add(Arguments.argumentSet("cluster with tls with trust anchor",
-                    CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR,
+            result.add(Arguments.argumentSet("cluster with tls with configmap trust anchor",
+                    CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR,
                     reconcilerContext,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -571,13 +602,27 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, null, Set.of());
 
             mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
-            mockGetConfigMap(reconcilerContext, Optional.empty());
+            mockGetSecretTrustAnchorRef(reconcilerContext, Optional.of(TRUST_ANCHOR_PEM_SECRET));
+
+            result.add(Arguments.argumentSet("cluster with tls with secret trust anchor",
+                    CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR,
+                    reconcilerContext,
+                    (Consumer<ConditionListAssert>) conditionList -> conditionList
+                            .singleElement()
+                            .isResolvedRefsTrue()));
+        }
+
+        {
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, null, Set.of());
+
+            mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
+            mockGetConfigMapTrustAnchorRef(reconcilerContext, Optional.empty());
 
             result.add(Arguments.argumentSet("cluster with tls - trust anchor cert configmap not found",
-                    CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR,
+                    CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR,
                     reconcilerContext,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -587,7 +632,23 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, null, Set.of());
+
+            mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
+            mockGetSecretTrustAnchorRef(reconcilerContext, Optional.empty());
+
+            result.add(Arguments.argumentSet("cluster with tls - trust anchor cert secret not found",
+                    CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR,
+                    reconcilerContext,
+                    (Consumer<ConditionListAssert>) conditionList -> conditionList
+                            .singleElement()
+                            .isResolvedRefsFalse(
+                                    Condition.REASON_REFS_NOT_FOUND,
+                                    "spec.ingresses[].tls.trustAnchor: referenced secret not found")));
+        }
+
+        {
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, null, Set.of());
 
             result.add(Arguments.argumentSet("cluster defines tls, ingress does not",
                     CLUSTER_TLS_NO_FILTERS,
@@ -600,7 +661,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, null, Set.of());
 
             result.add(Arguments.argumentSet("cluster does not define tls, ingress does",
                     CLUSTER_NO_FILTERS,
@@ -616,7 +677,8 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     private static Context<VirtualKafkaCluster> mockReconcilerContext(@Nullable KafkaProxy proxy, @Nullable KafkaProxyIngress ingress, @Nullable KafkaService service,
-                                                                      @Nullable ConfigMap proxyConfigMap, Set<KafkaProtocolFilter> filters) {
+                                                                      @Nullable ConfigMap proxyConfigMap, @Nullable Secret proxySecret,
+                                                                      Set<KafkaProtocolFilter> filters) {
         Context<VirtualKafkaCluster> reconcilerContext = mock();
         when(reconcilerContext.managedWorkflowAndDependentResourceContext()).thenReturn(workflowContext);
 
@@ -624,6 +686,7 @@ class VirtualKafkaClusterReconcilerTest {
         when(reconcilerContext.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(setOfOrEmpty(ingress));
         when(reconcilerContext.getSecondaryResources(KafkaService.class)).thenReturn(setOfOrEmpty(service));
         when(reconcilerContext.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.ofNullable(proxyConfigMap));
+        when(reconcilerContext.getSecondaryResource(Secret.class)).thenReturn(Optional.ofNullable(proxySecret));
         when(reconcilerContext.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(filters);
 
         return reconcilerContext;
@@ -638,6 +701,19 @@ class VirtualKafkaClusterReconcilerTest {
     private static ConfigMap buildProxyConfigMapWithPatch(VirtualKafkaCluster clusterOneFilter) {
         // @formatter:off
         return new ConfigMapBuilder()
+                .withNewMetadata()
+                    .withName(clusterOneFilter.getSpec().getProxyRef().getName())
+                .endMetadata()
+                .withData(new ProxyConfigStateData().addStatusPatchForCluster(
+                    name(clusterOneFilter),
+                    STATUS_FACTORY.newTrueConditionStatusPatch(clusterOneFilter, Condition.Type.ResolvedRefs, "")).build())
+                .build();
+        // @formatter:on
+    }
+
+    private static Secret buildProxySecretWithPatch(VirtualKafkaCluster clusterOneFilter) {
+        // @formatter:off
+        return new SecretBuilder()
                 .withNewMetadata()
                     .withName(clusterOneFilter.getSpec().getProxyRef().getName())
                 .endMetadata()
@@ -690,7 +766,8 @@ class VirtualKafkaClusterReconcilerTest {
     void shouldSetIngressStatusForLoadBalancerIngress() {
         // given
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
-        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, LOADBALANCER_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, Set.of());
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, LOADBALANCER_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, null,
+                Set.of());
         mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_SHARED_SNI_SERVICE));
 
@@ -722,7 +799,8 @@ class VirtualKafkaClusterReconcilerTest {
     void shoulNotSetIngressStatusForLoadBalancerIngressWithNoStatus() {
         // given
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
-        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, LOADBALANCER_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, Set.of());
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, LOADBALANCER_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, null,
+                Set.of());
         mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
         Service loadbalancerServiceWithNoStatus = KUBERNETES_SHARED_SNI_SERVICE.edit().withStatus(null).build();
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(loadbalancerServiceWithNoStatus));
@@ -752,7 +830,8 @@ class VirtualKafkaClusterReconcilerTest {
     void shouldSetIngressStatusForClusterIPIngress() {
         // given
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
-        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, Set.of());
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, null,
+                Set.of());
 
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
 
@@ -781,7 +860,8 @@ class VirtualKafkaClusterReconcilerTest {
         // given
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
 
-        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, Set.of());
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, null,
+                Set.of());
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of());
 
         // when
@@ -854,10 +934,10 @@ class VirtualKafkaClusterReconcilerTest {
         var mapper = VirtualKafkaClusterReconciler.virtualKafkaClusterToConfigMap();
 
         // When
-        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
+        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR);
 
         // Then
-        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(PEM_CONFIG_MAP));
+        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(TRUST_ANCHOR_PEM_CONFIG_MAP));
     }
 
     @Test
@@ -885,41 +965,80 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     @Test
-    void canMapFromConfigMapToVirtualKafkaClusterWithTls() {
+    void canMapFromConfigMapTrustAnchorRefToVirtualKafkaClusterWithTls() {
         // Given
-        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR);
 
         // When
-        var mapper = VirtualKafkaClusterReconciler.configMapToVirtualKafkaCluster(eventSourceContext);
+        var mapper = VirtualKafkaClusterReconciler.configMapTrustAnchorRefToVirtualKafkaCluster(eventSourceContext);
 
         // Then
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(PEM_CONFIG_MAP);
-        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR));
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(TRUST_ANCHOR_PEM_CONFIG_MAP);
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR));
     }
 
     @Test
-    void canMapFromConfigMapToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
+    void canMapFromSecretTrustAnchorRefToVirtualKafkaClusterWithTls() {
+        // Given
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR);
+
+        // When
+        var mapper = VirtualKafkaClusterReconciler.secretTrustAnchorRefToVirtualKafkaCluster(eventSourceContext);
+
+        // Then
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(TRUST_ANCHOR_PEM_SECRET);
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR));
+    }
+
+    @Test
+    void canMapFromConfigMapTrustAnchorRefToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
         // Given
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_NO_FILTERS);
 
         // When
-        var mapper = VirtualKafkaClusterReconciler.configMapToVirtualKafkaCluster(eventSourceContext);
+        var mapper = VirtualKafkaClusterReconciler.configMapTrustAnchorRefToVirtualKafkaCluster(eventSourceContext);
 
         // Then
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(PEM_CONFIG_MAP);
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(TRUST_ANCHOR_PEM_CONFIG_MAP);
         assertThat(primaryResourceIDs).isEmpty();
     }
 
     @Test
-    void canMapFromConfigMapToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTrustAnchor() {
+    void canMapFromSecretTrustAnchorRefToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
+        // Given
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_NO_FILTERS);
+
+        // When
+        var mapper = VirtualKafkaClusterReconciler.secretTrustAnchorRefToVirtualKafkaCluster(eventSourceContext);
+
+        // Then
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(TRUST_ANCHOR_PEM_SECRET);
+        assertThat(primaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void canMapFromConfigMapTrustAnchorRefToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTrustAnchor() {
         // Given
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_TLS_NO_FILTERS);
 
         // When
-        var mapper = VirtualKafkaClusterReconciler.configMapToVirtualKafkaCluster(eventSourceContext);
+        var mapper = VirtualKafkaClusterReconciler.configMapTrustAnchorRefToVirtualKafkaCluster(eventSourceContext);
 
         // Then
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(PEM_CONFIG_MAP);
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(TRUST_ANCHOR_PEM_CONFIG_MAP);
+        assertThat(primaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void canMapFromSecretTrustAnchorRefToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTrustAnchor() {
+        // Given
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_TLS_NO_FILTERS);
+
+        // When
+        var mapper = VirtualKafkaClusterReconciler.secretTrustAnchorRefToVirtualKafkaCluster(eventSourceContext);
+
+        // Then
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(TRUST_ANCHOR_PEM_SECRET);
         assertThat(primaryResourceIDs).isEmpty();
     }
 
@@ -1236,7 +1355,7 @@ class VirtualKafkaClusterReconcilerTest {
     void shouldIncludeDownstreamTlsSecretInChecksum() {
         // Given
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, buildProxyConfigMapWithPatch(CLUSTER_TLS_NO_FILTERS),
-                Set.of());
+                null, Set.of());
 
         MetadataChecksumGenerator checksumGenerator = mock(MetadataChecksumGenerator.class);
         when(checksumGenerator.encode()).thenReturn("==BaSe64");
@@ -1254,43 +1373,66 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     @Test
-    void shouldIncludeDownstreamTlsTrustAnchorInChecksum() {
+    void shouldIncludeDownstreamTlsTrustAnchorInChecksumConfigMapTrustAnchorRef() {
         // Given
-        ConfigMap proxyConfigMap = buildProxyConfigMapWithPatch(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
-        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, proxyConfigMap, Set.of());
+        ConfigMap proxyConfigMap = buildProxyConfigMapWithPatch(CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR);
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, proxyConfigMap, null, Set.of());
         MetadataChecksumGenerator checksumGenerator = mock(MetadataChecksumGenerator.class);
         when(checksumGenerator.encode()).thenReturn("==BaSe64");
         when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.of(checksumGenerator));
 
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
         when(reconcilerContext.getSecondaryResource(Secret.class, "secrets")).thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
-        when(reconcilerContext.getSecondaryResource(ConfigMap.class, "configmaps")).thenReturn(Optional.of(PEM_CONFIG_MAP));
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class, "configmapsTrustAnchorRef")).thenReturn(Optional.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
         when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
-        when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(PEM_CONFIG_MAP));
+        when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
 
         // When
-        virtualKafkaClusterReconciler.reconcile(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR, reconcilerContext);
+        virtualKafkaClusterReconciler.reconcile(CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR, reconcilerContext);
 
         // Then
-        verify(checksumGenerator).appendMetadata(PEM_CONFIG_MAP);
+        verify(checksumGenerator).appendMetadata(TRUST_ANCHOR_PEM_CONFIG_MAP);
+    }
+
+    @Test
+    void shouldIncludeDownstreamTlsTrustAnchorInChecksumSecretTrustAnchorRef() {
+        // Given
+        Secret proxySecret = buildProxySecretWithPatch(CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR);
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, null, proxySecret, Set.of());
+        MetadataChecksumGenerator checksumGenerator = mock(MetadataChecksumGenerator.class);
+        when(checksumGenerator.encode()).thenReturn("==BaSe64");
+        when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.of(checksumGenerator));
+
+        when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
+        when(reconcilerContext.getSecondaryResource(Secret.class, "secrets")).thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResource(Secret.class, "secretsTrustAnchorRef")).thenReturn(Optional.of(TRUST_ANCHOR_PEM_SECRET));
+
+        // using `thenAnswer` since this mock is called twice and if we use `thenReturn` it returns a closed stream secondary time
+        when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class))
+                .thenAnswer(invocation -> Stream.of(KUBE_TLS_CERT_SECRET, TRUST_ANCHOR_PEM_SECRET));
+        // When
+        virtualKafkaClusterReconciler.reconcile(CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR, reconcilerContext);
+
+        // Then
+        verify(checksumGenerator).appendMetadata(TRUST_ANCHOR_PEM_SECRET);
     }
 
     @Test
     void shouldCreateChecksumGeneratorIfNotPresentInReconcilerContext() {
         // Given
-        ConfigMap proxyConfigMap = buildProxyConfigMapWithPatch(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
-        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, proxyConfigMap, Set.of());
+        ConfigMap proxyConfigMap = buildProxyConfigMapWithPatch(CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR);
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, proxyConfigMap, null, Set.of());
         when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.empty());
 
         when(reconcilerContext.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.of(proxyConfigMap));
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
         when(reconcilerContext.getSecondaryResource(Secret.class, "secrets")).thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
-        when(reconcilerContext.getSecondaryResource(ConfigMap.class, "configmaps")).thenReturn(Optional.of(PEM_CONFIG_MAP));
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class, "configmapsTrustAnchorRef")).thenReturn(Optional.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
         when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
-        when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(PEM_CONFIG_MAP));
+        when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
 
         // When
-        var actualUpdate = virtualKafkaClusterReconciler.reconcile(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR, reconcilerContext);
+        var actualUpdate = virtualKafkaClusterReconciler.reconcile(CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR, reconcilerContext);
 
         // Then
         assertThat(actualUpdate)
@@ -1326,11 +1468,15 @@ class VirtualKafkaClusterReconcilerTest {
         when(context.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.SECRETS_EVENT_SOURCE_NAME)).thenReturn(optional);
     }
 
+    private static void mockGetSecretTrustAnchorRef(Context<? extends CustomResource<?, ?>> context, Optional<Secret> optional) {
+        when(context.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(optional);
+    }
+
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static void mockGetConfigMap(
-                                         Context<? extends CustomResource<?, ?>> context,
-                                         Optional<ConfigMap> empty) {
-        when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME)).thenReturn(empty);
+    private static void mockGetConfigMapTrustAnchorRef(
+                                                       Context<? extends CustomResource<?, ?>> context,
+                                                       Optional<ConfigMap> empty) {
+        when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(empty);
     }
 
 }
