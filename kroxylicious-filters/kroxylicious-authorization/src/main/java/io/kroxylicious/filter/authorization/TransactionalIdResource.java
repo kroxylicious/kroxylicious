@@ -6,6 +6,8 @@
 
 package io.kroxylicious.filter.authorization;
 
+import java.util.Set;
+
 import io.kroxylicious.authorizer.service.ResourceType;
 
 public enum TransactionalIdResource implements ResourceType<TransactionalIdResource> {
@@ -13,9 +15,21 @@ public enum TransactionalIdResource implements ResourceType<TransactionalIdResou
     DESCRIBE(8),
     TWO_PHASE_COMMIT((byte) 15);
 
+    private static final Set<TransactionalIdResource> DESCRIBE_SET = Set.of(DESCRIBE);
+
     public final int kafkaOrdinal;
 
     TransactionalIdResource(int kafkaOrdinal) {
         this.kafkaOrdinal = kafkaOrdinal;
+    }
+
+    @Override
+    public Set<TransactionalIdResource> implies() {
+        if (this == WRITE) {
+            return DESCRIBE_SET;
+        }
+        else {
+            return Set.of();
+        }
     }
 }
