@@ -41,7 +41,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 @KubernetesDependent
 public class ClusterServiceDependentResource
         extends CRUDKubernetesDependentResource<Service, KafkaProxy>
-        implements BulkDependentResource<Service, KafkaProxy> {
+        implements BulkDependentResource<Service, KafkaProxy, String> {
 
     public ClusterServiceDependentResource() {
         super(Service.class);
@@ -138,5 +138,10 @@ public class ClusterServiceDependentResource
         Set<Service> secondaryResources = context.eventSourceRetriever().getEventSourceFor(Service.class)
                 .getSecondaryResources(primary);
         return secondaryResources.stream().collect(toByNameMap());
+    }
+
+    @Override
+    public void deleteTargetResource(KafkaProxy primary, Service resource, String key, Context<KafkaProxy> context) {
+        context.getClient().resource(resource).delete();
     }
 }
