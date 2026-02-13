@@ -9,6 +9,7 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -59,7 +60,8 @@ public final class KafkaServiceReconciler implements
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconciler.class);
 
     public static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
-    public static final String CONFIG_MAPS_EVENT_SOURCE_NAME = "configmaps";
+    public static final String CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "configmapsTrustAnchorRef";
+    public static final String SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsTrustAnchorRef";
     public static final String STRIMZI_KAFKA_EVENT_SOURCE_NAME = "kafkas";
     public static final String STRIMZI_KAFKA_GROUP_NAME = "kafka.strimzi.io";
 
@@ -83,18 +85,27 @@ public final class KafkaServiceReconciler implements
                 .withSecondaryToPrimaryMapper(secretToKafkaService(context))
                 .build();
 
-        InformerEventSourceConfiguration<ConfigMap> serviceToConfigMap = InformerEventSourceConfiguration.from(
+        InformerEventSourceConfiguration<ConfigMap> serviceToConfigMapTrustAnchorRef = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 KafkaService.class)
-                .withName(CONFIG_MAPS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(kafkaServiceToConfigMap())
-                .withSecondaryToPrimaryMapper(configMapToKafkaService(context))
+                .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper(kafkaServiceToTrustAnchorRefResource())
+                .withSecondaryToPrimaryMapper(configMapTrustAnchorRefToKafkaService(context))
+                .build();
+
+        InformerEventSourceConfiguration<Secret> serviceToSecretTrustAnchorRef = InformerEventSourceConfiguration.from(
+                Secret.class,
+                KafkaService.class)
+                .withName(SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper(kafkaServiceToTrustAnchorRefResource())
+                .withSecondaryToPrimaryMapper(secretTrustAnchorRefToKafkaService(context))
                 .build();
 
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();
 
         informersList.add(new InformerEventSource<>(serviceToSecret, context));
-        informersList.add(new InformerEventSource<>(serviceToConfigMap, context));
+        informersList.add(new InformerEventSource<>(serviceToConfigMapTrustAnchorRef, context));
+        informersList.add(new InformerEventSource<>(serviceToSecretTrustAnchorRef, context));
 
         APIGroup strimziKafkaApiGroup = context.getClient().getApiGroup(STRIMZI_KAFKA_GROUP_NAME);
 
@@ -132,7 +143,7 @@ public final class KafkaServiceReconciler implements
     }
 
     @VisibleForTesting
-    static SecondaryToPrimaryMapper<ConfigMap> configMapToKafkaService(EventSourceContext<KafkaService> context) {
+    static SecondaryToPrimaryMapper<ConfigMap> configMapTrustAnchorRefToKafkaService(EventSourceContext<KafkaService> context) {
         return configMap -> ResourcesUtil.findReferrers(context,
                 configMap,
                 KafkaService.class,
@@ -143,7 +154,18 @@ public final class KafkaServiceReconciler implements
     }
 
     @VisibleForTesting
-    static PrimaryToSecondaryMapper<KafkaService> kafkaServiceToConfigMap() {
+    static SecondaryToPrimaryMapper<Secret> secretTrustAnchorRefToKafkaService(EventSourceContext<KafkaService> context) {
+        return secret -> ResourcesUtil.findReferrers(context,
+                secret,
+                KafkaService.class,
+                service -> Optional.ofNullable(service.getSpec())
+                        .map(KafkaServiceSpec::getTls)
+                        .map(Tls::getTrustAnchorRef)
+                        .map(TrustAnchorRef::getRef));
+    }
+
+    @VisibleForTesting
+    static PrimaryToSecondaryMapper<KafkaService> kafkaServiceToTrustAnchorRefResource() {
         return (KafkaService cluster) -> Optional.ofNullable(cluster.getSpec())
                 .map(KafkaServiceSpec::getTls)
                 .map(Tls::getTrustAnchorRef)
@@ -178,7 +200,10 @@ public final class KafkaServiceReconciler implements
                 .map(KafkaServiceSpec::getTls)
                 .map(Tls::getTrustAnchorRef);
         if (trustAnchorRefOpt.isPresent()) {
-            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkTrustAnchorRef(service, context, CONFIG_MAPS_EVENT_SOURCE_NAME, trustAnchorRefOpt.get(),
+            String eventSourceName = trustAnchorRefOpt.get().getRef().getKind() != null &&
+                    Objects.equals(trustAnchorRefOpt.get().getRef().getKind(), "Secret") ? SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME
+                            : CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME;
+            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkTrustAnchorRef(service, context, eventSourceName, trustAnchorRefOpt.get(),
                     SPEC_TLS_TRUST_ANCHOR_REF,
                     statusFactory);
             updatedService = result.resource();

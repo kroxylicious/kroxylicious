@@ -52,7 +52,7 @@ vault:
 # OpenMessaging Benchmark workers
 omb:
   workerReplicas: 3
-  image: openmessaging/openmessaging-benchmark:latest
+  image: quay.io/kroxylicious/kroxylicious-omb:omb-8559989-krox-e329e4d-2
   imagePullPolicy: IfNotPresent
   driver: baseline  # Can be 'baseline' or 'proxy'
   workload: 1topic-1kb  # Workload name to run

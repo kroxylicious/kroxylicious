@@ -110,11 +110,20 @@ class KafkaServiceReconcilerTest {
             .addToData("key", "value")
             .build();
 
-    public static final ConfigMap PEM_CONFIG_MAP = new ConfigMapBuilder()
+    public static final ConfigMap TRUST_ANCHOR_PEM_CONFIG_MAP = new ConfigMapBuilder()
             .withNewMetadata()
                 .withName("my-configmap")
                 .withUid("uid")
                 .withResourceVersion("7782")
+            .endMetadata()
+            .addToData("ca-bundle.pem", "value")
+            .build();
+
+    public static final Secret TRUST_ANCHOR_PEM_SECRET = new SecretBuilder()
+            .withNewMetadata()
+            .withName("my-secret")
+            .withUid("uid")
+            .withResourceVersion("7782")
             .endMetadata()
             .addToData("ca-bundle.pem", "value")
             .build();
@@ -285,7 +294,7 @@ class KafkaServiceReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                                    "spec.tls.trustAnchorRef supports referents: configmaps")));
+                                    "spec.tls.trustAnchorRef supports referents: configmaps or secrets")));
         }
 
         // no client cert, trust bundle ref missing key
@@ -412,7 +421,7 @@ class KafkaServiceReconcilerTest {
             Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetKafka(context, Optional.of(KAFKA));
-            mockGetConfigMap(context, Optional.of(PEM_CONFIG_MAP));
+            mockGetConfigMap(context, Optional.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
             result.add(Arguments.argumentSet("pem trust bundle",
                     new KafkaServiceBuilder(SERVICE).editSpec().withStrimziKafkaRef(null).editTls()
                             .withCertificateRef(null)
@@ -533,7 +542,7 @@ class KafkaServiceReconcilerTest {
     private static void mockGetConfigMap(
                                          Context<KafkaService> context,
                                          Optional<ConfigMap> empty) {
-        when(context.getSecondaryResource(ConfigMap.class, KafkaServiceReconciler.CONFIG_MAPS_EVENT_SOURCE_NAME)).thenReturn(empty);
+        when(context.getSecondaryResource(ConfigMap.class, KafkaServiceReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(empty);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -548,6 +557,13 @@ class KafkaServiceReconcilerTest {
                                       Context<KafkaService> context,
                                       Optional<Secret> optional) {
         when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRETS_EVENT_SOURCE_NAME)).thenReturn(optional);
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static void mockGetSecretTrustAnchorRef(
+                                                    Context<KafkaService> context,
+                                                    Optional<Secret> optional) {
+        when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(optional);
     }
 
     @ParameterizedTest
@@ -585,7 +601,7 @@ class KafkaServiceReconcilerTest {
     @Test
     void shouldSetReferentAnnotationWhenTrustAnchorRefConfigMapPresent() {
         Context<KafkaService> context = mockContext();
-        mockGetConfigMap(context, Optional.of(PEM_CONFIG_MAP));
+        mockGetConfigMap(context, Optional.of(TRUST_ANCHOR_PEM_CONFIG_MAP));
         KafkaService service = new KafkaServiceBuilder(SERVICE).editSpec().withStrimziKafkaRef(null).editTls().withCertificateRef(null).editTrustAnchorRef()
                 .withKey("ca-bundle.pem")
                 .endTrustAnchorRef().endTls().endSpec().build();
@@ -616,15 +632,36 @@ class KafkaServiceReconcilerTest {
     }
 
     @Test
+    void shouldSetReferentAnnotationWhenTrustAnchorRefSecretPresent() {
+        Context<KafkaService> context = mockContext();
+        mockGetSecretTrustAnchorRef(context, Optional.of(TRUST_ANCHOR_PEM_SECRET));
+        KafkaService service = new KafkaServiceBuilder(SERVICE).editSpec().withStrimziKafkaRef(null).editTls().withCertificateRef(null).editTrustAnchorRef()
+                .withKey("ca-bundle.pem")
+                .editRef()
+                .withKind("Secret")
+                .endRef()
+                .endTrustAnchorRef().endTls().endSpec().build();
+        // When
+        final UpdateControl<KafkaService> updateControl = kafkaServiceReconciler.reconcile(service, context);
+
+        // Then
+        assertThat(updateControl).isNotNull();
+        assertThat(updateControl.isPatchResourceAndStatus()).isTrue();
+        assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
+            assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
+        });
+    }
+
+    @Test
     void canMapFromKafkaServiceWithTrustAnchorToConfigMap() {
         // Given
-        var mapper = KafkaServiceReconciler.kafkaServiceToConfigMap();
+        var mapper = KafkaServiceReconciler.kafkaServiceToTrustAnchorRefResource();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(SERVICE);
 
         // Then
-        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(PEM_CONFIG_MAP));
+        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(TRUST_ANCHOR_PEM_CONFIG_MAP));
     }
 
     @Test
@@ -674,7 +711,7 @@ class KafkaServiceReconcilerTest {
     @Test
     void canMapFromKafkaServiceWithoutTrustAnchorToConfigMap() {
         // Given
-        var mapper = KafkaServiceReconciler.kafkaServiceToConfigMap();
+        var mapper = KafkaServiceReconciler.kafkaServiceToTrustAnchorRefResource();
         var serviceNoTrustAnchor = new KafkaServiceBuilder(SERVICE).editSpec().editTls().withTrustAnchorRef(null).endTls().endSpec().build();
 
         // When
@@ -685,7 +722,7 @@ class KafkaServiceReconcilerTest {
     }
 
     @Test
-    void canMapFromConfigMapToKafkaService() {
+    void canMapFromConfigMapTrustAnchorRefToKafkaService() {
         // Given
         EventSourceContext<KafkaService> eventSourceContext = mock();
         KubernetesClient client = mock();
@@ -694,10 +731,10 @@ class KafkaServiceReconcilerTest {
         KubernetesResourceList<KafkaService> mockList = mockKafkaServiceListOperation(client);
         when(mockList.getItems()).thenReturn(List.of(SERVICE));
 
-        var mapper = KafkaServiceReconciler.configMapToKafkaService(eventSourceContext);
+        var mapper = KafkaServiceReconciler.configMapTrustAnchorRefToKafkaService(eventSourceContext);
 
         // When
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(PEM_CONFIG_MAP);
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(TRUST_ANCHOR_PEM_CONFIG_MAP);
 
         // Then
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(SERVICE));
@@ -722,7 +759,7 @@ class KafkaServiceReconcilerTest {
         when(mockList.getItems()).thenReturn(List.of(service));
 
         // When
-        var mapper = KafkaServiceReconciler.configMapToKafkaService(eventSourceContext);
+        var mapper = KafkaServiceReconciler.configMapTrustAnchorRefToKafkaService(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(new ConfigMapBuilder().withNewMetadata().withName("cm").endMetadata().build());
