@@ -82,6 +82,7 @@ public class VirtualClusterModel {
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
 
+    @Nullable
     private final PluginFactoryRegistry pluginFactoryRegistry;
 
     @Nullable
