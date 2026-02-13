@@ -19,6 +19,12 @@ name: System Tests for Pull-Requests
 on:
   pull_request:
     types: [ opened, synchronize, reopened ]
+  workflow_dispatch:
+    inputs:
+      groups:
+        description: 'Groups of test suites to be run separated by comma'
+        default: 'regression'
+        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -74,7 +80,7 @@ jobs:
       - name: 'Run system tests'
         timeout-minutes: 120
         run: |
-          mvn --quiet --batch-mode verify --activate-profiles systemtest -Pdist -DskipDocs=true
+          mvn --quiet --batch-mode verify --activate-profiles systemtest -Pdist -DskipDocs=true -Dgroups=${{ github.event.inputs.groups }}
 
       - name: Archive JUnit test results
         if: ${{ always() }}
