@@ -357,4 +357,36 @@ class HelmTemplateRenderingTest {
         assertThat(spec).as("No filters should be configured for no-filters scenario").doesNotContainKey("filterRefs");
     }
 
+    @Test
+    void shouldRouteBootstrapThroughProxyWhenEnabled() throws IOException {
+        // When: Rendering with kroxylicious enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource driverCm = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-driver-baseline");
+
+        // Then: Driver config should use proxy bootstrap address
+        assertThat(driverCm).isNotNull();
+        Map<String, Object> data = driverCm.get("data");
+        String driverYaml = (String) data.get("driver-kafka.yaml");
+        assertThat(driverYaml)
+                .as("Bootstrap should route through proxy when enabled")
+                .contains("kafka-cluster-ip-bootstrap:9292");
+    }
+
+    @Test
+    void shouldRouteBootstrapDirectlyWhenDisabled() throws IOException {
+        // When: Rendering with default values (kroxylicious disabled)
+        String yaml = HelmUtils.renderTemplate();
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource driverCm = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-driver-baseline");
+
+        // Then: Driver config should use direct Kafka bootstrap address
+        assertThat(driverCm).isNotNull();
+        Map<String, Object> data = driverCm.get("data");
+        String driverYaml = (String) data.get("driver-kafka.yaml");
+        assertThat(driverYaml)
+                .as("Bootstrap should route directly to Kafka when proxy disabled")
+                .contains("kafka-kafka-bootstrap:9092");
+    }
+
 }
