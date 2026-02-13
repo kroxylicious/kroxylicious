@@ -23,11 +23,12 @@ kafka:
     storageClass: ""  # Use default storage class
 
 # Kroxylicious proxy (enabled for proxy scenarios)
+# Requires the Kroxylicious operator to be installed in the cluster.
+# When enabled, the chart creates operator CRs (KafkaProxy, KafkaProxyIngress,
+# KafkaService, VirtualKafkaCluster) and the operator manages the proxy deployment.
 kroxylicious:
   enabled: false  # Disabled for baseline scenario
-  image: quay.io/kroxylicious/kroxylicious:latest
-  imagePullPolicy: IfNotPresent
-  configMap: kroxylicious-no-filters  # Name of ConfigMap to mount
+  replicas: 1
   resources:
     requests:
       memory: "1Gi"

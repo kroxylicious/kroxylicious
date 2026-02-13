@@ -267,4 +267,40 @@ class HelmTemplateRenderingTest {
                 .contains("http://omb-worker-2.omb-worker:");
     }
 
+    @Test
+    void shouldRenderKafkaProxyWhenEnabled() throws IOException {
+        // When: Rendering with kroxylicious enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafkaProxy = HelmUtils.findResourceTyped(resources, "KafkaProxy", "benchmark-proxy");
+
+        // Then: KafkaProxy CR should exist with correct API version
+        assertThat(kafkaProxy).as("KafkaProxy 'benchmark-proxy' should be rendered when kroxylicious is enabled").isNotNull();
+        assertThat(kafkaProxy.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+    }
+
+    @Test
+    void shouldNotRenderKroxyliciousResourcesWhenDisabled() throws IOException {
+        // When: Rendering with default values (kroxylicious disabled)
+        String yaml = HelmUtils.renderTemplate();
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+
+        // Then: No Kroxylicious CRs should be rendered
+        assertThat(resources)
+                .as("No Kroxylicious CRs should be rendered when disabled")
+                .noneMatch(r -> r.getApiVersion() != null && r.getApiVersion().startsWith("kroxylicious.io/"));
+    }
+
+    @Test
+    void shouldRenderKafkaProxyIngressWhenEnabled() throws IOException {
+        // When: Rendering with kroxylicious enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource ingress = HelmUtils.findResourceTyped(resources, "KafkaProxyIngress", "cluster-ip");
+
+        // Then: KafkaProxyIngress CR should exist with correct API version
+        assertThat(ingress).as("KafkaProxyIngress 'cluster-ip' should be rendered when kroxylicious is enabled").isNotNull();
+        assertThat(ingress.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+    }
+
 }
