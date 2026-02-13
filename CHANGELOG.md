@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3277](https://github.com/kroxylicious/kroxylicious/pull/3277): Extend authorization filter to cover transactionalId authorization
 * [#3046](https://github.com/kroxylicious/kroxylicious/pull/3046): Add configurable idle connection timeouts for client connections
 * [#3242](https://github.com/kroxylicious/kroxylicious/pull/3242): chore: remove deprecated template kek selector brace style
 * [#3224](https://github.com/kroxylicious/kroxylicious/pull/3224): Add support for using Secret in `trustAnchorRef` field of the KafkaService and the VirtualKafkaCluster CRs.
@@ -36,6 +37,9 @@ Format `<github issue/pr number>: <short description>`.
   * `idle_timeout` - Connection exceeded the configured idle timeout duration
   * `client_closed` - Client initiated the connection close
   * `server_closed` - Backend server closed the connection, causing the proxy to close the client connection
+* The Authorization Filter can now enforce authorization of Transactional IDs.
+  The `AclAuthorizerService` can import `io.kroxylicious.filter.authorization.TransactionalIdResource` to authorize `WRITE` and `DESCRIBE` with parity with Apache Kafka ACL authorization.
+  Backwards compatibility is preserved, existing `AclAuthorizerService` Rules configurations that only import `TopicResource` will allow all Transactional ID operations.
 
 ## 0.18.0
 
