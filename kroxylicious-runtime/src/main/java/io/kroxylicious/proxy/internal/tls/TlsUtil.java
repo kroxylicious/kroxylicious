@@ -25,8 +25,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.net.ssl.SSLException;
 import javax.security.auth.x500.X500Principal;
@@ -46,9 +44,9 @@ public class TlsUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TlsUtil.class);
 
-    private static final Pattern PRIVATE_KEY_PATTERN = Pattern.compile(
-            "-----BEGIN[^-]+PRIVATE KEY-----\\s*([A-Za-z0-9+/=\\s]+)-----END[^-]+PRIVATE KEY-----",
-            Pattern.DOTALL);
+    private static final String BEGIN_MARKER = "-----BEGIN ";
+    private static final String END_MARKER = "-----END ";
+    private static final String PRIVATE_KEY_SUFFIX = "PRIVATE KEY-----";
 
     private TlsUtil() {
         // Utility class
@@ -79,16 +77,30 @@ public class TlsUtil {
         try {
             String pemString = new String(pemBytes);
 
-            // Extract the Base64-encoded key data
-            Matcher matcher = PRIVATE_KEY_PATTERN.matcher(pemString);
-            if (!matcher.find()) {
+            // Find the BEGIN marker for a private key
+            int beginIdx = pemString.indexOf(BEGIN_MARKER);
+            if (beginIdx < 0 || !pemString.substring(beginIdx + BEGIN_MARKER.length()).contains(PRIVATE_KEY_SUFFIX)) {
                 throw new IOException("No private key found in PEM data");
             }
 
-            String base64Key = matcher.group(1).replaceAll("\\s", "");
+            // Extract the header type (e.g. "PRIVATE KEY", "RSA PRIVATE KEY")
+            int headerStart = beginIdx + BEGIN_MARKER.length();
+            int headerEnd = pemString.indexOf("-----", headerStart);
+            String headerType = pemString.substring(headerStart, headerEnd);
+
+            // Extract Base64 body between the markers
+            String beginLine = BEGIN_MARKER + headerType + "-----";
+            String endLine = END_MARKER + headerType + "-----";
+            int bodyStart = pemString.indexOf(beginLine) + beginLine.length();
+            int bodyEnd = pemString.indexOf(endLine);
+            if (bodyEnd < 0) {
+                throw new IOException("No matching END marker found for " + headerType);
+            }
+
+            String base64Key = pemString.substring(bodyStart, bodyEnd).replaceAll("\\s", "");
             byte[] keyBytes = Base64.getDecoder().decode(base64Key);
 
-            // Handle encrypted private keys
+            // Handle encrypted PKCS#8 private keys
             if (password != null) {
                 try {
                     javax.crypto.EncryptedPrivateKeyInfo encryptedInfo = new javax.crypto.EncryptedPrivateKeyInfo(keyBytes);
@@ -106,7 +118,19 @@ public class TlsUtil {
                 }
             }
 
-            // Try common key algorithms
+            // Handle PKCS#1 format ("RSA PRIVATE KEY") by converting to PKCS#8
+            if (headerType.startsWith("RSA")) {
+                try {
+                    byte[] pkcs8Bytes = convertPkcs1ToPkcs8(keyBytes);
+                    KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                    return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(pkcs8Bytes));
+                }
+                catch (Exception e) {
+                    throw new IOException("Failed to parse PKCS#1 RSA private key: " + e.getMessage(), e);
+                }
+            }
+
+            // Handle PKCS#8 format ("PRIVATE KEY") - try common key algorithms
             String[] algorithms = { "RSA", "EC", "DSA" };
             for (String algorithm : algorithms) {
                 try {
@@ -115,7 +139,6 @@ public class TlsUtil {
                     return keyFactory.generatePrivate(keySpec);
                 }
                 catch (InvalidKeySpecException e) {
-                    // Try next algorithm
                     LOGGER.debug("Failed to parse private key as {}, trying next algorithm", algorithm);
                 }
             }
@@ -125,6 +148,59 @@ public class TlsUtil {
         catch (NoSuchAlgorithmException e) {
             throw new IOException("Required cryptographic algorithm not available", e);
         }
+    }
+
+    /**
+     * Converts PKCS#1 RSA private key bytes to PKCS#8 format by wrapping with the RSA AlgorithmIdentifier.
+     * PKCS#8 = SEQUENCE { version INTEGER, algorithm AlgorithmIdentifier, privateKey OCTET STRING(PKCS#1) }
+     */
+    private static byte[] convertPkcs1ToPkcs8(byte[] pkcs1Bytes) {
+        // RSA OID: 1.2.840.113549.1.1.1
+        byte[] rsaOid = { 0x06, 0x09, 0x2a, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xf7, 0x0d, 0x01, 0x01, 0x01 };
+        // AlgorithmIdentifier: SEQUENCE { OID, NULL }
+        byte[] algorithmIdentifier = new byte[rsaOid.length + 4];
+        algorithmIdentifier[0] = 0x30; // SEQUENCE
+        algorithmIdentifier[1] = (byte) (rsaOid.length + 2);
+        System.arraycopy(rsaOid, 0, algorithmIdentifier, 2, rsaOid.length);
+        algorithmIdentifier[rsaOid.length + 2] = 0x05; // NULL
+        algorithmIdentifier[rsaOid.length + 3] = 0x00;
+
+        // OCTET STRING wrapping the PKCS#1 key
+        byte[] octetString = wrapInAsn1(0x04, pkcs1Bytes);
+        // version INTEGER 0
+        byte[] version = { 0x02, 0x01, 0x00 };
+
+        // SEQUENCE { version, algorithmIdentifier, privateKey }
+        byte[] innerContent = new byte[version.length + algorithmIdentifier.length + octetString.length];
+        int offset = 0;
+        System.arraycopy(version, 0, innerContent, offset, version.length);
+        offset += version.length;
+        System.arraycopy(algorithmIdentifier, 0, innerContent, offset, algorithmIdentifier.length);
+        offset += algorithmIdentifier.length;
+        System.arraycopy(octetString, 0, innerContent, offset, octetString.length);
+
+        return wrapInAsn1(0x30, innerContent);
+    }
+
+    private static byte[] wrapInAsn1(int tag, byte[] content) {
+        byte[] lengthBytes;
+        if (content.length < 128) {
+            lengthBytes = new byte[]{ (byte) content.length };
+        }
+        else if (content.length < 256) {
+            lengthBytes = new byte[]{ (byte) 0x81, (byte) content.length };
+        }
+        else if (content.length < 65536) {
+            lengthBytes = new byte[]{ (byte) 0x82, (byte) (content.length >> 8), (byte) (content.length & 0xFF) };
+        }
+        else {
+            lengthBytes = new byte[]{ (byte) 0x83, (byte) (content.length >> 16), (byte) ((content.length >> 8) & 0xFF), (byte) (content.length & 0xFF) };
+        }
+        byte[] result = new byte[1 + lengthBytes.length + content.length];
+        result[0] = (byte) tag;
+        System.arraycopy(lengthBytes, 0, result, 1, lengthBytes.length);
+        System.arraycopy(content, 0, result, 1 + lengthBytes.length, content.length);
+        return result;
     }
 
     /**
@@ -283,14 +359,18 @@ public class TlsUtil {
         // Validate that the private key corresponds to the leaf certificate
         validateKeyAndCertMatch(privateKey, leafCert);
 
-        // Check for root CA in chain (should not be present per API contract)
-        for (int i = 0; i < certChain.length; i++) {
-            X509Certificate cert = certChain[i];
-            if (isSelfSigned(cert)) {
-                throw new IllegalArgumentException(
-                        "Certificate chain contains a self-signed root CA at position " + i +
-                                " (subject: " + cert.getSubjectX500Principal().getName() + "). " +
-                                "Root CA certificates must be excluded from the chain as per API contract.");
+        // Check for root CA in chain (should not be present per API contract).
+        // A single self-signed leaf certificate is allowed (common for test and simple deployments),
+        // but a self-signed CA certificate in a multi-cert chain should be excluded.
+        if (certChain.length > 1) {
+            for (int i = 0; i < certChain.length; i++) {
+                X509Certificate cert = certChain[i];
+                if (isSelfSigned(cert) && cert.getBasicConstraints() >= 0) {
+                    throw new IllegalArgumentException(
+                            "Certificate chain contains a self-signed root CA at position " + i +
+                                    " (subject: " + cert.getSubjectX500Principal().getName() + "). " +
+                                    "Root CA certificates must be excluded from the chain as per API contract.");
+                }
             }
         }
 
