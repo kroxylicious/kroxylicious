@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,6 +19,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.ApiException;
@@ -143,8 +145,17 @@ public class RecordEncryptionFilter<K>
                     if (!unresolvedTopicNames.isEmpty() && unresolvedKeyPolicy == UnresolvedKeyPolicy.REJECT) {
                         return CompletableFuture.failedFuture(new UnresolvedKeyException("failed to resolve key for: " + unresolvedTopicNames));
                     }
-
-                    generatePlainRecordsMetrics(plainRecordsTotal, unresolvedTopicNames, topicNameToData);
+                    Set<String> passthroughTopics = new HashSet<>(kekSelection.passthroughTopicNames());
+                    passthroughTopics.addAll(unresolvedTopicNames);
+                    generatePlainRecordsMetrics(plainRecordsTotal, passthroughTopics, topicNameToData);
+                    Set<String> encryptedAndPassthroughTopics = Stream.concat(passthroughTopics.stream(), kekSelection.topicNameToKekId().keySet().stream()).collect(
+                            Collectors.toSet());
+                    if (!encryptedAndPassthroughTopics.containsAll(topicNameToData.keySet())) {
+                        HashSet<String> missingTopics = new HashSet<>(topicNameToData.keySet());
+                        missingTopics.removeAll(encryptedAndPassthroughTopics);
+                        return CompletableFuture.failedFuture(new UndeterminedTopicBehaviourException(
+                                "could not determine behaviour for all topics in request, topics with no outcome " + missingTopics));
+                    }
 
                     var futures = kekSelection.topicNameToKekId().entrySet().stream().flatMap(e -> {
                         String topicName = e.getKey();
@@ -177,10 +188,11 @@ public class RecordEncryptionFilter<K>
                 });
     }
 
-    private void generatePlainRecordsMetrics(Meter.MeterProvider<Counter> plainRecordsTotal, Set<String> unresolvedTopicNames,
+    private void generatePlainRecordsMetrics(Meter.MeterProvider<Counter> plainRecordsTotal,
+                                             Set<String> passthroughTopicNames,
                                              Map<String, TopicProduceData> topicNameToData) {
         topicNameToData.entrySet().stream()
-                .filter(topicDataEntry -> unresolvedTopicNames.contains(topicDataEntry.getKey()))
+                .filter(topicDataEntry -> passthroughTopicNames.contains(topicDataEntry.getKey()))
                 .forEach(topicData -> topicData.getValue().partitionData()
                         .forEach(produceData -> plainRecordsTotal
                                 .withTags(RecordEncryptionMetrics.TOPIC_NAME, topicData.getKey())

@@ -107,6 +107,7 @@ class RecordEncryptionFilterTest {
 
     private static final String UNRESOLVED_TOPIC = "unresolved";
     private static final Uuid UNRESOLVED_TOPIC_ID = Uuid.randomUuid();
+    private static final String PASSTHROUGH_TOPIC = "passthrough";
     private static final String ENCRYPTED_TOPIC = "encrypt_me";
     private static final Uuid ENCRYPTED_TOPIC_ID = Uuid.randomUuid();
     private static final String KEK_ID_1 = "KEK-ID-1";
@@ -162,7 +163,8 @@ class RecordEncryptionFilterTest {
         topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
 
         when(kekSelector.selectKek(anySet()))
-                .thenAnswer(invocationOnMock -> CompletableFuture.completedFuture(new TopicNameKekSelection<>(topicNameToKekId, Set.of(UNRESOLVED_TOPIC))));
+                .thenAnswer(invocationOnMock -> CompletableFuture
+                        .completedFuture(new TopicNameKekSelection<>(topicNameToKekId, Set.of(PASSTHROUGH_TOPIC), Set.of(UNRESOLVED_TOPIC))));
 
         when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
@@ -200,6 +202,47 @@ class RecordEncryptionFilterTest {
     }
 
     @Test
+    void shouldNotEncryptTopicThatShouldBePassedThrough() {
+        // Given
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(PASSTHROUGH_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+
+        // When
+        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
+
+        // Then
+        verify(encryptionManager, never()).encrypt(any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    void shouldExplodeIfNoBehaviourDeterminedForTopic() {
+        // Given
+        RequestFilterResult requestFilterResult = mock(RequestFilterResult.class);
+        CompletableFuture<RequestFilterResult> future = CompletableFuture.completedFuture(requestFilterResult);
+        when(closeOrTerminalStage.completed()).thenReturn(future);
+        when(requestFilterResultBuilder.errorResponse(any(), any(), any())).thenReturn(closeOrTerminalStage);
+        when(context.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
+        when(kekSelector.selectKek(anySet()))
+                .thenAnswer(invocationOnMock -> CompletableFuture.completedFuture(new TopicNameKekSelection<>(Map.of(), Set.of(), Set.of())));
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(PASSTHROUGH_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+
+        // When
+        CompletionStage<RequestFilterResult> result = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(), produceRequestData, context);
+
+        // Then
+        assertThat(result).succeedsWithin(Duration.ZERO).isEqualTo(requestFilterResult);
+        ArgumentCaptor<ApiException> captor = ArgumentCaptor.forClass(ApiException.class);
+        verify(requestFilterResultBuilder).errorResponse(any(), eq(produceRequestData), captor.capture());
+        ApiException apiException = captor.getValue();
+        assertThat(apiException).isInstanceOf(InvalidRecordException.class)
+                .hasMessage("could not determine behaviour for all topics in request, topics with no outcome [passthrough]");
+    }
+
+    @Test
     void shouldCountPlainAndEncryptedRecords() {
         // Given
         var produceRequestData = buildProduceRequestData(new TopicProduceData()
@@ -207,13 +250,23 @@ class RecordEncryptionFilterTest {
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
                 new TopicProduceData()
                         .setName(UNRESOLVED_TOPIC)
+                        .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))),
+                new TopicProduceData()
+                        .setName(PASSTHROUGH_TOPIC)
                         .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_plain_records").counter())
+        assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_plain_records").tag(RecordEncryptionMetrics.TOPIC_NAME, UNRESOLVED_TOPIC).counter())
+                .isNotNull()
+                .satisfies(counter -> {
+                    assertThat(counter.getId()).isNotNull();
+                    assertThat(counter.count()).isEqualTo(1);
+                });
+
+        assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_plain_records").tag(RecordEncryptionMetrics.TOPIC_NAME, PASSTHROUGH_TOPIC).counter())
                 .isNotNull()
                 .satisfies(counter -> {
                     assertThat(counter.getId()).isNotNull();
@@ -250,6 +303,9 @@ class RecordEncryptionFilterTest {
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
                 new TopicProduceData()
                         .setName(UNRESOLVED_TOPIC)
+                        .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))),
+                new TopicProduceData()
+                        .setName(PASSTHROUGH_TOPIC)
                         .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
@@ -299,6 +355,22 @@ class RecordEncryptionFilterTest {
         // Given
         var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
                 .setTopic(UNRESOLVED_TOPIC)
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+
+        // When
+        encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
+                .isInstanceOf(FetchResponseData.class).isEqualTo(fetchResponseData)));
+    }
+
+    @Test
+    void shouldPassThroughPassthroughRecords() {
+        // Given
+        var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
+                .setTopic(PASSTHROUGH_TOPIC)
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
