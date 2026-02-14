@@ -27,4 +27,11 @@ public record Action(
         return (Class) operation.getClass();
     }
 
+    @Override
+    public String toString() {
+        return "Action[" +
+                "operation=" + operation.getClass().getSimpleName() + '.' + operation +
+                ", resourceName='" + resourceName + '\'' +
+                ']';
+    }
 }

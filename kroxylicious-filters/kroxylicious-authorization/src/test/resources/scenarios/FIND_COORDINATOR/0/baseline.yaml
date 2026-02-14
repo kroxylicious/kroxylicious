@@ -44,6 +44,7 @@ when:
   request:
     key: "random-string-715"
 then:
+  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:

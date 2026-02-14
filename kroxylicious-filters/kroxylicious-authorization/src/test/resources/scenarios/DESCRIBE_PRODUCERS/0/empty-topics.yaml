@@ -42,6 +42,7 @@ when:
   request:
     topics: []
 then:
+  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:

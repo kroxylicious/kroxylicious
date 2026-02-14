@@ -8,6 +8,7 @@ package io.kroxylicious.it.filter.authorization;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -20,6 +21,8 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AccessControlEntry;
@@ -37,6 +40,7 @@ import org.apache.kafka.common.protocol.Message;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
+import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -74,6 +78,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * <p>A base class for integration tests covering some subset of the protocol
@@ -110,14 +115,16 @@ public abstract class AuthzIT extends BaseIT {
     public static final String ALICE = "alice";
     public static final String BOB = "bob";
     public static final String EVE = "eve";
+    public static final String SUPER_PASSWORD = "Super";
 
     public static final Map<String, String> PASSWORDS = Map.of(
             ALICE, "Alice",
             BOB, "Bob",
             EVE, "Eve");
+    private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60)).pollDelay(Duration.ofMillis(100));
 
     @SaslMechanism(principals = {
-            @SaslMechanism.Principal(user = SUPER, password = "Super"),
+            @SaslMechanism.Principal(user = SUPER, password = SUPER_PASSWORD),
             @SaslMechanism.Principal(user = ALICE, password = "Alice"),
             @SaslMechanism.Principal(user = BOB, password = "Bob"),
             @SaslMechanism.Principal(user = EVE, password = "Eve")
@@ -127,6 +134,7 @@ public abstract class AuthzIT extends BaseIT {
     @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:super")
     @Name("kafkaClusterWithAuthz")
     static KafkaCluster kafkaClusterWithAuthz;
+
     @Name("kafkaClusterNoAuthz")
     static KafkaCluster kafkaClusterNoAuthz;
 
@@ -385,6 +393,21 @@ public abstract class AuthzIT extends BaseIT {
         }
     }
 
+    protected static void ensureCoordinators(Producer<String, String> producer,
+                                             String transactionalId,
+                                             Admin admin) {
+        AWAIT.alias("await until transaction coordinators are ready")
+                .untilAsserted(() -> {
+                    producer.initTransactions();
+                    producer.beginTransaction();
+                    producer.send(new ProducerRecord<>("top", "", "")).get();
+                    var coordId = admin.describeTransactions(List.of(transactionalId)).all().toCompletionStage().toCompletableFuture()
+                            .join().get(transactionalId).coordinatorId();
+                    producer.abortTransaction();
+                    assertThat(coordId).isNotEqualTo(-1);
+                });
+    }
+
     /**
      * @param bootstrapServers The cluster to connect to.
      * @return A KafkaClient connected to the given cluster.
@@ -559,13 +582,13 @@ public abstract class AuthzIT extends BaseIT {
     }
 
     protected Set<String> topicListing(BaseClusterFixture cluster) {
-        try (var admin = Admin.create(cluster.backingCluster().getKafkaClientConfiguration(SUPER, "Super"))) {
+        try (var admin = Admin.create(cluster.backingCluster().getKafkaClientConfiguration(SUPER, SUPER_PASSWORD))) {
             return admin.listTopics().names().toCompletionStage().toCompletableFuture().join();
         }
     }
 
     protected Map<TopicPartition, Long> offsets(BaseClusterFixture cluster, String groupId) {
-        try (var admin = Admin.create(cluster.backingCluster().getKafkaClientConfiguration(SUPER, "Super"))) {
+        try (var admin = Admin.create(cluster.backingCluster().getKafkaClientConfiguration(SUPER, SUPER_PASSWORD))) {
             Map<TopicPartition, OffsetAndMetadata> join = admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().toCompletionStage()
                     .toCompletableFuture().join();
             return join.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().offset()));

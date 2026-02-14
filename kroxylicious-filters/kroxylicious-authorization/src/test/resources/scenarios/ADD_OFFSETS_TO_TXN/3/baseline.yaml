@@ -19,7 +19,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        transactionalId: "random-string-241"
+        transactionalId: "my-transactional-id"
         producerId: 242
         producerEpoch: 776
         groupId: "random-string-856"
@@ -31,9 +31,9 @@ given:
   authorizerRules:
     allowed:
       - subject: "alice"
-        resourceName: "my-topic"
-        resourceClass: "TOPIC"
-        resourceType: "DESCRIBE"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "WRITE"
   topicNames: null
 when:
   subject: "alice"
@@ -43,7 +43,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    transactionalId: "random-string-241"
+    transactionalId: "my-transactional-id"
     producerId: 242
     producerEpoch: 776
     groupId: "random-string-856"

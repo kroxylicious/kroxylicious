@@ -41,10 +41,15 @@ public interface BaseClusterFixture extends AutoCloseable {
     default Map<String, KafkaClient> authenticatedClients(Set<String> usernames) {
         return usernames.stream().collect(Collectors.toMap(Function.identity(),
                 username -> {
-                    var client = AuthzIT.client(clientBootstrap());
-                    AuthzIT.authenticate(client, username, AuthzIT.PASSWORDS.get(username));
-                    return client;
+                    String password = AuthzIT.PASSWORDS.get(username);
+                    return authenticatedClient(username, password);
                 }));
+    }
+
+    default KafkaClient authenticatedClient(String username, String password) {
+        var client = AuthzIT.client(clientBootstrap());
+        AuthzIT.authenticate(client, username, password);
+        return client;
     }
 
     Map<String, Object> getKafkaClientConfiguration(String username, String password);
