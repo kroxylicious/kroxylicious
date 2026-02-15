@@ -19,6 +19,8 @@ import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,17 +39,17 @@ public class OperatorTestUtils {
             .withConnectionTimeout(500)
             .endConfig();
 
-    static @NonNull KubernetesClient kubeClient() {
+    public static @NonNull KubernetesClient kubeClient() {
         return kubeClient(new KubernetesClientBuilder());
     }
 
-    static @NonNull KubernetesClient kubeClient(KubernetesClientBuilder kubernetesClientBuilder) {
+    public static @NonNull KubernetesClient kubeClient(KubernetesClientBuilder kubernetesClientBuilder) {
         KubernetesClient kubernetesClient = kubernetesClientBuilder.build();
         assertThat(kubernetesClient).isNotNull();
         return kubernetesClient;
     }
 
-    static boolean isKubeClientAvailable() {
+    public static boolean isKubeClientAvailable() {
         var client = PRESENCE_PROBING_KUBE_CLIENT_BUILD.build();
         try {
             client.namespaces().list();

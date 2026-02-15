@@ -69,7 +69,7 @@ public class ResourcesUtil {
                 || inRange(ch, '0', '9');
     }
 
-    static boolean isDnsLabel(String string, boolean rfc1035) {
+    public static boolean isDnsLabel(String string, boolean rfc1035) {
         int length = string.length();
         if (length == 0 || length > 63) {
             return false;
@@ -93,31 +93,31 @@ public class ResourcesUtil {
         return true;
     }
 
-    static String requireIsDnsLabel(String string, boolean rfc1035, String message) {
+    public static String requireIsDnsLabel(String string, boolean rfc1035, String message) {
         if (!isDnsLabel(string, rfc1035)) {
             throw new IllegalArgumentException(message);
         }
         return string;
     }
 
-    static String volumeName(String group, String plural, String resourceName) {
+    public static String volumeName(String group, String plural, String resourceName) {
         String volumeNamePrefix = group.isEmpty() ? plural : group + "." + plural;
         String volumeName = volumeNamePrefix + "-" + resourceName;
         return ResourcesUtil.requireIsDnsLabel(volumeName, true,
                 "volume name would not be a DNS label: " + volumeName);
     }
 
-    static boolean isSecret(LocalRef<?> ref) {
+    public static boolean isSecret(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Secret".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
 
-    static boolean isStrimziKafka(LocalRef<?> ref) {
+    public static boolean isStrimziKafka(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Kafka".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty() || "kafka.strimzi.io".equals(ref.getGroup()));
     }
 
-    static boolean isConfigMap(LocalRef<?> ref) {
+    public static boolean isConfigMap(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "ConfigMap".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
@@ -213,10 +213,10 @@ public class ResourcesUtil {
         return resource.getApiVersion().substring(0, resource.getApiVersion().indexOf("/"));
     }
 
-    static <T extends HasMetadata> Set<ResourceID> filteredResourceIdsInSameNamespace(EventSourceContext<?> context,
-                                                                                      HasMetadata primary,
-                                                                                      Class<T> clazz,
-                                                                                      Predicate<T> predicate) {
+    public static <T extends HasMetadata> Set<ResourceID> filteredResourceIdsInSameNamespace(EventSourceContext<?> context,
+                                                                                             HasMetadata primary,
+                                                                                             Class<T> clazz,
+                                                                                             Predicate<T> predicate) {
         return resourcesInSameNamespace(context, primary, clazz)
                 .filter(predicate)
                 .map(ResourceID::fromResource)
@@ -231,7 +231,7 @@ public class ResourcesUtil {
      * @return A stream of resources
      * @param <T> The type of the resource
      */
-    static <T extends HasMetadata> Stream<T> resourcesInSameNamespace(EventSourceContext<?> context, HasMetadata primary, Class<T> clazz) {
+    public static <T extends HasMetadata> Stream<T> resourcesInSameNamespace(EventSourceContext<?> context, HasMetadata primary, Class<T> clazz) {
         return context.getClient()
                 .resources(clazz)
                 .inNamespace(namespace(primary))
@@ -240,7 +240,7 @@ public class ResourcesUtil {
                 .stream();
     }
 
-    static <T> boolean isReferent(LocalRef<T> ref, HasMetadata resource) {
+    public static <T> boolean isReferent(LocalRef<T> ref, HasMetadata resource) {
         return Objects.equals(ResourcesUtil.name(resource), ref.getName());
     }
 
@@ -252,12 +252,12 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefAsResourceId(O owner, LocalRef<R> ref) {
+    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefAsResourceId(O owner, LocalRef<R> ref) {
         return Set.of(new ResourceID(ref.getName(), owner.getMetadata().getNamespace()));
     }
 
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner,
-                                                                                                 List<? extends LocalRef<R>> refs) {
+    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner,
+                                                                                                        List<? extends LocalRef<R>> refs) {
         return refs.stream()
                 .map(ref -> new ResourceID(ref.getName(), owner.getMetadata().getNamespace()))
                 .collect(Collectors.toSet());
@@ -274,10 +274,10 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
-                                                                                        R referent,
-                                                                                        Class<O> owner,
-                                                                                        Function<O, Optional<LocalRef<R>>> refAccessor) {
+    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
+                                                                                               R referent,
+                                                                                               Class<O> owner,
+                                                                                               Function<O, Optional<LocalRef<R>>> refAccessor) {
         return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
                 referent,
                 owner,
@@ -295,11 +295,11 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
-                                                                                        OwnerReference referent,
-                                                                                        HasMetadata hasNamespace,
-                                                                                        Class<O> owner,
-                                                                                        Function<O, Optional<LocalRef<R>>> refAccessor) {
+    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
+                                                                                               OwnerReference referent,
+                                                                                               HasMetadata hasNamespace,
+                                                                                               Class<O> owner,
+                                                                                               Function<O, Optional<LocalRef<R>>> refAccessor) {
         return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
                 hasNamespace,
                 owner,
@@ -317,10 +317,10 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrersMulti(EventSourceContext<?> context,
-                                                                                             R referent,
-                                                                                             Class<O> owner,
-                                                                                             Function<O, Collection<? extends LocalRef<R>>> refAccessor) {
+    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrersMulti(EventSourceContext<?> context,
+                                                                                                    R referent,
+                                                                                                    Class<O> owner,
+                                                                                                    Function<O, Collection<? extends LocalRef<R>>> refAccessor) {
         return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
                 referent,
                 owner,
@@ -567,7 +567,7 @@ public class ResourcesUtil {
         }
     }
 
-    static <T extends CustomResource<?, ?>> Optional<Kafka> getKafka(Context<T> context, String eventSourceName) {
+    public static <T extends CustomResource<?, ?>> Optional<Kafka> getKafka(Context<T> context, String eventSourceName) {
         return context.getSecondaryResource(Kafka.class, eventSourceName);
     }
 
@@ -602,9 +602,9 @@ public class ResourcesUtil {
         }
     }
 
-    static Optional<ListenerStatus> retrieveBootstrapServerAddress(Context<KafkaService> context,
-                                                                   KafkaService service,
-                                                                   String eventSourceName) {
+    public static Optional<ListenerStatus> retrieveBootstrapServerAddress(Context<KafkaService> context,
+                                                                          KafkaService service,
+                                                                          String eventSourceName) {
 
         Optional<Kafka> kafka = getKafka(context, eventSourceName);
         return kafka.flatMap(value -> value.getStatus().getListeners().stream()
