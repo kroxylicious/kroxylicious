@@ -99,7 +99,7 @@ The default workload is `1topic-1kb` (1 topic, 1KB messages, 5 minute test).
 ### Run Default Benchmark
 
 ```bash
-kubectl exec -it omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
+kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
 ```
 
 **What you'll see:**
@@ -131,11 +131,11 @@ helm upgrade benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious
 
 # Wait for pods to restart
 kubectl rollout status statefulset/omb-worker -n kafka
-kubectl delete pod omb-benchmark -n kafka
+kubectl rollout restart deploy/omb-benchmark -n kafka
 kubectl wait --for=condition=ready pod -l app=omb-benchmark -n kafka --timeout=60s
 
 # Run benchmark
-kubectl exec -it omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
+kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
 ```
 
 **Available workloads:**
@@ -197,11 +197,11 @@ kubectl logs -l app=omb-worker -n kafka
 **Benchmark can't connect?**
 ```bash
 # Verify Kafka is accessible (baseline)
-kubectl exec omb-benchmark -n kafka -- \
+kubectl exec deploy/omb-benchmark -n kafka -- \
   kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
 
 # Verify Kafka is accessible via proxy (proxy scenarios)
-kubectl exec omb-benchmark -n kafka -- \
+kubectl exec deploy/omb-benchmark -n kafka -- \
   kafka-topics --bootstrap-server kafka-cluster-ip-bootstrap:9292 --list
 ```
 

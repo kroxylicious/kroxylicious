@@ -168,14 +168,14 @@ kubectl wait --for=condition=ready pod -l app=omb-benchmark --timeout=300s -n ka
 
 ### 4. Run Benchmark
 
-The `omb-benchmark` pod is ready for manual benchmark execution:
+The `omb-benchmark` deployment is ready for manual benchmark execution:
 
 ```bash
 # Get list of OMB workers
 WORKERS="omb-worker-0.omb-worker:8080,omb-worker-1.omb-worker:8080,omb-worker-2.omb-worker:8080"
 
 # Run benchmark (1 topic workload)
-kubectl exec -it omb-benchmark -n kafka -- \
+kubectl exec -it deploy/omb-benchmark -n kafka -- \
   bin/benchmark \
   --drivers /config/driver-kafka.yaml \
   --workers $WORKERS \
@@ -358,7 +358,7 @@ kubectl get pods -l app=omb-worker -o wide -n kafka
 
 Check if Kafka is accessible from benchmark pod:
 ```bash
-kubectl exec omb-benchmark -n kafka -- kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
+kubectl exec deploy/omb-benchmark -n kafka -- kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
 ```
 
 ## Contributing
