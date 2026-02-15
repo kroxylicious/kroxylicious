@@ -16,6 +16,13 @@ kafka-kafka-bootstrap:9092
 {{- end }}
 
 {{/*
+Generate OMB driver name - appears in result filenames and log output
+*/}}
+{{- define "kroxylicious-benchmark.driverName" -}}
+Kafka-{{ .Values.scenario }}
+{{- end }}
+
+{{/*
 Generate OMB worker list as comma-separated URLs
 */}}
 {{- define "kroxylicious-benchmark.workerList" -}}

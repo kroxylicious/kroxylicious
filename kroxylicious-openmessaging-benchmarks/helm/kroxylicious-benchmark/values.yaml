@@ -4,6 +4,9 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+# Scenario name - used in OMB result filenames to identify which scenario produced the results
+scenario: baseline
+
 # Kafka cluster configuration (Strimzi-based)
 kafka:
   replicas: 3

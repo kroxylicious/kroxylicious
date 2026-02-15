@@ -14,6 +14,8 @@
 #   - Strimzi operator installed
 #   - Kroxylicious operator installed
 
+scenario: proxy-no-filters
+
 # Enable Kroxylicious proxy (operator manages deployment)
 kroxylicious:
   enabled: true
