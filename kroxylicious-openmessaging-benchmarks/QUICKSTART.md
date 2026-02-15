@@ -7,6 +7,7 @@ Get baseline Kafka performance metrics in ~15 minutes.
 - Kubernetes cluster running (minikube, kind, or cloud)
 - `kubectl` and `helm` installed
 - 8 CPU cores, 16GB RAM recommended
+- **Kroxylicious operator** installed (proxy scenarios only — see step 3)
 
 ## Setup (One-time)
 
@@ -30,18 +31,39 @@ kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 kubectl wait --for=condition=ready pod -l name=strimzi-cluster-operator -n kafka --timeout=300s
 ```
 
-### 3. Deploy Benchmark Infrastructure
+### 3. Install Kroxylicious Operator (proxy scenarios only)
+
+> Skip this step if you are running the baseline scenario.
+
+```bash
+# Download operator release
+gh release download v0.18.0 --repo kroxylicious/kroxylicious --pattern 'kroxylicious-operator-*.tar.gz'
+
+# Extract
+tar xzf kroxylicious-operator-*.tar.gz
+
+# Install CRDs + operator
+kubectl apply -f install/
+
+# Wait for operator pod
+kubectl wait --for=condition=ready pod -l app=kroxylicious -n kroxylicious-operator --timeout=300s
+```
+
+### 4. Deploy Benchmark Infrastructure
 
 ```bash
 cd kroxylicious-openmessaging-benchmarks
 
-# Deploy Kafka + OMB workers
+# Choose your scenario:
+SCENARIO=baseline-values              # Direct Kafka, no proxy
+# SCENARIO=proxy-no-filters-values    # Kroxylicious proxy, no filters
+
 helm install benchmark ./helm/kroxylicious-benchmark \
-  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
-  -n kafka
+  -n kafka \
+  -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
 ```
 
-### 4. Wait for Kafka to Start
+### 5. Wait for Kafka to Start
 
 This takes **5-10 minutes** for Kafka cluster to bootstrap:
 
@@ -65,6 +87,9 @@ kubectl get pods -n kafka
 # kafka-kafka-pool-2               Running  (Kafka broker 2)
 # omb-worker-xxx (3 pods)          Running
 # omb-benchmark                    Running
+#
+# Proxy scenarios will also show:
+# benchmark-proxy-xxx              Running  (Kroxylicious proxy)
 ```
 
 ## Run Benchmarks
@@ -93,14 +118,18 @@ Pub Latency avg: 12.3ms | 95th: 28.5ms | 99th: 45.2ms
 
 ### Switch to Different Workload
 
-To run a different workload, upgrade the Helm release with a different `omb.workload` value:
+To run a different workload, upgrade the Helm release with a different `omb.workload` value (use whichever scenario values file you deployed with):
 
 ```bash
+# Set SCENARIO to match what you deployed with:
+SCENARIO=baseline-values              # Direct Kafka, no proxy
+# SCENARIO=proxy-no-filters-values    # Kroxylicious proxy, no filters
+
 # 10 topics workload
 helm upgrade benchmark ./helm/kroxylicious-benchmark \
-  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+  -n kafka \
   --set omb.workload=10topics-1kb \
-  -n kafka
+  -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
 
 # Wait for pods to restart
 kubectl rollout status statefulset/omb-worker -n kafka
@@ -129,6 +158,9 @@ helm uninstall benchmark -n kafka
 # IMPORTANT: Delete Kafka persistent volumes to avoid cluster ID conflicts
 kubectl delete pvc -l strimzi.io/cluster=kafka -n kafka
 
+# (Optional) Remove Kroxylicious operator (proxy scenarios only)
+kubectl delete -f install/
+
 # (Optional) Delete Strimzi operator
 kubectl delete -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 kubectl delete namespace kafka
@@ -145,10 +177,10 @@ kubectl delete pvc -l strimzi.io/cluster=kafka -n kafka
 # Wait for PVCs to be deleted
 kubectl get pvc -n kafka
 
-# Reinstall benchmark
+# Reinstall benchmark (use the SCENARIO you were using)
 helm install benchmark ./helm/kroxylicious-benchmark \
-  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
-  -n kafka
+  -n kafka \
+  -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
 ```
 
 ## Troubleshooting
@@ -166,9 +198,13 @@ kubectl logs -l app=omb-worker -n kafka
 
 **Benchmark can't connect?**
 ```bash
-# Verify Kafka is accessible
+# Verify Kafka is accessible (baseline)
 kubectl exec omb-benchmark -n kafka -- \
   kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
+
+# Verify Kafka is accessible via proxy (proxy scenarios)
+kubectl exec omb-benchmark -n kafka -- \
+  kafka-topics --bootstrap-server kafka-cluster-ip-bootstrap:9292 --list
 ```
 
 ## Configuration
@@ -178,9 +214,9 @@ Edit `helm/kroxylicious-benchmark/values.yaml` to change:
 - Benchmark duration: `benchmark.testDurationMinutes` (default: 5)
 - Worker count: `omb.workerReplicas` (default: 3)
 
-Then upgrade:
+Then upgrade (use the `SCENARIO` you deployed with):
 ```bash
 helm upgrade benchmark ./helm/kroxylicious-benchmark \
-  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
-  -n kafka
+  -n kafka \
+  -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
 ```

@@ -50,14 +50,19 @@ When registry variables are not configured (e.g. on forks), the image is built b
 
 A Renovate custom manager in `/.github/renovate.json` (in the repository root) tracks the `omb.image` reference in `values.yaml` and opens PRs when new image builds are pushed to the registry.
 
-## Current Status: Phase 1 Complete ✅
+## Current Status: Phase 2 Complete ✅
 
-**Phase 1 (Baseline Scenario)** is implemented and ready for testing:
+**Phase 1 (Baseline Scenario)** — complete:
 - Helm chart foundation
 - Kafka cluster (3 brokers in KRaft mode)
 - OpenMessaging Benchmark workers and driver
 - Baseline scenario (direct Kafka connection, no proxy)
 - 3 workload configurations (1, 10, and 100 topics)
+
+**Phase 2 (Proxy No-Filters Scenario)** — complete:
+- Kroxylicious operator CRs (KafkaProxy, KafkaProxyIngress, KafkaService, VirtualKafkaCluster)
+- Proxy no-filters scenario (Kroxylicious with empty filter chain)
+- Automatic bootstrap routing through proxy when enabled
 
 ## Architecture
 
@@ -67,7 +72,7 @@ OpenMessaging Benchmark (Kafka driver)
    bootstrap.servers config
         ↓
     Baseline Scenario → Kafka cluster directly
-    (Future: Proxy Scenarios → Kroxylicious → Kafka)
+    Proxy Scenarios   → Kroxylicious → Kafka
 ```
 
 ## Directory Structure
@@ -75,6 +80,7 @@ OpenMessaging Benchmark (Kafka driver)
 ```
 kroxylicious-openmessaging-benchmarks/
 ├── README.md (this file)
+├── QUICKSTART.md
 ├── Containerfile
 ├── .dockerignore
 ├── helm/
@@ -84,8 +90,11 @@ kroxylicious-openmessaging-benchmarks/
 │       ├── templates/
 │       │   ├── _helpers.tpl
 │       │   ├── kafka-strimzi.yaml
-│       │   ├── omb-workers-deployment.yaml
-│       │   ├── omb-benchmark-pod.yaml
+│       │   ├── kafka-nodepool.yaml
+│       │   ├── kroxylicious-proxy.yaml
+│       │   ├── kroxylicious-cluster.yaml
+│       │   ├── omb-workers-statefulset.yaml
+│       │   ├── omb-benchmark-deployment.yaml
 │       │   └── configmaps/
 │       │       ├── omb-driver-baseline.yaml
 │       │       ├── workload-1topic-1kb.yaml
@@ -93,7 +102,8 @@ kroxylicious-openmessaging-benchmarks/
 │       │       └── workload-100topics-1kb.yaml
 │       └── scenarios/
 │           ├── baseline-values.yaml
-│           └── smoke-values.yaml
+│           ├── smoke-values.yaml
+│           └── proxy-no-filters-values.yaml
 ```
 
 ## Prerequisites
@@ -102,6 +112,7 @@ kroxylicious-openmessaging-benchmarks/
 - `kubectl` configured to access the cluster
 - `helm` 3.0+
 - **Strimzi Kafka Operator** installed in the cluster
+- **Kroxylicious operator** installed in the cluster (proxy scenarios only)
 - Sufficient resources: 8 CPU cores, 16GB RAM recommended (4 CPU, 8GB RAM with smoke profile)
 
 ## Quick Start
@@ -117,21 +128,36 @@ kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 kubectl wait --for=condition=ready pod -l name=strimzi-cluster-operator -n kafka --timeout=300s
 ```
 
-### 2. Install Baseline Scenario
+### 2. Install Kroxylicious Operator (proxy scenarios only)
+
+Skip this step for baseline scenarios. See [QUICKSTART.md](QUICKSTART.md) for detailed operator installation instructions.
+
+```bash
+gh release download v0.18.0 --repo kroxylicious/kroxylicious --pattern 'kroxylicious-operator-*.tar.gz'
+tar xzf kroxylicious-operator-*.tar.gz
+kubectl apply -f install/
+kubectl wait --for=condition=ready pod -l app=kroxylicious -n kroxylicious-operator --timeout=300s
+```
+
+### 3. Install Benchmark Scenario
 
 ```bash
 cd kroxylicious-openmessaging-benchmarks
 
-# Install Helm chart with baseline scenario (production durations: 15 min test + 5 min warmup)
-helm install benchmark ./helm/kroxylicious-benchmark \
-  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
-  -n kafka
+# Choose your scenario:
+SCENARIO=baseline-values              # Direct Kafka, no proxy
+# SCENARIO=proxy-no-filters-values    # Kroxylicious proxy, no filters
 
+# Install Helm chart with the configured scenario (production durations: 15 min test + 5 min warmup)
+helm install benchmark ./helm/kroxylicious-benchmark \
+  -n kafka \
+  -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml 
+  
 # Or for quick validation, add the smoke profile (1 min test, 1 broker, 2 workers):
 # helm install benchmark ./helm/kroxylicious-benchmark \
-#   -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
-#   -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
-#   -n kafka
+#   -n kafka \
+#   -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml \
+#   -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml 
 
 # Or for quick validation, add the smoke profile (1 min test, 1 broker, 1 worker):
 # helm install benchmark ./helm/kroxylicious-benchmark \
@@ -147,7 +173,7 @@ kubectl wait --for=condition=ready pod -l app=omb-worker --timeout=300s -n kafka
 kubectl wait --for=condition=ready pod -l app=omb-benchmark --timeout=300s -n kafka
 ```
 
-### 3. Run Benchmark
+### 4. Run Benchmark
 
 The `omb-benchmark` pod is ready for manual benchmark execution:
 
@@ -165,7 +191,7 @@ kubectl exec -it omb-benchmark -n kafka -- \
 # Results will be printed to console
 ```
 
-### 4. Cleanup
+### 5. Cleanup
 
 ```bash
 helm uninstall benchmark -n kafka
@@ -189,6 +215,7 @@ kafka:
 Or via `--set`:
 ```bash
 helm install benchmark ./helm/kroxylicious-benchmark \
+  -n kafka \
   --set kafka.version=4.1.1 \
   --set kafka.replicas=5 \
   --set kafka.replicationFactor=5 \
@@ -293,8 +320,8 @@ Tests use the following approach:
 
 ## Next Phases (Planned)
 
-**Phase 2: Proxy Scenarios**
-- No-filters (empty filter chain)
+**Phase 2: Proxy Scenarios** (partially complete)
+- ✅ No-filters (empty filter chain)
 - Encryption (RecordEncryption filter)
 - Encryption+Auth (RecordEncryption + Authorization filters)
 
