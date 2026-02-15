@@ -142,27 +142,20 @@ kubectl wait --for=condition=ready pod -l app=kroxylicious -n kroxylicious-opera
 ### 3. Install Benchmark Scenario
 
 ```bash
-cd kroxylicious-openmessaging-benchmarks
-
 # Choose your scenario:
 SCENARIO=baseline-values              # Direct Kafka, no proxy
 # SCENARIO=proxy-no-filters-values    # Kroxylicious proxy, no filters
 
 # Install Helm chart with the configured scenario (production durations: 15 min test + 5 min warmup)
-helm install benchmark ./helm/kroxylicious-benchmark \
+helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
   -n kafka \
-  -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml 
+  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml 
   
 # Or for quick validation, add the smoke profile (1 min test, 1 broker, 2 workers):
 # helm install benchmark ./helm/kroxylicious-benchmark \
 #   -n kafka \
-#   -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml \
-#   -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml 
-
-# Or for quick validation, add the smoke profile (1 min test, 1 broker, 1 worker):
-# helm install benchmark ./helm/kroxylicious-benchmark \
-#   -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
-#   -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml
+#   -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml \
+#   -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/smoke-values.yaml 
 
 # Wait for Kafka cluster to be ready
 kubectl wait kafka/kafka --for=condition=Ready --timeout=300s -n kafka
@@ -214,7 +207,7 @@ kafka:
 
 Or via `--set`:
 ```bash
-helm install benchmark ./helm/kroxylicious-benchmark \
+helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
   -n kafka \
   --set kafka.version=4.1.1 \
   --set kafka.replicas=5 \

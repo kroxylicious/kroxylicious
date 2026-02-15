@@ -52,15 +52,13 @@ kubectl wait --for=condition=ready pod -l app=kroxylicious -n kroxylicious-opera
 ### 4. Deploy Benchmark Infrastructure
 
 ```bash
-cd kroxylicious-openmessaging-benchmarks
-
 # Choose your scenario:
 SCENARIO=baseline-values              # Direct Kafka, no proxy
 # SCENARIO=proxy-no-filters-values    # Kroxylicious proxy, no filters
 
-helm install benchmark ./helm/kroxylicious-benchmark \
+helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
   -n kafka \
-  -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
+  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
 ```
 
 ### 5. Wait for Kafka to Start
@@ -126,10 +124,10 @@ SCENARIO=baseline-values              # Direct Kafka, no proxy
 # SCENARIO=proxy-no-filters-values    # Kroxylicious proxy, no filters
 
 # 10 topics workload
-helm upgrade benchmark ./helm/kroxylicious-benchmark \
+helm upgrade benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
   -n kafka \
   --set omb.workload=10topics-1kb \
-  -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
+  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
 
 # Wait for pods to restart
 kubectl rollout status statefulset/omb-worker -n kafka
@@ -178,9 +176,9 @@ kubectl delete pvc -l strimzi.io/cluster=kafka -n kafka
 kubectl get pvc -n kafka
 
 # Reinstall benchmark (use the SCENARIO you were using)
-helm install benchmark ./helm/kroxylicious-benchmark \
+helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
   -n kafka \
-  -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
+  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
 ```
 
 ## Troubleshooting
@@ -209,14 +207,14 @@ kubectl exec omb-benchmark -n kafka -- \
 
 ## Configuration
 
-Edit `helm/kroxylicious-benchmark/values.yaml` to change:
+Edit `kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/values.yaml` to change:
 - Kafka brokers: `kafka.replicas` (default: 3)
 - Benchmark duration: `benchmark.testDurationMinutes` (default: 5)
 - Worker count: `omb.workerReplicas` (default: 3)
 
 Then upgrade (use the `SCENARIO` you deployed with):
 ```bash
-helm upgrade benchmark ./helm/kroxylicious-benchmark \
+helm upgrade benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
   -n kafka \
-  -f ./helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
+  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
 ```
