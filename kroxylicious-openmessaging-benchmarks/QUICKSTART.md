@@ -124,6 +124,18 @@ Consume rate: 45,234 msg/s | 44.1 MB/s
 Pub Latency avg: 12.3ms | 95th: 28.5ms | 99th: 45.2ms
 ```
 
+### Save Results
+
+OMB writes JSON result files to the benchmark pod's working directory. Copy them off the pod before upgrading or uninstalling, as `helm upgrade` restarts pods and results are lost:
+
+```bash
+# Find the benchmark pod name
+BENCHMARK_COORDINATOR=$(kubectl get pod -l app=omb-benchmark -n kafka -o jsonpath='{.items[0].metadata.name}')
+
+# Copy result files to local machine
+kubectl cp ${BENCHMARK_COORDINATOR}:. ./results/ -n kafka
+```
+
 ### Switch to Different Workload
 
 To run a different workload, upgrade the Helm release with a different `omb.workload` value (use whichever scenario values file you deployed with):
