@@ -96,6 +96,16 @@ The benchmark pod has a `$WORKERS` environment variable pre-configured with all 
 
 The default workload is `1topic-1kb` (1 topic, 1KB messages, 5 minute test).
 
+### Verify Bootstrap Target
+
+OMB does not log the bootstrap servers it connects to. To confirm which scenario is active, check the driver ConfigMap:
+
+```bash
+kubectl get configmap omb-driver-baseline -n kafka -o jsonpath='{.data.driver-kafka\.yaml}' | grep bootstrap
+# baseline:  bootstrap.servers=kafka-kafka-bootstrap:9092
+# proxy:     bootstrap.servers=kafka-cluster-ip-bootstrap:9292
+```
+
 ### Run Default Benchmark
 
 ```bash
