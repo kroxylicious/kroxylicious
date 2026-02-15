@@ -132,7 +132,7 @@ class AllReconcilersIT {
                     return filter;
                 })),
                 argumentSet("filter with config that refs a configmap", (Function<TestActor, KafkaProtocolFilter>) (actor -> {
-                    // @formatter:off
+                // @formatter:off
                     var filterConfigMap = new ConfigMapBuilder()
                             .withNewMetadata()
                             .withName("filter-configmap")
@@ -197,7 +197,7 @@ class AllReconcilersIT {
         return Stream.of(
                 argumentSet("tls", (Function<TestActor, Tls>) (builder -> new Tls())),
                 argumentSet("tls with trust from secret", (Function<TestActor, Tls>) (actor -> {
-                    // @formatter:off
+                // @formatter:off
                     var trust = new SecretBuilder()
                             .withNewMetadata()
                                 .withName("upstream-trust")
