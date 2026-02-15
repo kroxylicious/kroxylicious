@@ -106,6 +106,16 @@ kubectl get configmap omb-driver-baseline -n kafka -o jsonpath='{.data.driver-ka
 # proxy:     bootstrap.servers=kafka-cluster-ip-bootstrap:9292
 ```
 
+### Verify Bootstrap Target
+
+OMB does not log the bootstrap servers it connects to. To confirm which scenario is active, check the driver ConfigMap:
+
+```bash
+kubectl get configmap omb-driver-baseline -n kafka -o jsonpath='{.data.driver-kafka\.yaml}' | grep bootstrap
+# baseline:  bootstrap.servers=kafka-kafka-bootstrap:9092
+# proxy:     bootstrap.servers=kafka-cluster-ip-bootstrap:9292
+```
+
 ### Run Default Benchmark
 
 ```bash
