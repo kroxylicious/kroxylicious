@@ -18,6 +18,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
+
 import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -217,32 +219,43 @@ public class HelmUtils {
     }
 
     /**
+     * Traverses a chain of nested maps, asserting that each key exists and its value
+     * is a non-null Map. Produces clear failure messages showing the key name and
+     * available keys at each level.
+     *
+     * @param parent the root map to start traversal from
+     * @param keys one or more keys to traverse in order
+     * @return the map found at the end of the key chain
+     */
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> getNestedMap(Map<String, Object> parent, String... keys) {
+        Map<String, Object> current = parent;
+        for (String key : keys) {
+            Map<?, ?> actual = assertThat(current)
+                    .as("Parent map should not be null when looking up key '%s'", key)
+                    .isNotNull()
+                    .as("Map should contain key '%s', but only has keys: %s", key, current.keySet())
+                    .containsKey(key)
+                    .extractingByKey(key, InstanceOfAssertFactories.MAP)
+                    .as("Value for key '%s' should not be null", key)
+                    .isNotNull()
+                    .actual();
+            current = (Map<String, Object>) actual;
+        }
+        return current;
+    }
+
+    /**
      * Gets the pod template spec from a Deployment.
      *
      * @param deployment Deployment resource
      * @return Pod template spec as a Map
      */
-    @SuppressWarnings("unchecked")
     public static Map<String, Object> getPodTemplateSpec(GenericKubernetesResource deployment) {
         assertThat(deployment).as("Deployment resource should not be null").isNotNull();
         assertThat(deployment.getKind()).as("Resource should be a Deployment").isEqualTo("Deployment");
 
-        Map<String, Object> spec = deployment.get("spec");
-        assertThat(spec)
-                .as("Deployment '%s' should have spec", deployment.getMetadata().getName())
-                .isNotNull();
-
-        Map<String, Object> template = (Map<String, Object>) spec.get("template");
-        assertThat(template)
-                .as("Deployment '%s' should have pod template", deployment.getMetadata().getName())
-                .isNotNull();
-
-        Map<String, Object> podSpec = (Map<String, Object>) template.get("spec");
-        assertThat(podSpec)
-                .as("Deployment '%s' template should have spec", deployment.getMetadata().getName())
-                .isNotNull();
-
-        return podSpec;
+        return getNestedMap(deployment.get("spec"), "template", "spec");
     }
 
     /**

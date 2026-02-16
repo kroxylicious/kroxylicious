@@ -75,7 +75,6 @@ class HelmTemplateRenderingTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void shouldRenderKafkaCustomResource() throws IOException {
         // When: Rendering templates and finding Kafka custom resource
         String yaml = HelmUtils.renderTemplate();
@@ -88,8 +87,7 @@ class HelmTemplateRenderingTest {
         assertThat(kafka.getApiVersion()).isEqualTo("kafka.strimzi.io/v1");
 
         // Verify version is set
-        Map<String, Object> spec = kafka.get("spec");
-        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
+        Map<String, Object> kafkaSpec = HelmUtils.getNestedMap(kafka.get("spec"), "kafka");
         assertThat(kafkaSpec)
                 .as("Kafka CR should have version specified")
                 .hasEntrySatisfying("version", v -> assertThat(v).isEqualTo(testKafkaVersion));
@@ -111,7 +109,6 @@ class HelmTemplateRenderingTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void shouldConfigureKafkaVersion() throws IOException {
         // When: Rendering templates and finding Kafka custom resource
         String yaml = HelmUtils.renderTemplate();
@@ -120,8 +117,7 @@ class HelmTemplateRenderingTest {
 
         // Then: Kafka CR should have version configured
         assertThat(kafka).isNotNull();
-        Map<String, Object> spec = kafka.get("spec");
-        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
+        Map<String, Object> kafkaSpec = HelmUtils.getNestedMap(kafka.get("spec"), "kafka");
         assertThat(kafkaSpec).as("Kafka CR should have version specified").containsEntry("version", testKafkaVersion);
     }
 
@@ -159,7 +155,6 @@ class HelmTemplateRenderingTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void shouldDefaultToProductionDurations() throws IOException {
         // When: Rendering templates with default values
         String yaml = HelmUtils.renderTemplate();
@@ -181,7 +176,6 @@ class HelmTemplateRenderingTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void shouldOverrideDurationsWithSmokeProfile() throws IOException {
         // Given: The smoke values file
         Path smokeValues = Paths.get("helm/kroxylicious-benchmark/scenarios/smoke-values.yaml").toAbsolutePath();
@@ -204,7 +198,6 @@ class HelmTemplateRenderingTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void shouldReduceInfrastructureForSmokeProfile() throws IOException {
         // Given: The smoke values file
         Path smokeValues = Paths.get("helm/kroxylicious-benchmark/scenarios/smoke-values.yaml").toAbsolutePath();
@@ -221,15 +214,13 @@ class HelmTemplateRenderingTest {
 
         GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
         assertThat(kafka).isNotNull();
-        Map<String, Object> spec = kafka.get("spec");
-        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
-        Map<String, Object> config = (Map<String, Object>) kafkaSpec.get("config");
-        assertThat(config)
+        Map<String, Object> kafkaConfig = HelmUtils.getNestedMap(kafka.get("spec"), "kafka", "config");
+        assertThat(kafkaConfig)
                 .as("Replication factor should be 1 for single-broker smoke test")
                 .containsEntry("default.replication.factor", 1)
                 .containsEntry("offsets.topic.replication.factor", 1)
                 .containsEntry("transaction.state.log.replication.factor", 1);
-        assertThat(config)
+        assertThat(kafkaConfig)
                 .as("Min ISR should be 1 for single-broker smoke test")
                 .containsEntry("min.insync.replicas", 1)
                 .containsEntry("transaction.state.log.min.isr", 1);
