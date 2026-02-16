@@ -9,6 +9,8 @@ package io.kroxylicious.proxy.internal;
 import java.util.Objects;
 import java.util.function.Function;
 
+import javax.net.ssl.SSLSession;
+
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -21,6 +23,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
@@ -161,7 +165,9 @@ public class ProxyChannelStateMachine {
     boolean serverReadsBlocked;
     @VisibleForTesting
     boolean clientReadsBlocked;
-
+    private final TransportSubjectBuilder transportSubjectBuilder;
+    private @Nullable ClientSubjectManager clientSubjectManager;
+    private int progressionLatch = -1;
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
      */
@@ -176,8 +182,10 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
-    public ProxyChannelStateMachine(EndpointBinding endpointBinding) {
+    public ProxyChannelStateMachine(EndpointBinding endpointBinding,
+                                    TransportSubjectBuilder transportSubjectBuilder) {
         this.endpointBinding = endpointBinding;
+        this.transportSubjectBuilder = transportSubjectBuilder;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
         kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
 
@@ -535,15 +543,48 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
+    public void onClientTlsHandshakeSuccess(SSLSession sslSession) {
+        if (Objects.nonNull(this.clientSubjectManager)) {
+            this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder, this::onTransportSubjectBuilt);
+        }
+    }
+
     @SuppressWarnings("java:S5738")
     private void toClientActive(
                                 ProxyChannelState.ClientActive clientActive,
                                 KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
+        this.clientSubjectManager = new ClientSubjectManager();
+        this.progressionLatch = 2; // we require two events before unblocking
+        if (!this.isTlsListener()) {
+            this.clientSubjectManager.subjectFromTransport(null, this.transportSubjectBuilder, this::onTransportSubjectBuilt);
+        }
         frontendHandler.inClientActive();
 
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
+    }
+
+    void onTransportSubjectBuilt() {
+        if (!authenticatedSubject().isAnonymous()) {
+            onSessionTransportAuthenticated();
+        }
+        maybeUnblock();
+    }
+
+    @NonNull
+    Subject authenticatedSubject() {
+        return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
+    }
+
+    private void maybeUnblock() {
+        if (--this.progressionLatch == 0) {
+            frontendHandler.unblockClient();
+        }
+    }
+
+    ClientSubjectManager clientSubjectManager() {
+        return clientSubjectManager;
     }
 
     @SuppressWarnings("java:S5738")
@@ -568,6 +609,8 @@ public class ProxyChannelStateMachine {
         setState(forwarding);
         kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).inForwarding();
+        // once buffered message has been forwarded we enable auto-read to start accepting further messages
+        maybeUnblock();
         proxyToServerConnectionToken.acquire();
     }
 

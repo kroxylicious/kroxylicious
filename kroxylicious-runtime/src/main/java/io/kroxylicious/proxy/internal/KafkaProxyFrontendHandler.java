@@ -89,7 +89,6 @@ public class KafkaProxyFrontendHandler
     private final EndpointReconciler endpointReconciler;
     private final DelegatingDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
-    private final TransportSubjectBuilder subjectBuilder;
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
     private final List<NamedFilterDefinition> namedFilterDefinitions;
@@ -109,9 +108,6 @@ public class KafkaProxyFrontendHandler
     // so we can perform the channelReadComplete()/outbound flush & auto_read
     // once the outbound channel is active
     private boolean pendingReadComplete = true;
-
-    private @Nullable ClientSubjectManager clientSubjectManager;
-    private int progressionLatch = -1;
 
     /**
      * @return the SSL session, or null if a session does not (currently) exist.
@@ -145,7 +141,6 @@ public class KafkaProxyFrontendHandler
         this.apiVersionsIntersectFilter = new ApiVersionsIntersectFilter(apiVersionsService);
         this.apiVersionsDowngradeFilter = new ApiVersionsDowngradeFilter(apiVersionsService);
         this.dp = dp;
-        this.subjectBuilder = Objects.requireNonNull(subjectBuilder);
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         authenticatedIdleTimeMillis = getAuthenticatedIdleMillis(proxyNettySettings);
     }
@@ -162,7 +157,6 @@ public class KafkaProxyFrontendHandler
                 + ", pendingClientFlushes=" + pendingClientFlushes
                 + ", sniHostname='" + sniHostname + '\''
                 + ", pendingReadComplete=" + pendingReadComplete
-                + ", blocked=" + progressionLatch
                 + '}';
     }
 
@@ -190,8 +184,8 @@ public class KafkaProxyFrontendHandler
             }
         }
         else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent
-                && handshakeCompletionEvent.isSuccess() && Objects.nonNull(this.clientSubjectManager)) {
-            this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder, this::onTransportSubjectBuilt);
+                && handshakeCompletionEvent.isSuccess()) {
+            this.proxyChannelStateMachine.onClientTlsHandshakeSuccess(sslSession());
         }
         else if (event instanceof IdleStateEvent idleStateEvent && idleStateEvent.state() == IdleState.ALL_IDLE) {
             // No traffic has been observed on the channel for the configured period
@@ -278,12 +272,6 @@ public class KafkaProxyFrontendHandler
     void inClientActive() {
         Channel clientChannel = clientCtx().channel();
         LOGGER.trace("{}: channelActive", clientChannel.id());
-        this.clientSubjectManager = new ClientSubjectManager();
-        this.progressionLatch = 2; // we require two events before unblocking
-        if (!this.proxyChannelStateMachine.isTlsListener()) {
-            this.clientSubjectManager.subjectFromTransport(null, this.subjectBuilder, this::onTransportSubjectBuilt);
-        }
-
         // install filters before first read
         List<FilterAndInvoker> filters = buildFilters();
         addFiltersToPipeline(filters, clientCtx().pipeline(), clientCtx().channel());
@@ -292,23 +280,6 @@ public class KafkaProxyFrontendHandler
         // Initially the channel is not auto reading
         clientChannel.config().setAutoRead(false);
         clientChannel.read();
-    }
-
-    private void onTransportSubjectBuilt() {
-        if (!Objects.requireNonNull(clientSubjectManager).authenticatedSubject().isAnonymous()) {
-            proxyChannelStateMachine.onSessionTransportAuthenticated();
-        }
-        maybeUnblock();
-    }
-
-    private void onReadyToForwardMore() {
-        maybeUnblock();
-    }
-
-    private void maybeUnblock() {
-        if (--this.progressionLatch == 0) {
-            unblockClient();
-        }
     }
 
     /**
@@ -488,8 +459,6 @@ public class KafkaProxyFrontendHandler
             channelReadComplete(this.clientCtx());
         }
 
-        // once buffered message has been forwarded we enable auto-read to start accepting further messages
-        onReadyToForwardMore();
     }
 
     /**
@@ -572,11 +541,11 @@ public class KafkaProxyFrontendHandler
                             sniHostname,
                             inboundChannel,
                             proxyChannelStateMachine,
-                            clientSubjectManager));
+                            proxyChannelStateMachine.clientSubjectManager()));
         }
     }
 
-    private void unblockClient() {
+    void unblockClient() {
         var inboundChannel = clientCtx().channel();
         inboundChannel.config().setAutoRead(true);
         proxyChannelStateMachine.onClientWritable();

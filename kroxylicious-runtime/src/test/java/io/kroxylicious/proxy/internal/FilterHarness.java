@@ -38,6 +38,7 @@ import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
@@ -93,7 +94,7 @@ public abstract class FilterHarness {
         when(gw.virtualCluster()).thenReturn(testVirtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(gw);
 
-        ProxyChannelStateMachine channelStateMachine = new ProxyChannelStateMachine(endpointBinding);
+        ProxyChannelStateMachine channelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
         var forwarding = new ProxyChannelState.Forwarding(null, null, null);
         channelStateMachine.forceState(
                 forwarding,
