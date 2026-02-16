@@ -92,7 +92,8 @@ kroxylicious-openmessaging-benchmarks/
 │       │       ├── workload-10topics-1kb.yaml
 │       │       └── workload-100topics-1kb.yaml
 │       └── scenarios/
-│           └── baseline-values.yaml
+│           ├── baseline-values.yaml
+│           └── smoke-values.yaml
 ```
 
 ## Prerequisites
@@ -101,7 +102,7 @@ kroxylicious-openmessaging-benchmarks/
 - `kubectl` configured to access the cluster
 - `helm` 3.0+
 - **Strimzi Kafka Operator** installed in the cluster
-- Sufficient resources: 8 CPU cores, 16GB RAM recommended
+- Sufficient resources: 8 CPU cores, 16GB RAM recommended (4 CPU, 8GB RAM with smoke profile)
 
 ## Quick Start
 
@@ -121,9 +122,14 @@ kubectl wait --for=condition=ready pod -l name=strimzi-cluster-operator -n kafka
 ```bash
 cd kroxylicious-openmessaging-benchmarks
 
-# Install Helm chart with baseline scenario
+# Install Helm chart with baseline scenario (production durations: 15 min test + 5 min warmup)
 helm install benchmark ./helm/kroxylicious-benchmark \
   -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml
+
+# Or for quick validation, add the smoke profile (1 min test, 1 broker, 1 worker):
+# helm install benchmark ./helm/kroxylicious-benchmark \
+#   -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+#   -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml
 
 # Wait for Kafka cluster to be ready
 kubectl wait kafka/kafka --for=condition=Ready --timeout=300s
@@ -196,14 +202,41 @@ omb:
   workload: 10topics-1kb  # or 100topics-1kb
 ```
 
-### Benchmark Duration
+### Benchmark Profiles
 
-Adjust test duration in `values.yaml`:
+The chart defaults to **production-quality durations** (15 min test, 5 min warmup) with 3 Kafka brokers and 3 OMB workers.
+At 50K msg/sec this produces ~45M samples, sufficient for reliable latency measurement up to p99.9.
 
-```yaml
-benchmark:
-  testDurationMinutes: 5
-  warmupDurationMinutes: 1
+For quick validation during development, layer the **smoke profile** on top of a scenario:
+
+```bash
+helm install benchmark ./helm/kroxylicious-benchmark \
+  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+  -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
+  -n kafka
+```
+
+| Setting | Production (default) | Smoke |
+|---------|---------------------|-------|
+| Test duration | 15 min | 1 min |
+| Warmup duration | 5 min | 30 sec |
+| Kafka brokers | 3 | 1 |
+| Replication factor | 3 | 1 |
+| OMB workers | 3 | 1 |
+| Kafka memory request | 2Gi | 1Gi |
+| OMB memory request | 2Gi | 1Gi |
+
+The smoke profile is **not suitable for performance measurement** — it exists only to verify
+deployment, connectivity, and workload execution.
+
+To override individual duration settings without using the smoke profile:
+
+```bash
+helm install benchmark ./helm/kroxylicious-benchmark \
+  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+  --set benchmark.testDurationMinutes=30 \
+  --set benchmark.warmupDurationMinutes=10 \
+  -n kafka
 ```
 
 ## Testing
@@ -236,8 +269,8 @@ Validates that Helm templates render correctly:
 - Valid Kubernetes resources are produced
 - Strimzi Kafka CR has correct default replica count (3)
 - Configurable broker replica counts (1, 3, 5)
-- Pod security context (runAsNonRoot)
-- Container security context (allowPrivilegeEscalation)
+- Default durations are production-quality (15 min test, 5 min warmup)
+- Smoke profile overrides durations and reduces infrastructure
 
 #### Helm Lint Test (`HelmLintTest`)
 Validates that the Helm chart passes linting with no warnings or errors.
