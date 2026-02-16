@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * producing or consuming messages through Kroxylicious
  */
 @Tag(EXTERNAL_KAFKA_CLIENTS)
-class NonJVMClientsST extends AbstractST {
+class NonJVMClientsST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(NonJVMClientsST.class);
     private final String clusterName = "non-jvm-clients-cluster";
     private static final String MESSAGE = "Hello-world";

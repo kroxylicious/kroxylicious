@@ -36,7 +36,7 @@ import static org.assertj.core.api.BDDAssumptions.given;
 /**
  * The Kroxylicious system tests.
  */
-class KroxyliciousST extends AbstractST {
+class KroxyliciousST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousST.class);
     private static Kroxylicious kroxylicious;
     private final String clusterName = "kroxylicious-st-cluster";

@@ -50,7 +50,6 @@ jobs:
         id: discover
         run: |
           TEST_CHUNKS="[$(find . -type f -name "*ST.java" -exec basename {} .java \; | tr ' ' , | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
-          TEST_CHUNKS=( "${TEST_CHUNKS[@]/AbstractST/}" )
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
 
   run_system_tests:
