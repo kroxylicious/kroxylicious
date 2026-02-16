@@ -59,7 +59,7 @@ jobs:
           java-version: ${{ matrix.java.version }}
           distribution: ${{ matrix.java.distro }}
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@b589f2d61bf96695c546929c72b38563e856059d
+        uses: manusa/actions-setup-minikube@8234275e0386fe1cdaf519d28c90f4f03fad89e4
         with:
           minikube version: 'v1.35.0'
           kubernetes version: 'v1.32.0'
