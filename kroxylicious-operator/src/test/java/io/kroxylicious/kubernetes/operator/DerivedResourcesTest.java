@@ -50,6 +50,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.FixedChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ClusterRouteDependentResource;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ClusterServiceDependentResource;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyConfigDependentResource;

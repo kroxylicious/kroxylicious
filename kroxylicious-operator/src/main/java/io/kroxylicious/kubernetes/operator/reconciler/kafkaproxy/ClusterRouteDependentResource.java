@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.kubernetes.operator;
+package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
 import java.util.Map;
 import java.util.Objects;
@@ -17,6 +17,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
@@ -28,7 +29,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 @KubernetesDependent
 public class ClusterRouteDependentResource
         extends CRUDKubernetesDependentResource<Route, KafkaProxy>
-        implements BulkDependentResource<Route, KafkaProxy> {
+        implements BulkDependentResource<Route, KafkaProxy, String> {
 
     public ClusterRouteDependentResource() {
         super(Route.class);
@@ -67,5 +68,10 @@ public class ClusterRouteDependentResource
         Set<Route> secondaryResources = context.eventSourceRetriever().getEventSourceFor(Route.class)
                 .getSecondaryResources(primary);
         return secondaryResources.stream().collect(toByNameMap());
+    }
+
+    @Override
+    public void deleteTargetResource(KafkaProxy primary, Route resource, String key, Context<KafkaProxy> context) {
+        context.getClient().resource(resource).delete();
     }
 }
