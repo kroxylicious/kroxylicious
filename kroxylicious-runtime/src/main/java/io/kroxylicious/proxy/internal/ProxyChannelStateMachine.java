@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 
 import javax.net.ssl.SSLSession;
@@ -23,6 +24,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -39,6 +41,7 @@ import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -99,6 +102,22 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class ProxyChannelStateMachine {
     private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "onInitiateConnect called more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
+
+    public Optional<ClientTlsContext> clientTlsContext() {
+        return clientSubjectManager.clientTlsContext();
+    }
+
+    public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
+        clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
+    }
+
+    public Optional<ClientSaslContext> clientSaslContext() {
+        return clientSubjectManager.clientSaslContext();
+    }
+
+    public void clientSaslAuthenticationFailure() {
+        clientSubjectManager.clientSaslAuthenticationFailure();
+    }
 
     /**
      * Enumeration of disconnect causes for tracking client to proxy disconnections.
@@ -166,7 +185,7 @@ public class ProxyChannelStateMachine {
     @VisibleForTesting
     boolean clientReadsBlocked;
     private final TransportSubjectBuilder transportSubjectBuilder;
-    private @Nullable ClientSubjectManager clientSubjectManager;
+    private final ClientSubjectManager clientSubjectManager = new ClientSubjectManager();
     private int progressionLatch = -1;
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
@@ -554,7 +573,7 @@ public class ProxyChannelStateMachine {
                                 ProxyChannelState.ClientActive clientActive,
                                 KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
-        this.clientSubjectManager = new ClientSubjectManager();
+
         this.progressionLatch = 2; // we require two events before unblocking
         if (!this.isTlsListener()) {
             this.clientSubjectManager.subjectFromTransport(null, this.transportSubjectBuilder, this::onTransportSubjectBuilt);
@@ -581,10 +600,6 @@ public class ProxyChannelStateMachine {
         if (--this.progressionLatch == 0) {
             frontendHandler.unblockClient();
         }
-    }
-
-    ClientSubjectManager clientSubjectManager() {
-        return clientSubjectManager;
     }
 
     @SuppressWarnings("java:S5738")

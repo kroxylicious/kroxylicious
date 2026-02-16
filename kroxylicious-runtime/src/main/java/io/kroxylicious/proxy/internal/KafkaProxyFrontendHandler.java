@@ -540,8 +540,7 @@ public class KafkaProxyFrontendHandler
                             20000,
                             sniHostname,
                             inboundChannel,
-                            proxyChannelStateMachine,
-                            proxyChannelStateMachine.clientSubjectManager()));
+                            proxyChannelStateMachine));
         }
     }
 

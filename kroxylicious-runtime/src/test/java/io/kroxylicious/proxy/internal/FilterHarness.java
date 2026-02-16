@@ -56,10 +56,11 @@ public abstract class FilterHarness {
     public static final String TEST_CLIENT = "test-client";
     public static final List<HostPort> TARGET_CLUSTER_BOOTSTRAP = List.of(HostPort.parse("targetCluster:9091"));
     protected EmbeddedChannel channel;
-    protected ClientSubjectManager clientSubjectManager;
+
     private final AtomicInteger outboundCorrelationId = new AtomicInteger(1);
     private final Map<Integer, Correlation> pendingInternalRequestMap = new HashMap<>();
     private long timeoutMs = 1000L;
+    ProxyChannelStateMachine proxyChannelStateMachine;
 
     /**
      * Sets the timeout for applied to the filters.
@@ -94,14 +95,13 @@ public abstract class FilterHarness {
         when(gw.virtualCluster()).thenReturn(testVirtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(gw);
 
-        ProxyChannelStateMachine channelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
+        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
         var forwarding = new ProxyChannelState.Forwarding(null, null, null);
-        channelStateMachine.forceState(
+        proxyChannelStateMachine.forceState(
                 forwarding,
                 mock(KafkaProxyFrontendHandler.class),
                 mock(KafkaProxyBackendHandler.class),
                 new KafkaSession(KafkaSessionState.ESTABLISHING));
-        clientSubjectManager = new ClientSubjectManager();
         var filterHandlers = Arrays.stream(filters)
                 .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addLast, (d1, d2) -> {
                     d2.addAll(d1);
@@ -109,8 +109,7 @@ public abstract class FilterHarness {
                 })) // reverses order
                 .stream()
                 .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, inboundChannel,
-                        channelStateMachine,
-                        clientSubjectManager))
+                        proxyChannelStateMachine))
 
                 .map(ChannelHandler.class::cast);
         var handlers = Stream.concat(filterHandlers, channelProcessors);
