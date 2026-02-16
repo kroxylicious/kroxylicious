@@ -18,8 +18,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.opentest4j.AssertionFailedError;
-
 import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -109,7 +107,7 @@ public class HelmUtils {
             executeCommand(List.of("helm", "version"));
             return true;
         }
-        catch (AssertionFailedError e) {
+        catch (AssertionError e) {
             return false;
         }
     }
@@ -143,11 +141,11 @@ public class HelmUtils {
             return output;
         }
         catch (IOException ioe) {
-            fail("Failed to execute command: %s" + String.join(" ", command), ioe);
+            fail("Failed to execute command: " + String.join(" ", command), ioe);
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            fail("Failed to execute command: %s" + String.join(" ", command), e);
+            fail("Failed to execute command: " + String.join(" ", command), e);
         }
         return null;
     }

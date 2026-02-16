@@ -45,7 +45,7 @@ public class SecureConfigInterpolator {
 
     private static final InterpolatedValue NULL_INTERPOLATED_VALUE = new InterpolatedValue(null, List.of());
 
-    static final SecureConfigInterpolator DEFAULT_INTERPOLATOR = new SecureConfigInterpolator("/opt/kroxylicious/secure", Map.<String, SecureConfigProvider> of(
+    public static final SecureConfigInterpolator DEFAULT_INTERPOLATOR = new SecureConfigInterpolator("/opt/kroxylicious/secure", Map.<String, SecureConfigProvider> of(
             "secret", MountedResourceConfigProvider.SECRET_PROVIDER,
             "configmap", MountedResourceConfigProvider.CONFIGMAP_PROVIDER));
 
@@ -57,7 +57,7 @@ public class SecureConfigInterpolator {
         this.mountPathBase = Path.of(mountPathBase);
     }
 
-    InterpolationResult interpolate(Object configTemplate) {
+    public InterpolationResult interpolate(Object configTemplate) {
         // use sets so that it doesn't matter is two providers require the same volume or mount (with exactly the same definition)
 
         var interpolated = interpolateValue(configTemplate);
@@ -161,11 +161,11 @@ public class SecureConfigInterpolator {
         return new InterpolatedValue(sb.toString(), containerFileReferences);
     }
 
-    record InterpolationResult(@Nullable Object config,
-                               Set<Volume> volumes,
-                               Set<VolumeMount> mounts) {
+    public record InterpolationResult(@Nullable Object config,
+                                      Set<Volume> volumes,
+                                      Set<VolumeMount> mounts) {
 
-        InterpolationResult {
+        public InterpolationResult {
             Objects.requireNonNull(volumes);
             Objects.requireNonNull(mounts);
         }

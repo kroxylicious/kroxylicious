@@ -29,7 +29,7 @@ import io.kroxylicious.proxy.config.ConfigParser;
 public class ProxyConfigStateData {
 
     public static final String CLUSTER_KEY_PREFIX = "cluster-";
-    static final ObjectMapper CONFIG_OBJECT_MAPPER = ConfigParser.createObjectMapper()
+    public static final ObjectMapper CONFIG_OBJECT_MAPPER = ConfigParser.createObjectMapper()
             .registerModule(new JavaTimeModule());
 
     private static String toYaml(Object filterDefs) {
@@ -90,7 +90,7 @@ public class ProxyConfigStateData {
         }
     }
 
-    Map<String, String> build() {
+    public Map<String, String> build() {
         return data;
     }
 
