@@ -88,8 +88,6 @@ public class KafkaProxyFrontendHandler
     private static final Long NO_TIMEOUT = null;
     private static final String AUTH_IDLE_HANDLER_NAME = "authenticatedSessionIdleHandler";
 
-    private final boolean logNetwork;
-    private final boolean logFrames;
     private final VirtualClusterModel virtualClusterModel;
     private final EndpointBinding endpointBinding;
     private final EndpointReconciler endpointReconciler;
@@ -156,8 +154,6 @@ public class KafkaProxyFrontendHandler
         this.subjectBuilder = Objects.requireNonNull(subjectBuilder);
         this.virtualClusterModel = endpointBinding.endpointGateway().virtualCluster();
         this.proxyChannelStateMachine = proxyChannelStateMachine;
-        this.logNetwork = virtualClusterModel.isLogNetwork();
-        this.logFrames = virtualClusterModel.isLogFrames();
         authenticatedIdleTimeMillis = getAuthenticatedIdleMillis(proxyNettySettings);
     }
 
@@ -413,7 +409,7 @@ public class KafkaProxyFrontendHandler
         // the reverse order, from first to last. This is the opposite of how we configure a server pipeline like we do in KafkaProxyInitializer where the channel
         // reads Kafka requests, as the message flows are reversed. This is also the opposite of the order that Filters are declared in the Kroxylicious configuration
         // file. The Netty Channel pipeline documentation provides an illustration https://netty.io/4.0/api/io/netty/channel/ChannelPipeline.html
-        if (logFrames) {
+        if (virtualClusterModel.isLogFrames()) {
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger", LogLevel.INFO));
         }
 
@@ -422,7 +418,7 @@ public class KafkaProxyFrontendHandler
 
         pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes(), decoderListener));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager, encoderListener));
-        if (logNetwork) {
+        if (virtualClusterModel.isLogNetwork()) {
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger", LogLevel.INFO));
         }
         virtualClusterModel.getUpstreamSslContext().ifPresent(sslContext -> {
