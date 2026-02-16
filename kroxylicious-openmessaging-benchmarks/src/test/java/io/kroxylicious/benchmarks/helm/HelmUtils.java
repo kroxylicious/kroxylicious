@@ -81,6 +81,19 @@ public class HelmUtils {
      * @return rendered template YAML
      */
     public static String renderTemplate(Map<String, String> setValues) {
+        return renderTemplate(List.of(), setValues);
+    }
+
+    /**
+     * Renders Helm templates with additional values files and --set overrides.
+     * Uses test-values.yaml as base, then applies additional values files in order,
+     * then applies --set overrides last (highest precedence).
+     *
+     * @param additionalValuesFiles Additional values files to layer on top of test-values.yaml
+     * @param setValues Map of key-value pairs to pass as --set arguments
+     * @return rendered template YAML
+     */
+    public static String renderTemplate(List<Path> additionalValuesFiles, Map<String, String> setValues) {
         List<String> command = new ArrayList<>();
         command.add("helm");
         command.add("template");
@@ -88,6 +101,11 @@ public class HelmUtils {
         command.add(HELM_CHART_DIR.toString());
         command.add("-f");
         command.add(TEST_VALUES_FILE.toString());
+
+        for (Path valuesFile : additionalValuesFiles) {
+            command.add("-f");
+            command.add(valuesFile.toString());
+        }
 
         for (Map.Entry<String, String> entry : setValues.entrySet()) {
             command.add("--set");

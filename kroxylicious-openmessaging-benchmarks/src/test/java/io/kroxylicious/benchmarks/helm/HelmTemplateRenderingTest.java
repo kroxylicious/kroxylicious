@@ -8,6 +8,7 @@ package io.kroxylicious.benchmarks.helm;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -177,6 +178,29 @@ class HelmTemplateRenderingTest {
         assertThat(workloadYaml)
                 .as("Default warmup duration should be 5 minutes")
                 .contains("warmupDurationMinutes: 5");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldOverrideDurationsWithSmokeProfile() throws IOException {
+        // Given: The smoke values file
+        Path smokeValues = Paths.get("helm/kroxylicious-benchmark/scenarios/smoke-values.yaml").toAbsolutePath();
+
+        // When: Rendering templates with smoke profile layered on top
+        String yaml = HelmUtils.renderTemplate(List.of(smokeValues), Map.of());
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource workloadConfigMap = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-workload-1topic-1kb");
+
+        // Then: Workload should have smoke test durations
+        assertThat(workloadConfigMap).as("Workload ConfigMap should exist").isNotNull();
+        Map<String, Object> data = workloadConfigMap.get("data");
+        String workloadYaml = (String) data.get("workload.yaml");
+        assertThat(workloadYaml)
+                .as("Smoke test duration should be 1 minute")
+                .contains("testDurationMinutes: 1");
+        assertThat(workloadYaml)
+                .as("Smoke warmup duration should be 0.5 minutes")
+                .contains("warmupDurationMinutes: 0.5");
     }
 
     @Test

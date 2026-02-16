@@ -1,0 +1,19 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Smoke Test Profile: Quick validation that the benchmark pipeline works end-to-end.
+#
+# NOT for performance measurement — durations are too short for statistically meaningful
+# latency data. Use this to verify deployment, connectivity, and workload execution.
+#
+# Usage:
+#   helm install benchmark ./helm/kroxylicious-benchmark \
+#     -f scenarios/baseline-values.yaml \
+#     -f scenarios/smoke-values.yaml
+
+benchmark:
+  testDurationMinutes: 1
+  warmupDurationMinutes: 0.5
