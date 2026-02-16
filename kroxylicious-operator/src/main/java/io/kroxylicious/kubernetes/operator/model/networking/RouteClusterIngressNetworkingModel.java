@@ -96,24 +96,26 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     private RouteBuilder createRoute(ObjectMetaBuilder metadataBuilder, String subdomain) {
+        // @formatter:off
         return new RouteBuilder()
                 .withMetadata(metadataBuilder.build())
                 .editMetadata()
-                .withName(subdomain)
+                    .withName(subdomain)
                 .endMetadata()
                 .withNewSpec()
-                .withSubdomain(subdomain)
-                .withNewPort()
-                .withNewTargetPort(CLUSTER_IP_PORT)
+                    .withSubdomain(subdomain)
+                    .withNewPort()
+                    .withNewTargetPort(CLUSTER_IP_PORT)
                 .endPort()
                 .withNewTls()
-                .withTermination("passthrough")
+                    .withTermination("passthrough")
                 .endTls()
                 .withNewTo()
-                .withKind("Service")
-                .withName(bootstrapServiceName())
+                    .withKind("Service")
+                    .withName(bootstrapServiceName())
                 .endTo()
                 .endSpec();
+        // @formatter:on
     }
 
     private ObjectMetaBuilder baseMetadataBuilder() {
