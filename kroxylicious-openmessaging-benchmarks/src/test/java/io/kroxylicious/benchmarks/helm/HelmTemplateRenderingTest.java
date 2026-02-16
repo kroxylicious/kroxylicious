@@ -158,6 +158,28 @@ class HelmTemplateRenderingTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void shouldDefaultToProductionDurations() throws IOException {
+        // When: Rendering templates with default values
+        String yaml = HelmUtils.renderTemplate();
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource workloadConfigMap = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-workload-1topic-1kb");
+
+        // Then: Workload should have production-quality durations (reliable up to p99.9)
+        assertThat(workloadConfigMap).as("Workload ConfigMap should exist").isNotNull();
+        Map<String, Object> data = workloadConfigMap.get("data");
+        assertThat(data).isNotNull();
+
+        String workloadYaml = (String) data.get("workload.yaml");
+        assertThat(workloadYaml)
+                .as("Default test duration should be 15 minutes (sufficient for p99.9)")
+                .contains("testDurationMinutes: 15");
+        assertThat(workloadYaml)
+                .as("Default warmup duration should be 5 minutes")
+                .contains("warmupDurationMinutes: 5");
+    }
+
+    @Test
     void shouldFormatWorkerUrlsCorrectly() throws IOException {
         // When: Rendering templates with 3 workers
         String yaml = HelmUtils.renderTemplate(Map.of("omb.workerReplicas", "3"));

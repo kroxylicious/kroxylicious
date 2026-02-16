@@ -65,6 +65,8 @@ omb:
       cpu: "1000m"
 
 # Benchmark configuration
+# Defaults are production-quality: 15 min test + 5 min warmup gives reliable p99.9 latency
+# at 50K msg/sec (~45M samples). Use scenarios/smoke-values.yaml for quick validation.
 benchmark:
-  testDurationMinutes: 5
-  warmupDurationMinutes: 1
+  testDurationMinutes: 15
+  warmupDurationMinutes: 5
