@@ -570,7 +570,6 @@ public class KafkaProxyFrontendHandler
                             protocolFilter,
                             20000,
                             sniHostname,
-                            proxyChannelStateMachine.virtualCluster(),
                             inboundChannel,
                             proxyChannelStateMachine,
                             clientSubjectManager));
