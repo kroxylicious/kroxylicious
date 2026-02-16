@@ -16,17 +16,7 @@
 #
 
 name: "Setup Minikube"
-description: "Installs minikube and configures cluster"
-
-inputs:
-  kubectlVersion:
-    description: "Kubernetes CLI version to install"
-    required: false
-    default: "v1.35.0"
-  minikubeVersion:
-    description: "Minikube version to install"
-    required: false
-    default: "v1.38.0"
+description: "Installs minikube"
 
 runs:
   using: "composite"
@@ -34,7 +24,7 @@ runs:
     - name: Setup Minikube
       uses: manusa/actions-setup-minikube@b589f2d61bf96695c546929c72b38563e856059d
       with:
-        "minikube version": ${{ inputs.minikubeVersion }}
-        "kubernetes version": ${{ inputs.kubectlVersion }}
+        "minikube version": "v1.38.0"
+        "kubernetes version": "v1.35.0"
         "github token": ${{ secrets.GITHUB_TOKEN }}
         driver: docker
