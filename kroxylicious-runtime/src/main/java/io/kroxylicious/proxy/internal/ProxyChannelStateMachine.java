@@ -553,7 +553,7 @@ public class ProxyChannelStateMachine {
                               ProxyChannelState.Connecting connecting,
                               VirtualClusterModel virtualClusterModel) {
         setState(connecting);
-        backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
+        backendHandler = new KafkaProxyBackendHandler(this);
         Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()

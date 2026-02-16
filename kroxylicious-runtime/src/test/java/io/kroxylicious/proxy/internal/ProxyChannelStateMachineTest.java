@@ -35,6 +35,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.micrometer.core.instrument.Metrics;
@@ -431,7 +432,7 @@ class ProxyChannelStateMachineTest {
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateMachineInSelectingServer();
         var vc = mock(VirtualClusterModel.class);
-        doReturn(configureSsl ? Optional.of(SslContextBuilder.forClient().build()) : Optional.empty()).when(vc).getUpstreamSslContext();
+        Mockito.lenient().doReturn(configureSsl ? Optional.of(SslContextBuilder.forClient().build()) : Optional.empty()).when(vc).getUpstreamSslContext();
 
         // When
         proxyChannelStateMachine.onInitiateConnect(brokerAddress, vc);
