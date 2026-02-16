@@ -74,16 +74,16 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Mock(strictness = Mock.Strictness.LENIENT)
     VirtualClusterModel virtualCluster;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     EndpointBinding endpointBinding;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     EndpointGateway endpointGateway;
 
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     ChannelHandlerContext clientCtx;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     ProxyChannelStateMachine proxyChannelStateMachine;
     private KafkaProxyFrontendHandler handler;
 
@@ -91,6 +91,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     void setUp() {
         when(endpointGateway.virtualCluster()).thenReturn(virtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
+        when(proxyChannelStateMachine.endpointBinding()).thenReturn(endpointBinding);
+        when(proxyChannelStateMachine.virtualCluster()).thenReturn(virtualCluster);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -99,7 +101,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                endpointBinding,
                 proxyChannelStateMachine,
                 Optional.empty());
 
@@ -235,7 +236,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                endpointBinding,
                 proxyChannelStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
@@ -266,7 +266,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                endpointBinding,
                 proxyChannelStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
@@ -298,7 +297,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 subjectBuilder,
-                endpointBinding,
                 proxyChannelStateMachine,
                 Optional.empty());
 

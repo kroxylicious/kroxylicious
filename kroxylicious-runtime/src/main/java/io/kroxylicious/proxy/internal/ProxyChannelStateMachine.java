@@ -26,6 +26,8 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -138,28 +140,11 @@ public class ProxyChannelStateMachine {
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
+    private final EndpointBinding endpointBinding;
+
     @NonNull
     // Ideally this would be final, however that breaks forceState which is used heavily in testing.
     private KafkaSession kafkaSession;
-
-    @SuppressWarnings("java:S5738")
-    public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
-        VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
-        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-
-        // Connection metrics
-        clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
-        clientToProxyDisconnectsIdleCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.IDLE_TIMEOUT.label()).withTags();
-        clientToProxyDisconnectsClientClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.CLIENT_CLOSED.label()).withTags();
-        clientToProxyDisconnectsServerClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.SERVER_CLOSED.label()).withTags();
-        clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
-        proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
-        proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
-        serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
-        clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
-        clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
-        proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
-    }
 
     /**
      * The current state. This can be changed via a call to one of the {@code on*()} methods.
@@ -191,6 +176,28 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
+    public ProxyChannelStateMachine(EndpointBinding endpointBinding) {
+        this.endpointBinding = endpointBinding;
+        var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
+        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+
+        var nodeId = endpointBinding.nodeId();
+        String clusterName = virtualCluster.getClusterName();
+        VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
+        // Connection metrics
+        clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
+        clientToProxyDisconnectsIdleCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.IDLE_TIMEOUT.label()).withTags();
+        clientToProxyDisconnectsClientClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.CLIENT_CLOSED.label()).withTags();
+        clientToProxyDisconnectsServerClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.SERVER_CLOSED.label()).withTags();
+        clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
+        proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
+        proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
+        serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
+        clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
+        clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
+        proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
+    }
+
     ProxyChannelState state() {
         return state;
     }
@@ -221,6 +228,30 @@ public class ProxyChannelStateMachine {
 
     public String currentState() {
         return this.state().getClass().getSimpleName();
+    }
+
+    Integer nodeId() {
+        return endpointBinding.nodeId();
+    }
+
+    String clusterName() {
+        return virtualCluster().getClusterName();
+    }
+
+    EndpointBinding endpointBinding() {
+        return endpointBinding;
+    }
+
+    EndpointGateway endpointGateway() {
+        return endpointBinding.endpointGateway();
+    }
+
+    VirtualClusterModel virtualCluster() {
+        return endpointBinding.endpointGateway().virtualCluster();
+    }
+
+    boolean isTlsListener() {
+        return endpointBinding.endpointGateway().isUseTls();
     }
 
     /**
@@ -454,7 +485,8 @@ public class ProxyChannelStateMachine {
      * @param cause the exception that triggered the issue
      */
     @SuppressWarnings("java:S5738")
-    void onClientException(@Nullable Throwable cause, boolean tlsEnabled) {
+    void onClientException(@Nullable Throwable cause) {
+        var tlsEnabled = endpointGateway().getDownstreamSslContext().isPresent();
         ApiException errorCodeEx;
         if (cause instanceof DecoderException de
                 && de.getCause() instanceof FrameOversizedException e) {

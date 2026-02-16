@@ -36,6 +36,8 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
@@ -85,7 +87,13 @@ public abstract class FilterHarness {
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new CorrelationIdIssuer(), new InternalRequestTracker());
 
-        ProxyChannelStateMachine channelStateMachine = new ProxyChannelStateMachine(testVirtualCluster.getClusterName(), null);
+        var endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.nodeId()).thenReturn(0);
+        var gw = mock(EndpointGateway.class);
+        when(gw.virtualCluster()).thenReturn(testVirtualCluster);
+        when(endpointBinding.endpointGateway()).thenReturn(gw);
+
+        ProxyChannelStateMachine channelStateMachine = new ProxyChannelStateMachine(endpointBinding);
         var forwarding = new ProxyChannelState.Forwarding(null, null, null);
         channelStateMachine.forceState(
                 forwarding,

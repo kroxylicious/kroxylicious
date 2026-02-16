@@ -63,10 +63,8 @@ import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
-import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -88,8 +86,6 @@ public class KafkaProxyFrontendHandler
     private static final Long NO_TIMEOUT = null;
     private static final String AUTH_IDLE_HANDLER_NAME = "authenticatedSessionIdleHandler";
 
-    private final VirtualClusterModel virtualClusterModel;
-    private final EndpointBinding endpointBinding;
     private final EndpointReconciler endpointReconciler;
     private final DelegatingDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
@@ -140,10 +136,8 @@ public class KafkaProxyFrontendHandler
                               ApiVersionsServiceImpl apiVersionsService,
                               DelegatingDecodePredicate dp,
                               TransportSubjectBuilder subjectBuilder,
-                              EndpointBinding endpointBinding,
                               ProxyChannelStateMachine proxyChannelStateMachine,
                               Optional<NettySettings> proxyNettySettings) {
-        this.endpointBinding = endpointBinding;
         this.pfr = pfr;
         this.filterChainFactory = filterChainFactory;
         this.namedFilterDefinitions = namedFilterDefinitions;
@@ -152,7 +146,6 @@ public class KafkaProxyFrontendHandler
         this.apiVersionsDowngradeFilter = new ApiVersionsDowngradeFilter(apiVersionsService);
         this.dp = dp;
         this.subjectBuilder = Objects.requireNonNull(subjectBuilder);
-        this.virtualClusterModel = endpointBinding.endpointGateway().virtualCluster();
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         authenticatedIdleTimeMillis = getAuthenticatedIdleMillis(proxyNettySettings);
     }
@@ -287,7 +280,7 @@ public class KafkaProxyFrontendHandler
         LOGGER.trace("{}: channelActive", clientChannel.id());
         this.clientSubjectManager = new ClientSubjectManager();
         this.progressionLatch = 2; // we require two events before unblocking
-        if (!this.endpointBinding.endpointGateway().isUseTls()) {
+        if (!this.proxyChannelStateMachine.isTlsListener()) {
             this.clientSubjectManager.subjectFromTransport(null, this.subjectBuilder, this::onTransportSubjectBuilt);
         }
 
@@ -322,7 +315,7 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link SelectingServer} state.
      */
     void inSelectingServer() {
-        var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
+        var target = Objects.requireNonNull(proxyChannelStateMachine.endpointBinding().upstreamTarget());
         initiateConnect(target);
     }
 
@@ -336,12 +329,12 @@ public class KafkaProxyFrontendHandler
         List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
         filterAndInvokers.addAll(filterChain);
 
-        if (endpointBinding.restrictUpstreamToMetadataDiscovery()) {
+        if (proxyChannelStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()) {
             filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
         }
-        filterAndInvokers.addAll(FilterAndInvoker.build("VirtualCluster TopicNameCache (internal)", virtualClusterModel.getTopicNameCacheFilter()));
+        filterAndInvokers.addAll(FilterAndInvoker.build("VirtualCluster TopicNameCache (internal)", proxyChannelStateMachine.virtualCluster().getTopicNameCacheFilter()));
         List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)",
-                new BrokerAddressFilter(endpointBinding.endpointGateway(), endpointReconciler));
+                new BrokerAddressFilter(proxyChannelStateMachine.endpointGateway(), endpointReconciler));
         filterAndInvokers.addAll(brokerAddressFilters);
 
         return filterAndInvokers;
@@ -365,7 +358,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        proxyChannelStateMachine.onClientException(cause, endpointBinding.endpointGateway().getDownstreamSslContext().isPresent());
+        proxyChannelStateMachine.onClientException(cause);
     }
 
     /**
@@ -381,7 +374,7 @@ public class KafkaProxyFrontendHandler
             LOGGER.debug("{}: Connecting to backend broker {}",
                     this.proxyChannelStateMachine.sessionId(), remote);
         }
-        this.proxyChannelStateMachine.onInitiateConnect(remote, virtualClusterModel);
+        this.proxyChannelStateMachine.onInitiateConnect(remote, proxyChannelStateMachine.virtualCluster());
     }
 
     /**
@@ -409,19 +402,20 @@ public class KafkaProxyFrontendHandler
         // the reverse order, from first to last. This is the opposite of how we configure a server pipeline like we do in KafkaProxyInitializer where the channel
         // reads Kafka requests, as the message flows are reversed. This is also the opposite of the order that Filters are declared in the Kroxylicious configuration
         // file. The Netty Channel pipeline documentation provides an illustration https://netty.io/4.0/api/io/netty/channel/ChannelPipeline.html
-        if (virtualClusterModel.isLogFrames()) {
+        if (proxyChannelStateMachine.virtualCluster().isLogFrames()) {
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger", LogLevel.INFO));
         }
 
         var encoderListener = buildMetricsMessageListenerForEncode();
         var decoderListener = buildMetricsMessageListenerForDecode();
 
-        pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes(), decoderListener));
+        pipeline.addFirst("responseDecoder",
+                new KafkaResponseDecoder(correlationManager, proxyChannelStateMachine.virtualCluster().socketFrameMaxSizeBytes(), decoderListener));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager, encoderListener));
-        if (virtualClusterModel.isLogNetwork()) {
+        if (proxyChannelStateMachine.virtualCluster().isLogNetwork()) {
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger", LogLevel.INFO));
         }
-        virtualClusterModel.getUpstreamSslContext().ifPresent(sslContext -> {
+        proxyChannelStateMachine.virtualCluster().getUpstreamSslContext().ifPresent(sslContext -> {
             final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
             pipeline.addFirst("ssl", handler);
         });
@@ -441,8 +435,8 @@ public class KafkaProxyFrontendHandler
     }
 
     private MetricEmittingKafkaMessageListener buildMetricsMessageListenerForEncode() {
-        var clusterName = this.virtualClusterModel.getClusterName();
-        var nodeId = endpointBinding.nodeId();
+        var clusterName = this.proxyChannelStateMachine.clusterName();
+        var nodeId = proxyChannelStateMachine.nodeId();
         var proxyToServerMessageCounterProvider = Metrics.proxyToServerMessageCounterProvider(clusterName, nodeId);
         var proxyToServerMessageSizeDistributionProvider = Metrics.proxyToServerMessageSizeDistributionProvider(clusterName,
                 nodeId);
@@ -450,8 +444,8 @@ public class KafkaProxyFrontendHandler
     }
 
     private KafkaMessageListener buildMetricsMessageListenerForDecode() {
-        var clusterName = virtualClusterModel.getClusterName();
-        var nodeId = endpointBinding.nodeId();
+        var clusterName = proxyChannelStateMachine.clusterName();
+        var nodeId = proxyChannelStateMachine.nodeId();
         var serverToProxyMessageCounterProvider = Metrics.serverToProxyMessageCounterProvider(clusterName, nodeId);
 
         var serverToProxyMessageSizeDistributionProvider = Metrics.serverToProxyMessageSizeDistributionProvider(clusterName,
@@ -576,7 +570,7 @@ public class KafkaProxyFrontendHandler
                             protocolFilter,
                             20000,
                             sniHostname,
-                            virtualClusterModel,
+                            proxyChannelStateMachine.virtualCluster(),
                             inboundChannel,
                             proxyChannelStateMachine,
                             clientSubjectManager));

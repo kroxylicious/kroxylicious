@@ -47,6 +47,7 @@ import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
+import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -54,6 +55,8 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -90,6 +93,11 @@ class ProxyChannelStateMachineTest {
     private ProxyChannelStateMachine proxyChannelStateMachine;
 
     @Mock
+    private EndpointBinding endpointBinding;
+    @Mock
+    private EndpointGateway endpointGateway;
+
+    @Mock
     private KafkaProxyBackendHandler backendHandler;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
@@ -100,7 +108,10 @@ class ProxyChannelStateMachineTest {
     void setUp() {
         simpleMeterRegistry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(simpleMeterRegistry);
-        proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
+        when(endpointBinding.nodeId()).thenReturn(null);
+        when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
+        when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
+        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding);
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
     }
 
@@ -134,7 +145,7 @@ class ProxyChannelStateMachineTest {
         givenState.run();
 
         // When
-        proxyChannelStateMachine.onClientException(failure, tlsEnabled);
+        proxyChannelStateMachine.onClientException(failure);
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_errors").counter())
@@ -239,8 +250,10 @@ class ProxyChannelStateMachineTest {
         stateMachineInForwarding();
         RuntimeException cause = new RuntimeException("Oops!");
 
+        useDownstreamSsl();
+
         // When
-        proxyChannelStateMachine.onClientException(cause, true);
+        proxyChannelStateMachine.onClientException(cause);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
@@ -248,14 +261,20 @@ class ProxyChannelStateMachineTest {
         verify(frontendHandler).inClosed(ArgumentMatchers.notNull(UnknownServerException.class));
     }
 
+    private void useDownstreamSsl() {
+        SslContext mock = mock(SslContext.class);
+        when(proxyChannelStateMachine.endpointGateway().getDownstreamSslContext()).thenReturn(Optional.of(mock));
+    }
+
     @Test
     void shouldCloseOnClientFrameOversizedException() {
         // Given
         stateMachineInForwarding();
         RuntimeException cause = new DecoderException(new FrameOversizedException(2, 1));
+        useDownstreamSsl();
 
         // When
-        proxyChannelStateMachine.onClientException(cause, true);
+        proxyChannelStateMachine.onClientException(cause);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
@@ -620,9 +639,12 @@ class ProxyChannelStateMachineTest {
         doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler)
                 .inClosed(expectedException);
         doNothing().when(backendHandler).inClosed();
+        if (tlsEnabled) {
+            useDownstreamSsl();
+        }
 
         // When
-        proxyChannelStateMachine.onClientException(illegalStateException, tlsEnabled);
+        proxyChannelStateMachine.onClientException(illegalStateException);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
@@ -924,7 +946,7 @@ class ProxyChannelStateMachineTest {
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
 
         // When
-        proxyChannelStateMachine.onClientException(new RuntimeException("test exception"), false);
+        proxyChannelStateMachine.onClientException(new RuntimeException("test exception"));
 
         // Then
         assertThat(getVirtualNodeClientToProxyActiveConnections())
@@ -1085,7 +1107,7 @@ class ProxyChannelStateMachineTest {
             stateMachineInForwarding();
 
             // When - error causes disconnect
-            proxyChannelStateMachine.onClientException(new RuntimeException("test error"), false);
+            proxyChannelStateMachine.onClientException(new RuntimeException("test error"));
 
             // Then - client_closed disconnect counter should not be incremented
             assertThat(simpleMeterRegistry.counter("kroxylicious_client_to_proxy_disconnects",
