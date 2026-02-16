@@ -27,8 +27,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRo
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
-import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.service.HostPort;
