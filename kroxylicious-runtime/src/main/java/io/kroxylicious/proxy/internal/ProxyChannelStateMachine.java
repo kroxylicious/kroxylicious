@@ -327,13 +327,11 @@ public class ProxyChannelStateMachine {
     /**
      * Notify the statemachine that the connection to the backend has started.
      * @param peer the upstream host to connect to.
-     * @param virtualClusterModel the virtual cluster the client is connecting too
      */
     void onInitiateConnect(
-                           HostPort peer,
-                           VirtualClusterModel virtualClusterModel) {
+                           HostPort peer) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
-            toConnecting(selectingServerState.toConnecting(peer), virtualClusterModel);
+            toConnecting(selectingServerState.toConnecting(peer), virtualCluster());
         }
         else {
             illegalState(DUPLICATE_INITIATE_CONNECT_ERROR);

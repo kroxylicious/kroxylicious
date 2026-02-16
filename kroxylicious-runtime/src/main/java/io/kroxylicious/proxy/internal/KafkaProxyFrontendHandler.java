@@ -374,7 +374,7 @@ public class KafkaProxyFrontendHandler
             LOGGER.debug("{}: Connecting to backend broker {}",
                     this.proxyChannelStateMachine.sessionId(), remote);
         }
-        this.proxyChannelStateMachine.onInitiateConnect(remote, proxyChannelStateMachine.virtualCluster());
+        this.proxyChannelStateMachine.onInitiateConnect(remote);
     }
 
     /**

@@ -69,7 +69,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -179,7 +178,7 @@ class ProxyChannelStateMachineTest {
         stateMachineInSelectingServer();
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(HostPort.parse("localhost:9090"), VIRTUAL_CLUSTER_MODEL);
+        proxyChannelStateMachine.onInitiateConnect(HostPort.parse("localhost:9090"));
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
@@ -435,7 +434,7 @@ class ProxyChannelStateMachineTest {
         Mockito.lenient().doReturn(configureSsl ? Optional.of(SslContextBuilder.forClient().build()) : Optional.empty()).when(vc).getUpstreamSslContext();
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(brokerAddress, vc);
+        proxyChannelStateMachine.onInitiateConnect(brokerAddress);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -449,10 +448,9 @@ class ProxyChannelStateMachineTest {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateMachineInClientActive();
-        var vc = mock(VirtualClusterModel.class);
 
         // When
-        proxyChannelStateMachine.onInitiateConnect(brokerAddress, vc);
+        proxyChannelStateMachine.onInitiateConnect(brokerAddress);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -466,10 +464,8 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInConnecting();
 
-        var vc = mock(VirtualClusterModel.class);
-
         // When
-        proxyChannelStateMachine.onInitiateConnect(BROKER_ADDRESS, vc);
+        proxyChannelStateMachine.onInitiateConnect(BROKER_ADDRESS);
 
         // Then
         assertThat(proxyChannelStateMachine.state())
