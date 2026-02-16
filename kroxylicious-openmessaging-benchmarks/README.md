@@ -124,7 +124,14 @@ cd kroxylicious-openmessaging-benchmarks
 
 # Install Helm chart with baseline scenario (production durations: 15 min test + 5 min warmup)
 helm install benchmark ./helm/kroxylicious-benchmark \
-  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml
+  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+  -n kafka
+
+# Or for quick validation, add the smoke profile (1 min test, 1 broker, 1 worker):
+# helm install benchmark ./helm/kroxylicious-benchmark \
+#   -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+#   -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
+#   -n kafka
 
 # Or for quick validation, add the smoke profile (1 min test, 1 broker, 1 worker):
 # helm install benchmark ./helm/kroxylicious-benchmark \
@@ -132,12 +139,12 @@ helm install benchmark ./helm/kroxylicious-benchmark \
 #   -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml
 
 # Wait for Kafka cluster to be ready
-kubectl wait kafka/kafka --for=condition=Ready --timeout=300s
+kubectl wait kafka/kafka --for=condition=Ready --timeout=300s -n kafka
 
 # Wait for all pods to be ready
-kubectl wait --for=condition=ready pod -l strimzi.io/cluster=kafka --timeout=300s
-kubectl wait --for=condition=ready pod -l app=omb-worker --timeout=300s
-kubectl wait --for=condition=ready pod -l app=omb-benchmark --timeout=300s
+kubectl wait --for=condition=ready pod -l strimzi.io/cluster=kafka --timeout=300s -n kafka
+kubectl wait --for=condition=ready pod -l app=omb-worker --timeout=300s -n kafka
+kubectl wait --for=condition=ready pod -l app=omb-benchmark --timeout=300s -n kafka
 ```
 
 ### 3. Run Benchmark
@@ -149,7 +156,7 @@ The `omb-benchmark` pod is ready for manual benchmark execution:
 WORKERS="omb-worker-0.omb-worker:8080,omb-worker-1.omb-worker:8080,omb-worker-2.omb-worker:8080"
 
 # Run benchmark (1 topic workload)
-kubectl exec -it omb-benchmark -- \
+kubectl exec -it omb-benchmark -n kafka -- \
   bin/benchmark \
   --drivers /config/driver-kafka.yaml \
   --workers $WORKERS \
@@ -161,8 +168,8 @@ kubectl exec -it omb-benchmark -- \
 ### 4. Cleanup
 
 ```bash
-helm uninstall benchmark
-kubectl delete pvc -l strimzi.io/cluster=kafka  # Clean up persistent volumes
+helm uninstall benchmark -n kafka
+kubectl delete pvc -l strimzi.io/cluster=kafka -n kafka  # Clean up persistent volumes
 ```
 
 ## Configuration
@@ -185,7 +192,8 @@ helm install benchmark ./helm/kroxylicious-benchmark \
   --set kafka.version=4.1.1 \
   --set kafka.replicas=5 \
   --set kafka.replicationFactor=5 \
-  --set kafka.minInSyncReplicas=3
+  --set kafka.minInSyncReplicas=3 \
+  -n kafka
 ```
 
 ### Workloads
@@ -306,31 +314,31 @@ Tests use the following approach:
 
 Check Kafka logs:
 ```bash
-kubectl logs kafka-0
+kubectl logs kafka-0 -n kafka
 ```
 
 Ensure sufficient resources are available:
 ```bash
-kubectl describe pod kafka-0
+kubectl describe pod kafka-0 -n kafka
 ```
 
 ### OMB workers not ready
 
 Check worker logs:
 ```bash
-kubectl logs -l app=omb-worker
+kubectl logs -l app=omb-worker -n kafka
 ```
 
 Verify worker endpoints:
 ```bash
-kubectl get pods -l app=omb-worker -o wide
+kubectl get pods -l app=omb-worker -o wide -n kafka
 ```
 
 ### Benchmark fails
 
 Check if Kafka is accessible from benchmark pod:
 ```bash
-kubectl exec omb-benchmark -- kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
+kubectl exec omb-benchmark -n kafka -- kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
 ```
 
 ## Contributing
