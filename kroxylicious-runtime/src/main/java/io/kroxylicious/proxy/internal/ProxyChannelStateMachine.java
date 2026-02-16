@@ -169,7 +169,7 @@ public class ProxyChannelStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort, VirtualClusterModel)}
+     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort)}
      * has been called
      */
     @VisibleForTesting
