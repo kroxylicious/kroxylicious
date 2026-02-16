@@ -204,6 +204,43 @@ class HelmTemplateRenderingTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void shouldReduceInfrastructureForSmokeProfile() throws IOException {
+        // Given: The smoke values file
+        Path smokeValues = Paths.get("helm/kroxylicious-benchmark/scenarios/smoke-values.yaml").toAbsolutePath();
+
+        // When: Rendering templates with smoke profile
+        String yaml = HelmUtils.renderTemplate(List.of(smokeValues), Map.of());
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+
+        // Then: Kafka should use 1 broker with matching replication settings
+        GenericKubernetesResource nodePool = HelmUtils.findResourceTyped(resources, "KafkaNodePool", "kafka-pool");
+        assertThat(nodePool).isNotNull();
+        Map<String, Object> nodePoolSpec = nodePool.get("spec");
+        assertThat(nodePoolSpec).hasEntrySatisfying("replicas", v -> assertThat(v).isEqualTo(1));
+
+        GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
+        assertThat(kafka).isNotNull();
+        Map<String, Object> spec = kafka.get("spec");
+        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
+        Map<String, Object> config = (Map<String, Object>) kafkaSpec.get("config");
+        assertThat(config)
+                .as("Replication factor should be 1 for single-broker smoke test")
+                .containsEntry("default.replication.factor", 1)
+                .containsEntry("offsets.topic.replication.factor", 1)
+                .containsEntry("transaction.state.log.replication.factor", 1);
+        assertThat(config)
+                .as("Min ISR should be 1 for single-broker smoke test")
+                .containsEntry("min.insync.replicas", 1)
+                .containsEntry("transaction.state.log.min.isr", 1);
+
+        // Then: OMB should use 1 worker
+        GenericKubernetesResource benchmark = HelmUtils.findResourceTyped(resources, "Deployment", "omb-benchmark");
+        String workersValue = HelmUtils.getPodEnvVar(benchmark, "WORKERS");
+        assertThat(workersValue.split(",")).as("Smoke profile should use 1 worker").hasSize(1);
+    }
+
+    @Test
     void shouldFormatWorkerUrlsCorrectly() throws IOException {
         // When: Rendering templates with 3 workers
         String yaml = HelmUtils.renderTemplate(Map.of("omb.workerReplicas", "3"));
