@@ -173,6 +173,9 @@ class HelmTemplateRenderingTest {
         assertThat(workloadYaml)
                 .as("Default warmup duration should be 5 minutes")
                 .contains("warmupDurationMinutes: 5");
+        assertThat(workloadYaml)
+                .as("Default producer rate should be 50000 for 1-topic workload")
+                .contains("producerRate: 50000");
     }
 
     @Test
@@ -195,6 +198,9 @@ class HelmTemplateRenderingTest {
         assertThat(workloadYaml)
                 .as("Smoke warmup should be 0 (no value in warming up for non-measurement runs)")
                 .contains("warmupDurationMinutes: 0");
+        assertThat(workloadYaml)
+                .as("Smoke producer rate should be reduced to avoid overwhelming a single broker")
+                .contains("producerRate: 10000");
     }
 
     @Test

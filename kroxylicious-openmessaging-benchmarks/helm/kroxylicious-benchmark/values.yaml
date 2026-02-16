@@ -70,3 +70,4 @@ omb:
 benchmark:
   testDurationMinutes: 15
   warmupDurationMinutes: 5
+  producerRate: 50000

@@ -41,7 +41,8 @@ omb:
       memory: "2Gi"
       cpu: "500m"
 
-# Short durations — just enough to confirm the pipeline works
+# Short durations and reduced rate — just enough to confirm the pipeline works
 benchmark:
   testDurationMinutes: 1
   warmupDurationMinutes: 0
+  producerRate: 10000
