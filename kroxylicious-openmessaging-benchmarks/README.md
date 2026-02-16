@@ -127,7 +127,7 @@ helm install benchmark ./helm/kroxylicious-benchmark \
   -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
   -n kafka
 
-# Or for quick validation, add the smoke profile (1 min test, 1 broker, 1 worker):
+# Or for quick validation, add the smoke profile (1 min test, 1 broker, 2 workers):
 # helm install benchmark ./helm/kroxylicious-benchmark \
 #   -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
 #   -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
@@ -227,10 +227,10 @@ helm install benchmark ./helm/kroxylicious-benchmark \
 | Setting | Production (default) | Smoke |
 |---------|---------------------|-------|
 | Test duration | 15 min | 1 min |
-| Warmup duration | 5 min | 30 sec |
+| Warmup duration | 5 min | 0 (disabled) |
 | Kafka brokers | 3 | 1 |
 | Replication factor | 3 | 1 |
-| OMB workers | 3 | 1 |
+| OMB workers | 3 | 2 |
 | Kafka memory request | 2Gi | 1Gi |
 | OMB memory request | 2Gi | 1Gi |
 

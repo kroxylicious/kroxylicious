@@ -30,9 +30,9 @@ kafka:
   storage:
     size: "5Gi"
 
-# Single OMB worker
+# Minimum OMB workers (DistributedWorkersEnsemble requires at least 2)
 omb:
-  workerReplicas: 1
+  workerReplicas: 2
   resources:
     requests:
       memory: "1Gi"
@@ -44,4 +44,4 @@ omb:
 # Short durations — just enough to confirm the pipeline works
 benchmark:
   testDurationMinutes: 1
-  warmupDurationMinutes: 0.5
+  warmupDurationMinutes: 0

@@ -193,8 +193,8 @@ class HelmTemplateRenderingTest {
                 .as("Smoke test duration should be 1 minute")
                 .contains("testDurationMinutes: 1");
         assertThat(workloadYaml)
-                .as("Smoke warmup duration should be 0.5 minutes")
-                .contains("warmupDurationMinutes: 0.5");
+                .as("Smoke warmup should be 0 (no value in warming up for non-measurement runs)")
+                .contains("warmupDurationMinutes: 0");
     }
 
     @Test
@@ -225,10 +225,10 @@ class HelmTemplateRenderingTest {
                 .containsEntry("min.insync.replicas", 1)
                 .containsEntry("transaction.state.log.min.isr", 1);
 
-        // Then: OMB should use 1 worker
+        // Then: OMB should use 2 workers (minimum required by DistributedWorkersEnsemble)
         GenericKubernetesResource benchmark = HelmUtils.findResourceTyped(resources, "Deployment", "omb-benchmark");
         String workersValue = HelmUtils.getPodEnvVar(benchmark, "WORKERS");
-        assertThat(workersValue.split(",")).as("Smoke profile should use 1 worker").hasSize(1);
+        assertThat(workersValue.split(",")).as("Smoke profile should use 2 workers").hasSize(2);
     }
 
     @Test
