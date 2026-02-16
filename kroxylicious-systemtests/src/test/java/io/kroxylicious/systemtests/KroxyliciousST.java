@@ -12,7 +12,6 @@ import java.util.List;
 import org.apache.kafka.common.record.CompressionType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -30,7 +29,6 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
-import static io.kroxylicious.systemtests.TestTags.REGRESSION;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.BDDAssumptions.given;
@@ -38,7 +36,6 @@ import static org.assertj.core.api.BDDAssumptions.given;
 /**
  * The Kroxylicious system tests.
  */
-@Tag(REGRESSION)
 class KroxyliciousST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousST.class);
     private static Kroxylicious kroxylicious;

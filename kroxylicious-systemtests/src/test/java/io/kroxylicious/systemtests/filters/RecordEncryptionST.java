@@ -15,7 +15,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -39,7 +38,6 @@ import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
-import static io.kroxylicious.systemtests.TestTags.REGRESSION;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -146,7 +144,6 @@ class RecordEncryptionST extends AbstractST {
      */
     @TestTemplate
     @ExtendWith(CompressionTypeInvocationContextProvider.class)
-    @Tag(REGRESSION)
     void produceAndConsumeCompressedMessages(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade, CompressionType compressionType) {
         produceAndConsumeMessage(namespace, compressionType, testKmsFacade);
     }
@@ -248,7 +245,6 @@ class RecordEncryptionST extends AbstractST {
     @SuppressWarnings("java:S2925")
     @TestTemplate
     @ExtendWith(TestKubeKmsFacadeInvocationContextProvider.class)
-    @Tag(REGRESSION)
     void produceAndConsumeMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         String kekAlias = KEK_PREFIX + topicName;
         testKekManager = testKmsFacade.getTestKekManager();

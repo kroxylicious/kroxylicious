@@ -20,9 +20,4 @@ public final class TestTags {
      * Tag for test suites that run operator only related tests (no kafka involved).
      */
     public static final String OPERATOR = "operator";
-
-    /**
-    * Tag for test suites that run regression test cases.
-    */
-    public static final String REGRESSION = "regression";
 }

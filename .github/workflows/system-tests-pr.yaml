@@ -30,21 +30,40 @@ on:
     branches:
       - "main"
   workflow_dispatch:
-    inputs:
-      groups:
-        description: 'Groups of test suites to be run separated by comma'
-        default: 'regression'
-        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  run_tests:
+  discover_system_test_chunks:
     runs-on: ubuntu-latest
+    outputs:
+      test_chunks: ${{ steps.discover.outputs.test_chunks }}
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: 'Discover STs'
+        working-directory: kroxylicious-systemtests
+        id: discover
+        run: |
+          TEST_CHUNKS="[$(find . -type f -name "*ST.java" -exec basename {} .java \; | tr ' ' , | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
+          TEST_CHUNKS=( "${TEST_CHUNKS[@]/AbstractST/}" )
+          echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
+
+  run_system_tests:
+    needs: discover_system_test_chunks
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tests: ${{ fromJson(needs.discover_system_test_chunks.outputs.test_chunks) }}
 
     steps:
+      - name: Log tests to run
+        run: echo "Running tests on classes '${{ matrix.tests }}'"
       - name: 'Check out repository'
         uses: actions/checkout@v6
         with:
@@ -89,19 +108,43 @@ jobs:
 
       - name: 'Run system tests'
         timeout-minutes: 120
-        run: |
-          mvn --quiet --batch-mode verify --activate-profiles systemtest -Pdist -DskipDocs=true -Dgroups=${{ github.event_name == 'pull_request' && 'regression' || github.event.inputs.groups }}
+        run: |          
+          mvn --quiet --batch-mode verify --activate-profiles systemtest -Pdist -DskipDocs=true -Dtest="${{ matrix.tests }}"
 
       - name: Archive JUnit test results
         if: ${{ always() }}
         uses: actions/upload-artifact@v5
         with:
-          name: junit-results
+          name: junit-results-${{ matrix.tests }}
           path: kroxylicious-systemtests/target/surefire-reports/**/TEST-*.xml
 
       - name: Archive systemtest logs
         if: ${{ failure() }}
         uses: actions/upload-artifact@v5
         with:
-          name: systemtest-logs
+          name: systemtest-logs-${{ matrix.tests }}
           path: kroxylicious-systemtests/target/logs
+
+  system_tests_proxy:
+    runs-on: ubuntu-latest
+    needs: run_system_tests
+    if: always()
+    permissions:
+      actions: read
+    steps:
+      - name: 'Check all matrix builds'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FAILED_JSON=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
+            --jq '.jobs[] | select(.conclusion=="failure") | {name: .name, url: .html_url}')
+          if [ -z "$FAILED_JSON" ]; then
+            echo "All jobs passed!" >> $GITHUB_STEP_SUMMARY
+            echo "No failures detected."
+            exit 0
+          fi
+          echo "Failed Matrix Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "The following instances failed:"
+          echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> $GITHUB_STEP_SUMMARY
+          echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
+          exit 1
