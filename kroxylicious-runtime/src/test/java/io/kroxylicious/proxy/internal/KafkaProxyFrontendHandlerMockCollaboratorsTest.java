@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -65,8 +67,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Mock
     PluginFactoryRegistry pfr;
 
-    @Mock
-    FilterChainFactory filterChainFactory;
+    AtomicReference<FilterChainFactory> filterChainFactoryRef;
 
     @Mock
     EndpointReconciler endpointReconciler;
@@ -91,9 +92,13 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     void setUp() {
         when(endpointGateway.virtualCluster()).thenReturn(virtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
+        FilterChainFactory filterChainFactory = mock(FilterChainFactory.class);
+        // lenient() - to prevent Unnecessary stubbing exception
+        lenient().when(filterChainFactory.createFilters(any(), any())).thenReturn(List.of());
+        filterChainFactoryRef = new AtomicReference<>(filterChainFactory);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
-                filterChainFactory,
+                filterChainFactoryRef,
                 virtualCluster.getFilters(),
                 endpointReconciler,
                 new ApiVersionsServiceImpl(),
@@ -101,7 +106,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
                 proxyChannelStateMachine,
-                Optional.empty());
+                Optional.empty(),
+                null);
 
         TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.DEFAULT, CLUSTER_NAME);
         when(virtualCluster.getTopicNameCacheFilter()).thenReturn(topicNameCacheFilter);
@@ -229,7 +235,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Given
         handler = new KafkaProxyFrontendHandler(
                 mock(PluginFactoryRegistry.class),
-                mock(FilterChainFactory.class),
+                mock(AtomicReference.class),
                 List.of(),
                 endpointReconciler,
                 mock(ApiVersionsServiceImpl.class),
@@ -237,7 +243,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
                 proxyChannelStateMachine,
-                Optional.of(NETTY_SETTINGS));
+                Optional.of(NETTY_SETTINGS),
+                null);
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
         ChannelHandler idleHandler = mock(ChannelHandler.class);
@@ -260,7 +267,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Given
         handler = new KafkaProxyFrontendHandler(
                 mock(PluginFactoryRegistry.class),
-                mock(FilterChainFactory.class),
+                mock(AtomicReference.class),
                 List.of(),
                 endpointReconciler,
                 mock(ApiVersionsServiceImpl.class),
@@ -268,7 +275,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new DefaultSubjectBuilder(List.of()),
                 endpointBinding,
                 proxyChannelStateMachine,
-                Optional.of(NETTY_SETTINGS));
+                Optional.of(NETTY_SETTINGS),
+                null);
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
         ChannelHandler idleHandler = mock(ChannelHandler.class);
@@ -292,7 +300,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(subject));
         handler = new KafkaProxyFrontendHandler(
                 pfr,
-                filterChainFactory,
+                filterChainFactoryRef,
                 virtualCluster.getFilters(),
                 endpointReconciler,
                 new ApiVersionsServiceImpl(),
@@ -300,7 +308,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 subjectBuilder,
                 endpointBinding,
                 proxyChannelStateMachine,
-                Optional.empty());
+                Optional.empty(),
+                null);
 
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);

@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,33 +60,43 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
-    private final FilterChainFactory filterChainFactory;
+    // Shared mutable reference to FilterChainFactory - enables hot reload of filter configurations
+    private final AtomicReference<FilterChainFactory> filterChainFactoryRef;
     private final ApiVersionsServiceImpl apiVersionsService;
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<NettySettings> proxyNettySettings;
     private final Counter clientToProxyErrorCounter;
     @Nullable
     private final Long unauthenticatedIdleMillis;
+    private final ConnectionTracker connectionTracker;
+    private final ConnectionDrainManager connectionDrainManager;
+    private final InFlightMessageTracker inFlightTracker;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
+    public KafkaProxyInitializer(AtomicReference<FilterChainFactory> filterChainFactoryRef,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
                                  ApiVersionsServiceImpl apiVersionsService,
-                                 Optional<NettySettings> proxyNettySettings) {
+                                 Optional<NettySettings> proxyNettySettings,
+                                 ConnectionTracker connectionTracker,
+                                 ConnectionDrainManager connectionDrainManager,
+                                 InFlightMessageTracker inFlightTracker) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
         this.tls = tls;
         this.bindingResolver = bindingResolver;
-        this.filterChainFactory = filterChainFactory;
+        this.filterChainFactoryRef = filterChainFactoryRef;
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
         unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
+        this.connectionTracker = connectionTracker;
+        this.connectionDrainManager = connectionDrainManager;
+        this.inFlightTracker = inFlightTracker;
     }
 
     @Override
@@ -195,7 +206,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
 
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId());
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId(), connectionTracker, inFlightTracker);
 
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {
@@ -224,14 +235,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         var frontendHandler = new KafkaProxyFrontendHandler(
                 pfr,
-                filterChainFactory,
+                filterChainFactoryRef,
                 virtualCluster.getFilters(),
                 endpointReconciler,
                 apiVersionsService,
                 dp,
                 virtualCluster.subjectBuilder(pfr),
                 binding,
-                proxyChannelStateMachine, proxyNettySettings);
+                proxyChannelStateMachine, proxyNettySettings,
+                connectionDrainManager);
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);
@@ -266,6 +278,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(0, 0, unauthenticatedIdleMillis, TimeUnit.MILLISECONDS));
         }
     }
+
 
     @Nullable
     @CheckReturnValue

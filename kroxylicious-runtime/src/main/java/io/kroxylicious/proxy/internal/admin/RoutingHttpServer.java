@@ -36,16 +36,23 @@ import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+import static io.netty.handler.codec.http.HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
 import static io.netty.handler.codec.rtsp.RtspHeaderNames.CONTENT_TYPE;
 
 public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
 
-    private final Map<String, Function<HttpRequest, HttpResponse>> routes;
+    private final Map<String, Function<HttpRequest, HttpResponse>> getRoutes;
+    private final Map<String, Function<HttpRequest, HttpResponse>> postRoutes;
     private static final Logger LOGGER = LoggerFactory.getLogger(RoutingHttpServer.class);
+    private static final int MAX_CONTENT_LENGTH = 10 * 1024 * 1024; // 10MB
 
-    private RoutingHttpServer(Map<String, Function<HttpRequest, HttpResponse>> routes) {
-        Objects.requireNonNull(routes, "routes");
-        this.routes = routes;
+    private RoutingHttpServer(
+                              Map<String, Function<HttpRequest, HttpResponse>> getRoutes,
+                              Map<String, Function<HttpRequest, HttpResponse>> postRoutes) {
+        Objects.requireNonNull(getRoutes, "getRoutes");
+        Objects.requireNonNull(postRoutes, "postRoutes");
+        this.getRoutes = getRoutes;
+        this.postRoutes = postRoutes;
     }
 
     public static RoutingHttpServerBuilder builder() {
@@ -64,11 +71,24 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
 
             HttpResponse response;
             if (HttpMethod.GET.equals(req.method())) {
-                response = getResponse(req);
+                response = routeRequest(req, getRoutes);
+            }
+            else if (HttpMethod.POST.equals(req.method())) {
+                // Validate content length for POST requests
+                int contentLength = HttpUtil.getContentLength(req, -1);
+                if (contentLength > MAX_CONTENT_LENGTH) {
+                    response = responseWithBody(req, HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE,
+                            "Request body exceeds maximum size of " + MAX_CONTENT_LENGTH + " bytes");
+                    keepAlive = false;
+                }
+                else {
+                    response = routeRequest(req, postRoutes);
+                }
             }
             else {
-                response = responseWithStatus(req, METHOD_NOT_ALLOWED);
-                // DoS defence - stops the server reading an excessive POST/PUT body to prevent resource allocation,
+                response = responseWithBody(req, METHOD_NOT_ALLOWED,
+                        "Method " + req.method() + " not allowed");
+                // DoS defence - stops the server reading an excessive POST/PUT body to prevent resource allocation
                 ctx.channel().config().setAutoRead(false);
                 keepAlive = false;
             }
@@ -91,7 +111,7 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
         }
     }
 
-    private HttpResponse getResponse(HttpRequest req) {
+    private HttpResponse routeRequest(HttpRequest req, Map<String, Function<HttpRequest, HttpResponse>> routes) {
         if (routes.containsKey(req.uri())) {
             try {
                 return routes.get(req.uri()).apply(req);
@@ -127,15 +147,36 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
 
     public static class RoutingHttpServerBuilder {
 
-        private final Map<String, Function<HttpRequest, HttpResponse>> routes = new HashMap<>();
+        private final Map<String, Function<HttpRequest, HttpResponse>> getRoutes = new HashMap<>();
+        private final Map<String, Function<HttpRequest, HttpResponse>> postRoutes = new HashMap<>();
 
-        RoutingHttpServerBuilder withRoute(String path, Function<HttpRequest, HttpResponse> responseFunction) {
-            routes.put(path, responseFunction);
+        /**
+         * Add a GET route.
+         */
+        public RoutingHttpServerBuilder withGetRoute(String path, Function<HttpRequest, HttpResponse> responseFunction) {
+            getRoutes.put(path, responseFunction);
             return this;
         }
 
+        /**
+         * Add a POST route.
+         */
+        public RoutingHttpServerBuilder withPostRoute(String path, Function<HttpRequest, HttpResponse> responseFunction) {
+            postRoutes.put(path, responseFunction);
+            return this;
+        }
+
+        /**
+         * Add a route (defaults to GET for backward compatibility).
+         * @deprecated Use {@link #withGetRoute(String, Function)} instead
+         */
+        @Deprecated
+        RoutingHttpServerBuilder withRoute(String path, Function<HttpRequest, HttpResponse> responseFunction) {
+            return withGetRoute(path, responseFunction);
+        }
+
         RoutingHttpServer build() {
-            return new RoutingHttpServer(routes);
+            return new RoutingHttpServer(getRoutes, postRoutes);
         }
 
     }

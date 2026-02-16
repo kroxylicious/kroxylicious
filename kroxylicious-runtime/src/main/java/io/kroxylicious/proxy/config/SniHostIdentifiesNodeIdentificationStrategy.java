@@ -252,6 +252,30 @@ public class SniHostIdentifiesNodeIdentificationStrategy
             return true;
         }
 
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            // Two Strategy instances are equal if their outer class instances are equal
+            Strategy that = (Strategy) obj;
+            return SniHostIdentifiesNodeIdentificationStrategy.this.equals(that.getOuterInstance());
+        }
+
+        @Override
+        public int hashCode() {
+            // Use the outer class's hashCode for consistency
+            return SniHostIdentifiesNodeIdentificationStrategy.this.hashCode();
+        }
+
+        // Helper method to get the outer instance for comparison
+        private SniHostIdentifiesNodeIdentificationStrategy getOuterInstance() {
+            return SniHostIdentifiesNodeIdentificationStrategy.this;
+        }
+
     }
 
 }

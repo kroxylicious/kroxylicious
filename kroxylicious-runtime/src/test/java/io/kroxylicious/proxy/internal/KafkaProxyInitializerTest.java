@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.matcher.AssertionMatcher;
@@ -102,6 +103,7 @@ class KafkaProxyInitializerTest {
     private KafkaProxyInitializer kafkaProxyInitializer;
     private CompletionStage<EndpointBinding> bindingStage;
     private VirtualClusterModel virtualClusterModel;
+    private AtomicReference<FilterChainFactory> filterChainFactoryRef;
     private FilterChainFactory filterChainFactory;
     private NettySettings proxyNettySettings;
 
@@ -110,7 +112,7 @@ class KafkaProxyInitializerTest {
         virtualClusterModel = buildVirtualCluster(false, false);
         pfr = new ServiceBasedPluginFactoryRegistry();
         bindingStage = CompletableFuture.completedStage(endpointBinding);
-        filterChainFactory = new FilterChainFactory(pfr, List.of());
+        filterChainFactoryRef = new AtomicReference<>(new FilterChainFactory(pfr, List.of()));
         proxyNettySettings = null; // use defaults
         final InetSocketAddress localhost = new InetSocketAddress(0);
         ChannelId channelId = DefaultChannelId.newInstance();
@@ -339,14 +341,17 @@ class KafkaProxyInitializerTest {
     @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
-        return new KafkaProxyInitializer(filterChainFactory,
+        return new KafkaProxyInitializer(filterChainFactoryRef,
                 pfr,
                 tls,
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
                 new ApiVersionsServiceImpl(),
-                Optional.ofNullable(proxyNettySettings));
+                Optional.ofNullable(proxyNettySettings),
+                null,
+                null,
+                null);
     }
 
     private void assertErrorHandlerAdded() {
