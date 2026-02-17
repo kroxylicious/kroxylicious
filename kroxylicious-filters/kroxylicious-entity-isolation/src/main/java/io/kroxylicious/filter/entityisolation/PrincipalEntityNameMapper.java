@@ -30,7 +30,7 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     @Override
     public String map(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String unmappedResourceName) {
         uniquePrincipalType = User.class;
-        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject(), uniquePrincipalType);
+        var user = getAuthenticatedPrincipal(mapperContext.authenticatedSubject(), uniquePrincipalType);
         return user.map(authId -> doMap(authId, unmappedResourceName))
                 .orElse(unmappedResourceName);
     }
@@ -41,7 +41,7 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
 
     @Override
     public String unmap(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String mappedResourceName) {
-        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject(), User.class);
+        var user = getAuthenticatedPrincipal(mapperContext.authenticatedSubject(), User.class);
         return user.map(authId -> doUnmap(authId, mappedResourceName))
                 .orElse(mappedResourceName);
     }
@@ -58,7 +58,7 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
 
     @Override
     public boolean isInNamespace(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String mappedResourceName) {
-        var user = getAuthenticatedPrincipal(mapperContext.authenticateSubject(), User.class);
+        var user = getAuthenticatedPrincipal(mapperContext.authenticatedSubject(), User.class);
         return user.map(authId -> mappedResourceName.startsWith(authId + SEPARATOR))
                 .orElse(false);
     }
