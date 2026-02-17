@@ -1,0 +1,48 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Smoke Test Profile: Quick validation that the benchmark pipeline works end-to-end.
+#
+# NOT for performance measurement — durations are too short and infrastructure too minimal
+# for statistically meaningful latency data. Use this to verify deployment, connectivity,
+# and workload execution.
+#
+# Usage:
+#   helm install benchmark ./helm/kroxylicious-benchmark \
+#     -f scenarios/baseline-values.yaml \
+#     -f scenarios/smoke-values.yaml
+
+# Single broker, no replication — minimal footprint
+kafka:
+  replicas: 1
+  replicationFactor: 1
+  minInSyncReplicas: 1
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  storage:
+    size: "5Gi"
+
+# Minimum OMB workers (DistributedWorkersEnsemble requires at least 2)
+omb:
+  workerReplicas: 2
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "250m"
+    limits:
+      memory: "2Gi"
+      cpu: "500m"
+
+# Short durations and reduced rate — just enough to confirm the pipeline works
+benchmark:
+  testDurationMinutes: 1
+  warmupDurationMinutes: 0
+  producerRate: 10000
