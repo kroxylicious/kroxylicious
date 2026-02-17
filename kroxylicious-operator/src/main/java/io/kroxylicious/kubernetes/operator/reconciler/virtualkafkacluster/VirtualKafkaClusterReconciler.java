@@ -35,21 +35,17 @@ import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
-import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
-import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.Protocol;
-import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
@@ -65,7 +61,6 @@ import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -77,7 +72,6 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasKind;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
-import static io.kroxylicious.kubernetes.operator.model.networking.TcpClusterIPClusterIngressNetworkingModel.bootstrapServiceName;
 import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyConfigStateDependentResource.CONFIG_STATE_CONFIG_MAP_SUFFIX;
 
 /**
@@ -99,8 +93,8 @@ public final class VirtualKafkaClusterReconciler implements
     public static final String CONFIGMAPS_EVENT_SOURCE_NAME = "configmaps";
     static final String KUBERNETES_SERVICES_EVENT_SOURCE_NAME = "kubernetesServices";
     private static final String KAFKA_PROXY_INGRESS_KIND = getKind(KafkaProxyIngress.class);
-    private static final String KAFKA_PROXY_KIND = getKind(KafkaProxy.class);
-    private static final String VIRTUAL_KAFKA_CLUSTER_KIND = getKind(VirtualKafkaCluster.class);
+    static final String KAFKA_PROXY_KIND = getKind(KafkaProxy.class);
+    static final String VIRTUAL_KAFKA_CLUSTER_KIND = getKind(VirtualKafkaCluster.class);
     private static final String KAFKA_SERVICE_KIND = getKind(KafkaService.class);
     private static final String KAFKA_PROTOCOL_FILTER_KIND = getKind(KafkaProtocolFilter.class);
     private final VirtualKafkaClusterStatusFactory statusFactory;
@@ -396,54 +390,48 @@ public final class VirtualKafkaClusterReconciler implements
                 KafkaService.class,
                 VirtualKafkaCluster.class)
                 .withName(SERVICES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefAsResourceId(cluster,
-                        cluster.getSpec().getTargetKafkaServiceRef()))
-                .withSecondaryToPrimaryMapper(kafkaServiceSecondaryToPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaServiceSecondary())
+                .withSecondaryToPrimaryMapper(new KafkaServiceSecondaryToVirtualKafkaClusterPrimary(context))
                 .build();
 
         InformerEventSourceConfiguration<KafkaProxyIngress> clusterToIngresses = InformerEventSourceConfiguration.from(
                 KafkaProxyIngress.class,
                 VirtualKafkaCluster.class)
                 .withName(INGRESSES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
-                        Optional.ofNullable(cluster.getSpec())
-                                .map(VirtualKafkaClusterSpec::getIngresses)
-                                .stream().flatMap(List::stream)
-                                .map(Ingresses::getIngressRef).toList()))
-                .withSecondaryToPrimaryMapper(ingressSecondaryToPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaProxyIngressSecondary())
+                .withSecondaryToPrimaryMapper(new KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimary(context))
                 .build();
 
         InformerEventSourceConfiguration<KafkaProtocolFilter> clusterToFilters = InformerEventSourceConfiguration.from(
                 KafkaProtocolFilter.class,
                 VirtualKafkaCluster.class)
                 .withName(FILTERS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
-                        Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getFilterRefs).orElse(List.of())))
-                .withSecondaryToPrimaryMapper(filterSecondaryToPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaProtocolFilterSecondary())
+                .withSecondaryToPrimaryMapper(new KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimary(context))
                 .build();
 
         InformerEventSourceConfiguration<Service> clusterToKubeService = InformerEventSourceConfiguration.from(
                 Service.class,
                 VirtualKafkaCluster.class)
                 .withName(KUBERNETES_SERVICES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(kubernetesServicesPrimaryToSecondaryMapper())
-                .withSecondaryToPrimaryMapper(kubernetesServicesSecondaryToPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKubernetesServicesSecondary())
+                .withSecondaryToPrimaryMapper(new KubernetesServicesSecondaryToVirtualKafkaClusterPrimary(context))
                 .build();
 
         InformerEventSourceConfiguration<Secret> clusterToSecret = InformerEventSourceConfiguration.from(
                 Secret.class,
                 VirtualKafkaCluster.class)
                 .withName(SECRETS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(virtualKafkaClusterToSecret())
-                .withSecondaryToPrimaryMapper(secretToVirtualKafkaCluster(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToSecretSecondary())
+                .withSecondaryToPrimaryMapper(new SecretSecondarytoVirtualKafkaClusterPrimary(context))
                 .build();
 
         InformerEventSourceConfiguration<ConfigMap> clusterToConfigMap = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 VirtualKafkaCluster.class)
                 .withName(CONFIGMAPS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(virtualKafkaClusterToConfigMap())
-                .withSecondaryToPrimaryMapper(configMapToVirtualKafkaCluster(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToConfigMapSecondary())
+                .withSecondaryToPrimaryMapper(new ConfigMapSecondaryToVirtualKafkaClusterPrimary(context))
                 .build();
 
         return List.of(
@@ -457,37 +445,7 @@ public final class VirtualKafkaClusterReconciler implements
                 new InformerEventSource<>(clusterToConfigMap, context));
     }
 
-    /**
-     * We use data from manifested kubernetes Services to populate the ingress statuses, so we want to trigger
-     * reconciliation when those Services change.
-     * <ol>
-     *     <li>If the Service has a VKC OwnerReference, we want to reconcile that VKC</li>
-     *     <li>If the Service has no VKC OwnerReference but has a KafkaProxy OwnerReference, we want to reconcile
-     *     all the VKCs referencing that KafkaProxy</li>
-     * </ol>
-     */
-    @NonNull
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<Service> kubernetesServicesSecondaryToPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
-        return kubernetesService -> {
-            Optional<OwnerReference> clusterOwner = extractOwnerRefFromKubernetesService(kubernetesService, VIRTUAL_KAFKA_CLUSTER_KIND);
-            if (clusterOwner.isPresent()) {
-                return clusterOwner
-                        .map(ownerRef -> new ResourceID(ownerRef.getName(), kubernetesService.getMetadata().getNamespace()))
-                        .map(Set::of).orElse(Set.of());
-            }
-            Optional<OwnerReference> proxyOwner = extractOwnerRefFromKubernetesService(kubernetesService, KAFKA_PROXY_KIND);
-            if (proxyOwner.isPresent()) {
-                return ResourcesUtil.findReferrers(context, proxyOwner.get(), kubernetesService, VirtualKafkaCluster.class,
-                        cluster -> Optional.of(cluster.getSpec().getProxyRef()));
-            }
-            else {
-                return Set.of();
-            }
-        };
-    }
-
-    private static Optional<OwnerReference> extractOwnerRefFromKubernetesService(Service service, String ownerKind) {
+    static Optional<OwnerReference> extractOwnerRefFromKubernetesService(Service service, String ownerKind) {
         return service.getMetadata()
                 .getOwnerReferences()
                 .stream()
@@ -495,116 +453,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .findFirst();
     }
 
-    /**
-     * The VirtualKafkaClusterReconciler wants to extract some data from the Services manifested by various KafkaProxyIngress
-     * implementations and present them on the VirtualKafkaCluster status. For example a bootstrap servers for each ingress in
-     * `spec.ingresses`, if the Service is ready to be accessed. We want to load:
-     * <ol>
-     *     <li>ClusterIP Bootstrap Services, if they exist</li>
-     *     <li>A shared LoadBalancer Service for the KafkaProxy this VirtualKafkaCluster references</li>
-     * </ol>
-     */
-    @NonNull
-    @VisibleForTesting
-    static PrimaryToSecondaryMapper<VirtualKafkaCluster> kubernetesServicesPrimaryToSecondaryMapper() {
-        return (VirtualKafkaCluster cluster) -> {
-            Stream<ResourceID> clusterIpServices = cluster.getSpec().getIngresses()
-                    .stream()
-                    .map(Ingresses::getIngressRef)
-                    .flatMap(ir -> ResourcesUtil
-                            .localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(bootstrapServiceName(cluster, ir.getName())).build()).stream());
-            Stream<ResourceID> loadbalancerService = ResourcesUtil.localRefAsResourceId(cluster,
-                    new AnyLocalRefBuilder().withName(cluster.getSpec().getProxyRef().getName() + "-sni").build()).stream();
-            return Stream.concat(clusterIpServices, loadbalancerService).collect(Collectors.toSet());
-        };
-    }
-
-    @VisibleForTesting
-    static PrimaryToSecondaryMapper<VirtualKafkaCluster> virtualKafkaClusterToSecret() {
-        return (VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
-                cluster.getSpec().getIngresses().stream()
-                        .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
-                        .map(Tls::getCertificateRef)
-                        .toList());
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<Secret> secretToVirtualKafkaCluster(EventSourceContext<VirtualKafkaCluster> context) {
-        return secret -> ResourcesUtil.findReferrersMulti(context,
-                secret,
-                VirtualKafkaCluster.class,
-                cluster -> cluster.getSpec().getIngresses().stream()
-                        .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
-                        .map(Tls::getCertificateRef).toList());
-    }
-
-    @VisibleForTesting
-    static PrimaryToSecondaryMapper<VirtualKafkaCluster> virtualKafkaClusterToConfigMap() {
-        return (VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
-                cluster.getSpec().getIngresses().stream()
-                        .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
-                        .map(Tls::getTrustAnchorRef)
-                        .filter(Objects::nonNull)
-                        .map(TrustAnchorRef::getRef)
-                        .toList());
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<ConfigMap> configMapToVirtualKafkaCluster(EventSourceContext<VirtualKafkaCluster> context) {
-        return configMap -> ResourcesUtil.findReferrersMulti(context,
-                configMap,
-                VirtualKafkaCluster.class,
-                cluster -> cluster.getSpec().getIngresses().stream()
-                        .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
-                        .map(Tls::getTrustAnchorRef)
-                        .filter(Objects::nonNull)
-                        .map(TrustAnchorRef::getRef)
-                        .toList());
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<KafkaProtocolFilter> filterSecondaryToPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
-        return filter -> {
-            if (!ResourcesUtil.isStatusFresh(filter)) {
-                logIgnoredEvent(filter);
-                return Set.of();
-            }
-            return ResourcesUtil.findReferrersMulti(context,
-                    filter,
-                    VirtualKafkaCluster.class,
-                    cluster -> cluster.getSpec().getFilterRefs());
-        };
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<KafkaProxyIngress> ingressSecondaryToPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
-        return ingress -> {
-            if (!ResourcesUtil.isStatusFresh(ingress)) {
-                logIgnoredEvent(ingress);
-                return Set.of();
-            }
-            return ResourcesUtil.findReferrersMulti(context,
-                    ingress,
-                    VirtualKafkaCluster.class,
-                    cluster -> cluster.getSpec().getIngresses().stream().map(Ingresses::getIngressRef).toList());
-        };
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<KafkaService> kafkaServiceSecondaryToPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
-        return service -> {
-            if (!ResourcesUtil.isStatusFresh(service)) {
-                logIgnoredEvent(service);
-                return Set.of();
-            }
-            return ResourcesUtil.findReferrers(context,
-                    service,
-                    VirtualKafkaCluster.class,
-                    cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef()));
-        };
-    }
-
-    private static void logIgnoredEvent(HasMetadata hasMetadata) {
+    static void logIgnoredEvent(HasMetadata hasMetadata) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Ignoring event from {} with stale status: {}", HasMetadata.getKind(hasMetadata.getClass()), ResourcesUtil.toLocalRef(hasMetadata));
         }
