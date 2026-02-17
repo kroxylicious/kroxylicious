@@ -6,13 +6,12 @@ Licensed under the Apache Software License version 2.0, available at http://www.
 
 {{- if .Values.kroxylicious.enabled }}
 apiVersion: kroxylicious.io/v1alpha1
-kind: KafkaProxy
+kind: KafkaService
 metadata:
-  name: benchmark-proxy
+  name: kafka
 spec:
-  replicas: {{ .Values.kroxylicious.replicas }}
-  infrastructure:
-    proxyContainer:
-      resources:
-        {{- toYaml .Values.kroxylicious.resources | nindent 8 }}
+  bootstrapServers: kafka-kafka-bootstrap:9092
+  nodeIdRanges:
+    - start: 0
+      end: {{ sub .Values.kafka.replicas 1 }}
 {{- end }}

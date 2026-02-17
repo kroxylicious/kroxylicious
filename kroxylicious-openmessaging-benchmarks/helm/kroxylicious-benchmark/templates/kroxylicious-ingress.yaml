@@ -6,13 +6,12 @@ Licensed under the Apache Software License version 2.0, available at http://www.
 
 {{- if .Values.kroxylicious.enabled }}
 apiVersion: kroxylicious.io/v1alpha1
-kind: KafkaProxy
+kind: KafkaProxyIngress
 metadata:
-  name: benchmark-proxy
+  name: cluster-ip
 spec:
-  replicas: {{ .Values.kroxylicious.replicas }}
-  infrastructure:
-    proxyContainer:
-      resources:
-        {{- toYaml .Values.kroxylicious.resources | nindent 8 }}
+  proxyRef:
+    name: benchmark-proxy
+  clusterIP:
+    protocol: TCP
 {{- end }}

@@ -193,9 +193,9 @@ public class HelmUtils {
         try (MappingIterator<GenericKubernetesResource> iterator = YAML_MAPPER.readerFor(GenericKubernetesResource.class).readValues(yaml)) {
             while (iterator.hasNext()) {
                 GenericKubernetesResource resource = iterator.next();
-                if (resource != null && resource.getKind() != null) {
-                    resources.add(resource);
-                }
+                assertThat(resource).as("Helm rendered a null YAML document — each template file should contain exactly one resource").isNotNull();
+                assertThat(resource.getKind()).as("Helm rendered a resource without a kind").isNotNull();
+                resources.add(resource);
             }
         }
 
