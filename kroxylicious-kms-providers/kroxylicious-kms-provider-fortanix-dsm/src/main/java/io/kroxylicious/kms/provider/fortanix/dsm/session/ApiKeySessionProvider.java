@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -104,8 +105,8 @@ public class ApiKeySessionProvider implements SessionProvider {
         this(config, client, Clock.systemUTC());
     }
 
-    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Pseudorandomness sufficient for generating backoff jitter; not security relevant
-    @SuppressFBWarnings({ "DMI_RANDOM_USED_ONLY_ONCE", "PREDICTABLE_RANDOM" }) // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
     @VisibleForTesting
     ApiKeySessionProvider(Config config,
                           HttpClient client,
@@ -121,7 +122,7 @@ public class ApiKeySessionProvider implements SessionProvider {
             thread.setDaemon(true);
             return thread;
         });
-        this.backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
+        this.backoff = new ExponentialBackoff(500, 2, 60000, ThreadLocalRandom.current().nextDouble());
         this.client = client;
     }
 

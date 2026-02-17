@@ -26,6 +26,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -111,8 +112,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     @VisibleForTesting
-    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Pseudorandomness sufficient for generating backoff jitter; not security relevant
-    @SuppressFBWarnings({ "DMI_RANDOM_USED_ONLY_ONCE", "PREDICTABLE_RANDOM" }) // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
     Ec2MetadataCredentialsProvider(Ec2MetadataCredentialsProviderConfig config,
                                    Clock systemClock) {
         Objects.requireNonNull(config);
@@ -126,7 +127,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
             thread.setDaemon(true);
             return thread;
         });
-        this.backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
+        this.backoff = new ExponentialBackoff(500, 2, 60000, ThreadLocalRandom.current().nextDouble());
         this.client = createClient();
     }
 
