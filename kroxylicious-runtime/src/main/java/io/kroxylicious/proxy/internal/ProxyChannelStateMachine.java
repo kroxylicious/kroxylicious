@@ -563,8 +563,6 @@ public class ProxyChannelStateMachine {
         clientSubjectManager.clientSaslAuthenticationFailure();
     }
 
-
-
     public void onClientTlsHandshakeSuccess(SSLSession sslSession) {
         this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder, this::onTransportSubjectBuilt);
     }
@@ -577,7 +575,7 @@ public class ProxyChannelStateMachine {
         // we require two events before unblocking (making reads from) the client:
         // 1. the completion of the building of the transport subject
         // 2. the progression of the state machine to forwarding state
-        //    (completion of the connection to the backend)
+        // (completion of the connection to the backend)
         // these can happen in either order
         this.progressionLatch = 2;
         if (!this.isTlsListener()) {
