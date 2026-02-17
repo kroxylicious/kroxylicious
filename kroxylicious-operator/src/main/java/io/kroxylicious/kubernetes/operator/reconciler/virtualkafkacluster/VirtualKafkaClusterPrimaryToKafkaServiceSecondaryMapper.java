@@ -14,7 +14,7 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class VirtualKafkaClusterPrimaryToKafkaServiceSecondary implements PrimaryToSecondaryMapper<VirtualKafkaCluster> {
+class VirtualKafkaClusterPrimaryToKafkaServiceSecondaryMapper implements PrimaryToSecondaryMapper<VirtualKafkaCluster> {
     @Override
     public Set<ResourceID> toSecondaryResourceIDs(VirtualKafkaCluster cluster) {
         return ResourcesUtil.localRefAsResourceId(cluster,

@@ -6,38 +6,33 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
-import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class ConfigMapSecondaryToVirtualKafkaClusterPrimary implements SecondaryToPrimaryMapper<ConfigMap> {
+class SecretSecondarytoVirtualKafkaClusterPrimaryMapper implements SecondaryToPrimaryMapper<Secret> {
 
     private final EventSourceContext<VirtualKafkaCluster> context;
 
-    ConfigMapSecondaryToVirtualKafkaClusterPrimary(EventSourceContext<VirtualKafkaCluster> context) {
+    SecretSecondarytoVirtualKafkaClusterPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
         this.context = context;
     }
 
     @Override
-    public Set<ResourceID> toPrimaryResourceIDs(ConfigMap configMap) {
+    public Set<ResourceID> toPrimaryResourceIDs(Secret secret) {
         return ResourcesUtil.findReferrersMulti(context,
-                configMap,
+                secret,
                 VirtualKafkaCluster.class,
                 cluster -> cluster.getSpec().getIngresses().stream()
                         .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
-                        .map(Tls::getTrustAnchorRef)
-                        .filter(Objects::nonNull)
-                        .map(TrustAnchorRef::getRef)
-                        .toList());
+                        .map(Tls::getCertificateRef).toList());
     }
 }

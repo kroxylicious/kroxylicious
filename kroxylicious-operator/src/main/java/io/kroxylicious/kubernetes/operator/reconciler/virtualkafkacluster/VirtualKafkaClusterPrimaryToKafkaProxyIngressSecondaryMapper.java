@@ -15,12 +15,16 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class VirtualKafkaClusterPrimaryToKafkaProtocolFilterSecondary implements PrimaryToSecondaryMapper<VirtualKafkaCluster> {
+class VirtualKafkaClusterPrimaryToKafkaProxyIngressSecondaryMapper implements PrimaryToSecondaryMapper<VirtualKafkaCluster> {
     @Override
     public Set<ResourceID> toSecondaryResourceIDs(VirtualKafkaCluster cluster) {
         return ResourcesUtil.localRefsAsResourceIds(cluster,
-                Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getFilterRefs).orElse(List.of()));
+                Optional.ofNullable(cluster.getSpec())
+                        .map(VirtualKafkaClusterSpec::getIngresses)
+                        .stream().flatMap(List::stream)
+                        .map(Ingresses::getIngressRef).toList());
     }
 }

@@ -30,7 +30,7 @@ class KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
                 .withFilterRefs(new FilterRefBuilder().withName("filter").build()).endSpec().build();
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(cluster);
-        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = new KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = new KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         KafkaProtocolFilter filter = new KafkaProtocolFilterBuilder().withNewMetadata().withName("filter").endMetadata().withNewSpec().endSpec().build();
 
         // when
@@ -46,7 +46,7 @@ class KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         VirtualKafkaCluster clusterWithNullFilterRefs = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec().endSpec()
                 .build();
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(clusterWithNullFilterRefs);
-        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = new KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = new KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         KafkaProtocolFilter filter = new KafkaProtocolFilterBuilder().withNewMetadata().withName("filter").endMetadata().withNewSpec().endSpec().build();
 
         // when
@@ -62,7 +62,7 @@ class KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
                 .withFilterRefs(new FilterRefBuilder().withName("filter").build()).endSpec().build();
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(cluster);
-        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = new KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = new KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         // @formatter:off
         KafkaProtocolFilter ingress = new KafkaProtocolFilterBuilder()
                 .withNewMetadata()

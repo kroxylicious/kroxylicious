@@ -31,7 +31,7 @@ class KafkaServiceSecondarytoVirtualKafkaClusterPrimaryMapperTest {
                 .withTargetKafkaServiceRef(new KafkaServiceRefBuilder().withName("target-kafka").build()).endSpec().build();
 
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(cluster);
-        SecondaryToPrimaryMapper<KafkaService> mapper = new KafkaServiceSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaService> mapper = new KafkaServiceSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         KafkaService service = new KafkaServiceBuilder().withNewMetadata().withName("target-kafka").endMetadata().withNewSpec().endSpec().build();
 
         // when
@@ -47,7 +47,7 @@ class KafkaServiceSecondarytoVirtualKafkaClusterPrimaryMapperTest {
         VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
                 .withTargetKafkaServiceRef(new KafkaServiceRefBuilder().withName("target-kafka").build()).endSpec().build();
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(cluster);
-        SecondaryToPrimaryMapper<KafkaService> mapper = new KafkaServiceSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaService> mapper = new KafkaServiceSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         // @formatter:off
         KafkaService service = new KafkaServiceBuilder()
                 .withNewMetadata()

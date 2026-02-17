@@ -22,7 +22,7 @@ class SecretSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS);
 
         // When
-        var mapper = new SecretSecondarytoVirtualKafkaClusterPrimary(eventSourceContext);
+        var mapper = new SecretSecondarytoVirtualKafkaClusterPrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.KUBE_TLS_CERT_SECRET);
@@ -35,7 +35,7 @@ class SecretSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_NO_FILTERS);
 
         // When
-        var mapper = new SecretSecondarytoVirtualKafkaClusterPrimary(eventSourceContext);
+        var mapper = new SecretSecondarytoVirtualKafkaClusterPrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.KUBE_TLS_CERT_SECRET);

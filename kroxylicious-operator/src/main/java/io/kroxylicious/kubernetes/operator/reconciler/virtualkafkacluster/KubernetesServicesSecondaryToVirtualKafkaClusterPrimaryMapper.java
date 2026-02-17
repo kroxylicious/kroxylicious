@@ -18,10 +18,10 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class KubernetesServicesSecondaryToVirtualKafkaClusterPrimary implements SecondaryToPrimaryMapper<Service> {
+class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper implements SecondaryToPrimaryMapper<Service> {
     private final EventSourceContext<VirtualKafkaCluster> context;
 
-    KubernetesServicesSecondaryToVirtualKafkaClusterPrimary(EventSourceContext<VirtualKafkaCluster> context) {
+    KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
         this.context = context;
     }
 

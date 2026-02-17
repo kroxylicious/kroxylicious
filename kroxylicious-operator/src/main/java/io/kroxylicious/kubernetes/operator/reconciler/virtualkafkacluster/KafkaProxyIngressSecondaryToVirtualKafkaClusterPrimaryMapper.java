@@ -17,10 +17,10 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimary implements SecondaryToPrimaryMapper<KafkaProxyIngress> {
+class KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimaryMapper implements SecondaryToPrimaryMapper<KafkaProxyIngress> {
     private final EventSourceContext<VirtualKafkaCluster> context;
 
-    KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimary(EventSourceContext<VirtualKafkaCluster> context) {
+    KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
         this.context = context;
     }
 

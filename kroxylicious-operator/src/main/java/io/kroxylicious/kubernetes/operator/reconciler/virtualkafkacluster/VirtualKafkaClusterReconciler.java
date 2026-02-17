@@ -390,48 +390,48 @@ public final class VirtualKafkaClusterReconciler implements
                 KafkaService.class,
                 VirtualKafkaCluster.class)
                 .withName(SERVICES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaServiceSecondary())
-                .withSecondaryToPrimaryMapper(new KafkaServiceSecondaryToVirtualKafkaClusterPrimary(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaServiceSecondaryMapper())
+                .withSecondaryToPrimaryMapper(new KafkaServiceSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<KafkaProxyIngress> clusterToIngresses = InformerEventSourceConfiguration.from(
                 KafkaProxyIngress.class,
                 VirtualKafkaCluster.class)
                 .withName(INGRESSES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaProxyIngressSecondary())
-                .withSecondaryToPrimaryMapper(new KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimary(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaProxyIngressSecondaryMapper())
+                .withSecondaryToPrimaryMapper(new KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<KafkaProtocolFilter> clusterToFilters = InformerEventSourceConfiguration.from(
                 KafkaProtocolFilter.class,
                 VirtualKafkaCluster.class)
                 .withName(FILTERS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaProtocolFilterSecondary())
-                .withSecondaryToPrimaryMapper(new KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimary(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaProtocolFilterSecondaryMapper())
+                .withSecondaryToPrimaryMapper(new KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<Service> clusterToKubeService = InformerEventSourceConfiguration.from(
                 Service.class,
                 VirtualKafkaCluster.class)
                 .withName(KUBERNETES_SERVICES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKubernetesServicesSecondary())
-                .withSecondaryToPrimaryMapper(new KubernetesServicesSecondaryToVirtualKafkaClusterPrimary(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKubernetesServicesSecondaryMapper())
+                .withSecondaryToPrimaryMapper(new KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<Secret> clusterToSecret = InformerEventSourceConfiguration.from(
                 Secret.class,
                 VirtualKafkaCluster.class)
                 .withName(SECRETS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToSecretSecondary())
-                .withSecondaryToPrimaryMapper(new SecretSecondarytoVirtualKafkaClusterPrimary(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToSecretSecondaryMapper())
+                .withSecondaryToPrimaryMapper(new SecretSecondarytoVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<ConfigMap> clusterToConfigMap = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 VirtualKafkaCluster.class)
                 .withName(CONFIGMAPS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToConfigMapSecondary())
-                .withSecondaryToPrimaryMapper(new ConfigMapSecondaryToVirtualKafkaClusterPrimary(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToConfigMapSecondaryMapper())
+                .withSecondaryToPrimaryMapper(new ConfigMapSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
         return List.of(

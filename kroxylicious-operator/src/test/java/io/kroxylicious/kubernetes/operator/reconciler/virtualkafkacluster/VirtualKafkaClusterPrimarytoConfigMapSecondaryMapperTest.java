@@ -17,7 +17,7 @@ class VirtualKafkaClusterPrimarytoConfigMapSecondaryMapperTest {
     @Test
     void canMapFromVirtualKafkaClusterWithTrustAnchorToConfigMap() {
         // Given
-        var mapper = new VirtualKafkaClusterPrimaryToConfigMapSecondary();
+        var mapper = new VirtualKafkaClusterPrimaryToConfigMapSecondaryMapper();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
@@ -29,7 +29,7 @@ class VirtualKafkaClusterPrimarytoConfigMapSecondaryMapperTest {
     @Test
     void canMapFromVirtualKafkaClusterWithTlsToConfigMap() {
         // Given
-        var mapper = new VirtualKafkaClusterPrimaryToConfigMapSecondary();
+        var mapper = new VirtualKafkaClusterPrimaryToConfigMapSecondaryMapper();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(MapperTestSupport.CLUSTER_NO_FILTERS);
@@ -41,7 +41,7 @@ class VirtualKafkaClusterPrimarytoConfigMapSecondaryMapperTest {
     @Test
     void canMapFromVirtualKafkaClusterWithoutTrustAnchorToConfigMap() {
         // Given
-        var mapper = new VirtualKafkaClusterPrimaryToConfigMapSecondary();
+        var mapper = new VirtualKafkaClusterPrimaryToConfigMapSecondaryMapper();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(MapperTestSupport.CLUSTER_TLS_NO_FILTERS);

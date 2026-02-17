@@ -39,7 +39,7 @@ class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapperTest {
                 .withNewProxyRef().withName("proxy").endProxyRef()
                 .endSpec().build();
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(cluster);
-        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         OwnerReference clusterOwner = ResourcesUtil.newOwnerReferenceTo(proxy);
         Service service = new ServiceBuilder().withNewMetadata().withOwnerReferences(clusterOwner).endMetadata().build();
 
@@ -55,7 +55,7 @@ class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         // given
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining();
-        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         OwnerReference clusterOwner = ResourcesUtil.newOwnerReferenceTo(proxy);
         Service service = new ServiceBuilder().withNewMetadata().withOwnerReferences(clusterOwner).endMetadata().build();
 
@@ -71,7 +71,7 @@ class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         // given
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();
 
-        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         Service service = new ServiceBuilder().withNewMetadata().withName("service").endMetadata().build();
 
         // when
@@ -96,7 +96,7 @@ class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapperTest {
                 .withNewProxyRef().withName("proxy").endProxyRef()
                 .endSpec().build();
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(cluster, cluster2);
-        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         OwnerReference clusterOwner = ResourcesUtil.newOwnerReferenceTo(proxy);
         Service service = new ServiceBuilder().withNewMetadata().withOwnerReferences(clusterOwner).endMetadata().build();
 
@@ -125,7 +125,7 @@ class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapperTest {
                 .withNewProxyRef().withName("proxy").endProxyRef()
                 .endSpec().build();
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(cluster, irrelevantCluster);
-        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         OwnerReference clusterOwner = ResourcesUtil.newOwnerReferenceTo(cluster);
         OwnerReference proxyOwner = ResourcesUtil.newOwnerReferenceTo(proxy);
         Service service = new ServiceBuilder().withNewMetadata().withOwnerReferences(clusterOwner, proxyOwner).endMetadata().build();

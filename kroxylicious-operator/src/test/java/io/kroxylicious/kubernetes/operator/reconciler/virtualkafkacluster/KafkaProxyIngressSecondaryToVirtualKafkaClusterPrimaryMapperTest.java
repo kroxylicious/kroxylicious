@@ -32,7 +32,7 @@ class KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimaryMapperTest {
                         .withNewIngressRef().withName("ingress").endIngressRef().build())
                 .endSpec().build();
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(cluster);
-        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = new KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = new KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         KafkaProxyIngress ingress = new KafkaProxyIngressBuilder().withNewMetadata().withName("ingress").endMetadata().withNewSpec().withNewProxyRef()
                 .withName("proxy")
                 .endProxyRef().endSpec().build();
@@ -50,7 +50,7 @@ class KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
                 .withIngresses(new IngressesBuilder().withNewIngressRef().withName("ingress").endIngressRef().build()).endSpec().build();
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(cluster);
-        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = new KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = new KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
         // @formatter:off
         KafkaProxyIngress ingress = new KafkaProxyIngressBuilder()
                 .withNewMetadata()

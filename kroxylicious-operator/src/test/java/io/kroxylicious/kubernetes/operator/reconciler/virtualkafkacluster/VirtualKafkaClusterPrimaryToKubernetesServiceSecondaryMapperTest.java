@@ -31,7 +31,7 @@ class VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapperTest {
                 .endSpec().build();
 
         // when
-        Set<ResourceID> secondaryResourceIDs = new VirtualKafkaClusterPrimaryToKubernetesServicesSecondary().toSecondaryResourceIDs(cluster);
+        Set<ResourceID> secondaryResourceIDs = new VirtualKafkaClusterPrimaryToKubernetesServicesSecondaryMapper().toSecondaryResourceIDs(cluster);
 
         // then
         ResourceID clusterIpBootstrapServiceId = new ResourceID("cluster-ingress-bootstrap", "namespace");
@@ -57,7 +57,7 @@ class VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapperTest {
                 .endSpec().build();
 
         // when
-        Set<ResourceID> secondaryResourceIDs = new VirtualKafkaClusterPrimaryToKubernetesServicesSecondary().toSecondaryResourceIDs(cluster);
+        Set<ResourceID> secondaryResourceIDs = new VirtualKafkaClusterPrimaryToKubernetesServicesSecondaryMapper().toSecondaryResourceIDs(cluster);
 
         // then
         ResourceID clusterIpBootstrapServiceId = new ResourceID(clusterName + "-" + ingressName + "-bootstrap", namespace);

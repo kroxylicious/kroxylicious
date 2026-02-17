@@ -6,33 +6,32 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster;
 
-import java.util.Optional;
 import java.util.Set;
 
-import io.fabric8.kubernetes.api.model.Secret;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class SecretSecondarytoVirtualKafkaClusterPrimary implements SecondaryToPrimaryMapper<Secret> {
-
+class KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapper implements SecondaryToPrimaryMapper<KafkaProtocolFilter> {
     private final EventSourceContext<VirtualKafkaCluster> context;
 
-    SecretSecondarytoVirtualKafkaClusterPrimary(EventSourceContext<VirtualKafkaCluster> context) {
+    KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
         this.context = context;
     }
 
     @Override
-    public Set<ResourceID> toPrimaryResourceIDs(Secret secret) {
+    public Set<ResourceID> toPrimaryResourceIDs(KafkaProtocolFilter filter) {
+        if (!ResourcesUtil.isStatusFresh(filter)) {
+            VirtualKafkaClusterReconciler.logIgnoredEvent(filter);
+            return Set.of();
+        }
         return ResourcesUtil.findReferrersMulti(context,
-                secret,
+                filter,
                 VirtualKafkaCluster.class,
-                cluster -> cluster.getSpec().getIngresses().stream()
-                        .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
-                        .map(Tls::getCertificateRef).toList());
+                cluster -> cluster.getSpec().getFilterRefs());
     }
 }

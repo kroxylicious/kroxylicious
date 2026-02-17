@@ -22,7 +22,7 @@ class ConfigMapSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
 
         // When
-        var mapper = new ConfigMapSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        var mapper = new ConfigMapSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);
@@ -35,7 +35,7 @@ class ConfigMapSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_NO_FILTERS);
 
         // When
-        var mapper = new ConfigMapSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        var mapper = new ConfigMapSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);
@@ -48,7 +48,7 @@ class ConfigMapSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS);
 
         // When
-        var mapper = new ConfigMapSecondaryToVirtualKafkaClusterPrimary(eventSourceContext);
+        var mapper = new ConfigMapSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);

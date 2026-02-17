@@ -20,7 +20,7 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import static io.kroxylicious.kubernetes.operator.model.networking.TcpClusterIPClusterIngressNetworkingModel.bootstrapServiceName;
 
-class VirtualKafkaClusterPrimaryToKubernetesServicesSecondary implements PrimaryToSecondaryMapper<VirtualKafkaCluster> {
+class VirtualKafkaClusterPrimaryToKubernetesServicesSecondaryMapper implements PrimaryToSecondaryMapper<VirtualKafkaCluster> {
     @Override
     public Set<ResourceID> toSecondaryResourceIDs(VirtualKafkaCluster cluster) {
         Stream<ResourceID> clusterIpServices = cluster.getSpec().getIngresses()
