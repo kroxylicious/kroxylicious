@@ -27,7 +27,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class TestFiles {
 
-    static final String INSTALL_MANIFESTS_DIR = "packaging/install";
+    public static final String INSTALL_MANIFESTS_DIR = "packaging/install";
 
     @NonNull
     static HashSet<Path> childFilesMatching(

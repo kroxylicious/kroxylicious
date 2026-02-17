@@ -29,6 +29,11 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 
 import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaprotocolfilter.KafkaProtocolFilterReconciler;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxyingress.KafkaProxyIngressReconciler;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.KafkaServiceReconciler;
+import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.proxy.VersionInfo;
 import io.kroxylicious.proxy.service.HostPort;

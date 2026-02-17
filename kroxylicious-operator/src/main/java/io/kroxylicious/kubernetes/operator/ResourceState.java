@@ -37,7 +37,7 @@ public class ResourceState {
         this.conditions = new TreeMap<>(conditions);
     }
 
-    static ResourceState of(Condition condition) {
+    public static ResourceState of(Condition condition) {
         return new ResourceState(Map.of(condition.getType(), condition));
     }
 
@@ -46,7 +46,7 @@ public class ResourceState {
      * @param conditionsList Conditions from the list of conditions on a CR's status.
      * @return An optional conditions object
      */
-    static ResourceState fromList(List<Condition> conditionsList) {
+    public static ResourceState fromList(List<Condition> conditionsList) {
         // Belt+braces: There _should_ be at most one such condition, but we assume there's more than one
         // we pick the condition with the largest observedGeneration (there's on point keeping old conditions around)
         // then we compare the last transition time, there's no guarantee that they call came from the same clock
@@ -81,7 +81,7 @@ public class ResourceState {
         return conditions.values().stream().toList();
     }
 
-    static List<Condition> newConditions(List<Condition> oldConditions, ResourceState newStatus) {
+    public static List<Condition> newConditions(List<Condition> oldConditions, ResourceState newStatus) {
         ResourceState existingConditions = fromList(oldConditions);
         ResourceState replacement = newStatus.replacementFor(existingConditions);
         return replacement.toList();

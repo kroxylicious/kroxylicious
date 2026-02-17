@@ -66,7 +66,7 @@ import static org.awaitility.Awaitility.await;
  * The Kroxylicious system tests.
  */
 @Tag(OPERATOR)
-class OperatorChangeDetectionST extends AbstractST {
+class OperatorChangeDetectionST extends AbstractSystemTests {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
     private static final String PREFIX = "optr-cd";

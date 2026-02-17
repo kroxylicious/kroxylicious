@@ -8,6 +8,7 @@ package io.kroxylicious.benchmarks.helm;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +75,6 @@ class HelmTemplateRenderingTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void shouldRenderKafkaCustomResource() throws IOException {
         // When: Rendering templates and finding Kafka custom resource
         String yaml = HelmUtils.renderTemplate();
@@ -87,8 +87,7 @@ class HelmTemplateRenderingTest {
         assertThat(kafka.getApiVersion()).isEqualTo("kafka.strimzi.io/v1");
 
         // Verify version is set
-        Map<String, Object> spec = kafka.get("spec");
-        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
+        Map<String, Object> kafkaSpec = HelmUtils.getNestedMap(kafka.get("spec"), "kafka");
         assertThat(kafkaSpec)
                 .as("Kafka CR should have version specified")
                 .hasEntrySatisfying("version", v -> assertThat(v).isEqualTo(testKafkaVersion));
@@ -110,7 +109,6 @@ class HelmTemplateRenderingTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void shouldConfigureKafkaVersion() throws IOException {
         // When: Rendering templates and finding Kafka custom resource
         String yaml = HelmUtils.renderTemplate();
@@ -119,8 +117,7 @@ class HelmTemplateRenderingTest {
 
         // Then: Kafka CR should have version configured
         assertThat(kafka).isNotNull();
-        Map<String, Object> spec = kafka.get("spec");
-        Map<String, Object> kafkaSpec = (Map<String, Object>) spec.get("kafka");
+        Map<String, Object> kafkaSpec = HelmUtils.getNestedMap(kafka.get("spec"), "kafka");
         assertThat(kafkaSpec).as("Kafka CR should have version specified").containsEntry("version", testKafkaVersion);
     }
 
@@ -155,6 +152,102 @@ class HelmTemplateRenderingTest {
         assertThat(workers)
                 .as("Should have worker URL for each replica")
                 .hasSize(workerReplicas);
+    }
+
+    @Test
+    void shouldDefaultToProductionDurations() throws IOException {
+        // When: Rendering templates with default values
+        String yaml = HelmUtils.renderTemplate();
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource workloadConfigMap = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-workload-1topic-1kb");
+
+        // Then: Workload should have production-quality durations (reliable up to p99.9)
+        assertThat(workloadConfigMap).as("Workload ConfigMap should exist").isNotNull();
+        Map<String, Object> data = workloadConfigMap.get("data");
+        assertThat(data).isNotNull();
+
+        String workloadYaml = (String) data.get("workload.yaml");
+        assertThat(workloadYaml)
+                .as("Default test duration should be 15 minutes (sufficient for p99.9)")
+                .contains("testDurationMinutes: 15");
+        assertThat(workloadYaml)
+                .as("Default warmup duration should be 5 minutes")
+                .contains("warmupDurationMinutes: 5");
+        assertThat(workloadYaml)
+                .as("Default producer rate should be 50000 for 1-topic workload")
+                .contains("producerRate: 50000");
+    }
+
+    @Test
+    void smokeProfileShouldOverrideDurations() throws IOException {
+        String workloadYaml = renderSmokeWorkloadYaml();
+        assertThat(workloadYaml)
+                .contains("testDurationMinutes: 1")
+                .contains("warmupDurationMinutes: 0");
+    }
+
+    @Test
+    void smokeProfileShouldReduceProducerRate() throws IOException {
+        String workloadYaml = renderSmokeWorkloadYaml();
+        assertThat(workloadYaml)
+                .as("Smoke producer rate should be reduced to avoid overwhelming a single broker")
+                .contains("producerRate: 10000");
+    }
+
+    @Test
+    void smokeProfileShouldUseSingleBroker() throws IOException {
+        List<GenericKubernetesResource> resources = renderSmokeResources();
+        GenericKubernetesResource nodePool = HelmUtils.findResourceTyped(resources, "KafkaNodePool", "kafka-pool");
+        assertThat(nodePool).isNotNull();
+        Map<String, Object> nodePoolSpec = nodePool.get("spec");
+        assertThat(nodePoolSpec).hasEntrySatisfying("replicas", v -> assertThat(v).isEqualTo(1));
+    }
+
+    @Test
+    void smokeProfileShouldSetReplicationFactorToOne() throws IOException {
+        List<GenericKubernetesResource> resources = renderSmokeResources();
+        GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
+        Map<String, Object> kafkaConfig = HelmUtils.getNestedMap(kafka.get("spec"), "kafka", "config");
+        assertThat(kafkaConfig)
+                .containsEntry("default.replication.factor", 1)
+                .containsEntry("offsets.topic.replication.factor", 1)
+                .containsEntry("transaction.state.log.replication.factor", 1)
+                .containsEntry("min.insync.replicas", 1)
+                .containsEntry("transaction.state.log.min.isr", 1);
+    }
+
+    @Test
+    void smokeProfileShouldUseMinimumWorkers() throws IOException {
+        List<GenericKubernetesResource> resources = renderSmokeResources();
+        GenericKubernetesResource benchmark = HelmUtils.findResourceTyped(resources, "Deployment", "omb-benchmark");
+        String workersValue = HelmUtils.getPodEnvVar(benchmark, "WORKERS");
+        assertThat(workersValue.split(",")).as("DistributedWorkersEnsemble requires at least 2 workers").hasSize(2);
+    }
+
+    @Test
+    void smokeProfileShouldSetDriverReplicationToMatchBrokerCount() throws IOException {
+        List<GenericKubernetesResource> resources = renderSmokeResources();
+        GenericKubernetesResource driverConfigMap = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-driver-baseline");
+        assertThat(driverConfigMap).isNotNull();
+        Map<String, Object> driverData = driverConfigMap.get("data");
+        String driverYaml = (String) driverData.get("driver-kafka.yaml");
+        assertThat(driverYaml)
+                .contains("replicationFactor: 1")
+                .contains("min.insync.replicas=1");
+    }
+
+    private String renderSmokeWorkloadYaml() throws IOException {
+        List<GenericKubernetesResource> resources = renderSmokeResources();
+        GenericKubernetesResource workloadConfigMap = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-workload-1topic-1kb");
+        assertThat(workloadConfigMap).as("Workload ConfigMap should exist").isNotNull();
+        Map<String, Object> data = workloadConfigMap.get("data");
+        return (String) data.get("workload.yaml");
+    }
+
+    private List<GenericKubernetesResource> renderSmokeResources() throws IOException {
+        Path smokeValues = Paths.get("helm/kroxylicious-benchmark/scenarios/smoke-values.yaml").toAbsolutePath();
+        String yaml = HelmUtils.renderTemplate(List.of(smokeValues), Map.of());
+        return HelmUtils.parseKubernetesResourcesTyped(yaml);
     }
 
     @Test
