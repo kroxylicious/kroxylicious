@@ -94,7 +94,7 @@ kubectl get pods -n kafka
 
 The benchmark pod has a `$WORKERS` environment variable pre-configured with all worker URLs based on your `omb.workerReplicas` setting.
 
-The default workload is `1topic-1kb` (1 topic, 1KB messages, 5 minute test).
+The default workload is `1topic-1kb` (1 topic, 1KB messages).
 
 ### Verify Bootstrap Target
 
@@ -231,7 +231,7 @@ kubectl exec deploy/omb-benchmark -n kafka -- \
 
 Edit `kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/values.yaml` to change:
 - Kafka brokers: `kafka.replicas` (default: 3)
-- Benchmark duration: `benchmark.testDurationMinutes` (default: 5)
+- Benchmark duration: `benchmark.testDurationMinutes` (default: 15)
 - Worker count: `omb.workerReplicas` (default: 3)
 
 Then upgrade (use the `SCENARIO` you deployed with):

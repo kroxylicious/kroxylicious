@@ -151,13 +151,13 @@ SCENARIO=baseline-values              # Direct Kafka, no proxy
 # Install Helm chart with the configured scenario (production durations: 15 min test + 5 min warmup)
 helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
   -n kafka \
-  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml 
-  
+  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
+
 # Or for quick validation, add the smoke profile (1 min test, 1 broker, 2 workers):
-# helm install benchmark ./helm/kroxylicious-benchmark \
+# helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
 #   -n kafka \
 #   -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml \
-#   -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/smoke-values.yaml 
+#   -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/smoke-values.yaml
 
 # Wait for Kafka cluster to be ready
 kubectl wait kafka/kafka --for=condition=Ready --timeout=300s -n kafka
@@ -214,8 +214,7 @@ helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious
   --set kafka.version=4.1.1 \
   --set kafka.replicas=5 \
   --set kafka.replicationFactor=5 \
-  --set kafka.minInSyncReplicas=3 \
-  -n kafka
+  --set kafka.minInSyncReplicas=3
 ```
 
 ### Workloads
@@ -240,9 +239,9 @@ At 50K msg/sec this produces ~45M samples, sufficient for reliable latency measu
 For quick validation during development, layer the **smoke profile** on top of a scenario:
 
 ```bash
-helm install benchmark ./helm/kroxylicious-benchmark \
-  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
-  -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
+helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
+  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
   -n kafka
 ```
 
@@ -262,8 +261,8 @@ deployment, connectivity, and workload execution.
 To override individual duration settings without using the smoke profile:
 
 ```bash
-helm install benchmark ./helm/kroxylicious-benchmark \
-  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
+  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
   --set benchmark.testDurationMinutes=30 \
   --set benchmark.warmupDurationMinutes=10 \
   -n kafka
