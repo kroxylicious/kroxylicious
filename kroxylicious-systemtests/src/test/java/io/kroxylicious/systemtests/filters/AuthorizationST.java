@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.authorizer.service.Decision;
-import io.kroxylicious.systemtests.AbstractST;
+import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-class AuthorizationST extends AbstractST {
+class AuthorizationST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationST.class);
     private static final String MESSAGE = "Hello-world";
     private final String clusterName = "authorization-st-cluster";
