@@ -39,8 +39,4 @@
     <Match>
         <Source name="~.*io/kroxylicious/microbenchmarks/jmh_generated/.*"/>
     </Match>
-
-    <Match>
-        <Source name="~.*io/kroxylicious/krpccodegen/.*"/>
-    </Match>
 </FindBugsFilter>
