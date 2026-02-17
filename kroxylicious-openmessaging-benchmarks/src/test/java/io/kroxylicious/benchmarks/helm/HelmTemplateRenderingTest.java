@@ -179,74 +179,75 @@ class HelmTemplateRenderingTest {
     }
 
     @Test
-    void shouldOverrideDurationsWithSmokeProfile() throws IOException {
-        // Given: The smoke values file
-        Path smokeValues = Paths.get("helm/kroxylicious-benchmark/scenarios/smoke-values.yaml").toAbsolutePath();
-
-        // When: Rendering templates with smoke profile layered on top
-        String yaml = HelmUtils.renderTemplate(List.of(smokeValues), Map.of());
-        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
-        GenericKubernetesResource workloadConfigMap = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-workload-1topic-1kb");
-
-        // Then: Workload should have smoke test durations
-        assertThat(workloadConfigMap).as("Workload ConfigMap should exist").isNotNull();
-        Map<String, Object> data = workloadConfigMap.get("data");
-        String workloadYaml = (String) data.get("workload.yaml");
+    void smokeProfileShouldOverrideDurations() throws IOException {
+        String workloadYaml = renderSmokeWorkloadYaml();
         assertThat(workloadYaml)
-                .as("Smoke test duration should be 1 minute")
-                .contains("testDurationMinutes: 1");
-        assertThat(workloadYaml)
-                .as("Smoke warmup should be 0 (no value in warming up for non-measurement runs)")
+                .contains("testDurationMinutes: 1")
                 .contains("warmupDurationMinutes: 0");
+    }
+
+    @Test
+    void smokeProfileShouldReduceProducerRate() throws IOException {
+        String workloadYaml = renderSmokeWorkloadYaml();
         assertThat(workloadYaml)
                 .as("Smoke producer rate should be reduced to avoid overwhelming a single broker")
                 .contains("producerRate: 10000");
     }
 
     @Test
-    void shouldReduceInfrastructureForSmokeProfile() throws IOException {
-        // Given: The smoke values file
-        Path smokeValues = Paths.get("helm/kroxylicious-benchmark/scenarios/smoke-values.yaml").toAbsolutePath();
-
-        // When: Rendering templates with smoke profile
-        String yaml = HelmUtils.renderTemplate(List.of(smokeValues), Map.of());
-        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
-
-        // Then: Kafka should use 1 broker with matching replication settings
+    void smokeProfileShouldUseSingleBroker() throws IOException {
+        List<GenericKubernetesResource> resources = renderSmokeResources();
         GenericKubernetesResource nodePool = HelmUtils.findResourceTyped(resources, "KafkaNodePool", "kafka-pool");
         assertThat(nodePool).isNotNull();
         Map<String, Object> nodePoolSpec = nodePool.get("spec");
         assertThat(nodePoolSpec).hasEntrySatisfying("replicas", v -> assertThat(v).isEqualTo(1));
+    }
 
+    @Test
+    void smokeProfileShouldSetReplicationFactorToOne() throws IOException {
+        List<GenericKubernetesResource> resources = renderSmokeResources();
         GenericKubernetesResource kafka = HelmUtils.findResourceTyped(resources, "Kafka", "kafka");
-        assertThat(kafka).isNotNull();
         Map<String, Object> kafkaConfig = HelmUtils.getNestedMap(kafka.get("spec"), "kafka", "config");
         assertThat(kafkaConfig)
-                .as("Replication factor should be 1 for single-broker smoke test")
                 .containsEntry("default.replication.factor", 1)
                 .containsEntry("offsets.topic.replication.factor", 1)
-                .containsEntry("transaction.state.log.replication.factor", 1);
-        assertThat(kafkaConfig)
-                .as("Min ISR should be 1 for single-broker smoke test")
+                .containsEntry("transaction.state.log.replication.factor", 1)
                 .containsEntry("min.insync.replicas", 1)
                 .containsEntry("transaction.state.log.min.isr", 1);
+    }
 
-        // Then: OMB should use 2 workers (minimum required by DistributedWorkersEnsemble)
+    @Test
+    void smokeProfileShouldUseMinimumWorkers() throws IOException {
+        List<GenericKubernetesResource> resources = renderSmokeResources();
         GenericKubernetesResource benchmark = HelmUtils.findResourceTyped(resources, "Deployment", "omb-benchmark");
         String workersValue = HelmUtils.getPodEnvVar(benchmark, "WORKERS");
-        assertThat(workersValue.split(",")).as("Smoke profile should use 2 workers").hasSize(2);
+        assertThat(workersValue.split(",")).as("DistributedWorkersEnsemble requires at least 2 workers").hasSize(2);
+    }
 
-        // Then: Driver replication settings should match the single-broker config
+    @Test
+    void smokeProfileShouldSetDriverReplicationToMatchBrokerCount() throws IOException {
+        List<GenericKubernetesResource> resources = renderSmokeResources();
         GenericKubernetesResource driverConfigMap = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-driver-baseline");
-        assertThat(driverConfigMap).as("Driver ConfigMap should exist").isNotNull();
+        assertThat(driverConfigMap).isNotNull();
         Map<String, Object> driverData = driverConfigMap.get("data");
         String driverYaml = (String) driverData.get("driver-kafka.yaml");
         assertThat(driverYaml)
-                .as("Driver replication factor should match smoke broker count")
-                .contains("replicationFactor: 1");
-        assertThat(driverYaml)
-                .as("Driver min.insync.replicas should match smoke config")
+                .contains("replicationFactor: 1")
                 .contains("min.insync.replicas=1");
+    }
+
+    private String renderSmokeWorkloadYaml() throws IOException {
+        List<GenericKubernetesResource> resources = renderSmokeResources();
+        GenericKubernetesResource workloadConfigMap = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-workload-1topic-1kb");
+        assertThat(workloadConfigMap).as("Workload ConfigMap should exist").isNotNull();
+        Map<String, Object> data = workloadConfigMap.get("data");
+        return (String) data.get("workload.yaml");
+    }
+
+    private List<GenericKubernetesResource> renderSmokeResources() throws IOException {
+        Path smokeValues = Paths.get("helm/kroxylicious-benchmark/scenarios/smoke-values.yaml").toAbsolutePath();
+        String yaml = HelmUtils.renderTemplate(List.of(smokeValues), Map.of());
+        return HelmUtils.parseKubernetesResourcesTyped(yaml);
     }
 
     @Test
