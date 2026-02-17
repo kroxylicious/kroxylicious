@@ -235,6 +235,18 @@ class HelmTemplateRenderingTest {
         GenericKubernetesResource benchmark = HelmUtils.findResourceTyped(resources, "Deployment", "omb-benchmark");
         String workersValue = HelmUtils.getPodEnvVar(benchmark, "WORKERS");
         assertThat(workersValue.split(",")).as("Smoke profile should use 2 workers").hasSize(2);
+
+        // Then: Driver replication settings should match the single-broker config
+        GenericKubernetesResource driverConfigMap = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-driver-baseline");
+        assertThat(driverConfigMap).as("Driver ConfigMap should exist").isNotNull();
+        Map<String, Object> driverData = driverConfigMap.get("data");
+        String driverYaml = (String) driverData.get("driver-kafka.yaml");
+        assertThat(driverYaml)
+                .as("Driver replication factor should match smoke broker count")
+                .contains("replicationFactor: 1");
+        assertThat(driverYaml)
+                .as("Driver min.insync.replicas should match smoke config")
+                .contains("min.insync.replicas=1");
     }
 
     @Test

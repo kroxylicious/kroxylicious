@@ -18,10 +18,10 @@ data:
     name: Kafka
     driverClass: io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriver
 
-    replicationFactor: 3
+    replicationFactor: {{ .Values.kafka.replicationFactor }}
 
     topicConfig: |
-      min.insync.replicas=2
+      min.insync.replicas={{ .Values.kafka.minInSyncReplicas }}
 
     commonConfig: |
       bootstrap.servers={{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}
