@@ -92,6 +92,8 @@ kroxylicious-openmessaging-benchmarks/
 │       │   ├── kafka-strimzi.yaml
 │       │   ├── kafka-nodepool.yaml
 │       │   ├── kroxylicious-proxy.yaml
+│       │   ├── kroxylicious-ingress.yaml
+│       │   ├── kroxylicious-service.yaml
 │       │   ├── kroxylicious-cluster.yaml
 │       │   ├── omb-workers-statefulset.yaml
 │       │   ├── omb-benchmark-deployment.yaml
@@ -313,8 +315,8 @@ Tests use the following approach:
 
 ## Next Phases (Planned)
 
-**Phase 2: Proxy Scenarios** (partially complete)
-- ✅ No-filters (empty filter chain)
+**Phase 2: Proxy Scenarios**
+- ✅ No-filters (empty filter chain) — complete
 - Encryption (RecordEncryption filter)
 - Encryption+Auth (RecordEncryption + Authorization filters)
 
