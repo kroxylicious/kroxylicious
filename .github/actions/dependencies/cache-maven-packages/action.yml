@@ -15,22 +15,15 @@
 #  limitations under the License.
 #
 
-name: "Setup Minikube"
-description: "Installs minikube"
-
-inputs:
-  githubToken:
-    description: "Github Token to be used"
-    required: false
-    default: ${{ secrets.GITHUB_TOKEN }}
+name: "Cache Maven Packages"
+description: "Cache Maven Packages"
 
 runs:
   using: "composite"
   steps:
-    - name: Setup Minikube
-      uses: manusa/actions-setup-minikube@b589f2d61bf96695c546929c72b38563e856059d
+    - name: 'Cache Maven packages'
+      uses: actions/cache@v5
       with:
-        "minikube version": "v1.38.0"
-        "kubernetes version": "v1.35.0"
-        "github token": ${{ inputs.githubToken }}
-        driver: docker
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2

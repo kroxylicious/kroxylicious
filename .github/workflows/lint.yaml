@@ -39,17 +39,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: 'Set up Java'
-        uses: actions/setup-java@v5
-        with:
-          java-version: 21
-          distribution: 'temurin'
+      - name: Setup Java
+        uses: ./.github/actions/dependencies/setup-java
       - name: 'Cache Maven packages'
-        uses: actions/cache/restore@v5
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+        uses: ./.github/actions/dependencies/cache-maven-packages
       - name: 'Compile and lint the project'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,9 +59,4 @@ jobs:
           path: PR_NUMBER.txt
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
-        env:
-          SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
-          SLACK_COLOR: 'danger'
-          SLACK_TITLE: 'Failure Alert: ${{ github.repository }}'
-          SLACK_MESSAGE: 'The lint workflow failed on branch ${{ github.ref_name }}.'
+        uses: ./.github/actions/dependencies/slack-notification

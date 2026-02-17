@@ -29,6 +29,7 @@ on:
       - 'kroxylicious-*benchmarks/**'
     branches:
       - "main"
+      - 'release/**'
   workflow_dispatch:
 
 concurrency:
@@ -76,11 +77,7 @@ jobs:
       - name: 'Set up Docker Buildx'
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - name: 'Cache Maven packages'
-        uses: actions/cache@v5
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+        uses: ./.github/actions/dependencies/cache-maven-packages
       - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
         run: |
           mvn --quiet --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
