@@ -24,6 +24,7 @@ on:
       - '**/**.txt'
       - '.github/**'
       - '!.github/workflows/system-tests-pr.yaml'
+      - '!.github/actions/**'
       - 'kroxylicious-docs**/**'
       - 'kroxylicious-integration-test**/**'
       - 'kroxylicious-*benchmarks/**'
