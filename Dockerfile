@@ -49,8 +49,7 @@ ARG CONTAINER_USER_UID=185
 
 USER root
 
-RUN microdnf -y update \
-    && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y \
+RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y \
                 java-${JAVA_VERSION}-openjdk-headless \
                 openssl \
                 shadow-utils \
