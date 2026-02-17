@@ -7,21 +7,11 @@
 -->
 <#assign filteredEntityTypes = createEntityTypeSet("GROUP_ID", "TRANSACTIONAL_ID", "TOPIC_NAME")>
 
-<#macro camelNameToSnakeName camelName>
-    <#compress>
-        <#local words=camelName?split("(?=[A-Z])", "r")/>
-        <#list words as word>${word?c_lower_case}<#sep>_</#list>
-    </#compress>
-</#macro>
-
 <#macro mapRequestFields messageSpec dataVar fields indent>
     <#local pad = ""?left_pad(4*indent)/>
     <#list fields?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
 ${pad}// process any entity fields defined at this level
         <#items as field>
-            <#local snakeFieldName>
-                <@camelNameToSnakeName field.name/>
-            </#local>
             <#local getter="${field.name?uncap_first}"
                     setter="set${field.name}" />
 ${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/>) {
@@ -38,9 +28,6 @@ ${pad}}
     <#list fields?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
 ${pad}// recursively process sub-fields
         <#items as field>
-            <#local snakeFieldName>
-                <@camelNameToSnakeName field.name/>
-            </#local>
             <#local getter="${field.name?uncap_first}()"
                     elementVar=field.type?remove_beginning("[]")?uncap_first />
 ${pad}if (<@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/> && ${dataVar}.${getter} != null) {
@@ -57,9 +44,6 @@ ${pad}}
     <#list fields?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
 ${pad}// process entity fields defined at this level
         <#items as field>
-            <#local snakeFieldName>
-                <@camelNameToSnakeName field.name/>
-            </#local>
             <#local getter="${field.name?uncap_first}"
                     setter="set${field.name}" />
 ${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/>) {
@@ -90,9 +74,6 @@ ${pad}}
     <#list fields?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
 ${pad}// recursively process sub-fields
         <#items as field>
-            <#local snakeFieldName>
-                <@camelNameToSnakeName field.name/>
-            </#local>
             <#local getter="${field.name?uncap_first}"
                     collectionIteratorVar=field.name?uncap_first + "Iterator"
                     elementVar=field.type?remove_beginning("[]")?uncap_first />
