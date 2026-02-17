@@ -49,6 +49,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRoute;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
@@ -528,6 +529,10 @@ public final class VirtualKafkaClusterReconciler implements
         }
         LoadBalancer loadBalancer = proxyIngress.getSpec().getLoadBalancer();
         if (loadBalancer != null) {
+            return Protocol.TLS;
+        }
+        OpenShiftRoute openShiftRoute = proxyIngress.getSpec().getOpenShiftRoute();
+        if (openShiftRoute != null) {
             return Protocol.TLS;
         }
         throw new IllegalStateException("No protocol could be determined for " + proxyIngress);
