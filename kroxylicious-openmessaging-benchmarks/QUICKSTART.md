@@ -165,6 +165,32 @@ kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers
 - `10topics-1kb` - 10 topics, 1KB messages
 - `100topics-1kb` - 100 topics, 1KB messages
 
+### Switch Scenario
+
+To switch between baseline and proxy scenarios (e.g. after running baseline, run proxy-no-filters):
+
+```bash
+# Save results first! helm upgrade restarts pods and results are lost.
+
+# Set the new scenario
+SCENARIO=proxy-no-filters-values    # or baseline-values
+
+helm upgrade benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
+  -n kafka \
+  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
+
+# Wait for pods to restart
+kubectl rollout status statefulset/omb-worker -n kafka
+kubectl rollout restart deploy/omb-benchmark -n kafka
+kubectl wait --for=condition=ready pod -l app=omb-benchmark -n kafka --timeout=60s
+
+# Verify the bootstrap target changed
+kubectl get configmap omb-driver-baseline -n kafka -o jsonpath='{.data.driver-kafka\.yaml}' | grep bootstrap
+```
+
+> **Note:** When switching *to* a proxy scenario, the Kroxylicious operator must reconcile
+> the new CRs before benchmarks can run. The operator must be installed first (see step 3).
+
 ## Re-running Benchmarks
 
 Infrastructure stays running - just re-run the `kubectl exec` command to benchmark again.
