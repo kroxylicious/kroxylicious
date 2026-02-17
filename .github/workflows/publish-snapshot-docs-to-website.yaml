@@ -142,4 +142,5 @@ jobs:
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
         uses: ./.github/actions/dependencies/slack-notification
         with:
+          slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The snapshot documentation deployment workflow failed.'

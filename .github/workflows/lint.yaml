@@ -60,3 +60,6 @@ jobs:
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
         uses: ./.github/actions/dependencies/slack-notification
+        with:
+          slackTitle: 'Failure Alert: ${{ github.repository }}'
+          slackMessage: 'The lint workflow failed on branch ${{ github.ref_name }}.'

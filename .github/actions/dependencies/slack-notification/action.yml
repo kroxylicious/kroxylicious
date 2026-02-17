@@ -26,15 +26,15 @@ inputs:
   slackColor:
     description: "Color for the message"
     required: false
-    default: "danger"
+    default: ${{ job.status }}
   slackTitle:
     description: "Title of the message"
     required: false
-    default: 'Failure Alert: ${{ github.repository }}'
+    default: 'Title: ${{ github.repository }}'
   slackMessage:
     description: "Message to be published on Slack"
     required: false
-    default: 'The docker build workflow failed on branch ${{ github.ref_name }}.'
+    default: 'The workflow ${{ job.status }} on branch ${{ github.ref_name }}.'
 
 runs:
   using: "composite"
