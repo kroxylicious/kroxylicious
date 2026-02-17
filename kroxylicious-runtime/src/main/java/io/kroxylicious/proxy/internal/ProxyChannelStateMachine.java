@@ -103,22 +103,6 @@ public class ProxyChannelStateMachine {
     private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "onInitiateConnect called more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
 
-    public Optional<ClientTlsContext> clientTlsContext() {
-        return clientSubjectManager.clientTlsContext();
-    }
-
-    public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
-        clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
-    }
-
-    public Optional<ClientSaslContext> clientSaslContext() {
-        return clientSubjectManager.clientSaslContext();
-    }
-
-    public void clientSaslAuthenticationFailure() {
-        clientSubjectManager.clientSaslAuthenticationFailure();
-    }
-
     /**
      * Enumeration of disconnect causes for tracking client to proxy disconnections.
      */
@@ -257,6 +241,7 @@ public class ProxyChannelStateMachine {
         return this.state().getClass().getSimpleName();
     }
 
+    @Nullable
     Integer nodeId() {
         return endpointBinding.nodeId();
     }
@@ -358,7 +343,7 @@ public class ProxyChannelStateMachine {
     void onInitiateConnect(
                            HostPort peer) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
-            toConnecting(selectingServerState.toConnecting(peer), virtualCluster());
+            toConnecting(selectingServerState.toConnecting(peer));
         }
         else {
             illegalState(DUPLICATE_INITIATE_CONNECT_ERROR);
@@ -562,10 +547,26 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
+    public Optional<ClientTlsContext> clientTlsContext() {
+        return clientSubjectManager.clientTlsContext();
+    }
+
+    public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
+        clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
+    }
+
+    public Optional<ClientSaslContext> clientSaslContext() {
+        return clientSubjectManager.clientSaslContext();
+    }
+
+    public void clientSaslAuthenticationFailure() {
+        clientSubjectManager.clientSaslAuthenticationFailure();
+    }
+
+
+
     public void onClientTlsHandshakeSuccess(SSLSession sslSession) {
-        if (Objects.nonNull(this.clientSubjectManager)) {
-            this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder, this::onTransportSubjectBuilt);
-        }
+        this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder, this::onTransportSubjectBuilt);
     }
 
     @SuppressWarnings("java:S5738")
@@ -573,8 +574,12 @@ public class ProxyChannelStateMachine {
                                 ProxyChannelState.ClientActive clientActive,
                                 KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
-
-        this.progressionLatch = 2; // we require two events before unblocking
+        // we require two events before unblocking (making reads from) the client:
+        // 1. the completion of the building of the transport subject
+        // 2. the progression of the state machine to forwarding state
+        //    (completion of the connection to the backend)
+        // these can happen in either order
+        this.progressionLatch = 2;
         if (!this.isTlsListener()) {
             this.clientSubjectManager.subjectFromTransport(null, this.transportSubjectBuilder, this::onTransportSubjectBuilt);
         }
@@ -591,21 +596,19 @@ public class ProxyChannelStateMachine {
         maybeUnblock();
     }
 
-    @NonNull
     Subject authenticatedSubject() {
         return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
     }
 
     private void maybeUnblock() {
         if (--this.progressionLatch == 0) {
-            frontendHandler.unblockClient();
+            Objects.requireNonNull(frontendHandler).unblockClient();
         }
     }
 
     @SuppressWarnings("java:S5738")
     private void toConnecting(
-                              ProxyChannelState.Connecting connecting,
-                              VirtualClusterModel virtualClusterModel) {
+                              ProxyChannelState.Connecting connecting) {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this);
         Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
