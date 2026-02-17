@@ -19,7 +19,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -43,10 +42,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.Workflow;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.Dependent;
-import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
-import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
-import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
@@ -62,7 +58,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.operator.DeploymentReadyCondition;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
@@ -94,13 +89,11 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustStore;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 
 // @formatter:off
 @Workflow(dependents = {
@@ -497,172 +490,35 @@ public class KafkaProxyReconciler implements
 
     private static InformerEventSource<VirtualKafkaCluster, KafkaProxy> buildVirtualKafkaClusterEventSource(EventSourceContext<KafkaProxy> context) {
         InformerEventSourceConfiguration<VirtualKafkaCluster> configuration = InformerEventSourceConfiguration.from(VirtualKafkaCluster.class, KafkaProxy.class)
-                .withSecondaryToPrimaryMapper(clusterToProxyMapper(context))
-                .withPrimaryToSecondaryMapper(proxyToClusterMapper(context))
+                .withSecondaryToPrimaryMapper(new VirtualKafkaClusterSecondaryToKafkaProxyPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToVirtualKafkaClusterSecondaryMapper(context))
                 .build();
         return new InformerEventSource<>(configuration, context);
     }
 
     private static InformerEventSource<KafkaProxyIngress, KafkaProxy> buildKafkaProxyIngressEventSource(EventSourceContext<KafkaProxy> context) {
         InformerEventSourceConfiguration<KafkaProxyIngress> configuration = InformerEventSourceConfiguration.from(KafkaProxyIngress.class, KafkaProxy.class)
-                .withSecondaryToPrimaryMapper(ingressToProxyMapper(context))
-                .withPrimaryToSecondaryMapper(proxyToIngressMapper(context))
+                .withSecondaryToPrimaryMapper(new KafkaProxyIngressSecondaryToKafkaProxyPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToKafkaProxyIngressSecondaryMapper(context))
                 .build();
         return new InformerEventSource<>(configuration, context);
     }
 
     private static InformerEventSource<KafkaService, KafkaProxy> buildKafkaServiceEventSource(EventSourceContext<KafkaProxy> context) {
         InformerEventSourceConfiguration<KafkaService> configuration = InformerEventSourceConfiguration.from(KafkaService.class, KafkaProxy.class)
-                .withSecondaryToPrimaryMapper(kafkaServiceRefToProxyMapper(context))
-                .withPrimaryToSecondaryMapper(proxyToKafkaServiceMapper(context))
+                .withSecondaryToPrimaryMapper(new KafkaServiceSecondaryToKafkaProxyPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToKafkaServiceSecondaryMapper(context))
                 .build();
         return new InformerEventSource<>(configuration, context);
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<KafkaService> kafkaServiceRefToProxyMapper(EventSourceContext<KafkaProxy> context) {
-        return kafkaService -> {
-            // we do not want to trigger reconciliation of any proxy if the ingress has not been reconciled
-            if (!ResourcesUtil.isStatusFresh(kafkaService)) {
-                LOGGER.debug("Ignoring event from KafkaService with stale status: {}", ResourcesUtil.toLocalRef(kafkaService));
-                return Set.of();
-            }
-            // find all virtual clusters that reference this kafkaServiceRef
-
-            Set<? extends LocalRef<KafkaProxy>> proxyRefs = ResourcesUtil.resourcesInSameNamespace(context, kafkaService, VirtualKafkaCluster.class)
-                    .filter(vkc -> vkc.getSpec().getTargetKafkaServiceRef().equals(ResourcesUtil.toLocalRef(kafkaService)))
-                    .map(VirtualKafkaCluster::getSpec)
-                    .map(VirtualKafkaClusterSpec::getProxyRef)
-                    .collect(Collectors.toSet());
-
-            Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, kafkaService, KafkaProxy.class,
-                    proxy -> proxyRefs.contains(toLocalRef(proxy)));
-            LOGGER.debug("Event source KafkaService SecondaryToPrimaryMapper got {}", proxyIds);
-            return proxyIds;
-        };
-    }
-
-    /**
-     * @param context context
-     * @return mapper
-     */
-    @VisibleForTesting
-    static PrimaryToSecondaryMapper<KafkaProxy> proxyToKafkaServiceMapper(EventSourceContext<KafkaProxy> context) {
-        return primary -> {
-            // Load all the virtual clusters for the KafkaProxy, then extract all the referenced KafkaService resource ids.
-            Set<? extends LocalRef<KafkaService>> clusterRefs = ResourcesUtil.resourcesInSameNamespace(context, primary, VirtualKafkaCluster.class)
-                    .filter(vkc -> {
-                        LocalRef<KafkaProxy> proxyRef = vkc.getSpec().getProxyRef();
-                        return proxyRef.equals(toLocalRef(primary));
-                    })
-                    .map(VirtualKafkaCluster::getSpec)
-                    .map(VirtualKafkaClusterSpec::getTargetKafkaServiceRef)
-                    .collect(Collectors.toSet());
-
-            Set<ResourceID> kafkaServiceRefs = ResourcesUtil.filteredResourceIdsInSameNamespace(context, primary, KafkaService.class,
-                    cluster -> clusterRefs.contains(toLocalRef(cluster)));
-            LOGGER.debug("Event source KafkaService PrimaryToSecondaryMapper got {}", kafkaServiceRefs);
-            return kafkaServiceRefs;
-        };
     }
 
     private static InformerEventSource<KafkaProtocolFilter, KafkaProxy> buildFilterEventSource(EventSourceContext<KafkaProxy> context) {
 
         var configuration = InformerEventSourceConfiguration.from(KafkaProtocolFilter.class, KafkaProxy.class)
-                .withSecondaryToPrimaryMapper(filterToProxy(context))
-                .withPrimaryToSecondaryMapper(proxyToFilters(context))
+                .withSecondaryToPrimaryMapper(new KafkaProtocolFilterSecondaryToKafkaProxyPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new KafkaProxyPrimaryToKafkaProtocolFilterSecondaryMapper(context))
                 .build();
 
         return new InformerEventSource<>(configuration, context);
     }
-
-    @VisibleForTesting
-    static PrimaryToSecondaryMapper<KafkaProxy> proxyToFilters(EventSourceContext<KafkaProxy> context) {
-        return (KafkaProxy proxy) -> {
-            Set<ResourceID> filterReferences = ResourcesUtil.resourcesInSameNamespace(context, proxy, VirtualKafkaCluster.class)
-                    .filter(clusterReferences(proxy))
-                    .flatMap(cluster -> Optional.ofNullable(cluster.getSpec().getFilterRefs()).orElse(List.of()).stream())
-                    .map(filter -> new ResourceID(filter.getName(), namespace(proxy)))
-                    .collect(Collectors.toSet());
-            LOGGER.debug("KafkaProxy {} has references to filters {}", ResourceID.fromResource(proxy), filterReferences);
-            return filterReferences;
-        };
-    }
-
-    @VisibleForTesting
-    static PrimaryToSecondaryMapper<KafkaProxy> proxyToClusterMapper(EventSourceContext<KafkaProxy> context) {
-        return proxy -> {
-            Set<ResourceID> virtualClustersInProxyNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, proxy, VirtualKafkaCluster.class,
-                    clusterReferences(proxy));
-            LOGGER.debug("Event source VirtualKafkaCluster PrimaryToSecondaryMapper got {}", virtualClustersInProxyNamespace);
-            return virtualClustersInProxyNamespace;
-        };
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<VirtualKafkaCluster> clusterToProxyMapper(EventSourceContext<KafkaProxy> context) {
-        return cluster -> {
-            // we do not want to trigger reconciliation of any proxy if the cluster has not been reconciled
-            if (!ResourcesUtil.isStatusFresh(cluster)) {
-                LOGGER.debug("Ignoring event from cluster with stale status: {}", ResourcesUtil.toLocalRef(cluster));
-                return Set.of();
-            }
-            // we need to reconcile all proxies when a virtual kafka cluster changes in case the proxyRef is updated, we need to update
-            // the previously referenced proxy too.
-            Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, cluster, KafkaProxy.class, proxy -> true);
-            LOGGER.debug("Event source VirtualKafkaCluster SecondaryToPrimaryMapper got {}", proxyIds);
-            return proxyIds;
-        };
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<KafkaProxyIngress> ingressToProxyMapper(EventSourceContext<KafkaProxy> context) {
-        return ingress -> {
-            // we do not want to trigger reconciliation of any proxy if the ingress has not been reconciled
-            if (!ResourcesUtil.isStatusFresh(ingress)) {
-                LOGGER.debug("Ignoring event from ingress with stale status: {}", ResourcesUtil.toLocalRef(ingress));
-                return Set.of();
-            }
-            // we need to reconcile all proxies when a kafka proxy ingress changes in case the proxyRef is updated, we need to update
-            // the previously referenced proxy too.
-            Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, ingress, KafkaProxy.class, proxy -> true);
-            LOGGER.debug("Event source KafkaProxyIngress SecondaryToPrimaryMapper got {}", proxyIds);
-            return proxyIds;
-        };
-    }
-
-    @VisibleForTesting
-    static PrimaryToSecondaryMapper<KafkaProxy> proxyToIngressMapper(EventSourceContext<KafkaProxy> context) {
-        return primary -> {
-            Set<ResourceID> ingressesInProxyNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, primary, KafkaProxyIngress.class,
-                    ingressReferences(primary));
-            LOGGER.debug("Event source KafkaProxyIngress PrimaryToSecondaryMapper got {}", ingressesInProxyNamespace);
-            return ingressesInProxyNamespace;
-        };
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<KafkaProtocolFilter> filterToProxy(EventSourceContext<KafkaProxy> context) {
-        return (KafkaProtocolFilter filter) -> {
-            // we do not want to trigger reconciliation of any proxy if the filter has not been reconciled
-            if (!ResourcesUtil.isStatusFresh(filter)) {
-                LOGGER.debug("Ignoring event from filter with stale status: {}", ResourcesUtil.toLocalRef(filter));
-                return Set.of();
-            }
-            // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
-            // so when a filter changes we reconcile all the proxies in the same namespace
-            Set<ResourceID> proxiesInFilterNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, filter, KafkaProxy.class, proxy -> true);
-            LOGGER.debug("Event source SecondaryToPrimaryMapper got {}", proxiesInFilterNamespace);
-            return proxiesInFilterNamespace;
-        };
-    }
-
-    private static Predicate<VirtualKafkaCluster> clusterReferences(KafkaProxy proxy) {
-        return cluster -> name(proxy).equals(cluster.getSpec().getProxyRef().getName());
-    }
-
-    private static Predicate<KafkaProxyIngress> ingressReferences(KafkaProxy proxy) {
-        return ingress -> name(proxy).equals(ingress.getSpec().getProxyRef().getName());
-    }
 }
-// @formatter:off
