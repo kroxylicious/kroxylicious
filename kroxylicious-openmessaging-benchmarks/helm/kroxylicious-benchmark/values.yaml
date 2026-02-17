@@ -60,6 +60,7 @@ omb:
   imagePullPolicy: IfNotPresent
   driver: baseline  # Can be 'baseline' or 'proxy'
   workload: 1topic-1kb  # Workload name to run
+  workerJavaOpts: "-Xmx2g -Xms2g"  # JVM heap for OMB workers (must fit within resource limits)
   resources:
     requests:
       memory: "2Gi"
