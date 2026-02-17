@@ -18,6 +18,8 @@ import javax.crypto.spec.IvParameterSpec;
 
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 public class ChaChaPoly implements CipherManager {
     private static final int NONCE_SIZE_BYTES = 12;
 
@@ -46,6 +48,7 @@ public class ChaChaPoly implements CipherManager {
         return Long.MAX_VALUE; // 2^96 would be necessary given we use Wrapping96BitCounter
     }
 
+    @SuppressFBWarnings("CIPHER_INTEGRITY") // We accept that this cipher does not provide data integrity
     @Override
     public Cipher newCipher() {
         try {
@@ -63,9 +66,13 @@ public class ChaChaPoly implements CipherManager {
         // we generate the nonce using a counter
         var generator = new Wrapping96BitCounter(new SecureRandom());
         var nonce = new byte[NONCE_SIZE_BYTES];
-        return () -> {
-            generator.generateIv(nonce);
-            return new IvParameterSpec(nonce);
+        return new Supplier<AlgorithmParameterSpec>() {
+            @Override
+            @SuppressFBWarnings("STATIC_IV")
+            public AlgorithmParameterSpec get() {
+                generator.generateIv(nonce);
+                return new IvParameterSpec(nonce);
+            }
         };
     }
 
@@ -86,6 +93,7 @@ public class ChaChaPoly implements CipherManager {
         parametersBuffer.put(((IvParameterSpec) params).getIV());
     }
 
+    @SuppressFBWarnings("STATIC_IV")
     @Override
     public AlgorithmParameterSpec readParameters(ByteBuffer parametersBuffer) {
         byte[] nonce = new byte[NONCE_SIZE_BYTES];

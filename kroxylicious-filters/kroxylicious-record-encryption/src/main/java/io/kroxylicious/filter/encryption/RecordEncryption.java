@@ -57,6 +57,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A {@link FilterFactory} for {@link RecordEncryptionFilter}.
@@ -152,6 +153,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
     @NonNull
     @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
+    @SuppressFBWarnings("PREDICTABLE_RANDOM")
     private static <C, K, E> Kms<K, E> buildKms(RecordEncryptionConfig configuration, KmsService<C, K, E> kmsPlugin) {
         Kms<K, E> kms = kmsPlugin.buildKms();
         kms = InstrumentedKms.wrap(kms, kmsMetrics);

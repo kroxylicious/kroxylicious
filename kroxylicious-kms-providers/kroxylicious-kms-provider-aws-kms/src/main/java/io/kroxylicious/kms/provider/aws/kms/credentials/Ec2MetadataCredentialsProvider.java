@@ -44,6 +44,8 @@ import io.kroxylicious.kms.provider.aws.kms.config.Ec2MetadataCredentialsProvide
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Provider that obtains {@link Credentials} from the metadata server of the EC2 instance.
  * <p>
@@ -86,7 +88,6 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
      * own SDK.
      */
     private static final String META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT = "/latest/meta-data/iam/security-credentials/";
-    private static final Random RANDOM = new Random();
 
     private final Clock systemClock;
     private final AtomicReference<CompletableFuture<SecurityCredentials>> current = new AtomicReference<>();
@@ -96,8 +97,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     private final HttpClient client;
 
     private final ScheduledExecutorService executorService;
-    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
-    private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, RANDOM.nextDouble());
+    private final ExponentialBackoff backoff;
     private final Double lifetimeFactor;
     private final URI uri;
 
@@ -111,6 +111,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     @VisibleForTesting
+    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
+    @SuppressFBWarnings({ "DMI_RANDOM_USED_ONLY_ONCE", "PREDICTABLE_RANDOM" })
     Ec2MetadataCredentialsProvider(Ec2MetadataCredentialsProviderConfig config,
                                    Clock systemClock) {
         Objects.requireNonNull(config);
@@ -124,6 +126,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
             thread.setDaemon(true);
             return thread;
         });
+        this.backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
         this.client = createClient();
     }
 

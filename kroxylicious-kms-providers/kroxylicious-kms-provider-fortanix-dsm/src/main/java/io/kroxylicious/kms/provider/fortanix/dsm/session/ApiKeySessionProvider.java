@@ -43,6 +43,8 @@ import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import static io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms.AUTHORIZATION_HEADER;
 
 /**
@@ -70,8 +72,6 @@ import static io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms.AUTHORIZA
 public class ApiKeySessionProvider implements SessionProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiKeySessionProvider.class);
 
-    private static final Random RANDOM = new Random();
-
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<SessionAuthResponse>() {
@@ -89,8 +89,8 @@ public class ApiKeySessionProvider implements SessionProvider {
     private final HttpClient client;
 
     private final ScheduledExecutorService executorService;
-    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
-    private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, RANDOM.nextDouble());
+
+    private final ExponentialBackoff backoff;
     private final Double lifetimeFactor;
 
     /**
@@ -104,6 +104,8 @@ public class ApiKeySessionProvider implements SessionProvider {
         this(config, client, Clock.systemUTC());
     }
 
+    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
+    @SuppressFBWarnings({ "DMI_RANDOM_USED_ONLY_ONCE", "PREDICTABLE_RANDOM" })
     @VisibleForTesting
     ApiKeySessionProvider(Config config,
                           HttpClient client,
@@ -119,6 +121,7 @@ public class ApiKeySessionProvider implements SessionProvider {
             thread.setDaemon(true);
             return thread;
         });
+        this.backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
         this.client = client;
     }
 

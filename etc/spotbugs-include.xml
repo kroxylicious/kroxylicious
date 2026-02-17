@@ -17,6 +17,11 @@
     </Match>
 
     <Match>
+        <Bug category="SECURITY"/>
+        <Confidence value="2" />
+    </Match>
+
+    <Match>
         <Confidence value="1" />
     </Match>
 

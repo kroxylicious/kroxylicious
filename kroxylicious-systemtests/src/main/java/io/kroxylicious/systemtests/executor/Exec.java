@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import static java.lang.String.join;
 
 /**
@@ -303,6 +305,7 @@ public class Exec {
      * @throws InterruptedException the interrupted exception
      * @throws ExecutionException the execution exception
      */
+    @SuppressFBWarnings("COMMAND_INJECTION") // this is not production code
     public int execute(String input, List<String> commands, Duration timeout, File dir) throws IOException, InterruptedException, ExecutionException {
         LOGGER.atDebug().setMessage("Running command - {}").addArgument(() -> String.join(" ", commands.toArray(new String[0]))).log();
         ProcessBuilder builder = new ProcessBuilder();
@@ -361,6 +364,7 @@ public class Exec {
      * @param dir the dir
      * @return the pid
      */
+    @SuppressFBWarnings("COMMAND_INJECTION") // this is not production code
     public long executeWithoutWait(String input, List<String> commands, File dir) {
         LOGGER.atDebug().setMessage("Running command - {}").addArgument(() -> String.join(" ", commands.toArray(new String[0]))).log();
         ProcessBuilder builder = new ProcessBuilder();
@@ -406,6 +410,7 @@ public class Exec {
     /**
      * Get stdOut and stdErr and store it into files
      */
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN") // this is not production code
     private void storeOutputsToFile() {
         if (logPath != null) {
             try {

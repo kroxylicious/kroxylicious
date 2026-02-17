@@ -46,6 +46,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Responsible for applying TLS configuration to a {@link HttpClient.Builder}.
@@ -174,6 +175,7 @@ public class TlsHttpClientConfigurator implements UnaryOperator<Builder> {
                 throw new SslConfigurationException("KeyPair is not supported by this client");
             }
 
+            @SuppressFBWarnings("PATH_TRAVERSAL_IN")
             @Override
             public KeyManager[] visit(io.kroxylicious.proxy.config.tls.KeyStore keyStore) {
                 try {
@@ -207,6 +209,7 @@ public class TlsHttpClientConfigurator implements UnaryOperator<Builder> {
     static TrustManager[] getTrustManagers(TrustProvider trust) {
 
         return trust.accept(new TrustProviderVisitor<>() {
+            @SuppressFBWarnings("PATH_TRAVERSAL_IN")
             @Override
             public TrustManager[] visit(TrustStore trustStore) {
                 if (trustStore.isPemType()) {
