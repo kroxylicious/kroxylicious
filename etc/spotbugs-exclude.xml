@@ -33,4 +33,10 @@
         <Source name="~.*io/kroxylicious/microbenchmarks/.*"/>
         <Bug pattern="NP_NONNULL_RETURN_VIOLATION" />
     </Match>
+    <!--
+        The source below contains generated classes used for benchmarks.
+        -->
+    <Match>
+        <Source name="~.*io/kroxylicious/microbenchmarks/jmh_generated/.*"/>
+    </Match>
 </FindBugsFilter>

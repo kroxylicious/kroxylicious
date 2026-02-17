@@ -86,6 +86,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
      * own SDK.
      */
     private static final String META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT = "/latest/meta-data/iam/security-credentials/";
+    private static final Random RANDOM = new Random();
 
     private final Clock systemClock;
     private final AtomicReference<CompletableFuture<SecurityCredentials>> current = new AtomicReference<>();
@@ -96,7 +97,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
 
     private final ScheduledExecutorService executorService;
     @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
-    private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
+    private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, RANDOM.nextDouble());
     private final Double lifetimeFactor;
     private final URI uri;
 

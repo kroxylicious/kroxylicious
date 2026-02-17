@@ -16,4 +16,8 @@
         <Bug code="NP" />
     </Match>
 
+    <Match>
+        <Confidence value="1" />
+    </Match>
+
 </FindBugsFilter>

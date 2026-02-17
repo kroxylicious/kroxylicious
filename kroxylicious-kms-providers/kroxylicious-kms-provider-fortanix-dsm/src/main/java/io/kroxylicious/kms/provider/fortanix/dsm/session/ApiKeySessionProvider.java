@@ -70,6 +70,8 @@ import static io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms.AUTHORIZA
 public class ApiKeySessionProvider implements SessionProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiKeySessionProvider.class);
 
+    private static final Random RANDOM = new Random();
+
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<SessionAuthResponse>() {
@@ -88,7 +90,7 @@ public class ApiKeySessionProvider implements SessionProvider {
 
     private final ScheduledExecutorService executorService;
     @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
-    private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
+    private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, RANDOM.nextDouble());
     private final Double lifetimeFactor;
 
     /**
