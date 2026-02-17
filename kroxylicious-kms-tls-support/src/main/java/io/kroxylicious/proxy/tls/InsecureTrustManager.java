@@ -17,25 +17,20 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * used for development and testing use-cases.  Should not be used in
  * production.
  */
+@SuppressWarnings("java:S4830") // InsecureTrustManager intentionally has a weak trust store
+@SuppressFBWarnings("WEAK_TRUST_MANAGER") // InsecureTrustManager intentionally has a weak trust store
 class InsecureTrustManager implements X509TrustManager {
 
-    // suppressing sonar security warning as we are intentionally throwing security out the window
-    @SuppressWarnings("java:S4830")
-    @SuppressFBWarnings("WEAK_TRUST_MANAGER")
     @Override
     public void checkClientTrusted(X509Certificate[] chain, String authType) {
         // do nothing, the api is to throw if not trusted
     }
 
-    // suppressing sonar security warning as we are intentionally throwing security out the window
-    @SuppressWarnings("java:S4830")
-    @SuppressFBWarnings("WEAK_TRUST_MANAGER")
     @Override
     public void checkServerTrusted(X509Certificate[] chain, String authType) {
         // do nothing, the api is to throw if not trusted
     }
 
-    @SuppressFBWarnings("WEAK_TRUST_MANAGER")
     @Override
     public X509Certificate[] getAcceptedIssuers() {
         return new X509Certificate[0];
