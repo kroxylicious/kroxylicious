@@ -133,6 +133,28 @@
     {
       "customType": "regex",
       "fileMatch": [
+        "^\\.github\\/actions\\/dependencies\\/setup-minikube\\/.*\\.ya?ml$"
+      ],
+      "matchStrings": [
+        "minikube version.*:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "kubernetes/minikube",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "^\\.github\\/actions\\/dependencies\\/setup-minikube\\/.*\\.ya?ml$"
+      ],
+      "matchStrings": [
+        "kubernetes version.*:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "kubernetes/kubernetes",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
         "kroxylicious-docs/docs/record-encryption-quickstart/index.adoc"
       ],
       "matchStrings": [
