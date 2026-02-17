@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -35,6 +36,7 @@ import static org.assertj.core.api.Assertions.fail;
 public class HelmUtils {
 
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
+    private static final String HELM_EXECUTABLE = System.getProperty("helm.executable", "helm");
     private static final Path HELM_CHART_DIR = getHelmChartDirectory();
     private static final Path TEST_VALUES_FILE = getTestValuesFile();
     private static final int PROCESS_TIMEOUT_SECONDS = 30;
@@ -62,7 +64,7 @@ public class HelmUtils {
      * @return lint output
      */
     public static String lint() {
-        List<String> command = List.of("helm", "lint", HELM_CHART_DIR.toString());
+        List<String> command = List.of(HELM_EXECUTABLE, "lint", HELM_CHART_DIR.toString());
         return executeCommand(command);
     }
 
@@ -97,7 +99,7 @@ public class HelmUtils {
      */
     public static String renderTemplate(List<Path> additionalValuesFiles, Map<String, String> setValues) {
         List<String> command = new ArrayList<>();
-        command.add("helm");
+        command.add(HELM_EXECUTABLE);
         command.add("template");
         command.add("test-release");
         command.add(HELM_CHART_DIR.toString());
@@ -124,7 +126,7 @@ public class HelmUtils {
      */
     public static boolean isHelmAvailable() {
         try {
-            executeCommand(List.of("helm", "version"));
+            executeCommand(List.of(HELM_EXECUTABLE, "version"));
             return true;
         }
         catch (AssertionError e) {
@@ -189,12 +191,18 @@ public class HelmUtils {
     public static List<GenericKubernetesResource> parseKubernetesResourcesTyped(String yaml) throws IOException {
         List<GenericKubernetesResource> resources = new ArrayList<>();
 
-        // Use Jackson's multi-document YAML parsing
-        try (MappingIterator<GenericKubernetesResource> iterator = YAML_MAPPER.readerFor(GenericKubernetesResource.class).readValues(yaml)) {
+        // Parse as JsonNode to handle Helm's comment-only documents.
+        // Helm emits a "# Source:" header for every template file, even when
+        // conditionals suppress all content. YAML comments are not content, so
+        // these documents parse as null — which we skip.
+        try (MappingIterator<JsonNode> iterator = YAML_MAPPER.readerFor(JsonNode.class).readValues(yaml)) {
             while (iterator.hasNext()) {
-                GenericKubernetesResource resource = iterator.next();
-                assertThat(resource).as("Helm rendered a null YAML document — each template file should contain exactly one resource").isNotNull();
-                assertThat(resource.getKind()).as("Helm rendered a resource without a kind").isNotNull();
+                JsonNode node = iterator.next();
+                if (node == null || node.isNull()) {
+                    continue;
+                }
+                GenericKubernetesResource resource = YAML_MAPPER.treeToValue(node, GenericKubernetesResource.class);
+                assertThat(resource.getKind()).as("Helm rendered a resource without a kind: %s", node).isNotNull();
                 resources.add(resource);
             }
         }
