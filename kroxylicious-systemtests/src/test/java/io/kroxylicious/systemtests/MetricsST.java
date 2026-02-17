@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * This test suite is designed for testing metrics exposed by kroxylicious.
  */
-class MetricsST extends AbstractST {
+class MetricsST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsST.class);
     private final String clusterName = "metrics-st-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
