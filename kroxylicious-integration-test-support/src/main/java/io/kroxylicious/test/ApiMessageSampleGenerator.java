@@ -69,8 +69,8 @@ public class ApiMessageSampleGenerator {
      * Generates a sample request ApiMessage for all ApiKeys
      * @return ApiKeys to message
      */
-    @SuppressWarnings("java:S2245") // random is used to generate test data, secure entropy not required.
-    @SuppressFBWarnings("PREDICTABLE_RANDOM")
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating test data; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating test data; not security relevant
     public static Map<ApiAndVersion, ApiMessage> createRequestSamples() {
         Random random = new Random(0);
         return instantiateAll(DataClasses.getRequestClasses(), random);
@@ -80,8 +80,8 @@ public class ApiMessageSampleGenerator {
      * Generates a sample response ApiMessage for all ApiKeys
      * @return ApiKeys to message
      */
-    @SuppressWarnings("java:S2245") // random is used to generate test data, secure entropy not required.
-    @SuppressFBWarnings("PREDICTABLE_RANDOM")
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating test data; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating test data; not security relevant
     public static Map<ApiAndVersion, ApiMessage> createResponseSamples() {
         Random random = new Random(0);
         return instantiateAll(DataClasses.getResponseClasses(), random);

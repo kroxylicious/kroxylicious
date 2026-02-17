@@ -152,8 +152,8 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     }
 
     @NonNull
-    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
-    @SuppressFBWarnings("PREDICTABLE_RANDOM")
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
     private static <C, K, E> Kms<K, E> buildKms(RecordEncryptionConfig configuration, KmsService<C, K, E> kmsPlugin) {
         Kms<K, E> kms = kmsPlugin.buildKms();
         kms = InstrumentedKms.wrap(kms, kmsMetrics);

@@ -73,8 +73,8 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
     }
 
     @Override
-    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
-    @SuppressFBWarnings("PREDICTABLE_RANDOM")
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
     public SharedOauthBearerValidationContext initialize(FilterFactoryContext context, @Nullable Config config) throws PluginConfigurationException {
         var cfg = Plugins.requireConfig(this, config);
         setAllowedSaslOauthbearerSysPropIfNecessary(cfg.jwksEndpointUrl().toString());
