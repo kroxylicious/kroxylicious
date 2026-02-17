@@ -7,49 +7,64 @@
 -->
 <#assign filteredEntityTypes = createEntityTypeSet("GROUP_ID", "TRANSACTIONAL_ID", "TOPIC_NAME")>
 
-<#macro mapRequestFields messageSpec dataVar fields indent>
+<#-- mapRequestFields - recursive macro that generates mapping code for a request object.
+
+messageSpec message spec model object
+fieldVar    name of the java variable refering to the current field
+children    list of children directly beneath the current field
+indent      java identation
+-->
+<#macro mapRequestFields messageSpec fieldVar children indent>
     <#local pad = ""?left_pad(4*indent)/>
-    <#list fields?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
+    <#list children?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
 ${pad}// process any entity fields defined at this level
         <#items as field>
             <#local getter="${field.name?uncap_first}"
                     setter="set${field.name}" />
 ${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/>) {
             <#if field.type == 'string'>
-${pad}    ${dataVar}.${setter}(map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${dataVar}.${getter}()));
+${pad}    ${fieldVar}.${setter}(map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
             <#elseif field.type == '[]string'>
-${pad}    ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
+${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream().map(orig -> map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
             <#else>
                 <#stop "unexpected field type">
             </#if>
 ${pad}}
         </#items>
     </#list>
-    <#list fields?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
+    <#list children?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
 ${pad}// recursively process sub-fields
-        <#items as field>
-            <#local getter="${field.name?uncap_first}()"
-                    elementVar=field.type?remove_beginning("[]")?uncap_first />
-${pad}if (<@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/> && ${dataVar}.${getter} != null) {
-${pad}    ${dataVar}.${getter}.forEach(${elementVar} -> {
-                <@mapRequestFields messageSpec elementVar field.fields indent + 2 />
+        <#items as childField>
+            <#local getter="${childField.name?uncap_first}()"
+                    elementVar=childField.type?remove_beginning("[]")?uncap_first />
+${pad}if (<@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(childField.versions)/> && ${fieldVar}.${getter} != null) {
+${pad}    ${fieldVar}.${getter}.forEach(${elementVar} -> {
+                <@mapRequestFields messageSpec elementVar childField.fields indent + 2 />
 ${pad}    });
 ${pad}}
         </#items>
     </#list>
 </#macro>
 
-<#macro mapAndFilterResponseFields messageSpec collectionIterator dataVar dataClass fields indent>
+<#-- mapAndFilterResponseFields - recursive macro that generates filtering and mapping code for a response object.
+
+messageSpec        message spec model object
+collectionIterator collection iteration used to remove filtered items
+fieldVar           name of the java variable refering to the current field
+children           list of children directly beneath the current field
+indent             java identation
+-->
+<#macro mapAndFilterResponseFields messageSpec collectionIterator fieldVar children indent>
     <#local pad = ""?left_pad(4*indent)/>
-    <#list fields?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
+    <#list children?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
 ${pad}// process entity fields defined at this level
         <#items as field>
             <#local getter="${field.name?uncap_first}"
                     setter="set${field.name}" />
 ${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/>) {
             <#if field.type == 'string'>
-${pad}    if (inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${dataVar}.${getter}())) {
-${pad}        ${dataVar}.${setter}(unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${dataVar}.${getter}()));
+${pad}    if (inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}())) {
+${pad}        ${fieldVar}.${setter}(unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
 ${pad}    }
                 <#if collectionIterator?has_content>
 ${pad}    else {
@@ -57,11 +72,11 @@ ${pad}        ${collectionIterator}.remove();
 ${pad}    }
                 </#if>
             <#elseif field.type == '[]string'>
-${pad}    ${dataVar}.${setter}(${dataVar}.${getter}().stream()
+${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream()
 ${pad}                        .filter(orig -> inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig))
 ${pad}                        .map(orig -> unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
                 <#if collectionIterator?has_content>
-${pad}    if (!${dataVar}.${getter}().isEmpty()) {
+${pad}    if (!${fieldVar}.${getter}().isEmpty()) {
 ${pad}        ${collectionIterator}.remove();
 ${pad}    }
                 </#if>
@@ -71,24 +86,28 @@ ${pad}    }
 ${pad}}
         </#items>
     </#list>
-    <#list fields?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
+    <#list children?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
 ${pad}// recursively process sub-fields
         <#items as field>
             <#local getter="${field.name?uncap_first}"
                     collectionIteratorVar=field.name?uncap_first + "Iterator"
                     elementVar=field.type?remove_beginning("[]")?uncap_first />
-${pad}if (<@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${dataVar}.${getter}() != null) {
-${pad}    var ${collectionIteratorVar} = ${dataVar}.${getter}().iterator();
+${pad}if (<@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
+${pad}    var ${collectionIteratorVar} = ${fieldVar}.${getter}().iterator();
 ${pad}    while (${collectionIteratorVar}.hasNext()) {
 ${pad}       var ${elementVar} = ${collectionIteratorVar}.next();
-            <@mapAndFilterResponseFields messageSpec collectionIteratorVar elementVar dataClass field.fields indent + 2 />
+            <@mapAndFilterResponseFields messageSpec collectionIteratorVar elementVar field.fields indent + 2 />
 ${pad}    }
 ${pad}}
         </#items>
     </#list>
 </#macro>
 
+<#-- inVersionRange - generates java code expressing a version predicate
 
+varName name of java containing the version
+versions ordered version number sequence
+-->
 <#macro inVersionRange varName versions>
 <#compress>
 <#local
@@ -219,7 +238,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                     ${namePad}FilterContext filterContext,
                     ${namePad}MapperContext mapperContext) {
         log(filterContext, "${messageSpec.type?c_lower_case}", ApiKeys.${key}, request);
-    <@mapRequestFields messageSpec=messageSpec dataVar="request" fields=messageSpec.fields indent=2/>
+    <@mapRequestFields messageSpec=messageSpec fieldVar="request" children=messageSpec.fields indent=2/>
         log(filterContext, "${messageSpec.type?c_lower_case} result", ApiKeys.${key}, request);
     }
     </#items>
@@ -275,9 +294,8 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         log(filterContext, "${messageSpec.type?c_lower_case}", ApiKeys.${key}, response);
         <@mapAndFilterResponseFields messageSpec=messageSpec
                                      collectionIterator=""
-                                     dataVar="response"
-                                     dataClass=dataClass
-                                     fields=messageSpec.fields
+                                     fieldVar="response"
+                                     children=messageSpec.fields
                                      indent=2/>
         log(filterContext, "${messageSpec.type?c_lower_case} result", ApiKeys.${key}, response);
     }
