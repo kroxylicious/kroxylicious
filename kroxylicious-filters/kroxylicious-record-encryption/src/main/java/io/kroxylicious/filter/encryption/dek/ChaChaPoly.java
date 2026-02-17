@@ -59,7 +59,7 @@ public class ChaChaPoly implements CipherManager {
         }
     }
 
-    @SuppressWarnings("java:S3329") // Sonar isn't able to understand that this _is_ a dynamically-generated, random IV.
+    @SuppressWarnings("java:S3329") // False positive: `nonce` _is_ a dynamically-generated, random IV.
     @Override
     public Supplier<AlgorithmParameterSpec> paramSupplier() {
         // Per https://www.rfc-editor.org/rfc/rfc7539#section-4
@@ -68,7 +68,7 @@ public class ChaChaPoly implements CipherManager {
         var nonce = new byte[NONCE_SIZE_BYTES];
         return new Supplier<AlgorithmParameterSpec>() {
             @Override
-            @SuppressFBWarnings("STATIC_IV")
+            @SuppressFBWarnings("STATIC_IV") // False positive: `nonce` _is_ a dynamically-generated, random IV.
             public AlgorithmParameterSpec get() {
                 generator.generateIv(nonce);
                 return new IvParameterSpec(nonce);
@@ -93,7 +93,7 @@ public class ChaChaPoly implements CipherManager {
         parametersBuffer.put(((IvParameterSpec) params).getIV());
     }
 
-    @SuppressFBWarnings("STATIC_IV")
+    @SuppressFBWarnings("STATIC_IV") // False positive: `nonce` being initialized to the previously stored value for decryption
     @Override
     public AlgorithmParameterSpec readParameters(ByteBuffer parametersBuffer) {
         byte[] nonce = new byte[NONCE_SIZE_BYTES];
