@@ -31,7 +31,7 @@ data:
 
     # Producer configuration
     producersPerTopic: 1
-    producerRate: 50000
+    producerRate: {{ .Values.benchmark.producerRate }}
 
     # Test duration
     testDurationMinutes: {{ .Values.benchmark.testDurationMinutes }}
