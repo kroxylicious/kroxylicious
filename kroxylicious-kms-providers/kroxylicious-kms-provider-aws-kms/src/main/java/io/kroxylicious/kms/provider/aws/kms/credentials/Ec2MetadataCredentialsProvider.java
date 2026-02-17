@@ -111,8 +111,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     @VisibleForTesting
-    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
-    @SuppressFBWarnings({ "DMI_RANDOM_USED_ONLY_ONCE", "PREDICTABLE_RANDOM" })
+    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressFBWarnings({ "DMI_RANDOM_USED_ONLY_ONCE", "PREDICTABLE_RANDOM" }) // Pseudorandomness sufficient for generating backoff jitter; not security relevant
     Ec2MetadataCredentialsProvider(Ec2MetadataCredentialsProviderConfig config,
                                    Clock systemClock) {
         Objects.requireNonNull(config);
