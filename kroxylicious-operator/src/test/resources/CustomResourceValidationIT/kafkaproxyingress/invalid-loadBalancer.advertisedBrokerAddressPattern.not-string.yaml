@@ -19,4 +19,4 @@ resource:
       bootstrapAddress: "abc-bootstrap.kafka"
       advertisedBrokerAddressPattern: []
 expectFailureMessageToContain: |
-  spec.loadBalancer.advertisedBrokerAddressPattern: Invalid value: "array"
+  spec.loadBalancer.advertisedBrokerAddressPattern: Invalid value

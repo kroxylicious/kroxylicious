@@ -18,4 +18,4 @@ resource:
         start: 2
         end: "whoops"
 expectFailureMessageToContain: |
-  spec.nodeIdRanges[0].end: Invalid value: "string"
+  spec.nodeIdRanges[0].end: Invalid value

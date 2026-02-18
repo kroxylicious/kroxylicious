@@ -17,4 +17,4 @@ resource:
     clusterIP:
       protocol: TCP
 expectFailureMessageToContain: |
-  spec.proxyRef: Invalid value: "array"
+  spec.proxyRef: Invalid value

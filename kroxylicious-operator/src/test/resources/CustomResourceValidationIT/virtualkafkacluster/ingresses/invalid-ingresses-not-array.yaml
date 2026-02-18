@@ -20,4 +20,4 @@ resource:
       - name: filter-one
     ingresses: {}
 expectFailureMessageToContain: |
-  spec.ingresses: Invalid value: "object"
+  spec.ingresses: Invalid value

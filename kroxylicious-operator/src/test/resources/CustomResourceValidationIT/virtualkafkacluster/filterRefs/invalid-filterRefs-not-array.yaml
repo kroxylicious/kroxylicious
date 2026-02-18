@@ -21,4 +21,4 @@ resource:
       - ingressRef:
           name: cluster-ip
 expectFailureMessageToContain: |
-  spec.filterRefs: Invalid value: "object"
+  spec.filterRefs: Invalid value

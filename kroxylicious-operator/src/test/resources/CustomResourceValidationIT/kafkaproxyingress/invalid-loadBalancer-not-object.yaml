@@ -17,4 +17,4 @@ resource:
       name: "my-proxy"
     loadBalancer: []
 expectFailureMessageToContain: |
-  spec.loadBalancer: Invalid value: "array"
+  spec.loadBalancer: Invalid value

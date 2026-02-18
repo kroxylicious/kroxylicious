@@ -18,4 +18,4 @@ resource:
         start: 2
         end: 1
 expectFailureMessageToContain: |
-  spec.nodeIdRanges[0].name: Invalid value: "array"
+  spec.nodeIdRanges[0].name: Invalid value

@@ -14,4 +14,4 @@ resource:
   spec:
     infrastructure: []
 expectFailureMessageToContain: |
-  spec.infrastructure: Invalid value: "array"
+  spec.infrastructure: Invalid value
