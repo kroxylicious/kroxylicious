@@ -188,6 +188,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
             case FIND_COORDINATOR -> true;
             // TODO: ALTER_CONFIG and INCREMENTAL_ALTER_CONFIG use a key type to identity topic entities.
             // TODO *_ACL use a  key type to identity topic/group/transactionalId entities.
+            // TODO LIST_TRANSACTIONS v2 has the ability to filter the returned transctions via a regexp, this needs custom code.
         <#list messageSpecs?filter(ms -> ms.type == 'REQUEST' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
             <#items as messageSpec>
             case ${retrieveApiKey(messageSpec)} -> <@inVersionRange "apiVersion" messageSpec.intersectedVersionsForEntityFields(filteredEntityTypes)/>;
