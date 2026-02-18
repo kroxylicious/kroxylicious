@@ -870,6 +870,13 @@
                         <xmlOutput>true</xmlOutput>
                         <includeFilterFile>etc/spotbugs-include.xml</includeFilterFile>
                         <excludeFilterFile>etc/spotbugs-exclude.xml</excludeFilterFile>
+                        <plugins>
+                            <plugin>
+                                <groupId>com.h3xstream.findsecbugs</groupId>
+                                <artifactId>findsecbugs-plugin</artifactId>
+                                <version>1.14.0</version>
+                            </plugin>
+                        </plugins>
                     </configuration>
                     <executions>
                         <execution>

@@ -23,6 +23,8 @@ import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThatCode;
 
@@ -41,6 +43,7 @@ public final class ShellUtils {
         execValidate(ALWAYS_VALID, ALWAYS_VALID, args);
     }
 
+    @SuppressFBWarnings("COMMAND_INJECTION") // this is not production code
     public static boolean execValidate(Predicate<Stream<String>> stdOutValidator, Predicate<Stream<String>> stdErrValidator, String... args) {
         Process process = null;
         try {

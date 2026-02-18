@@ -27,6 +27,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 public record RequestResponseTestDef(String testName, ApiMessageType apiKey, RequestHeaderData header, ApiMessageTestDef request, ApiMessageTestDef response) {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
@@ -39,6 +41,7 @@ public record RequestResponseTestDef(String testName, ApiMessageType apiKey, Req
                 .map(RequestResponseTestDef::buildRequestResponseTestDef);
     }
 
+    @SuppressFBWarnings("URLCONNECTION_SSRF_FD") // this is not production code
     private static JsonNode[] readTestResource(ResourceInfo resourceInfo) {
         var url = resourceInfo.url();
         var sourceFilename = Optional.of(Path.of(url.getPath()).getFileName()).map(Path::getFileName).orElseThrow();

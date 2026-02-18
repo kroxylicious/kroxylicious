@@ -46,6 +46,8 @@ import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -290,6 +292,7 @@ public class DeploymentUtils {
      * @param namespaceName the namespace name
      * @param files the files
      */
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN") // this is not production code
     public static void deployYamlFiles(String namespaceName, List<File> files) {
         for (File operatorFile : files) {
             final String resourceType = operatorFile.getName().split("\\.")[1];

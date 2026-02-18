@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.clients.records;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +40,9 @@ public class KafConsumerRecord extends ConsumerRecord {
         super(null, key, payload, partition, offset);
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
-            headers.forEach(h -> recordHeaders.put(new String(Base64.getDecoder().decode(h.get("Key"))), new String(Base64.getDecoder().decode(h.get("Value")))));
+            headers.forEach(h -> recordHeaders.put(
+                    new String(Base64.getDecoder().decode(h.get("Key")), StandardCharsets.UTF_8),
+                    new String(Base64.getDecoder().decode(h.get("Value")), StandardCharsets.UTF_8)));
         }
     }
 

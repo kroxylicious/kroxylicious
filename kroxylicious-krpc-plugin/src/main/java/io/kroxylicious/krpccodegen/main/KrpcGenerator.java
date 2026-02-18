@@ -42,6 +42,7 @@ import io.kroxylicious.krpccodegen.schema.MessageSpec;
 import io.kroxylicious.krpccodegen.schema.StructRegistry;
 import io.kroxylicious.krpccodegen.schema.Versions;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
@@ -281,10 +282,15 @@ public class KrpcGenerator {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
                 // TODO support output to stdout via `-`
-                return writeIfChanged(outputDir, outputFile(outputFilePattern, messageSpec.name(), templateName), (writer, finalFile) -> {
-                    logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", messageSpec.name(), templateName, finalFile);
-                    template.process(dataModel, writer);
-                });
+                return KrpcGenerator.this.writeIfChanged(outputDir, KrpcGenerator.this.outputFile(outputFilePattern, messageSpec.name(), templateName),
+                        new ThrowingWriteAction() {
+                            @SuppressFBWarnings("TEMPLATE_INJECTION_FREEMARKER") // we trust the user to supply a template
+                            @Override
+                            public void accept(Writer writer, File finalFile) throws TemplateException, IOException {
+                                logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", messageSpec.name(), templateName, finalFile);
+                                template.process(dataModel, writer);
+                            }
+                        });
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -306,6 +312,7 @@ public class KrpcGenerator {
      *
      * @return the count of final source files that were created or updated (should be 0 or 1).
      */
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN") // we trust the user-supplied file name
     private long writeIfChanged(File outputDir, String finalFileName, ThrowingWriteAction consumer) throws IOException, TemplateException {
         String tempOutputFileName = finalFileName + ".tmp";
         var outputFile = new File(outputDir, tempOutputFileName);
@@ -355,6 +362,7 @@ public class KrpcGenerator {
     /**
      * @return the number of files generated
      */
+
     private long renderMulti(Configuration cfg, Set<MessageSpec> messageSpecs) {
         logger.log(Level.DEBUG, "Processing message specs");
 
@@ -363,13 +371,17 @@ public class KrpcGenerator {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
                 // TODO support output to stdout via `-`
-                return writeIfChanged(outputDir, outputFile(outputFilePattern, null, templateName), (writer, finalFile) -> {
-                    Map<String, Object> dataModel = Map.of(
-                            // "structRegistry", structRegistry,
-                            "outputPackage", outputPackage,
-                            "messageSpecs", messageSpecs,
-                            "retrieveApiKey", new RetrieveApiKey());
-                    template.process(dataModel, writer);
+                return KrpcGenerator.this.writeIfChanged(outputDir, KrpcGenerator.this.outputFile(outputFilePattern, null, templateName), new ThrowingWriteAction() {
+                    @SuppressFBWarnings("TEMPLATE_INJECTION_FREEMARKER") // we trust the user to supply a template
+                    @Override
+                    public void accept(Writer writer, File finalFile) throws TemplateException, IOException {
+                        Map<String, Object> dataModel = Map.of(
+                                // "structRegistry", structRegistry,
+                                "outputPackage", outputPackage,
+                                "messageSpecs", messageSpecs,
+                                "retrieveApiKey", new RetrieveApiKey());
+                        template.process(dataModel, writer);
+                    }
                 });
             }
             catch (IOException e) {

@@ -21,6 +21,7 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 public class NettyTrustProvider {
 
@@ -33,6 +34,7 @@ public class NettyTrustProvider {
 
     public SslContextBuilder apply(SslContextBuilder builder) {
         return trustProvider.accept(new TrustProviderVisitor<>() {
+            @SuppressFBWarnings("PATH_TRAVERSAL_IN")
             @Override
             public SslContextBuilder visit(TrustStore trustStore) {
                 try {

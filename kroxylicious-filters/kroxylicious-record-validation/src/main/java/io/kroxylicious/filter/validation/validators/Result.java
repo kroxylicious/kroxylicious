@@ -19,5 +19,5 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public record Result(boolean valid, @Nullable String errorMessage) {
 
     public static final Result VALID_RESULT = new Result(true, null);
-    public static CompletionStage<Result> VALID_RESULT_STAGE = CompletableFuture.completedFuture(VALID_RESULT);
+    public static final CompletionStage<Result> VALID_RESULT_STAGE = CompletableFuture.completedFuture(VALID_RESULT);
 }

@@ -30,6 +30,8 @@ import org.asciidoctor.ast.Document;
 import org.asciidoctor.ast.StructuralNode;
 import org.asciidoctor.extension.Treeprocessor;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Extract <a href="https://docs.asciidoctor.org/asciidoc/latest/blocks/">blocks</a> matching a predicate from an AsciiDoc source file.
  * Typically used to extract source code or config snippets, so they can be subjected to validation.
@@ -73,6 +75,7 @@ public class BlockExtractor implements AutoCloseable {
      * @param blockPredicate predicate
      * @return list of blocks, or empty list if the no blocks match the predicate.
      */
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
     public List<Block> extract(Path asciiDocFile, final Predicate<StructuralNode> blockPredicate) {
         List<Block> blocks = new ArrayList<>();
         asciidoctor.javaExtensionRegistry().treeprocessor(new Treeprocessor() {
@@ -133,6 +136,7 @@ public class BlockExtractor implements AutoCloseable {
 
     }
 
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
     private static void processBlock(StructuralNode structuralNode, Consumer<Block> blockConsumer) {
         var content = String.valueOf(structuralNode.getContent());
         // https://github.com/asciidoctor/asciidoctor/issues/1061

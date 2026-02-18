@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 /**
@@ -97,6 +98,7 @@ public class TestUtils {
      * @param fileName the file name
      * @return the json file content
      */
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN") // this is not production code
     public static String getJsonFileContent(String fileName) {
         try {
             return OBJECT_MAPPER.readTree(new File(Path.of(getResourcesURI(fileName)).toString())).toString();

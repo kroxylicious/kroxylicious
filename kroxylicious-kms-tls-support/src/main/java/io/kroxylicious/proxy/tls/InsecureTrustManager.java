@@ -10,22 +10,22 @@ import java.security.cert.X509Certificate;
 
 import javax.net.ssl.X509TrustManager;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Insecure trust manager that does no certificate checking.  Typically
  * used for development and testing use-cases.  Should not be used in
  * production.
  */
+@SuppressWarnings("java:S4830") // InsecureTrustManager intentionally has a weak trust store
+@SuppressFBWarnings("WEAK_TRUST_MANAGER") // InsecureTrustManager intentionally has a weak trust store
 class InsecureTrustManager implements X509TrustManager {
 
-    // suppressing sonar security warning as we are intentionally throwing security out the window
-    @SuppressWarnings("java:S4830")
     @Override
     public void checkClientTrusted(X509Certificate[] chain, String authType) {
         // do nothing, the api is to throw if not trusted
     }
 
-    // suppressing sonar security warning as we are intentionally throwing security out the window
-    @SuppressWarnings("java:S4830")
     @Override
     public void checkServerTrusted(X509Certificate[] chain, String authType) {
         // do nothing, the api is to throw if not trusted

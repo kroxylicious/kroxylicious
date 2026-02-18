@@ -39,6 +39,8 @@ import org.apache.kafka.common.record.SimpleRecord;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ImplicitLinkedHashCollection;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Generates an ApiMessage instance per ApiKey. The message is built
  * with reflection and populated with randomised data. The data is built
@@ -67,7 +69,8 @@ public class ApiMessageSampleGenerator {
      * Generates a sample request ApiMessage for all ApiKeys
      * @return ApiKeys to message
      */
-    @SuppressWarnings("java:S2245") // random is used to generate test data, secure entropy not required.
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating test data; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating test data; not security relevant
     public static Map<ApiAndVersion, ApiMessage> createRequestSamples() {
         Random random = new Random(0);
         return instantiateAll(DataClasses.getRequestClasses(), random);
@@ -77,7 +80,8 @@ public class ApiMessageSampleGenerator {
      * Generates a sample response ApiMessage for all ApiKeys
      * @return ApiKeys to message
      */
-    @SuppressWarnings("java:S2245") // random is used to generate test data, secure entropy not required.
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating test data; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating test data; not security relevant
     public static Map<ApiAndVersion, ApiMessage> createResponseSamples() {
         Random random = new Random(0);
         return instantiateAll(DataClasses.getResponseClasses(), random);

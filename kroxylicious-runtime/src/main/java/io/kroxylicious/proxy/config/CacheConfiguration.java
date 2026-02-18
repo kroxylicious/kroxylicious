@@ -24,7 +24,7 @@ public record CacheConfiguration(@Nullable Integer maxSize,
                                  @JsonSerialize(using = DurationSerde.Serializer.class) @JsonDeserialize(using = DurationSerde.Deserializer.class) @Nullable Duration expireAfterWrite,
                                  @JsonSerialize(using = DurationSerde.Serializer.class) @JsonDeserialize(using = DurationSerde.Deserializer.class) @Nullable Duration expireAfterAccess) {
 
-    public static CacheConfiguration DEFAULT = new CacheConfiguration(null, null, null);
+    public static final CacheConfiguration DEFAULT = new CacheConfiguration(null, null, null);
 
     @Override
     public Duration expireAfterAccess() {

@@ -17,7 +17,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -26,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -42,6 +42,8 @@ import io.kroxylicious.kms.provider.fortanix.dsm.config.ApiKeySessionProviderCon
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms.AUTHORIZATION_HEADER;
 
@@ -87,8 +89,8 @@ public class ApiKeySessionProvider implements SessionProvider {
     private final HttpClient client;
 
     private final ScheduledExecutorService executorService;
-    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
-    private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
+
+    private final ExponentialBackoff backoff;
     private final Double lifetimeFactor;
 
     /**
@@ -102,6 +104,8 @@ public class ApiKeySessionProvider implements SessionProvider {
         this(config, client, Clock.systemUTC());
     }
 
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
     @VisibleForTesting
     ApiKeySessionProvider(Config config,
                           HttpClient client,
@@ -117,6 +121,7 @@ public class ApiKeySessionProvider implements SessionProvider {
             thread.setDaemon(true);
             return thread;
         });
+        this.backoff = new ExponentialBackoff(500, 2, 60000, ThreadLocalRandom.current().nextDouble());
         this.client = client;
     }
 
