@@ -16,12 +16,12 @@ import static io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.Mapper
 import static io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.MapperTestSupport.TLS_SECRET;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class KafkaServicePrimaryToTlsCertSecretSecondaryMapperTest {
+class KafkaServicePrimaryToSecretSecondaryJoinedOnTlsCertificateRefMapperTest {
 
     @Test
     void canMapFromKafkaServiceWithClientCertToSecret() {
         // Given
-        var mapper = new KafkaServicePrimaryToTlsCertSecretSecondaryMapper();
+        var mapper = new KafkaServicePrimaryToSecretSecondaryJoinedOnTlsCertificateRefMapper();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(SERVICE);
@@ -33,7 +33,7 @@ class KafkaServicePrimaryToTlsCertSecretSecondaryMapperTest {
     @Test
     void canMapFromKafkaServiceWithoutClientCertToSecret() {
         // Given
-        var mapper = new KafkaServicePrimaryToTlsCertSecretSecondaryMapper();
+        var mapper = new KafkaServicePrimaryToSecretSecondaryJoinedOnTlsCertificateRefMapper();
         var serviceNoCert = new KafkaServiceBuilder(SERVICE).editSpec().editTls().withCertificateRef(null).endTls().endSpec().build();
 
         // When

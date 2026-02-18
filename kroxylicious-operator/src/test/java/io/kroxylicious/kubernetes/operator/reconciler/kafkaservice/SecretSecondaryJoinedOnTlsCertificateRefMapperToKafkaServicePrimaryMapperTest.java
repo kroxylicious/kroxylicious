@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class TlsCertSecretSecondaryToKafkaServicePrimaryMapperTest {
+class SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapperTest {
 
     static Stream<Arguments> mappingToSecretToleratesKafkaServicesWithoutTls() {
         return Stream.of(
@@ -47,7 +47,7 @@ class TlsCertSecretSecondaryToKafkaServicePrimaryMapperTest {
         when(mockList.getItems()).thenReturn(List.of(service));
 
         // When
-        var mapper = new TlsCertSecretSecondaryToKafkaServicePrimaryMapper(eventSourceContext);
+        var mapper = new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(new SecretBuilder().withNewMetadata().withName("secret").endMetadata().build());

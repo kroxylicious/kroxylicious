@@ -77,24 +77,24 @@ public final class KafkaServiceReconciler implements
                 Secret.class,
                 KafkaService.class)
                 .withName(SECRETS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToTlsCertSecretSecondaryMapper())
-                .withSecondaryToPrimaryMapper(new TlsCertSecretSecondaryToKafkaServicePrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToSecretSecondaryJoinedOnTlsCertificateRefMapper())
+                .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<ConfigMap> serviceToConfigMapTrustAnchorRef = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 KafkaService.class)
                 .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToTrustAnchorRefResourceSecondaryMapper())
-                .withSecondaryToPrimaryMapper(new TrustAnchorRefConfigMapSecondaryToKafkaServicePrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper())
+                .withSecondaryToPrimaryMapper(new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<Secret> serviceToSecretTrustAnchorRef = InformerEventSourceConfiguration.from(
                 Secret.class,
                 KafkaService.class)
                 .withName(SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToTrustAnchorRefResourceSecondaryMapper())
-                .withSecondaryToPrimaryMapper(new TrustAnchorRefSecretSecondaryToKafkaServicePrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper())
+                .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context))
                 .build();
 
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();

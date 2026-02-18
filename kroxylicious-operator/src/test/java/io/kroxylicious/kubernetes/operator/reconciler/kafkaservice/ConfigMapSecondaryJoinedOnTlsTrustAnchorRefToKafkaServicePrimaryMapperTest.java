@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class TrustAnchorRefConfigMapSecondaryToKafkaServicePrimaryMapperTest {
+class ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapperTest {
 
     @Test
     void canMapFromConfigMapTrustAnchorRefToKafkaService() {
@@ -41,7 +41,7 @@ class TrustAnchorRefConfigMapSecondaryToKafkaServicePrimaryMapperTest {
         KubernetesResourceList<KafkaService> mockList = mockKafkaServiceListOperation(client);
         when(mockList.getItems()).thenReturn(List.of(SERVICE));
 
-        var mapper = new TrustAnchorRefConfigMapSecondaryToKafkaServicePrimaryMapper(eventSourceContext);
+        var mapper = new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(eventSourceContext);
 
         // When
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.TRUST_ANCHOR_PEM_CONFIG_MAP);
@@ -69,7 +69,7 @@ class TrustAnchorRefConfigMapSecondaryToKafkaServicePrimaryMapperTest {
         when(mockList.getItems()).thenReturn(List.of(service));
 
         // When
-        var mapper = new TrustAnchorRefConfigMapSecondaryToKafkaServicePrimaryMapper(eventSourceContext);
+        var mapper = new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(new ConfigMapBuilder().withNewMetadata().withName("cm").endMetadata().build());

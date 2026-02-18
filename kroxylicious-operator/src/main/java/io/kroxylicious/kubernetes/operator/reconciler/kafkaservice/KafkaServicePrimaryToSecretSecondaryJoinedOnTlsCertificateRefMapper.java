@@ -17,7 +17,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class KafkaServicePrimaryToTlsCertSecretSecondaryMapper implements PrimaryToSecondaryMapper<KafkaService> {
+class KafkaServicePrimaryToSecretSecondaryJoinedOnTlsCertificateRefMapper implements PrimaryToSecondaryMapper<KafkaService> {
     @Override
     public Set<ResourceID> toSecondaryResourceIDs(KafkaService cluster) {
         return Optional.ofNullable(cluster.getSpec())

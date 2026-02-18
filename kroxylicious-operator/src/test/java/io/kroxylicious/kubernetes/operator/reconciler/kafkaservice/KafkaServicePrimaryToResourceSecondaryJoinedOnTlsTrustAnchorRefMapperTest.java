@@ -16,12 +16,12 @@ import static io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.Mapper
 import static io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.MapperTestSupport.TRUST_ANCHOR_PEM_CONFIG_MAP;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class KafkaServicePrimaryToTrustAnchorRefResourceSecondaryMapperTest {
+class KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapperTest {
 
     @Test
     void canMapFromKafkaServiceWithTrustAnchorToConfigMap() {
         // Given
-        var mapper = new KafkaServicePrimaryToTrustAnchorRefResourceSecondaryMapper();
+        var mapper = new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(SERVICE);
@@ -33,7 +33,7 @@ class KafkaServicePrimaryToTrustAnchorRefResourceSecondaryMapperTest {
     @Test
     void canMapFromKafkaServiceWithoutTrustAnchorToConfigMap() {
         // Given
-        var mapper = new KafkaServicePrimaryToTrustAnchorRefResourceSecondaryMapper();
+        var mapper = new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper();
         var serviceNoTrustAnchor = new KafkaServiceBuilder(SERVICE).editSpec().editTls().withTrustAnchorRef(null).endTls().endSpec().build();
 
         // When

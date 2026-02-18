@@ -14,16 +14,15 @@ import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
-import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class TrustAnchorRefSecretSecondaryToKafkaServicePrimaryMapper implements SecondaryToPrimaryMapper<Secret> {
+class SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper implements SecondaryToPrimaryMapper<Secret> {
     private final EventSourceContext<KafkaService> context;
 
-    TrustAnchorRefSecretSecondaryToKafkaServicePrimaryMapper(EventSourceContext<KafkaService> context) {
+    SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(EventSourceContext<KafkaService> context) {
         this.context = context;
     }
 
@@ -34,7 +33,6 @@ class TrustAnchorRefSecretSecondaryToKafkaServicePrimaryMapper implements Second
                 KafkaService.class,
                 service -> Optional.ofNullable(service.getSpec())
                         .map(KafkaServiceSpec::getTls)
-                        .map(Tls::getTrustAnchorRef)
-                        .map(TrustAnchorRef::getRef));
+                        .map(Tls::getCertificateRef));
     }
 }

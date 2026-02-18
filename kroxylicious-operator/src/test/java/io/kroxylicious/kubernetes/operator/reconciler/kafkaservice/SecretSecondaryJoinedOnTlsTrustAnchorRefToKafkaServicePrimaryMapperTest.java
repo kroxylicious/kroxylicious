@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class TrustAnchorRefSecretSecondaryToKafkaServicePrimaryMapperTest {
+class SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapperTest {
 
     @Test
     void canMapFromSecretTrustAnchorRefToKafkaService() {
@@ -42,7 +42,7 @@ class TrustAnchorRefSecretSecondaryToKafkaServicePrimaryMapperTest {
         KubernetesResourceList<KafkaService> mockList = mockKafkaServiceListOperation(client);
         when(mockList.getItems()).thenReturn(List.of(SERVICE_SECRET_TRUST_ANCHOR));
 
-        var mapper = new TrustAnchorRefSecretSecondaryToKafkaServicePrimaryMapper(eventSourceContext);
+        var mapper = new SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(eventSourceContext);
 
         // When
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.TRUST_ANCHOR_PEM_SECRET);
@@ -70,7 +70,7 @@ class TrustAnchorRefSecretSecondaryToKafkaServicePrimaryMapperTest {
         when(mockList.getItems()).thenReturn(List.of(service));
 
         // When
-        var mapper = new TrustAnchorRefSecretSecondaryToKafkaServicePrimaryMapper(eventSourceContext);
+        var mapper = new SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(new SecretBuilder().withNewMetadata().withName("secret").endMetadata().build());

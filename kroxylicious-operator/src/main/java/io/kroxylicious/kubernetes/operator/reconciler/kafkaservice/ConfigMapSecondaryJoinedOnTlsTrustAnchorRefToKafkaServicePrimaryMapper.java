@@ -9,30 +9,32 @@ package io.kroxylicious.kubernetes.operator.reconciler.kafkaservice;
 import java.util.Optional;
 import java.util.Set;
 
-import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class TlsCertSecretSecondaryToKafkaServicePrimaryMapper implements SecondaryToPrimaryMapper<Secret> {
+class ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper implements SecondaryToPrimaryMapper<ConfigMap> {
     private final EventSourceContext<KafkaService> context;
 
-    TlsCertSecretSecondaryToKafkaServicePrimaryMapper(EventSourceContext<KafkaService> context) {
+    ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(EventSourceContext<KafkaService> context) {
         this.context = context;
     }
 
     @Override
-    public Set<ResourceID> toPrimaryResourceIDs(Secret secret) {
+    public Set<ResourceID> toPrimaryResourceIDs(ConfigMap configMap) {
         return ResourcesUtil.findReferrers(context,
-                secret,
+                configMap,
                 KafkaService.class,
                 service -> Optional.ofNullable(service.getSpec())
                         .map(KafkaServiceSpec::getTls)
-                        .map(Tls::getCertificateRef));
+                        .map(Tls::getTrustAnchorRef)
+                        .map(TrustAnchorRef::getRef));
     }
 }
