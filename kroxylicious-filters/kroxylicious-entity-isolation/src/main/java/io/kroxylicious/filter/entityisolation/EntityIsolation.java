@@ -44,6 +44,7 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
     @Override
     @SuppressWarnings("java:S2638") // Tightening Unknown Nullness
     public EntityIsolationFilter createFilter(FilterFactoryContext context, @NonNull Config configuration) {
+        Objects.requireNonNull(configuration, "configuration must not be null");
         if (mapper == null) {
             throw new IllegalStateException("filter factory has not been initialized");
         }
