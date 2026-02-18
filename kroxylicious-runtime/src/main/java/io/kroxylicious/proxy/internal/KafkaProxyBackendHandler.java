@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
-import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,10 +15,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -30,16 +27,12 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @VisibleForTesting
     final ProxyChannelStateMachine proxyChannelStateMachine;
-    @VisibleForTesting
-    final @Nullable SslContext sslContext;
     @Nullable
     ChannelHandlerContext serverCtx;
     private boolean pendingServerFlushes;
 
-    public KafkaProxyBackendHandler(ProxyChannelStateMachine proxyChannelStateMachine, VirtualClusterModel virtualClusterModel) {
+    public KafkaProxyBackendHandler(ProxyChannelStateMachine proxyChannelStateMachine) {
         this.proxyChannelStateMachine = Objects.requireNonNull(proxyChannelStateMachine);
-        Optional<SslContext> upstreamSslContext = virtualClusterModel.getUpstreamSslContext();
-        this.sslContext = upstreamSslContext.orElse(null);
     }
 
     /**
@@ -80,7 +73,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.trace("Channel active {}", ctx);
-        if (sslContext == null) {
+        if (proxyChannelStateMachine.virtualCluster().getUpstreamSslContext().isEmpty()) {
             proxyChannelStateMachine.onServerActive();
         }
         super.channelActive(ctx);
