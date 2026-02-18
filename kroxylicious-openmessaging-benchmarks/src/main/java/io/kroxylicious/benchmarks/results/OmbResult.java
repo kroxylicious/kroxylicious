@@ -57,19 +57,6 @@ public class OmbResult {
     @JsonProperty("endToEndLatency999pct")
     private double[] endToEndLatency999pct;
 
-    /**
-     * Computes the arithmetic mean of the given array.
-     *
-     * @param values the values to average
-     * @return the mean, or 0.0 if the array is null or empty
-     */
-    public static double arrayAverage(double[] values) {
-        if (values == null || values.length == 0) {
-            return 0.0;
-        }
-        return Arrays.stream(values).average().orElse(0.0);
-    }
-
     public double getPublishLatencyAvg() {
         return publishLatencyAvg;
     }
@@ -90,31 +77,38 @@ public class OmbResult {
         return publishLatency999pct;
     }
 
-    public double[] getPublishRate() {
-        return publishRate;
+    public double getPublishRateMean() {
+        return arrayAverage(publishRate);
     }
 
-    public double[] getConsumeRate() {
-        return consumeRate;
+    public double getConsumeRateMean() {
+        return arrayAverage(consumeRate);
     }
 
-    public double[] getEndToEndLatencyAvg() {
-        return endToEndLatencyAvg;
+    public double getEndToEndLatencyAvgMean() {
+        return arrayAverage(endToEndLatencyAvg);
     }
 
-    public double[] getEndToEndLatency50pct() {
-        return endToEndLatency50pct;
+    public double getEndToEndLatency50pctMean() {
+        return arrayAverage(endToEndLatency50pct);
     }
 
-    public double[] getEndToEndLatency95pct() {
-        return endToEndLatency95pct;
+    public double getEndToEndLatency95pctMean() {
+        return arrayAverage(endToEndLatency95pct);
     }
 
-    public double[] getEndToEndLatency99pct() {
-        return endToEndLatency99pct;
+    public double getEndToEndLatency99pctMean() {
+        return arrayAverage(endToEndLatency99pct);
     }
 
-    public double[] getEndToEndLatency999pct() {
-        return endToEndLatency999pct;
+    public double getEndToEndLatency999pctMean() {
+        return arrayAverage(endToEndLatency999pct);
+    }
+
+    private static double arrayAverage(double[] values) {
+        if (values == null || values.length == 0) {
+            return 0.0;
+        }
+        return Arrays.stream(values).average().orElse(0.0);
     }
 }

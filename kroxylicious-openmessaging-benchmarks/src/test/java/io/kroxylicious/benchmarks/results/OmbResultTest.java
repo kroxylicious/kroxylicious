@@ -54,38 +54,30 @@ class OmbResultTest {
     }
 
     @Test
-    void publishRateIsDeserialized() {
-        assertThat(baseline.getPublishRate()).containsExactly(50000.0, 49800.0, 50200.0);
+    void publishRateMeanIsComputed() {
+        // [50000.0, 49800.0, 50200.0] -> mean = 50000.0
+        assertThat(baseline.getPublishRateMean())
+                .isCloseTo(50000.0, org.assertj.core.data.Offset.offset(0.01));
     }
 
     @Test
-    void consumeRateIsDeserialized() {
-        assertThat(baseline.getConsumeRate()).containsExactly(49900.0, 50100.0, 50000.0);
+    void consumeRateMeanIsComputed() {
+        // [49900.0, 50100.0, 50000.0] -> mean = 50000.0
+        assertThat(baseline.getConsumeRateMean())
+                .isCloseTo(50000.0, org.assertj.core.data.Offset.offset(0.01));
     }
 
     @Test
-    void endToEndLatencyAvgIsDeserialized() {
-        assertThat(baseline.getEndToEndLatencyAvg()).containsExactly(8.50, 9.20, 8.80);
-    }
-
-    @Test
-    void endToEndLatency99pctIsDeserialized() {
-        assertThat(baseline.getEndToEndLatency99pct()).containsExactly(35.40, 36.80, 36.10);
-    }
-
-    @Test
-    void arrayAverageComputesMean() {
-        assertThat(OmbResult.arrayAverage(new double[]{ 8.50, 9.20, 8.80 }))
+    void endToEndLatencyAvgMeanIsComputed() {
+        // [8.50, 9.20, 8.80] -> mean = 8.8333
+        assertThat(baseline.getEndToEndLatencyAvgMean())
                 .isCloseTo(8.8333, org.assertj.core.data.Offset.offset(0.001));
     }
 
     @Test
-    void arrayAverageReturnsZeroForNull() {
-        assertThat(OmbResult.arrayAverage(null)).isEqualTo(0.0);
-    }
-
-    @Test
-    void arrayAverageReturnsZeroForEmpty() {
-        assertThat(OmbResult.arrayAverage(new double[0])).isEqualTo(0.0);
+    void endToEndLatency99pctMeanIsComputed() {
+        // [35.40, 36.80, 36.10] -> mean = 36.10
+        assertThat(baseline.getEndToEndLatency99pctMean())
+                .isCloseTo(36.10, org.assertj.core.data.Offset.offset(0.01));
     }
 }
