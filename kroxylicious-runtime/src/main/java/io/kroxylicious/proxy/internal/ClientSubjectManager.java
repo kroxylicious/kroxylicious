@@ -26,7 +26,7 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class ClientSubjectManager implements
+class ClientSubjectManager implements
         ClientSaslContext,
         ClientTlsContext,
         TransportSubjectBuilder.Context {
@@ -109,7 +109,7 @@ public class ClientSubjectManager implements
         this.subject = Objects.requireNonNull(subject, "subject");
     }
 
-    public Subject authenticatedSubject() {
+    Subject authenticatedSubject() {
         return this.subject;
     }
 
@@ -118,6 +118,7 @@ public class ClientSubjectManager implements
         this.subject = Subject.anonymous();
     }
 
+    @Override
     public Optional<ClientTlsContext> clientTlsContext() {
         return proxyCertificate != null ? Optional.of(this) : Optional.empty();
     }
@@ -133,7 +134,7 @@ public class ClientSubjectManager implements
         return Optional.ofNullable(clientCertificate);
     }
 
-    public Optional<ClientSaslContext> clientSaslContext() {
+    Optional<ClientSaslContext> clientSaslContext() {
         return mechanismName != null ? Optional.of(this) : Optional.empty();
     }
 
