@@ -1,0 +1,19 @@
+{{- if .Values.kroxylicious.enabled }}
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+apiVersion: kroxylicious.io/v1alpha1
+kind: VirtualKafkaCluster
+metadata:
+  name: kafka
+spec:
+  proxyRef:
+    name: benchmark-proxy
+  targetKafkaServiceRef:
+    name: kafka
+  ingresses:
+    - ingressRef:
+        name: cluster-ip
+{{- end }}

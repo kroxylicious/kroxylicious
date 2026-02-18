@@ -15,7 +15,7 @@ data:
     # OpenMessaging Benchmark Kafka Driver Configuration
     # Baseline scenario: Direct connection to Kafka (no proxy)
 
-    name: Kafka
+    name: {{ include "kroxylicious-benchmark.driverName" . }}
     driverClass: io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriver
 
     replicationFactor: {{ .Values.kafka.replicationFactor }}
