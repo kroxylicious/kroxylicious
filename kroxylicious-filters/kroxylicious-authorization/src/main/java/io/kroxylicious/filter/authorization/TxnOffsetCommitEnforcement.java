@@ -9,6 +9,7 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
@@ -38,10 +39,20 @@ class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestDa
                                                    TxnOffsetCommitRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        List<Action> actions = request.topics().stream().map(TxnOffsetCommitRequestTopic::name).map(s -> new Action(TopicResource.READ, s))
-                .toList();
+        Stream<Action> topicActions = request.topics().stream().map(TxnOffsetCommitRequestTopic::name).map(s -> new Action(TopicResource.READ, s));
+        Stream<Action> transactionAction = Stream.of(new Action(TransactionalIdResource.WRITE, request.transactionalId()));
+        List<Action> actions = Stream.concat(topicActions, transactionAction).toList();
         CompletionStage<AuthorizeResult> authorization = authorizationFilter.authorization(context, actions);
         return authorization.thenCompose(result -> {
+            Decision transactionalResult = result.decision(TransactionalIdResource.WRITE, request.transactionalId());
+            if (transactionalResult == Decision.DENY) {
+                // short circuit, transactional id write denied
+                TxnOffsetCommitResponseData message = new TxnOffsetCommitResponseData();
+                for (TxnOffsetCommitRequestTopic topic : request.topics()) {
+                    message.topics().add(errorResponseTopic(topic, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED));
+                }
+                return context.requestFilterResultBuilder().shortCircuitResponse(message).completed();
+            }
             Map<Decision, List<TxnOffsetCommitRequestTopic>> partitioned = result.partition(request.topics(), TopicResource.READ,
                     TxnOffsetCommitRequestTopic::name);
             if (partitioned.get(Decision.DENY).isEmpty()) {
@@ -49,17 +60,8 @@ class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestDa
             }
             else {
                 List<TxnOffsetCommitRequestTopic> toRemove = partitioned.get(Decision.DENY);
-                List<TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic> removed = toRemove.stream().map(offsetForLeaderTopic -> {
-                    TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic responseTopic = new TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic();
-                    responseTopic.setName(offsetForLeaderTopic.name());
-                    List<TxnOffsetCommitResponseData.TxnOffsetCommitResponsePartition> partitionErrors = offsetForLeaderTopic.partitions().stream()
-                            .map(requestPartition -> new TxnOffsetCommitResponseData.TxnOffsetCommitResponsePartition().setPartitionIndex(
-                                    requestPartition.partitionIndex())
-                                    .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
-                            .toList();
-                    responseTopic.setPartitions(partitionErrors);
-                    return responseTopic;
-                }).toList();
+                List<TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic> removed = toRemove.stream().map(
+                        requestTopic -> errorResponseTopic(requestTopic, Errors.TOPIC_AUTHORIZATION_FAILED)).toList();
                 if (partitioned.get(Decision.ALLOW).isEmpty()) {
                     // short circuit, no topics in request allowed
                     TxnOffsetCommitResponseData message = new TxnOffsetCommitResponseData();
@@ -77,5 +79,17 @@ class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestDa
                 }
             }
         });
+    }
+
+    private static TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic errorResponseTopic(TxnOffsetCommitRequestTopic requestTopic, Errors error) {
+        TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic responseTopic = new TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic();
+        responseTopic.setName(requestTopic.name());
+        List<TxnOffsetCommitResponseData.TxnOffsetCommitResponsePartition> partitionErrors = requestTopic.partitions().stream()
+                .map(requestPartition -> new TxnOffsetCommitResponseData.TxnOffsetCommitResponsePartition().setPartitionIndex(
+                        requestPartition.partitionIndex())
+                        .setErrorCode(error.code()))
+                .toList();
+        responseTopic.setPartitions(partitionErrors);
+        return responseTopic;
     }
 }

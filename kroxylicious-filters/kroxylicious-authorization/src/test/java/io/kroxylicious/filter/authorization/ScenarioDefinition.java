@@ -71,10 +71,15 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
                        @Nullable Errors expectedErrorResponse,
                        @Nullable Boolean hasResponse,
                        @Nullable Boolean expectRequestDropped,
-                       @Nullable RequestError expectedRequestError) {
+                       @Nullable RequestError expectedRequestError,
+                       @Nullable Boolean expectAuthorizationOutcomeLog) {
 
         boolean getHasResponse() {
             return hasResponse == null || hasResponse;
+        }
+
+        boolean isExpectAuthorizationOutcomeLog() {
+            return expectAuthorizationOutcomeLog == null || expectAuthorizationOutcomeLog;
         }
 
         boolean isExpectRequestDropped() {

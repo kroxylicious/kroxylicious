@@ -7,11 +7,14 @@
 package io.kroxylicious.filter.authorization;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -24,16 +27,21 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderDataJsonConverter;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.reflect.ClassPath;
 
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.AuthorizeResult;
+import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -49,6 +57,7 @@ import static java.util.EnumSet.copyOf;
 import static java.util.EnumSet.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.Mockito.when;
 
 class AuthorizationFilterTest {
 
@@ -69,6 +78,78 @@ class AuthorizationFilterTest {
             catch (Exception e) {
                 throw new RuntimeException(e);
             }
+        });
+    }
+
+    @BeforeEach
+    void setup() {
+        logCaptor.clearLogs();
+    }
+
+    @Test
+    void authorizerDoesNotDeclareSupportedResourceTypes() {
+        // given
+        Subject subject = Subject.anonymous();
+        Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
+        List<Action> actions = List.of(new Action(TopicResource.ALTER_CONFIGS, "resourceA"),
+                new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
+        AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(actions), new ArrayList<>());
+        when(mockAuthorizer.authorize(subject, actions)).thenReturn(CompletableFuture.completedFuture(result));
+        when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.empty());
+        AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        when(filterContext.authenticatedSubject()).thenReturn(subject);
+        // when
+        CompletionStage<AuthorizeResult> authorization = filter.authorization(filterContext, actions);
+        // then
+        assertThat(authorization).succeedsWithin(Duration.ZERO).satisfies(authorizeResult -> {
+            assertThat(authorizeResult.denied()).isEmpty();
+            assertThat(authorizeResult.allowed()).containsExactlyElementsOf(actions);
+        });
+    }
+
+    @Test
+    void actionsForUnsupportedResourceTypes() {
+        // given
+        Subject subject = Subject.anonymous();
+        Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
+        AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(), new ArrayList<>());
+        when(mockAuthorizer.authorize(subject, List.of())).thenReturn(CompletableFuture.completedFuture(result));
+        when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.of(Set.of()));
+        AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        when(filterContext.authenticatedSubject()).thenReturn(subject);
+        List<Action> actions = List.of(new Action(TopicResource.ALTER_CONFIGS, "resourceA"),
+                new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
+        // when
+        CompletionStage<AuthorizeResult> authorization = filter.authorization(filterContext, actions);
+        // then
+        assertThat(authorization).succeedsWithin(Duration.ZERO).satisfies(authorizeResult -> {
+            assertThat(authorizeResult.denied()).isEmpty();
+            assertThat(authorizeResult.allowed()).containsExactlyElementsOf(actions);
+        });
+    }
+
+    @Test
+    void actionsForUnsupportedAndSupportedResourceTypes() {
+        // given
+        Subject subject = Subject.anonymous();
+        Authorizer mockAuthorizer = Mockito.mock(Authorizer.class);
+        Action topicAction = new Action(TopicResource.ALTER_CONFIGS, "resourceA");
+        List<Action> actions = List.of(topicAction,
+                new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
+        AuthorizeResult result = new AuthorizeResult(subject, new ArrayList<>(List.of(topicAction)), new ArrayList<>());
+        when(mockAuthorizer.authorize(subject, List.of(topicAction))).thenReturn(CompletableFuture.completedFuture(result));
+        when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.of(Set.of(TopicResource.class)));
+        AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        when(filterContext.authenticatedSubject()).thenReturn(subject);
+        // when
+        CompletionStage<AuthorizeResult> authorization = filter.authorization(filterContext, actions);
+        // then
+        assertThat(authorization).succeedsWithin(Duration.ZERO).satisfies(authorizeResult -> {
+            assertThat(authorizeResult.denied()).isEmpty();
+            assertThat(authorizeResult.allowed()).containsExactlyElementsOf(actions);
         });
     }
 
@@ -101,7 +182,7 @@ class AuthorizationFilterTest {
             throw new IllegalStateException("test has finished, but mock responses are still queued");
         }
 
-        assertOutcomeLogged();
+        assertOutcomeLogged(definition.then().isExpectAuthorizationOutcomeLog());
         // we expect that any inflight state pushed during a request is always popped on the corresponding response
         // if it is non-empty then we may have a memory leak
         assertThat(authorizationFilter.inflightState())
@@ -109,26 +190,31 @@ class AuthorizationFilterTest {
                 .isEmpty();
     }
 
-    private static void assertOutcomeLogged() {
-        assertThat(logCaptor.getLogEvents())
-                .isNotEmpty()
-                .allSatisfy(event -> {
-                    if ("INFO".equalsIgnoreCase(event.getLevel())) {
-                        assertThat(event.getFormattedMessage())
-                                .startsWith("DENY")
-                                .doesNotContain("[]");
-                    }
-                    else if ("DEBUG".equalsIgnoreCase(event.getLevel())) {
-                        assertThat(event.getFormattedMessage())
-                                .containsAnyOf("ALLOW", "NON-AUTHORIZABLE")
-                                .doesNotContain("[]");
-                    }
-                    else {
-                        // false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
-                        // noinspection ResultOfMethodCallIgnored
-                        fail("unexpected event logged: %s", event.getFormattedMessage());
-                    }
-                });
+    private static void assertOutcomeLogged(Boolean expectOutcomeLogs) {
+        if (expectOutcomeLogs) {
+            assertThat(logCaptor.getLogEvents())
+                    .isNotEmpty()
+                    .allSatisfy(event -> {
+                        if ("INFO".equalsIgnoreCase(event.getLevel())) {
+                            assertThat(event.getFormattedMessage())
+                                    .startsWith("DENY")
+                                    .doesNotContain("[]");
+                        }
+                        else if ("DEBUG".equalsIgnoreCase(event.getLevel())) {
+                            assertThat(event.getFormattedMessage())
+                                    .containsAnyOf("ALLOW", "NON-AUTHORIZABLE")
+                                    .doesNotContain("[]");
+                        }
+                        else {
+                            // false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings
+                            // noinspection ResultOfMethodCallIgnored
+                            fail("unexpected event logged: %s", event.getFormattedMessage());
+                        }
+                    });
+        }
+        else {
+            assertThat(logCaptor.getLogEvents()).isEmpty();
+        }
     }
 
     private static void handleRequestForward(ScenarioDefinition definition, CompletionStage<RequestFilterResult> stage, MockUpstream mockUpstream, Subject subject,
@@ -184,6 +270,9 @@ class AuthorizationFilterTest {
                             result -> assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception()));
                 }
                 else {
+                    assertThat(actual)
+                            .withFailMessage("request unexpectedly resulted in a short-circuit error response")
+                            .isNotInstanceOf(MockFilterContext.ErrorRequestFilterResult.class);
                     if (definition.then().expectedResponseHeader() != null) {
                         ApiMessage forwardedHeader = Objects.requireNonNull(actual.header());
                         String actualHeader = toYaml(
@@ -216,7 +305,6 @@ class AuthorizationFilterTest {
                 ApiKeys.SASL_AUTHENTICATE,
                 ApiKeys.METADATA,
                 ApiKeys.FIND_COORDINATOR,
-                ApiKeys.INIT_PRODUCER_ID,
                 ApiKeys.ADD_OFFSETS_TO_TXN,
                 ApiKeys.END_TXN,
                 ApiKeys.LIST_OFFSETS,
@@ -236,12 +324,15 @@ class AuthorizationFilterTest {
                 ApiKeys.ALTER_CONFIGS,
                 ApiKeys.INCREMENTAL_ALTER_CONFIGS,
                 ApiKeys.CONSUMER_GROUP_DESCRIBE,
-                ApiKeys.DESCRIBE_GROUPS);
+                ApiKeys.DESCRIBE_GROUPS,
+                ApiKeys.DESCRIBE_TRANSACTIONS,
+                ApiKeys.LIST_TRANSACTIONS);
         EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.PRODUCE,
                 ApiKeys.FETCH,
                 ApiKeys.OFFSET_COMMIT,
                 ApiKeys.OFFSET_FETCH,
-                ApiKeys.ADD_PARTITIONS_TO_TXN);
+                ApiKeys.ADD_PARTITIONS_TO_TXN,
+                ApiKeys.INIT_PRODUCER_ID);
         EnumSet<ApiKeys> noVersionsSupported = complementOf(unionOf(allVersionsSupported, someVersionsSupported));
         for (ApiKeys apiKey : allVersionsSupported) {
 
