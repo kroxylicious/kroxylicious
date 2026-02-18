@@ -15,14 +15,14 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ConfigMapJoinedToIngressTrustAnchorRefSecondaryToVirtualKafkaClusterPrimaryMapperTest {
+class ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapperTest {
     @Test
     void canMapFromConfigMapToVirtualKafkaClusterWithTls() {
         // Given
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
 
         // When
-        var mapper = new ConfigMapJoinedToIngressTrustAnchorRefSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);
@@ -35,7 +35,7 @@ class ConfigMapJoinedToIngressTrustAnchorRefSecondaryToVirtualKafkaClusterPrimar
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_NO_FILTERS);
 
         // When
-        var mapper = new ConfigMapJoinedToIngressTrustAnchorRefSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);
@@ -48,7 +48,7 @@ class ConfigMapJoinedToIngressTrustAnchorRefSecondaryToVirtualKafkaClusterPrimar
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS);
 
         // When
-        var mapper = new ConfigMapJoinedToIngressTrustAnchorRefSecondaryToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);

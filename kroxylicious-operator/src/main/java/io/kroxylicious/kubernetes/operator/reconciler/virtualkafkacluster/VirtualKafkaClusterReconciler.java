@@ -428,16 +428,16 @@ public final class VirtualKafkaClusterReconciler implements
                 Secret.class,
                 VirtualKafkaCluster.class)
                 .withName(SECRETS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToSecretJoinedToIngressCertificateRefSecondaryMapper())
-                .withSecondaryToPrimaryMapper(new SecretJoinedToIngressCertificateRefSecondarytoVirtualKafkaClusterPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToSecretSecondaryJoinedOnIngressCertificateRefMapper())
+                .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnIngressCertificateRefToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<ConfigMap> clusterToConfigMap = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 VirtualKafkaCluster.class)
                 .withName(CONFIGMAPS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToConfigMapJoinedToIngressTrustAnchorRefSecondaryMapper())
-                .withSecondaryToPrimaryMapper(new ConfigMapJoinedToIngressTrustAnchorRefSecondaryToVirtualKafkaClusterPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToConfigMapSecondaryJoinedOnIngressTrustAnchorRefMapper())
+                .withSecondaryToPrimaryMapper(new ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
         return List.of(

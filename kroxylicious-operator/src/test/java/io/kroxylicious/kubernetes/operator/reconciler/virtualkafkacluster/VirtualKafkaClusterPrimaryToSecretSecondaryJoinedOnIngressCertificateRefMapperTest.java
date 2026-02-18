@@ -12,11 +12,11 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class VirtualKafkaClusterPrimaryToSecretJoinedToIngressCertificateRefSecondaryMapperTest {
+class VirtualKafkaClusterPrimaryToSecretSecondaryJoinedOnIngressCertificateRefMapperTest {
     @Test
     void canMapFromVirtualKafkaClusterWithServerCertToSecret() {
         // Given
-        var mapper = new VirtualKafkaClusterPrimaryToSecretJoinedToIngressCertificateRefSecondaryMapper();
+        var mapper = new VirtualKafkaClusterPrimaryToSecretSecondaryJoinedOnIngressCertificateRefMapper();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(MapperTestSupport.CLUSTER_TLS_NO_FILTERS);
@@ -28,7 +28,7 @@ class VirtualKafkaClusterPrimaryToSecretJoinedToIngressCertificateRefSecondaryMa
     @Test
     void canMapFromVirtualKafkaClusterWithoutServerCertToSecret() {
         // Given
-        var mapper = new VirtualKafkaClusterPrimaryToSecretJoinedToIngressCertificateRefSecondaryMapper();
+        var mapper = new VirtualKafkaClusterPrimaryToSecretSecondaryJoinedOnIngressCertificateRefMapper();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(MapperTestSupport.CLUSTER_NO_FILTERS);
