@@ -154,6 +154,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -216,7 +217,10 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                                           FilterContext filterContext,
                                           MapperContext mapperContext) {
         log(filterContext, "request", ApiKeys.FIND_COORDINATOR, findCoordinatorRequestData);
-        if (resourceTypes.contains(EntityIsolation.ResourceType.GROUP_ID) && findCoordinatorRequestData.keyType() == 0) {
+        // TODO handle FindCoordinatorRequest.CoordinatorType.TRANSACTION
+        // TODO handle FindCoordinatorRequest.CoordinatorType.SHARE which uses a key in the format "groupId:topicId:partition"
+        // TODO the response does not include the coordinator type, so we'll need to cache the request like the authorization filter does,\
+        if (resourceTypes.contains(EntityIsolation.ResourceType.GROUP_ID) && findCoordinatorRequestData.keyType() ==  FindCoordinatorRequest.CoordinatorType.GROUP.id()) {
 
             if ((short) 0 <= header.requestApiVersion() && header.requestApiVersion() <= (short) 3) {
                 findCoordinatorRequestData.setKey(map(mapperContext, EntityIsolation.ResourceType.GROUP_ID, findCoordinatorRequestData.key()));
