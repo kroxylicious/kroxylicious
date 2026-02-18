@@ -40,7 +40,6 @@ import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
-import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -105,7 +104,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 endpointReconciler,
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
-                new DefaultSubjectBuilder(List.of()),
                 proxyChannelStateMachine,
                 Optional.empty());
 
@@ -240,7 +238,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 endpointReconciler,
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
-                new DefaultSubjectBuilder(List.of()),
                 proxyChannelStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
@@ -270,7 +267,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 endpointReconciler,
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
-                new DefaultSubjectBuilder(List.of()),
                 proxyChannelStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
@@ -301,7 +297,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 endpointReconciler,
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
-                subjectBuilder,
                 proxyChannelStateMachine,
                 Optional.empty());
 
@@ -325,7 +320,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 endpointReconciler,
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
-                subjectBuilder,
                 proxyChannelStateMachine,
                 Optional.empty());
 

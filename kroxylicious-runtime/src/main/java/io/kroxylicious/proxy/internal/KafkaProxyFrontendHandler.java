@@ -131,7 +131,6 @@ public class KafkaProxyFrontendHandler
                               EndpointReconciler endpointReconciler,
                               ApiVersionsServiceImpl apiVersionsService,
                               DelegatingDecodePredicate dp,
-                              TransportSubjectBuilder subjectBuilder,
                               ProxyChannelStateMachine proxyChannelStateMachine,
                               Optional<NettySettings> proxyNettySettings) {
         this.pfr = pfr;
