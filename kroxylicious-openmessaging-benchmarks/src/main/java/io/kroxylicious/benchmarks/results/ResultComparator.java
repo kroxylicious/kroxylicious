@@ -16,10 +16,12 @@ public class ResultComparator {
 
     private final OmbResult baseline;
     private final OmbResult candidate;
+    private final AggregationMethod aggregationMethod;
 
-    public ResultComparator(OmbResult baseline, OmbResult candidate) {
+    public ResultComparator(OmbResult baseline, OmbResult candidate, AggregationMethod aggregationMethod) {
         this.baseline = baseline;
         this.candidate = candidate;
+        this.aggregationMethod = aggregationMethod;
     }
 
     /**
@@ -43,18 +45,20 @@ public class ResultComparator {
     }
 
     private void printEndToEndLatency(PrintStream out) {
-        printSectionHeader(out, "End-to-End Latency (ms)");
-        printRow(out, "Avg", baseline.getEndToEndLatencyAvgMean(), candidate.getEndToEndLatencyAvgMean());
-        printRow(out, "p50", baseline.getEndToEndLatency50pctMean(), candidate.getEndToEndLatency50pctMean());
-        printRow(out, "p95", baseline.getEndToEndLatency95pctMean(), candidate.getEndToEndLatency95pctMean());
-        printRow(out, "p99", baseline.getEndToEndLatency99pctMean(), candidate.getEndToEndLatency99pctMean());
-        printRow(out, "p99.9", baseline.getEndToEndLatency999pctMean(), candidate.getEndToEndLatency999pctMean());
+        String label = aggregationMethod.name().toLowerCase();
+        printSectionHeader(out, "End-to-End Latency (ms, " + label + ")");
+        printRow(out, "Avg", baseline.getEndToEndLatencyAvg(aggregationMethod), candidate.getEndToEndLatencyAvg(aggregationMethod));
+        printRow(out, "p50", baseline.getEndToEndLatency50pct(aggregationMethod), candidate.getEndToEndLatency50pct(aggregationMethod));
+        printRow(out, "p95", baseline.getEndToEndLatency95pct(aggregationMethod), candidate.getEndToEndLatency95pct(aggregationMethod));
+        printRow(out, "p99", baseline.getEndToEndLatency99pct(aggregationMethod), candidate.getEndToEndLatency99pct(aggregationMethod));
+        printRow(out, "p99.9", baseline.getEndToEndLatency999pct(aggregationMethod), candidate.getEndToEndLatency999pct(aggregationMethod));
     }
 
     private void printThroughput(PrintStream out) {
-        printSectionHeader(out, "Throughput (msg/s)");
-        printRow(out, "Publish Rate", baseline.getPublishRateMean(), candidate.getPublishRateMean());
-        printRow(out, "Consume Rate", baseline.getConsumeRateMean(), candidate.getConsumeRateMean());
+        String label = aggregationMethod.name().toLowerCase();
+        printSectionHeader(out, "Throughput (msg/s, " + label + ")");
+        printRow(out, "Publish Rate", baseline.getPublishRate(aggregationMethod), candidate.getPublishRate(aggregationMethod));
+        printRow(out, "Consume Rate", baseline.getConsumeRate(aggregationMethod), candidate.getConsumeRate(aggregationMethod));
     }
 
     private static void printSectionHeader(PrintStream out, String title) {

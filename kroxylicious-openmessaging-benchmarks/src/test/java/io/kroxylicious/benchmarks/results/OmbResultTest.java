@@ -56,28 +56,28 @@ class OmbResultTest {
     @Test
     void publishRateMeanIsComputed() {
         // [50000.0, 49800.0, 50200.0] -> mean = 50000.0
-        assertThat(baseline.getPublishRateMean())
+        assertThat(baseline.getPublishRate(AggregationMethod.MEAN))
                 .isCloseTo(50000.0, org.assertj.core.data.Offset.offset(0.01));
     }
 
     @Test
     void consumeRateMeanIsComputed() {
         // [49900.0, 50100.0, 50000.0] -> mean = 50000.0
-        assertThat(baseline.getConsumeRateMean())
+        assertThat(baseline.getConsumeRate(AggregationMethod.MEAN))
                 .isCloseTo(50000.0, org.assertj.core.data.Offset.offset(0.01));
     }
 
     @Test
     void endToEndLatencyAvgMeanIsComputed() {
         // [8.50, 9.20, 8.80] -> mean = 8.8333
-        assertThat(baseline.getEndToEndLatencyAvgMean())
+        assertThat(baseline.getEndToEndLatencyAvg(AggregationMethod.MEAN))
                 .isCloseTo(8.8333, org.assertj.core.data.Offset.offset(0.001));
     }
 
     @Test
     void endToEndLatency99pctMeanIsComputed() {
         // [35.40, 36.80, 36.10] -> mean = 36.10
-        assertThat(baseline.getEndToEndLatency99pctMean())
+        assertThat(baseline.getEndToEndLatency99pct(AggregationMethod.MEAN))
                 .isCloseTo(36.10, org.assertj.core.data.Offset.offset(0.01));
     }
 }

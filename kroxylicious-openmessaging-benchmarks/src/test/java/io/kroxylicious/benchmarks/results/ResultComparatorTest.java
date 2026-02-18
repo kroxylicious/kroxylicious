@@ -87,7 +87,7 @@ class ResultComparatorTest {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8)) {
-            new ResultComparator(baseline, candidate).compare(ps);
+            new ResultComparator(baseline, candidate, AggregationMethod.MEAN).compare(ps);
         }
         return baos.toString(StandardCharsets.UTF_8);
     }
