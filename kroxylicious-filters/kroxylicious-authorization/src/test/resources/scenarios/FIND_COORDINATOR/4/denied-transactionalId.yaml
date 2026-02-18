@@ -1,0 +1,43 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FIND_COORDINATOR"
+  apiVersion: 4
+  scenario: "find coordinator for a transactional id is denied"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "alice-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 10
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    keyType: 1
+    coordinatorKeys:
+      - "unauthorized"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    coordinators:
+      - key: "unauthorized"
+        nodeId: -1
+        host: ""
+        port: -1
+        errorCode: 53
+        errorMessage: ""

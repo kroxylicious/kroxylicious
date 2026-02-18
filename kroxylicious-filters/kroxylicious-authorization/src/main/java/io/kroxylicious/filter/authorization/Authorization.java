@@ -48,7 +48,8 @@ public class Authorization implements FilterFactory<AuthorizationConfig, Authori
         Authorizer authorizer = authorizerService.build();
         authorizer.supportedResourceTypes().ifPresent(usedTypes -> {
             var unsupportedResourceTypes = new HashSet<>(usedTypes);
-            unsupportedResourceTypes.removeAll(Set.of(TopicResource.class));
+            unsupportedResourceTypes.removeAll(Set.of(TopicResource.class,
+                    TransactionalIdResource.class));
             if (!unsupportedResourceTypes.isEmpty()) {
                 throw new PluginConfigurationException(("%s specifies access controls for resource types which cannot be enforced by this filter. "
                         + "The unsupported types are: %s.").formatted(

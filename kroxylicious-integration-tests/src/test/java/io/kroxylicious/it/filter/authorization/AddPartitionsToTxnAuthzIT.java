@@ -25,7 +25,6 @@ import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
-import org.apache.kafka.common.message.JoinGroupResponseData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -95,26 +94,12 @@ class AddPartitionsToTxnAuthzIT extends AuthzIT {
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
 
                 new AclBinding(
-                        new ResourcePattern(ResourceType.GROUP, "group-", PatternType.PREFIXED),
-                        new AccessControlEntry("User:" + ALICE, "*",
-                                AclOperation.ALL, AclPermissionType.ALLOW)),
-                new AclBinding(
                         new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "trans-", PatternType.PREFIXED),
                         new AccessControlEntry("User:" + EVE, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
 
                 new AclBinding(
-                        new ResourcePattern(ResourceType.GROUP, "group-", PatternType.PREFIXED),
-                        new AccessControlEntry("User:" + EVE, "*",
-                                AclOperation.ALL, AclPermissionType.ALLOW)),
-
-                new AclBinding(
                         new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "trans-", PatternType.PREFIXED),
-                        new AccessControlEntry("User:" + BOB, "*",
-                                AclOperation.ALL, AclPermissionType.ALLOW)),
-
-                new AclBinding(
-                        new ResourcePattern(ResourceType.GROUP, "group-", PatternType.PREFIXED),
                         new AccessControlEntry("User:" + BOB, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)));
     }
@@ -136,12 +121,15 @@ class AddPartitionsToTxnAuthzIT extends AuthzIT {
         ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, List.of());
     }
 
-    record TestState(KafkaClient superClient, String transactionalId, String groupId, ProducerIdAndEpoch producerIdAndEpoch, int generationId, String memberId) {}
+    record TestState(
+                     KafkaClient superClient,
+                     String transactionalId,
+                     ProducerIdAndEpoch producerIdAndEpoch) {}
 
     List<Arguments> shouldEnforceAccessToTopics() {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.ADD_PARTITIONS_TO_TXN),
                 AuthorizationFilter.maxSupportedApiVersion(ApiKeys.ADD_PARTITIONS_TO_TXN))
-                .mapToObj(apiVersion -> Arguments.argumentSet("api version " + apiVersion, new TxnOffsetCommitEquivalence((short) apiVersion)));
+                .mapToObj(apiVersion -> Arguments.argumentSet("api version " + apiVersion, new AddPartitionsToTxnEquivalence((short) apiVersion)));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.ADD_PARTITIONS_TO_TXN.oldestVersion(), ApiKeys.ADD_PARTITIONS_TO_TXN.latestVersion(true))
                 .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.ADD_PARTITIONS_TO_TXN, (short) version))
@@ -160,9 +148,9 @@ class AddPartitionsToTxnAuthzIT extends AuthzIT {
         }
     }
 
-    class TxnOffsetCommitEquivalence extends Equivalence<AddPartitionsToTxnRequestData, AddPartitionsToTxnResponseData> {
+    class AddPartitionsToTxnEquivalence extends Equivalence<AddPartitionsToTxnRequestData, AddPartitionsToTxnResponseData> {
 
-        TxnOffsetCommitEquivalence(short apiVersion) {
+        AddPartitionsToTxnEquivalence(short apiVersion) {
             super(apiVersion);
         }
 
@@ -239,15 +227,10 @@ class AddPartitionsToTxnAuthzIT extends AuthzIT {
             Map<String, KafkaClient> userToClient = cluster.authenticatedClients(PASSWORDS.keySet());
             userToClient.forEach((username, kafkaClient) -> {
                 String transactionalId = "trans-" + Uuid.randomUuid();
-                String groupId = "group-" + Uuid.randomUuid();
-                String groupInstanceId = groupId + "-" + username;
                 KafkaDriver kafkaDriver = new KafkaDriver(cluster, kafkaClient, username);
                 kafkaDriver.findCoordinator(CoordinatorType.TRANSACTION, transactionalId);
-                kafkaDriver.findCoordinator(CoordinatorType.GROUP, groupId);
                 ProducerIdAndEpoch producerIdAndEpoch = kafkaDriver.initProducerId(transactionalId);
-                JoinGroupResponseData memberIdAndGeneration = kafkaDriver.joinGroup("consumer", groupId, groupInstanceId);
-                TestState state = new TestState(kafkaClient, transactionalId, groupId, producerIdAndEpoch, memberIdAndGeneration.generationId(),
-                        memberIdAndGeneration.memberId());
+                TestState state = new TestState(kafkaClient, transactionalId, producerIdAndEpoch);
                 testStatesPerClusterUser.put(cluster.name() + ":" + username, state);
             });
         }

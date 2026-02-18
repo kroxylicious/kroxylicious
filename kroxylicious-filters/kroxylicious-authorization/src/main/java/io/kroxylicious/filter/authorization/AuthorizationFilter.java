@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -84,20 +86,22 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
         apiEnforcement.put(ApiKeys.TXN_OFFSET_COMMIT, new TxnOffsetCommitEnforcement());
 
-        apiEnforcement.put(ApiKeys.FIND_COORDINATOR, new Passthrough<>(0, 6));
+        apiEnforcement.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEnforcement());
         apiEnforcement.put(ApiKeys.JOIN_GROUP, new Passthrough<>(0, 9));
         apiEnforcement.put(ApiKeys.SYNC_GROUP, new Passthrough<>(0, 5));
         apiEnforcement.put(ApiKeys.CONSUMER_GROUP_HEARTBEAT, new ConsumerGroupHeartbeatEnforcement());
-        apiEnforcement.put(ApiKeys.INIT_PRODUCER_ID, new Passthrough<>(0, 6));
-        apiEnforcement.put(ApiKeys.ADD_PARTITIONS_TO_TXN, new AddPartitionsToTxnSingleTransactionEnforcement());
-        apiEnforcement.put(ApiKeys.ADD_OFFSETS_TO_TXN, new Passthrough<>(0, 4));
-        apiEnforcement.put(ApiKeys.END_TXN, new Passthrough<>(0, 5));
+        apiEnforcement.put(ApiKeys.INIT_PRODUCER_ID, new InitProducerIdEnforcement());
+        apiEnforcement.put(ApiKeys.ADD_PARTITIONS_TO_TXN, new AddPartitionsToTxnEnforcement());
+        apiEnforcement.put(ApiKeys.ADD_OFFSETS_TO_TXN, new AddOffsetsToTxnEnforcement());
+        apiEnforcement.put(ApiKeys.END_TXN, new EndTxnEnforcement());
 
         apiEnforcement.put(ApiKeys.DESCRIBE_CONFIGS, new DescribeConfigsEnforcement());
         apiEnforcement.put(ApiKeys.ALTER_CONFIGS, new AlterConfigsEnforcement());
         apiEnforcement.put(ApiKeys.INCREMENTAL_ALTER_CONFIGS, new IncrementalAlterConfigsEnforcement());
         apiEnforcement.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, new ConsumerGroupDescribeEnforcement());
         apiEnforcement.put(ApiKeys.DESCRIBE_GROUPS, new Passthrough<>(0, 6));
+        apiEnforcement.put(ApiKeys.DESCRIBE_TRANSACTIONS, new DescribeTransactionsEnforcement());
+        apiEnforcement.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEnforcement());
     }
 
     @VisibleForTesting
@@ -149,7 +153,15 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     }
 
     CompletionStage<AuthorizeResult> authorization(FilterContext context, List<Action> actions) {
-        return authorizer.authorize(context.authenticatedSubject(), actions)
+        var actionsPartitionedByAuthorizerSupport = authorizer.supportedResourceTypes()
+                .map(supportedTypes -> actions.stream().collect(Collectors.partitioningBy(
+                        action -> action.resourceTypeClass() == ClusterResource.class
+                                || supportedTypes.contains(action.resourceTypeClass()))))
+                .orElse(Map.of(Boolean.TRUE, actions));
+        var actionsWithSupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(Boolean.TRUE, List.of());
+        var actionsWithUnsupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(Boolean.FALSE, List.of());
+        return authorizer.authorize(context.authenticatedSubject(),
+                actionsWithSupportedResourceTypes)
                 .thenApply(authz -> {
                     if (!authz.denied().isEmpty()) {
                         LOG.info("DENY {} to {}", authz.denied(), authz.subject());
@@ -159,6 +171,14 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                     }
                     else if (actions.isEmpty()) {
                         LOG.debug("ALLOW {} no authorizable actions", authz.subject());
+                    }
+                    if (!actionsWithUnsupportedResourceTypes.isEmpty()) {
+                        LOG.debug("ALLOW {} to {} (due to resource types not being supported by {})",
+                                actionsWithUnsupportedResourceTypes, authz.subject(),
+                                authorizer.getClass().getName());
+                        authz = new AuthorizeResult(authz.subject(),
+                                Stream.concat(authz.allowed().stream(), actionsWithUnsupportedResourceTypes.stream()).collect(Collectors.toUnmodifiableList()),
+                                authz.denied());
                     }
                     return authz;
                 });

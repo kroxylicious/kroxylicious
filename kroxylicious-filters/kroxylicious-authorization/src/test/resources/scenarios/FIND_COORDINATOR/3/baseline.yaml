@@ -48,6 +48,7 @@ when:
     key: "random-string-480"
     keyType: 57
 then:
+  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:

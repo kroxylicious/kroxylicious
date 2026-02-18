@@ -7,7 +7,10 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
+
+import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -21,11 +24,16 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -33,6 +41,7 @@ import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -138,28 +147,11 @@ public class ProxyChannelStateMachine {
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
+    private final EndpointBinding endpointBinding;
+
     @NonNull
     // Ideally this would be final, however that breaks forceState which is used heavily in testing.
     private KafkaSession kafkaSession;
-
-    @SuppressWarnings("java:S5738")
-    public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
-        VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
-        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-
-        // Connection metrics
-        clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
-        clientToProxyDisconnectsIdleCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.IDLE_TIMEOUT.label()).withTags();
-        clientToProxyDisconnectsClientClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.CLIENT_CLOSED.label()).withTags();
-        clientToProxyDisconnectsServerClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.SERVER_CLOSED.label()).withTags();
-        clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
-        proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
-        proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
-        serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
-        clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
-        clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
-        proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
-    }
 
     /**
      * The current state. This can be changed via a call to one of the {@code on*()} methods.
@@ -176,7 +168,9 @@ public class ProxyChannelStateMachine {
     boolean serverReadsBlocked;
     @VisibleForTesting
     boolean clientReadsBlocked;
-
+    private final TransportSubjectBuilder transportSubjectBuilder;
+    private final ClientSubjectManager clientSubjectManager = new ClientSubjectManager();
+    private int progressionLatch = -1;
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
      */
@@ -184,12 +178,36 @@ public class ProxyChannelStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort, VirtualClusterModel)}
+     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort)}
      * has been called
      */
     @VisibleForTesting
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
+
+    public ProxyChannelStateMachine(EndpointBinding endpointBinding,
+                                    TransportSubjectBuilder transportSubjectBuilder) {
+        this.endpointBinding = endpointBinding;
+        this.transportSubjectBuilder = transportSubjectBuilder;
+        var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
+        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+
+        var nodeId = endpointBinding.nodeId();
+        String clusterName = virtualCluster.getClusterName();
+        VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
+        // Connection metrics
+        clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
+        clientToProxyDisconnectsIdleCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.IDLE_TIMEOUT.label()).withTags();
+        clientToProxyDisconnectsClientClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.CLIENT_CLOSED.label()).withTags();
+        clientToProxyDisconnectsServerClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.SERVER_CLOSED.label()).withTags();
+        clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
+        proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
+        proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
+        serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
+        clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
+        clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
+        proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
+    }
 
     ProxyChannelState state() {
         return state;
@@ -221,6 +239,31 @@ public class ProxyChannelStateMachine {
 
     public String currentState() {
         return this.state().getClass().getSimpleName();
+    }
+
+    @Nullable
+    Integer nodeId() {
+        return endpointBinding.nodeId();
+    }
+
+    String clusterName() {
+        return virtualCluster().getClusterName();
+    }
+
+    EndpointBinding endpointBinding() {
+        return endpointBinding;
+    }
+
+    EndpointGateway endpointGateway() {
+        return endpointBinding.endpointGateway();
+    }
+
+    VirtualClusterModel virtualCluster() {
+        return endpointBinding.endpointGateway().virtualCluster();
+    }
+
+    boolean isTlsListener() {
+        return endpointBinding.endpointGateway().isUseTls();
     }
 
     /**
@@ -296,13 +339,11 @@ public class ProxyChannelStateMachine {
     /**
      * Notify the statemachine that the connection to the backend has started.
      * @param peer the upstream host to connect to.
-     * @param virtualClusterModel the virtual cluster the client is connecting too
      */
     void onInitiateConnect(
-                           HostPort peer,
-                           VirtualClusterModel virtualClusterModel) {
+                           HostPort peer) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
-            toConnecting(selectingServerState.toConnecting(peer), virtualClusterModel);
+            toConnecting(selectingServerState.toConnecting(peer));
         }
         else {
             illegalState(DUPLICATE_INITIATE_CONNECT_ERROR);
@@ -454,7 +495,8 @@ public class ProxyChannelStateMachine {
      * @param cause the exception that triggered the issue
      */
     @SuppressWarnings("java:S5738")
-    void onClientException(@Nullable Throwable cause, boolean tlsEnabled) {
+    void onClientException(@Nullable Throwable cause) {
+        var tlsEnabled = endpointGateway().getDownstreamSslContext().isPresent();
         ApiException errorCodeEx;
         if (cause instanceof DecoderException de
                 && de.getCause() instanceof FrameOversizedException e) {
@@ -505,23 +547,68 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
+    public Optional<ClientTlsContext> clientTlsContext() {
+        return clientSubjectManager.clientTlsContext();
+    }
+
+    public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
+        clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
+    }
+
+    public Optional<ClientSaslContext> clientSaslContext() {
+        return clientSubjectManager.clientSaslContext();
+    }
+
+    public void clientSaslAuthenticationFailure() {
+        clientSubjectManager.clientSaslAuthenticationFailure();
+    }
+
+    public void onClientTlsHandshakeSuccess(SSLSession sslSession) {
+        this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder, this::onTransportSubjectBuilt);
+    }
+
     @SuppressWarnings("java:S5738")
     private void toClientActive(
                                 ProxyChannelState.ClientActive clientActive,
                                 KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
+        // we require two events before unblocking (making reads from) the client:
+        // 1. the completion of the building of the transport subject
+        // 2. the progression of the state machine to forwarding state
+        // (completion of the connection to the backend)
+        // these can happen in either order
+        this.progressionLatch = 2;
+        if (!this.isTlsListener()) {
+            this.clientSubjectManager.subjectFromTransport(null, this.transportSubjectBuilder, this::onTransportSubjectBuilt);
+        }
         frontendHandler.inClientActive();
 
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
     }
 
+    void onTransportSubjectBuilt() {
+        if (!authenticatedSubject().isAnonymous()) {
+            onSessionTransportAuthenticated();
+        }
+        maybeUnblock();
+    }
+
+    Subject authenticatedSubject() {
+        return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
+    }
+
+    private void maybeUnblock() {
+        if (--this.progressionLatch == 0) {
+            Objects.requireNonNull(frontendHandler).unblockClient();
+        }
+    }
+
     @SuppressWarnings("java:S5738")
     private void toConnecting(
-                              ProxyChannelState.Connecting connecting,
-                              VirtualClusterModel virtualClusterModel) {
+                              ProxyChannelState.Connecting connecting) {
         setState(connecting);
-        backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
+        backendHandler = new KafkaProxyBackendHandler(this);
         Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()
@@ -538,6 +625,8 @@ public class ProxyChannelStateMachine {
         setState(forwarding);
         kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).inForwarding();
+        // once buffered message has been forwarded we enable auto-read to start accepting further messages
+        maybeUnblock();
         proxyToServerConnectionToken.acquire();
     }
 

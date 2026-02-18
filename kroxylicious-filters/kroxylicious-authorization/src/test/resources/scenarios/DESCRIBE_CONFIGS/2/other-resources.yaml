@@ -66,6 +66,7 @@ when:
           - "random-string-682"
     includeSynonyms: true
 then:
+  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:

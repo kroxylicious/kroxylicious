@@ -53,7 +53,6 @@ import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -68,11 +67,9 @@ public class FilterHandler extends ChannelDuplexHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final long timeoutMs;
     private final @Nullable String sniHostname;
-    private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
-    private final ClientSubjectManager clientSubjectManager;
 
     /** Chains response processing to preserve ordering when filters defer work asynchronously. */
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
@@ -93,17 +90,13 @@ public class FilterHandler extends ChannelDuplexHandler {
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
                          @Nullable String sniHostname,
-                         VirtualClusterModel virtualClusterModel,
                          Channel inboundChannel,
-                         ProxyChannelStateMachine proxyChannelStateMachine,
-                         ClientSubjectManager clientSubjectManager) {
+                         ProxyChannelStateMachine proxyChannelStateMachine) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
-        this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
         this.proxyChannelStateMachine = proxyChannelStateMachine;
-        this.clientSubjectManager = clientSubjectManager;
     }
 
     @Override
@@ -618,7 +611,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public Subject authenticatedSubject() {
-            return clientSubjectManager.authenticatedSubject();
+            return proxyChannelStateMachine.authenticatedSubject();
         }
 
         InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
@@ -649,12 +642,12 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         public String getVirtualClusterName() {
-            return virtualClusterModel.getClusterName();
+            return proxyChannelStateMachine.clusterName();
         }
 
         @Override
         public Optional<ClientTlsContext> clientTlsContext() {
-            return clientSubjectManager.clientTlsContext();
+            return proxyChannelStateMachine.clientTlsContext();
         }
 
         @Override
@@ -683,7 +676,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             proxyChannelStateMachine.onSessionSaslAuthenticated();
 
             // dispatch principal injection
-            clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
+            proxyChannelStateMachine.clientSaslAuthenticationSuccess(mechanism, subject);
         }
 
         @Override
@@ -700,12 +693,12 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(authorizedId)
                     .addArgument(exception.toString())
                     .log();
-            clientSubjectManager.clientSaslAuthenticationFailure();
+            proxyChannelStateMachine.clientSaslAuthenticationFailure();
         }
 
         @Override
         public Optional<ClientSaslContext> clientSaslContext() {
-            return clientSubjectManager.clientSaslContext();
+            return proxyChannelStateMachine.clientSaslContext();
         }
 
         @Override

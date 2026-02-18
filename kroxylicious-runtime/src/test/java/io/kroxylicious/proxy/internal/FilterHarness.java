@@ -36,6 +36,9 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
@@ -53,10 +56,11 @@ public abstract class FilterHarness {
     public static final String TEST_CLIENT = "test-client";
     public static final List<HostPort> TARGET_CLUSTER_BOOTSTRAP = List.of(HostPort.parse("targetCluster:9091"));
     protected EmbeddedChannel channel;
-    protected ClientSubjectManager clientSubjectManager;
+
     private final AtomicInteger outboundCorrelationId = new AtomicInteger(1);
     private final Map<Integer, Correlation> pendingInternalRequestMap = new HashMap<>();
     private long timeoutMs = 1000L;
+    ProxyChannelStateMachine proxyChannelStateMachine;
 
     /**
      * Sets the timeout for applied to the filters.
@@ -85,23 +89,27 @@ public abstract class FilterHarness {
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new CorrelationIdIssuer(), new InternalRequestTracker());
 
-        ProxyChannelStateMachine channelStateMachine = new ProxyChannelStateMachine(testVirtualCluster.getClusterName(), null);
+        var endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.nodeId()).thenReturn(0);
+        var gw = mock(EndpointGateway.class);
+        when(gw.virtualCluster()).thenReturn(testVirtualCluster);
+        when(endpointBinding.endpointGateway()).thenReturn(gw);
+
+        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
         var forwarding = new ProxyChannelState.Forwarding(null, null, null);
-        channelStateMachine.forceState(
+        proxyChannelStateMachine.forceState(
                 forwarding,
                 mock(KafkaProxyFrontendHandler.class),
                 mock(KafkaProxyBackendHandler.class),
                 new KafkaSession(KafkaSessionState.ESTABLISHING));
-        clientSubjectManager = new ClientSubjectManager();
         var filterHandlers = Arrays.stream(filters)
                 .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addLast, (d1, d2) -> {
                     d2.addAll(d1);
                     return d2;
                 })) // reverses order
                 .stream()
-                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, testVirtualCluster, inboundChannel,
-                        channelStateMachine,
-                        clientSubjectManager))
+                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, inboundChannel,
+                        proxyChannelStateMachine))
 
                 .map(ChannelHandler.class::cast);
         var handlers = Stream.concat(filterHandlers, channelProcessors);
