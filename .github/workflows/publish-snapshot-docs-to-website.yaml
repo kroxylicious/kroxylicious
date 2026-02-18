@@ -115,7 +115,7 @@ jobs:
           retention-days: 14
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
-        uses: ./.github/actions/common/slack-notification
+        uses: ./kroxylicious/.github/actions/common/slack-notification
         with:
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The snapshot documentation build workflow failed.'
@@ -138,7 +138,7 @@ jobs:
         uses: actions/deploy-pages@v4
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
-        uses: ./.github/actions/common/slack-notification
+        uses: ./kroxylicious/.github/actions/common/slack-notification
         with:
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The snapshot documentation deployment workflow failed.'
