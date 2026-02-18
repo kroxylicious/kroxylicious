@@ -27,14 +27,14 @@ class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper implements S
 
     @Override
     public Set<ResourceID> toPrimaryResourceIDs(Service kubernetesService) {
-        Optional<OwnerReference> clusterOwner = VirtualKafkaClusterReconciler.extractOwnerRefFromKubernetesService(kubernetesService,
+        Optional<OwnerReference> clusterOwner = extractOwnerRefFromKubernetesService(kubernetesService,
                 VirtualKafkaClusterReconciler.VIRTUAL_KAFKA_CLUSTER_KIND);
         if (clusterOwner.isPresent()) {
             return clusterOwner
                     .map(ownerRef -> new ResourceID(ownerRef.getName(), kubernetesService.getMetadata().getNamespace()))
                     .map(Set::of).orElse(Set.of());
         }
-        Optional<OwnerReference> proxyOwner = VirtualKafkaClusterReconciler.extractOwnerRefFromKubernetesService(kubernetesService,
+        Optional<OwnerReference> proxyOwner = extractOwnerRefFromKubernetesService(kubernetesService,
                 VirtualKafkaClusterReconciler.KAFKA_PROXY_KIND);
         if (proxyOwner.isPresent()) {
             return ResourcesUtil.findReferrers(context, proxyOwner.get(), kubernetesService, VirtualKafkaCluster.class,
@@ -43,5 +43,13 @@ class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper implements S
         else {
             return Set.of();
         }
+    }
+
+    private static Optional<OwnerReference> extractOwnerRefFromKubernetesService(Service service, String ownerKind) {
+        return service.getMetadata()
+                .getOwnerReferences()
+                .stream()
+                .filter(or -> ownerKind.equals(or.getKind()))
+                .findFirst();
     }
 }

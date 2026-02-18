@@ -12,12 +12,12 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class VirtualKafkaClusterPrimarytoConfigMapSecondaryMapperTest {
+class VirtualKafkaClusterPrimaryToConfigMapJoinedToIngressTrustAnchorRefSecondaryMapperTest {
 
     @Test
     void canMapFromVirtualKafkaClusterWithTrustAnchorToConfigMap() {
         // Given
-        var mapper = new VirtualKafkaClusterPrimaryToConfigMapSecondaryMapper();
+        var mapper = new VirtualKafkaClusterPrimaryToConfigMapJoinedToIngressTrustAnchorRefSecondaryMapper();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
@@ -29,7 +29,7 @@ class VirtualKafkaClusterPrimarytoConfigMapSecondaryMapperTest {
     @Test
     void canMapFromVirtualKafkaClusterWithTlsToConfigMap() {
         // Given
-        var mapper = new VirtualKafkaClusterPrimaryToConfigMapSecondaryMapper();
+        var mapper = new VirtualKafkaClusterPrimaryToConfigMapJoinedToIngressTrustAnchorRefSecondaryMapper();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(MapperTestSupport.CLUSTER_NO_FILTERS);
@@ -41,7 +41,7 @@ class VirtualKafkaClusterPrimarytoConfigMapSecondaryMapperTest {
     @Test
     void canMapFromVirtualKafkaClusterWithoutTrustAnchorToConfigMap() {
         // Given
-        var mapper = new VirtualKafkaClusterPrimaryToConfigMapSecondaryMapper();
+        var mapper = new VirtualKafkaClusterPrimaryToConfigMapJoinedToIngressTrustAnchorRefSecondaryMapper();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(MapperTestSupport.CLUSTER_TLS_NO_FILTERS);

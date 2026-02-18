@@ -27,7 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MapperTestSupport {
+class MapperTestSupport {
 
     public static final String NAMESPACE = "my-namespace";
     public static final String PROXY_NAME = "my-proxy";
@@ -38,77 +38,79 @@ public class MapperTestSupport {
     // @formatter:off
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
             .withNewMetadata()
-            .withName("foo")
-            .withUid(UUID.randomUUID().toString())
-            .withNamespace(NAMESPACE)
-            .withGeneration(42L)
+                .withName("foo")
+                .withUid(UUID.randomUUID().toString())
+                .withNamespace(NAMESPACE)
+                .withGeneration(42L)
             .endMetadata()
             .withNewSpec()
-            .withNewProxyRef()
-            .withName(PROXY_NAME)
-            .endProxyRef()
-            .addNewIngress()
-            .withNewIngressRef()
-            .withName("my-ingress")
-            .endIngressRef()
-            .endIngress()
-            .withNewTargetKafkaServiceRef()
-            .withName("my-kafka")
-            .endTargetKafkaServiceRef()
+                .withNewProxyRef()
+                    .withName(PROXY_NAME)
+                .endProxyRef()
+                .addNewIngress()
+                    .withNewIngressRef()
+                        .withName("my-ingress")
+                    .endIngressRef()
+                .endIngress()
+                .withNewTargetKafkaServiceRef()
+                    .withName("my-kafka")
+                .endTargetKafkaServiceRef()
             .endSpec()
             .build();
 
     public static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
             .editOrNewSpec()
-            .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
+                .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
                     .withNewTls()
-                    .withNewCertificateRef()
-                    .withName(SERVER_CERT_SECRET_NAME)
-                    .endCertificateRef()
+                        .withNewCertificateRef()
+                            .withName(SERVER_CERT_SECRET_NAME)
+                        .endCertificateRef()
                     .endTls()
-                    .build())
+                .build())
             .endSpec()
             .build();
 
     public static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
             .editOrNewSpec()
-            .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
+                .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
                     .withNewTls()
-                    .withNewCertificateRef()
-                    .withName(SERVER_CERT_SECRET_NAME)
-                    .endCertificateRef()
-                    .withNewTrustAnchorRef()
-                    .withNewRef()
-                    .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
-                    .endRef()
-                    .withKey("ca-bundle.pem")
-                    .endTrustAnchorRef()
+                        .withNewCertificateRef()
+                            .withName(SERVER_CERT_SECRET_NAME)
+                        .endCertificateRef()
+                        .withNewTrustAnchorRef()
+                        .withNewRef()
+                            .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
+                        .endRef()
+                        .withKey("ca-bundle.pem")
+                        .endTrustAnchorRef()
                     .endTls()
-                    .build())
+                .build())
             .endSpec()
             .build();
 
     public static final Secret KUBE_TLS_CERT_SECRET = new SecretBuilder()
             .withNewMetadata()
-            .withName(SERVER_CERT_SECRET_NAME)
-            .withNamespace(NAMESPACE)
-            .withUid(UUID.randomUUID().toString())
-            .withGeneration(42L)
+                .withName(SERVER_CERT_SECRET_NAME)
+                .withNamespace(NAMESPACE)
+                .withUid(UUID.randomUUID().toString())
+                .withGeneration(42L)
             .endMetadata()
             .withType("kubernetes.io/tls")
             .addToData("tls.crt", "value")
             .addToData("tls.key", "value")
             .build();
 
+
     public static final ConfigMap PEM_CONFIG_MAP = new ConfigMapBuilder()
             .withNewMetadata()
-            .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
-            .withNamespace(NAMESPACE)
-            .withGeneration(42L)
-            .withUid(UUID.randomUUID().toString())
+                .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
+                .withNamespace(NAMESPACE)
+                .withGeneration(42L)
+                .withUid(UUID.randomUUID().toString())
             .endMetadata()
             .addToData("ca-bundle.pem", "value")
             .build();
+    // @formatter:on
 
     public static EventSourceContext<VirtualKafkaCluster> mockContextContaining(VirtualKafkaCluster... clusters) {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();

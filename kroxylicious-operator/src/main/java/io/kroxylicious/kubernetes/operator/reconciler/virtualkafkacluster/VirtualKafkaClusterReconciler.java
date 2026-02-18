@@ -22,7 +22,6 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
-import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceStatus;
@@ -46,6 +45,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
@@ -390,7 +390,8 @@ public final class VirtualKafkaClusterReconciler implements
                 KafkaService.class,
                 VirtualKafkaCluster.class)
                 .withName(SERVICES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaServiceSecondaryMapper())
+                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefAsResourceId(cluster,
+                        cluster.getSpec().getTargetKafkaServiceRef()))
                 .withSecondaryToPrimaryMapper(new KafkaServiceSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
@@ -398,7 +399,11 @@ public final class VirtualKafkaClusterReconciler implements
                 KafkaProxyIngress.class,
                 VirtualKafkaCluster.class)
                 .withName(INGRESSES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaProxyIngressSecondaryMapper())
+                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
+                        Optional.ofNullable(cluster.getSpec())
+                                .map(VirtualKafkaClusterSpec::getIngresses)
+                                .stream().flatMap(List::stream)
+                                .map(Ingresses::getIngressRef).toList()))
                 .withSecondaryToPrimaryMapper(new KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
@@ -406,7 +411,8 @@ public final class VirtualKafkaClusterReconciler implements
                 KafkaProtocolFilter.class,
                 VirtualKafkaCluster.class)
                 .withName(FILTERS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKafkaProtocolFilterSecondaryMapper())
+                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
+                        Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getFilterRefs).orElse(List.of())))
                 .withSecondaryToPrimaryMapper(new KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
@@ -422,16 +428,16 @@ public final class VirtualKafkaClusterReconciler implements
                 Secret.class,
                 VirtualKafkaCluster.class)
                 .withName(SECRETS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToSecretSecondaryMapper())
-                .withSecondaryToPrimaryMapper(new SecretSecondarytoVirtualKafkaClusterPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToSecretJoinedToIngressCertificateRefSecondaryMapper())
+                .withSecondaryToPrimaryMapper(new SecretJoinedToIngressCertificateRefSecondarytoVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<ConfigMap> clusterToConfigMap = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 VirtualKafkaCluster.class)
                 .withName(CONFIGMAPS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToConfigMapSecondaryMapper())
-                .withSecondaryToPrimaryMapper(new ConfigMapSecondaryToVirtualKafkaClusterPrimaryMapper(context))
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToConfigMapJoinedToIngressTrustAnchorRefSecondaryMapper())
+                .withSecondaryToPrimaryMapper(new ConfigMapJoinedToIngressTrustAnchorRefSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
         return List.of(
@@ -443,14 +449,6 @@ public final class VirtualKafkaClusterReconciler implements
                 new InformerEventSource<>(clusterToKubeService, context),
                 new InformerEventSource<>(clusterToSecret, context),
                 new InformerEventSource<>(clusterToConfigMap, context));
-    }
-
-    static Optional<OwnerReference> extractOwnerRefFromKubernetesService(Service service, String ownerKind) {
-        return service.getMetadata()
-                .getOwnerReferences()
-                .stream()
-                .filter(or -> ownerKind.equals(or.getKind()))
-                .findFirst();
     }
 
     static void logIgnoredEvent(HasMetadata hasMetadata) {

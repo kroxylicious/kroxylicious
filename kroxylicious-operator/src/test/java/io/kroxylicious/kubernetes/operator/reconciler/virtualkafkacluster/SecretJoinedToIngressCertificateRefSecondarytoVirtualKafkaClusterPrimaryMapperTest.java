@@ -15,14 +15,14 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class SecretSecondaryToVirtualKafkaClusterPrimaryMapperTest {
+class SecretJoinedToIngressCertificateRefSecondarytoVirtualKafkaClusterPrimaryMapperTest {
     @Test
     void canMapFromSecretToVirtualKafkaClusterWithTls() {
         // Given
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS);
 
         // When
-        var mapper = new SecretSecondarytoVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new SecretJoinedToIngressCertificateRefSecondarytoVirtualKafkaClusterPrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.KUBE_TLS_CERT_SECRET);
@@ -35,7 +35,7 @@ class SecretSecondaryToVirtualKafkaClusterPrimaryMapperTest {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_NO_FILTERS);
 
         // When
-        var mapper = new SecretSecondarytoVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new SecretJoinedToIngressCertificateRefSecondarytoVirtualKafkaClusterPrimaryMapper(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.KUBE_TLS_CERT_SECRET);
