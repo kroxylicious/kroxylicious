@@ -7,6 +7,7 @@ Get baseline Kafka performance metrics in ~15 minutes.
 - Kubernetes cluster running (minikube, kind, or cloud)
 - `kubectl` and `helm` installed
 - 8 CPU cores, 16GB RAM recommended
+- [JBang](https://www.jbang.dev/download/) (for result scripts)
 - **Kroxylicious operator** installed (proxy scenarios only — see step 3)
 
 ## Setup (One-time)
@@ -145,6 +146,21 @@ BENCHMARK_COORDINATOR=$(kubectl get pod -l app=omb-benchmark -n kafka -o jsonpat
 # Copy result files to local machine
 kubectl cp ${BENCHMARK_COORDINATOR}:. ./results/ -n kafka
 ```
+
+### Compare Results
+
+After saving results from baseline and proxy runs, compare them side-by-side:
+
+```bash
+# Build filtered sources (one-time, after checkout or version changes)
+mvn process-sources -pl kroxylicious-openmessaging-benchmarks
+
+# Compare baseline vs proxy results
+./kroxylicious-openmessaging-benchmarks/scripts/compare-results.sh \
+  results/baseline.json results/proxy.json
+```
+
+This outputs latency and throughput tables with deltas and percentage changes.
 
 ### Switch to Different Workload
 
