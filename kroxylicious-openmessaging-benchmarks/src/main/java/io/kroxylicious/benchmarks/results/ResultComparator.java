@@ -30,6 +30,7 @@ public class ResultComparator {
     public void compare(PrintStream out) {
         printPublishLatency(out);
         printEndToEndLatency(out);
+        printThroughput(out);
     }
 
     private void printPublishLatency(PrintStream out) {
@@ -58,6 +59,16 @@ public class ResultComparator {
         printRow(out, "p99.9",
                 OmbResult.arrayAverage(baseline.getEndToEndLatency999pct()),
                 OmbResult.arrayAverage(candidate.getEndToEndLatency999pct()));
+    }
+
+    private void printThroughput(PrintStream out) {
+        printSectionHeader(out, "Throughput (msg/s)");
+        printRow(out, "Publish Rate",
+                OmbResult.arrayAverage(baseline.getPublishRate()),
+                OmbResult.arrayAverage(candidate.getPublishRate()));
+        printRow(out, "Consume Rate",
+                OmbResult.arrayAverage(baseline.getConsumeRate()),
+                OmbResult.arrayAverage(candidate.getConsumeRate()));
     }
 
     private static void printSectionHeader(PrintStream out, String title) {

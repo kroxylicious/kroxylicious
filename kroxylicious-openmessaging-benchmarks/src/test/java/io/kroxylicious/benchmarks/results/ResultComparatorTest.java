@@ -173,4 +173,43 @@ class ResultComparatorTest {
             assertThat(row.candidate()).as("candidate").isEqualTo("43.30");
         }
     }
+
+    @Nested
+    class Throughput {
+
+        private static List<String> throughputRows;
+
+        @BeforeAll
+        static void setUp() throws IOException {
+            String output = runComparison();
+            throughputRows = extractSection(output, "Throughput");
+        }
+
+        @Test
+        void sectionContainsRows() {
+            assertThat(throughputRows)
+                    .as("Throughput section should contain data rows")
+                    .isNotEmpty();
+        }
+
+        @Test
+        void publishRateShowsCorrectValues() {
+            // Baseline publishRate: [50000.0, 49800.0, 50200.0] -> avg = 50000.00
+            // Proxy publishRate: [49500.0, 49200.0, 49700.0] -> avg = 49466.67
+            RowValues row = findRow(throughputRows, "Publish Rate");
+            assertThat(row).as("Throughput should have a Publish Rate row").isNotNull();
+            assertThat(row.baseline()).as("baseline").isEqualTo("50000.00");
+            assertThat(row.candidate()).as("candidate").isEqualTo("49466.67");
+        }
+
+        @Test
+        void consumeRateShowsCorrectValues() {
+            // Baseline consumeRate: [49900.0, 50100.0, 50000.0] -> avg = 50000.00
+            // Proxy consumeRate: [49400.0, 49600.0, 49500.0] -> avg = 49500.00
+            RowValues row = findRow(throughputRows, "Consume Rate");
+            assertThat(row).as("Throughput should have a Consume Rate row").isNotNull();
+            assertThat(row.baseline()).as("baseline").isEqualTo("50000.00");
+            assertThat(row.candidate()).as("candidate").isEqualTo("49500.00");
+        }
+    }
 }
