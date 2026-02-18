@@ -36,7 +36,7 @@ public interface Authorizer {
 
     /**
      * <p>Returns the types of resource that this authorizer is able to make decisions about.
-     * If this is not known to the implementation it should return empty.</p>
+     * If this is not known to the implementation it should return an empty {@code Optional}.</p>
      *
      * <p>This is provided so that an access control policy enforcement point can confirm that it
      * is capable of providing access control to all the resource types in the access control policy

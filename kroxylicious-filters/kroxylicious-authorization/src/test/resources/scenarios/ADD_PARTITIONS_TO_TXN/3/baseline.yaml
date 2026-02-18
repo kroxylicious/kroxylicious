@@ -19,7 +19,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        v3AndBelowTransactionalId: "random-string-416"
+        v3AndBelowTransactionalId: "my-transactional-id"
         v3AndBelowProducerId: 214
         v3AndBelowProducerEpoch: 68
         v3AndBelowTopics:
@@ -41,6 +41,10 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "WRITE"
+      - subject: "alice"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "WRITE"
   topicNames: null
 when:
   subject: "alice"
@@ -50,7 +54,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    v3AndBelowTransactionalId: "random-string-416"
+    v3AndBelowTransactionalId: "my-transactional-id"
     v3AndBelowProducerId: 214
     v3AndBelowProducerEpoch: 68
     v3AndBelowTopics:

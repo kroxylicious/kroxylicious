@@ -74,23 +74,30 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Mock(strictness = Mock.Strictness.LENIENT)
     VirtualClusterModel virtualCluster;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     EndpointBinding endpointBinding;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     EndpointGateway endpointGateway;
 
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     ChannelHandlerContext clientCtx;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     ProxyChannelStateMachine proxyChannelStateMachine;
+
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    TransportSubjectBuilder subjectBuilder;
+
     private KafkaProxyFrontendHandler handler;
 
     @BeforeEach
     void setUp() {
+        when(virtualCluster.getClusterName()).thenReturn(CLUSTER_NAME);
         when(endpointGateway.virtualCluster()).thenReturn(virtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
+        when(proxyChannelStateMachine.endpointBinding()).thenReturn(endpointBinding);
+        when(proxyChannelStateMachine.virtualCluster()).thenReturn(virtualCluster);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -99,7 +106,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                endpointBinding,
                 proxyChannelStateMachine,
                 Optional.empty());
 
@@ -235,7 +241,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                endpointBinding,
                 proxyChannelStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
@@ -266,7 +271,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                endpointBinding,
                 proxyChannelStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
@@ -287,9 +291,9 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Test
     void shouldMarkSessionAuthenticatedWhenSessionTransportAuthenticated() throws Exception {
         // Given
-        TransportSubjectBuilder subjectBuilder = mock(TransportSubjectBuilder.class);
         Subject subject = new Subject(new User("bob"));
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(subject));
+        var proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, subjectBuilder);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -298,36 +302,38 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 subjectBuilder,
-                endpointBinding,
                 proxyChannelStateMachine,
                 Optional.empty());
 
-        handler.channelActive(clientCtx);
-        when(clientCtx.pipeline()).thenReturn(channelPipeline);
-        ChannelHandler idleHandler = mock(ChannelHandler.class);
-        when(channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER))
-                .thenReturn(idleHandler);
-
         // When
-        handler.inClientActive();
+        handler.channelActive(clientCtx);
 
         // Then
-        verify(proxyChannelStateMachine).onSessionTransportAuthenticated();
+        assertThat(proxyChannelStateMachine.getKafkaSession().currentState())
+                .isEqualTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
     }
 
     @Test
     void shouldNotMarkSessionAuthenticatedWhenSessionTransportAuthenticatedIsAnonymous() throws Exception {
         // Given
-        handler.channelActive(clientCtx);
-        when(clientCtx.pipeline()).thenReturn(channelPipeline);
-        ChannelHandler idleHandler = mock(ChannelHandler.class);
-        when(channelPipeline.get(KafkaProxyInitializer.PRE_SESSION_IDLE_HANDLER))
-                .thenReturn(idleHandler);
+        when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(Subject.anonymous()));
+        var proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, subjectBuilder);
+        handler = new KafkaProxyFrontendHandler(
+                pfr,
+                filterChainFactory,
+                virtualCluster.getFilters(),
+                endpointReconciler,
+                new ApiVersionsServiceImpl(),
+                DELEGATING_PREDICATE,
+                subjectBuilder,
+                proxyChannelStateMachine,
+                Optional.empty());
 
         // When
-        handler.inClientActive(); // Drive the transition through inClientActive rather than onTransportSubjectBuilt so the state is initialised
+        handler.channelActive(clientCtx);
 
         // Then
-        verify(proxyChannelStateMachine, never()).onSessionTransportAuthenticated();
+        assertThat(proxyChannelStateMachine.getKafkaSession().currentState())
+                .isEqualTo(KafkaSessionState.ESTABLISHING);
     }
 }

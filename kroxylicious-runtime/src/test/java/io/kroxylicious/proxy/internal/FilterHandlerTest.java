@@ -1273,7 +1273,7 @@ class FilterHandlerTest extends FilterHarness {
         DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertThat(propagated.body()).isEqualTo(responseData);
 
-        assertThat(clientSubjectManager.clientSaslContext())
+        assertThat(proxyChannelStateMachine.clientSaslContext())
                 .isNotEmpty()
                 .hasValueSatisfying(saslContext -> {
                     assertThat(saslContext.authorizationId()).isEqualTo(AUTHORIZATION_ID);
@@ -1297,7 +1297,7 @@ class FilterHandlerTest extends FilterHarness {
         DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertThat(propagated.body()).isEqualTo(responseData);
 
-        assertThat(clientSubjectManager.clientSaslContext())
+        assertThat(proxyChannelStateMachine.clientSaslContext())
                 .isNotEmpty()
                 .hasValueSatisfying(saslContext -> {
                     assertThat(saslContext.authorizationId()).isEqualTo(AUTHORIZATION_ID);
@@ -1321,7 +1321,7 @@ class FilterHandlerTest extends FilterHarness {
         DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertThat(propagated.body()).isEqualTo(responseData);
 
-        assertThat(clientSubjectManager.clientSaslContext())
+        assertThat(proxyChannelStateMachine.clientSaslContext())
                 .isEmpty();
     }
 }
