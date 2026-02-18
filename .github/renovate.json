@@ -133,7 +133,7 @@
     {
       "customType": "regex",
       "fileMatch": [
-        "^\\.github\\/actions\\/dependencies\\/setup-minikube\\/.*\\.ya?ml$"
+        "^\\.github\\/actions\\/common\\/setup-minikube\\/.*\\.ya?ml$"
       ],
       "matchStrings": [
         "minikube version.*:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
@@ -144,7 +144,7 @@
     {
       "customType": "regex",
       "fileMatch": [
-        "^\\.github\\/actions\\/dependencies\\/setup-minikube\\/.*\\.ya?ml$"
+        "^\\.github\\/actions\\/common\\/setup-minikube\\/.*\\.ya?ml$"
       ],
       "matchStrings": [
         "kubernetes version.*:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"

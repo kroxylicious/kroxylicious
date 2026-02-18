@@ -88,11 +88,7 @@ jobs:
           git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
 
       - name: 'Cache Maven packages'
-        uses: actions/cache@v5
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+        uses: ./.github/actions/common/cache-maven-packages
 
       - name: 'Set up Java'
         uses: actions/setup-java@v5
@@ -107,11 +103,9 @@ jobs:
           overwrite-settings: true
 
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@8234275e0386fe1cdaf519d28c90f4f03fad89e4
+        uses: ./.github/actions/common/setup-minikube
         with:
-          minikube version: 'v1.35.0'
-          kubernetes version: 'v1.32.0'
-          github token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          githubToken: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
 
       - name: 'Verify no existing release note exist for tag'
         env:

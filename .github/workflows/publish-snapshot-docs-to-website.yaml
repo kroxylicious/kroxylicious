@@ -57,13 +57,9 @@ jobs:
         with:
           path: kroxylicious
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
-      
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: maven
+
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
       
       - name: Build and install BOM
         run: mvn clean install -pl :kroxylicious-bom
@@ -144,9 +140,7 @@ jobs:
         uses: actions/deploy-pages@v4
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
-        env:
-          SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
-          SLACK_COLOR: 'danger'
-          SLACK_TITLE: 'Failure Alert: ${{ github.repository }}'
-          SLACK_MESSAGE: 'The snapshot documentation deployment workflow failed.'
+        uses: ./.github/actions/common/slack-notification
+        with:
+          slackTitle: 'Failure Alert: ${{ github.repository }}'
+          slackMessage: 'The snapshot documentation deployment workflow failed.'
