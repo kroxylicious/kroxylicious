@@ -134,4 +134,43 @@ class ResultComparatorTest {
             assertThat(row.candidate()).as("candidate").isEqualTo("55.70");
         }
     }
+
+    @Nested
+    class EndToEndLatency {
+
+        private static List<String> endToEndLatencyRows;
+
+        @BeforeAll
+        static void setUp() throws IOException {
+            String output = runComparison();
+            endToEndLatencyRows = extractSection(output, "End-to-End Latency");
+        }
+
+        @Test
+        void sectionContainsRows() {
+            assertThat(endToEndLatencyRows)
+                    .as("End-to-End Latency section should contain data rows")
+                    .isNotEmpty();
+        }
+
+        @Test
+        void avgShowsCorrectValues() {
+            // Baseline endToEndLatencyAvg: [8.50, 9.20, 8.80] -> avg = 8.83
+            // Proxy endToEndLatencyAvg: [10.20, 10.80, 10.50] -> avg = 10.50
+            RowValues row = findRow(endToEndLatencyRows, "Avg");
+            assertThat(row).as("End-to-End Latency should have an Avg row").isNotNull();
+            assertThat(row.baseline()).as("baseline").isEqualTo("8.83");
+            assertThat(row.candidate()).as("candidate").isEqualTo("10.50");
+        }
+
+        @Test
+        void p99ShowsCorrectValues() {
+            // Baseline endToEndLatency99pct: [35.40, 36.80, 36.10] -> avg = 36.10
+            // Proxy endToEndLatency99pct: [42.60, 44.00, 43.30] -> avg = 43.30
+            RowValues row = findRow(endToEndLatencyRows, "p99");
+            assertThat(row).as("End-to-End Latency should have a p99 row (not p99.9)").isNotNull();
+            assertThat(row.baseline()).as("baseline").isEqualTo("36.10");
+            assertThat(row.candidate()).as("candidate").isEqualTo("43.30");
+        }
+    }
 }

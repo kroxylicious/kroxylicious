@@ -29,6 +29,7 @@ public class ResultComparator {
      */
     public void compare(PrintStream out) {
         printPublishLatency(out);
+        printEndToEndLatency(out);
     }
 
     private void printPublishLatency(PrintStream out) {
@@ -38,6 +39,25 @@ public class ResultComparator {
         printRow(out, "p95", baseline.getPublishLatency95pct(), candidate.getPublishLatency95pct());
         printRow(out, "p99", baseline.getPublishLatency99pct(), candidate.getPublishLatency99pct());
         printRow(out, "p99.9", baseline.getPublishLatency999pct(), candidate.getPublishLatency999pct());
+    }
+
+    private void printEndToEndLatency(PrintStream out) {
+        printSectionHeader(out, "End-to-End Latency (ms)");
+        printRow(out, "Avg",
+                OmbResult.arrayAverage(baseline.getEndToEndLatencyAvg()),
+                OmbResult.arrayAverage(candidate.getEndToEndLatencyAvg()));
+        printRow(out, "p50",
+                OmbResult.arrayAverage(baseline.getEndToEndLatency50pct()),
+                OmbResult.arrayAverage(candidate.getEndToEndLatency50pct()));
+        printRow(out, "p95",
+                OmbResult.arrayAverage(baseline.getEndToEndLatency95pct()),
+                OmbResult.arrayAverage(candidate.getEndToEndLatency95pct()));
+        printRow(out, "p99",
+                OmbResult.arrayAverage(baseline.getEndToEndLatency99pct()),
+                OmbResult.arrayAverage(candidate.getEndToEndLatency99pct()));
+        printRow(out, "p99.9",
+                OmbResult.arrayAverage(baseline.getEndToEndLatency999pct()),
+                OmbResult.arrayAverage(candidate.getEndToEndLatency999pct()));
     }
 
     private static void printSectionHeader(PrintStream out, String title) {
