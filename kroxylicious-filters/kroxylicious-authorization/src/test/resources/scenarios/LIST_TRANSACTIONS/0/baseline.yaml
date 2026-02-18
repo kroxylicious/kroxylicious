@@ -1,0 +1,67 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "LIST_TRANSACTIONS"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_TRANSACTIONS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 66
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        stateFilters:
+          - "random-string-329"
+        producerIdFilters:
+          - 918
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 91
+        errorCode: 168
+        unknownStateFilters:
+          - "random-string-610"
+        transactionStates:
+          - transactionalId: "my-transactional-id"
+            producerId: 667
+            transactionState: "random-string-35"
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 66
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    stateFilters:
+      - "random-string-329"
+    producerIdFilters:
+      - 918
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 91
+    errorCode: 168
+    unknownStateFilters:
+      - "random-string-610"
+    transactionStates:
+      - transactionalId: "my-transactional-id"
+        producerId: 667
+        transactionState: "random-string-35"

@@ -6,7 +6,9 @@
 
 package io.kroxylicious.filter.authorization;
 
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
@@ -14,9 +16,12 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+
+import static org.apache.kafka.common.protocol.Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED;
 
 class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceResponseData> {
     @Override
@@ -35,57 +40,82 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         boolean requiresResponse = request.acks() != 0;
-        var topicWriteActions = request.topicData().stream()
-                .map(t -> new Action(TopicResource.WRITE, t.name()))
+        boolean hasTransactionalRecords = RequestDataUtils.hasTransactionalRecords(request);
+        String transactionalId = request.transactionalId();
+        // fail fast if records flagged as transactional but request has no transactionalId
+        if (hasTransactionalRecords && transactionalId == null) {
+            return transactionalIdErrorResponse(context, header, request, requiresResponse);
+        }
+        else {
+            var topicWriteActions = request.topicData().stream()
+                    .map(t -> new Action(TopicResource.WRITE, t.name()));
+            var transactionalIdActions = Optional.ofNullable(transactionalId).stream().map(t -> new Action(TransactionalIdResource.WRITE, t));
+            return authorizationFilter.authorization(context, Stream.concat(topicWriteActions, transactionalIdActions).toList()).thenCompose(authorization -> {
+                if (hasTransactionalRecords && authorization.denied(TransactionalIdResource.WRITE).contains(transactionalId)) {
+                    return transactionalIdErrorResponse(context, header, request, requiresResponse);
+                }
+                return authorizeTopics(header, request, context, authorizationFilter, authorization, requiresResponse);
+            });
+        }
+    }
+
+    private static CompletionStage<RequestFilterResult> authorizeTopics(RequestHeaderData header, ProduceRequestData request, FilterContext context,
+                                                                        AuthorizationFilter authorizationFilter, AuthorizeResult authorization,
+                                                                        boolean requiresResponse) {
+        var topicWriteDecisions = authorization.partition(request.topicData(),
+                TopicResource.WRITE, ProduceRequestData.TopicProduceData::name);
+
+        var allowedTopicWrites = topicWriteDecisions.get(Decision.ALLOW);
+        if (allowedTopicWrites.isEmpty()) {
+            if (requiresResponse) {
+                return context.requestFilterResultBuilder()
+                        .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
+                        .completed();
+            }
+            else {
+                return context.requestFilterResultBuilder().drop().completed();
+            }
+        }
+
+        var deniedTopicWrites = topicWriteDecisions.get(Decision.DENY);
+
+        if (deniedTopicWrites.isEmpty()) {
+            // nothing denied, forward whole request on
+            return context.forwardRequest(header, request);
+        }
+
+        for (var topic : deniedTopicWrites) {
+            request.topicData().remove(topic);
+        }
+
+        var topicProduceResponses = deniedTopicWrites.stream()
+                .map(topicProduceData -> new ProduceResponseData.TopicProduceResponse()
+                        .setName(topicProduceData.name())
+                        .setPartitionResponses(topicProduceData.partitionData().stream()
+                                .map(partitionProduceData -> new ProduceResponseData.PartitionProduceResponse()
+                                        .setIndex(partitionProduceData.index())
+                                        .setErrorMessage(Errors.TOPIC_AUTHORIZATION_FAILED.message())
+                                        .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
+                                .toList()))
                 .toList();
 
-        return authorizationFilter.authorization(context, topicWriteActions).thenCompose(authorization -> {
+        if (requiresResponse) {
+            authorizationFilter.pushInflightState(header, (ProduceResponseData response) -> {
+                response.responses().addAll(topicProduceResponses);
+                return response;
+            });
+        }
+        return context.forwardRequest(header, request);
+    }
 
-            var topicWriteDecisions = authorization.partition(request.topicData(),
-                    TopicResource.WRITE, ProduceRequestData.TopicProduceData::name);
-
-            var allowedTopicWrites = topicWriteDecisions.get(Decision.ALLOW);
-            if (allowedTopicWrites.isEmpty()) {
-                if (requiresResponse) {
-                    return context.requestFilterResultBuilder()
-                            .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
-                            .completed();
-                }
-                else {
-                    return context.requestFilterResultBuilder().drop().completed();
-                }
-            }
-
-            var deniedTopicWrites = topicWriteDecisions.get(Decision.DENY);
-
-            if (deniedTopicWrites.isEmpty()) {
-                // nothing denied, forward whole request on
-                return context.forwardRequest(header, request);
-            }
-
-            for (var topic : deniedTopicWrites) {
-                request.topicData().remove(topic);
-            }
-
-            var topicProduceResponses = deniedTopicWrites.stream()
-                    .map(topicProduceData -> new ProduceResponseData.TopicProduceResponse()
-                            .setName(topicProduceData.name())
-                            .setPartitionResponses(topicProduceData.partitionData().stream()
-                                    .map(partitionProduceData -> new ProduceResponseData.PartitionProduceResponse()
-                                            .setIndex(partitionProduceData.index())
-                                            .setErrorMessage(Errors.TOPIC_AUTHORIZATION_FAILED.message())
-                                            .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
-                                    .toList()))
-                    .toList();
-
-            if (requiresResponse) {
-                authorizationFilter.pushInflightState(header, (ProduceResponseData response) -> {
-                    response.responses().addAll(topicProduceResponses);
-                    return response;
-                });
-            }
-            return context.forwardRequest(header, request);
-        });
+    private static CompletionStage<RequestFilterResult> transactionalIdErrorResponse(FilterContext context, RequestHeaderData header, ProduceRequestData produceRequest,
+                                                                                     boolean requiresResponse) {
+        if (requiresResponse) {
+            return context.requestFilterResultBuilder().errorResponse(header, produceRequest, TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception()).completed();
+        }
+        else {
+            return context.requestFilterResultBuilder().drop().completed();
+        }
     }
 
 }

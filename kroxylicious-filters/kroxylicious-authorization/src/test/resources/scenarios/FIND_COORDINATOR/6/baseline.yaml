@@ -52,6 +52,7 @@ when:
     coordinatorKeys:
       - "random-string-191"
 then:
+  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
