@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,22 +25,17 @@ import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
-import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
-import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.api.common.StrimziKafkaRef;
-import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.operator.ResourceCheckResult;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -83,24 +77,24 @@ public final class KafkaServiceReconciler implements
                 Secret.class,
                 KafkaService.class)
                 .withName(SECRETS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(kafkaServiceToSecret())
-                .withSecondaryToPrimaryMapper(secretToKafkaService(context))
+                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToSecretSecondaryJoinedOnTlsCertificateRefMapper())
+                .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<ConfigMap> serviceToConfigMapTrustAnchorRef = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 KafkaService.class)
                 .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(kafkaServiceToTrustAnchorRefResource())
-                .withSecondaryToPrimaryMapper(configMapTrustAnchorRefToKafkaService(context))
+                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper())
+                .withSecondaryToPrimaryMapper(new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<Secret> serviceToSecretTrustAnchorRef = InformerEventSourceConfiguration.from(
                 Secret.class,
                 KafkaService.class)
                 .withName(SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(kafkaServiceToTrustAnchorRefResource())
-                .withSecondaryToPrimaryMapper(secretTrustAnchorRefToKafkaService(context))
+                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper())
+                .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context))
                 .build();
 
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();
@@ -117,80 +111,13 @@ public final class KafkaServiceReconciler implements
                     Kafka.class,
                     KafkaService.class)
                     .withName(STRIMZI_KAFKA_EVENT_SOURCE_NAME)
-                    .withPrimaryToSecondaryMapper(kafkaServiceToStrimziKafka())
-                    .withSecondaryToPrimaryMapper(strimziKafkaToKafkaService(context))
+                    .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToStrimziKafkaSecondaryMapper())
+                    .withSecondaryToPrimaryMapper(new StrimziKafkaSecondaryToKafkaServicePrimaryMapper(context))
                     .build();
             informersList.add(new InformerEventSource<>(serviceToStrimziKafka, context));
         }
 
         return informersList;
-    }
-
-    @VisibleForTesting
-    static PrimaryToSecondaryMapper<KafkaService> kafkaServiceToSecret() {
-        return (KafkaService cluster) -> Optional.ofNullable(cluster.getSpec())
-                .map(KafkaServiceSpec::getTls)
-                .map(Tls::getCertificateRef)
-                .map(cr -> ResourcesUtil.localRefAsResourceId(cluster, cr)).orElse(Set.of());
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<Secret> secretToKafkaService(EventSourceContext<KafkaService> context) {
-        return secret -> ResourcesUtil.findReferrers(context,
-                secret,
-                KafkaService.class,
-                service -> Optional.ofNullable(service.getSpec())
-                        .map(KafkaServiceSpec::getTls)
-                        .map(Tls::getCertificateRef));
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<ConfigMap> configMapTrustAnchorRefToKafkaService(EventSourceContext<KafkaService> context) {
-        return configMap -> ResourcesUtil.findReferrers(context,
-                configMap,
-                KafkaService.class,
-                service -> Optional.ofNullable(service.getSpec())
-                        .map(KafkaServiceSpec::getTls)
-                        .map(Tls::getTrustAnchorRef)
-                        .map(TrustAnchorRef::getRef));
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<Secret> secretTrustAnchorRefToKafkaService(EventSourceContext<KafkaService> context) {
-        return secret -> ResourcesUtil.findReferrers(context,
-                secret,
-                KafkaService.class,
-                service -> Optional.ofNullable(service.getSpec())
-                        .map(KafkaServiceSpec::getTls)
-                        .map(Tls::getTrustAnchorRef)
-                        .map(TrustAnchorRef::getRef));
-    }
-
-    @VisibleForTesting
-    static PrimaryToSecondaryMapper<KafkaService> kafkaServiceToTrustAnchorRefResource() {
-        return (KafkaService cluster) -> Optional.ofNullable(cluster.getSpec())
-                .map(KafkaServiceSpec::getTls)
-                .map(Tls::getTrustAnchorRef)
-                .map(tar -> ResourcesUtil.localRefAsResourceId(cluster, tar.getRef()))
-                .orElse(Set.of());
-    }
-
-    @VisibleForTesting
-    static SecondaryToPrimaryMapper<Kafka> strimziKafkaToKafkaService(EventSourceContext<KafkaService> context) {
-        return kafka -> ResourcesUtil.findReferrers(context,
-                kafka,
-                KafkaService.class,
-                service -> Optional.ofNullable(service.getSpec())
-                        .map(KafkaServiceSpec::getStrimziKafkaRef)
-                        .map(StrimziKafkaRef::getRef));
-    }
-
-    @VisibleForTesting
-    static PrimaryToSecondaryMapper<KafkaService> kafkaServiceToStrimziKafka() {
-        return (KafkaService cluster) -> Optional.ofNullable(cluster.getSpec())
-                .map(KafkaServiceSpec::getStrimziKafkaRef)
-                .map(strimziKafkaRef -> ResourcesUtil.localRefAsResourceId(cluster, strimziKafkaRef.getRef()))
-                .orElse(Set.of());
     }
 
     @Override

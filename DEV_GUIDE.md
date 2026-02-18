@@ -463,17 +463,6 @@ Run the system tests like this:
 mvn clean verify -DskipITs=true -DskipUTs=true -DskipSTs=false -Pdist
 ```
 
-### Jenkins pipeline for system tests
-
-When a PR is created and the system tests are needed, if you are a member of
-[Developers](https://github.com/orgs/kroxylicious/teams/developers), you may add the following comment into the PR to trigger the run.
-
-```
-@kroxylicious-robot run system tests
-```
-
-It will launch the `kroxylicious-system-tests-pr` build, that will insert a comment with a summary into the PR.
-
 ## Rendering documentation
 
 For information on updating and rendering the documentation, see the `kroxylicious-docs` directory [README](kroxylicious-docs/README.md). 

@@ -42,26 +42,14 @@ jobs:
           fetch-depth: 0
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
-      - name: 'Set up Java'
-        uses: actions/setup-java@v5
-        with:
-          java-version: 21
-          distribution: 'temurin'
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@8234275e0386fe1cdaf519d28c90f4f03fad89e4
-        with:
-          "minikube version": 'v1.35.0'
-          "kubernetes version": 'v1.32.0'
-          "github token": ${{ secrets.GITHUB_TOKEN }}
-          driver: docker
+        uses: ./.github/actions/common/setup-minikube
       - name: 'Set up Docker Buildx'
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - name: 'Cache Maven packages'
-        uses: actions/cache@v5
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
         run: |
           mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
@@ -80,9 +68,7 @@ jobs:
           mvn -Djapicmp.skip=true -DskipUTs=true -DskipITs=true -DskipKTs=true -DskipDTs=false --batch-mode verify --activate-profiles dist --projects ':kroxylicious-docs-tests' --also-make
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
-        env:
-          SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
-          SLACK_COLOR: 'danger'
-          SLACK_TITLE: 'Failure Alert: ${{ github.repository }}'
-          SLACK_MESSAGE: 'The documentation tests workflow failed on branch ${{ github.ref_name }}.'
+        uses: ./.github/actions/common/slack-notification
+        with:
+          slackTitle: 'Failure Alert: ${{ github.repository }}'
+          slackMessage: 'The documentation tests workflow failed on branch ${{ github.ref_name }}.'

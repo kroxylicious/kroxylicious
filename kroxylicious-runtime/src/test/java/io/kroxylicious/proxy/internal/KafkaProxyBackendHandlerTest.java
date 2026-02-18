@@ -46,7 +46,7 @@ class KafkaProxyBackendHandlerTest {
     private static final NodeIdentificationStrategy NODE_IDENTIFICATION_STRATEGY = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9090),
             "broker-", 9190, List.of(new NamedRange("default", 0, 9))).buildStrategy("cluster");
     public static final String CLUSTER_NAME = "wibble";
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     ProxyChannelStateMachine proxyChannelStateMachine;
 
     private KafkaProxyBackendHandler kafkaProxyBackendHandler;
@@ -59,8 +59,8 @@ class KafkaProxyBackendHandlerTest {
         var virtualClusterModel = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("localhost:9090", Optional.empty()), false, false,
                 List.of());
         virtualClusterModel.addGateway("default", NODE_IDENTIFICATION_STRATEGY, Optional.empty());
-        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine,
-                virtualClusterModel);
+        when(proxyChannelStateMachine.virtualCluster()).thenReturn(virtualClusterModel);
+        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine);
         outboundChannel.pipeline().addFirst(kafkaProxyBackendHandler);
         outboundContext = outboundChannel.pipeline().firstContext();
     }

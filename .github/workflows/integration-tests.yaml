@@ -55,17 +55,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: 'Set up Java'
-        uses: actions/setup-java@v5
-        with:
-          java-version: 21
-          distribution: 'temurin'
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: actions/cache@v5
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Build Kroxylicious proxy integration tests'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -111,17 +104,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: 'Set up Java'
-        uses: actions/setup-java@v5
-        with:
-          java-version: 21
-          distribution: 'temurin'
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: actions/cache@v5
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Build Kroxylicious archetype'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

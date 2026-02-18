@@ -267,4 +267,126 @@ class HelmTemplateRenderingTest {
                 .contains("http://omb-worker-2.omb-worker:");
     }
 
+    @Test
+    void shouldRenderKafkaProxyWhenEnabled() throws IOException {
+        // When: Rendering with kroxylicious enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafkaProxy = HelmUtils.findResourceTyped(resources, "KafkaProxy", "benchmark-proxy");
+
+        // Then: KafkaProxy CR should exist with correct API version
+        assertThat(kafkaProxy).as("KafkaProxy 'benchmark-proxy' should be rendered when kroxylicious is enabled").isNotNull();
+        assertThat(kafkaProxy.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+    }
+
+    @Test
+    void shouldNotRenderKroxyliciousResourcesWhenDisabled() throws IOException {
+        // When: Rendering with default values (kroxylicious disabled)
+        String yaml = HelmUtils.renderTemplate();
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+
+        // Then: No Kroxylicious CRs should be rendered
+        assertThat(resources)
+                .as("No Kroxylicious CRs should be rendered when disabled")
+                .noneMatch(r -> r.getApiVersion() != null && r.getApiVersion().startsWith("kroxylicious.io/"));
+    }
+
+    @Test
+    void shouldRenderKafkaProxyIngressWhenEnabled() throws IOException {
+        // When: Rendering with kroxylicious enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource ingress = HelmUtils.findResourceTyped(resources, "KafkaProxyIngress", "cluster-ip");
+
+        // Then: KafkaProxyIngress CR should exist with correct API version
+        assertThat(ingress).as("KafkaProxyIngress 'cluster-ip' should be rendered when kroxylicious is enabled").isNotNull();
+        assertThat(ingress.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+    }
+
+    @Test
+    void shouldRenderKafkaServiceWhenEnabled() throws IOException {
+        // When: Rendering with kroxylicious enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafkaService = HelmUtils.findResourceTyped(resources, "KafkaService", "kafka");
+
+        // Then: KafkaService CR should exist with correct API version
+        assertThat(kafkaService).as("KafkaService 'kafka' should be rendered when kroxylicious is enabled").isNotNull();
+        assertThat(kafkaService.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 1, 3, 5 })
+    @SuppressWarnings("unchecked")
+    void shouldConfigureNodeIdRangesForReplicaCount(int replicas) throws IOException {
+        // When: Rendering with kroxylicious enabled and custom replica count
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true", "kafka.replicas", String.valueOf(replicas)));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource kafkaService = HelmUtils.findResourceTyped(resources, "KafkaService", "kafka");
+
+        // Then: nodeIdRanges end should be replicas - 1
+        assertThat(kafkaService).isNotNull();
+        Map<String, Object> spec = kafkaService.get("spec");
+        List<Map<String, Object>> nodeIdRanges = (List<Map<String, Object>>) spec.get("nodeIdRanges");
+        assertThat(nodeIdRanges).hasSize(1);
+        assertThat(nodeIdRanges.get(0))
+                .as("nodeIdRanges end should be %d for %d replicas", replicas - 1, replicas)
+                .containsEntry("start", 0)
+                .containsEntry("end", replicas - 1);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldRenderVirtualKafkaClusterWhenEnabled() throws IOException {
+        // When: Rendering with kroxylicious enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource vkc = HelmUtils.findResourceTyped(resources, "VirtualKafkaCluster", "kafka");
+
+        // Then: VirtualKafkaCluster CR should exist with correct references and no filters
+        assertThat(vkc).as("VirtualKafkaCluster 'kafka' should be rendered when kroxylicious is enabled").isNotNull();
+        assertThat(vkc.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+
+        Map<String, Object> spec = vkc.get("spec");
+        Map<String, Object> proxyRef = (Map<String, Object>) spec.get("proxyRef");
+        assertThat(proxyRef).containsEntry("name", "benchmark-proxy");
+
+        Map<String, Object> targetRef = (Map<String, Object>) spec.get("targetKafkaServiceRef");
+        assertThat(targetRef).containsEntry("name", "kafka");
+
+        assertThat(spec).as("No filters should be configured for no-filters scenario").doesNotContainKey("filterRefs");
+    }
+
+    @Test
+    void shouldRouteBootstrapThroughProxyWhenEnabled() throws IOException {
+        // When: Rendering with kroxylicious enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("kroxylicious.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource driverCm = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-driver-baseline");
+
+        // Then: Driver config should use proxy bootstrap address
+        assertThat(driverCm).isNotNull();
+        Map<String, Object> data = driverCm.get("data");
+        String driverYaml = (String) data.get("driver-kafka.yaml");
+        assertThat(driverYaml)
+                .as("Bootstrap should route through proxy when enabled")
+                .contains("kafka-cluster-ip-bootstrap:9292");
+    }
+
+    @Test
+    void shouldRouteBootstrapDirectlyWhenDisabled() throws IOException {
+        // When: Rendering with default values (kroxylicious disabled)
+        String yaml = HelmUtils.renderTemplate();
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource driverCm = HelmUtils.findResourceTyped(resources, "ConfigMap", "omb-driver-baseline");
+
+        // Then: Driver config should use direct Kafka bootstrap address
+        assertThat(driverCm).isNotNull();
+        Map<String, Object> data = driverCm.get("data");
+        String driverYaml = (String) data.get("driver-kafka.yaml");
+        assertThat(driverYaml)
+                .as("Bootstrap should route directly to Kafka when proxy disabled")
+                .contains("kafka-kafka-bootstrap:9092");
+    }
+
 }

@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,17 +25,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.fabric8.kubernetes.api.model.APIGroup;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
-import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
@@ -51,7 +45,6 @@ import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -651,180 +644,6 @@ class KafkaServiceReconcilerTest {
         assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
             assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
         });
-    }
-
-    @Test
-    void canMapFromKafkaServiceWithTrustAnchorToConfigMap() {
-        // Given
-        var mapper = KafkaServiceReconciler.kafkaServiceToTrustAnchorRefResource();
-
-        // When
-        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(SERVICE);
-
-        // Then
-        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(TRUST_ANCHOR_PEM_CONFIG_MAP));
-    }
-
-    @Test
-    void canMapFromKafkaServiceWithStrimziKafkaRefToStrimziKafka() {
-        // Given
-        var mapper = KafkaServiceReconciler.kafkaServiceToStrimziKafka();
-
-        // When
-        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(SERVICE);
-
-        // Then
-        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(KAFKA));
-    }
-
-    @Test
-    void canMapFromKafkaServiceWithoutStrimziKafkaRefToStrimziKafka() {
-        // Given
-        var mapper = KafkaServiceReconciler.kafkaServiceToStrimziKafka();
-        var serviceNoStrimziKafkaRef = new KafkaServiceBuilder(SERVICE).editSpec().withStrimziKafkaRef(null).endSpec().build();
-
-        // When
-        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(serviceNoStrimziKafkaRef);
-
-        // Then
-        assertThat(secondaryResourceIDs).isEmpty();
-    }
-
-    @Test
-    void canMapFromStrimziKafkaToKafkaService() {
-        // Given
-        EventSourceContext<KafkaService> eventSourceContext = mock();
-        KubernetesClient client = mock();
-        when(eventSourceContext.getClient()).thenReturn(client);
-
-        KubernetesResourceList<KafkaService> mockList = mockKafkaServiceListOperation(client);
-        when(mockList.getItems()).thenReturn(List.of(SERVICE));
-
-        var mapper = KafkaServiceReconciler.strimziKafkaToKafkaService(eventSourceContext);
-
-        // When
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(KAFKA);
-
-        // Then
-        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(SERVICE));
-    }
-
-    @Test
-    void canMapFromKafkaServiceWithoutTrustAnchorToConfigMap() {
-        // Given
-        var mapper = KafkaServiceReconciler.kafkaServiceToTrustAnchorRefResource();
-        var serviceNoTrustAnchor = new KafkaServiceBuilder(SERVICE).editSpec().editTls().withTrustAnchorRef(null).endTls().endSpec().build();
-
-        // When
-        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(serviceNoTrustAnchor);
-
-        // Then
-        assertThat(secondaryResourceIDs).isEmpty();
-    }
-
-    @Test
-    void canMapFromConfigMapTrustAnchorRefToKafkaService() {
-        // Given
-        EventSourceContext<KafkaService> eventSourceContext = mock();
-        KubernetesClient client = mock();
-        when(eventSourceContext.getClient()).thenReturn(client);
-
-        KubernetesResourceList<KafkaService> mockList = mockKafkaServiceListOperation(client);
-        when(mockList.getItems()).thenReturn(List.of(SERVICE));
-
-        var mapper = KafkaServiceReconciler.configMapTrustAnchorRefToKafkaService(eventSourceContext);
-
-        // When
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(TRUST_ANCHOR_PEM_CONFIG_MAP);
-
-        // Then
-        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(SERVICE));
-    }
-
-    static Stream<Arguments> mappingToConfigMapToleratesKafkaServicesWithoutTls() {
-        return Stream.of(
-                Arguments.argumentSet("without tls", new KafkaServiceBuilder(SERVICE).editSpec().withTls(null).endSpec().build()),
-                Arguments.argumentSet("with tls but without trust anchor",
-                        new KafkaServiceBuilder(SERVICE).editSpec().editTls().withTrustAnchorRef(null).endTls().endSpec().build()));
-    }
-
-    @ParameterizedTest
-    @MethodSource
-    void mappingToConfigMapToleratesKafkaServicesWithoutTls(KafkaService service) {
-        // Given
-        EventSourceContext<KafkaService> eventSourceContext = mock();
-        KubernetesClient client = mock();
-        when(eventSourceContext.getClient()).thenReturn(client);
-
-        KubernetesResourceList<KafkaService> mockList = mockKafkaServiceListOperation(client);
-        when(mockList.getItems()).thenReturn(List.of(service));
-
-        // When
-        var mapper = KafkaServiceReconciler.configMapTrustAnchorRefToKafkaService(eventSourceContext);
-
-        // Then
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(new ConfigMapBuilder().withNewMetadata().withName("cm").endMetadata().build());
-        assertThat(primaryResourceIDs).isEmpty();
-    }
-
-    @Test
-    void canMapFromKafkaServiceWithClientCertToSecret() {
-        // Given
-        var mapper = KafkaServiceReconciler.kafkaServiceToSecret();
-
-        // When
-        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(SERVICE);
-
-        // Then
-        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(TLS_SECRET));
-    }
-
-    @Test
-    void canMapFromKafkaServiceWithoutClientCertToSecret() {
-        // Given
-        var mapper = KafkaServiceReconciler.kafkaServiceToSecret();
-        var serviceNoCert = new KafkaServiceBuilder(SERVICE).editSpec().editTls().withCertificateRef(null).endTls().endSpec().build();
-
-        // When
-        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(serviceNoCert);
-
-        // Then
-        assertThat(secondaryResourceIDs).isEmpty();
-    }
-
-    static Stream<Arguments> mappingToSecretToleratesKafkaServicesWithoutTls() {
-        return Stream.of(
-                Arguments.argumentSet("without tls", new KafkaServiceBuilder(SERVICE).editSpec().withTls(null).endSpec().build()),
-                Arguments.argumentSet("with tls but without client cert",
-                        new KafkaServiceBuilder(SERVICE).editSpec().editTls().withCertificateRef(null).endTls().endSpec().build()));
-    }
-
-    @ParameterizedTest
-    @MethodSource
-    void mappingToSecretToleratesKafkaServicesWithoutTls(KafkaService service) {
-        // Given
-        EventSourceContext<KafkaService> eventSourceContext = mock();
-        KubernetesClient client = mock();
-        when(eventSourceContext.getClient()).thenReturn(client);
-
-        KubernetesResourceList<KafkaService> mockList = mockKafkaServiceListOperation(client);
-        when(mockList.getItems()).thenReturn(List.of(service));
-
-        // When
-        var mapper = KafkaServiceReconciler.secretToKafkaService(eventSourceContext);
-
-        // Then
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(new SecretBuilder().withNewMetadata().withName("secret").endMetadata().build());
-        assertThat(primaryResourceIDs).isEmpty();
-    }
-
-    private KubernetesResourceList<KafkaService> mockKafkaServiceListOperation(KubernetesClient client) {
-        MixedOperation<KafkaService, KubernetesResourceList<KafkaService>, Resource<KafkaService>> mockOperation = mock();
-        when(client.resources(KafkaService.class)).thenReturn(mockOperation);
-        KubernetesResourceList<KafkaService> mockList = mock();
-        when(mockOperation.list()).thenReturn(mockList);
-        when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
-        return mockList;
     }
 
     @SuppressWarnings("unchecked")
