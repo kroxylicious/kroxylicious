@@ -59,7 +59,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
 
       - name: Setup Java
-        uses: ./.github/actions/dependencies/setup-java
+        uses: ./.github/actions/common/setup-java
       
       - name: Build and install BOM
         run: mvn clean install -pl :kroxylicious-bom
@@ -140,7 +140,7 @@ jobs:
         uses: actions/deploy-pages@v4
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
-        uses: ./.github/actions/dependencies/slack-notification
+        uses: ./.github/actions/common/slack-notification
         with:
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The snapshot documentation deployment workflow failed.'

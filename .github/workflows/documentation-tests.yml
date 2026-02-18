@@ -43,13 +43,13 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
       - name: Setup Java
-        uses: ./.github/actions/dependencies/setup-java
+        uses: ./.github/actions/common/setup-java
       - name: Setup Minikube
-        uses: ./.github/actions/dependencies/setup-minikube
+        uses: ./.github/actions/common/setup-minikube
       - name: 'Set up Docker Buildx'
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/dependencies/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
         run: |
           mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
@@ -68,7 +68,7 @@ jobs:
           mvn -Djapicmp.skip=true -DskipUTs=true -DskipITs=true -DskipKTs=true -DskipDTs=false --batch-mode verify --activate-profiles dist --projects ':kroxylicious-docs-tests' --also-make
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
-        uses: ./.github/actions/dependencies/slack-notification
+        uses: ./.github/actions/common/slack-notification
         with:
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The documentation tests workflow failed on branch ${{ github.ref_name }}.'

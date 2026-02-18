@@ -40,9 +40,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: ./.github/actions/dependencies/setup-java
+        uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/dependencies/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Compile and lint the project'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,7 +59,7 @@ jobs:
           path: PR_NUMBER.txt
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
-        uses: ./.github/actions/dependencies/slack-notification
+        uses: ./.github/actions/common/slack-notification
         with:
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The lint workflow failed on branch ${{ github.ref_name }}.'

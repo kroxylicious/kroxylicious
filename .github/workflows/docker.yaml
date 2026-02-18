@@ -44,7 +44,7 @@ jobs:
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       - name: Setup Java
-        uses: ./.github/actions/dependencies/setup-java
+        uses: ./.github/actions/common/setup-java
 
       - name: Determine Build Configuration
         id: build_configuration
@@ -100,7 +100,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
-        uses: ./.github/actions/dependencies/slack-notification
+        uses: ./.github/actions/common/slack-notification
         with:
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The docker build workflow failed on branch ${{ github.ref_name }}.'

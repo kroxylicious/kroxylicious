@@ -73,10 +73,10 @@ jobs:
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
         if: env.SONAR_TOKEN_SET == 'true'
       - name: Setup Java
-        uses: ./.github/actions/dependencies/setup-java
+        uses: ./.github/actions/common/setup-java
         if: env.SONAR_TOKEN_SET == 'true'
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/dependencies/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
       - name: Cache SonarCloud packages
         uses: actions/cache@v5
         if: env.SONAR_TOKEN_SET == 'true'

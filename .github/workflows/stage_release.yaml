@@ -88,7 +88,7 @@ jobs:
           git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/dependencies/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
 
       - name: 'Set up Java'
         uses: actions/setup-java@v5
@@ -103,7 +103,7 @@ jobs:
           overwrite-settings: true
 
       - name: Setup Minikube
-        uses: ./.github/actions/dependencies/setup-minikube
+        uses: ./.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
 

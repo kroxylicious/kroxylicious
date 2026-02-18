@@ -56,9 +56,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: ./.github/actions/dependencies/setup-java
+        uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/dependencies/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Build Kroxylicious proxy integration tests'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -105,9 +105,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: ./.github/actions/dependencies/setup-java
+        uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/dependencies/cache-maven-packages
+        uses: ./.github/actions/common/cache-maven-packages
       - name: 'Build Kroxylicious archetype'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
