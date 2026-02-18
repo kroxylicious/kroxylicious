@@ -9,10 +9,17 @@ Generate bootstrap servers - routes to Kroxylicious proxy if enabled, otherwise 
 */}}
 {{- define "kroxylicious-benchmark.kafkaBootstrapServers" -}}
 {{- if .Values.kroxylicious.enabled -}}
-kroxylicious-service:9092
+kafka-cluster-ip-bootstrap:9292
 {{- else -}}
 kafka-kafka-bootstrap:9092
 {{- end -}}
+{{- end }}
+
+{{/*
+Generate OMB driver name - appears in result filenames and log output
+*/}}
+{{- define "kroxylicious-benchmark.driverName" -}}
+Kafka-{{ .Values.scenario }}
 {{- end }}
 
 {{/*

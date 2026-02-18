@@ -78,6 +78,22 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <configuration>
+                    <!-- HELM_STYLE: like SCRIPT_STYLE but skips {{- if ... }} directives
+                         before the license header. Conditional Helm templates must place
+                         the directive before the # header to avoid emitting comment-only
+                         YAML documents when the condition is false. -->
+                    <headerDefinitions>
+                        <headerDefinition>etc/license-header-definitions.xml</headerDefinition>
+                    </headerDefinitions>
+                    <mapping>
+                        <yaml>HELM_STYLE</yaml>
+                    </mapping>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

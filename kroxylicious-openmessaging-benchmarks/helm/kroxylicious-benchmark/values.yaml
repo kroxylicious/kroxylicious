@@ -4,6 +4,9 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+# Scenario name - used in OMB result filenames to identify which scenario produced the results
+scenario: baseline
+
 # Kafka cluster configuration (Strimzi-based)
 kafka:
   replicas: 3
@@ -23,11 +26,12 @@ kafka:
     storageClass: ""  # Use default storage class
 
 # Kroxylicious proxy (enabled for proxy scenarios)
+# Requires the Kroxylicious operator to be installed in the cluster.
+# When enabled, the chart creates operator CRs (KafkaProxy, KafkaProxyIngress,
+# KafkaService, VirtualKafkaCluster) and the operator manages the proxy deployment.
 kroxylicious:
   enabled: false  # Disabled for baseline scenario
-  image: quay.io/kroxylicious/kroxylicious:latest
-  imagePullPolicy: IfNotPresent
-  configMap: kroxylicious-no-filters  # Name of ConfigMap to mount
+  replicas: 1
   resources:
     requests:
       memory: "1Gi"
@@ -56,6 +60,7 @@ omb:
   imagePullPolicy: IfNotPresent
   driver: baseline  # Can be 'baseline' or 'proxy'
   workload: 1topic-1kb  # Workload name to run
+  workerJavaOpts: "-Xmx2g -Xms2g"  # JVM heap for OMB workers (must fit within resource limits)
   resources:
     requests:
       memory: "2Gi"
