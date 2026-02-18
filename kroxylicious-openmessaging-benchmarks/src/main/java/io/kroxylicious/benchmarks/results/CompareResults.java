@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 /**
@@ -38,6 +39,9 @@ public class CompareResults implements Callable<Integer> {
     @Parameters(index = "1", description = "Path to the candidate OMB result JSON file")
     private File candidateFile;
 
+    @Option(names = "--aggregation", defaultValue = "MEAN", description = "Aggregation method for array metrics: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})")
+    private AggregationMethod aggregationMethod;
+
     public static void main(String... args) {
         int exitCode = execute(args);
         System.exit(exitCode);
@@ -51,7 +55,7 @@ public class CompareResults implements Callable<Integer> {
     public Integer call() throws IOException {
         OmbResult baseline = MAPPER.readValue(baselineFile, OmbResult.class);
         OmbResult candidate = MAPPER.readValue(candidateFile, OmbResult.class);
-        new ResultComparator(baseline, candidate).compare(System.out);
+        new ResultComparator(baseline, candidate, aggregationMethod).compare(System.out);
         return 0;
     }
 }
