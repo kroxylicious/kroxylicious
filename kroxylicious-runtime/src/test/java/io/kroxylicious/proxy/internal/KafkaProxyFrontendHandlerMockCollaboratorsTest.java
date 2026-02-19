@@ -304,7 +304,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
 
         // Then
-        assertThat(proxyChannelStateMachine.getKafkaSession().currentState())
+        assertThat(proxyChannelStateMachine.kafkaSession().currentState())
                 .isEqualTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
     }
 
@@ -327,7 +327,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
 
         // Then
-        assertThat(proxyChannelStateMachine.getKafkaSession().currentState())
+        assertThat(proxyChannelStateMachine.kafkaSession().currentState())
                 .isEqualTo(KafkaSessionState.ESTABLISHING);
     }
 }
