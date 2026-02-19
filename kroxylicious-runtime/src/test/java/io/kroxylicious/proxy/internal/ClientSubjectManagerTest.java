@@ -9,18 +9,23 @@ package io.kroxylicious.proxy.internal;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Answers;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.authentication.User;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -28,7 +33,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class ClientSubjectManagerTest {
+
+    @Mock(answer = Answers.RETURNS_MOCKS, stubOnly = true)
+    EndpointBinding endpointBinding;
+    @Mock(answer = Answers.RETURNS_MOCKS, stubOnly = true)
+    TransportSubjectBuilder transportSubjectBuilder;
+    @Mock(answer = Answers.RETURNS_MOCKS, stubOnly = true)
+    KafkaProxyFrontendHandler frontendHandler;
 
     static List<Arguments> clientTlsContext() throws SSLPeerUnverifiedException {
 
@@ -88,8 +101,8 @@ class ClientSubjectManagerTest {
                           @Nullable X509Certificate proxyCertificate) {
 
         // when
-        var localCert = ClientSubjectManager.localTlsCertificate(session);
-        var peerCert = ClientSubjectManager.peerTlsCertificate(session);
+        var localCert = ProxyChannelStateMachine.localTlsCertificate(session);
+        var peerCert = ProxyChannelStateMachine.peerTlsCertificate(session);
 
         // then
         assertThat(localCert).isSameAs(proxyCertificate);
@@ -99,7 +112,7 @@ class ClientSubjectManagerTest {
     @Test
     void initialState() {
         // Given
-        ClientSubjectManager impl = new ClientSubjectManager();
+        ProxyChannelStateMachine impl = new ProxyChannelStateMachine(endpointBinding, transportSubjectBuilder);
         // Then
         assertThat(impl.clientSaslContext()).isEmpty();
     }
@@ -107,11 +120,14 @@ class ClientSubjectManagerTest {
     @Test
     void transitionInitialToAuthorized() {
         // Given
-        ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), () -> {
-        });
+        ProxyChannelStateMachine impl = new ProxyChannelStateMachine(endpointBinding, transportSubjectBuilder);
+        impl.forceState(new ProxyChannelState.Forwarding(null, null, null),
+                frontendHandler,
+                null,
+                new KafkaSession("session", KafkaSessionState.ESTABLISHING));
+        impl.subjectFromTransport(null);
         // When
-        impl.clientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
+        impl.onClientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
         // Then
         assertThat(impl.clientSaslContext()).hasValueSatisfying(csc -> {
             assertThat(csc.mechanismName()).isEqualTo("FOO");
@@ -122,11 +138,14 @@ class ClientSubjectManagerTest {
     @Test
     void transitionInitialToFailed() {
         // Given
-        ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), () -> {
-        });
+        ProxyChannelStateMachine impl = new ProxyChannelStateMachine(endpointBinding, transportSubjectBuilder);
+        impl.forceState(new ProxyChannelState.Forwarding(null, null, null),
+                frontendHandler,
+                null,
+                new KafkaSession("session", KafkaSessionState.ESTABLISHING));
+        impl.subjectFromTransport(null);
         // When
-        impl.clientSaslAuthenticationFailure();
+        impl.onClientSaslAuthenticationFailure();
         // Then
         assertThat(impl.clientSaslContext()).isEmpty();
     }
@@ -134,12 +153,15 @@ class ClientSubjectManagerTest {
     @Test
     void transitionAuthorizedToAuthorized() {
         // Given
-        ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), () -> {
-        });
-        impl.clientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
+        ProxyChannelStateMachine impl = new ProxyChannelStateMachine(endpointBinding, transportSubjectBuilder);
+        impl.forceState(new ProxyChannelState.Forwarding(null, null, null),
+                frontendHandler,
+                null,
+                new KafkaSession("session", KafkaSessionState.ESTABLISHING));
+        impl.subjectFromTransport(null);
+        impl.onClientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
         // When
-        impl.clientSaslAuthenticationSuccess("BAR", new Subject(new User("sue")));
+        impl.onClientSaslAuthenticationSuccess("BAR", new Subject(new User("sue")));
         // Then
         assertThat(impl.clientSaslContext()).hasValueSatisfying(csc -> {
             assertThat(csc.mechanismName()).isEqualTo("BAR");
@@ -150,12 +172,15 @@ class ClientSubjectManagerTest {
     @Test
     void transitionAuthorizedToFailed() {
         // Given
-        ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), () -> {
-        });
-        impl.clientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
+        ProxyChannelStateMachine impl = new ProxyChannelStateMachine(endpointBinding, transportSubjectBuilder);
+        impl.forceState(new ProxyChannelState.Forwarding(null, null, null),
+                frontendHandler,
+                null,
+                new KafkaSession("session", KafkaSessionState.ESTABLISHING));
+        impl.subjectFromTransport(null);
+        impl.onClientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
         // When
-        impl.clientSaslAuthenticationFailure();
+        impl.onClientSaslAuthenticationFailure();
         // Then
         assertThat(impl.clientSaslContext()).isEmpty();
     }
@@ -163,13 +188,16 @@ class ClientSubjectManagerTest {
     @Test
     void transitionFailedToAuthorized() {
         // Given
-        ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), () -> {
-        });
-        impl.clientSaslAuthenticationFailure();
+        ProxyChannelStateMachine impl = new ProxyChannelStateMachine(endpointBinding, transportSubjectBuilder);
+        impl.forceState(new ProxyChannelState.Forwarding(null, null, null),
+                frontendHandler,
+                null,
+                new KafkaSession("session", KafkaSessionState.ESTABLISHING));
+        impl.subjectFromTransport(null);
+        impl.onClientSaslAuthenticationFailure();
 
         // When
-        impl.clientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
+        impl.onClientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
         // Then
         assertThat(impl.clientSaslContext()).hasValueSatisfying(csc -> {
             assertThat(csc.mechanismName()).isEqualTo("FOO");

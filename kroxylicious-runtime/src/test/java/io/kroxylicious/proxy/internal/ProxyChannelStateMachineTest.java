@@ -51,6 +51,8 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -748,7 +750,7 @@ class ProxyChannelStateMachineTest {
         stateMachineInForwarding();
 
         // When
-        proxyChannelStateMachine.onSessionSaslAuthenticated();
+        proxyChannelStateMachine.onClientSaslAuthenticationSuccess("MECH", new Subject(new User("alice")));
 
         // Then
         verify(frontendHandler).onSessionAuthenticated();

@@ -6,10 +6,13 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
+import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -27,6 +30,7 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
@@ -106,7 +110,7 @@ public class ProxyChannelStateMachine {
     /**
      * Enumeration of disconnect causes for tracking client to proxy disconnections.
      */
-    public enum DisconnectCause {
+    enum DisconnectCause {
         /** Connection closed due to exceeding idle timeout */
         IDLE_TIMEOUT("idle_timeout"),
         /** Client initiated connection close */
@@ -177,6 +181,11 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings({ "java:S2637" })
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
+    private @Nullable String mechanismName;
+    private Subject subject;
+    private @Nullable X509Certificate proxyCertificate;
+    private @Nullable X509Certificate clientCertificate;
+
     /**
      * The backend handler. Non-null if {@link #onInitiateConnect(HostPort)}
      * has been called
@@ -207,6 +216,10 @@ public class ProxyChannelStateMachine {
         clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
         proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
+        this.proxyCertificate = null;
+        this.clientCertificate = null;
+        this.mechanismName = null;
+        this.subject = Subject.anonymous();
     }
 
     ProxyChannelState state() {
@@ -237,7 +250,7 @@ public class ProxyChannelStateMachine {
                 '}';
     }
 
-    public String currentState() {
+    String currentState() {
         return this.state().getClass().getSimpleName();
     }
 
@@ -269,7 +282,7 @@ public class ProxyChannelStateMachine {
     /**
      * Notify the state machine when the client applies back pressure.
      */
-    public void onClientUnwritable() {
+    void onClientUnwritable() {
         if (!serverReadsBlocked) {
             serverReadsBlocked = true;
             serverBackpressureTimer = Timer.start();
@@ -280,7 +293,7 @@ public class ProxyChannelStateMachine {
     /**
      * Notify the state machine when the client stops applying back pressure
      */
-    public void onClientWritable() {
+    void onClientWritable() {
         if (serverReadsBlocked) {
             serverReadsBlocked = false;
             if (serverBackpressureTimer != null) {
@@ -294,7 +307,7 @@ public class ProxyChannelStateMachine {
     /**
      * Notify the state machine when the server applies back pressure
      */
-    public void onServerUnwritable() {
+    void onServerUnwritable() {
         if (!clientReadsBlocked) {
             clientReadsBlocked = true;
             clientToProxyBackpressureTimer = Timer.start();
@@ -305,7 +318,7 @@ public class ProxyChannelStateMachine {
     /**
      * Notify the state machine when the server stops applying back pressure
      */
-    public void onServerWritable() {
+    void onServerWritable() {
         if (clientReadsBlocked) {
             clientReadsBlocked = false;
             if (clientToProxyBackpressureTimer != null) {
@@ -526,45 +539,42 @@ public class ProxyChannelStateMachine {
     /**
      * @return Return the session ID which connects a frontend channel with a backend channel
      */
-    public String sessionId() {
+    String sessionId() {
         return kafkaSession.sessionId();
     }
 
     /**
      * @return Return the session for this connection.
      */
-    public KafkaSession getKafkaSession() {
+    KafkaSession getKafkaSession() {
         return kafkaSession;
     }
 
-    public void onSessionTransportAuthenticated() {
+    void onSessionTransportAuthenticated() {
         this.kafkaSession.transitionTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
-    public void onSessionSaslAuthenticated() {
+    /**
+     * Inform this instance that SASL authentication succeeded
+     */
+    void onClientSaslAuthenticationSuccess(String mechanism, Subject subject) {
         this.kafkaSession.transitionTo(KafkaSessionState.SASL_AUTHENTICATED);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
+        this.mechanismName = Objects.requireNonNull(mechanism, "mechanism");
+        this.subject = Objects.requireNonNull(subject, "subject");
     }
 
-    public Optional<ClientTlsContext> clientTlsContext() {
-        return clientSubjectManager.clientTlsContext();
+    /**
+     * Inform this instance that SASL authentication failed
+     */
+    void onClientSaslAuthenticationFailure() {
+        this.mechanismName = null;
+        this.subject = Subject.anonymous();
     }
 
-    public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
-        clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
-    }
-
-    public Optional<ClientSaslContext> clientSaslContext() {
-        return clientSubjectManager.clientSaslContext();
-    }
-
-    public void clientSaslAuthenticationFailure() {
-        clientSubjectManager.clientSaslAuthenticationFailure();
-    }
-
-    public void onClientTlsHandshakeSuccess(SSLSession sslSession) {
-        this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder, this::onTransportSubjectBuilt);
+    void onClientTlsHandshakeSuccess(SSLSession sslSession) {
+        this.subjectFromTransport(sslSession);
     }
 
     @SuppressWarnings("java:S5738")
@@ -579,23 +589,12 @@ public class ProxyChannelStateMachine {
         // these can happen in either order
         this.progressionLatch = 2;
         if (!this.isTlsListener()) {
-            this.clientSubjectManager.subjectFromTransport(null, this.transportSubjectBuilder, this::onTransportSubjectBuilt);
+            subjectFromTransport(null);
         }
         frontendHandler.inClientActive();
 
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
-    }
-
-    void onTransportSubjectBuilt() {
-        if (!authenticatedSubject().isAnonymous()) {
-            onSessionTransportAuthenticated();
-        }
-        maybeUnblock();
-    }
-
-    Subject authenticatedSubject() {
-        return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
     }
 
     private void maybeUnblock() {
@@ -745,4 +744,118 @@ public class ProxyChannelStateMachine {
                 && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS;
     }
 
+    @VisibleForTesting
+    static @Nullable X509Certificate peerTlsCertificate(@Nullable SSLSession session) {
+        if (session != null) {
+
+            Certificate[] peerCertificates;
+            try {
+                peerCertificates = session.getPeerCertificates();
+            }
+            catch (SSLPeerUnverifiedException e) {
+                peerCertificates = null;
+            }
+            if (peerCertificates != null && peerCertificates.length > 0) {
+                return Objects.requireNonNull((X509Certificate) peerCertificates[0]);
+            }
+            else {
+                return null;
+            }
+        }
+        else {
+            return null;
+        }
+    }
+
+    @VisibleForTesting
+    static @Nullable X509Certificate localTlsCertificate(@Nullable SSLSession session) {
+        if (session != null) {
+            Certificate[] localCertificates = session.getLocalCertificates();
+            if (localCertificates != null && localCertificates.length > 0) {
+                return Objects.requireNonNull((X509Certificate) localCertificates[0]);
+            }
+            else {
+                return null;
+            }
+        }
+        else {
+            return null;
+        }
+    }
+
+    @VisibleForTesting void subjectFromTransport(@Nullable SSLSession session) {
+        this.clientCertificate = peerTlsCertificate(session);
+        this.proxyCertificate = localTlsCertificate(session);
+        transportSubjectBuilder.buildTransportSubject(new TransportSubjectBuilder.Context() {
+            @Override
+            public Optional<ClientTlsContext> clientTlsContext() {
+                return ProxyChannelStateMachine.this.clientTlsContext();
+            }
+        }).whenComplete((newSubject, error) -> {
+            completeSubjectFromTransport(newSubject, error);
+        });
+    }
+
+    private void completeSubjectFromTransport(@Nullable Subject newSubject, @Nullable Throwable error) {
+        if (error == null) {
+            this.subject = newSubject;
+        }
+        else {
+            LOGGER.warn("Failed to build subject from transport information; client will be treated as anonymous", error);
+            this.subject = Subject.anonymous();
+        }
+        this.mechanismName = null;
+        if (!authenticatedSubject().isAnonymous()) {
+            onSessionTransportAuthenticated();
+        }
+        maybeUnblock();
+    }
+
+    /**
+     * @return The subject to be used for plugin APIs (FilterContext and TransportSubjectBuilder)
+     */
+    Subject authenticatedSubject() {
+        return this.subject;
+    }
+
+    /**
+     * @return The ClientTlsContext to be used for plugin APIs (FilterContext and TransportSubjectBuilder)
+     */
+    Optional<ClientTlsContext> clientTlsContext() {
+        return proxyCertificate != null ? Optional.of(new ClientTlsContext() {
+            @Override
+            public X509Certificate proxyServerCertificate() {
+                // Note this is only reachable when clientTlsContext() returned non-empty => proxyCertificate is not null
+                return Objects.requireNonNull(proxyCertificate);
+            }
+
+            @Override
+            public Optional<X509Certificate> clientCertificate() {
+                return Optional.ofNullable(clientCertificate);
+            }
+        }) : Optional.empty();
+    }
+
+    /**
+     * @return A ClientSaslContext for implementing the FilterContext
+     */
+    Optional<ClientSaslContext> clientSaslContext() {
+        return mechanismName != null ? Optional.of(new ClientSaslContext() {
+            @Override
+            public String mechanismName() {
+                // Note this is only reachable when clientSaslContext() returned non-empty => mechanismName is not null
+                return Objects.requireNonNull(mechanismName);
+            }
+
+            @Override
+            public String authorizationId() {
+                // Note this is only reachable when clientSaslContext() returned non-empty
+                // And currently a Subject must have exactly one User principal
+                // => this IllegalStateException is never thrown in practice.
+                return subject.uniquePrincipalOfType(User.class)
+                        .map(User::name)
+                        .orElseThrow(IllegalStateException::new);
+            }
+        }) : Optional.empty();
+    }
 }
