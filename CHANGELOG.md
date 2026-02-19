@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3323](https://github.com/kroxylicious/kroxylicious/pull/3323): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.2 to 2.25.3
 * [#3277](https://github.com/kroxylicious/kroxylicious/pull/3277): Extend authorization filter to cover transactionalId authorization
 * [#3046](https://github.com/kroxylicious/kroxylicious/pull/3046): Add configurable idle connection timeouts for client connections
 * [#3242](https://github.com/kroxylicious/kroxylicious/pull/3242): chore: remove deprecated template kek selector brace style
