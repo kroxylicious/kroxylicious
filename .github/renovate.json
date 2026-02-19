@@ -12,19 +12,19 @@
   "packageRules": [
     {
       "matchPackageNames": ["/kubernetes/"],
-      "groupName": "kubernetes"
+      "groupName": "kubernetes packages"
     },
     {
       "matchPackageNames": ["/hashicorp/"],
-      "groupName": "hashicorp"
+      "groupName": "hashicorp vault packages"
     },
     {
       "matchPackageNames": ["/lowkey-vault/"],
-      "groupName": "lowkey-vault"
+      "groupName": "lowkey-vault packages"
     },
     {
       "matchPackageNames": ["/localstack/"],
-      "groupName": "localstack"
+      "groupName": "localstack packages"
     }
   ],
   "enabledManagers": [
