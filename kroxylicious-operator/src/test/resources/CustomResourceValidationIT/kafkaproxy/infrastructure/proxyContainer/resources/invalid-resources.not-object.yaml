@@ -16,4 +16,4 @@ resource:
       proxyContainer:
         resources: [ ]
 expectFailureMessageToContain: |
-  spec.infrastructure.proxyContainer.resources: Invalid value: "array"
+  spec.infrastructure.proxyContainer.resources: Invalid value

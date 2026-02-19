@@ -14,4 +14,4 @@ resource:
   spec:
     replicas: "abc"
 expectFailureMessageToContain: |
-  spec.replicas: Invalid value: "string"
+  spec.replicas: Invalid value

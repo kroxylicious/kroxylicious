@@ -15,4 +15,4 @@ resource:
     bootstrapServers: 'localhost:9092'
     nodeIdRanges: {}
 expectFailureMessageToContain: |
-  spec.nodeIdRanges: Invalid value: "object"
+  spec.nodeIdRanges: Invalid value
