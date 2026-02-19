@@ -32,7 +32,6 @@ import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -52,7 +51,10 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.collection;
+import static org.assertj.core.api.InstanceOfAssertFactories.map;
 import static org.awaitility.Awaitility.await;
 
 /**
@@ -64,6 +66,9 @@ class EntityIsolationIT {
 
     public static final String CONSUMER_GROUP_NAME = "mygroup";
 
+    @SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"), @SaslMechanism.Principal(user = "bob", password = "pwd") })
+    KafkaCluster cluster;
+
     private enum ConsumerStyle {
         ASSIGN,
         SUBSCRIBE
@@ -74,15 +79,15 @@ class EntityIsolationIT {
      * <br/>
      * Alice and Bob both consume from the same topic using distinct own group names.
      * Test uses describeConsumerGroups to ensure that Alice only sees her group and Bob only sees his.
-     * @param cluster broker
+     *
+     * @param consumerStyle consumer style
      * @param topic topic
      */
     @ParameterizedTest
     @EnumSource(value = ConsumerStyle.class)
-    void describeGroupMaintainsGroupIsolation(ConsumerStyle consumerStyle, @SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
-            @SaslMechanism.Principal(user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
+    void describeGroupMaintainsGroupIsolation(ConsumerStyle consumerStyle, Topic topic) {
 
-        checkGroupIsolationMaintained(consumerStyle, cluster, topic, true);
+        ensureGroupIsolationMaintained(consumerStyle, cluster, topic, true);
     }
 
     /**
@@ -90,18 +95,19 @@ class EntityIsolationIT {
      * <br/>
      * Alice and Bob both consumer from the same topic using distinct own group names.
      * Test uses listGroups to ensure that Alice only sees her group and Bob only sees his.
-     * @param cluster broker
+     *
+     * @param consumerStyle consumer style
      * @param topic topic
      */
     @ParameterizedTest
     @EnumSource(value = ConsumerStyle.class)
-    void listGroupMaintainsGroupIsolation(ConsumerStyle consumerStyle, @SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
-            @SaslMechanism.Principal(user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
+    void listGroupMaintainsGroupIsolation(ConsumerStyle consumerStyle,
+                                          Topic topic) {
 
-        checkGroupIsolationMaintained(consumerStyle, cluster, topic, false);
+        ensureGroupIsolationMaintained(consumerStyle, cluster, topic, false);
     }
 
-    private void checkGroupIsolationMaintained(ConsumerStyle consumerStyle, KafkaCluster cluster, Topic topic, boolean useDescribe) {
+    private void ensureGroupIsolationMaintained(ConsumerStyle consumerStyle, KafkaCluster cluster, Topic topic, boolean useDescribe) {
         var configBuilder = buildProxyConfig(cluster);
 
         var aliceConfig = buildClientConfig("alice", "pwd");
@@ -125,13 +131,15 @@ class EntityIsolationIT {
 
     /**
      * Group isolation - consumers and offsets.
+     * <br/>
+     * Alice and Bob both using the same group name, but entity isolation ensures that the two
+     * groups are actually independent.  This test ensures that the offsets for the two consumer
+     * groups are indeed maintained independently.
      *
-     * @param cluster cluster
      * @param topic topic
      */
     @Test
-    void consumerGroupOffsetMaintainGroupIsolation(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
-            @SaslMechanism.Principal(user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
+    void consumerGroupOffsetCommitMaintainsGroupIsolation(Topic topic) {
 
         var configBuilder = buildProxyConfig(cluster);
         var aliceConfig = buildClientConfig("alice", "pwd",
@@ -186,8 +194,15 @@ class EntityIsolationIT {
         }
     }
 
+    /**
+     * Group isolation - list offsets.
+     * <br/>
+     * Ensure the offsets committed to an isolated group are visible through the {@link Admin#listConsumerGroupOffsets(String)} API.
+     *
+     * @param topic topic
+     */
     @Test
-    void listConsumerGroupOffsets(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd") }) KafkaCluster cluster, Topic topic) {
+    void listConsumerGroupOffsets(Topic topic) {
 
         var configBuilder = buildProxyConfig(cluster);
         var aliceConfig = buildClientConfig("alice", "pwd",
@@ -222,17 +237,22 @@ class EntityIsolationIT {
                         .actual();
 
                 assertThat(actual)
-                        .extractingByKey(CONSUMER_GROUP_NAME, InstanceOfAssertFactories.map(TopicPartition.class, OffsetAndMetadata.class))
+                        .extractingByKey(CONSUMER_GROUP_NAME, as(map(TopicPartition.class, OffsetAndMetadata.class)))
                         .extractingByKey(new TopicPartition(topic.name(), 0))
-                        .satisfies(oam -> {
-                            assertThat(oam.offset()).isEqualTo(1);
-                        });
+                        .satisfies(oam -> assertThat(oam.offset()).isEqualTo(1));
             }
         }
     }
 
+    /**
+     * Group isolation - delete group
+     * <br/>
+     * Verifies that an isolated group can be deleted.
+     *
+     * @param topic topic
+     */
     @Test
-    void deleteConsumerGroups(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd") }) KafkaCluster cluster, Topic topic) {
+    void deleteConsumerGroups(Topic topic) {
         var configBuilder = buildProxyConfig(cluster);
 
         var aliceConfig = buildClientConfig("alice", "pwd");
@@ -277,7 +297,7 @@ class EntityIsolationIT {
     private void verifyConsumerGroupsWithDescribe(Admin admin, Set<String> expectedPresent, Set<String> expectedAbsent) {
         assertThat(admin.describeConsumerGroups(expectedPresent).all())
                 .succeedsWithin(Duration.ofSeconds(5))
-                .asInstanceOf(InstanceOfAssertFactories.map(String.class, ConsumerGroupDescription.class))
+                .asInstanceOf(map(String.class, ConsumerGroupDescription.class))
                 .allSatisfy((s, consumerGroupDescription) -> assertThat(consumerGroupDescription.groupState()).isNotIn(GroupState.DEAD));
 
         expectedAbsent.forEach(absent -> {
@@ -294,7 +314,7 @@ class EntityIsolationIT {
     private void verifyConsumerGroupsWithList(Admin admin, Set<String> expected) {
         assertThat(admin.listGroups().all())
                 .succeedsWithin(Duration.ofSeconds(5))
-                .asInstanceOf(InstanceOfAssertFactories.collection(GroupListing.class))
+                .asInstanceOf(collection(GroupListing.class))
                 .extracting(GroupListing::groupId)
                 .containsExactlyInAnyOrderElementsOf(expected);
     }
