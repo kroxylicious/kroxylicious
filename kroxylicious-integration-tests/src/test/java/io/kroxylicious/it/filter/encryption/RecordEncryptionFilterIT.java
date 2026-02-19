@@ -148,7 +148,7 @@ class RecordEncryptionFilterIT {
 
     @TestTemplate
     void roundTripShareGroup(
-                             @BrokerConfig(name = "share.coordinator.state.topic.replication.factor", value = "1") @BrokerConfig(name = "share.coordinator.state.topic.min.isr", value = "1") KafkaCluster cluster,
+                             KafkaCluster cluster,
                              @TopicNameMethodSource Topic topic,
                              TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
@@ -596,7 +596,7 @@ class RecordEncryptionFilterIT {
 
     @TestTemplate
     void unencryptedRecordsConsumableByShareConsumer(
-                                                     @BrokerConfig(name = "share.coordinator.state.topic.replication.factor", value = "1") @BrokerConfig(name = "share.coordinator.state.topic.min.isr", value = "1") KafkaCluster cluster,
+                                                     KafkaCluster cluster,
                                                      KafkaProducer<String, String> directProducer,
                                                      @TopicNameMethodSource Topic topic,
                                                      TestKmsFacade<?, ?, ?> testKmsFacade)
@@ -661,7 +661,7 @@ class RecordEncryptionFilterIT {
 
     @TestTemplate
     void nullValueRecordProducedAndConsumedSuccessfullyByShareConsumer(
-                                                                       @BrokerConfig(name = "share.coordinator.state.topic.replication.factor", value = "1") @BrokerConfig(name = "share.coordinator.state.topic.min.isr", value = "1") KafkaCluster cluster,
+                                                                       KafkaCluster cluster,
                                                                        @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "test") Consumer<String, String> directConsumer,
                                                                        @TopicNameMethodSource Topic topic,
                                                                        TestKmsFacade<?, ?, ?> testKmsFacade)
@@ -958,7 +958,7 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void shareGroupConsumeFailsAfterKekDeleted(@BrokerConfig(name = "share.coordinator.state.topic.replication.factor", value = "1") @BrokerConfig(name = "share.coordinator.state.topic.min.isr", value = "1") KafkaCluster cluster,
+    void shareGroupConsumeFailsAfterKekDeleted(KafkaCluster cluster,
                                                @TopicNameMethodSource Topic topic,
                                                TestKmsFacade<?, ?, ?> testKmsFacade)
             throws ExecutionException, InterruptedException {
