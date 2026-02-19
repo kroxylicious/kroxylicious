@@ -43,7 +43,7 @@ spec:
         imagePullPolicy: {{ .Values.omb.imagePullPolicy }}
         env:
         - name: JAVA_OPTS
-          value: "{{ .Values.omb.workerJavaOpts }} -Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+          value: "{{ .Values.omb.workerJavaOpts }} -Dorg.slf4j.simpleLogger.defaultLogLevel={{ .Values.omb.logLevel }}"
         command:
         - /bin/bash
         - -c
