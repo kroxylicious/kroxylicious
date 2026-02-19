@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3331](https://github.com/kroxylicious/kroxylicious/pull/3331): fix(crd): make the spec object required across all the CRDs (except KafkaProxy)
 * [#3325](https://github.com/kroxylicious/kroxylicious/pull/3325): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.2.2 to 5.2.3
 * [#3323](https://github.com/kroxylicious/kroxylicious/pull/3323): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.2 to 2.25.3
 * [#3277](https://github.com/kroxylicious/kroxylicious/pull/3277): Extend authorization filter to cover transactionalId authorization
