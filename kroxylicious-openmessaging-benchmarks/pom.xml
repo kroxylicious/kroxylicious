@@ -107,6 +107,7 @@
                 <configuration>
                     <systemPropertyVariables>
                         <helm.chart.directory>${helm.chart.directory}</helm.chart.directory>
+                        <jbang.generated.sources>${project.build.directory}/jbang/generated-sources</jbang.generated.sources>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
