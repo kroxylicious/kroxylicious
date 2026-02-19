@@ -61,6 +61,8 @@ public class MockFilterContext implements FilterContext {
     public static final String DEFAULT_SNI_HOSTNAME = "sniHostname";
     public static final String DEFAULT_VIRTUAL_CLUSTER_NAME = "virtualCluster";
     public static final Subject DEFAULT_AUTHENTICATED_SUBJECT = Subject.anonymous();
+    private static final TopicNameMappingException NOT_CONFIGURED_EXCEPTION = new TopicNameMappingException(Errors.UNKNOWN_SERVER_ERROR,
+            "no mapping for topicId configured in MockFilterContext");
 
     private final ApiMessage header;
     private final ApiMessage message;
@@ -78,11 +80,13 @@ public class MockFilterContext implements FilterContext {
     private final List<MockSendRequestResponse> sendRequestResponses;
     private final List<SendRequestInvocation> sendRequestInvocations = Lists.newArrayList();
     private final List<ClientSaslGestureInvocation> clientSaslGestureInvocations = Lists.newArrayList();
+    private final Map<Uuid, TopicNameMappingException> topicNameFailures;
 
     @SuppressWarnings("java:S107") // large constructor justified
     private MockFilterContext(ApiMessage header,
                               ApiMessage message,
                               Map<Uuid, String> topicNames,
+                              Map<Uuid, TopicNameMappingException> topicNameFailures,
                               String channelDescriptor,
                               String sessionId,
                               @Nullable String sniHostname,
@@ -95,6 +99,7 @@ public class MockFilterContext implements FilterContext {
         Objects.requireNonNull(header, "header must not be null");
         Objects.requireNonNull(message, "message must not be null");
         Objects.requireNonNull(topicNames, "topicNames must not be null");
+        Objects.requireNonNull(topicNameFailures, "topicNameFailures must not be null");
         Objects.requireNonNull(channelDescriptor, "channelDescriptor must not be null");
         Objects.requireNonNull(sessionId, "sessionId must not be null");
         Objects.requireNonNull(virtualClusterName, "virtualClusterName must not be null");
@@ -102,6 +107,7 @@ public class MockFilterContext implements FilterContext {
         this.header = header;
         this.message = message;
         this.topicNames = topicNames;
+        this.topicNameFailures = topicNameFailures;
         this.channelDescriptor = channelDescriptor;
         this.sessionId = sessionId;
         this.sniHostname = sniHostname;
@@ -119,6 +125,7 @@ public class MockFilterContext implements FilterContext {
         private final ApiMessage header;
         private final ApiMessage message;
         private final Map<Uuid, String> topicNames = Maps.newHashMap();
+        private final Map<Uuid, TopicNameMappingException> topicNameFailures = Maps.newHashMap();
         private String channelDescriptor = DEFAULT_CHANNEL_DESCRIPTOR;
         private String sessionId = DEFAULT_SESSION_ID;
         private @Nullable String sniHostname = DEFAULT_SNI_HOSTNAME;
@@ -141,6 +148,7 @@ public class MockFilterContext implements FilterContext {
             return new MockFilterContext(header,
                     message,
                     topicNames,
+                    topicNameFailures,
                     channelDescriptor,
                     sessionId,
                     sniHostname,
@@ -243,6 +251,13 @@ public class MockFilterContext implements FilterContext {
             return this;
         }
 
+        public MockFilterContextBuilder withTopicNameError(Uuid topicId, TopicNameMappingException exception) {
+            Objects.requireNonNull(topicId);
+            Objects.requireNonNull(exception);
+            topicNameFailures.put(topicId, exception);
+            return this;
+        }
+
         private static class MockClientTlsContext implements ClientTlsContext {
             private final X509Certificate proxyServerCertificate;
             @Nullable
@@ -326,8 +341,7 @@ public class MockFilterContext implements FilterContext {
     public CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
         Map<Boolean, List<Uuid>> partitioned = topicIds.stream().collect(Collectors.partitioningBy(topicNames::containsKey));
         Map<Uuid, TopicNameMappingException> errors = partitioned.get(false).stream()
-                .collect(Collectors.toMap(topicId -> topicId, topicId -> new TopicNameMappingException(
-                        Errors.UNKNOWN_SERVER_ERROR, "no mapping for " + topicId + " configured in MockFilterContext")));
+                .collect(Collectors.toMap(topicId -> topicId, topicId -> topicNameFailures.getOrDefault(topicId, NOT_CONFIGURED_EXCEPTION)));
         Map<Uuid, String> names = partitioned.get(true).stream().collect(Collectors.toMap(topicId -> topicId, topicNames::get));
         return CompletableFuture.completedStage(
                 new MockTopicNameMapping(!errors.isEmpty(), names, errors));
