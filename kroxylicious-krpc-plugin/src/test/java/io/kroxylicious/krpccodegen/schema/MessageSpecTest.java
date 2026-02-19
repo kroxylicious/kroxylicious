@@ -6,10 +6,15 @@
 
 package io.kroxylicious.krpccodegen.schema;
 
+import java.io.UncheckedIOException;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class MessageSpecTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private MessageSpec groupIdMessageSpec;
     private MessageSpec nestedGroupIdMessageSpec;
     private MessageSpec groupIdArrayMessageSpec;
@@ -26,8 +32,7 @@ class MessageSpecTest {
 
     @BeforeEach
     void setUp() throws JsonProcessingException {
-        ObjectMapper mapper = new ObjectMapper();
-        groupIdMessageSpec = mapper.readValue("""
+        groupIdMessageSpec = definitionToMessageSpec("""
                   {
                     "apiKey": 11,
                     "type": "request",
@@ -40,9 +45,9 @@ class MessageSpecTest {
                         "about": "The group identifier." }
                     ]
                 }
-                """, MessageSpec.class);
+                """);
 
-        groupIdArrayMessageSpec = mapper.readValue("""
+        groupIdArrayMessageSpec = definitionToMessageSpec("""
                 {
                   "apiKey": 15,
                   "type": "request",
@@ -55,9 +60,9 @@ class MessageSpecTest {
                       "about": "The names of the groups to describe." }
                   ]
                 }
-                """, MessageSpec.class);
+                """);
 
-        nestedGroupIdMessageSpec = mapper.readValue("""
+        nestedGroupIdMessageSpec = definitionToMessageSpec("""
                 {
                    "apiKey": 69,
                    "type": "response",
@@ -73,8 +78,8 @@ class MessageSpecTest {
                        ]}
                    ]
                 }
-                """, MessageSpec.class);
-        topicNameMessageSpec = mapper.readValue("""
+                """);
+        topicNameMessageSpec = definitionToMessageSpec("""
                   {
                       "apiKey": 47,
                       "type": "request",
@@ -87,8 +92,8 @@ class MessageSpecTest {
                               "about": "The topic name." }
                      ]
                 }
-                """, MessageSpec.class);
-        nestedTopicNameMessageSpec = mapper.readValue("""
+                """);
+        nestedTopicNameMessageSpec = definitionToMessageSpec("""
                   {
                       "apiKey": 47,
                       "type": "request",
@@ -104,7 +109,16 @@ class MessageSpecTest {
                               ]
                      }]
                 }
-                """, MessageSpec.class);
+                """);
+    }
+
+    private static MessageSpec definitionToMessageSpec(String content) {
+        try {
+            return MAPPER.readValue(content, MessageSpec.class);
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Test
@@ -145,18 +159,18 @@ class MessageSpecTest {
         // Given
 
         // When
-        var versions = groupIdMessageSpec.intersectedVersionsForEntityFields(Set.of(EntityType.GROUP_ID));
+        var versions = groupIdMessageSpec.intersectedVersions(f -> EntityType.GROUP_ID.equals(f.entityType()));
 
         // Then
         assertThat(versions).containsExactly((short) 1, (short) 2, (short) 3, (short) 4);
     }
 
     @Test
-    void shouldReportEmptyIntersectedVersionForMessageWithoutEntityTypeField() {
+    void shouldReportEmptyIntersectedVersionForMessageWithoutMatchingField() {
         // Given
 
         // When
-        var versions = groupIdMessageSpec.intersectedVersionsForEntityFields(Set.of(EntityType.UNKNOWN));
+        var versions = groupIdMessageSpec.intersectedVersions(f -> false);
 
         // Then
         assertThat(versions).isEmpty();
@@ -167,7 +181,7 @@ class MessageSpecTest {
         // Given
 
         // When
-        var versions = nestedGroupIdMessageSpec.intersectedVersionsForEntityFields(Set.of(EntityType.GROUP_ID));
+        var versions = nestedGroupIdMessageSpec.intersectedVersions(f -> EntityType.GROUP_ID.equals(f.entityType()));
 
         // Then
         assertThat(versions).containsExactly((short) 0, (short) 1);
@@ -274,5 +288,155 @@ class MessageSpecTest {
 
                             });
                 });
+    }
+
+    static Stream<Arguments> specsThatDefineResourceLists() {
+        return Stream.of(Arguments.argumentSet("request with resource list", definitionToMessageSpec("""
+                {
+                  "apiKey": 44,
+                  "type": "request",
+                  "listeners": ["broker", "controller"],
+                  "name": "IncrementalAlterConfigsRequest",
+                  "validVersions": "0-1",
+                  "flexibleVersions": "1+",
+                  "fields": [
+                    { "name": "Resources", "type": "[]AlterConfigsResource", "versions": "0+",
+                      "about": "The incremental updates for each resource.", "fields": [
+                      { "name": "ResourceType", "type": "int8", "versions": "0+", "mapKey": true,
+                        "about": "The resource type." },
+                      { "name": "ResourceName", "type": "string", "versions": "0+", "mapKey": true,
+                        "about": "The resource name." },
+                      { "name": "Configs", "type": "[]AlterableConfig", "versions": "0+",
+                        "about": "The configurations.",  "fields": [
+                        { "name": "Name", "type": "string", "versions": "0+", "mapKey": true,
+                          "about": "The configuration key name." },
+                        { "name": "ConfigOperation", "type": "int8", "versions": "0+", "mapKey": true,
+                          "about": "The type (Set, Delete, Append, Subtract) of operation." },
+                        { "name": "Value", "type": "string", "versions": "0+", "nullableVersions": "0+",
+                          "about": "The value to set for the configuration key."}
+                      ]}
+                    ]},
+                    { "name": "ValidateOnly", "type": "bool", "versions": "0+",
+                      "about": "True if we should validate the request, but not change the configurations."}
+                  ]
+                }
+                """)),
+                Arguments.argumentSet("response with resource list", definitionToMessageSpec(
+                        """
+                                {
+                                  "apiKey": 44,
+                                  "type": "response",
+                                  "name": "IncrementalAlterConfigsResponse",
+                                  "validVersions": "0-1",
+                                  "flexibleVersions": "1+",
+                                  "fields": [
+                                    { "name": "ThrottleTimeMs", "type": "int32", "versions": "0+",
+                                      "about": "Duration in milliseconds for which the request was throttled due to a quota violation, or zero if the request did not violate any quota." },
+                                    { "name": "Responses", "type": "[]AlterConfigsResourceResponse", "versions": "0+",
+                                      "about": "The responses for each resource.", "fields": [
+                                      { "name": "ErrorCode", "type": "int16", "versions": "0+",
+                                        "about": "The resource error code." },
+                                      { "name": "ErrorMessage", "type": "string", "nullableVersions": "0+", "versions": "0+",
+                                        "about": "The resource error message, or null if there was no error." },
+                                      { "name": "ResourceType", "type": "int8", "versions": "0+",
+                                        "about": "The resource type." },
+                                      { "name": "ResourceName", "type": "string", "versions": "0+",
+                                        "about": "The resource name." }
+                                    ]}
+                                  ]
+                                }
+                                """)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("specsThatDefineResourceLists")
+    void shouldFindRequestResourceList(MessageSpec ms) {
+        // When/Then
+        assertThat(ms.hasResourceList()).isTrue();
+    }
+
+    static Stream<Arguments> specsThatDontDefineResourceLists() {
+        return Stream.of(Arguments.argumentSet("no container", definitionToMessageSpec("""
+                {
+                  "apiKey": 99,
+                  "type": "request",
+                  "listeners": ["broker", "controller"],
+                  "name": "Test",
+                  "validVersions": "0-1",
+                  "flexibleVersions": "1+",
+                  "fields": [
+                    { "name": "ValidateOnly", "type": "bool", "versions": "0+",
+                      "about": "True if we should validate the request, but not change the configurations."}
+                  ]
+                }
+                """)),
+                Arguments.argumentSet("no ResourceName", definitionToMessageSpec("""
+                        {
+                          "apiKey": 99,
+                          "type": "request",
+                          "listeners": ["broker", "controller"],
+                          "name": "Test",
+                          "validVersions": "0-1",
+                          "flexibleVersions": "1+",
+                          "fields": [
+                            { "name": "Resources", "type": "[]AlterConfigsResource", "versions": "0+",
+                              "about": "The incremental updates for each resource.", "fields": [
+                              { "name": "ResourceType", "type": "int8", "versions": "0+", "mapKey": true,
+                                "about": "The resource type." }
+                            ]},
+                            { "name": "ValidateOnly", "type": "bool", "versions": "0+",
+                              "about": "True if we should validate the request, but not change the configurations."}
+                          ]
+                        }
+                        """)),
+                Arguments.argumentSet("wrong type", definitionToMessageSpec("""
+                        {
+                          "apiKey": 99,
+                          "type": "request",
+                          "listeners": ["broker", "controller"],
+                          "name": "Test",
+                          "validVersions": "0-1",
+                          "flexibleVersions": "1+",
+                          "fields": [
+                            { "name": "Resources", "type": "[]AlterConfigsResource", "versions": "0+",
+                              "about": "The incremental updates for each resource.", "fields": [
+                              { "name": "ResourceName", "type": "string", "versions": "0+", "mapKey": true,
+                                "about": "The resource name." },
+                              { "name": "ResourceType", "type": "string", "versions": "0+", "mapKey": true,
+                                "about": "The resource type." }
+                            ]},
+                            { "name": "ValidateOnly", "type": "bool", "versions": "0+",
+                              "about": "True if we should validate the request, but not change the configurations."}
+                          ]
+                        }
+                        """)),
+                Arguments.argumentSet("field version mismatch", definitionToMessageSpec("""
+                        {
+                          "apiKey": 99,
+                          "type": "request",
+                          "listeners": ["broker", "controller"],
+                          "name": "Test",
+                          "validVersions": "0-1",
+                          "flexibleVersions": "1+",
+                          "fields": [
+                            { "name": "Resources", "type": "[]AlterConfigsResource", "versions": "0+",
+                              "about": "The incremental updates for each resource.", "fields": [
+                              { "name": "ResourceName", "type": "string", "versions": "0+", "mapKey": true,
+                                "about": "The resource name." },
+                              { "name": "ResourceType", "type": "string", "versions": "1+", "mapKey": true,
+                                "about": "The resource type." }
+                            ]},
+                            { "name": "ValidateOnly", "type": "bool", "versions": "0+",
+                              "about": "True if we should validate the request, but not change the configurations."}
+                          ]
+                        }
+                        """)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("specsThatDontDefineResourceLists")
+    void shouldNotFindRequestResourceList(MessageSpec ms) {
+        // When/Then
+        assertThat(ms.hasResourceList()).isFalse();
     }
 }

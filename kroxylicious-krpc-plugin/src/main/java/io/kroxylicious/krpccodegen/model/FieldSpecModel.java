@@ -34,6 +34,7 @@ class FieldSpecModel implements TemplateHashModel, AdapterTemplateModel {
             case "typeString" -> wrapper.wrap(spec.typeString());
             case "about" -> wrapper.wrap(spec.about());
             case "entityType" -> wrapper.wrap(spec.entityType());
+            case "isResourceList" -> wrapper.wrap(spec.isResourceList());
             case "hasAtLeastOneEntityField" -> wrapper.wrap((TemplateMethodModelEx) this::handleHasAtLeastOneEntityField);
             case "flexibleVersions" -> wrapper.wrap(spec.flexibleVersions());
             case "flexibleVersionsString" -> wrapper.wrap(spec.flexibleVersionsString());

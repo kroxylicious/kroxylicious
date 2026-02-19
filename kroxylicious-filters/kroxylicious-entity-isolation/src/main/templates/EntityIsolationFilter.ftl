@@ -16,32 +16,42 @@ indent      java identation
 -->
 <#macro mapRequestFields messageSpec fieldVar children indent>
     <#local pad = ""?left_pad(4*indent)/>
-    <#list children?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
-${pad}// process any entity fields defined at this level
+    <#list children>
         <#items as field>
-            <#local getter="${field.name?uncap_first}"
-                    setter="set${field.name}" />
-${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/>) {
-            <#if field.type == 'string'>
-${pad}    ${fieldVar}.${setter}(map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
-            <#elseif field.type == '[]string'>
-${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream().map(orig -> map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
-            <#else>
-                <#stop "unexpected field type">
+            <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
+            <#if filteredEntityTypes?seq_contains(field.entityType)>
+        ${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/>) {
+                <#if field.type == 'string'>
+            ${pad}    ${fieldVar}.${setter}(map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
+                <#elseif field.type == '[]string'>
+            ${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream().map(orig -> map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
+                <#else>
+                    <#stop "unexpected field type">
+                </#if>
+            ${pad}}
+            <#elseif field.isResourceList>
+        ${pad}// process the resource list
+        ${pad}${fieldVar}.${getter}().stream()
+        ${pad}            .collect(Collectors.toMap(Function.identity(),
+        ${pad}                  r -> EntityIsolation.fromConfigResourceTypeCode(r.resourceType())))
+        ${pad}            .entrySet()
+        ${pad}            .stream()
+        ${pad}            .filter(e -> e.getValue().isPresent())
+        ${pad}            .filter(e -> shouldMap(e.getValue().get())).forEach(e -> {
+        ${pad}                e.getKey().setResourceName(map(mapperContext, e.getValue().get(), e.getKey().resourceName()));
+        ${pad}    });
             </#if>
-${pad}}
         </#items>
     </#list>
     <#list children?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
 ${pad}// recursively process sub-fields
         <#items as childField>
-            <#local getter="${childField.name?uncap_first}()"
-                    elementVar=childField.type?remove_beginning("[]")?uncap_first />
-${pad}if (<@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(childField.versions)/> && ${fieldVar}.${getter} != null) {
-${pad}    ${fieldVar}.${getter}.forEach(${elementVar} -> {
+            <#local getter="${childField.name?uncap_first}" elementVar=childField.type?remove_beginning("[]")?uncap_first />
+${pad}if (<@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(childField.versions)/> && ${fieldVar}.${getter}() != null) {
+${pad}    ${fieldVar}.${getter}().forEach(${elementVar} -> {
                 <@mapRequestFields messageSpec elementVar childField.fields indent + 2 />
-${pad}    });
-${pad}}
+        ${pad}    });
+        ${pad}}
         </#items>
     </#list>
 </#macro>
@@ -138,13 +148,16 @@ package ${outputPackage};
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import javax.annotation.processing.Generated;
 
 <#list messageSpecs?filter(ms -> retrieveApiListener(ms)?seq_contains("BROKER"))>
     <#items as messageSpec>
         <#assign messageSpecHasEntityFields=messageSpec.hasAtLeastOneEntityField(filteredEntityTypes) || retrieveApiKey(messageSpec) == "FIND_COORDINATOR"/>
-        <#if (messageSpec.type == 'REQUEST' || messageSpec.type == 'RESPONSE') && messageSpecHasEntityFields>
+        <#assign messageSpecHasResourceList=messageSpec.hasResourceList/>
+        <#if (messageSpec.type == 'REQUEST' || messageSpec.type == 'RESPONSE') && (messageSpecHasEntityFields || messageSpecHasResourceList)>
 import org.apache.kafka.common.message.${messageSpec.dataClassName};
         </#if>
     </#items>
@@ -189,9 +202,13 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
             // TODO: ALTER_CONFIG and INCREMENTAL_ALTER_CONFIG use a key type to identity topic entities.
             // TODO *_ACL use a  key type to identity topic/group/transactionalId entities.
             // TODO LIST_TRANSACTIONS v2 has the ability to filter the returned transctions via a regexp, this needs custom code.
-        <#list messageSpecs?filter(ms -> ms.type == 'REQUEST' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
+        <#list messageSpecs?filter(ms -> ms.type == 'REQUEST' && ms.listeners?seq_contains("BROKER"))>
             <#items as messageSpec>
+                <#if messageSpec.hasAtLeastOneEntityField(filteredEntityTypes)>
             case ${retrieveApiKey(messageSpec)} -> <@inVersionRange "apiVersion" messageSpec.intersectedVersionsForEntityFields(filteredEntityTypes)/>;
+                <#elseif messageSpec.hasResourceList>
+            case ${retrieveApiKey(messageSpec)} -> <@inVersionRange "apiVersion" messageSpec.intersectedVersionsForResourceList()/>;
+                </#if>
             </#items>
         </#list>
             default -> false;
@@ -204,9 +221,13 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         return switch (apiKey) {
             // Find coordinator uses a key type to identify entities, rather than entity field.
             case FIND_COORDINATOR -> true;
-        <#list messageSpecs?filter(ms -> ms.type == 'RESPONSE' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
+        <#list messageSpecs?filter(ms -> ms.type == 'RESPONSE' && retrieveApiListener(ms)?seq_contains("BROKER"))>
             <#items as messageSpec>
+                <#if messageSpec.hasAtLeastOneEntityField(filteredEntityTypes)>
             case ${retrieveApiKey(messageSpec)} -> <@inVersionRange "apiVersion" messageSpec.intersectedVersionsForEntityFields(filteredEntityTypes)/>;
+                <#elseif messageSpec.hasResourceList>
+            case ${retrieveApiKey(messageSpec)} -> <@inVersionRange "apiVersion" messageSpec.intersectedVersionsForResourceList()/>;
+                </#if>
             </#items>
         </#list>
         default -> false;
@@ -233,7 +254,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         log(filterContext, "request result", ApiKeys.FIND_COORDINATOR, findCoordinatorRequestData);
     }
 
-<#list messageSpecs?filter(ms -> ms.type == 'REQUEST' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
+<#list messageSpecs?filter(ms -> ms.type == 'REQUEST' && (ms.hasAtLeastOneEntityField(filteredEntityTypes) || ms.hasResourceList) && ms.listeners?seq_contains("BROKER"))>
     <#items as messageSpec>
         <#assign key=retrieveApiKey(messageSpec)
         dataClass="${messageSpec.dataClassName}"
@@ -243,7 +264,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                     ${namePad}FilterContext filterContext,
                     ${namePad}MapperContext mapperContext) {
         log(filterContext, "${messageSpec.type?c_lower_case}", ApiKeys.${key}, request);
-    <@mapRequestFields messageSpec=messageSpec fieldVar="request" children=messageSpec.fields indent=2/>
+    <@mapRequestFields messageSpec=messageSpec fieldVar="request" children=messageSpec.fields indent=0/>
         log(filterContext, "${messageSpec.type?c_lower_case} result", ApiKeys.${key}, request);
     }
     </#items>
@@ -261,7 +282,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                         (FindCoordinatorRequestData) request,
                         filterContext,
                         mapperContext);
-<#list messageSpecs?filter(ms -> ms.type == 'REQUEST' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && ms.listeners?seq_contains("BROKER"))>
+<#list messageSpecs?filter(ms -> ms.type == 'REQUEST' && (ms.hasAtLeastOneEntityField(filteredEntityTypes) || ms.hasResourceList) && ms.listeners?seq_contains("BROKER"))>
     <#items as messageSpec>
         <#assign key=retrieveApiKey(messageSpec)
         dataClass="${messageSpec.dataClassName}" />
