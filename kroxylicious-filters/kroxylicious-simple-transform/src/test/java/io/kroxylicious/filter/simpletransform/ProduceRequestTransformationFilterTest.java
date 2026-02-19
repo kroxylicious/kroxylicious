@@ -8,40 +8,37 @@ package io.kroxylicious.filter.simpletransform;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Locale;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.Records;
 import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.stubbing.Answer;
 
-import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.test.assertj.MockFilterContextAssert;
+import io.kroxylicious.test.context.MockFilterContext;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -64,38 +61,10 @@ class ProduceRequestTransformationFilterTest {
     @Mock(strictness = Mock.Strictness.LENIENT)
     FilterFactoryContext factoryContext;
 
-    @Mock(strictness = Mock.Strictness.LENIENT)
-    FilterContext context;
-
-    @Mock(strictness = Mock.Strictness.LENIENT)
-    private RequestFilterResult responseFilterResult;
-
-    @Captor
-    private ArgumentCaptor<Integer> bufferInitialCapacity;
-
-    @Captor
-    private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
-
-    @Captor
-    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
-
     @BeforeEach
     void setUp() {
         filter = new ProduceRequestTransformationFilter(new UpperCasing.Transformation(
                 new UpperCasing.Config("UTF-8")));
-
-        when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(responseFilterResult));
-
-        when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
-        when(responseFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
-
-        when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
-                (Answer<ByteBufferOutputStream>) invocation -> {
-                    Object[] args = invocation.getArguments();
-                    Integer size = (Integer) args[0];
-                    return new ByteBufferOutputStream(size);
-                });
     }
 
     @Test
@@ -127,61 +96,132 @@ class ProduceRequestTransformationFilterTest {
     }
 
     @Test
-    void filterProduceRequest() throws Exception {
-
+    void uppercasingProduceRequest() {
         var produceRequest = new ProduceRequestData();
         produceRequest.topicData().add(createTopicProduceDataWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setName(TOPIC_NAME));
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext mockFilterContext = MockFilterContext.builder(header, produceRequest).build();
+        var stage = filter.onProduceRequest(produceRequest.apiKey(), header, produceRequest, mockFilterContext);
 
-        var stage = filter.onProduceRequest(produceRequest.apiKey(), new RequestHeaderData(), produceRequest, context);
-        assertThat(stage).isCompleted();
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result)
+                    .isForwardRequest().hasMessageInstanceOfSatisfying(ProduceRequestData.class, filteredRequest -> {
+                        assertThat(filteredRequest.topicData())
+                                .withFailMessage("expected same number of topics in the request")
+                                .hasSameSizeAs(produceRequest.topicData());
 
-        var filteredRequest = (ProduceRequestData) stage.toCompletableFuture().get().message();
+                        var filteredRecords = requestToRecordStream(filteredRequest).toList();
+                        assertThat(filteredRecords)
+                                .withFailMessage("unexpected number of records in the filtered request")
+                                .hasSize(1);
 
-        // verify that the response now has the topic name
-        assertThat(filteredRequest.topicData())
-                .withFailMessage("expected same number of topics in the request")
-                .hasSameSizeAs(produceRequest.topicData())
-                .withFailMessage("expected topic request to have been augmented with topic name")
-                .anyMatch(ftr -> Objects.equals(ftr.name(), TOPIC_NAME));
+                        var filteredRecord = filteredRecords.get(0);
+                        assertThat(decodeUtf8Value(filteredRecord))
+                                .withFailMessage("expected record value to have been transformed")
+                                .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                    });
+        });
 
-        var filteredRecords = requestToRecordStream(filteredRequest).toList();
-        assertThat(filteredRecords)
-                .withFailMessage("unexpected number of records in the filtered request")
-                .hasSize(1);
-
-        var filteredRecord = filteredRecords.get(0);
-        assertThat(decodeUtf8Value(filteredRecord))
-                .withFailMessage("expected record value to have been transformed")
-                .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
     }
 
     @Test
-    void filterProduceRequestWithTopicId() throws Exception {
-
+    void topicNamePassedToTransformerWhenRequestUsesTopicId() {
+        // replaces the value with the topic name
+        var topicNameReplacingFilter = getTopicNameReplacingFilter();
         var produceRequest = new ProduceRequestData();
         produceRequest.topicData().add(createTopicProduceDataWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopicId(TOPIC_ID));
 
-        var stage = filter.onProduceRequest(produceRequest.apiKey(), new RequestHeaderData(), produceRequest, context);
-        assertThat(stage).isCompleted();
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext mockFilterContext = MockFilterContext.builder(header, produceRequest).withTopicName(TOPIC_ID, TOPIC_NAME).build();
+        var stage = topicNameReplacingFilter.onProduceRequest(produceRequest.apiKey(), header, produceRequest, mockFilterContext);
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result)
+                    .isForwardRequest().hasMessageInstanceOfSatisfying(ProduceRequestData.class, filteredRequest -> {
+                        assertThat(filteredRequest.topicData())
+                                .withFailMessage("expected same number of topics in the request")
+                                .hasSameSizeAs(produceRequest.topicData());
 
-        var filteredRequest = (ProduceRequestData) stage.toCompletableFuture().get().message();
+                        var filteredRecords = requestToRecordStream(filteredRequest).toList();
+                        assertThat(filteredRecords)
+                                .withFailMessage("unexpected number of records in the filtered request")
+                                .hasSize(1);
 
-        // verify that the response now has the topic name
-        assertThat(filteredRequest.topicData())
-                .withFailMessage("expected same number of topics in the request")
-                .hasSameSizeAs(produceRequest.topicData())
-                .withFailMessage("expected topic request to have been augmented with topic name")
-                .anyMatch(ftr -> Objects.equals(ftr.topicId(), TOPIC_ID));
+                        var filteredRecord = filteredRecords.get(0);
 
-        var filteredRecords = requestToRecordStream(filteredRequest).toList();
-        assertThat(filteredRecords)
-                .withFailMessage("unexpected number of records in the filtered request")
-                .hasSize(1);
+                        // verify that the filtered request value is now the topic name
+                        assertThat(decodeUtf8Value(filteredRecord))
+                                .withFailMessage("expected record value to have been transformed")
+                                .isEqualTo(TOPIC_NAME);
+                    });
+        });
+    }
 
-        var filteredRecord = filteredRecords.get(0);
-        assertThat(decodeUtf8Value(filteredRecord))
-                .withFailMessage("expected record value to have been transformed")
-                .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+    @Test
+    void topicNamePassedToTransformerWhenRequestUsesTopicName() {
+        // replaces the value with the topic name
+        var topicNameReplacingFilter = getTopicNameReplacingFilter();
+        var produceRequest = new ProduceRequestData();
+        produceRequest.topicData().add(createTopicProduceDataWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setName(TOPIC_NAME));
+
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext mockFilterContext = MockFilterContext.builder(header, produceRequest).build();
+        var stage = topicNameReplacingFilter.onProduceRequest(produceRequest.apiKey(), header, produceRequest, mockFilterContext);
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result)
+                    .isForwardRequest().hasMessageInstanceOfSatisfying(ProduceRequestData.class, filteredRequest -> {
+                        assertThat(filteredRequest.topicData())
+                                .withFailMessage("expected same number of topics in the request")
+                                .hasSameSizeAs(produceRequest.topicData());
+
+                        var filteredRecords = requestToRecordStream(filteredRequest).toList();
+                        assertThat(filteredRecords)
+                                .withFailMessage("unexpected number of records in the filtered request")
+                                .hasSize(1);
+
+                        var filteredRecord = filteredRecords.get(0);
+
+                        // verify that the response now has the topic name
+                        assertThat(decodeUtf8Value(filteredRecord))
+                                .withFailMessage("expected record value to have been transformed")
+                                .isEqualTo(TOPIC_NAME);
+                    });
+        });
+    }
+
+    @NonNull
+    private static ProduceRequestTransformationFilter getTopicNameReplacingFilter() {
+        return new ProduceRequestTransformationFilter((topicName, original) -> ByteBuffer.wrap(topicName.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    void filterProduceRequestWithFailedTopicIdLookup() {
+        var produceRequest = new ProduceRequestData();
+        produceRequest.setAcks((short) 1);
+        produceRequest.topicData().add(createTopicProduceDataWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopicId(TOPIC_ID));
+
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext mockFilterContext = MockFilterContext.builder(header, produceRequest).build();
+
+        var stage = filter.onProduceRequest(produceRequest.apiKey(), header, produceRequest, mockFilterContext);
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(requestFilterResult -> {
+            MockFilterContextAssert.assertThat(requestFilterResult).isShortCircuitResponse().isErrorResponse()
+                    .errorResponse().isInstanceOf(UnknownServerException.class);
+        });
+    }
+
+    @Test
+    void filterProduceRequestWithFailedTopicIdLookupZeroAck() {
+        var produceRequest = new ProduceRequestData();
+        produceRequest.setAcks((short) 0);
+        produceRequest.topicData().add(createTopicProduceDataWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopicId(TOPIC_ID));
+
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext mockFilterContext = MockFilterContext.builder(header, produceRequest).build();
+
+        var stage = filter.onProduceRequest(produceRequest.apiKey(), header, produceRequest, mockFilterContext);
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(requestFilterResult -> {
+            MockFilterContextAssert.assertThat(requestFilterResult).isDropRequest();
+        });
     }
 
     private Stream<Record> requestToRecordStream(ProduceRequestData filteredResponse) {
