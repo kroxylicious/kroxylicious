@@ -88,7 +88,7 @@ class KafkaServiceBootstrapReconcilerIT {
     @Test
     void shouldResolveUpdateToKafkaService() {
         // Given
-        var kafkaService = testActor.create(new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().build());
+        var kafkaService = testActor.create(new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().withNewSpec().withBootstrapServers(FOO_BOOTSTRAP_9090).endSpec().build());
 
         // When
         final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(BAR_BOOTSTRAP_9090).endSpec().build();

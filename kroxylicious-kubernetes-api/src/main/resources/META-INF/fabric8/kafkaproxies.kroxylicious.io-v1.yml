@@ -228,3 +228,4 @@ spec:
                   description: "The number of instances of the proxy pods that have reported ready."
                   type: integer
                   format: int32
+          required: [] # Absent spec is treated as if it were present and empty

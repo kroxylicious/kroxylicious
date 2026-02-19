@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3331](https://github.com/kroxylicious/kroxylicious/pull/3331): fix(crd): make the spec object required across all the CRDs except KafkaProxy.
 * [#3334](https://github.com/kroxylicious/kroxylicious/pull/3334): build(deps): bump com.fasterxml.jackson:jackson-bom from 2.21.0 to 2.21.1
 * [#3325](https://github.com/kroxylicious/kroxylicious/pull/3325): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.2.2 to 5.2.3
 * [#3323](https://github.com/kroxylicious/kroxylicious/pull/3323): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.2 to 2.25.3
@@ -43,6 +44,8 @@ Format `<github issue/pr number>: <short description>`.
 * The Authorization Filter can now enforce authorization of Transactional IDs.
   The `AclAuthorizerService` can import `io.kroxylicious.filter.authorization.TransactionalIdResource` to authorize `WRITE` and `DESCRIBE` with parity with Apache Kafka ACL authorization.
   Backwards compatibility is preserved, existing `AclAuthorizerService` Rules configurations that only import `TopicResource` will allow all Transactional ID operations.
+* The operator will now emit a deprecation warning if it encounters a KafkaProxy object without a `spec` object.
+  Such KafkaProxy CRs should be updated to have an empty `spec` object.
 
 ## 0.18.0
 
