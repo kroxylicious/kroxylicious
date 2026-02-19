@@ -26,6 +26,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.Partitioner;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.Cluster;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
@@ -36,6 +37,7 @@ import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +48,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 /**
@@ -136,9 +139,13 @@ class TransactionalIdTracingIT extends AbstractTracingIT {
     static class UnauthorizedProducer implements Prog {
 
         private final String actorName;
+        private final String beginTransactionErrorMessage;
+        private final Class<?> beginTransactionErrorClass;
 
-        UnauthorizedProducer(String actorName) {
+        UnauthorizedProducer(String actorName, String beginTransactionErrorMessage, Class<?> beginTransactionErrorClass) {
             this.actorName = actorName;
+            this.beginTransactionErrorMessage = beginTransactionErrorMessage;
+            this.beginTransactionErrorClass = beginTransactionErrorClass;
         }
 
         @Override
@@ -156,6 +163,13 @@ class TransactionalIdTracingIT extends AbstractTracingIT {
                         ProducerConfig.PARTITIONER_CLASS_CONFIG, AlwaysPartition0Partitioner.class.getName()))) {
 
                     transactionalProducer.initTransactions();
+
+                    // completion of initTransactions is driven before the internal state of the txnManager is transitioned
+                    // so the client can observe different exceptions if we don't wait for the state transition
+                    Awaitility.await().untilAsserted(() -> assertThatThrownBy(() -> {
+                        transactionalProducer.producer().beginTransaction();
+                    }).isInstanceOf(beginTransactionErrorClass)
+                            .hasMessage(beginTransactionErrorMessage));
 
                     // Commit
                     transactionalProducer.beginTransaction();
@@ -324,8 +338,13 @@ class TransactionalIdTracingIT extends AbstractTracingIT {
         List<Actor> allActors = List.of(transactionAdmin, transactionParticipant, unauthorized);
         return List.of(
                 argumentSet("transaction participant can write to transactional id", new TransactionalProg(), allActors),
-                argumentSet("transaction admin actor cannot produce using transactionalId", new UnauthorizedProducer(TRANSACTION_ADMIN), allActors),
-                argumentSet("unauthorized actor cannot produce using transactionalId", new UnauthorizedProducer(UNAUTHORIZED), List.of(unauthorized)),
+                // admin actor is allowed to FindCoordinator via DESCRIBE permission, so beginTransaction fails in a particular way
+                argumentSet("transaction admin actor cannot produce using transactionalId", new UnauthorizedProducer(TRANSACTION_ADMIN,
+                        "TransactionalId a-transaction: Invalid transition attempted from state UNINITIALIZED to state IN_TRANSACTION", IllegalStateException.class),
+                        allActors),
+                argumentSet("unauthorized actor cannot produce using transactionalId",
+                        new UnauthorizedProducer(UNAUTHORIZED, "Cannot execute transactional method because we are in an error state", KafkaException.class),
+                        List.of(unauthorized)),
                 argumentSet("transaction admin actor can list and describe transaction", new AdminProg(TRANSACTION_ADMIN, TRANSACTION_PARTICIPANT, true), allActors),
                 argumentSet("transaction participant actor can list and describe transaction", new AdminProg(TRANSACTION_PARTICIPANT, TRANSACTION_PARTICIPANT, true),
                         allActors),
