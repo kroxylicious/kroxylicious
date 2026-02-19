@@ -1,0 +1,55 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-configuring-proxy-protocol-{context}']
+= Configuring HAProxy PROXY protocol
+
+[role="_abstract"]
+When Kroxylicious is deployed behind a load balancer that uses the https://www.haproxy.org/download/3.3/doc/proxy-protocol.txt[HAProxy PROXY protocol], you can configure PROXY protocol handling so that the original client connection metadata (source address, destination address, ports) is preserved.
+
+Both PROXY protocol v1 (text) and v2 (binary, including TLV extensions) are supported.
+
+== Proxy protocol modes
+
+The `proxyProtocol.mode` property controls how Kroxylicious handles incoming connections:
+
+`required`:: Every incoming connection *must* begin with a PROXY protocol header.
+Connections without a valid header are rejected immediately with a warning log.
+Use this when Kroxylicious is always behind a PROXY protocol-capable load balancer.
+
+`allowed`:: Kroxylicious inspects the first bytes of each connection and automatically detects whether a PROXY protocol header is present.
+If detected, the header is decoded and the original client address is extracted.
+If not, the bytes are passed through to the Kafka protocol decoder.
+Use this when the same listener may receive both proxied and direct connections.
+
+`disabled`:: No PROXY protocol handling (default).
+All bytes are treated as Kafka protocol data.
+
+.Configuration fragment with PROXY protocol in required mode
+[source,yaml]
+----
+proxyProtocol:
+  mode: required
+----
+
+.Configuration fragment with PROXY protocol in allowed mode
+[source,yaml]
+----
+proxyProtocol:
+  mode: allowed
+----
+
+[IMPORTANT]
+====
+When `mode` is set to `required`, all incoming connections must include a PROXY protocol header.
+If a client connects directly without going through a PROXY protocol-capable load balancer, the connection will be rejected and Kroxylicious will log a warning:
+
+`Connection rejected — expected PROXY protocol header but received non-PROXY data.
+Ensure the upstream load balancer is configured to send PROXY protocol headers,
+or set proxyProtocol mode to 'allowed' or 'disabled'.`
+====
