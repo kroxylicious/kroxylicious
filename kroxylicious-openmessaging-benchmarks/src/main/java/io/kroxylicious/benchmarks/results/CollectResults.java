@@ -11,6 +11,8 @@ package io.kroxylicious.benchmarks.results;
 //DEPS com.fasterxml.jackson.core:jackson-core:${jackson.version}
 //DEPS com.fasterxml.jackson.core:jackson-databind:${jackson.version}
 //DEPS info.picocli:picocli:${picocli.version}
+//DEPS com.github.spotbugs:spotbugs-annotations:${spotbugs-annotations.version}
+//SOURCES RunMetadata.java
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 
