@@ -49,6 +49,11 @@
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-client-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.28.0</version>
+        </dependency>
 
         <!-- test dependencies -->
         <dependency>
