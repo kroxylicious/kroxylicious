@@ -20,7 +20,8 @@ class SecretSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMa
     @Test
     void canMapFromSecretTrustAnchorRefToVirtualKafkaClusterWithTls() {
         // Given
-        EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR);
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport
+                .mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR);
 
         // When
         var mapper = new SecretSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
@@ -29,8 +30,6 @@ class SecretSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMa
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.TRUST_ANCHOR_PEM_SECRET);
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR));
     }
-
-
 
     @Test
     void canMapFromSecretTrustAnchorRefToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
