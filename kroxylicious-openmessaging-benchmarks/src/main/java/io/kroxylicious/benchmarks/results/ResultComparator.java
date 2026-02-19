@@ -14,6 +14,8 @@ import java.io.PrintStream;
  */
 public class ResultComparator {
 
+    private static final String SEPARATOR = "------------";
+
     private final OmbResult baseline;
     private final OmbResult candidate;
     private final AggregationMethod aggregationMethod;
@@ -66,7 +68,7 @@ public class ResultComparator {
         out.println(title);
         out.printf("  %-25s %12s %12s %12s%n", "Metric", "Baseline", "Candidate", "Delta");
         out.printf("  %-25s %12s %12s %12s%n",
-                "-------------------------", "------------", "------------", "------------");
+                "-------------------------", SEPARATOR, SEPARATOR, SEPARATOR);
     }
 
     private static void printRow(PrintStream out, String label, double baselineVal, double candidateVal) {

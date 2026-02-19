@@ -12,6 +12,8 @@ import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,33 +32,14 @@ class RunMetadataTest {
         assertThat(metadataFile).exists();
     }
 
-    @Test
-    void metadataContainsGitCommit(@TempDir Path tempDir) throws IOException {
+    @ParameterizedTest
+    @ValueSource(strings = { "gitCommit", "gitBranch", "timestamp" })
+    void metadataContainsExpectedField(String fieldName, @TempDir Path tempDir) throws IOException {
         RunMetadata.generate(tempDir);
 
         JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
-        assertThat(metadata.has("gitCommit"))
-                .as("Metadata should contain gitCommit field")
-                .isTrue();
-    }
-
-    @Test
-    void metadataContainsGitBranch(@TempDir Path tempDir) throws IOException {
-        RunMetadata.generate(tempDir);
-
-        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
-        assertThat(metadata.has("gitBranch"))
-                .as("Metadata should contain gitBranch field")
-                .isTrue();
-    }
-
-    @Test
-    void metadataContainsTimestamp(@TempDir Path tempDir) throws IOException {
-        RunMetadata.generate(tempDir);
-
-        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
-        assertThat(metadata.has("timestamp"))
-                .as("Metadata should contain timestamp field")
+        assertThat(metadata.has(fieldName))
+                .as("Metadata should contain %s field", fieldName)
                 .isTrue();
     }
 
