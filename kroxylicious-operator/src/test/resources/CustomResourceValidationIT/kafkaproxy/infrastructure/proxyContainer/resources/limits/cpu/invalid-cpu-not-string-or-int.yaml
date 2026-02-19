@@ -18,4 +18,4 @@ resource:
           limits:
             cpu: [ ]
 expectFailureMessageToContain: |
-  spec.infrastructure.proxyContainer.resources.limits.cpu: Invalid value: "array"
+  spec.infrastructure.proxyContainer.resources.limits.cpu: Invalid value

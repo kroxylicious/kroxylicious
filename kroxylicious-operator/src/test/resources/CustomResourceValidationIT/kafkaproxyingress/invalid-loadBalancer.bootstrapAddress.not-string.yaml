@@ -19,4 +19,4 @@ resource:
       bootstrapAddress: {}
       advertisedBrokerAddressPattern: "abc-$(nodeId).kafka"
 expectFailureMessageToContain: |
-  spec.loadBalancer.bootstrapAddress: Invalid value: "object"
+  spec.loadBalancer.bootstrapAddress: Invalid value

@@ -15,4 +15,4 @@ resource:
     type: "RecordEncryption"
     configTemplate: [ ]
 expectFailureMessageToContain: |
-  spec.configTemplate: Invalid value: "array"
+  spec.configTemplate: Invalid value

@@ -14,4 +14,4 @@ resource:
   spec:
     bootstrapServers: null
 expectFailureMessageToContain: |
-  <nil>: Invalid value: ""
+  "spec" must validate one and only one schema

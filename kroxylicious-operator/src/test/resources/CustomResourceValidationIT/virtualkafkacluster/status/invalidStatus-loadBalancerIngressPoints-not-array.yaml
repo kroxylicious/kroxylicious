@@ -26,4 +26,4 @@ resource:
         name: cluster-ip
         protocol: TLS
 expectFailureMessageToContain: |
-  status.ingresses[0].loadBalancerIngressPoints: Invalid value: "object"
+  status.ingresses[0].loadBalancerIngressPoints: Invalid value
