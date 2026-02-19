@@ -231,7 +231,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 endpointReconciler,
                 apiVersionsService,
                 dp,
-                subjectBuilder,
                 proxyChannelStateMachine,
                 proxyNettySettings);
 

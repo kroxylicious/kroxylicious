@@ -673,10 +673,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(subject)
                     .log();
 
-            proxyChannelStateMachine.onSessionSaslAuthenticated();
-
-            // dispatch principal injection
-            proxyChannelStateMachine.clientSaslAuthenticationSuccess(mechanism, subject);
+            proxyChannelStateMachine.onClientSaslAuthenticationSuccess(mechanism, subject);
         }
 
         @Override
@@ -693,7 +690,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(authorizedId)
                     .addArgument(exception.toString())
                     .log();
-            proxyChannelStateMachine.clientSaslAuthenticationFailure();
+            proxyChannelStateMachine.onClientSaslAuthenticationFailure();
         }
 
         @Override

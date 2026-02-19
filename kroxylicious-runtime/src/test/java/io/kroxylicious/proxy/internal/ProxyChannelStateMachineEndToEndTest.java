@@ -446,7 +446,6 @@ class ProxyChannelStateMachineEndToEndTest {
                 mock(EndpointReconciler.class),
                 new ApiVersionsServiceImpl(),
                 dp,
-                new DefaultSubjectBuilder(List.of()),
                 proxyChannelStateMachine, Optional.empty()) {
             @NonNull
             @Override
