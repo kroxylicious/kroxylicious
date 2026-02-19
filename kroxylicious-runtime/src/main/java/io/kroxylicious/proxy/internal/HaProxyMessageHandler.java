@@ -12,10 +12,12 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
+
 /**
  * A channel handler that intercepts {@link HAProxyMessage} objects emitted by
  * Netty's {@link io.netty.handler.codec.haproxy.HAProxyMessageDecoder} and
- * forwards them to the {@link ProxyChannelStateMachine} for processing.
+ * stores the extracted context in the {@link KafkaSession}.
  * <p>
  * This handler prevents {@link HAProxyMessage} from propagating further down
  * the pipeline to handlers (like {@link FilterHandler}) that only expect
@@ -25,14 +27,14 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
  * All other messages are passed through unchanged to the next handler in the pipeline.
  * </p>
  */
-public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
+public class HaProxyMessageHandler extends ChannelInboundHandlerAdapter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(HAProxyMessageHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(HaProxyMessageHandler.class);
 
-    private final ProxyChannelStateMachine proxyChannelStateMachine;
+    private final KafkaSession kafkaSession;
 
-    public HAProxyMessageHandler(ProxyChannelStateMachine proxyChannelStateMachine) {
-        this.proxyChannelStateMachine = proxyChannelStateMachine;
+    public HaProxyMessageHandler(KafkaSession kafkaSession) {
+        this.kafkaSession = kafkaSession;
     }
 
     @Override
@@ -45,8 +47,7 @@ public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
                     .addKeyValue("destinationAddress", haProxyMessage.destinationAddress())
                     .addKeyValue("destinationPort", haProxyMessage.destinationPort())
                     .log("Received HAProxy message");
-            // Forward to state machine for processing - do not propagate to filters
-            proxyChannelStateMachine.onClientRequest(haProxyMessage);
+            kafkaSession.setHaProxyContext(HaProxyContext.from(haProxyMessage));
         }
         else {
             // Pass all other messages (Kafka frames) to the next handler

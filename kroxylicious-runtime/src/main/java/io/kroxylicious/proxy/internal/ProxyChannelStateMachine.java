@@ -22,7 +22,6 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
@@ -94,8 +93,8 @@ import static org.slf4j.LoggerFactory.getLogger;
  * several of the session states and is independent of them.</p>
  *
  * <p>
- *     When either side of the proxy stats applying back pressure the proxy should propagate that fact to teh other peer.
- *     Thus when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
+ *     When either side of the proxy starts applying back pressure the proxy should propagate that fact to the other peer.
+ *     Thus, when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
  * </p>
  */
 @SuppressWarnings("java:S1133")
@@ -186,11 +185,12 @@ public class ProxyChannelStateMachine {
     private KafkaProxyBackendHandler backendHandler;
 
     public ProxyChannelStateMachine(EndpointBinding endpointBinding,
-                                    TransportSubjectBuilder transportSubjectBuilder) {
+                                    TransportSubjectBuilder transportSubjectBuilder,
+                                    KafkaSession kafkaSession) {
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
+        this.kafkaSession = kafkaSession;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
-        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
 
         var nodeId = endpointBinding.nodeId();
         String clusterName = virtualCluster.getClusterName();
@@ -333,6 +333,13 @@ public class ProxyChannelStateMachine {
                     .addKeyValue("remotePort", this.frontendHandler.remotePort())
                     .log("Allocated session ID for downstream connection");
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
+            // If an HaProxy context was stored in KafkaSession (by the detection/message
+            // handlers before PCSM was created), transition ClientActive → HaProxy.
+            if (kafkaSession.haProxyContext() != null) {
+                if (state instanceof ProxyChannelState.ClientActive clientActive) {
+                    toHAProxy(clientActive.toHaProxy());
+                }
+            }
         }
         else {
             illegalState("Client activation while not in the start state");
@@ -422,7 +429,10 @@ public class ProxyChannelStateMachine {
      */
     void onClientRequest(
                          Object msg) {
-        Objects.requireNonNull(frontendHandler);
+        if (frontendHandler == null) {
+            illegalState("Message received before client active: " + (msg == null ? "null" : msg.getClass()));
+            return;
+        }
         if (state() instanceof Forwarding) { // post-backend connection
             messageFromClient(msg);
         }
@@ -544,7 +554,7 @@ public class ProxyChannelStateMachine {
     /**
      * @return Return the session for this connection.
      */
-    public KafkaSession getKafkaSession() {
+    public KafkaSession kafkaSession() {
         return kafkaSession;
     }
 
@@ -651,7 +661,7 @@ public class ProxyChannelStateMachine {
             return onClientRequestInClientActiveState(msg, clientActive);
         }
         else if (state() instanceof ProxyChannelState.HaProxy haProxy) {
-            return onClientRequestInHaProxyState(msg, haProxy);
+            return onClientRequestInHAProxyState(msg, haProxy);
         }
         else if (state() instanceof ProxyChannelState.SelectingServer) {
             return msg instanceof RequestFrame;
@@ -661,7 +671,7 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    private boolean onClientRequestInHaProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
+    private boolean onClientRequestInHAProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
         return transitionClientRequest(msg, haProxy::toSelectingServer);
     }
 
@@ -683,16 +693,10 @@ public class ProxyChannelStateMachine {
     }
 
     private boolean onClientRequestInClientActiveState(Object msg, ProxyChannelState.ClientActive clientActive) {
-        if (msg instanceof HAProxyMessage haProxyMessage) {
-            toHaProxy(clientActive.toHaProxy(haProxyMessage));
-            return true;
-        }
-        else {
-            return transitionClientRequest(msg, clientActive::toSelectingServer);
-        }
+        return transitionClientRequest(msg, clientActive::toSelectingServer);
     }
 
-    private void toHaProxy(ProxyChannelState.HaProxy haProxy) {
+    private void toHAProxy(ProxyChannelState.HaProxy haProxy) {
         setState(haProxy);
     }
 
@@ -718,18 +722,23 @@ public class ProxyChannelStateMachine {
         // Close the server connection
         if (backendHandler != null) {
             backendHandler.inClosed();
-            proxyToServerConnectionToken.release();
+            // token is guaranteed non-null: backendHandler is set in toConnecting(), which
+            // can only be reached after onClientActive(), which requires onBindingResolution()
+            Objects.requireNonNull(proxyToServerConnectionToken).release();
         }
 
         // Close the client connection with any error code
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
             frontendHandler.inClosed(errorCodeEx);
-            clientToProxyConnectionToken.release();
+            // token is guaranteed non-null: frontendHandler is set in onClientActive(), which
+            // requires onBindingResolution() to have been called first
+            Objects.requireNonNull(clientToProxyConnectionToken).release();
         }
     }
 
     private void incrementAppropriateDisconnectsMetric(@Nullable DisconnectCause disconnectCause) {
-        // Increment disconnect counter based on cause (if not an error)
+        // Increment disconnect counter based on cause (if not an error).
+        // Counters may be null if binding was never resolved (connection dropped before addHandlers).
         if (disconnectCause != null) {
             switch (disconnectCause) {
                 case IDLE_TIMEOUT -> clientToProxyDisconnectsIdleCounter.increment();

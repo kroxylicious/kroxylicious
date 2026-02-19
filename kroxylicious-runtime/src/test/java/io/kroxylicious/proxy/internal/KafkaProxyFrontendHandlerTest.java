@@ -36,10 +36,6 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.haproxy.HAProxyCommand;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
-import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
-import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContextBuilder;
 
@@ -57,6 +53,7 @@ import io.kroxylicious.proxy.internal.codec.RequestDecoderTest;
 import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
@@ -86,7 +83,8 @@ class KafkaProxyFrontendHandlerTest {
     private KafkaProxyBackendHandler backendHandler;
 
     ProxyChannelStateMachine proxyChannelStateMachine(EndpointBinding endpointBinding) {
-        return new ProxyChannelStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()));
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        return new ProxyChannelStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession);
     }
 
     private PluginFactoryRegistry pfr;
@@ -369,6 +367,13 @@ class KafkaProxyFrontendHandlerTest {
         when(virtualCluster.getClusterName()).thenReturn(CLUSTER_NAME);
         var proxyChannelStateMachine = this.proxyChannelStateMachine(endpointBinding);
 
+        if (haProxyConfigured) {
+            // Simulate PROXY header arriving before channelActive (as in real pipeline).
+            // Store context in KafkaSession so PCSM picks it up during onClientActive.
+            proxyChannelStateMachine.kafkaSession().setHaProxyContext(
+                    new HaProxyContext("1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT, java.util.Map.of()));
+        }
+
         var handler = handler(dp, proxyChannelStateMachine);
         initialiseInboundChannel(proxyChannelStateMachine, handler);
 
@@ -377,14 +382,11 @@ class KafkaProxyFrontendHandlerTest {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
 
-        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
-
         if (haProxyConfigured) {
-            // Simulate the HA proxy handler
-            inboundChannel.writeInbound(new HAProxyMessage(HAProxyProtocolVersion.V1,
-                    HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
-                    "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT));
             assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.HaProxy.class);
+        }
+        else {
+            assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
         }
 
         if (sendSasl) {
@@ -474,14 +476,15 @@ class KafkaProxyFrontendHandlerTest {
     private void initialiseInboundChannel(ProxyChannelStateMachine proxyChannelStateMachine, KafkaProxyFrontendHandler handler) {
         final ChannelPipeline pipeline = inboundChannel.pipeline();
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
-            // Add HAProxyMessageHandler before the frontend handler to intercept HAProxyMessage
+            // Add HaProxyMessageHandler before the frontend handler to intercept HAProxyMessage
             // and prevent it from reaching FilterHandlers (which only expect Kafka protocol messages)
-            pipeline.addLast(new HAProxyMessageHandler(proxyChannelStateMachine));
+            pipeline.addLast(new HaProxyMessageHandler(proxyChannelStateMachine.kafkaSession()));
             pipeline.addLast(handler);
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
         pipeline.fireChannelActive();
-        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        // After channelActive, state is ClientActive (or HaProxy if context was pre-set in KafkaSession)
+        assertThat(proxyChannelStateMachine.state()).isInstanceOfAny(ProxyChannelState.ClientActive.class, ProxyChannelState.HaProxy.class);
     }
 
     private void handleConnect(ProxyChannelStateMachine proxyChannelStateMachine) {
