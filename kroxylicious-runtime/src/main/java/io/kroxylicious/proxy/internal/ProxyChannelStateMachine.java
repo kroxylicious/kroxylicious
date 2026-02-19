@@ -173,7 +173,6 @@ public class ProxyChannelStateMachine {
     @VisibleForTesting
     boolean clientReadsBlocked;
     private final TransportSubjectBuilder transportSubjectBuilder;
-    private final ClientSubjectManager clientSubjectManager = new ClientSubjectManager();
     private int progressionLatch = -1;
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
@@ -783,7 +782,8 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    @VisibleForTesting void subjectFromTransport(@Nullable SSLSession session) {
+    @VisibleForTesting
+    void subjectFromTransport(@Nullable SSLSession session) {
         this.clientCertificate = peerTlsCertificate(session);
         this.proxyCertificate = localTlsCertificate(session);
         transportSubjectBuilder.buildTransportSubject(new TransportSubjectBuilder.Context() {
