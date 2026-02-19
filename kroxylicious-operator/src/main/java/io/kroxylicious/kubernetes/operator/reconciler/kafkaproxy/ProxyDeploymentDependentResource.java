@@ -42,7 +42,9 @@ import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -243,26 +245,32 @@ public class ProxyDeploymentDependentResource
             return envImage;
         }
         else {
-            var name = "/kroxylicious-image.properties";
-            try (var is = ProxyDeploymentDependentResource.class.getResourceAsStream(name)) {
-                if (is == null) {
-                    throw new IllegalStateException("Failed to find %s on classpath".formatted(name));
-                }
-                var props = new Properties();
-                props.load(is);
-                var key = "kroxylicious-image";
-                var image = props.getProperty(key);
-                if (image == null || image.isEmpty()) {
-                    throw new IllegalStateException("Classpath resource %s does not contain expected property %s".formatted(name, key));
-                }
-                LOGGER.info("Using Kroxylicious operand image ({}) from properties file {} on classpath", image, name);
-                return image;
-            }
-            catch (IOException ioe) {
-                throw new IllegalStateException("Failed to open %s on classpath".formatted(name), ioe);
-            }
+            return getImageFromResource();
         }
 
+    }
+
+    @SuppressFBWarnings("CRLF_INJECTION_LOGS")
+    @NonNull
+    private static String getImageFromResource() {
+        var name = "/kroxylicious-image.properties";
+        try (var is = ProxyDeploymentDependentResource.class.getResourceAsStream(name)) {
+            if (is == null) {
+                throw new IllegalStateException("Failed to find %s on classpath".formatted(name));
+            }
+            var props = new Properties();
+            props.load(is);
+            var key = "kroxylicious-image";
+            var image = props.getProperty(key);
+            if (image == null || image.isEmpty()) {
+                throw new IllegalStateException("Classpath resource %s does not contain expected property %s".formatted(name, key));
+            }
+            LOGGER.info("Using Kroxylicious operand image ({}) from properties file {} on classpath", image, name);
+            return image;
+        }
+        catch (IOException ioe) {
+            throw new IllegalStateException("Failed to open %s on classpath".formatted(name), ioe);
+        }
     }
 
 }

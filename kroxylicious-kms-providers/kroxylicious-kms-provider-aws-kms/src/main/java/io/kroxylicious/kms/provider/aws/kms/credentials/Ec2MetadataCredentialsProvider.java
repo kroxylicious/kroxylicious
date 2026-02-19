@@ -19,13 +19,13 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -43,6 +43,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.kroxylicious.kms.provider.aws.kms.config.Ec2MetadataCredentialsProviderConfig;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Provider that obtains {@link Credentials} from the metadata server of the EC2 instance.
@@ -95,8 +97,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     private final HttpClient client;
 
     private final ScheduledExecutorService executorService;
-    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
-    private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
+    private final ExponentialBackoff backoff;
     private final Double lifetimeFactor;
     private final URI uri;
 
@@ -110,6 +111,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     @VisibleForTesting
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
     Ec2MetadataCredentialsProvider(Ec2MetadataCredentialsProviderConfig config,
                                    Clock systemClock) {
         Objects.requireNonNull(config);
@@ -123,6 +126,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
             thread.setDaemon(true);
             return thread;
         });
+        this.backoff = new ExponentialBackoff(500, 2, 60000, ThreadLocalRandom.current().nextDouble());
         this.client = createClient();
     }
 

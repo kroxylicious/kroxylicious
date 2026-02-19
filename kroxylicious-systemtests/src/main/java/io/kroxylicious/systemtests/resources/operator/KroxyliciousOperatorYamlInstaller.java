@@ -54,6 +54,7 @@ import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -327,6 +328,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         prepareEnvForOperator(namespaceInstallTo);
     }
 
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN") // this is not production code
     @Override
     public synchronized void delete() {
         LOGGER.info(SEPARATOR);

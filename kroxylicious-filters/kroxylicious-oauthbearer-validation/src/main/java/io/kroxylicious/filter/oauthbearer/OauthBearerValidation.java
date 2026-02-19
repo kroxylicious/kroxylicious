@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 
@@ -72,7 +73,8 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
     }
 
     @Override
-    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
     public SharedOauthBearerValidationContext initialize(FilterFactoryContext context, @Nullable Config config) throws PluginConfigurationException {
         var cfg = Plugins.requireConfig(this, config);
         setAllowedSaslOauthbearerSysPropIfNecessary(cfg.jwksEndpointUrl().toString());

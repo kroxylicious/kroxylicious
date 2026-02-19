@@ -14,4 +14,4 @@ resource:
   spec:
     strimziKafkaRef: null
 expectFailureMessageToContain: |
-  Invalid value: "null"
+  spec.strimziKafkaRef: Required value

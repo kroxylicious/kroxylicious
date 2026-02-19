@@ -39,6 +39,7 @@ import io.kroxylicious.test.codec.KafkaResponseDecoder;
 import io.kroxylicious.test.codec.RequestFrame;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * KafkaClient for testing.
@@ -220,15 +221,15 @@ public final class KafkaClient implements AutoCloseable {
         }
     }
 
+    @SuppressWarnings("java:S4830") // TrustingTrustManager intentionally has a weak trust store
+    @SuppressFBWarnings("WEAK_TRUST_MANAGER") // TrustingTrustManager intentionally has a weak trust store
     private static class TrustingTrustManager implements X509TrustManager {
 
-        @SuppressWarnings("java:S4830")
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType) {
             // we are trust all - nothing to do.
         }
 
-        @SuppressWarnings("java:S4830")
         @Override
         public void checkServerTrusted(X509Certificate[] chain, String authType) {
             // we are trust all - nothing to do.

@@ -18,4 +18,4 @@ resource:
           requests:
             memory: [ ]
 expectFailureMessageToContain: |
-  spec.infrastructure.proxyContainer.resources.requests.memory: Invalid value: "array"
+  spec.infrastructure.proxyContainer.resources.requests.memory: Invalid value

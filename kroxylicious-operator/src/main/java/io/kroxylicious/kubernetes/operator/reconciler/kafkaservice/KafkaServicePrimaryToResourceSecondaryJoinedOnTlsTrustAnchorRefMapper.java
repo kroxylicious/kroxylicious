@@ -1,0 +1,29 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.kubernetes.operator.reconciler.kafkaservice;
+
+import java.util.Optional;
+import java.util.Set;
+
+import io.javaoperatorsdk.operator.processing.event.ResourceID;
+import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
+
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+
+class KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper implements PrimaryToSecondaryMapper<KafkaService> {
+    @Override
+    public Set<ResourceID> toSecondaryResourceIDs(KafkaService cluster) {
+        return Optional.ofNullable(cluster.getSpec())
+                .map(KafkaServiceSpec::getTls)
+                .map(Tls::getTrustAnchorRef)
+                .map(tar -> ResourcesUtil.localRefAsResourceId(cluster, tar.getRef()))
+                .orElse(Set.of());
+    }
+}

@@ -7,6 +7,7 @@
 package io.kroxylicious.it.filter.authorization;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -33,9 +35,7 @@ import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -54,7 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ProduceAuthzIT extends AuthzIT {
 
-    private static String topicName = "topic";
+    private String topicName;
     private Path rulesFile;
 
     private List<AclBinding> aclBindings;
@@ -64,19 +64,21 @@ class ProduceAuthzIT extends AuthzIT {
     @Name("kafkaClusterNoAuthz")
     static Admin kafkaClusterNoAuthzAdmin;
 
-    @BeforeAll
-    void beforeAll() throws IOException {
-        rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
-        Files.writeString(rulesFile, """
-                from io.kroxylicious.filter.authorization import TopicResource as Topic;
-                allow User with name = "alice" to * Topic with name = "%s";
-                allow User with name = "bob" to WRITE Topic with name = "%s";
-                otherwise deny;
-                """.formatted(topicName, topicName));
-        /*
-         * The correctness of this test is predicated on the equivalence of the Proxy ACLs (above) and the Kafka ACLs (below)
-         * If you add a rule to one you'll need to add an equivalent rule to the other
-         */
+    @BeforeEach
+    void prepClusters() {
+        topicName = "topic-" + UUID.randomUUID();
+        try {
+            rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
+            Files.writeString(rulesFile, """
+                    from io.kroxylicious.filter.authorization import TopicResource as Topic;
+                    allow User with name = "alice" to * Topic with name = "%s";
+                    allow User with name = "bob" to WRITE Topic with name = "%s";
+                    otherwise deny;
+                    """.formatted(topicName, topicName));
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("failed to create rules file", e);
+        }
         aclBindings = List.of(
                 new AclBinding(
                         new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
@@ -86,15 +88,6 @@ class ProduceAuthzIT extends AuthzIT {
                         new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
                         new AccessControlEntry("User:" + BOB, "*",
                                 AclOperation.WRITE, AclPermissionType.ALLOW)));
-    }
-
-    @AfterAll
-    void afterAll() throws IOException {
-        Files.deleteIfExists(rulesFile);
-    }
-
-    @BeforeEach
-    void prepClusters() {
         this.topicIdsInUnproxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(topicName), aclBindings);
         this.topicIdsInProxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(topicName), List.of());
     }
@@ -103,6 +96,12 @@ class ProduceAuthzIT extends AuthzIT {
     void tidyClusters() {
         ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterWithAuthzAdmin, List.of(topicName), aclBindings);
         ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, List.of(topicName), List.of());
+        try {
+            Files.deleteIfExists(rulesFile);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("failed to delete rulesFile", e);
+        }
     }
 
     class ProduceEquivalence extends Equivalence<ProduceRequestData, ProduceResponseData> {
@@ -154,7 +153,8 @@ class ProduceAuthzIT extends AuthzIT {
 
         @Override
         public void assertVisibleSideEffects(BaseClusterFixture cluster) {
-            assertThat(topicContents(cluster.backingCluster(), 2))
+            Map<String, List<String>> actual = topicContents(cluster.backingCluster(), 2);
+            assertThat(actual)
                     .isEqualTo(Map.of(
                             "alice", List.of("Alice"),
                             "bob", List.of("Bob")));
@@ -247,7 +247,8 @@ class ProduceAuthzIT extends AuthzIT {
 
     @ParameterizedTest
     @MethodSource
-    void shouldEnforceAccessToTopics(VersionSpecificVerification<ProduceRequestData, ProduceResponseData> test) {
+    void shouldEnforceAccessToTopics(VersionSpecificVerification<ProduceRequestData, ProduceResponseData> test) throws IOException {
+
         try (var referenceCluster = new ReferenceCluster(kafkaClusterWithAuthz, this.topicIdsInUnproxiedCluster);
                 var proxiedCluster = new ProxiedCluster(kafkaClusterNoAuthz, this.topicIdsInProxiedCluster, rulesFile)) {
             test.verifyBehaviour(referenceCluster, proxiedCluster);

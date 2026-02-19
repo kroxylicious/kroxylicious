@@ -65,7 +65,7 @@ public class CertificateGenerator {
 
     @NonNull
     private static Path writeToPem(Object obj, File file) throws IOException {
-        try (JcaPEMWriter pemWriter = new JcaPEMWriter(new FileWriter(file))) {
+        try (JcaPEMWriter pemWriter = new JcaPEMWriter(new FileWriter(file, StandardCharsets.UTF_8))) {
             pemWriter.writeObject(obj);
         }
         return file.toPath();

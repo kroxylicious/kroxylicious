@@ -13,12 +13,16 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * {@link BootstrapSelectionStrategy} which selects a random server from the given list of servers as the bootstrap server.
  */
+@SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for port collision avoidance; not security relevant
 public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrategy {
 
     @SuppressWarnings("java:S2245") // using insecure random is entirely appropriate here.
+
     @JsonIgnore
     private final Random random = new Random();
 

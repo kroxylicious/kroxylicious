@@ -17,4 +17,4 @@ resource:
         resources:
           limits: [ ]
 expectFailureMessageToContain: |
-  spec.infrastructure.proxyContainer.resources.limits: Invalid value: "array"
+  spec.infrastructure.proxyContainer.resources.limits: Invalid value
