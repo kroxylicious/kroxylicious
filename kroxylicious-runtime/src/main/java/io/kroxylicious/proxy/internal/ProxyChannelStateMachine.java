@@ -791,9 +791,7 @@ public class ProxyChannelStateMachine {
             public Optional<ClientTlsContext> clientTlsContext() {
                 return ProxyChannelStateMachine.this.clientTlsContext();
             }
-        }).whenComplete((newSubject, error) -> {
-            completeSubjectFromTransport(newSubject, error);
-        });
+        }).whenComplete(this::completeSubjectFromTransport);
     }
 
     private void completeSubjectFromTransport(@Nullable Subject newSubject, @Nullable Throwable error) {
