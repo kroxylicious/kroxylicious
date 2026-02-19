@@ -112,7 +112,8 @@ class ProxyChannelStateMachineTest {
         when(endpointBinding.nodeId()).thenReturn(null);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
+        proxyChannelStateMachine = new ProxyChannelStateMachine(new KafkaSession(KafkaSessionState.ESTABLISHING));
+        proxyChannelStateMachine.onBindingResolution(endpointBinding, new DefaultSubjectBuilder(List.of()));
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
     }
 
@@ -337,6 +338,37 @@ class ProxyChannelStateMachineTest {
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.HaProxy.class))
                 .extracting(ProxyChannelState.HaProxy::haProxyMessage)
                 .isSameAs(HA_PROXY_MESSAGE);
+    }
+
+    @Test
+    void inStartingShouldSilentlyAcceptHaProxyMessageWhenFrontendHandlerNotYetAdded() {
+        // Given - PCSM is in STARTING state with no frontend handler (simulates TLS pipeline
+        // where the PROXY header arrives before the SSL handshake / SNI resolution completes)
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Startup.class);
+
+        // When - HAProxyMessageHandler calls onClientRequest before channelActive fires
+        proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
+
+        // Then - silent return, state unchanged, no crash
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Startup.class);
+    }
+
+    @Test
+    void onClientActiveShouldReplayHaProxyMessageStoredInKafkaSession() {
+        // Given - HAProxy message was stored in the session by HAProxyMessageHandler before
+        // channelActive fired (TLS pipeline scenario)
+        proxyChannelStateMachine.getKafkaSession().onHaProxyMessage(HA_PROXY_MESSAGE);
+
+        // When
+        proxyChannelStateMachine.onClientActive(frontendHandler);
+
+        // Then - state machine transitions through ClientActive → HaProxy using the stored message
+        assertThat(proxyChannelStateMachine.state())
+                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.HaProxy.class))
+                .extracting(ProxyChannelState.HaProxy::haProxyMessage)
+                .isSameAs(HA_PROXY_MESSAGE);
+        verify(frontendHandler).inClientActive();
+        verify(frontendHandler).bufferMsg(HA_PROXY_MESSAGE);
     }
 
     @Test

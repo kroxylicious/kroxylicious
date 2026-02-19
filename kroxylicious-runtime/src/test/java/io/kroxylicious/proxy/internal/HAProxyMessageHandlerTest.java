@@ -19,6 +19,7 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -42,11 +43,22 @@ class HAProxyMessageHandlerTest {
     @Mock
     private ChannelHandlerContext ctx;
 
+    private KafkaSession kafkaSession;
     private HAProxyMessageHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new HAProxyMessageHandler(proxyChannelStateMachine);
+        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        handler = new HAProxyMessageHandler(kafkaSession, proxyChannelStateMachine);
+    }
+
+    @Test
+    void shouldStoreHAProxyMessageInKafkaSession() throws Exception {
+        // When
+        handler.channelRead(ctx, HA_PROXY_MESSAGE);
+
+        // Then
+        assertThat(kafkaSession.haProxyMessage()).isSameAs(HA_PROXY_MESSAGE);
     }
 
     @Test
@@ -54,7 +66,8 @@ class HAProxyMessageHandlerTest {
         // When
         handler.channelRead(ctx, HA_PROXY_MESSAGE);
 
-        // Then
+        // Then - session is populated and state machine is signalled
+        assertThat(kafkaSession.haProxyMessage()).isSameAs(HA_PROXY_MESSAGE);
         verify(proxyChannelStateMachine).onClientRequest(HA_PROXY_MESSAGE);
         verifyNoMoreInteractions(proxyChannelStateMachine);
         // Should NOT propagate to next handler

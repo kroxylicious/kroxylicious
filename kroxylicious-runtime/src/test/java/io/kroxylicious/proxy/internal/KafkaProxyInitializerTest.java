@@ -223,7 +223,8 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+                new ProxyChannelStateMachine(new KafkaSession(KafkaSessionState.ESTABLISHING)));
 
         // Then
         final InOrder orderedVerifyer = inOrder(channelPipeline);
@@ -243,7 +244,8 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+                new ProxyChannelStateMachine(new KafkaSession(KafkaSessionState.ESTABLISHING)));
 
         // Then
         final InOrder orderedVerifyer = inOrder(channelPipeline);
@@ -264,7 +266,8 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+                new ProxyChannelStateMachine(new KafkaSession(KafkaSessionState.ESTABLISHING)));
 
         // Then
         final InOrder orderedVerifyer = inOrder(channelPipeline);

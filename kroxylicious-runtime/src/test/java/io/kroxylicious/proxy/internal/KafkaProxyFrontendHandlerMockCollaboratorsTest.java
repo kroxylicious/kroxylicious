@@ -293,7 +293,9 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Given
         Subject subject = new Subject(new User("bob"));
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(subject));
-        var proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, subjectBuilder);
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        var proxyChannelStateMachine = new ProxyChannelStateMachine(kafkaSession);
+        proxyChannelStateMachine.onBindingResolution(endpointBinding, subjectBuilder);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -317,7 +319,9 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     void shouldNotMarkSessionAuthenticatedWhenSessionTransportAuthenticatedIsAnonymous() throws Exception {
         // Given
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(Subject.anonymous()));
-        var proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, subjectBuilder);
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        var proxyChannelStateMachine = new ProxyChannelStateMachine(kafkaSession);
+        proxyChannelStateMachine.onBindingResolution(endpointBinding, subjectBuilder);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,

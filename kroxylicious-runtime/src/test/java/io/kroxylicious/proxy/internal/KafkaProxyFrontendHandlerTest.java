@@ -86,7 +86,10 @@ class KafkaProxyFrontendHandlerTest {
     private KafkaProxyBackendHandler backendHandler;
 
     ProxyChannelStateMachine proxyChannelStateMachine(EndpointBinding endpointBinding) {
-        return new ProxyChannelStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()));
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        var pcsm = new ProxyChannelStateMachine(kafkaSession);
+        pcsm.onBindingResolution(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()));
+        return pcsm;
     }
 
     private PluginFactoryRegistry pfr;
@@ -476,7 +479,7 @@ class KafkaProxyFrontendHandlerTest {
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
             // Add HAProxyMessageHandler before the frontend handler to intercept HAProxyMessage
             // and prevent it from reaching FilterHandlers (which only expect Kafka protocol messages)
-            pipeline.addLast(new HAProxyMessageHandler(proxyChannelStateMachine));
+            pipeline.addLast(new HAProxyMessageHandler(proxyChannelStateMachine.getKafkaSession(), proxyChannelStateMachine));
             pipeline.addLast(handler);
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
