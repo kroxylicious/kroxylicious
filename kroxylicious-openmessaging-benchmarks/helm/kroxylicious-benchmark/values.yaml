@@ -67,7 +67,7 @@ omb:
       memory: "2Gi"
       cpu: "500m"
     limits:
-      memory: "4Gi"
+      memory: "6Gi"
       cpu: "1000m"
 
 # Benchmark configuration
