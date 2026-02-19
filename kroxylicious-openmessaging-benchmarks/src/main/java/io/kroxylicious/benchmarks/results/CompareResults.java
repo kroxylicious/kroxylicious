@@ -32,7 +32,7 @@ import picocli.CommandLine.Parameters;
  * dependency versions from the parent pom.
  */
 @Command(name = "compare-results", mixinStandardHelpOptions = true, description = "Compare two OpenMessaging Benchmark result files and display a table showing latency and throughput metrics side-by-side with deltas.")
-@SuppressWarnings({ "checkstyle:RegexpSinglelineJava" }) // CLI tool that intentionally writes to System.out
+@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106" }) // CLI tool that intentionally writes to System.out
 public class CompareResults implements Callable<Integer> {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
