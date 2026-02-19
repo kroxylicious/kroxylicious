@@ -9,6 +9,24 @@
     "config:recommended",
     ":gitSignOff"
   ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["/kubernetes/"],
+      "groupName": "kubernetes"
+    },
+    {
+      "matchPackageNames": ["/hashicorp/"],
+      "groupName": "hashicorp"
+    },
+    {
+      "matchPackageNames": ["/lowkey-vault/"],
+      "groupName": "lowkey-vault"
+    },
+    {
+      "matchPackageNames": ["/localstack/"],
+      "groupName": "localstack"
+    }
+  ],
   "enabledManagers": [
     "custom.regex",
     "dockerfile",
