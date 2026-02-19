@@ -61,7 +61,7 @@ ${pad}// process entity fields defined at this level
         <#items as field>
             <#local getter="${field.name?uncap_first}"
                     setter="set${field.name}" />
-${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/>) {
+${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
             <#if field.type == 'string'>
 ${pad}    if (inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}())) {
 ${pad}        ${fieldVar}.${setter}(unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
