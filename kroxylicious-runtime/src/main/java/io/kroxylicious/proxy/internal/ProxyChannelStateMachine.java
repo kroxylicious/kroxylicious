@@ -545,7 +545,7 @@ public class ProxyChannelStateMachine {
     /**
      * @return Return the session for this connection.
      */
-    KafkaSession getKafkaSession() {
+    KafkaSession kafkaSession() {
         return kafkaSession;
     }
 
