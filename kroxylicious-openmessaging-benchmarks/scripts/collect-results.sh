@@ -13,7 +13,7 @@ FILTERED="${MODULE_DIR}/target/jbang/generated-sources/io/kroxylicious/benchmark
 
 NAMESPACE="${NAMESPACE:-kafka}"
 BENCHMARK_POD_LABEL="app=omb-benchmark"
-BENCHMARK_RESULTS_DIR="/results"
+BENCHMARK_RESULTS_DIR="/var/lib/omb/results"
 
 usage() {
     cat >&2 <<EOF
