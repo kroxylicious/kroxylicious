@@ -18,8 +18,11 @@ import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.AlterConfigOp;
+import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.GroupListing;
+import org.apache.kafka.clients.admin.ListConfigResourcesOptions;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
@@ -28,10 +31,14 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.GroupState;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
+import org.apache.kafka.coordinator.group.GroupConfig;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -73,6 +80,7 @@ class EntityIsolationIT {
         ASSIGN,
         SUBSCRIBE
     }
+
 
     /**
      * Group isolation - describe groups.
@@ -270,6 +278,48 @@ class EntityIsolationIT {
         }
     }
 
+    /**
+     * Group isolation - config
+     * <br/>
+     * Verifies that a group config is properly isolated.
+     */
+    @Test
+    @Disabled
+    void groupConfigIsolation() {
+        var configBuilder = buildProxyConfig(cluster);
+
+
+        var aliceConfig = buildClientConfig("alice", "pwd");
+        var bobConfig = buildClientConfig("bob", "pwd");
+
+        try (var tester = kroxyliciousTester(configBuilder)) {
+            try (var aliceAdmin = tester.admin(aliceConfig)) {
+                var configResource = new ConfigResource(ConfigResource.Type.GROUP, "aliceconfig");
+                var autoOffsetReset = new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+                var setConfig = List.of(new AlterConfigOp(autoOffsetReset, AlterConfigOp.OpType.SET));
+                assertThat(aliceAdmin.incrementalAlterConfigs(Map.of(configResource, setConfig)).all())
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
+
+            try (var bobAdmin = tester.admin(bobConfig)) {
+                var configResource = new ConfigResource(ConfigResource.Type.GROUP, "bobconfig");
+                var autoOffsetReset = new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+                var setConfig = List.of(new AlterConfigOp(autoOffsetReset, AlterConfigOp.OpType.SET));
+                assertThat(bobAdmin.incrementalAlterConfigs(Map.of(configResource, setConfig)).all())
+                        .succeedsWithin(Duration.ofSeconds(5));
+
+                assertThat(bobAdmin.listConfigResources(Set.of(ConfigResource.Type.GROUP), new ListConfigResourcesOptions()).all())
+                        .succeedsWithin(Duration.ofSeconds(5))
+                        .asInstanceOf(InstanceOfAssertFactories.list(ConfigResource.class))
+                        .containsExactly(configResource);
+            }
+        }
+
+    }
+
+
     private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster) {
         var configBuilder = KroxyliciousConfigUtils.proxy(cluster);
 
@@ -293,6 +343,15 @@ class EntityIsolationIT {
                 .addToDefaultFilters(saslInspection.name(), entityIsolation.name());
         return configBuilder;
     }
+
+    /*
+
+            ConfigResource configResource = new ConfigResource(ConfigResource.Type.GROUP, ENCRYPTION_SHARE_CONSUMER);
+        ConfigEntry autoOffsetReset = new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest");
+        List<AlterConfigOp> alterConfig = List.of(new AlterConfigOp(autoOffsetReset, AlterConfigOp.OpType.SET));
+        admin.incrementalAlterConfigs(Map.of(configResource, alterConfig)).all().get();
+
+     */
 
     private void verifyConsumerGroupsWithDescribe(Admin admin, Set<String> expectedPresent, Set<String> expectedAbsent) {
         assertThat(admin.describeConsumerGroups(expectedPresent).all())
