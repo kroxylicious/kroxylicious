@@ -38,4 +38,21 @@ public interface TopicNameMapping {
      * @return immutable map from topic id to kafka server error
      */
     Map<Uuid, TopicNameMappingException> failures();
+
+    TopicNameMapping EMPTY = new TopicNameMapping() {
+        @Override
+        public boolean anyFailures() {
+            return false;
+        }
+
+        @Override
+        public Map<Uuid, String> topicNames() {
+            return Map.of();
+        }
+
+        @Override
+        public Map<Uuid, TopicNameMappingException> failures() {
+            return Map.of();
+        }
+    };
 }
