@@ -1,1 +1,2 @@
 io.kroxylicious.filter.encryption.TemplateKekSelector
+io.kroxylicious.filter.encryption.TopicNameRegex
