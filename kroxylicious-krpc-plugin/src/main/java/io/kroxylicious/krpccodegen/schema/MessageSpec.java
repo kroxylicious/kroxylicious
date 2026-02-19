@@ -11,11 +11,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.kroxylicious.krpccodegen.schema.FieldType.Int8FieldType;
+import io.kroxylicious.krpccodegen.schema.FieldType.StringFieldType;
 
 public final class MessageSpec {
     private final StructSpec struct;
@@ -167,19 +171,18 @@ public final class MessageSpec {
     }
 
     /**
-     * Returns the intersected versions used by fields of this messages that are of the
-     * given entity types.
+     * Returns the intersected versions for the fields matching the predicate.
      *
-     * @param entityFieldTypeNames entity field types
+     * @param fieldSpecPredicate field spec predicate
      * @return intersected versions
      */
-    public List<Short> intersectedVersionsForEntityFields(Set<EntityType> entityFieldTypeNames) {
-        return intersectedVersionsForEntityFields(fields(), entityFieldTypeNames).stream().toList();
+    public List<Short> intersectedVersions(Predicate<FieldSpec> fieldSpecPredicate) {
+        return intersectedVersions(fields(), fieldSpecPredicate).stream().toList();
     }
 
-    private Set<Short> intersectedVersionsForEntityFields(List<FieldSpec> fields, Set<EntityType> entityFields) {
+    private Set<Short> intersectedVersions(List<FieldSpec> fields, Predicate<FieldSpec> fieldSpecPredicate) {
         var versions = fields.stream()
-                .filter(f -> entityFields.contains(f.entityType()))
+                .filter(fieldSpecPredicate)
                 .map(f -> validVersions().intersect(f.versions()))
                 .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
                 .distinct()
@@ -189,10 +192,37 @@ public final class MessageSpec {
                 .collect(Collectors.toCollection(TreeSet::new));
 
         versions.addAll(fields.stream()
-                .flatMap(f -> intersectedVersionsForEntityFields(f.fields(), entityFields).stream())
+                .flatMap(f -> intersectedVersions(f.fields(), fieldSpecPredicate).stream())
                 .collect(Collectors.toSet()));
 
         return versions;
+    }
+
+    /**
+     * Returns true if this message spec carries a resource list.
+     * This is true if there is an array container containing the following children.
+     * <ol>
+     *     <li>ResourceType (type int8)</li>
+     *     <li>ResourceName (type string)</li>
+     * </ol>
+     *
+     * @return true if present, false otherwise
+     */
+    public boolean hasResourceList() {
+        return fields().stream().anyMatch(isResourceList());
+    }
+
+    public static Predicate<FieldSpec> isResourceList() {
+        return f -> f.type().isStructArray() &&
+                hasMatchingChild("ResourceType", Int8FieldType.class, f) &&
+                hasMatchingChild("ResourceName", StringFieldType.class, f) &&
+                f.fields().stream().anyMatch(sf -> sf.name().equals("ResourceName") && sf.type() instanceof StringFieldType);
+    }
+
+    private static boolean hasMatchingChild(String fieldName, Class<? extends FieldType> fieldType, FieldSpec parent) {
+        return parent.fields().stream().anyMatch(sf -> !sf.versions().intersect(parent.versions()).empty() &&
+                sf.name().equals(fieldName) &&
+                fieldType.isAssignableFrom(sf.type().getClass()));
     }
 
     @Override

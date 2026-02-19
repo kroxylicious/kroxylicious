@@ -49,7 +49,7 @@ Configuration:
          additivity: false
          level: INFO
 
-      -  name: io.kroxylicious.filter.resourceisolation
+      -  name: io.kroxylicious.filter.entityisolation
          additivity: false
          level: DEBUG
 
