@@ -54,7 +54,7 @@ class HAProxyMessageHandlerTest {
         // When
         handler.channelRead(ctx, HA_PROXY_MESSAGE);
 
-        // Then
+        // Then - state machine is signalled
         verify(proxyChannelStateMachine).onClientRequest(HA_PROXY_MESSAGE);
         verifyNoMoreInteractions(proxyChannelStateMachine);
         // Should NOT propagate to next handler

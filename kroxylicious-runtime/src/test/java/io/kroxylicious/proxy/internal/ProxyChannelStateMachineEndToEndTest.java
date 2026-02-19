@@ -106,7 +106,10 @@ class ProxyChannelStateMachineEndToEndTest {
     private boolean activateOutboundChannelAutomatically = true;
 
     ProxyChannelStateMachine proxyChannelStateMachine(EndpointBinding binding) {
-        return new ProxyChannelStateMachine(binding, new DefaultSubjectBuilder(List.of()));
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        var pcsm = new ProxyChannelStateMachine(kafkaSession);
+        pcsm.onBindingResolution(binding, new DefaultSubjectBuilder(List.of()));
+        return pcsm;
     }
 
     @AfterEach

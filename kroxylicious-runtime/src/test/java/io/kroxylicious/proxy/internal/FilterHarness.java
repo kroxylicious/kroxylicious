@@ -95,13 +95,15 @@ public abstract class FilterHarness {
         when(gw.virtualCluster()).thenReturn(testVirtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(gw);
 
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        proxyChannelStateMachine = new ProxyChannelStateMachine(kafkaSession);
+        proxyChannelStateMachine.onBindingResolution(endpointBinding, new DefaultSubjectBuilder(List.of()));
         var forwarding = new ProxyChannelState.Forwarding(null, null, null);
         proxyChannelStateMachine.forceState(
                 forwarding,
                 mock(KafkaProxyFrontendHandler.class),
                 mock(KafkaProxyBackendHandler.class),
-                new KafkaSession(KafkaSessionState.ESTABLISHING));
+                kafkaSession);
         var filterHandlers = Arrays.stream(filters)
                 .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addLast, (d1, d2) -> {
                     d2.addAll(d1);

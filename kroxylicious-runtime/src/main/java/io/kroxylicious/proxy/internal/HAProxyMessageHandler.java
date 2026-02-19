@@ -46,7 +46,10 @@ public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
                         haProxyMessage.destinationAddress(),
                         haProxyMessage.destinationPort());
             }
-            // Forward to state machine for processing - do not propagate to filters
+
+            // Signal the state machine. If the frontend handler is not yet active (TLS
+            // pipeline: PROXY header arrives before the SSL handshake), the state machine
+            // stores the message for replay when onClientActive() fires.
             proxyChannelStateMachine.onClientRequest(haProxyMessage);
         }
         else {

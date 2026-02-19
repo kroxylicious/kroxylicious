@@ -86,7 +86,10 @@ class KafkaProxyFrontendHandlerTest {
     private KafkaProxyBackendHandler backendHandler;
 
     ProxyChannelStateMachine proxyChannelStateMachine(EndpointBinding endpointBinding) {
-        return new ProxyChannelStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()));
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        var pcsm = new ProxyChannelStateMachine(kafkaSession);
+        pcsm.onBindingResolution(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()));
+        return pcsm;
     }
 
     private PluginFactoryRegistry pfr;
