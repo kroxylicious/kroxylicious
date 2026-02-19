@@ -34,7 +34,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ClientSubjectManagerTest {
+class ProxyChannelStateMachineSubjectMgmtTests {
 
     @Mock(answer = Answers.RETURNS_MOCKS, stubOnly = true)
     EndpointBinding endpointBinding;
