@@ -354,6 +354,12 @@ public class ProxyChannelStateMachine {
                     .addArgument(this.frontendHandler.remotePort())
                     .log();
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
+            HAProxyMessage pending = kafkaSession.haProxyMessage();
+            if (pending != null) {
+                // Replay the PROXY header that arrived before channelActive in the TLS pipeline.
+                // The message was stored in the KafkaSession by HAProxyMessageHandler.
+                onClientRequestBeforeForwarding(pending);
+            }
         }
         else {
             illegalState("Client activation while not in the start state");
@@ -440,7 +446,18 @@ public class ProxyChannelStateMachine {
      */
     void onClientRequest(
                          Object msg) {
-        Objects.requireNonNull(frontendHandler);
+        if (frontendHandler == null) {
+            // In a TLS+HAProxy pipeline the PROXY header arrives before the SSL handshake
+            // completes, so frontendHandler is not yet initialised (it is added to the pipeline
+            // only after SNI/binding resolution). The message has already been stored in the
+            // KafkaSession by HAProxyMessageHandler; the HaProxy state transition is replayed
+            // in onClientActive() once the frontend handler is ready.
+            if (msg instanceof HAProxyMessage && state == STARTING_STATE) {
+                return;
+            }
+            illegalState("Message received before client active: " + (msg == null ? "null" : msg.getClass()));
+            return;
+        }
         if (state() instanceof Forwarding) { // post-backend connection
             messageFromClient(msg);
         }
