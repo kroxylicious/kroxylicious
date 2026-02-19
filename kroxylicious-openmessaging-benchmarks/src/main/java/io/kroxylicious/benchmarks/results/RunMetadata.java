@@ -18,6 +18,8 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Generates a run-metadata.json file containing git and timestamp information
  * for an OMB benchmark run.
@@ -53,6 +55,7 @@ public class RunMetadata {
         MAPPER.writerWithDefaultPrettyPrinter().writeValue(metadataFile.toFile(), metadata);
     }
 
+    @SuppressFBWarnings(value = "COMMAND_INJECTION", justification = "command arguments are hardcoded string literals, not user input")
     private static String execGitCommand(String... args) throws IOException {
         String[] command = new String[args.length + 1];
         command[0] = "git";
