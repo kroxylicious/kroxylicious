@@ -10,8 +10,6 @@ import java.util.Objects;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 
-import io.netty.handler.codec.haproxy.HAProxyMessage;
-
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -21,7 +19,7 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.HAProxy;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup;
 
@@ -31,7 +29,7 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup;
 sealed interface ProxyChannelState permits
         Startup,
         ClientActive,
-        HaProxy,
+        HAProxy,
         SelectingServer,
         Connecting,
         Forwarding,
@@ -55,11 +53,11 @@ sealed interface ProxyChannelState permits
     record ClientActive() implements ProxyChannelState {
 
         /**
-         * Transition to {@link HaProxy}, because a PROXY header has been received
-         * @return The HaProxy state
+         * Transition to {@link HAProxy}, because a PROXY header has been received
+         * @return The HAProxy state
          */
-        public HaProxy toHaProxy(HAProxyMessage haProxyMessage) {
-            return new HaProxy(haProxyMessage);
+        public HAProxy toHAProxy() {
+            return new HAProxy();
         }
 
         /**
@@ -68,18 +66,17 @@ sealed interface ProxyChannelState permits
          */
         public SelectingServer toSelectingServer(@Nullable DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             return new SelectingServer(
-                    null,
                     apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareName(),
                     apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareVersion());
         }
     }
 
     /**
-     * A PROXY protocol header has been received on the channel
-     * @param haProxyMessage The information in the PROXY header
+     * A PROXY protocol header has been received on the channel.
+     * The connection metadata is captured in the {@link KafkaSession}'s
+     * {@link io.kroxylicious.proxy.internal.net.HAProxyContext}.
      */
-    record HaProxy(
-                   HAProxyMessage haProxyMessage)
+    record HAProxy()
             implements ProxyChannelState {
 
         /**
@@ -88,7 +85,6 @@ sealed interface ProxyChannelState permits
          */
         public SelectingServer toSelectingServer(@Nullable DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             return new SelectingServer(
-                    haProxyMessage,
                     apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareName(),
                     apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareVersion());
         }
@@ -96,12 +92,10 @@ sealed interface ProxyChannelState permits
 
     /**
      * A channel to the server is now required.
-     * @param haProxyMessage
      * @param clientSoftwareName
      * @param clientSoftwareVersion
      */
-    record SelectingServer(@Nullable HAProxyMessage haProxyMessage,
-                           @Nullable String clientSoftwareName,
+    record SelectingServer(@Nullable String clientSoftwareName,
                            @Nullable String clientSoftwareVersion)
             implements ProxyChannelState {
 
@@ -110,7 +104,7 @@ sealed interface ProxyChannelState permits
          * @return The Connecting state
          */
         public Connecting toConnecting(HostPort remote) {
-            return new Connecting(haProxyMessage, clientSoftwareName,
+            return new Connecting(clientSoftwareName,
                     clientSoftwareVersion, remote);
         }
     }
@@ -118,13 +112,11 @@ sealed interface ProxyChannelState permits
     /**
      * The connection has started but the channel to it is not yet active.
      *
-     * @param haProxyMessage
      * @param clientSoftwareName
      * @param clientSoftwareVersion
      * @param remote
      */
-    record Connecting(@Nullable HAProxyMessage haProxyMessage,
-                      @Nullable String clientSoftwareName,
+    record Connecting(@Nullable String clientSoftwareName,
                       @Nullable String clientSoftwareVersion,
                       HostPort remote)
             implements ProxyChannelState {
@@ -135,7 +127,6 @@ sealed interface ProxyChannelState permits
          */
         public Forwarding toForwarding() {
             return new Forwarding(
-                    haProxyMessage,
                     clientSoftwareName,
                     clientSoftwareVersion);
         }
@@ -149,24 +140,15 @@ sealed interface ProxyChannelState permits
             implements ProxyChannelState {
 
         @Nullable
-        private final HAProxyMessage haProxyMessage;
-        @Nullable
         private final String clientSoftwareName;
         @Nullable
         private final String clientSoftwareVersion;
 
         Forwarding(
-                   @Nullable HAProxyMessage haProxyMessage,
                    @Nullable String clientSoftwareName,
                    @Nullable String clientSoftwareVersion) {
-            this.haProxyMessage = haProxyMessage;
             this.clientSoftwareName = clientSoftwareName;
             this.clientSoftwareVersion = clientSoftwareVersion;
-        }
-
-        @Nullable
-        public HAProxyMessage haProxyMessage() {
-            return haProxyMessage;
         }
 
         @Nullable
@@ -188,20 +170,18 @@ sealed interface ProxyChannelState permits
                 return false;
             }
             var that = (Forwarding) obj;
-            return Objects.equals(this.haProxyMessage, that.haProxyMessage) &&
-                    Objects.equals(this.clientSoftwareName, that.clientSoftwareName) &&
+            return Objects.equals(this.clientSoftwareName, that.clientSoftwareName) &&
                     Objects.equals(this.clientSoftwareVersion, that.clientSoftwareVersion);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(haProxyMessage, clientSoftwareName, clientSoftwareVersion);
+            return Objects.hash(clientSoftwareName, clientSoftwareVersion);
         }
 
         @Override
         public String toString() {
             return "Forwarding[" +
-                    "haProxyMessage=" + haProxyMessage + ", " +
                     "clientSoftwareName=" + clientSoftwareName + ", " +
                     "clientSoftwareVersion=" + clientSoftwareVersion + ']';
         }

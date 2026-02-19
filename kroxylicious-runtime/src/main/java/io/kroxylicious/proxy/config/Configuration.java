@@ -40,8 +40,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param useIoUring true to use iouring
  * @param development Development options
  * @param network Controls aspects of network configuration for the proxy.
+ * @param proxyProtocol HAProxy PROXY protocol configuration.
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network", "proxyProtocol" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
@@ -50,7 +51,8 @@ public record Configuration(
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
-                            @Nullable NetworkDefinition network) {
+                            @Nullable NetworkDefinition network,
+                            @Nullable ProxyProtocolConfig proxyProtocol) {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
@@ -166,6 +168,10 @@ public record Configuration(
 
     public boolean isUseIoUring() {
         return useIoUring();
+    }
+
+    public ProxyProtocolMode proxyProtocolMode() {
+        return proxyProtocol != null ? proxyProtocol.mode() : ProxyProtocolMode.DISABLED;
     }
 
     public List<VirtualClusterModel> virtualClusterModel() {

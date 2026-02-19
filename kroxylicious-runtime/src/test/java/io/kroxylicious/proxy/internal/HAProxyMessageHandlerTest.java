@@ -54,11 +54,11 @@ class HAProxyMessageHandlerTest {
         // When
         handler.channelRead(ctx, HA_PROXY_MESSAGE);
 
-        // Then
-        verify(proxyChannelStateMachine).onClientRequest(HA_PROXY_MESSAGE);
+        // Then - state machine is signalled
+        verify(proxyChannelStateMachine).onHAProxyMessageReceived(HA_PROXY_MESSAGE);
         verifyNoMoreInteractions(proxyChannelStateMachine);
-        // Should NOT propagate to next handler
-        verifyNoInteractions(ctx);
+        // Should trigger another read for the Kafka layer
+        verify(ctx).read();
     }
 
     @Test
