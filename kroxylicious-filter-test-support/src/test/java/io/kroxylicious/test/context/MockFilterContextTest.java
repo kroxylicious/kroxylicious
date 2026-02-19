@@ -539,7 +539,9 @@ class MockFilterContextTest {
                 .isNotCloseConnection()
                 .isNotDropResponse()
                 .hasHeaderEqualTo(newResponseHeaderData)
-                .hasMessageEqualTo(newData);
+                .hasHeaderInstanceOfSatisfying(ResponseHeaderData.class, responseHeaderData -> assertThat(responseHeaderData).isEqualTo(newResponseHeaderData))
+                .hasMessageEqualTo(newData)
+                .hasMessageInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> assertThat(apiVersionsResponseData).isEqualTo(newData));
     }
 
     @Test
@@ -615,7 +617,7 @@ class MockFilterContextTest {
                 .build();
 
         // then
-        MockFilterContextAssert.assertThat(result).isDropResponse();
+        MockFilterContextAssert.assertThat(result).isDropResponse().isNotForwardResponse();
     }
 
     @Test
@@ -674,6 +676,7 @@ class MockFilterContextTest {
                 .hasMessageEqualTo(newData)
                 .hasHeaderEqualTo(newHeader)
                 .isNotCloseConnection()
+                .isForwardResponse()
                 .isNotDropResponse());
     }
 
