@@ -71,10 +71,24 @@
             <artifactId>jackson-dataformat-yaml</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Fabric8 Kubernetes models for type-safe resource parsing -->
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-client</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>kubernetes-httpclient-vertx</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-httpclient-jdk</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
