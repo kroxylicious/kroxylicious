@@ -786,12 +786,7 @@ public class ProxyChannelStateMachine {
     void subjectFromTransport(@Nullable SSLSession session) {
         this.clientCertificate = peerTlsCertificate(session);
         this.proxyCertificate = localTlsCertificate(session);
-        transportSubjectBuilder.buildTransportSubject(new TransportSubjectBuilder.Context() {
-            @Override
-            public Optional<ClientTlsContext> clientTlsContext() {
-                return ProxyChannelStateMachine.this.clientTlsContext();
-            }
-        }).whenComplete(this::completeSubjectFromTransport);
+        transportSubjectBuilder.buildTransportSubject(ProxyChannelStateMachine.this::clientTlsContext).whenComplete(this::completeSubjectFromTransport);
     }
 
     private void completeSubjectFromTransport(@Nullable Subject newSubject, @Nullable Throwable error) {
