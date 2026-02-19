@@ -95,7 +95,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  *
  * <p>
  *     When either side of the proxy stats applying back pressure the proxy should propagate that fact to teh other peer.
- *     Thus when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
+ *     Thus, when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
  * </p>
  */
 @SuppressWarnings("java:S1133")
@@ -125,19 +125,30 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    // Connection metrics
-    private final Counter clientToProxyErrorCounter;
-    private final Counter clientToProxyDisconnectsIdleCounter;
-    private final Counter clientToProxyDisconnectsClientClosedCounter;
-    private final Counter clientToProxyDisconnectsServerClosedCounter;
-    private final Counter clientToProxyConnectionCounter;
-    private final Counter proxyToServerConnectionCounter;
-    private final Counter proxyToServerErrorCounter;
-    private final Timer serverToProxyBackpressureMeter;
-    private final Timer clientToProxyBackPressureMeter;
+    // Connection metrics - initialized in onBindingResolution(), except clientToProxyErrorCounter
+    // which has a placeholder until binding is resolved (can be called before binding for early errors)
+    private Counter clientToProxyErrorCounter;
+    @Nullable
+    private Counter clientToProxyDisconnectsIdleCounter;
+    @Nullable
+    private Counter clientToProxyDisconnectsClientClosedCounter;
+    @Nullable
+    private Counter clientToProxyDisconnectsServerClosedCounter;
+    @Nullable
+    private Counter clientToProxyConnectionCounter;
+    @Nullable
+    private Counter proxyToServerConnectionCounter;
+    @Nullable
+    private Counter proxyToServerErrorCounter;
+    @Nullable
+    private Timer serverToProxyBackpressureMeter;
+    @Nullable
+    private Timer clientToProxyBackPressureMeter;
 
-    private final ActivationToken clientToProxyConnectionToken;
-    private final ActivationToken proxyToServerConnectionToken;
+    @Nullable
+    private ActivationToken clientToProxyConnectionToken;
+    @Nullable
+    private ActivationToken proxyToServerConnectionToken;
 
     @VisibleForTesting
     @Nullable
@@ -147,7 +158,8 @@ public class ProxyChannelStateMachine {
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
-    private final EndpointBinding endpointBinding;
+    @Nullable
+    private EndpointBinding endpointBinding;
 
     @NonNull
     // Ideally this would be final, however that breaks forceState which is used heavily in testing.
@@ -168,7 +180,8 @@ public class ProxyChannelStateMachine {
     boolean serverReadsBlocked;
     @VisibleForTesting
     boolean clientReadsBlocked;
-    private final TransportSubjectBuilder transportSubjectBuilder;
+    @Nullable
+    private TransportSubjectBuilder transportSubjectBuilder;
     private final ClientSubjectManager clientSubjectManager = new ClientSubjectManager();
     private int progressionLatch = -1;
     /**
@@ -185,13 +198,24 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
-    public ProxyChannelStateMachine(EndpointBinding endpointBinding,
-                                    TransportSubjectBuilder transportSubjectBuilder) {
+    public ProxyChannelStateMachine(KafkaSession kafkaSession) {
+        this.kafkaSession = kafkaSession;
+        // Placeholder until onBindingResolution() is called; needed because onClientException()
+        // can be triggered before binding is resolved (e.g. bad HAProxy header in TLS pipeline).
+        this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
+    }
+
+    /**
+     * Called once the endpoint binding has been resolved (after SNI/plain resolver completes).
+     * Initialises all binding-dependent state and metrics.
+     *
+     * @param endpointBinding the resolved binding
+     * @param transportSubjectBuilder the subject builder for this virtual cluster
+     */
+    public void onBindingResolution(EndpointBinding endpointBinding, TransportSubjectBuilder transportSubjectBuilder) {
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
-        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-
         var nodeId = endpointBinding.nodeId();
         String clusterName = virtualCluster.getClusterName();
         VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
@@ -708,28 +732,39 @@ public class ProxyChannelStateMachine {
         // Close the server connection
         if (backendHandler != null) {
             backendHandler.inClosed();
-            proxyToServerConnectionToken.release();
+            // token is guaranteed non-null: backendHandler is set in toConnecting(), which
+            // can only be reached after onClientActive(), which requires onBindingResolution()
+            Objects.requireNonNull(proxyToServerConnectionToken).release();
         }
 
         // Close the client connection with any error code
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
             frontendHandler.inClosed(errorCodeEx);
-            clientToProxyConnectionToken.release();
+            // token is guaranteed non-null: frontendHandler is set in onClientActive(), which
+            // requires onBindingResolution() to have been called first
+            Objects.requireNonNull(clientToProxyConnectionToken).release();
         }
     }
 
     private void incrementAppropriateDisconnectsMetric(@Nullable DisconnectCause disconnectCause) {
-        // Increment disconnect counter based on cause (if not an error)
+        // Increment disconnect counter based on cause (if not an error).
+        // Counters may be null if binding was never resolved (connection dropped before addHandlers).
         if (disconnectCause != null) {
             switch (disconnectCause) {
                 case IDLE_TIMEOUT:
-                    clientToProxyDisconnectsIdleCounter.increment();
+                    if (clientToProxyDisconnectsIdleCounter != null) {
+                        clientToProxyDisconnectsIdleCounter.increment();
+                    }
                     break;
                 case CLIENT_CLOSED:
-                    clientToProxyDisconnectsClientClosedCounter.increment();
+                    if (clientToProxyDisconnectsClientClosedCounter != null) {
+                        clientToProxyDisconnectsClientClosedCounter.increment();
+                    }
                     break;
                 case SERVER_CLOSED:
-                    clientToProxyDisconnectsServerClosedCounter.increment();
+                    if (clientToProxyDisconnectsServerClosedCounter != null) {
+                        clientToProxyDisconnectsServerClosedCounter.increment();
+                    }
                     break;
             }
         }

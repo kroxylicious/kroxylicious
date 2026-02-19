@@ -29,9 +29,11 @@ public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HAProxyMessageHandler.class);
 
+    private final KafkaSession kafkaSession;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
 
-    public HAProxyMessageHandler(ProxyChannelStateMachine proxyChannelStateMachine) {
+    public HAProxyMessageHandler(KafkaSession kafkaSession, ProxyChannelStateMachine proxyChannelStateMachine) {
+        this.kafkaSession = kafkaSession;
         this.proxyChannelStateMachine = proxyChannelStateMachine;
     }
 
@@ -46,7 +48,13 @@ public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
                         haProxyMessage.destinationAddress(),
                         haProxyMessage.destinationPort());
             }
-            // Forward to state machine for processing - do not propagate to filters
+            // Store in the session so it is available to the state machine and consumers
+            // (e.g. audit logging) regardless of when the message arrives relative to
+            // SSL/binding resolution.
+            kafkaSession.onHaProxyMessage(haProxyMessage);
+            // Signal the state machine. If the frontend handler is not yet active (TLS
+            // pipeline: PROXY header arrives before the SSL handshake), the state machine
+            // defers processing until onClientActive() fires (see ProxyChannelStateMachine).
             proxyChannelStateMachine.onClientRequest(haProxyMessage);
         }
         else {
