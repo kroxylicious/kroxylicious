@@ -18,7 +18,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class VirtualKafkaClusterPrimaryToConfigMapSecondaryJoinedOnIngressTrustAnchorRefMapper implements PrimaryToSecondaryMapper<VirtualKafkaCluster> {
+class VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRefMapper implements PrimaryToSecondaryMapper<VirtualKafkaCluster> {
 
     @Override
     public Set<ResourceID> toSecondaryResourceIDs(VirtualKafkaCluster virtualKafkaCluster) {
