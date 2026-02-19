@@ -81,7 +81,6 @@ class EntityIsolationIT {
         SUBSCRIBE
     }
 
-
     /**
      * Group isolation - describe groups.
      * <br/>
@@ -288,7 +287,6 @@ class EntityIsolationIT {
     void groupConfigIsolation() {
         var configBuilder = buildProxyConfig(cluster);
 
-
         var aliceConfig = buildClientConfig("alice", "pwd");
         var bobConfig = buildClientConfig("bob", "pwd");
 
@@ -319,7 +317,6 @@ class EntityIsolationIT {
 
     }
 
-
     private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster) {
         var configBuilder = KroxyliciousConfigUtils.proxy(cluster);
 
@@ -345,12 +342,12 @@ class EntityIsolationIT {
     }
 
     /*
-
-            ConfigResource configResource = new ConfigResource(ConfigResource.Type.GROUP, ENCRYPTION_SHARE_CONSUMER);
-        ConfigEntry autoOffsetReset = new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest");
-        List<AlterConfigOp> alterConfig = List.of(new AlterConfigOp(autoOffsetReset, AlterConfigOp.OpType.SET));
-        admin.incrementalAlterConfigs(Map.of(configResource, alterConfig)).all().get();
-
+     *
+     * ConfigResource configResource = new ConfigResource(ConfigResource.Type.GROUP, ENCRYPTION_SHARE_CONSUMER);
+     * ConfigEntry autoOffsetReset = new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest");
+     * List<AlterConfigOp> alterConfig = List.of(new AlterConfigOp(autoOffsetReset, AlterConfigOp.OpType.SET));
+     * admin.incrementalAlterConfigs(Map.of(configResource, alterConfig)).all().get();
+     *
      */
 
     private void verifyConsumerGroupsWithDescribe(Admin admin, Set<String> expectedPresent, Set<String> expectedAbsent) {

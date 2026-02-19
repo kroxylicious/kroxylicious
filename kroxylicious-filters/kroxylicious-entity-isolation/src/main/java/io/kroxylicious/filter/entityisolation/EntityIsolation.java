@@ -6,7 +6,11 @@
 package io.kroxylicious.filter.entityisolation;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+
+import org.apache.kafka.common.config.ConfigResource;
+import org.apache.kafka.common.resource.ResourceType;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -68,4 +72,34 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
             }
         }
     }
+
+    static Optional<EntityIsolation.ResourceType> fromKafkaResourceTypeCode(byte resourceType) {
+        return Optional.of(resourceType)
+                .map(org.apache.kafka.common.resource.ResourceType::fromCode)
+                .flatMap(EntityIsolation::fromKafkaResourceType);
+    }
+
+    static Optional<ResourceType> fromKafkaResourceType(org.apache.kafka.common.resource.ResourceType resourceType) {
+        return switch (resourceType) {
+            case TOPIC -> Optional.of(ResourceType.TOPIC_NAME);
+            case GROUP -> Optional.of(ResourceType.GROUP_ID);
+            case TRANSACTIONAL_ID -> Optional.of(ResourceType.TRANSACTIONAL_ID);
+            default -> Optional.empty();
+        };
+    }
+
+    static Optional<EntityIsolation.ResourceType> fromConfigResourceTypeCode(byte resourceType) {
+        return Optional.of(resourceType)
+                .map(ConfigResource.Type::forId)
+                .flatMap(EntityIsolation::fromConfigResourceType);
+    }
+
+    static Optional<ResourceType> fromConfigResourceType(ConfigResource.Type resourceType) {
+        return switch (resourceType) {
+            case TOPIC -> Optional.of(ResourceType.TOPIC_NAME);
+            case GROUP -> Optional.of(ResourceType.GROUP_ID);
+            default -> Optional.empty();
+        };
+    }
+
 }

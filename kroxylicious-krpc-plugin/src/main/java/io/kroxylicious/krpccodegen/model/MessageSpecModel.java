@@ -41,8 +41,10 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
             case "type" -> wrapper.wrap(spec.type());
             case "listeners" -> wrapper.wrap(spec.listeners());
             case "dataClassName" -> wrapper.wrap(spec.dataClassName());
+            case "hasResourceList" -> wrapper.wrap(spec.hasResourceList());
             case "hasAtLeastOneEntityField" -> wrapper.wrap((TemplateMethodModelEx) this::handleHasAtLeastOneEntityField);
             case "intersectedVersionsForEntityFields" -> wrapper.wrap((TemplateMethodModelEx) this::handleIntersectedVersionsForEntityFields);
+            case "intersectedVersionsForResourceList" -> wrapper.wrap((TemplateMethodModelEx) this::handleintersectedVersionsForResourceList);
             default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property '" + key + "'");
         };
     }
@@ -66,7 +68,11 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
     private List<Short> handleIntersectedVersionsForEntityFields(List args) throws TemplateModelException {
         var seq = ModelUtils.modelArgsToSimpleSequence(args, wrapper);
         var set = ModelUtils.asEnumSet(seq, EntityType.class);
-        return spec.intersectedVersionsForEntityFields(set);
+        return spec.intersectedVersions(f -> set.contains(f.entityType()));
+    }
+
+    private List<Short> handleintersectedVersionsForResourceList(List args) {
+        return spec.intersectedVersions(MessageSpec.isResourceList());
     }
 
 }

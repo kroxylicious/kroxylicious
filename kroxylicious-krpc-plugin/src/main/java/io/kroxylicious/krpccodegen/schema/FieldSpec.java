@@ -256,6 +256,10 @@ public final class FieldSpec {
         return hasAtLeastOneEntityField(fields(), entityFieldTypeNames);
     }
 
+    public boolean isResourceList() {
+        return MessageSpec.isResourceList().test(this);
+    }
+
     private boolean hasAtLeastOneEntityField(List<FieldSpec> fields, Set<EntityType> entityFieldTypeNames) {
         var found = fields.stream().anyMatch(f -> entityFieldTypeNames.contains(f.entityType()));
         if (found) {

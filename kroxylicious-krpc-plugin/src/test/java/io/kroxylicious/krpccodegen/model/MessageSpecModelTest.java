@@ -30,6 +30,7 @@ import freemarker.template.Version;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -102,7 +103,7 @@ class MessageSpecModelTest {
     @Test
     void intersectedVersionsForEntityFields() throws Exception {
         // Given
-        when(structSpec.intersectedVersionsForEntityFields(Set.of(EntityType.TOPIC_NAME))).thenReturn(List.of((short) 1));
+        when(structSpec.intersectedVersions(any())).thenReturn(List.of((short) 1));
 
         var model = new MessageSpecModel(WRAPPER, structSpec);
         var templateMethod = (TemplateMethodModelEx) model.get("intersectedVersionsForEntityFields");
@@ -117,7 +118,26 @@ class MessageSpecModelTest {
                 .asInstanceOf(InstanceOfAssertFactories.list(Short.class))
                 .containsExactly((short) 1);
 
-        verify(structSpec).intersectedVersionsForEntityFields(Set.of(EntityType.TOPIC_NAME));
+        verify(structSpec).intersectedVersions(any());
+    }
+
+    @Test
+    void intersectedVersionsForResourceList() throws Exception {
+        // Given
+        when(structSpec.intersectedVersions(any())).thenReturn(List.of((short) 1));
+
+        var model = new MessageSpecModel(WRAPPER, structSpec);
+        var templateMethod = (TemplateMethodModelEx) model.get("intersectedVersionsForResourceList");
+
+        // When
+        var result = templateMethod.exec(List.of());
+
+        // Then
+        assertThat(result)
+                .asInstanceOf(InstanceOfAssertFactories.list(Short.class))
+                .containsExactly((short) 1);
+
+        verify(structSpec).intersectedVersions(any());
     }
 
 }

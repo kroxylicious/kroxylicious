@@ -1,0 +1,29 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: INCREMENTAL_ALTER_CONFIGS
+  version: 1
+  request:
+    payload:
+      resources:
+        - resourceType: 1
+          resourceName: "foo"
+          configs:
+            - name: "random-string-244"
+              configOperation: 7
+              value: "random-string-752"
+        - resourceType: 3
+          resourceName: "mygroup"
+          configs:
+            - name: "random-string-244"
+              configOperation: 7
+              value: "random-string-752"
+      validateOnly: false
+    diff:
+      - op: replace
+        path: "/resources/1/resourceName"
+        value: tenant1-mygroup
+  disabled: false
