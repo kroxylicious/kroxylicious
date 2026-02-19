@@ -33,7 +33,7 @@ kafka:
 # Minimum OMB workers (DistributedWorkersEnsemble requires at least 2)
 omb:
   workerReplicas: 2
-  workerJavaOpts: "-Xmx1g -Xms1g"  # Reduced heap to fit within 2Gi container limit
+  workerJavaOpts: "-XX:MaxRAMPercentage=50 -XX:NativeMemoryTracking=summary"  # Let JVM size heap to container limit
   resources:
     requests:
       memory: "1Gi"
