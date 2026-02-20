@@ -1,0 +1,17 @@
+{
+  "workload": "1-topic-1-partition-1kb",
+  "driver": "Kafka",
+  "aggregatedPublishLatencyAvg": 6.34,
+  "aggregatedPublishLatency50pct": 4.90,
+  "aggregatedPublishLatency95pct": 14.80,
+  "aggregatedPublishLatency99pct": 29.10,
+  "aggregatedPublishLatency999pct": 55.70,
+  "aggregatedPublishLatencyMax": 145.20,
+  "publishRate": [49500.0, 49200.0, 49700.0],
+  "consumeRate": [49400.0, 49600.0, 49500.0],
+  "endToEndLatencyAvg": [10.20, 10.80, 10.50],
+  "endToEndLatency50pct": [7.80, 8.20, 8.00],
+  "endToEndLatency95pct": [22.40, 23.20, 22.80],
+  "endToEndLatency99pct": [42.60, 44.00, 43.30],
+  "endToEndLatency999pct": [78.40, 81.60, 80.00]
+}
