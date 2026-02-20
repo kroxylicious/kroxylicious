@@ -134,8 +134,10 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
 
     @Override
     public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
-        HostPort bootstrapAddress = new HostPort("$(virtualClusterName)-bootstrap.$(domain)", CLIENT_FACING_ROUTE_PORT);
-        HostPort advertisedBrokerAddressPattern = new HostPort("$(virtualClusterName)-$(nodeId).$(domain)", CLIENT_FACING_ROUTE_PORT);
+        String host = "$(host)";
+
+        HostPort bootstrapAddress = new HostPort("$(virtualClusterName)-bootstrap." + host, CLIENT_FACING_ROUTE_PORT);
+        HostPort advertisedBrokerAddressPattern = new HostPort("$(virtualClusterName)-$(nodeId)." + host, CLIENT_FACING_ROUTE_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress.toString(),
                 advertisedBrokerAddressPattern.toString());
     }
@@ -151,7 +153,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     private String bootstrapServers() {
-        return ResourcesUtil.name(cluster) + "-bootstrap.$(domain):" + CLIENT_FACING_ROUTE_PORT;
+        return ResourcesUtil.name(cluster) + "-bootstrap.$(host):" + CLIENT_FACING_ROUTE_PORT;
     }
 
     private String suffixedRouteName(String suffix) {

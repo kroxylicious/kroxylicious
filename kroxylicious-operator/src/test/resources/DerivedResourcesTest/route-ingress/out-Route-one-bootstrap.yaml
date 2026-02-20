@@ -11,7 +11,7 @@ metadata:
   annotations:
     kroxylicious.io/bootstrap-servers: "{\"version\":\"0.13.0\",\"bootstrapServers\"\
       :[{\"clusterName\":\"one\",\"ingressName\":\"myopenshiftroute\",\"bootstrapServers\"\
-      :\"one-bootstrap.$(domain):443\"}]}"
+      :\"one-bootstrap.$(host):443\"}]}"
   labels:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious"
