@@ -39,28 +39,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  discover_system_test_chunks:
-    runs-on: ubuntu-latest
-    outputs:
-      test_chunks: ${{ steps.discover.outputs.test_chunks }}
-    steps:
-      - name: 'Check out repository'
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: 'Discover STs'
-        working-directory: kroxylicious-systemtests
-        id: discover
-        run: |
-          TEST_CHUNKS="[$(find . -type f -name "*ST.java" -exec basename {} .java \; | tr ' ' , | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
-          echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
-
   run_system_tests:
-    needs: discover_system_test_chunks
     uses: ./.github/workflows/run-system-tests.yaml
     with:
       kafkaClient: 'strimzi_test_client'
-    strategy:
-      fail-fast: false
-      matrix:
-        tests: ${{ fromJson(needs.discover_system_test_chunks.outputs.test_chunks) }}
