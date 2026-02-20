@@ -115,7 +115,7 @@ jobs:
           TESTS_OPT: ${{ matrix.tests != '' && format('-Dtest={0}',  matrix.tests)  || '' }}
           EXCLUDED_GROUPS_OPT: ${{ inputs.excludedGroups != '' && format('-DexcludedGroups={0}', inputs.excludedGroups) || '' }}
         run: |
-          mvn --batch-mode verify -Psystemtest -Pdist -DskipDocs=true $TESTS_OPT $EXCLUDED_GROUPS_OPT $GROUPS_OPT
+          mvn --quiet --batch-mode verify -Psystemtest -Pdist -DskipDocs=true $TESTS_OPT $EXCLUDED_GROUPS_OPT $GROUPS_OPT
 
       - name: Archive JUnit test results
         if: ${{ always() }}
