@@ -34,8 +34,8 @@ data:
       gateways:
       - name: "myopenshiftroute"
         sniHostIdentifiesNode:
-          bootstrapAddress: "$(virtualClusterName)-bootstrap.$(domain):443"
-          advertisedBrokerAddressPattern: "$(virtualClusterName)-$(nodeId).$(domain):443"
+          bootstrapAddress: "$(virtualClusterName)-bootstrap.$(host):443"
+          advertisedBrokerAddressPattern: "$(virtualClusterName)-$(nodeId).$(host):443"
         tls:
           key:
             privateKeyFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.key"
