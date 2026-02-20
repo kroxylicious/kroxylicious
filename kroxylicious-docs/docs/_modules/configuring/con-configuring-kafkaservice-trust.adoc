@@ -31,6 +31,14 @@ spec:
     # ...
 ----
 <1> The `trustAnchorRef` property references a separate Kubernetes resource which contains the CA certificates to be trusted
-<2> The `kind` is optional and defaults to `ConfigMap`.
+<2> The `kind` is optional and defaults to `ConfigMap`. To reference a key in a `Secret`, set `kind` to `Secret`. For example:
++
+[source,yaml]
+----
+    trustAnchorRef:
+      kind: Secret
+      name: trusted-cas
+      key: trusted-cas.pem
+----
 <3> The `name` of the resource of the given `kind`. This resource must exist in the same namespace as the `KafkaService`
 <4> The `key` identifies the entry in the given resource. The corresponding value must be a PEM-encoded set of CA certificates.
