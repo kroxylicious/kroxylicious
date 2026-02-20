@@ -24,6 +24,7 @@ on:
       - '**/**.txt'
       - '.github/**'
       - '!.github/workflows/system-tests-pr.yaml'
+      - '!.github/workflows/run-system-tests.yaml'
       - '!.github/actions/**'
       - 'kroxylicious-docs**/**'
       - 'kroxylicious-integration-test**/**'
@@ -56,84 +57,10 @@ jobs:
 
   run_system_tests:
     needs: discover_system_test_chunks
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/run-system-tests.yaml
+    with:
+      kafkaClient: 'strimzi_test_client'
     strategy:
       fail-fast: false
       matrix:
         tests: ${{ fromJson(needs.discover_system_test_chunks.outputs.test_chunks) }}
-
-    steps:
-      - name: Log tests to run
-        run: echo "Running tests on classes '${{ matrix.tests }}'"
-      - name: 'Check out repository'
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
-      - name: Setup Java
-        uses: ./.github/actions/common/setup-java
-      - name: Setup Minikube
-        uses: ./.github/actions/common/setup-minikube
-      - name: 'Set up Docker Buildx'
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-      - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
-      - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
-        run: |
-          mvn --quiet --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
-      - name: 'Load Kroxylicious Operand Docker Image in Minikube'
-        run: |
-          minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
-          minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
-          
-          # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
-          KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
-          KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects kroxylicious-operator --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"
-          KROXYLICIOUS_VERSION="$(mvn --quiet org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=project.version -DforceStdout)"
-          minikube image tag ${KROXYLICIOUS_PROXY_IMAGE} quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}          
-          minikube image ls | grep --fixed-strings quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}
-          minikube image ls | grep --fixed-strings ${KROXYLICIOUS_OPERATOR_IMAGE}
-
-      - name: 'Run system tests'
-        timeout-minutes: 90
-        run: |          
-          mvn --quiet --batch-mode verify --activate-profiles systemtest -Pdist -DskipDocs=true -Dtest="${{ matrix.tests }}"
-
-      - name: Archive JUnit test results
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v5
-        with:
-          name: junit-results-${{ matrix.tests }}
-          path: kroxylicious-systemtests/target/surefire-reports/**/TEST-*.xml
-
-      - name: Archive systemtest logs
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v5
-        with:
-          name: systemtest-logs-${{ matrix.tests }}
-          path: kroxylicious-systemtests/target/logs
-
-  system_tests_proxy:
-    runs-on: ubuntu-latest
-    needs: run_system_tests
-    if: always()
-    permissions:
-      actions: read
-    steps:
-      - name: 'Check all matrix builds'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          FAILED_JSON=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
-            --jq '.jobs[] | select(.conclusion=="failure") | {name: .name, url: .html_url}')
-          if [ -z "$FAILED_JSON" ]; then
-            echo "All jobs passed!" >> $GITHUB_STEP_SUMMARY
-            echo "No failures detected."
-            exit 0
-          fi
-          echo "Failed Matrix Jobs" >> $GITHUB_STEP_SUMMARY
-          echo "The following instances failed:"
-          echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> $GITHUB_STEP_SUMMARY
-          echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
-          exit 1
