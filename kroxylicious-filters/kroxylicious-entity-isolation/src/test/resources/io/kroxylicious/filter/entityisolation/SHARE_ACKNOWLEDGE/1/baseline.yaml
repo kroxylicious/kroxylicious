@@ -1,0 +1,46 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: SHARE_ACKNOWLEDGE
+  disabled: false
+  version: 1
+  request:
+    payload:
+      groupId: mygroup
+      memberId: mymember
+      shareSessionEpoch: 0
+      topics:
+        - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+          partitions:
+            - partitionIndex: 0
+              acknowledgementBatches:
+                - firstOffset: 0
+                  lastOffset: 0
+                  acknowledgeTypes: [0]
+    diff:
+      - op: replace
+        path: "/groupId"
+        value: tenant1-mygroup
+  response:
+    payload:
+      throttleTimeMs: 0
+      errorCode: 0
+      errorMessage: ""
+      responses:
+        - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+          partitions:
+           - partitionIndex: 0
+             errorCode: 0
+             errorMessage: ""
+             currentLeader:
+               leaderId: 0
+               leaderEpoch: 0
+      nodeEndpoints:
+        - nodeId: 0
+          host: localhost
+          port: 0
+          rack: us-east1
+    diff: []

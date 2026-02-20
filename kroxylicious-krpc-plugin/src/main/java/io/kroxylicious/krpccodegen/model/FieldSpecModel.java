@@ -5,10 +5,14 @@
  */
 package io.kroxylicious.krpccodegen.model;
 
+import java.util.List;
+
+import io.kroxylicious.krpccodegen.schema.EntityType;
 import io.kroxylicious.krpccodegen.schema.FieldSpec;
 
 import freemarker.template.AdapterTemplateModel;
 import freemarker.template.TemplateHashModel;
+import freemarker.template.TemplateMethodModelEx;
 import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 
@@ -30,6 +34,8 @@ class FieldSpecModel implements TemplateHashModel, AdapterTemplateModel {
             case "typeString" -> wrapper.wrap(spec.typeString());
             case "about" -> wrapper.wrap(spec.about());
             case "entityType" -> wrapper.wrap(spec.entityType());
+            case "isResourceList" -> wrapper.wrap(spec.isResourceList());
+            case "hasAtLeastOneEntityField" -> wrapper.wrap((TemplateMethodModelEx) this::handleHasAtLeastOneEntityField);
             case "flexibleVersions" -> wrapper.wrap(spec.flexibleVersions());
             case "flexibleVersionsString" -> wrapper.wrap(spec.flexibleVersionsString());
             case "defaultString" -> wrapper.wrap(spec.defaultString());
@@ -51,6 +57,12 @@ class FieldSpecModel implements TemplateHashModel, AdapterTemplateModel {
     @Override
     public boolean isEmpty() {
         return false;
+    }
+
+    private boolean handleHasAtLeastOneEntityField(List args) throws TemplateModelException {
+        var seq = ModelUtils.modelArgsToSimpleSequence(args, wrapper);
+        var set = ModelUtils.asEnumSet(seq, EntityType.class);
+        return spec.hasAtLeastOneEntityField(set);
     }
 
     @Override

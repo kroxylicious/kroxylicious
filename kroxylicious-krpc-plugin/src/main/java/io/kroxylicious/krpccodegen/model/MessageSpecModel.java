@@ -5,10 +5,14 @@
  */
 package io.kroxylicious.krpccodegen.model;
 
+import java.util.List;
+
+import io.kroxylicious.krpccodegen.schema.EntityType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 
 import freemarker.template.AdapterTemplateModel;
 import freemarker.template.TemplateHashModel;
+import freemarker.template.TemplateMethodModelEx;
 import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 
@@ -37,7 +41,11 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
             case "type" -> wrapper.wrap(spec.type());
             case "listeners" -> wrapper.wrap(spec.listeners());
             case "dataClassName" -> wrapper.wrap(spec.dataClassName());
-            default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property " + key);
+            case "hasResourceList" -> wrapper.wrap(spec.hasResourceList());
+            case "hasAtLeastOneEntityField" -> wrapper.wrap((TemplateMethodModelEx) this::handleHasAtLeastOneEntityField);
+            case "intersectedVersionsForEntityFields" -> wrapper.wrap((TemplateMethodModelEx) this::handleIntersectedVersionsForEntityFields);
+            case "intersectedVersionsForResourceList" -> wrapper.wrap((TemplateMethodModelEx) this::handleintersectedVersionsForResourceList);
+            default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property '" + key + "'");
         };
     }
 
@@ -50,4 +58,21 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
     public Object getAdaptedObject(Class<?> hint) {
         return spec;
     }
+
+    private boolean handleHasAtLeastOneEntityField(List args) throws TemplateModelException {
+        var seq = ModelUtils.modelArgsToSimpleSequence(args, wrapper);
+        var set = ModelUtils.asEnumSet(seq, EntityType.class);
+        return spec.hasAtLeastOneEntityField(set);
+    }
+
+    private List<Short> handleIntersectedVersionsForEntityFields(List args) throws TemplateModelException {
+        var seq = ModelUtils.modelArgsToSimpleSequence(args, wrapper);
+        var set = ModelUtils.asEnumSet(seq, EntityType.class);
+        return spec.intersectedVersions(f -> set.contains(f.entityType()));
+    }
+
+    private List<Short> handleintersectedVersionsForResourceList(List args) {
+        return spec.intersectedVersions(MessageSpec.isResourceList());
+    }
+
 }
