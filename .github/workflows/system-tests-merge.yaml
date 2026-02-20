@@ -92,3 +92,9 @@ jobs:
           echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> $GITHUB_STEP_SUMMARY
           echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
           exit 1
+      - name: Slack Notification on Failure
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true'
+        uses: ./.github/actions/common/slack-notification
+        with:
+          slackTitle: 'Failure Alert: ${{ github.repository }}'
+          slackMessage: 'The system tests workflow failed on branch ${{ github.ref_name }}.'
