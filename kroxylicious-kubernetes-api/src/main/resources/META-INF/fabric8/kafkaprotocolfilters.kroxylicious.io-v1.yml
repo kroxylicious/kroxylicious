@@ -118,3 +118,5 @@ spec:
                       - reason
                       - message
                       - type
+          required:
+            - spec
