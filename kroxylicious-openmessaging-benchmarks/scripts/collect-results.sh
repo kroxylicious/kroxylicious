@@ -77,8 +77,8 @@ if [[ -z "$POD" ]]; then
 fi
 echo "Found benchmark pod: $POD"
 
-# List result files on the pod
-RESULT_FILES=$(kubectl exec -n "$NAMESPACE" "$POD" -- find "$BENCHMARK_RESULTS_DIR" -maxdepth 1 -name '*.json' -printf '%f\n' 2>/dev/null) || true
+# List result files on the pod (use ls+grep for portability — find -printf is GNU-only)
+RESULT_FILES=$(kubectl exec -n "$NAMESPACE" "$POD" -- sh -c "ls \"$BENCHMARK_RESULTS_DIR\"/*.json 2>/dev/null" | xargs -n1 basename 2>/dev/null) || true
 if [[ -z "$RESULT_FILES" ]]; then
     echo "Error: no result JSON files found in $BENCHMARK_RESULTS_DIR on pod $POD" >&2
     exit 1
