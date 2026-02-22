@@ -1,0 +1,31 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "HEARTBEAT"
+  apiVersion: 0
+  scenario: "denied group is not forwarded, filter responds with error"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: []
+  topicNames: { }
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 12
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    groupId: "my-group"
+    generationId: 1
+    memberId: "abc"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedErrorResponse: "GROUP_AUTHORIZATION_FAILED"
