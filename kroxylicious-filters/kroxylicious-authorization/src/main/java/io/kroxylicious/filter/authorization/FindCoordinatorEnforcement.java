@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.authorization;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
@@ -18,13 +19,19 @@ import org.apache.kafka.common.requests.FindCoordinatorRequest;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+
+import static org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType.GROUP;
+import static org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType.TRANSACTION;
+import static org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType.forId;
 
 public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRequestData, FindCoordinatorResponseData> {
 
     public static final int MIN_API_VERSION_USING_BATCHING = 4;
     public static final int MIN_API_VERSION_WITH_KEY = 1;
+    private static final Set<Byte> AUTHORIZABLE = Set.of(TRANSACTION.id(), GROUP.id());
 
     @Override
     short minSupportedVersion() {
@@ -45,9 +52,11 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
                                                    FindCoordinatorRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        if (request.keyType() != FindCoordinatorRequest.CoordinatorType.TRANSACTION.id()) {
+        // prefer byte comparison here for forwards-compatibility, rather than calling forId that may fail on future coordinator types
+        if (!AUTHORIZABLE.contains(request.keyType())) {
             return context.forwardRequest(header, request);
         }
+        FindCoordinatorRequest.CoordinatorType coordinatorType = forId(request.keyType());
         List<String> keys;
         if (usesBatching(header)) {
             keys = request.coordinatorKeys();
@@ -55,14 +64,18 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
         else {
             keys = List.of(request.key());
         }
-
+        ResourceType<?> resource = switch (coordinatorType) {
+            case GROUP -> GroupResource.DESCRIBE;
+            case TRANSACTION -> TransactionalIdResource.DESCRIBE;
+            default -> throw new IllegalStateException("unexpected coordinatorType " + coordinatorType);
+        };
         var actions = keys.stream()
-                .map(key -> new Action(TransactionalIdResource.DESCRIBE, key))
+                .map(key -> new Action(resource, key))
                 .toList();
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
                     var decisions = authorization.partition(keys,
-                            TransactionalIdResource.DESCRIBE,
+                            resource,
                             Function.identity());
                     var allowedKeys = decisions.get(Decision.ALLOW);
                     var deniedKeys = decisions.get(Decision.DENY);
@@ -70,7 +83,7 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
                         // Shortcircuit if there are no allowed topics
                         return context.requestFilterResultBuilder()
                                 .shortCircuitResponse(FindCoordinatorEnforcement
-                                        .errorResponse(deniedKeys, usesBatching(header)))
+                                        .errorResponse(deniedKeys, usesBatching(header), coordinatorType))
                                 .completed();
                     }
                     else if (deniedKeys.isEmpty()) {
@@ -83,7 +96,7 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
                         request.setCoordinatorKeys(allowedKeys);
 
                         var errorCoordinators = FindCoordinatorEnforcement
-                                .errorResponse(deniedKeys, true)
+                                .errorResponse(deniedKeys, true, coordinatorType)
                                 .coordinators();
 
                         authorizationFilter.pushInflightState(header, (FindCoordinatorResponseData response) -> {
@@ -95,12 +108,17 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
                 });
     }
 
-    private static FindCoordinatorResponseData errorResponse(List<String> keys, boolean usesBatching) {
+    private static FindCoordinatorResponseData errorResponse(List<String> keys, boolean usesBatching, FindCoordinatorRequest.CoordinatorType coordinatorType) {
+        Errors errorType = switch (coordinatorType) {
+            case GROUP -> Errors.GROUP_AUTHORIZATION_FAILED;
+            case TRANSACTION -> Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED;
+            default -> throw new IllegalStateException("unexpected coordinatorType " + coordinatorType);
+        };
         if (usesBatching) {
             var list = keys.stream()
                     .map(key -> new FindCoordinatorResponseData.Coordinator()
                             .setKey(key)
-                            .setErrorCode(Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.code())
+                            .setErrorCode(errorType.code())
                             // Kafka does not use the default error message for batched requests (for some reason)
                             .setPort(-1)
                             .setHost("")
@@ -110,8 +128,8 @@ public class FindCoordinatorEnforcement extends ApiEnforcement<FindCoordinatorRe
         }
         else {
             return new FindCoordinatorResponseData()
-                    .setErrorCode(Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.code())
-                    .setErrorMessage(Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.message())
+                    .setErrorCode(errorType.code())
+                    .setErrorMessage(errorType.message())
                     .setPort(-1)
                     .setHost("")
                     .setNodeId(-1);
