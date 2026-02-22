@@ -17,16 +17,19 @@ BENCHMARK_RESULTS_DIR="/var/lib/omb/results"
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") <output-dir>
+Usage: $(basename "$0") [--results-from <path>] <output-dir>
 
 Collects OMB benchmark results from the benchmark pod and generates
 run metadata.
 
 Arguments:
-  output-dir    Directory to write results and metadata into
+  output-dir                Directory to write results and metadata into
+
+Options:
+  --results-from <path>      Directory on the pod to copy results from (default: /var/lib/omb/results)
 
 Environment:
-  NAMESPACE     Kubernetes namespace (default: kafka)
+  NAMESPACE                 Kubernetes namespace (default: kafka)
 
 Prerequisites:
   - kubectl configured with access to the cluster
@@ -35,6 +38,25 @@ Prerequisites:
 EOF
     exit 1
 }
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --results-from)
+            BENCHMARK_RESULTS_DIR="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        -*)
+            echo "Error: unknown option $1" >&2
+            usage
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
 
 if [[ $# -ne 1 ]]; then
     usage
