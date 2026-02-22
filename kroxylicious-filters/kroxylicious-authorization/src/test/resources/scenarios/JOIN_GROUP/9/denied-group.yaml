@@ -1,0 +1,39 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "JOIN_GROUP"
+  apiVersion: 9
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: []
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 11
+    requestApiVersion: 9
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "my-group"
+    sessionTimeoutMs: 948
+    rebalanceTimeoutMs: 16
+    memberId: "random-string-294"
+    groupInstanceId: "random-string-155"
+    protocolType: "random-string-573"
+    protocols:
+      - name: "random-string-66"
+        metadata: !!binary |-
+          FjPpKJY=
+    reason: "random-string-980"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedErrorResponse: "GROUP_AUTHORIZATION_FAILED"
