@@ -24,6 +24,7 @@ spec:
       - name: benchmark
         image: {{ .Values.omb.image }}
         imagePullPolicy: {{ .Values.omb.imagePullPolicy }}
+        workingDir: /var/lib/omb/results
         env:
         - name: WORKERS
           value: {{ include "kroxylicious-benchmark.workerList" . | quote }}
@@ -58,7 +59,7 @@ spec:
           # Keep pod running for manual benchmark execution
           echo "Ready to run benchmarks. Sleeping indefinitely..."
           echo "To run a benchmark, exec into this pod and run:"
-          echo '  cd /var/lib/omb/results && /benchmark/bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
+          echo '  /benchmark/bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
           sleep infinity
         volumeMounts:
         - name: driver-config
