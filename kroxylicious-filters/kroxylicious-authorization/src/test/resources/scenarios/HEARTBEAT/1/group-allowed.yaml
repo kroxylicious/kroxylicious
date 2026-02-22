@@ -1,0 +1,53 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "HEARTBEAT"
+  apiVersion: 1
+  scenario: "allowed group is forwarded"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "HEARTBEAT"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 12
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        groupId: "my-group"
+        generationId: 1
+        memberId: "abc"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 402
+        throttleTimeMs: 100
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
+  topicNames: { }
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 12
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    groupId: "my-group"
+    generationId: 1
+    memberId: "abc"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 100
+    errorCode: 402
