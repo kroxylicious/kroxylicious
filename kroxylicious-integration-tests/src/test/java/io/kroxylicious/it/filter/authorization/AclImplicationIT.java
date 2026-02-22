@@ -23,6 +23,7 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.ResourceType;
+import io.kroxylicious.filter.authorization.GroupResource;
 import io.kroxylicious.filter.authorization.TopicResource;
 import io.kroxylicious.filter.authorization.TransactionalIdResource;
 import io.kroxylicious.proxy.authentication.Subject;
@@ -45,6 +46,9 @@ public class AclImplicationIT {
 
     public static Stream<Arguments> implication() {
         return Stream.of(argumentSet("transactionalId write implies describe", "WRITE", TransactionalIdResource.DESCRIBE, RESOURCE_NAME),
+                argumentSet("group read implies describe", "READ", GroupResource.DESCRIBE, RESOURCE_NAME),
+                argumentSet("group delete implies describe", "DELETE", GroupResource.DESCRIBE, RESOURCE_NAME),
+                argumentSet("group alter configs implies describe configs", "ALTER_CONFIGS", GroupResource.DESCRIBE_CONFIGS, RESOURCE_NAME),
                 argumentSet("topic write implies describe", "WRITE", TopicResource.DESCRIBE, RESOURCE_NAME),
                 argumentSet("topic read implies describe", "READ", TopicResource.DESCRIBE, RESOURCE_NAME),
                 argumentSet("topic delete implies describe", "DELETE", TopicResource.DESCRIBE, RESOURCE_NAME),
