@@ -7,26 +7,32 @@
 ---
 metadata:
   apiKeys: "FIND_COORDINATOR"
-  apiVersion: 0
-  scenario: "baseline"
+  apiVersion: 6
+  scenario: "some groups denied for user"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "FIND_COORDINATOR"
-      expectedRequestVersion: 0
+      expectedRequestVersion: 6
       expectedRequestHeader:
         requestApiKey: 10
-        requestApiVersion: 0
+        requestApiVersion: 6
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        key: "my-group"
+        keyType: 0
+        coordinatorKeys:
+          - "my-group"
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
-        errorCode: 4
-        nodeId: 223
-        host: "random-string-822"
-        port: 919
+        throttleTimeMs: 804
+        coordinators:
+          - key: "my-group"
+            nodeId: 604
+            host: "random-string-206"
+            port: 927
+            errorCode: 368
+            errorMessage: "random-string-1003"
   authorizerRules:
     allowed:
       - subject: "alice"
@@ -38,16 +44,29 @@ when:
   subject: "alice"
   requestHeader:
     requestApiKey: 10
-    requestApiVersion: 0
+    requestApiVersion: 6
     correlationId: 1
     clientId: "clientId"
   request:
-    key: "my-group"
+    keyType: 0
+    coordinatorKeys:
+      - "my-group"
+      - "denied-group"
 then:
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
-    errorCode: 4
-    nodeId: 223
-    host: "random-string-822"
-    port: 919
+    throttleTimeMs: 804
+    coordinators:
+      - key: "my-group"
+        nodeId: 604
+        host: "random-string-206"
+        port: 927
+        errorCode: 368
+        errorMessage: "random-string-1003"
+      - key: "denied-group"
+        nodeId: -1
+        host: ""
+        port: -1
+        errorCode: 30
+        errorMessage: ""
