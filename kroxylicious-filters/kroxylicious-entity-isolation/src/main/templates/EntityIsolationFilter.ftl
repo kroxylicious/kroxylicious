@@ -66,34 +66,46 @@ indent             java identation
 -->
 <#macro mapAndFilterResponseFields messageSpec collectionIterator fieldVar children indent>
     <#local pad = ""?left_pad(4*indent)/>
-    <#list children?filter(field -> filteredEntityTypes?seq_contains(field.entityType))>
+    <#list children>
 ${pad}// process entity fields defined at this level
         <#items as field>
-            <#local getter="${field.name?uncap_first}"
-                    setter="set${field.name}" />
+            <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
+            <#if filteredEntityTypes?seq_contains(field.entityType)>
 ${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
-            <#if field.type == 'string'>
+                <#if field.type == 'string'>
 ${pad}    if (inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}())) {
 ${pad}        ${fieldVar}.${setter}(unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
 ${pad}    }
-                <#if collectionIterator?has_content>
+                    <#if collectionIterator?has_content>
 ${pad}    else {
 ${pad}        ${collectionIterator}.remove();
 ${pad}    }
-                </#if>
-            <#elseif field.type == '[]string'>
+                    </#if>
+                <#elseif field.type == '[]string'>
 ${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream()
 ${pad}                        .filter(orig -> inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig))
 ${pad}                        .map(orig -> unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
-                <#if collectionIterator?has_content>
+                    <#if collectionIterator?has_content>
 ${pad}    if (!${fieldVar}.${getter}().isEmpty()) {
 ${pad}        ${collectionIterator}.remove();
 ${pad}    }
+                    </#if>
+                <#else>
+                    <#stop "unexpected field type">
                 </#if>
-            <#else>
-                <#stop "unexpected field type">
-            </#if>
 ${pad}}
+            <#elseif field.isResourceList>
+${pad}// process the resource list
+${pad}${fieldVar}.${getter}().stream()
+${pad}            .collect(Collectors.toMap(Function.identity(),
+${pad}                  r -> EntityIsolation.fromConfigResourceTypeCode(r.resourceType())))
+${pad}            .entrySet()
+${pad}            .stream()
+${pad}            .filter(e -> e.getValue().isPresent())
+${pad}            .filter(e -> shouldMap(e.getValue().get())).forEach(e -> {
+${pad}                e.getKey().setResourceName(unmap(mapperContext, e.getValue().get(), e.getKey().resourceName()));
+${pad}    });
+            </#if>
         </#items>
     </#list>
     <#list children?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
@@ -307,7 +319,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         log(context, "response result", ApiKeys.FIND_COORDINATOR, response);
     }
 
-<#list messageSpecs?filter(ms -> ms.type == 'RESPONSE' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
+<#list messageSpecs?filter(ms -> ms.type == 'RESPONSE' && (ms.hasAtLeastOneEntityField(filteredEntityTypes) || ms.hasResourceList) && retrieveApiListener(ms)?seq_contains("BROKER"))>
     <#items as messageSpec>
         <#assign key=retrieveApiKey(messageSpec)
         dataClass="${messageSpec.dataClassName}"
@@ -342,7 +354,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                         (FindCoordinatorResponseData) response,
                         filterContext,
                         mapperContext);
-<#list messageSpecs?filter(ms -> ms.type == 'RESPONSE' && ms.hasAtLeastOneEntityField(filteredEntityTypes) && retrieveApiListener(ms)?seq_contains("BROKER"))>
+<#list messageSpecs?filter(ms -> ms.type == 'RESPONSE' && (ms.hasAtLeastOneEntityField(filteredEntityTypes) || ms.hasResourceList) && retrieveApiListener(ms)?seq_contains("BROKER"))>
     <#items as messageSpec>
         <#assign key=retrieveApiKey(messageSpec)
                  dataClass="${messageSpec.dataClassName}"
