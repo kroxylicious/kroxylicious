@@ -7,26 +7,29 @@
 ---
 metadata:
   apiKeys: "FIND_COORDINATOR"
-  apiVersion: 0
-  scenario: "baseline"
+  apiVersion: 1
+  scenario: "find coordinator for a group that is allowed"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "FIND_COORDINATOR"
-      expectedRequestVersion: 0
+      expectedRequestVersion: 1
       expectedRequestHeader:
         requestApiKey: 10
-        requestApiVersion: 0
+        requestApiVersion: 1
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
         key: "my-group"
+        keyType: 0
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
-        errorCode: 4
-        nodeId: 223
-        host: "random-string-822"
-        port: 919
+        throttleTimeMs: 49
+        errorCode: 49
+        errorMessage: "random-string-269"
+        nodeId: 511
+        host: "random-string-938"
+        port: 769
   authorizerRules:
     allowed:
       - subject: "alice"
@@ -38,16 +41,19 @@ when:
   subject: "alice"
   requestHeader:
     requestApiKey: 10
-    requestApiVersion: 0
+    requestApiVersion: 1
     correlationId: 1
     clientId: "clientId"
   request:
     key: "my-group"
+    keyType: 0
 then:
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
-    errorCode: 4
-    nodeId: 223
-    host: "random-string-822"
-    port: 919
+    throttleTimeMs: 49
+    errorCode: 49
+    errorMessage: "random-string-269"
+    nodeId: 511
+    host: "random-string-938"
+    port: 769

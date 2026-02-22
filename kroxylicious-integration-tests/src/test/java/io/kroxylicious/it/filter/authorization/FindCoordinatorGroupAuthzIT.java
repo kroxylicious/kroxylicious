@@ -47,20 +47,16 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 import static io.kroxylicious.it.filter.authorization.AbstractAuthzEquivalenceIT.prepCluster;
 import static io.kroxylicious.it.filter.authorization.ClusterPrepUtils.deleteTopicsAndAcls;
 
-class FindCoordinatorAuthzIT extends AuthzIT {
+class FindCoordinatorGroupAuthzIT extends AuthzIT {
 
-    private static final String FOO_TXN_ID = "foo";
-    private static final String BAR_TXN_ID = "bar";
-    private static final String BAZ_TXN_ID = "baz";
-    private static final String NON_EXISTING_TXN_ID = "non-existing-txn";
-    public static final List<String> ALL_TXN_IDS_IN_TEST = List.of(
-            FOO_TXN_ID,
-            BAR_TXN_ID,
-            BAZ_TXN_ID,
-            NON_EXISTING_TXN_ID);
-    public static final List<String> ALL_TOPICS_IN_TEST = List.<String> of();
-    public static final String TXN_COORDINATOR_OBSERVER = "x";
-
+    private static final String FOO_GROUP = "foo";
+    private static final String BAR_GROUP = "bar";
+    private static final String NON_EXISTENT_GROUP = "non-existent-group";
+    public static final List<String> ALL_GROUPS_IN_TEST = List.of(
+            FOO_GROUP,
+            BAR_GROUP,
+            NON_EXISTENT_GROUP);
+    public static final List<String> ALL_TOPICS_IN_TEST = List.of();
     private Path rulesFile;
 
     private List<AclBinding> aclBindings;
@@ -74,44 +70,36 @@ class FindCoordinatorAuthzIT extends AuthzIT {
     void beforeAll() throws IOException {
         rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
         Files.writeString(rulesFile, """
-                from io.kroxylicious.filter.authorization import TransactionalIdResource as TxnId;
-                allow User with name = "%s" to * TxnId with name = "%s";
-                allow User with name = "%s" to DESCRIBE TxnId with name = "%s";
-                allow User with name = "%s" to WRITE TxnId with name = "%s";
+                from io.kroxylicious.filter.authorization import GroupResource as Group;
+                allow User with name = "%s" to * Group with name = "%s";
+                allow User with name = "%s" to DESCRIBE Group with name = "%s";
                 otherwise deny;
                 """.formatted(
-                ALICE, FOO_TXN_ID,
-                BOB, BAR_TXN_ID,
-                EVE, BAZ_TXN_ID));
+                ALICE, FOO_GROUP,
+                BOB, BAR_GROUP));
         /*
          * The correctness of this test is predicated on the equivalence of the Proxy ACLs (above) and the Kafka ACLs (below)
          * If you add a rule to one you'll need to add an equivalent rule to the other
          */
         aclBindings = List.of(
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, FOO_TXN_ID, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.GROUP, FOO_GROUP, PatternType.LITERAL),
                         new AccessControlEntry("User:" + ALICE, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, BAR_TXN_ID, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.GROUP, BAR_GROUP, PatternType.LITERAL),
                         new AccessControlEntry("User:" + BOB, "*",
-                                AclOperation.DESCRIBE, AclPermissionType.ALLOW)),
-                new AclBinding(
-                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, BAZ_TXN_ID, PatternType.LITERAL),
-                        new AccessControlEntry("User:" + EVE, "*",
-                                AclOperation.WRITE, AclPermissionType.ALLOW)));
+                                AclOperation.DESCRIBE, AclPermissionType.ALLOW)));
     }
 
     @BeforeEach
     void prepClusters(
-                      @Name("kafkaClusterWithAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = TXN_COORDINATOR_OBSERVER) @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterWithAuthzProducer,
+                      @Name("kafkaClusterWithAuthz") @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterWithAuthzProducer,
 
-                      @Name("kafkaClusterNoAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = TXN_COORDINATOR_OBSERVER) @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterNoAuthzProducer)
+                      @Name("kafkaClusterNoAuthz") @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterNoAuthzProducer)
             throws InterruptedException, ExecutionException {
         prepCluster(kafkaClusterWithAuthz, ALL_TOPICS_IN_TEST, aclBindings);
         prepCluster(kafkaClusterNoAuthz, ALL_TOPICS_IN_TEST, List.of());
-        ensureCoordinators(kafkaClusterWithAuthzProducer, TXN_COORDINATOR_OBSERVER, kafkaClusterWithAuthzAdmin);
-        ensureCoordinators(kafkaClusterNoAuthzProducer, TXN_COORDINATOR_OBSERVER, kafkaClusterNoAuthzAdmin);
     }
 
     @AfterEach
@@ -179,7 +167,7 @@ class FindCoordinatorAuthzIT extends AuthzIT {
 
     }
 
-    List<Arguments> shouldEnforceAccessToTransactionalIds() {
+    List<Arguments> shouldEnforceAccessToGroups() {
         // The tuples
         List<Short> apiVersions = ApiKeys.FIND_COORDINATOR.allVersions();
 
@@ -187,39 +175,52 @@ class FindCoordinatorAuthzIT extends AuthzIT {
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : apiVersions) {
             if (apiVersion < FindCoordinatorEnforcement.MIN_API_VERSION_WITH_KEY) {
-                // The API originally only supported group ids
-                continue;
+                for (var group : ALL_GROUPS_IN_TEST) {
+                    result.add(
+                            Arguments.of(new FindCoordinatorEquivalence(apiVersion, new RequestTemplate<>() {
+                                @Override
+                                public FindCoordinatorRequestData request(String user, BaseClusterFixture topicNameToId) {
+                                    // key type is implicitly GROUP for v0
+                                    return new FindCoordinatorRequestData().setKey(group);
+                                }
+
+                                @Override
+                                public String toString() {
+                                    return group;
+                                }
+                            })));
+                }
             }
-            if (apiVersion >= FindCoordinatorEnforcement.MIN_API_VERSION_USING_BATCHING) {
+            else if (apiVersion >= FindCoordinatorEnforcement.MIN_API_VERSION_USING_BATCHING) {
                 result.add(
                         Arguments.of(new FindCoordinatorEquivalence(apiVersion, new RequestTemplate<>() {
                             @Override
                             public FindCoordinatorRequestData request(String user, BaseClusterFixture baseClusterFixture) {
                                 return new FindCoordinatorRequestData()
-                                        .setKeyType(FindCoordinatorRequest.CoordinatorType.TRANSACTION.id())
-                                        .setCoordinatorKeys(ALL_TXN_IDS_IN_TEST);
+                                        .setKeyType(FindCoordinatorRequest.CoordinatorType.GROUP.id())
+                                        .setCoordinatorKeys(ALL_GROUPS_IN_TEST);
                             }
 
                             @Override
                             public String toString() {
-                                return ALL_TXN_IDS_IN_TEST.toString();
+                                return ALL_GROUPS_IN_TEST.toString();
                             }
                         })));
             }
             else {
-                for (var txnId : ALL_TXN_IDS_IN_TEST) {
+                for (var group : ALL_GROUPS_IN_TEST) {
                     result.add(
-                            Arguments.of(new FindCoordinatorEquivalence(apiVersion, new RequestTemplate<FindCoordinatorRequestData>() {
+                            Arguments.of(new FindCoordinatorEquivalence(apiVersion, new RequestTemplate<>() {
                                 @Override
                                 public FindCoordinatorRequestData request(String user, BaseClusterFixture topicNameToId) {
                                     return new FindCoordinatorRequestData()
-                                            .setKeyType(FindCoordinatorRequest.CoordinatorType.TRANSACTION.id())
-                                            .setKey(txnId);
+                                            .setKeyType(FindCoordinatorRequest.CoordinatorType.GROUP.id())
+                                            .setKey(group);
                                 }
 
                                 @Override
                                 public String toString() {
-                                    return txnId;
+                                    return group;
                                 }
                             })));
                 }
@@ -230,7 +231,7 @@ class FindCoordinatorAuthzIT extends AuthzIT {
 
     @ParameterizedTest
     @MethodSource
-    void shouldEnforceAccessToTransactionalIds(VersionSpecificVerification<CreatePartitionsRequestData, CreatePartitionsResponseData> test) {
+    void shouldEnforceAccessToGroups(VersionSpecificVerification<CreatePartitionsRequestData, CreatePartitionsResponseData> test) {
         try (var referenceCluster = new ReferenceCluster(kafkaClusterWithAuthz, this.topicIdsInUnproxiedCluster);
                 var proxiedCluster = new ProxiedCluster(kafkaClusterNoAuthz, this.topicIdsInProxiedCluster, rulesFile)) {
             test.verifyBehaviour(referenceCluster, proxiedCluster);
