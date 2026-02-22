@@ -336,10 +336,10 @@ Outputs a table with Publish Latency, End-to-End Latency, and Throughput section
 ### Collect Results
 
 ```bash
-./kroxylicious-openmessaging-benchmarks/scripts/collect-results.sh --generate-run-metadata ./results/
+./kroxylicious-openmessaging-benchmarks/scripts/collect-results.sh ./results/
 ```
 
-Generates `run-metadata.json` with git commit, branch, and UTC timestamp.
+Finds the benchmark pod, copies result JSON files from `/var/lib/omb/results`, and generates `run-metadata.json` with git commit, branch, and UTC timestamp. Set `NAMESPACE` to override the default namespace (`kafka`).
 
 ## Next Phases (Planned)
 
