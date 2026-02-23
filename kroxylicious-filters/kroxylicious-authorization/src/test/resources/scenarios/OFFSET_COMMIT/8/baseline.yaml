@@ -19,7 +19,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        groupId: "random-string-414"
+        groupId: "my-group"
         generationIdOrMemberEpoch: 21
         memberId: "random-string-3"
         groupInstanceId: "random-string-122"
@@ -45,6 +45,10 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "READ"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
   topicNames: null
 when:
   subject: "alice"
@@ -54,7 +58,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    groupId: "random-string-414"
+    groupId: "my-group"
     generationIdOrMemberEpoch: 21
     memberId: "random-string-3"
     groupInstanceId: "random-string-122"

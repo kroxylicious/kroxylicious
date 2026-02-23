@@ -8,6 +8,7 @@ package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
@@ -38,11 +39,15 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
                                                    OffsetCommitRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        var actions = request.topics().stream()
-                .map(ocrd -> new Action(TopicResource.READ, ocrd.name()))
-                .toList();
+        Action readGroup = new Action(GroupResource.READ, request.groupId());
+        Stream<Action> topicActions = request.topics().stream()
+                .map(ocrd -> new Action(TopicResource.READ, ocrd.name()));
+        var actions = Stream.concat(Stream.of(readGroup), topicActions).toList();
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
+                    if (authorization.denied().contains(readGroup)) {
+                        return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                    }
                     var decisions = authorization.partition(request.topics(),
                             TopicResource.READ,
                             OffsetCommitRequestData.OffsetCommitRequestTopic::name);
