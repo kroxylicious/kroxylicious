@@ -8,36 +8,15 @@
 metadata:
   apiKeys: "ADD_OFFSETS_TO_TXN"
   apiVersion: 4
-  scenario: "baseline"
+  scenario: "user not allowed to read group, filter responds with group authorization failed error response"
 given:
-  mockedUpstreamResponses:
-    - expectedRequestKey: "ADD_OFFSETS_TO_TXN"
-      expectedRequestVersion: 4
-      expectedRequestHeader:
-        requestApiKey: 25
-        requestApiVersion: 4
-        correlationId: 1
-        clientId: "clientId"
-      expectedRequest:
-        transactionalId: "my-transactional-id"
-        producerId: 246
-        producerEpoch: 624
-        groupId: "my-group"
-      upstreamResponseHeader:
-        correlationId: 1
-      upstreamResponse:
-        throttleTimeMs: 877
-        errorCode: 574
+  mockedUpstreamResponses: []
   authorizerRules:
     allowed:
       - subject: "alice"
         resourceName: "my-transactional-id"
         resourceClass: "TRANSACTIONAL_ID"
         resourceType: "WRITE"
-      - subject: "alice"
-        resourceName: "my-group"
-        resourceClass: "GROUP"
-        resourceType: "READ"
   topicNames: null
 when:
   subject: "alice"
@@ -55,5 +34,5 @@ then:
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
-    throttleTimeMs: 877
-    errorCode: 574
+    throttleTimeMs: 0
+    errorCode: 30 # GROUP_AUTHORIZATION_FAILED

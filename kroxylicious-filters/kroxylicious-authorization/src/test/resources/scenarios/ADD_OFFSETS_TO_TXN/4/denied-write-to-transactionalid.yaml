@@ -8,7 +8,7 @@
 metadata:
   apiKeys: "ADD_OFFSETS_TO_TXN"
   apiVersion: 4
-  scenario: "baseline"
+  scenario: "user not allowed to write txn id, then filter responds with transactional id authorization failed error"
 given:
   mockedUpstreamResponses: []
   authorizerRules:
@@ -17,6 +17,10 @@ given:
         resourceName: "my-transactional-id"
         resourceClass: "TRANSACTIONAL_ID"
         resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
   topicNames: null
 when:
   subject: "alice"
@@ -29,7 +33,7 @@ when:
     transactionalId: "my-transactional-id"
     producerId: 246
     producerEpoch: 624
-    groupId: "random-string-527"
+    groupId: "my-group"
 then:
   expectedResponseHeader:
     correlationId: 1
