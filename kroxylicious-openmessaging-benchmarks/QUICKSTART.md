@@ -120,7 +120,7 @@ kubectl get configmap omb-driver-baseline -n kafka -o jsonpath='{.data.driver-ka
 ### Run Default Benchmark
 
 ```bash
-kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
+kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 ```
 
 **What you'll see:**
@@ -183,7 +183,7 @@ kubectl rollout restart deploy/omb-benchmark -n kafka
 kubectl wait --for=condition=ready pod -l app=omb-benchmark -n kafka --timeout=60s
 
 # Run benchmark
-kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
+kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 ```
 
 **Available workloads:**

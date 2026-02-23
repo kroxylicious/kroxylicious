@@ -55,7 +55,7 @@ spec:
           name: http
         volumeMounts:
         - name: driver-config
-          mountPath: /config
+          mountPath: /etc/omb/driver
         resources:
           {{- toYaml .Values.omb.resources | nindent 10 }}
         livenessProbe:

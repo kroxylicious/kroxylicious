@@ -185,12 +185,9 @@ The `omb-benchmark` deployment is ready for manual benchmark execution:
 # Get list of OMB workers
 WORKERS="omb-worker-0.omb-worker:8080,omb-worker-1.omb-worker:8080,omb-worker-2.omb-worker:8080"
 
-# Run benchmark (1 topic workload)
+# Run benchmark (1 topic workload) — cd ensures results land on the emptyDir volume
 kubectl exec -it deploy/omb-benchmark -n kafka -- \
-  bin/benchmark \
-  --drivers /config/driver-kafka.yaml \
-  --workers $WORKERS \
-  /workloads/workload.yaml
+  sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 
 # Results will be printed to console
 ```
