@@ -8,7 +8,7 @@
 metadata:
   apiKeys: "OFFSET_COMMIT"
   apiVersion: 9
-  scenario: "if all topics in request are denied, we shortcircuit respond"
+  scenario: "if all topics are allowed, forward to upstream"
 given:
   mockedUpstreamResponses: []
   authorizerRules:
@@ -16,10 +16,6 @@ given:
       - subject: "alice"
         resourceName: "my-topic"
         resourceClass: "TOPIC"
-        resourceType: "READ"
-      - subject: "alice"
-        resourceName: "my-group"
-        resourceClass: "GROUP"
         resourceType: "READ"
   topicNames: null
 when:
@@ -35,7 +31,7 @@ when:
     memberId: "random-string-816"
     groupInstanceId: "random-string-577"
     topics:
-      - name: "unauthorized"
+      - name: "my-topic"
         partitions:
           - partitionIndex: 61
             committedOffset: 825
@@ -44,10 +40,4 @@ when:
 then:
   expectedResponseHeader:
     correlationId: 1
-  expectedResponse:
-    throttleTimeMs: 0
-    topics:
-      - name: "unauthorized"
-        partitions:
-          - partitionIndex: 61
-            errorCode: 29
+  expectedErrorResponse: "GROUP_AUTHORIZATION_FAILED"
