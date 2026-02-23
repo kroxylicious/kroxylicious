@@ -30,7 +30,7 @@ ifdef::include-platform-kubernetes[]
 * In a Kubernetes deployment using a `KafkaProtocolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
 endif::[]
 
-Note: OauthBearer config follows https://kafka.apache.org/documentation/#security_ssl[kafka's properties]
+NOTE: OauthBearer configuration follows link:{ApacheKafkaDocsBase}security/encryption-and-authentication-using-ssl[kafka's SSL properties].
 
 ifdef::include-platform-bare-metal[]
 include::../_modules/oauth-bearer-validation/con-example-proxy-config.adoc[leveloffset=+1]
