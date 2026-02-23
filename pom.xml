@@ -49,7 +49,7 @@
         <freemarker.version>2.3.34</freemarker.version>
         <guava.version>33.5.0-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
-        <jackson.version>2.21.0</jackson.version>
+        <jackson.version>2.21.1</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.3</junit.version>
         <kafka.version>4.1.1</kafka.version>

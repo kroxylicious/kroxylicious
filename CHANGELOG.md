@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3334](https://github.com/kroxylicious/kroxylicious/pull/3334): build(deps): bump com.fasterxml.jackson:jackson-bom from 2.21.0 to 2.21.1
 * [#3325](https://github.com/kroxylicious/kroxylicious/pull/3325): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.2.2 to 5.2.3
 * [#3323](https://github.com/kroxylicious/kroxylicious/pull/3323): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.2 to 2.25.3
 * [#3277](https://github.com/kroxylicious/kroxylicious/pull/3277): Extend authorization filter to cover transactionalId authorization
