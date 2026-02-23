@@ -22,7 +22,7 @@ given:
         transactionalId: "my-transactional-id"
         producerId: 242
         producerEpoch: 776
-        groupId: "random-string-856"
+        groupId: "my-group"
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
@@ -34,6 +34,10 @@ given:
         resourceName: "my-transactional-id"
         resourceClass: "TRANSACTIONAL_ID"
         resourceType: "WRITE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
   topicNames: null
 when:
   subject: "alice"
@@ -46,7 +50,7 @@ when:
     transactionalId: "my-transactional-id"
     producerId: 242
     producerEpoch: 776
-    groupId: "random-string-856"
+    groupId: "my-group"
 then:
   expectedResponseHeader:
     correlationId: 1

@@ -8,36 +8,21 @@
 metadata:
   apiKeys: "ADD_OFFSETS_TO_TXN"
   apiVersion: 4
-  scenario: "baseline"
+  scenario: |
+    user not allowed to write txn id, then filter responds with transactional id authorization failed error
+    transactionalId authorization takes precedence over group authorization failure
 given:
-  mockedUpstreamResponses:
-    - expectedRequestKey: "ADD_OFFSETS_TO_TXN"
-      expectedRequestVersion: 4
-      expectedRequestHeader:
-        requestApiKey: 25
-        requestApiVersion: 4
-        correlationId: 1
-        clientId: "clientId"
-      expectedRequest:
-        transactionalId: "my-transactional-id"
-        producerId: 246
-        producerEpoch: 624
-        groupId: "my-group"
-      upstreamResponseHeader:
-        correlationId: 1
-      upstreamResponse:
-        throttleTimeMs: 877
-        errorCode: 574
+  mockedUpstreamResponses: []
   authorizerRules:
     allowed:
       - subject: "alice"
         resourceName: "my-transactional-id"
         resourceClass: "TRANSACTIONAL_ID"
-        resourceType: "WRITE"
+        resourceType: "DESCRIBE" # requires WRITE
       - subject: "alice"
         resourceName: "my-group"
         resourceClass: "GROUP"
-        resourceType: "READ"
+        resourceType: "DESCRIBE" # requires READ
   topicNames: null
 when:
   subject: "alice"
@@ -55,5 +40,5 @@ then:
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
-    throttleTimeMs: 877
-    errorCode: 574
+    throttleTimeMs: 0
+    errorCode: 53 # TRANSACTIONAL_ID_AUTHORIZATION_FAILED
