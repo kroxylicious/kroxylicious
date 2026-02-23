@@ -1209,9 +1209,19 @@ public class KafkaProxyReconcilerIT {
     }
 
     private static KafkaProtocolFilter filter(String name) {
-        return new KafkaProtocolFilterBuilder().withNewMetadata().withName(name).endMetadata()
-                .withNewSpec().withType("RecordValidation").withConfigTemplate(Map.of("rules", List.of(Map.of("allowNulls", false))))
+        // note that the filter we choose here is arbitrary as tests
+        // never causes kafka records to be sent. it is sufficient for
+        // the filter config to be valid.
+        // @formatter:off
+        return new KafkaProtocolFilterBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .withNewSpec()
+                    .withType("ProduceRequestTransformation")
+                    .withConfigTemplate(Map.of("transformation", "UpperCasing", "transformationConfig", Map.of("charset", "UTF-8")))
                 .endSpec().build();
+        // @formatter:on
     }
 
     KafkaProxy kafkaProxy(String name) {
