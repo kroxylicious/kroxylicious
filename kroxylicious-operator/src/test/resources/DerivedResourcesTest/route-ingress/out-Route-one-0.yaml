@@ -11,12 +11,13 @@ metadata:
   annotations:
     kroxylicious.io/bootstrap-servers: "{\"version\":\"0.13.0\",\"bootstrapServers\"\
       :[{\"clusterName\":\"one\",\"ingressName\":\"myopenshiftroute\",\"bootstrapServers\"\
-      :\"one-bootstrap.$(host):443\"}]}"
+      :\"one-bootstrap.$(host):9291\"}]}"
   labels:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/component: "proxy"
     app.kubernetes.io/instance: "minimal"
+    route-for: "node"
   name: "one-0"
   namespace: "proxy-ns"
   ownerReferences:
