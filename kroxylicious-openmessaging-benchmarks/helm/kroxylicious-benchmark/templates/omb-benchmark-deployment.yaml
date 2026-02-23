@@ -58,7 +58,7 @@ spec:
           # Keep pod running for manual benchmark execution
           echo "Ready to run benchmarks. Sleeping indefinitely..."
           echo "To run a benchmark, exec into this pod and run:"
-          echo '  cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
+          echo '  /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" -o /var/lib/omb/results/result.json /etc/omb/workloads/workload.yaml'
           sleep infinity
         volumeMounts:
         - name: driver-config
