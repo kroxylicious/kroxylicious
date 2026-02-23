@@ -10,7 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
@@ -20,18 +20,18 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
-class ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper implements SecondaryToPrimaryMapper<ConfigMap> {
+class ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<T extends HasMetadata> implements SecondaryToPrimaryMapper<T> {
 
     private final EventSourceContext<VirtualKafkaCluster> context;
 
-    ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
+    ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
         this.context = context;
     }
 
     @Override
-    public Set<ResourceID> toPrimaryResourceIDs(ConfigMap configMap) {
+    public Set<ResourceID> toPrimaryResourceIDs(T resource) {
         return ResourcesUtil.findReferrersMulti(context,
-                configMap,
+                resource,
                 VirtualKafkaCluster.class,
                 cluster -> cluster.getSpec().getIngresses().stream()
                         .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
