@@ -28,6 +28,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
@@ -44,7 +45,8 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
                                                  OpenShiftRoute openShiftRoute,
                                                  List<NodeIdRanges> nodeIdRanges,
                                                  Tls tls,
-                                                 int sharedSniPort)
+                                                 int sharedSniPort,
+                                                 List<ProxyModelBuilder.RouteHostDetails> routeHostDetails)
         implements ClusterIngressNetworkingModel {
 
     public RouteClusterIngressNetworkingModel {
@@ -56,9 +58,12 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
             throw new IllegalArgumentException("nodeIdRanges cannot be empty");
         }
         Objects.requireNonNull(tls);
+        Objects.requireNonNull(routeHostDetails);
     }
 
-    public static final int CLUSTER_IP_PORT = 9291;
+    public static final String ROUTE_FOR_BOOTSTRAP_VALUE = "bootstrap";
+    public static final String ROUTE_FOR_NODE_VALUE = "node";
+
     public static final int CLIENT_FACING_ROUTE_PORT = 443;
 
     @Override
@@ -76,11 +81,12 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
         ObjectMetaBuilder metadataBuilder = baseMetadataBuilder();
         Annotations.annotateWithBootstrapServers(metadataBuilder,
                 Set.of(new Annotations.ClusterIngressBootstrapServers(ResourcesUtil.name(cluster), ResourcesUtil.name(ingress), bootstrapServers())));
-        var bootstrapRoute = createRoute(metadataBuilder, suffixedRouteName("bootstrap"));
+        @SuppressWarnings("java:S1192") // We don't want to accidentally change this "bootstrap" when changing the "routeFor" value
+        var bootstrapRoute = createRoute(metadataBuilder, suffixedRouteName("bootstrap"), ROUTE_FOR_BOOTSTRAP_VALUE);
 
         var nodeRoutes = nodeIdRanges.stream()
                 .flatMapToInt(nodeIdRange -> IntStream.rangeClosed(toIntExact(nodeIdRange.getStart()), toIntExact(nodeIdRange.getEnd())))
-                .mapToObj(upstreamNodeId -> createRoute(metadataBuilder, suffixedRouteName(String.valueOf(upstreamNodeId))));
+                .mapToObj(upstreamNodeId -> createRoute(metadataBuilder, suffixedRouteName(String.valueOf(upstreamNodeId)), ROUTE_FOR_NODE_VALUE));
 
         return Stream.concat(Stream.of(bootstrapRoute), nodeRoutes);
     }
@@ -90,22 +96,23 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
                 .withMetadata(metadataBuilder.build())
                 .withNewSpec()
                 .withSelector(ProxyDeploymentDependentResource.podLabels(proxy))
-                .withPorts(new ServicePortBuilder().withName(ResourcesUtil.name(cluster) + "-" + CLUSTER_IP_PORT).withProtocol("TCP").withPort(CLUSTER_IP_PORT)
+                .withPorts(new ServicePortBuilder().withName(ResourcesUtil.name(cluster) + "-" + sharedSniPort).withProtocol("TCP").withPort(sharedSniPort)
                         .withTargetPort(new IntOrString(sharedSniPort)).build())
                 .endSpec();
     }
 
-    private RouteBuilder createRoute(ObjectMetaBuilder metadataBuilder, String subdomain) {
+    private RouteBuilder createRoute(ObjectMetaBuilder metadataBuilder, String subdomain, String routeFor) {
         // @formatter:off
         return new RouteBuilder()
                 .withMetadata(metadataBuilder.build())
                 .editMetadata()
                     .withName(subdomain)
+                    .addToLabels("route-for", routeFor)
                 .endMetadata()
                 .withNewSpec()
                     .withSubdomain(subdomain)
                     .withNewPort()
-                    .withNewTargetPort(CLUSTER_IP_PORT)
+                    .withNewTargetPort(sharedSniPort)
                 .endPort()
                 .withNewTls()
                     .withTermination("passthrough")
@@ -132,12 +139,28 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
         return Stream.empty();
     }
 
+    public Optional<String> getHost(String routeFor) {
+        List<ProxyModelBuilder.RouteHostDetails> details = routeHostDetails.stream()
+                .filter(r -> r.namespace().equals(namespace(cluster))
+                        && r.clusterName().equals(name(cluster))
+                        && r.ingressName().equals(name(ingress))
+                        && r.routeFor().equals(routeFor))
+                .toList();
+
+        if (details.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(details.get(0).host());
+    }
+
     @Override
     public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
-        String host = "$(host)";
+        String hostToken = "$(host)";
 
-        HostPort bootstrapAddress = new HostPort("$(virtualClusterName)-bootstrap." + host, CLIENT_FACING_ROUTE_PORT);
-        HostPort advertisedBrokerAddressPattern = new HostPort("$(virtualClusterName)-$(nodeId)." + host, CLIENT_FACING_ROUTE_PORT);
+        HostPort bootstrapAddress = new HostPort("$(virtualClusterName)-bootstrap." + getHost(ROUTE_FOR_BOOTSTRAP_VALUE).orElse(hostToken), sharedSniPort);
+        HostPort advertisedBrokerAddressPattern = new HostPort("$(virtualClusterName)-$(nodeId)." + getHost(ROUTE_FOR_NODE_VALUE).orElse(hostToken),
+                CLIENT_FACING_ROUTE_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress.toString(),
                 advertisedBrokerAddressPattern.toString());
     }
@@ -153,7 +176,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     private String bootstrapServers() {
-        return ResourcesUtil.name(cluster) + "-bootstrap.$(host):" + CLIENT_FACING_ROUTE_PORT;
+        return ResourcesUtil.name(cluster) + "-bootstrap." + getHost(ROUTE_FOR_BOOTSTRAP_VALUE).orElse("$(host)") + ":" + sharedSniPort;
     }
 
     private String suffixedRouteName(String suffix) {
