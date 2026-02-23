@@ -13,13 +13,18 @@ import java.time.ZoneId;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.slf4j.Logger;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -44,7 +49,12 @@ import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class KafkaProxyReconcilerTest {
@@ -530,7 +540,37 @@ class KafkaProxyReconcilerTest {
                 });
     }
 
-    private KafkaProxyBuilder proxyBuilder(String name) {
+    static Stream<Arguments> absentSourceScenarios() {
+        return Stream.of(
+                Arguments.argumentSet("absent spec",
+                        proxyBuilder("proxy").editMetadata().withNamespace("ns").withUid(UUID.randomUUID().toString()).endMetadata().withSpec(null).build(),
+                        true),
+                Arguments.argumentSet("spec present",
+                        proxyBuilder("proxy").editMetadata().withNamespace("ns").withUid(UUID.randomUUID().toString()).endMetadata().withNewSpec().endSpec().build(),
+                        false));
+    }
+
+    @ParameterizedTest
+    @MethodSource("absentSourceScenarios")
+    void shouldWarnAboutAbsentSpec(KafkaProxy proxy, boolean warnExpected) {
+        // Given
+        KafkaProxyReconciler kafkaProxyReconciler = newKafkaProxyReconciler(TEST_CLOCK);
+        var logger = mock(Logger.class);
+
+        // When
+        kafkaProxyReconciler.reportAbsentSpecIfNecessary(proxy, logger);
+        // Then
+
+        if (warnExpected) {
+            verify(logger).warn(contains("has no spec, please add an empty one"),
+                    eq("kafkaproxy.kroxylicious.io/proxy in namespace 'ns'"));
+        }
+        else {
+            verifyNoInteractions(logger);
+        }
+    }
+
+    private static KafkaProxyBuilder proxyBuilder(String name) {
         return new KafkaProxyBuilder().withNewMetadata().withName(name).endMetadata();
     }
 

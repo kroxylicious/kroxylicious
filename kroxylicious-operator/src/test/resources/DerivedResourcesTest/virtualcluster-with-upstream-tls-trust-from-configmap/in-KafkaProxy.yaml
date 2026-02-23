@@ -11,3 +11,4 @@ metadata:
   name: minimal
   namespace: proxy-ns
   generation: 1
+spec: {}

@@ -11,5 +11,6 @@ resource:
   metadata:
     name: 123456789012345678901234567890123456789012345678901
     namespace: proxy-ns
+  spec: {}
 expectFailureMessageToContain: |
   metadata.name: Too long
