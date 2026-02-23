@@ -1,0 +1,35 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "SYNC_GROUP"
+  apiVersion: 0
+  scenario: "user is not allowed to read group, filter responds with group authorization error"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: []
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 14
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "my-group"
+    generationId: 696
+    memberId: "random-string-724"
+    assignments:
+      - memberId: "random-string-195"
+        assignment: !!binary |-
+          0SLf10U=
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedErrorResponse: "GROUP_AUTHORIZATION_FAILED"

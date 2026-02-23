@@ -19,7 +19,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        groupId: "random-string-50"
+        groupId: "my-group"
         generationId: 280
         memberId: "random-string-408"
         assignments:
@@ -36,9 +36,9 @@ given:
   authorizerRules:
     allowed:
       - subject: "alice"
-        resourceName: "my-topic"
-        resourceClass: "TOPIC"
-        resourceType: "DESCRIBE"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
   topicNames: null
 when:
   subject: "alice"
@@ -48,7 +48,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    groupId: "random-string-50"
+    groupId: "my-group"
     generationId: 280
     memberId: "random-string-408"
     assignments:

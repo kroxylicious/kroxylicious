@@ -47,6 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * until a coordinator is available.
  */
 class KafkaDriver {
+    public static final String JOIN_GROUP_PROTOCOL_NAME = "proto";
     private final BaseClusterFixture cluster;
     private final KafkaClient kafkaClient;
     private final String username;
@@ -93,7 +94,7 @@ class KafkaDriver {
             result.setReason("Hello, world");
         }
         result.setProtocolType(protocolType);
-        result.protocols().add(new JoinGroupRequestData.JoinGroupRequestProtocol().setName("proto").setMetadata(new byte[]{ 1 }));
+        result.protocols().add(new JoinGroupRequestData.JoinGroupRequestProtocol().setName(JOIN_GROUP_PROTOCOL_NAME).setMetadata(new byte[]{ 1 }));
         return result;
     }
 
