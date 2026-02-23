@@ -8,7 +8,7 @@
 metadata:
   apiKeys: "ALTER_CONFIGS"
   apiVersion: 2
-  scenario: "other resources are forwarded"
+  scenario: "allowed topic is forwarded"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "ALTER_CONFIGS"
@@ -20,7 +20,7 @@ given:
         clientId: "client-id"
       expectedRequest:
         resources:
-          - resourceType: 0
+          - resourceType: 32
             resourceName: "my-group"
             configs:
               - name: "random-string-433"
@@ -33,13 +33,13 @@ given:
         responses:
           - errorCode: 887
             errorMessage: "random-string-684"
-            resourceType: 0
+            resourceType: 32
             resourceName: "my-group"
   authorizerRules:
     allowed:
       - subject: "alice"
-        resourceName: "my-topic"
-        resourceClass: "TOPIC"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
         resourceType: "ALTER_CONFIGS"
   topicNames: {}
 when:
@@ -51,14 +51,13 @@ when:
     clientId: "client-id"
   request:
     resources:
-      - resourceType: 0
+      - resourceType: 32
         resourceName: "my-group"
         configs:
           - name: "random-string-433"
             value: "random-string-250"
     validateOnly: true
 then:
-  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
@@ -66,5 +65,5 @@ then:
     responses:
       - errorCode: 887
         errorMessage: "random-string-684"
-        resourceType: 0
+        resourceType: 32
         resourceName: "my-group"

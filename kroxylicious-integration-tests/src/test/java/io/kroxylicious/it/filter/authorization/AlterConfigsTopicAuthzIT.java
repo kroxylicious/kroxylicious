@@ -19,6 +19,7 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.message.AlterConfigsRequestData;
 import org.apache.kafka.common.message.AlterConfigsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -39,7 +40,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static java.util.stream.Stream.concat;
 
-class AlterConfigsAuthzIT extends AuthzIT {
+class AlterConfigsTopicAuthzIT extends AuthzIT {
 
     private static final String ALICE_TOPIC_NAME = "alice-topic";
     private static final String BOB_TOPIC_NAME = "bob-topic";
@@ -151,7 +152,7 @@ class AlterConfigsAuthzIT extends AuthzIT {
     private static AlterConfigsRequestData.AlterConfigsResource topicResource(String topicName) {
         var resource = new AlterConfigsRequestData.AlterConfigsResource();
         resource.setResourceName(topicName);
-        resource.setResourceType(ResourceType.TOPIC.code());
+        resource.setResourceType(ConfigResource.Type.GROUP.id());
         AlterConfigsRequestData.AlterableConfig alterable = new AlterConfigsRequestData.AlterableConfig();
         alterable.setName("retention.bytes");
         alterable.setValue("20000");
