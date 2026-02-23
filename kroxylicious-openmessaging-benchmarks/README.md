@@ -187,7 +187,7 @@ WORKERS="omb-worker-0.omb-worker:8080,omb-worker-1.omb-worker:8080,omb-worker-2.
 
 # Run benchmark (1 topic workload)
 kubectl exec -it deploy/omb-benchmark -n kafka -- \
-  sh -c '/opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" -o /var/lib/omb/results/result.json /etc/omb/workloads/workload.yaml'
+  sh -c '/opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 
 # Results will be printed to console
 ```
