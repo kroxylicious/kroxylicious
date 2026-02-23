@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -313,7 +312,7 @@ class AllReconcilersIT {
                             .withNewMetadata()
                                 .withName("downstream-trust-secret")
                             .endMetadata()
-                            .addToData("trust.pem", Base64.getEncoder().encodeToString(TestKeyMaterial.TEST_CERT_PEM.getBytes()))
+                            .addToStringData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
                             .build();
                     var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder(downstreamTls)
                             .editOrNewTrustAnchorRef()
