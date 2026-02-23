@@ -12,18 +12,18 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.DescribeConfigsRequestData;
+import org.apache.kafka.common.message.DescribeConfigsRequestData.DescribeConfigsResource;
 import org.apache.kafka.common.message.DescribeConfigsResponseData;
 import org.apache.kafka.common.message.DescribeConfigsResponseData.DescribeConfigsResult;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.resource.ResourceType;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-import static org.apache.kafka.common.resource.ResourceType.TOPIC;
+import static org.apache.kafka.common.config.ConfigResource.Type.TOPIC;
 
 class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestData, DescribeClusterResponseData> {
     @Override
@@ -39,8 +39,7 @@ class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestDa
     @Override
     CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, DescribeConfigsRequestData request, FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        List<DescribeConfigsRequestData.DescribeConfigsResource> topicRequests = request.resources().stream()
-                .filter(resource -> ResourceType.fromCode(resource.resourceType()) == TOPIC).toList();
+        List<DescribeConfigsResource> topicRequests = ConfigResources.filter(request.resources().stream(), DescribeConfigsResource::resourceType, TOPIC).toList();
         if (topicRequests.isEmpty()) {
             return context.forwardRequest(header, request);
         }
@@ -48,9 +47,9 @@ class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestDa
             List<Action> actions = topicRequests.stream()
                     .map(resource -> new Action(TopicResource.DESCRIBE_CONFIGS, resource.resourceName())).toList();
             return authorizationFilter.authorization(context, actions).thenCompose(result -> {
-                Map<Decision, List<DescribeConfigsRequestData.DescribeConfigsResource>> partitioned = result.partition(topicRequests, TopicResource.DESCRIBE_CONFIGS,
-                        DescribeConfigsRequestData.DescribeConfigsResource::resourceName);
-                List<DescribeConfigsRequestData.DescribeConfigsResource> denied = partitioned.get(Decision.DENY);
+                Map<Decision, List<DescribeConfigsResource>> partitioned = result.partition(topicRequests, TopicResource.DESCRIBE_CONFIGS,
+                        DescribeConfigsResource::resourceName);
+                List<DescribeConfigsResource> denied = partitioned.get(Decision.DENY);
                 if (denied.isEmpty()) {
                     return context.forwardRequest(header, request);
                 }
