@@ -24,7 +24,7 @@ class SecretSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMa
                 .mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR);
 
         // When
-        var mapper = new SecretSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.TRUST_ANCHOR_PEM_SECRET);
@@ -37,7 +37,7 @@ class SecretSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMa
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_NO_FILTERS);
 
         // When
-        var mapper = new SecretSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.TRUST_ANCHOR_PEM_SECRET);
@@ -50,7 +50,7 @@ class SecretSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMa
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS);
 
         // When
-        var mapper = new SecretSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.TRUST_ANCHOR_PEM_SECRET);
