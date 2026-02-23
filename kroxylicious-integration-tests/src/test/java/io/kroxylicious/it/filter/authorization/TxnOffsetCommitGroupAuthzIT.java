@@ -10,16 +10,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
@@ -45,8 +44,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
-import io.kroxylicious.test.client.KafkaClient;
-import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static io.kroxylicious.it.filter.authorization.AbstractAuthzEquivalenceIT.deleteTopicsAndAcls;
 import static io.kroxylicious.it.filter.authorization.AbstractAuthzEquivalenceIT.prepCluster;
@@ -55,39 +52,30 @@ import static java.util.stream.Stream.concat;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Checks that actors must have write permissions for the tranactionalId that they reference
- * in TxnOffsetCommit RPCs. Note that the actor also needs permissions to write
- *  * to the transaction id, and read the group, which are covered separate tests.
- * <p>
- * Note that to init the transactional producer id the user needs WRITE permissions for the TransactionalId.
- * So to test that TxnOffsetCommit fails if the user 'eve' is not permitted, we use a permitted user
- * 'alice' to drive the system into the expected state before the TxnOffsetCommit, then have 'eve'
- * attempt to commit the offsets.
+ * Checks that actors must have read permissions for the group that they reference
+ * in TxnOffsetCommit RPCs. Note that the actor also needs permissions to read each
+ * topic in the request, and write the transactionalId, which is covered in a separate test.
  */
-class TxnOffsetCommitTxnIdAuthzIT extends AuthzIT {
+class TxnOffsetCommitGroupAuthzIT extends AuthzIT {
 
+    public static final String TRANSACTIONAL_ID_PREFIX = "trans-";
     private Path rulesFile;
     private static final String TOPIC_NAME = "shared-topic";
     public static final List<String> ALL_TOPIC_NAMES_IN_TEST = List.of(TOPIC_NAME);
     private static List<AclBinding> aclBindings;
-    private final Map<String, TestState> testStatesPerClusterUser = new HashMap<>();
-
-    @Name("kafkaClusterWithAuthz")
-    static Admin kafkaClusterWithAuthzAdmin;
-    @Name("kafkaClusterNoAuthz")
-    static Admin kafkaClusterNoAuthzAdmin;
+    private static final String ALICE_GROUP_PREFIX = "alice-group";
+    private static final String BOB_GROUP_PREFIX = "bob-group";
 
     @BeforeAll
     void beforeAll() throws IOException {
         rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
         Files.writeString(rulesFile, """
-                from io.kroxylicious.filter.authorization import TopicResource as Topic;
-                from io.kroxylicious.filter.authorization import TransactionalIdResource as TxnId;
-                allow User with name = "alice" to * TxnId with name like "trans-*";
-                allow User with name = "bob" to {WRITE,DESCRIBE} TxnId with name like "trans-*";
-                allow User with name like "*" to * Topic with name like "*";
+                from io.kroxylicious.filter.authorization import GroupResource as Group;
+                allow User with name = "alice" to * Group with name like "%s-*";
+                allow User with name = "bob" to READ Group with name like "%s-*";
+                allow User with name = "super" to * Group with name like "*";
                 otherwise deny;
-                """);
+                """.formatted(ALICE_GROUP_PREFIX, BOB_GROUP_PREFIX));
 
         aclBindings = List.of(
                 new AclBinding(
@@ -104,38 +92,33 @@ class TxnOffsetCommitTxnIdAuthzIT extends AuthzIT {
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
 
                 new AclBinding(
-                        new ResourcePattern(ResourceType.GROUP, "group-", PatternType.PREFIXED),
+                        new ResourcePattern(ResourceType.GROUP, ALICE_GROUP_PREFIX, PatternType.PREFIXED),
                         new AccessControlEntry("User:" + ALICE, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
                 new AclBinding(
-                        new ResourcePattern(ResourceType.GROUP, "group-", PatternType.PREFIXED),
-                        new AccessControlEntry("User:" + EVE, "*",
-                                AclOperation.ALL, AclPermissionType.ALLOW)),
-                new AclBinding(
-                        new ResourcePattern(ResourceType.GROUP, "group-", PatternType.PREFIXED),
+                        new ResourcePattern(ResourceType.GROUP, BOB_GROUP_PREFIX, PatternType.PREFIXED),
                         new AccessControlEntry("User:" + BOB, "*",
-                                AclOperation.ALL, AclPermissionType.ALLOW)),
+                                AclOperation.READ, AclPermissionType.ALLOW)),
 
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "trans-", PatternType.PREFIXED),
+                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, TRANSACTIONAL_ID_PREFIX, PatternType.PREFIXED),
                         new AccessControlEntry("User:" + ALICE, "*",
-                                AclOperation.WRITE, AclPermissionType.ALLOW)),
+                                AclOperation.ALL, AclPermissionType.ALLOW)),
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "trans-", PatternType.PREFIXED),
+                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, TRANSACTIONAL_ID_PREFIX, PatternType.PREFIXED),
                         new AccessControlEntry("User:" + BOB, "*",
+                                AclOperation.ALL, AclPermissionType.ALLOW)),
+                new AclBinding(
+                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, TRANSACTIONAL_ID_PREFIX, PatternType.PREFIXED),
+                        new AccessControlEntry("User:" + EVE, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)));
 
     }
 
     @BeforeEach
     void prepClusters() {
-        try {
-            this.topicIdsInUnproxiedCluster = prepCluster(kafkaClusterWithAuthz, ALL_TOPIC_NAMES_IN_TEST, aclBindings);
-            this.topicIdsInProxiedCluster = prepCluster(kafkaClusterNoAuthz, ALL_TOPIC_NAMES_IN_TEST, List.of());
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        this.topicIdsInUnproxiedCluster = prepCluster(kafkaClusterWithAuthz, ALL_TOPIC_NAMES_IN_TEST, aclBindings);
+        this.topicIdsInProxiedCluster = prepCluster(kafkaClusterNoAuthz, ALL_TOPIC_NAMES_IN_TEST, List.of());
     }
 
     @AfterEach
@@ -144,12 +127,17 @@ class TxnOffsetCommitTxnIdAuthzIT extends AuthzIT {
         deleteTopicsAndAcls(kafkaClusterNoAuthz, ALL_TOPIC_NAMES_IN_TEST, List.of());
     }
 
-    record TestState(KafkaClient superClient, String transactionalId, String groupId, ProducerIdAndEpoch producerIdAndEpoch, int generationId, String memberId) {}
-
     List<Arguments> shouldEnforceAccessToTopics() {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.TXN_OFFSET_COMMIT),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.TXN_OFFSET_COMMIT))
-                .mapToObj(apiVersion -> Arguments.argumentSet("api version " + apiVersion, new TxnOffsetCommitEquivalence((short) apiVersion)));
+                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.TXN_OFFSET_COMMIT)).boxed()
+                .flatMap(apiVersion -> {
+                    Arguments.ArgumentSet aliceGroup = Arguments.argumentSet("api version " + apiVersion + " groupPrefix " + ALICE_GROUP_PREFIX,
+                            new TxnOffsetCommitEquivalence((short) (int) apiVersion, ALICE_GROUP_PREFIX));
+                    Arguments.ArgumentSet bobGroup = Arguments.argumentSet("api version " + apiVersion + " groupPrefix " + BOB_GROUP_PREFIX,
+                            new TxnOffsetCommitEquivalence((short) (int) apiVersion,
+                                    BOB_GROUP_PREFIX));
+                    return Stream.of(aliceGroup, bobGroup);
+                });
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.OFFSET_FOR_LEADER_EPOCH.oldestVersion(), ApiKeys.OFFSET_FOR_LEADER_EPOCH.latestVersion(true))
                 .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.OFFSET_FOR_LEADER_EPOCH, (short) version))
@@ -170,8 +158,16 @@ class TxnOffsetCommitTxnIdAuthzIT extends AuthzIT {
 
     class TxnOffsetCommitEquivalence extends Equivalence<TxnOffsetCommitRequestData, TxnOffsetCommitResponseData> {
 
-        TxnOffsetCommitEquivalence(short apiVersion) {
+        private final String group;
+        private final String groupPrefix;
+        private ProducerIdAndEpoch producerIdAndEpoch;
+        private JoinGroupResponseData memberIdAndGeneration;
+        private String transactionalId;
+
+        TxnOffsetCommitEquivalence(short apiVersion, String groupPrefix) {
             super(apiVersion);
+            this.groupPrefix = groupPrefix;
+            this.group = this.groupPrefix + "-" + UUID.randomUUID();
         }
 
         @Override
@@ -183,9 +179,15 @@ class TxnOffsetCommitTxnIdAuthzIT extends AuthzIT {
 
         @Override
         public void assertUnproxiedResponses(Map<String, TxnOffsetCommitResponseData> unproxiedResponsesByUser) {
-            assertThatUserHasTopicPartitions(unproxiedResponsesByUser, BOB, new TopicPartitionError(TOPIC_NAME, 0, Errors.NONE));
-            assertThatUserHasTopicPartitions(unproxiedResponsesByUser, ALICE, new TopicPartitionError(TOPIC_NAME, 0, Errors.NONE));
-            assertThatUserHasTopicPartitions(unproxiedResponsesByUser, EVE, new TopicPartitionError(TOPIC_NAME, 0, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED));
+            assertThatUserHasTopicPartitions(unproxiedResponsesByUser, EVE, new TopicPartitionError(TOPIC_NAME, 0, Errors.GROUP_AUTHORIZATION_FAILED));
+            if (groupPrefix.equals(ALICE_GROUP_PREFIX)) {
+                assertThatUserHasTopicPartitions(unproxiedResponsesByUser, ALICE, new TopicPartitionError(TOPIC_NAME, 0, Errors.NONE));
+                assertThatUserHasTopicPartitions(unproxiedResponsesByUser, BOB, new TopicPartitionError(TOPIC_NAME, 0, Errors.GROUP_AUTHORIZATION_FAILED));
+            }
+            else if (groupPrefix.equals(BOB_GROUP_PREFIX)) {
+                assertThatUserHasTopicPartitions(unproxiedResponsesByUser, ALICE, new TopicPartitionError(TOPIC_NAME, 0, Errors.GROUP_AUTHORIZATION_FAILED));
+                assertThatUserHasTopicPartitions(unproxiedResponsesByUser, BOB, new TopicPartitionError(TOPIC_NAME, 0, Errors.NONE));
+            }
         }
 
         private void assertThatUserHasTopicPartitions(Map<String, TxnOffsetCommitResponseData> unproxiedResponsesByUser, String user,
@@ -215,15 +217,14 @@ class TxnOffsetCommitTxnIdAuthzIT extends AuthzIT {
 
         @Override
         public TxnOffsetCommitRequestData requestData(String user, BaseClusterFixture clusterFixture) {
-            TestState state = Objects.requireNonNull(testStatesPerClusterUser.get(clusterFixture.name() + ":" + user));
-            TxnOffsetCommitRequestData txnOffsetCommitRequestData = new TxnOffsetCommitRequestData();
-            txnOffsetCommitRequestData.setTransactionalId(state.transactionalId);
-            txnOffsetCommitRequestData.setProducerId(state.producerIdAndEpoch.producerId);
-            txnOffsetCommitRequestData.setProducerEpoch(state.producerIdAndEpoch.epoch);
-            txnOffsetCommitRequestData.setGroupId(state.groupId);
+            TxnOffsetCommitRequestData request = new TxnOffsetCommitRequestData();
+            request.setTransactionalId(Objects.requireNonNull(transactionalId));
+            request.setProducerId(Objects.requireNonNull(producerIdAndEpoch).producerId);
+            request.setProducerEpoch(producerIdAndEpoch.epoch);
+            request.setGroupId(group);
             if (apiVersion() >= 3) {
-                txnOffsetCommitRequestData.setGenerationId(state.generationId);
-                txnOffsetCommitRequestData.setMemberId(state.memberId);
+                request.setGenerationId(Objects.requireNonNull(memberIdAndGeneration).generationId());
+                request.setMemberId(memberIdAndGeneration.memberId());
             }
             ALL_TOPIC_NAMES_IN_TEST.forEach(topicName -> {
                 TxnOffsetCommitRequestData.TxnOffsetCommitRequestTopic commitTopic = new TxnOffsetCommitRequestData.TxnOffsetCommitRequestTopic();
@@ -232,36 +233,23 @@ class TxnOffsetCommitTxnIdAuthzIT extends AuthzIT {
                 part.setPartitionIndex(0);
                 part.setCommittedOffset(1);
                 commitTopic.partitions().add(part);
-                txnOffsetCommitRequestData.topics().add(commitTopic);
+                request.topics().add(commitTopic);
             });
-            return txnOffsetCommitRequestData;
+            return request;
         }
 
         @Override
         public void prepareCluster(BaseClusterFixture cluster) {
-            Map<String, KafkaClient> userToClient = cluster.authenticatedClients(PASSWORDS.keySet());
-            for (Map.Entry<String, KafkaClient> entry : userToClient.entrySet()) {
-                String username = entry.getKey();
-                KafkaClient userClient = entry.getValue();
-                String transactionalId = "trans-" + Uuid.randomUuid();
-                String groupId = "group-" + Uuid.randomUuid();
-                String groupInstanceId = groupId + "-" + username;
-                KafkaClient driverClient = userClient;
-                if (Objects.equals(username, "eve")) {
-                    driverClient = userToClient.get("alice"); // eve does not have permissions to init producer id, so we drive the cluster using alice
-                }
-                KafkaDriver kafkaDriver = new KafkaDriver(cluster, driverClient, username);
-                kafkaDriver.findCoordinator(CoordinatorType.TRANSACTION, transactionalId);
-                kafkaDriver.findCoordinator(CoordinatorType.GROUP, groupId);
-                ProducerIdAndEpoch producerIdAndEpoch = kafkaDriver.initProducerId(transactionalId);
-                JoinGroupResponseData memberIdAndGeneration = kafkaDriver.joinGroup("consumer", groupId, groupInstanceId);
-                Map<String, Collection<Integer>> partitionsToAdd = ALL_TOPIC_NAMES_IN_TEST.stream().collect(Collectors.toMap(n -> n, n -> List.of(0)));
-                kafkaDriver.addPartitionsToTransaction(transactionalId, producerIdAndEpoch, partitionsToAdd);
-                kafkaDriver.addOffsetsToTxn(transactionalId, producerIdAndEpoch, groupId);
-                TestState state = new TestState(userClient, transactionalId, groupId, producerIdAndEpoch, memberIdAndGeneration.generationId(),
-                        memberIdAndGeneration.memberId());
-                testStatesPerClusterUser.put(cluster.name() + ":" + username, state);
-            }
+            transactionalId = TRANSACTIONAL_ID_PREFIX + Uuid.randomUuid();
+            KafkaDriver kafkaDriver = new KafkaDriver(cluster, cluster.authenticatedClient(AuthzIT.SUPER, SUPER_PASSWORD), AuthzIT.SUPER);
+            String groupInstanceId = group + "-instanceId";
+            kafkaDriver.findCoordinator(CoordinatorType.TRANSACTION, transactionalId);
+            kafkaDriver.findCoordinator(CoordinatorType.GROUP, group);
+            producerIdAndEpoch = kafkaDriver.initProducerId(transactionalId);
+            memberIdAndGeneration = kafkaDriver.joinGroup("consumer", group, groupInstanceId);
+            Map<String, Collection<Integer>> partitionsToAdd = ALL_TOPIC_NAMES_IN_TEST.stream().collect(Collectors.toMap(n -> n, n -> List.of(0)));
+            kafkaDriver.addPartitionsToTransaction(transactionalId, producerIdAndEpoch, partitionsToAdd);
+            kafkaDriver.addOffsetsToTxn(transactionalId, producerIdAndEpoch, group);
         }
     }
 

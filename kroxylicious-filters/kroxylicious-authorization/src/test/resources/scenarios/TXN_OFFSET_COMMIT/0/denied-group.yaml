@@ -7,8 +7,8 @@
 ---
 metadata:
   apiKeys: "TXN_OFFSET_COMMIT"
-  apiVersion: 5
-  scenario: "if all topics in request are denied, then the filter short circuit responds"
+  apiVersion: 0
+  scenario: "user is not allowed to READ group, filter responds with group authorization failed response"
 given:
   mockedUpstreamResponses: []
   authorizerRules:
@@ -24,37 +24,27 @@ given:
       - subject: "alice"
         resourceName: "my-group"
         resourceClass: "GROUP"
-        resourceType: "READ"
+        resourceType: "DESCRIBE" # requires READ
   topicNames: null
 when:
   subject: "alice"
   requestHeader:
     requestApiKey: 28
-    requestApiVersion: 5
+    requestApiVersion: 0
     correlationId: 1
     clientId: "clientId"
   request:
     transactionalId: "my-transactional-id"
     groupId: "my-group"
-    producerId: 0
-    producerEpoch: 104
-    generationId: 988
-    memberId: "random-string-854"
-    groupInstanceId: "random-string-46"
+    producerId: 525
+    producerEpoch: 828
     topics:
-      - name: "unauthorized"
+      - name: "my-topic"
         partitions:
-          - partitionIndex: 537
-            committedOffset: 954
-            committedLeaderEpoch: 409
-            committedMetadata: "random-string-353"
+          - partitionIndex: 815
+            committedOffset: 978
+            committedMetadata: "random-string-946"
 then:
   expectedResponseHeader:
     correlationId: 1
-  expectedResponse:
-    throttleTimeMs: 0
-    topics:
-      - name: "unauthorized"
-        partitions:
-          - partitionIndex: 537
-            errorCode: 29
+  expectedErrorResponse: "GROUP_AUTHORIZATION_FAILED"

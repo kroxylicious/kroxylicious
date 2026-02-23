@@ -23,6 +23,10 @@ given:
         resourceName: "my-transactional-id"
         resourceClass: "TRANSACTIONAL_ID"
         resourceType: "DESCRIBE" # write is required
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
   topicNames: null
 when:
   subject: "alice"
@@ -33,7 +37,7 @@ when:
     clientId: "clientId"
   request:
     transactionalId: "my-transactional-id"
-    groupId: "random-string-717"
+    groupId: "my-group"
     producerId: 0
     producerEpoch: 104
     generationId: 988
@@ -49,10 +53,4 @@ when:
 then:
   expectedResponseHeader:
     correlationId: 1
-  expectedResponse:
-    throttleTimeMs: 0
-    topics:
-      - name: "my-topic"
-        partitions:
-          - partitionIndex: 537
-            errorCode: 53 #TRANSACTIONAL_ID_AUTHORIZATION_FAILED
+  expectedErrorResponse: "TRANSACTIONAL_ID_AUTHORIZATION_FAILED"

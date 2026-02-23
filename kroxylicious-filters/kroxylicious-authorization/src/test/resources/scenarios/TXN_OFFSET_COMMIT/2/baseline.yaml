@@ -20,7 +20,7 @@ given:
         clientId: "clientId"
       expectedRequest:
         transactionalId: "my-transactional-id"
-        groupId: "random-string-274"
+        groupId: "my-group"
         producerId: 955
         producerEpoch: 469
         topics:
@@ -49,6 +49,10 @@ given:
         resourceName: "my-transactional-id"
         resourceClass: "TRANSACTIONAL_ID"
         resourceType: "WRITE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
   topicNames: null
 when:
   subject: "alice"
@@ -59,7 +63,7 @@ when:
     clientId: "clientId"
   request:
     transactionalId: "my-transactional-id"
-    groupId: "random-string-274"
+    groupId: "my-group"
     producerId: 955
     producerEpoch: 469
     topics:
