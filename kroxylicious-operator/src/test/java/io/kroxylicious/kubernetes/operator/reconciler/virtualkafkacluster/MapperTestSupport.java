@@ -71,7 +71,7 @@ class MapperTestSupport {
             .endSpec()
             .build();
 
-    public static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR = new VirtualKafkaClusterBuilder(CLUSTER_TLS_NO_FILTERS)
+    public static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR = new VirtualKafkaClusterBuilder(CLUSTER_TLS_NO_FILTERS)
             .editOrNewSpec()
                 .editIngress(0)
                     .editOrNewTls()

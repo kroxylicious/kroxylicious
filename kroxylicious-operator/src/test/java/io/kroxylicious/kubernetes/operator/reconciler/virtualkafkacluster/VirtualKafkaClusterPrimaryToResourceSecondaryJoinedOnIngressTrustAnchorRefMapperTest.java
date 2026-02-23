@@ -20,7 +20,7 @@ class VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRef
         var mapper = new VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRefMapper();
 
         // When
-        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
+        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR);
 
         // Then
         assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(MapperTestSupport.PEM_CONFIG_MAP));
