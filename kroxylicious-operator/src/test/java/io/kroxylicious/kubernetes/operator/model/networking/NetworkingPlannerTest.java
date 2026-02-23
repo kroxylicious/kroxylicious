@@ -28,6 +28,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder;
+import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.IngressResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
@@ -46,6 +47,7 @@ class NetworkingPlannerTest {
     private static final String CLUSTER_NAME = "my-cluster";
     private static final String KAFKA_SERVICE_NAME = "my-kafka-service";
     private static final String NAMESPACE = "ns";
+    private static final List<ProxyModelBuilder.RouteHostDetails> ROUTE_HOST_DETAILS = List.of();
     // @formatter:off
     private static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
@@ -181,7 +183,7 @@ class NetworkingPlannerTest {
 
     @Test
     void noClustersResolved() {
-        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of()));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of()), ROUTE_HOST_DETAILS);
         assertThat(networkingModel.clusterNetworkingModels()).isEmpty();
     }
 
@@ -192,7 +194,7 @@ class NetworkingPlannerTest {
                 List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
                 List.of(new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, CLUSTER_IP_INGRESS),
                         ResolutionResult.resolved(CLUSTER_IP_INGRESS, PROXY), CLUSTER_IP_CLUSTER_INGRESSES)));
-        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)), ROUTE_HOST_DETAILS);
         assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
 
         assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
@@ -214,7 +216,7 @@ class NetworkingPlannerTest {
                 List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
                 List.of(new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, TLS_CLUSTER_IP_INGRESS),
                         ResolutionResult.resolved(TLS_CLUSTER_IP_INGRESS, PROXY), TLS_CLUSTER_IP_CLUSTER_INGRESSES)));
-        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)), ROUTE_HOST_DETAILS);
         assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
 
         assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
@@ -238,7 +240,7 @@ class NetworkingPlannerTest {
                         ResolutionResult.resolved(TLS_CLUSTER_IP_INGRESS, PROXY), TLS_CLUSTER_IP_CLUSTER_INGRESSES),
                         new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, TLS_CLUSTER_IP_2_INGRESS),
                                 ResolutionResult.resolved(TLS_CLUSTER_IP_2_INGRESS, PROXY), TLS_CLUSTER_IP_CLUSTER_2_INGRESSES)));
-        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)), ROUTE_HOST_DETAILS);
         assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
 
         assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
@@ -267,7 +269,7 @@ class NetworkingPlannerTest {
                 List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
                 List.of(new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, LOAD_BALANCER_INGRESS),
                         ResolutionResult.resolved(LOAD_BALANCER_INGRESS, PROXY), LOAD_BALANCER_INGRESSES)));
-        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)), ROUTE_HOST_DETAILS);
         assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
 
         assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
@@ -290,7 +292,7 @@ class NetworkingPlannerTest {
                         ResolutionResult.resolved(CLUSTER_IP_INGRESS, PROXY), CLUSTER_IP_CLUSTER_INGRESSES),
                         new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, LOAD_BALANCER_INGRESS),
                                 ResolutionResult.resolved(LOAD_BALANCER_INGRESS, PROXY), LOAD_BALANCER_INGRESSES)));
-        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)), ROUTE_HOST_DETAILS);
         assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
 
         assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
@@ -321,7 +323,7 @@ class NetworkingPlannerTest {
                         ResolutionResult.resolved(LOAD_BALANCER_INGRESS, PROXY), LOAD_BALANCER_INGRESSES),
                         new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, LOAD_BALANCER_INGRESS_2),
                                 ResolutionResult.resolved(LOAD_BALANCER_INGRESS_2, PROXY), LOAD_BALANCER_2_INGRESSES)));
-        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)), ROUTE_HOST_DETAILS);
         assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
 
         assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
@@ -354,7 +356,7 @@ class NetworkingPlannerTest {
                 List.of(new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster2, LOAD_BALANCER_INGRESS_2),
                         ResolutionResult.resolved(LOAD_BALANCER_INGRESS_2, PROXY), LOAD_BALANCER_2_INGRESSES)));
         ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY,
-                new ProxyResolutionResult(Set.of(clusterResolutionResult, clusterResolutionResult2)));
+                new ProxyResolutionResult(Set.of(clusterResolutionResult, clusterResolutionResult2)), ROUTE_HOST_DETAILS);
         assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
 
         ListAssert<ProxyNetworkingModel.ClusterNetworkingModel> listAssert = assertThat(networkingModel.clusterNetworkingModels()).hasSize(2);
@@ -389,7 +391,7 @@ class NetworkingPlannerTest {
                         ResolutionResult.resolved(CLUSTER_IP_INGRESS, PROXY), CLUSTER_IP_CLUSTER_INGRESSES),
                         new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, CLUSTER_IP_INGRESS_2),
                                 ResolutionResult.resolved(CLUSTER_IP_INGRESS_2, PROXY), CLUSTER_IP_2_CLUSTER_INGRESSES)));
-        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)), ROUTE_HOST_DETAILS);
         assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
 
         assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
@@ -433,7 +435,7 @@ class NetworkingPlannerTest {
                         new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster2, CLUSTER_IP_INGRESS_2),
                                 ResolutionResult.resolved(CLUSTER_IP_INGRESS_2, PROXY), CLUSTER_IP_2_CLUSTER_INGRESSES)));
         ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY,
-                new ProxyResolutionResult(Set.of(clusterResolutionResult, clusterResolutionResult2)));
+                new ProxyResolutionResult(Set.of(clusterResolutionResult, clusterResolutionResult2)), ROUTE_HOST_DETAILS);
         assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster2)).isNotNull();
 
         var assertList = assertThat(networkingModel.clusterNetworkingModels()).hasSize(2);
