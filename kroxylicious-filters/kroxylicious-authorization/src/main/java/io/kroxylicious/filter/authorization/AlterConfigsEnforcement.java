@@ -15,14 +15,13 @@ import org.apache.kafka.common.message.AlterConfigsRequestData.AlterConfigsResou
 import org.apache.kafka.common.message.AlterConfigsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.resource.ResourceType;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-import static org.apache.kafka.common.resource.ResourceType.TOPIC;
+import static org.apache.kafka.common.config.ConfigResource.Type.TOPIC;
 
 class AlterConfigsEnforcement extends ApiEnforcement<AlterConfigsRequestData, AlterConfigsResponseData> {
     @Override
@@ -38,8 +37,7 @@ class AlterConfigsEnforcement extends ApiEnforcement<AlterConfigsRequestData, Al
     @Override
     CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, AlterConfigsRequestData request, FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        List<AlterConfigsResource> topicRequests = request.resources().stream()
-                .filter(resource -> ResourceType.fromCode(resource.resourceType()) == TOPIC).toList();
+        List<AlterConfigsResource> topicRequests = ConfigResources.filter(request.resources().stream(), AlterConfigsResource::resourceType, TOPIC).toList();
         if (topicRequests.isEmpty()) {
             return context.forwardRequest(header, request);
         }
