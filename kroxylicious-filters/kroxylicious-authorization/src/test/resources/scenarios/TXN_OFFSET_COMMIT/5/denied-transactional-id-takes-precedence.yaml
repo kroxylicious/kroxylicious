@@ -11,7 +11,7 @@ metadata:
   scenario: |
     if the actor does not have write permissions for the transactional id:
     - short circuit error respond with TRANSACTIONAL_ID_AUTHORIZATION_FAILED for all partitions
-    This takes precedence over topic authorization failures
+    This takes precedence over topic authorization failures and group authorization failures
 given:
   mockedUpstreamResponses: []
   authorizerRules:
@@ -24,6 +24,10 @@ given:
         resourceName: "my-transactional-id"
         resourceClass: "TRANSACTIONAL_ID"
         resourceType: "DESCRIBE" # write is required
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE" # read is required
   topicNames: null
 when:
   subject: "alice"
@@ -34,7 +38,7 @@ when:
     clientId: "clientId"
   request:
     transactionalId: "my-transactional-id"
-    groupId: "random-string-717"
+    groupId: "my-group"
     producerId: 0
     producerEpoch: 104
     generationId: 988
@@ -50,10 +54,4 @@ when:
 then:
   expectedResponseHeader:
     correlationId: 1
-  expectedResponse:
-    throttleTimeMs: 0
-    topics:
-      - name: "unauthorized"
-        partitions:
-          - partitionIndex: 537
-            errorCode: 53 #TRANSACTIONAL_ID_AUTHORIZATION_FAILED
+  expectedErrorResponse: "TRANSACTIONAL_ID_AUTHORIZATION_FAILED"
