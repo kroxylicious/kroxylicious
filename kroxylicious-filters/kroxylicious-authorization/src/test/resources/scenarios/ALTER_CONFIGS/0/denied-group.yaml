@@ -8,7 +8,7 @@
 metadata:
   apiKeys: "ALTER_CONFIGS"
   apiVersion: 0
-  scenario: "other resources are forwarded"
+  scenario: "denied group is not forwarded and error response is added"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "ALTER_CONFIGS"
@@ -19,28 +19,15 @@ given:
         correlationId: 1
         clientId: "client-id"
       expectedRequest:
-        resources:
-          - resourceType: 0
-            resourceName: "my-group"
-            configs:
-              - name: "random-string-974"
-                value: "random-string-216"
+        resources: []
         validateOnly: true
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
         throttleTimeMs: 263
-        responses:
-          - errorCode: 401
-            errorMessage: "random-string-499"
-            resourceType: 0
-            resourceName: "my-group"
+        responses: []
   authorizerRules:
-    allowed:
-      - subject: "alice"
-        resourceName: "my-topic"
-        resourceClass: "TOPIC"
-        resourceType: "ALTER_CONFIGS"
+    allowed: []
   topicNames: {}
 when:
   subject: "alice"
@@ -51,20 +38,19 @@ when:
     clientId: "client-id"
   request:
     resources:
-      - resourceType: 0
-        resourceName: "my-group"
+      - resourceType: 32
+        resourceName: "denied-group"
         configs:
           - name: "random-string-974"
             value: "random-string-216"
     validateOnly: true
 then:
-  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:
     throttleTimeMs: 263
     responses:
-      - errorCode: 401
-        errorMessage: "random-string-499"
-        resourceType: 0
-        resourceName: "my-group"
+      - errorCode: 30
+        errorMessage: "Group authorization failed."
+        resourceType: 32
+        resourceName: "denied-group"
