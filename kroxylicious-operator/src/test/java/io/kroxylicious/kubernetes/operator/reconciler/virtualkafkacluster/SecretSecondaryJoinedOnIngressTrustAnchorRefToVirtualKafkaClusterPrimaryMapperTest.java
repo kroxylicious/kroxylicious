@@ -15,23 +15,24 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapperTest {
+class SecretSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapperTest {
+
     @Test
-    void canMapFromConfigMapToVirtualKafkaClusterWithTls() {
+    void canMapFromSecretTrustAnchorRefToVirtualKafkaClusterWithTls() {
         // Given
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport
-                .mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR);
+                .mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR);
 
         // When
         var mapper = new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(eventSourceContext);
 
         // Then
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);
-        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR));
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.TRUST_ANCHOR_PEM_SECRET);
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR));
     }
 
     @Test
-    void canMapFromConfigMapToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
+    void canMapFromSecretTrustAnchorRefToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
         // Given
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_NO_FILTERS);
 
@@ -39,12 +40,12 @@ class ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimar
         var mapper = new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(eventSourceContext);
 
         // Then
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.TRUST_ANCHOR_PEM_SECRET);
         assertThat(primaryResourceIDs).isEmpty();
     }
 
     @Test
-    void canMapFromConfigMapToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTrustAnchor() {
+    void canMapFromSecretTrustAnchorRefToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTrustAnchor() {
         // Given
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS);
 
@@ -52,7 +53,7 @@ class ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimar
         var mapper = new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(eventSourceContext);
 
         // Then
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.TRUST_ANCHOR_PEM_SECRET);
         assertThat(primaryResourceIDs).isEmpty();
     }
 }

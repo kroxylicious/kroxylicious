@@ -102,14 +102,14 @@ jobs:
 
       - name: Archive JUnit test results
         if: ${{ always() }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: junit-results-${{ matrix.tests }}
           path: kroxylicious-systemtests/target/surefire-reports/**/TEST-*.xml
 
       - name: Archive systemtest logs
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: systemtest-logs-${{ matrix.tests }}
           path: kroxylicious-systemtests/target/logs
