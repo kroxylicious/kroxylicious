@@ -24,15 +24,19 @@ spec:
       - name: benchmark
         image: {{ .Values.omb.image }}
         imagePullPolicy: {{ .Values.omb.imagePullPolicy }}
+        workingDir: /var/lib/omb/results
         env:
         - name: WORKERS
           value: {{ include "kroxylicious-benchmark.workerList" . | quote }}
         - name: JAVA_OPTS
-          value: "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+          value: "-XX:MaxRAMPercentage=50 -XX:NativeMemoryTracking=summary -Dorg.slf4j.simpleLogger.defaultLogLevel={{ .Values.omb.logLevel }}"
         command:
         - /bin/bash
         - -c
         - |
+          # Symlink OMB lib so bin/benchmark resolves classpath from this workingDir
+          ln -sf /opt/benchmark/lib /var/lib/omb/results/lib
+
           # Wait for workers to be ready
           echo "Waiting for OMB workers to be ready..."
           for i in $(seq 0 $(({{ .Values.omb.workerReplicas }} - 1))); do
@@ -58,13 +62,15 @@ spec:
           # Keep pod running for manual benchmark execution
           echo "Ready to run benchmarks. Sleeping indefinitely..."
           echo "To run a benchmark, exec into this pod and run:"
-          echo '  bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
+          echo '  /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
           sleep infinity
         volumeMounts:
         - name: driver-config
-          mountPath: /config
+          mountPath: /etc/omb/driver
         - name: workload-config
-          mountPath: /workloads
+          mountPath: /etc/omb/workloads
+        - name: results
+          mountPath: /var/lib/omb/results
         resources:
           {{- toYaml .Values.omb.resources | nindent 10 }}
       volumes:
@@ -74,3 +80,5 @@ spec:
       - name: workload-config
         configMap:
           name: omb-workload-{{ .Values.omb.workload }}
+      - name: results
+        emptyDir: {}
