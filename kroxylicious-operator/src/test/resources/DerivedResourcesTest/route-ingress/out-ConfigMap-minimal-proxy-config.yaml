@@ -34,7 +34,7 @@ data:
       gateways:
       - name: "myopenshiftroute"
         sniHostIdentifiesNode:
-          bootstrapAddress: "$(virtualClusterName)-bootstrap.$(host):443"
+          bootstrapAddress: "$(virtualClusterName)-bootstrap.$(host):9291"
           advertisedBrokerAddressPattern: "$(virtualClusterName)-$(nodeId).$(host):443"
         tls:
           key:
