@@ -90,6 +90,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEnforcement());
         apiEnforcement.put(ApiKeys.JOIN_GROUP, new JoinGroupEnforcement());
         apiEnforcement.put(ApiKeys.SYNC_GROUP, new SyncGroupEnforcement());
+        apiEnforcement.put(ApiKeys.LEAVE_GROUP, new LeaveGroupEnforcement());
         apiEnforcement.put(ApiKeys.CONSUMER_GROUP_HEARTBEAT, new ConsumerGroupHeartbeatEnforcement());
         apiEnforcement.put(ApiKeys.INIT_PRODUCER_ID, new InitProducerIdEnforcement());
         apiEnforcement.put(ApiKeys.ADD_PARTITIONS_TO_TXN, new AddPartitionsToTxnEnforcement());

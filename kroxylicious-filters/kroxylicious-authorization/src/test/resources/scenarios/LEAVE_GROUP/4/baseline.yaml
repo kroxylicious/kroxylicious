@@ -1,0 +1,57 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "LEAVE_GROUP"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LEAVE_GROUP"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 13
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "my-group"
+        members:
+          - memberId: "random-string-541"
+            groupInstanceId: "abc"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 100
+        errorCode: 484
+        members: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 13
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "my-group"
+    members:
+      - memberId: "random-string-541"
+        groupInstanceId: "abc"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 100
+    errorCode: 484
+    members: []

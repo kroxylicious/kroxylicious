@@ -325,6 +325,7 @@ class AuthorizationFilterTest {
                 ApiKeys.INCREMENTAL_ALTER_CONFIGS,
                 ApiKeys.CONSUMER_GROUP_DESCRIBE,
                 ApiKeys.DESCRIBE_GROUPS,
+                ApiKeys.LEAVE_GROUP,
                 ApiKeys.DESCRIBE_TRANSACTIONS,
                 ApiKeys.HEARTBEAT,
                 ApiKeys.LIST_TRANSACTIONS);
