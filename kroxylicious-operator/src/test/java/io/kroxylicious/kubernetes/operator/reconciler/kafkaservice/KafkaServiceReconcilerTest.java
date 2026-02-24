@@ -113,6 +113,7 @@ class KafkaServiceReconcilerTest {
             .addToData("ca-bundle.pem", "value")
             .build();
 
+<<<<<<< HEAD:kroxylicious-operator/src/test/java/io/kroxylicious/kubernetes/operator/reconciler/kafkaservice/KafkaServiceReconcilerTest.java
     public static final Secret TRUST_ANCHOR_PEM_SECRET = new SecretBuilder()
             .withNewMetadata()
             .withName("my-secret")
@@ -120,6 +121,15 @@ class KafkaServiceReconcilerTest {
             .withResourceVersion("7782")
             .endMetadata()
             .addToData("ca-bundle.pem", "value")
+=======
+    public static final ConfigMap CRT_CONFIG_MAP = new ConfigMapBuilder()
+            .withNewMetadata()
+            .withName("my-configmap")
+            .withUid("uid")
+            .withResourceVersion("7782")
+            .endMetadata()
+            .addToData("ca-bundle.crt", "value")
+>>>>>>> 31ac79b5a (Add storageType field to trustAnchorRef):kroxylicious-operator/src/test/java/io/kroxylicious/kubernetes/operator/KafkaServiceReconcilerTest.java
             .build();
 
     public static final Kafka KAFKA = new KafkaBuilder()
@@ -407,7 +417,7 @@ class KafkaServiceReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_INVALID,
-                                    "spec.tls.trustAnchorRef.key should end with .pem, .p12 or .jks")));
+                                    "spec.tls.trustAnchorRef.key should end with .pem, .p12 or .jks or use the `storeType` field to specify the store type explicitly")));
         }
 
         // no client cert, pem trust bundle
@@ -606,6 +616,26 @@ class KafkaServiceReconcilerTest {
         assertThat(updateControl).isNotNull();
         assertThat(updateControl.isPatchResourceAndStatus()).isTrue();
         assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
+            assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
+        });
+    }
+
+    @Test
+    void shouldHandleANewKeyIfSupportedStoreTypeMentioned() {
+        Context<KafkaService> context = mockContext();
+        mockGetConfigMap(context, Optional.of(CRT_CONFIG_MAP));
+        KafkaService service = new KafkaServiceBuilder(SERVICE).editSpec().withStrimziKafkaRef(null).editTls().withCertificateRef(null).editTrustAnchorRef()
+                .withKey("ca-bundle.crt")
+                .withStoreType("PEM")
+                .endTrustAnchorRef().endTls().endSpec().build();
+        // When
+        final UpdateControl<KafkaService> updateControl = kafkaServiceReconciler.reconcile(service, context);
+
+        // Then
+        assertThat(updateControl).isNotNull();
+        assertThat(updateControl.isPatchResourceAndStatus()).isTrue();
+        assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
+            assertThat(kafkaService.getStatus().getConditions().get(0).getStatus().equals(Condition.Status.TRUE));
             assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
         });
     }

@@ -547,10 +547,11 @@ public class ResourcesUtil {
                         Condition.REASON_INVALID,
                         path + " must specify 'key'"), List.of());
             }
-            if (isSupportedFileType(key)) {
+            if (isSupportedFileType(key) && trustAnchorRef.getStoreType() == null) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_INVALID,
-                        path + ".key should end with .pem, .p12 or .jks"), List.of());
+                        path + ".key should end with .pem, .p12 or .jks or"
+                                + " use the `storeType` field to specify the store type explicitly"), List.of());
             }
             else {
                 var dataBearingResource = dataBearing.get();
