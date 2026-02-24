@@ -27,6 +27,7 @@ import org.apache.kafka.clients.admin.AlterConfigOp;
 import org.apache.kafka.clients.admin.Config;
 import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
+import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.admin.MemberDescription;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -285,6 +286,27 @@ public abstract class AbstractTracingIT extends AuthzIT {
             return deleteTopic(TopicCollection.ofTopicIds(List.of(topicId)));
         }
 
+        public Outcome<Void> deleteGroups(List<String> groups) {
+            Outcome<Void> outcome;
+            try {
+                outcome = new Success<>(admin
+                        .deleteConsumerGroups(groups)
+                        .all()
+                        .get(10, TimeUnit.SECONDS));
+            }
+            catch (ExecutionException e) {
+                outcome = Fail.of(e);
+            }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                outcome = Fail.of(e);
+            }
+            catch (TimeoutException e) {
+                outcome = Fail.of(e);
+            }
+            return trace("deleteGroups", outcome);
+        }
+
         public Outcome<Void> deleteTopic(TopicCollection topicCollection) {
             Outcome<Void> outcome;
             try {
@@ -397,6 +419,24 @@ public abstract class AbstractTracingIT extends AuthzIT {
                 throw new RuntimeException(e);
             }
             trace("listTransactions", outcome.map(transactionListings -> transactionListings.stream().map(TransactionListing::transactionalId).toList()));
+            return outcome;
+        }
+
+        public Outcome<Collection<GroupListing>> listGroups() {
+            Outcome<Collection<GroupListing>> outcome;
+            try {
+                outcome = new Success<>(admin
+                        .listGroups()
+                        .all()
+                        .get());
+            }
+            catch (ExecutionException e) {
+                outcome = Fail.of(e);
+            }
+            catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            trace("listGroups", outcome.map(transactionListings -> transactionListings.stream().map(GroupListing::groupId).toList()));
             return outcome;
         }
 
