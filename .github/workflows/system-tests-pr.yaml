@@ -26,6 +26,7 @@ on:
       - '.github/**'
       - '!.github/workflows/system-tests-pr.yaml'
       - '!.github/workflows/run-system-tests.yaml'
+      - '!.github/workflows/build-kroxylicious-container-images.yaml'
       - '!.github/actions/**'
       - 'kroxylicious-docs**/**'
       - 'kroxylicious-integration-test**/**'
