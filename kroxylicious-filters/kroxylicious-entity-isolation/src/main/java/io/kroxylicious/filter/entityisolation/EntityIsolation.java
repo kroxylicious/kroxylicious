@@ -10,7 +10,6 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.apache.kafka.common.config.ConfigResource;
-import org.apache.kafka.common.resource.ResourceType;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
