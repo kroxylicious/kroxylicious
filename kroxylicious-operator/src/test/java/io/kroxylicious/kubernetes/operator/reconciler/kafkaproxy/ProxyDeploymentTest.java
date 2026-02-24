@@ -138,17 +138,18 @@ class ProxyDeploymentTest {
         Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
 
         // Then
-        assertThat(actual.getSpec().getTemplate().getSpec().getContainers()).singleElement().satisfies(container -> {
-            var probe = container.getReadinessProbe();
-            assertThat(probe).isNotNull();
-            assertThat(probe.getHttpGet().getPath()).isEqualTo("/livez");
-            assertThat(probe.getHttpGet().getPort().getStrVal()).isEqualTo("management");
-            assertThat(probe.getInitialDelaySeconds()).isZero();
-            assertThat(probe.getPeriodSeconds()).isEqualTo(1);
-            assertThat(probe.getFailureThreshold()).isEqualTo(3);
-            assertThat(probe.getSuccessThreshold()).isEqualTo(1);
-            assertThat(probe.getTimeoutSeconds()).isEqualTo(1);
-        });
+        assertThat(actual.getSpec().getTemplate().getSpec().getContainers()).singleElement()
+                .satisfies(container -> assertThat(container.getReadinessProbe())
+                        .isNotNull()
+                        .satisfies(probe -> {
+                            assertThat(probe.getHttpGet().getPath()).isEqualTo("/livez");
+                            assertThat(probe.getHttpGet().getPort().getStrVal()).isEqualTo("management");
+                            assertThat(probe.getInitialDelaySeconds()).isZero();
+                            assertThat(probe.getPeriodSeconds()).isEqualTo(1);
+                            assertThat(probe.getFailureThreshold()).isEqualTo(3);
+                            assertThat(probe.getSuccessThreshold()).isEqualTo(1);
+                            assertThat(probe.getTimeoutSeconds()).isEqualTo(1);
+                        }));
     }
 
     @Test
