@@ -62,6 +62,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     public static final int CLIENT_FACING_ROUTE_PORT = 443;
+    public static final String HOST_TOKEN = "$(host)";
 
     @Override
     public Stream<ServiceBuilder> services() {
@@ -141,10 +142,8 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
 
     @Override
     public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
-        String hostToken = "$(host)";
-
-        HostPort bootstrapAddress = new HostPort("$(virtualClusterName)-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(hostToken), sharedSniPort);
-        HostPort advertisedBrokerAddressPattern = new HostPort("$(virtualClusterName)-$(nodeId)." + getDomain(RouteHostDetails.RouteFor.NODE).orElse(hostToken),
+        HostPort bootstrapAddress = new HostPort("$(virtualClusterName)-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(HOST_TOKEN), sharedSniPort);
+        HostPort advertisedBrokerAddressPattern = new HostPort("$(virtualClusterName)-$(nodeId)." + getDomain(RouteHostDetails.RouteFor.NODE).orElse(HOST_TOKEN),
                 CLIENT_FACING_ROUTE_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress.toString(),
                 advertisedBrokerAddressPattern.toString());
@@ -161,7 +160,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     private String bootstrapServers() {
-        return ResourcesUtil.name(cluster) + "-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse("$(host)") + ":" + sharedSniPort;
+        return ResourcesUtil.name(cluster) + "-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(HOST_TOKEN) + ":" + sharedSniPort;
     }
 
     private String suffixedRouteName(String suffix) {
