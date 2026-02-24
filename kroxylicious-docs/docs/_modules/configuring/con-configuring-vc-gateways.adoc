@@ -168,7 +168,7 @@ The gateway exposes the following six broker addresses:
 |===
 
 The `advertisedBrokerAddressPattern` configuration parameter accepts the `$(nodeId)` replacement token, which is optional.
-If included, `$(nodeId)` is replaced by the broker's https://kafka.apache.org/documentation/#brokerconfigs_node.id[`node.id`] (or https://kafka.apache.org/documentation/#brokerconfigs_broker.id[`broker.id`]) in the target cluster.
+If included, `$(nodeId)` is replaced by the broker's link:{ApacheKafkaDocsBase}configuration/broker-configs/#brokerconfigs_node.id[`node.id`] (or link:{ApacheKafkaDocsBase}configuration/broker-configs/#brokerconfigs_broker.id[`broker.id`]) in the target cluster.
 
 [id='con-configuring-vc-gateways-snihost-identifies-node-{context}']
 
