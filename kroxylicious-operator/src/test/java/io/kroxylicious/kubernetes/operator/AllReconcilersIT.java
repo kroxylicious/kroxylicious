@@ -286,7 +286,7 @@ class AllReconcilersIT {
                         // @formatter:off
                     var downstreamTrust = new ConfigMapBuilder()
                             .withNewMetadata()
-                                .withName("downstream-trust")
+                                .withName("downstream-trust-configmap")
                             .endMetadata()
                             .addToData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
                             .build();
@@ -299,6 +299,31 @@ class AllReconcilersIT {
                             .endTrustAnchorRef()
                             .build();
                     // @formatter:on
+                            actor.create(downstreamCert);
+                            actor.create(downstreamTrust);
+                            return tls;
+                        })),
+
+                argumentSet("tls with trust from secret",
+                        (Function<TestActor, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
+
+                        // @formatter:off
+                    var downstreamTrust = new SecretBuilder()
+                            .withNewMetadata()
+                                .withName("downstream-trust-secret")
+                            .endMetadata()
+                            .addToStringData("trust.pem", TestKeyMaterial.TEST_CERT_PEM)
+                            .build();
+                    var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder(downstreamTls)
+                            .editOrNewTrustAnchorRef()
+                                .withNewRef()
+                                    .withKind("Secret")
+                                    .withName(name(downstreamTrust))
+                                .endRef()
+                                .withKey("trust.pem")
+                            .endTrustAnchorRef()
+                            .build();
+                        // @formatter:on
                             actor.create(downstreamCert);
                             actor.create(downstreamTrust);
                             return tls;

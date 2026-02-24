@@ -248,7 +248,7 @@ public class KafkaProxyReconcilerIT {
     void testCreateWithKafkaServiceTlsUsingTrustAnchorFromSecret() {
         // given
         testActor.create(tlsKeyAndCertSecret(UPSTREAM_TLS_CERTIFICATE_SECRET_NAME));
-        testActor.create(secretContainingTrustAnchor(CA_CERT_SECRET_NAME));
+        testActor.create(trustAnchorSecret(CA_CERT_SECRET_NAME));
         KafkaService kafkaService = kafkaServiceWithTlsWithTrustAnchorRefAsSecret();
 
         // when
@@ -1209,9 +1209,19 @@ public class KafkaProxyReconcilerIT {
     }
 
     private static KafkaProtocolFilter filter(String name) {
-        return new KafkaProtocolFilterBuilder().withNewMetadata().withName(name).endMetadata()
-                .withNewSpec().withType("RecordValidation").withConfigTemplate(Map.of("rules", List.of(Map.of("allowNulls", false))))
+        // note that the filter we choose here is arbitrary as tests
+        // never causes kafka records to be sent. it is sufficient for
+        // the filter config to be valid.
+        // @formatter:off
+        return new KafkaProtocolFilterBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .withNewSpec()
+                    .withType("ProduceRequestTransformation")
+                    .withConfigTemplate(Map.of("transformation", "UpperCasing", "transformationConfig", Map.of("charset", "UTF-8")))
                 .endSpec().build();
+        // @formatter:on
     }
 
     KafkaProxy kafkaProxy(String name) {
@@ -1252,12 +1262,12 @@ public class KafkaProxyReconcilerIT {
                 .build();
     }
 
-    private Secret secretContainingTrustAnchor(String name) {
+    private Secret trustAnchorSecret(String name) {
         return new SecretBuilder()
                 .withNewMetadata()
                 .withName(name)
                 .endMetadata()
-                .addToData(TRUSTED_CAS_PEM, "aGVsbG93b3JsZA==")
+                .addToStringData(TRUSTED_CAS_PEM, TestKeyMaterial.TEST_CERT_PEM)
                 .build();
     }
 

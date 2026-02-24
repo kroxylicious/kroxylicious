@@ -672,6 +672,10 @@ public class ResourcesUtil {
                 && !key.endsWith(".jks");
     }
 
+    public static boolean isSecret(TrustAnchorRef trustAnchorRef) {
+        return "Secret".equals(trustAnchorRef.getRef().getKind());
+    }
+
     /**
      * @return an address that any pod in the same k8s cluster can use to address the service, regardless of which namespace the pod is in
      * @param serviceName service name
