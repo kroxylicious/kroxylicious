@@ -60,13 +60,14 @@ omb:
   imagePullPolicy: IfNotPresent
   driver: baseline  # Can be 'baseline' or 'proxy'
   workload: 1topic-1kb  # Workload name to run
-  workerJavaOpts: "-Xmx2g -Xms2g"  # JVM heap for OMB workers (must fit within resource limits)
+  workerJavaOpts: "-XX:MaxRAMPercentage=50 -XX:NativeMemoryTracking=summary"  # JVM opts for OMB workers
+  logLevel: warn  # SLF4J SimpleLogger log level (debug, info, warn, error)
   resources:
     requests:
       memory: "2Gi"
       cpu: "500m"
     limits:
-      memory: "4Gi"
+      memory: "6Gi"
       cpu: "1000m"
 
 # Benchmark configuration

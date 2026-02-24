@@ -37,9 +37,6 @@ import javax.management.ReflectionException;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AlterConfigOp;
 import org.apache.kafka.clients.admin.ConfigEntry;
-import org.apache.kafka.clients.admin.FeatureUpdate;
-import org.apache.kafka.clients.admin.FeatureUpdate.UpgradeType;
-import org.apache.kafka.clients.admin.UpdateFeaturesOptions;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -59,7 +56,6 @@ import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.coordinator.group.GroupConfig;
-import org.apache.kafka.server.common.Feature;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowingConsumer;
 import org.awaitility.Awaitility;
@@ -180,10 +176,6 @@ class RecordEncryptionFilterIT {
     }
 
     private static void prepareClusterForShareGroups(Admin admin) throws InterruptedException, ExecutionException {
-        // this feature update should be removable in Kafka 4.2 when share groups become stable/enabled-by-default
-        FeatureUpdate featureUpdate = new FeatureUpdate((short) 1, UpgradeType.UPGRADE);
-        Map<String, FeatureUpdate> featureUpdates = Map.of(Feature.SHARE_VERSION.featureName(), featureUpdate);
-        admin.updateFeatures(featureUpdates, new UpdateFeaturesOptions()).all().get();
         ConfigResource configResource = new ConfigResource(ConfigResource.Type.GROUP, ENCRYPTION_SHARE_CONSUMER);
         ConfigEntry autoOffsetReset = new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest");
         List<AlterConfigOp> alterConfig = List.of(new AlterConfigOp(autoOffsetReset, AlterConfigOp.OpType.SET));

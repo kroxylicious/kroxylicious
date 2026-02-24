@@ -15,14 +15,13 @@ import org.apache.kafka.common.message.IncrementalAlterConfigsRequestData.AlterC
 import org.apache.kafka.common.message.IncrementalAlterConfigsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.resource.ResourceType;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
-import static org.apache.kafka.common.resource.ResourceType.TOPIC;
+import static org.apache.kafka.common.config.ConfigResource.Type.TOPIC;
 
 class IncrementalAlterConfigsEnforcement extends ApiEnforcement<IncrementalAlterConfigsRequestData, IncrementalAlterConfigsResponseData> {
     @Override
@@ -38,8 +37,7 @@ class IncrementalAlterConfigsEnforcement extends ApiEnforcement<IncrementalAlter
     @Override
     CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, IncrementalAlterConfigsRequestData request, FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        List<AlterConfigsResource> topicRequests = request.resources().stream()
-                .filter(resource -> ResourceType.fromCode(resource.resourceType()) == TOPIC).toList();
+        List<AlterConfigsResource> topicRequests = ConfigResources.filter(request.resources().stream(), AlterConfigsResource::resourceType, TOPIC).toList();
         if (topicRequests.isEmpty()) {
             return context.forwardRequest(header, request);
         }

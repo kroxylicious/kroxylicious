@@ -65,6 +65,18 @@ public class MockFilterContextAssert {
             return this;
         }
 
+        public <T extends ApiMessage> ResponseFilterResponseAssert hasMessageInstanceOfSatisfying(Class<T> clazz, Consumer<T> satisfying) {
+            isNotNull();
+            new ObjectAssert<>(actual.message()).isInstanceOfSatisfying(clazz, satisfying);
+            return this;
+        }
+
+        public <T extends ApiMessage> ResponseFilterResponseAssert hasHeaderInstanceOfSatisfying(Class<T> clazz, Consumer<T> satisfying) {
+            isNotNull();
+            new ObjectAssert<>(actual.header()).isInstanceOfSatisfying(clazz, satisfying);
+            return this;
+        }
+
         public BooleanAssert drop() {
             isNotNull();
             return new BooleanAssert(actual.drop());
@@ -93,6 +105,24 @@ public class MockFilterContextAssert {
         public ResponseFilterResponseAssert isNotCloseConnection() {
             closeConnection().isFalse();
             return this;
+        }
+
+        public ResponseFilterResponseAssert isForwardResponse() {
+            isNotNull();
+            forwardResponse().isTrue();
+            return this;
+        }
+
+        public ResponseFilterResponseAssert isNotForwardResponse() {
+            isNotNull();
+            forwardResponse().isFalse();
+            return this;
+        }
+
+        // the Filter is implicitly commanding the framework to forward the response if it is not set to drop
+        @NonNull
+        private BooleanAssert forwardResponse() {
+            return new BooleanAssert(!actual.drop());
         }
     }
 

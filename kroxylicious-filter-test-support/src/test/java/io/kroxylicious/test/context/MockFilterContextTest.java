@@ -19,6 +19,7 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -29,6 +30,7 @@ import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 import io.kroxylicious.test.assertj.MockFilterContextAssert;
 import io.kroxylicious.test.context.MockFilterContext.ClientSaslGestureInvocation.AuthenticationFailure;
@@ -272,7 +274,34 @@ class MockFilterContextTest {
         assertThat(mapping.failures())
                 .hasSize(1)
                 .containsKey(unknownId)
-                .hasEntrySatisfying(unknownId, e -> assertThat(e).hasMessageContaining("no mapping for " + unknownId));
+                .hasEntrySatisfying(unknownId, e -> assertThat(e).hasMessageContaining("no mapping for topicId configured in MockFilterContext"));
+    }
+
+    @Test
+    void shouldResolveTopicNamesErrors() {
+        // given
+        Uuid knownId = Uuid.randomUuid();
+        Uuid errorId = Uuid.randomUuid();
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE)
+                .withTopicName(knownId, "known-topic")
+                .withTopicNameError(errorId, new TopicNameMappingException(Errors.UNKNOWN_TOPIC_ID, "unknown topic id"))
+                .build();
+
+        // when
+        TopicNameMapping mapping = context.topicNames(List.of(knownId, errorId)).toCompletableFuture().join();
+
+        // then
+        assertThat(mapping.anyFailures()).isTrue();
+        assertThat(mapping.topicNames())
+                .hasSize(1)
+                .containsEntry(knownId, "known-topic");
+        assertThat(mapping.failures())
+                .hasSize(1)
+                .containsKey(errorId)
+                .hasEntrySatisfying(errorId, e -> {
+                    assertThat(e).hasMessageContaining("unknown topic id");
+                    assertThat(e.getError()).isEqualTo(Errors.UNKNOWN_TOPIC_ID);
+                });
     }
 
     @Test
@@ -539,7 +568,9 @@ class MockFilterContextTest {
                 .isNotCloseConnection()
                 .isNotDropResponse()
                 .hasHeaderEqualTo(newResponseHeaderData)
-                .hasMessageEqualTo(newData);
+                .hasHeaderInstanceOfSatisfying(ResponseHeaderData.class, responseHeaderData -> assertThat(responseHeaderData).isEqualTo(newResponseHeaderData))
+                .hasMessageEqualTo(newData)
+                .hasMessageInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> assertThat(apiVersionsResponseData).isEqualTo(newData));
     }
 
     @Test
@@ -615,7 +646,7 @@ class MockFilterContextTest {
                 .build();
 
         // then
-        MockFilterContextAssert.assertThat(result).isDropResponse();
+        MockFilterContextAssert.assertThat(result).isDropResponse().isNotForwardResponse();
     }
 
     @Test
@@ -674,6 +705,7 @@ class MockFilterContextTest {
                 .hasMessageEqualTo(newData)
                 .hasHeaderEqualTo(newHeader)
                 .isNotCloseConnection()
+                .isForwardResponse()
                 .isNotDropResponse());
     }
 
