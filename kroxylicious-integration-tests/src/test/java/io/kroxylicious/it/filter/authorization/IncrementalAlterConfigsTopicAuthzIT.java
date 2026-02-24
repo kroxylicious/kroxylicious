@@ -19,6 +19,7 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.message.IncrementalAlterConfigsRequestData;
 import org.apache.kafka.common.message.IncrementalAlterConfigsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -35,11 +36,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
+import io.kroxylicious.filter.authorization.ConfigResources;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static java.util.stream.Stream.concat;
 
-class IncrementalAlterConfigsAuthzIT extends AuthzIT {
+class IncrementalAlterConfigsTopicAuthzIT extends AuthzIT {
 
     private static final String ALICE_TOPIC_NAME = "alice-topic";
     private static final String BOB_TOPIC_NAME = "bob-topic";
@@ -151,7 +153,7 @@ class IncrementalAlterConfigsAuthzIT extends AuthzIT {
     private static IncrementalAlterConfigsRequestData.AlterConfigsResource topicResource(String topicName) {
         var resource = new IncrementalAlterConfigsRequestData.AlterConfigsResource();
         resource.setResourceName(topicName);
-        resource.setResourceType(ResourceType.TOPIC.code());
+        resource.setResourceType(ConfigResource.Type.TOPIC.id());
         IncrementalAlterConfigsRequestData.AlterableConfig alterable = new IncrementalAlterConfigsRequestData.AlterableConfig();
         alterable.setName("retention.bytes");
         alterable.setValue("20000");
