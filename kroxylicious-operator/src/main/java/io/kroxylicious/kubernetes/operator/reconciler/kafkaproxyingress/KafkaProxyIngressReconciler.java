@@ -14,6 +14,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -72,13 +73,26 @@ public class KafkaProxyIngressReconciler implements
         var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
         LOGGER.debug("spec.proxyRef.name resolves to: {}", proxyOpt);
 
+        boolean isIngressSpecUsingOpenshiftRoute = ingress.getSpec().getOpenShiftRoute() != null;
+        boolean isIngressRunningOnOpenshift = context.getClient().supports(Route.class);
+        boolean isOpenshiftRouteUsedInSpecAndSupported = isIngressSpecUsingOpenshiftRoute && isIngressRunningOnOpenshift;
+
         UpdateControl<KafkaProxyIngress> updateControl;
         if (proxyOpt.isPresent()) {
-            updateControl = UpdateControl.patchResourceAndStatus(
-                    statusFactory.newTrueConditionStatusPatch(
-                            ingress,
-                            Condition.Type.ResolvedRefs,
-                            MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED));
+            if (isOpenshiftRouteUsedInSpecAndSupported || !isIngressSpecUsingOpenshiftRoute) {
+                updateControl = UpdateControl.patchResourceAndStatus(
+                        statusFactory.newTrueConditionStatusPatch(
+                                ingress,
+                                Condition.Type.ResolvedRefs,
+                                MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED));
+            }
+            else {
+                updateControl = UpdateControl.patchStatus(statusFactory.newFalseConditionStatusPatch(
+                        ingress,
+                        Condition.Type.Accepted,
+                        Condition.REASON_REQUESTED_RESOURCE_KIND_NOT_SUPPORTED,
+                        "Kubernetes server is missing support for resource kind Route. spec.openShiftRoute is only supported on OpenShift."));
+            }
         }
         else {
             updateControl = UpdateControl.patchStatus(statusFactory.newFalseConditionStatusPatch(
