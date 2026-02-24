@@ -25,6 +25,17 @@ class AuthorizedOps {
         return enforcedAuthorizedOps & upstreamAuthorizedOps;
     }
 
+    public static int groupAuthorizedOps(AuthorizeResult authorize, int upstreamAuthorizedOps, String group) {
+        int enforcedAuthorizedOps = 0;
+        for (var clusterOp : GroupResource.values()) {
+            if (authorize.decision(clusterOp, group) == Decision.ALLOW) {
+                enforcedAuthorizedOps |= (0x1 << clusterOp.kafkaOrdinal);
+            }
+        }
+        // each operation must be allowed both upstream and by this Enforcement
+        return enforcedAuthorizedOps & upstreamAuthorizedOps;
+    }
+
     public static int clusterAuthorizedOps(AuthorizeResult authorize, int upstreamAuthorizedOps) {
         int enforcedAuthorizedOps = 0;
         for (var clusterOp : ClusterResource.values()) {
