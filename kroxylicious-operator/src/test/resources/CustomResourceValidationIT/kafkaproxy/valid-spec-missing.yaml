@@ -8,6 +8,5 @@
 kind: KafkaProxy
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: 12345678901234567890123456789012345678901234567890
+  name: valid-spec-missing
   namespace: proxy-ns
-spec: {}
