@@ -426,7 +426,8 @@ public class KafkaProxyReconciler implements
             case "p12" -> "PKCS12";
             case "jks" -> "JKS";
             case "pem" -> "PEM";
-            default -> throw new IllegalArgumentException("Unsupported key extension");
+            default -> throw new IllegalArgumentException("Cannot derive trust store type from the file extension of the data key '"
+                    + trustAnchorRef.getKey() + "' (extension '" + ext + "')");
         };
     }
 

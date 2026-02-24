@@ -88,7 +88,6 @@ class ResourcesUtilTest {
     public static final String RESOURCE_NAME = "name";
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
     protected static final ConfigMap EMPTY_CONFIG_NMAP = new ConfigMapBuilder().withData(Map.of()).build();
-    protected static final Kafka EMPTY_KAFKA = new Kafka();
     public static final String KAFKA_GROUP_NAME = "kafka.strimzi.io";
 
     @Test
@@ -904,7 +903,7 @@ class ResourcesUtilTest {
                         Condition.REASON_INVALID,
                         (ThrowingConsumer<String>) message -> assertThat(message)
                                 .endsWith(".key should end with .pem, .p12 or .jks or use the `storeType` field to specify the store type explicitly")),
-                argumentSet("unsupported key file extension and store type not mentioned",
+                argumentSet("unsupported key file extension and store type not provided",
                         new TrustAnchorRefBuilder().withKey("/path/to/random.key").withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,
                         Condition.REASON_INVALID,
