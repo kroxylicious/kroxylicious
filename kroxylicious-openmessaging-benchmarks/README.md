@@ -83,6 +83,15 @@ kroxylicious-openmessaging-benchmarks/
 ├── QUICKSTART.md
 ├── Containerfile
 ├── .dockerignore
+├── scripts/
+│   ├── compare-results.sh        # Compare two OMB result files (JBang wrapper)
+│   └── collect-results.sh        # Collect results and generate metadata (JBang wrapper)
+├── src/main/java/.../results/
+│   ├── OmbResult.java             # Jackson model for OMB result JSON
+│   ├── ResultComparator.java      # Comparison logic: two OmbResults → formatted table
+│   ├── CompareResults.java        # Picocli CLI entry point (JBang shebang)
+│   ├── RunMetadata.java           # Generates run-metadata.json
+│   └── CollectResults.java        # Picocli CLI entry point (JBang shebang)
 ├── helm/
 │   └── kroxylicious-benchmark/
 │       ├── Chart.yaml
@@ -178,10 +187,7 @@ WORKERS="omb-worker-0.omb-worker:8080,omb-worker-1.omb-worker:8080,omb-worker-2.
 
 # Run benchmark (1 topic workload)
 kubectl exec -it deploy/omb-benchmark -n kafka -- \
-  bin/benchmark \
-  --drivers /config/driver-kafka.yaml \
-  --workers $WORKERS \
-  /workloads/workload.yaml
+  sh -c '/opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 
 # Results will be printed to console
 ```
@@ -312,6 +318,26 @@ Tests use the following approach:
 3. **AssertJ** - Fluent assertions for validating resource structure
 4. **JUnit 5** - Parameterized tests for testing multiple configurations
 
+## Result Scripts
+
+JBang-based CLI tools for working with OMB result files. Requires [JBang](https://www.jbang.dev/download/) and a Maven build (`mvn process-sources -pl kroxylicious-openmessaging-benchmarks`) to resolve dependency versions.
+
+### Compare Results
+
+```bash
+./kroxylicious-openmessaging-benchmarks/scripts/compare-results.sh baseline.json candidate.json
+```
+
+Outputs a table with Publish Latency, End-to-End Latency, and Throughput sections showing baseline vs candidate values with deltas and percentage changes.
+
+### Collect Results
+
+```bash
+./kroxylicious-openmessaging-benchmarks/scripts/collect-results.sh ./results/
+```
+
+Finds the benchmark pod, copies result JSON files from `/var/lib/omb/results`, and generates `run-metadata.json` with git commit, branch, and UTC timestamp. Set `NAMESPACE` to override the default namespace (`kafka`).
+
 ## Next Phases (Planned)
 
 **Phase 2: Proxy Scenarios**
@@ -322,7 +348,8 @@ Tests use the following approach:
 **Phase 3: Automation**
 - `run-benchmark.sh` - Automated execution
 - `run-all-scenarios.sh` - Multi-scenario testing
-- `compare-results.sh` - Performance comparison
+- ✅ `compare-results.sh` - Performance comparison (JBang)
+- ✅ `collect-results.sh` - Result collection (JBang)
 
 **Phase 4: Documentation**
 - Setup guide

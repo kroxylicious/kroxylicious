@@ -40,6 +40,7 @@ import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.Protocol;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -69,6 +70,7 @@ import static io.fabric8.kubernetes.api.model.HasMetadata.getKind;
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasFreshResolvedRefsFalseCondition;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasKind;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.isSecret;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
@@ -90,7 +92,8 @@ public final class VirtualKafkaClusterReconciler implements
     static final String INGRESSES_EVENT_SOURCE_NAME = "ingresses";
     static final String FILTERS_EVENT_SOURCE_NAME = "filters";
     static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
-    public static final String CONFIGMAPS_EVENT_SOURCE_NAME = "configmaps";
+    public static final String CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "configmapsTrustAnchorRef";
+    static final String SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsTrustAnchorRef";
     static final String KUBERNETES_SERVICES_EVENT_SOURCE_NAME = "kubernetesServices";
     private static final String KAFKA_PROXY_INGRESS_KIND = getKind(KafkaProxyIngress.class);
     static final String KAFKA_PROXY_KIND = getKind(KafkaProxy.class);
@@ -158,9 +161,15 @@ public final class VirtualKafkaClusterReconciler implements
                 .filter(Objects::nonNull)
                 .map(Tls::getTrustAnchorRef)
                 .filter(Objects::nonNull)
-                .flatMap(trustAnchorRef -> context.getSecondaryResourcesAsStream(ConfigMap.class)
-                        .filter(cm -> KubernetesResourceUtil.getName(cm).equals(trustAnchorRef.getRef().getName())))
-                .forEach(checksumGenerator::appendMetadata);
+                .flatMap(trustAnchorRef -> resolveTrustAnchor(context, trustAnchorRef)).forEach(checksumGenerator::appendMetadata);
+    }
+
+    private static Stream<? extends HasMetadata> resolveTrustAnchor(Context<VirtualKafkaCluster> context, TrustAnchorRef trustAnchorRef) {
+        Class<? extends HasMetadata> resourceClass = isSecret(trustAnchorRef) ? Secret.class : ConfigMap.class;
+
+        return context.getSecondaryResourcesAsStream(resourceClass)
+                .filter(resource -> KubernetesResourceUtil.getName(resource)
+                        .equals(trustAnchorRef.getRef().getName()));
     }
 
     /**
@@ -224,7 +233,11 @@ public final class VirtualKafkaClusterReconciler implements
             var trustAnchorCheck = trustRefs.stream()
                     .map(trustAnchorRef -> {
                         var path = "spec.ingresses[].tls.trustAnchor";
-                        return ResourcesUtil.checkTrustAnchorRef(cluster, context, CONFIGMAPS_EVENT_SOURCE_NAME, trustAnchorRef, path, statusFactory).resource();
+                        String eventSourceName = isSecret(trustAnchorRef)
+                                ? SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME
+                                : CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME;
+                        return ResourcesUtil.checkTrustAnchorRef(cluster, context, eventSourceName, trustAnchorRef, path,
+                                statusFactory).resource();
                     })
                     .filter(Objects::nonNull)
                     .findFirst();
@@ -432,12 +445,20 @@ public final class VirtualKafkaClusterReconciler implements
                 .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnIngressCertificateRefToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
-        InformerEventSourceConfiguration<ConfigMap> clusterToConfigMap = InformerEventSourceConfiguration.from(
+        InformerEventSourceConfiguration<ConfigMap> clusterToConfigMapTrustAnchorRef = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 VirtualKafkaCluster.class)
-                .withName(CONFIGMAPS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToConfigMapSecondaryJoinedOnIngressTrustAnchorRefMapper())
-                .withSecondaryToPrimaryMapper(new ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(context))
+                .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRefMapper())
+                .withSecondaryToPrimaryMapper(new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(context))
+                .build();
+
+        InformerEventSourceConfiguration<Secret> clusterToSecretTrustAnchorRef = InformerEventSourceConfiguration.from(
+                Secret.class,
+                VirtualKafkaCluster.class)
+                .withName(SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRefMapper())
+                .withSecondaryToPrimaryMapper(new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(context))
                 .build();
 
         return List.of(
@@ -448,7 +469,8 @@ public final class VirtualKafkaClusterReconciler implements
                 new InformerEventSource<>(clusterToFilters, context),
                 new InformerEventSource<>(clusterToKubeService, context),
                 new InformerEventSource<>(clusterToSecret, context),
-                new InformerEventSource<>(clusterToConfigMap, context));
+                new InformerEventSource<>(clusterToConfigMapTrustAnchorRef, context),
+                new InformerEventSource<>(clusterToSecretTrustAnchorRef, context));
     }
 
     static void logIgnoredEvent(HasMetadata hasMetadata) {

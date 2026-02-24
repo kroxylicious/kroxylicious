@@ -19,14 +19,15 @@ class ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimar
     @Test
     void canMapFromConfigMapToVirtualKafkaClusterWithTls() {
         // Given
-        EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport
+                .mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR);
 
         // When
-        var mapper = new ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);
-        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR));
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(MapperTestSupport.CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR));
     }
 
     @Test
@@ -35,7 +36,7 @@ class ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimar
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_NO_FILTERS);
 
         // When
-        var mapper = new ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);
@@ -48,7 +49,7 @@ class ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimar
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = MapperTestSupport.mockContextContaining(MapperTestSupport.CLUSTER_TLS_NO_FILTERS);
 
         // When
-        var mapper = new ConfigMapSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper(eventSourceContext);
+        var mapper = new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.PEM_CONFIG_MAP);

@@ -7,6 +7,7 @@ Get baseline Kafka performance metrics in ~15 minutes.
 - Kubernetes cluster running (minikube, kind, or cloud)
 - `kubectl` and `helm` installed
 - 8 CPU cores, 16GB RAM recommended
+- [JBang](https://www.jbang.dev/download/) (for result scripts)
 - **Kroxylicious operator** installed (proxy scenarios only — see step 3)
 
 ## Setup (One-time)
@@ -106,10 +107,20 @@ kubectl get configmap omb-driver-baseline -n kafka -o jsonpath='{.data.driver-ka
 # proxy:     bootstrap.servers=kafka-cluster-ip-bootstrap:9292
 ```
 
+### Verify Bootstrap Target
+
+OMB does not log the bootstrap servers it connects to. To confirm which scenario is active, check the driver ConfigMap:
+
+```bash
+kubectl get configmap omb-driver-baseline -n kafka -o jsonpath='{.data.driver-kafka\.yaml}' | grep bootstrap
+# baseline:  bootstrap.servers=kafka-kafka-bootstrap:9092
+# proxy:     bootstrap.servers=kafka-cluster-ip-bootstrap:9292
+```
+
 ### Run Default Benchmark
 
 ```bash
-kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
+kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c '/opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 ```
 
 **What you'll see:**
@@ -136,6 +147,21 @@ BENCHMARK_COORDINATOR=$(kubectl get pod -l app=omb-benchmark -n kafka -o jsonpat
 kubectl cp ${BENCHMARK_COORDINATOR}:. ./results/ -n kafka
 ```
 
+### Compare Results
+
+After saving results from baseline and proxy runs, compare them side-by-side:
+
+```bash
+# Build filtered sources (one-time, after checkout or version changes)
+mvn process-sources -pl kroxylicious-openmessaging-benchmarks
+
+# Compare baseline vs proxy results
+./kroxylicious-openmessaging-benchmarks/scripts/compare-results.sh \
+  results/baseline.json results/proxy.json
+```
+
+This outputs latency and throughput tables with deltas and percentage changes.
+
 ### Switch to Different Workload
 
 To run a different workload, upgrade the Helm release with a different `omb.workload` value (use whichever scenario values file you deployed with):
@@ -157,7 +183,7 @@ kubectl rollout restart deploy/omb-benchmark -n kafka
 kubectl wait --for=condition=ready pod -l app=omb-benchmark -n kafka --timeout=60s
 
 # Run benchmark
-kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c 'bin/benchmark --drivers /config/driver-kafka.yaml --workers "$WORKERS" /workloads/workload.yaml'
+kubectl exec -it deploy/omb-benchmark -n kafka -- sh -c '/opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 ```
 
 **Available workloads:**
