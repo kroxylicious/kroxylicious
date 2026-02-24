@@ -1,0 +1,49 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Build Kroxylicious Container Images
+
+on:
+  workflow_call:
+
+jobs:
+  build_kroxylicious_images:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
+      - name: 'Set up Docker Buildx'
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - name: 'Cache Maven packages'
+        uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
+        run: |
+          mvn --quiet --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
+      - name: 'Archive kroxylicious proxy image'
+        uses: actions/upload-artifact@v6
+        with:
+          name: kroxylicious-proxy
+          path: kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
+      - name: 'Archive kroxylicious operator image'
+        uses: actions/upload-artifact@v6
+        with:
+          name: kroxylicious-operator
+          path: kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
