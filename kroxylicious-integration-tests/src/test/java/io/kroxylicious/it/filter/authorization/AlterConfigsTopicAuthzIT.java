@@ -152,7 +152,7 @@ class AlterConfigsTopicAuthzIT extends AuthzIT {
     private static AlterConfigsRequestData.AlterConfigsResource topicResource(String topicName) {
         var resource = new AlterConfigsRequestData.AlterConfigsResource();
         resource.setResourceName(topicName);
-        resource.setResourceType(ConfigResource.Type.GROUP.id());
+        resource.setResourceType(ConfigResource.Type.TOPIC.id());
         AlterConfigsRequestData.AlterableConfig alterable = new AlterConfigsRequestData.AlterableConfig();
         alterable.setName("retention.bytes");
         alterable.setValue("20000");

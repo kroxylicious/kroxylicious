@@ -7,6 +7,7 @@
 package io.kroxylicious.it.filter.authorization;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -20,6 +21,8 @@ import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.JoinGroupResponseData;
+import org.apache.kafka.common.message.LeaveGroupRequestData;
+import org.apache.kafka.common.message.LeaveGroupResponseData;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
@@ -100,6 +103,18 @@ class KafkaDriver {
         return result;
     }
 
+    private static LeaveGroupRequestData leaveGroupRequestData(short leaveGroupVersion, String groupId, String memberId, String groupInstanceId) {
+        LeaveGroupRequestData result = new LeaveGroupRequestData();
+        result.setGroupId(groupId);
+        if (leaveGroupVersion < 3) {
+            result.setMemberId(memberId);
+        }
+        else {
+            result.setMembers(List.of(new LeaveGroupRequestData.MemberIdentity().setMemberId(memberId).setGroupInstanceId(groupInstanceId)));
+        }
+        return result;
+    }
+
     private static SyncGroupRequestData syncGroupRequestData(short syncGroupVersion, String groupId, String groupInstanceId,
                                                              String protocolType, int generation, String memberId) {
         SyncGroupRequestData result = new SyncGroupRequestData();
@@ -140,6 +155,20 @@ class KafkaDriver {
             JoinGroupResponseData response = sendRequest(request, joinGroupVersion, JoinGroupResponseData.class);
             assertThat(Errors.forCode(response.errorCode()))
                     .as("JoinGroup response from %s", cluster)
+                    .isEqualTo(Errors.NONE);
+            finalResponse.set(response);
+        });
+        return finalResponse.get();
+    }
+
+    LeaveGroupResponseData leaveGroup(String groupId, String memberId, String groupInstanceId) {
+        short leaveGroupVersion = (short) 5;
+        AtomicReference<LeaveGroupResponseData> finalResponse = new AtomicReference<>();
+        Awaitility.await().pollInterval(20, MILLISECONDS).untilAsserted(() -> {
+            LeaveGroupRequestData request = leaveGroupRequestData(leaveGroupVersion, groupId, memberId, groupInstanceId);
+            LeaveGroupResponseData response = sendRequest(request, leaveGroupVersion, LeaveGroupResponseData.class);
+            assertThat(Errors.forCode(response.errorCode()))
+                    .as("LeaveGroup response from %s", cluster)
                     .isEqualTo(Errors.NONE);
             finalResponse.set(response);
         });
