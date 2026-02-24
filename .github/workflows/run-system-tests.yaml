@@ -19,7 +19,7 @@ name: System Tests
 
 on:
   workflow_dispatch:
-    inputs: &workflow-inputs
+    inputs:
       kafkaClient:
         description: "Kafka client to be used"
         default: "strimzi_test_client"
@@ -35,7 +35,19 @@ on:
         type: string
   workflow_call:
     inputs:
-      <<: *workflow-inputs
+      kafkaClient:
+        description: "Kafka client to be used"
+        default: "strimzi_test_client"
+        required: false
+        type: string
+      groups:
+        description: "Groups to be included in test run"
+        required: false
+        type: string
+      excludedGroups:
+        description: "Groups to be excluded from test run"
+        required: false
+        type: string
 
 jobs:
   discover_system_test_chunks:
