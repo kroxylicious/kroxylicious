@@ -14,10 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
@@ -44,6 +42,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
+import static io.kroxylicious.it.filter.authorization.ClusterPrepUtils.deleteAllConsumerGroups;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ListGroupsAuthzIT extends AuthzIT {
@@ -116,16 +115,6 @@ class ListGroupsAuthzIT extends AuthzIT {
         // delete all groups created by the scenario to prevent them being included in future list operations
         deleteAllConsumerGroups(kafkaClusterWithAuthzAdmin);
         deleteAllConsumerGroups(kafkaClusterNoAuthzAdmin);
-    }
-
-    private static void deleteAllConsumerGroups(Admin admin) {
-        try {
-            List<String> groupIds = admin.listGroups().all().get(10, TimeUnit.SECONDS).stream().map(GroupListing::groupId).toList();
-            admin.deleteConsumerGroups(groupIds).all().get(10, TimeUnit.SECONDS);
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     class ListGroupsEquivalence extends Equivalence<ListGroupsRequestData, ListGroupsResponseData> {
