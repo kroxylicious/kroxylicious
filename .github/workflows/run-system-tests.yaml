@@ -19,7 +19,7 @@ name: System Tests
 
 on:
   workflow_dispatch:
-    inputs:
+    inputs: &workflow-inputs
       kafkaClient:
         description: "Kafka client to be used"
         default: "strimzi_test_client"
@@ -35,19 +35,7 @@ on:
         type: string
   workflow_call:
     inputs:
-      kafkaClient:
-        description: "Kafka client to be used"
-        default: "strimzi_test_client"
-        required: false
-        type: string
-      groups:
-        description: "Groups to be included in test run"
-        required: false
-        type: string
-      excludedGroups:
-        description: "Groups to be excluded from test run"
-        required: false
-        type: string
+      <<: *workflow-inputs
 
 jobs:
   discover_system_test_chunks:
@@ -63,7 +51,7 @@ jobs:
         working-directory: kroxylicious-systemtests
         id: discover
         run: |
-          TEST_CHUNKS="[$(find . -type f -name "*ST.java" -exec basename {} .java \; | tr ' ' , | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
+          TEST_CHUNKS="[$(find . -type f -name "*ST.java" -exec basename {} .java \; | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
 
   run_system_tests:
