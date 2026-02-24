@@ -96,15 +96,24 @@ ${pad}    }
 ${pad}}
             <#elseif field.isResourceList>
 ${pad}// process the resource list
-${pad}${fieldVar}.${getter}().stream()
-${pad}            .collect(Collectors.toMap(Function.identity(),
-${pad}                  r -> EntityIsolation.fromConfigResourceTypeCode(r.resourceType())))
-${pad}            .entrySet()
-${pad}            .stream()
-${pad}            .filter(e -> e.getValue().isPresent())
-${pad}            .filter(e -> shouldMap(e.getValue().get())).forEach(e -> {
-${pad}                e.getKey().setResourceName(unmap(mapperContext, e.getValue().get(), e.getKey().resourceName()));
-${pad}    });
+                <#local collectionIteratorVar=field.name?uncap_first + "Iterator"
+                        elementVar=field.type?remove_beginning("[]")?uncap_first />
+${pad}if (<@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
+${pad}    var ${collectionIteratorVar} = ${fieldVar}.${getter}().iterator();
+${pad}    while (${collectionIteratorVar}.hasNext()) {
+${pad}        var ${elementVar} = ${collectionIteratorVar}.next();
+${pad}        EntityIsolation.fromConfigResourceTypeCode(${elementVar}.resourceType())
+${pad}              .filter(entityType -> shouldMap(entityType))
+${pad}              .ifPresent(entityType -> {
+${pad}            if (inNamespace(mapperContext, entityType, ${elementVar}.resourceName())) {
+${pad}                ${elementVar}.setResourceName(unmap(mapperContext, entityType, ${elementVar}.resourceName()));
+${pad}            }
+${pad}            else {
+${pad}                ${collectionIteratorVar}.remove();
+${pad}            }
+${pad}        });
+${pad}    }
+${pad}}
             </#if>
         </#items>
     </#list>
