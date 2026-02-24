@@ -1,3 +1,4 @@
+
 #
 #  Licensed to the Apache Software Foundation (ASF) under one or more
 #  contributor license agreements. See the NOTICE file distributed with
@@ -90,13 +91,22 @@ jobs:
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
-      - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
-        run: |
-          mvn --quiet --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
+      - name: Download kroxylicious proxy artifact
+        uses: dawidd6/action-download-artifact@5c98f0b039f36ef966fdb7dfa9779262785ecb05
+        with:
+          workflow: build_kroxylicious_images
+          name: kroxylicious-proxy
+          run_id: ${{github.run_id}}
+      - name: Download kroxylicious proxy artifact
+        uses: dawidd6/action-download-artifact@5c98f0b039f36ef966fdb7dfa9779262785ecb05
+        with:
+          workflow: build_kroxylicious_images
+          name: kroxylicious-operator
+          run_id: ${{github.run_id}}
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
-          minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
-          minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
+          minikube image load kroxylicious-proxy.img.tar.gz
+          minikube image load kroxylicious-operator.img.tar.gz
           
           # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
           KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"

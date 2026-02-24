@@ -33,13 +33,18 @@ on:
   workflow_dispatch:
 
 jobs:
+  build_images:
+    uses: ./.github/workflows/build-kroxylicious-container-images.yaml
+
   # First we run the tests that are independent of the KAFKA_CLIENT selected
   run_external_kafka_client_and_operator_system_tests:
+    needs: build_images
     uses: ./.github/workflows/run-system-tests.yaml
     with:
       groups: 'externalKafkaClients,operator'
 
   discover_system_test_clients:
+    needs: build_images
     runs-on: ubuntu-latest
     outputs:
       test_clients: ${{ steps.discover.outputs.test_clients }}
