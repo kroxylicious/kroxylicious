@@ -113,7 +113,6 @@ class KafkaServiceReconcilerTest {
             .addToData("ca-bundle.pem", "value")
             .build();
 
-<<<<<<< HEAD:kroxylicious-operator/src/test/java/io/kroxylicious/kubernetes/operator/reconciler/kafkaservice/KafkaServiceReconcilerTest.java
     public static final Secret TRUST_ANCHOR_PEM_SECRET = new SecretBuilder()
             .withNewMetadata()
             .withName("my-secret")
@@ -121,7 +120,8 @@ class KafkaServiceReconcilerTest {
             .withResourceVersion("7782")
             .endMetadata()
             .addToData("ca-bundle.pem", "value")
-=======
+            .build();
+
     public static final ConfigMap CRT_CONFIG_MAP = new ConfigMapBuilder()
             .withNewMetadata()
             .withName("my-configmap")
@@ -129,7 +129,6 @@ class KafkaServiceReconcilerTest {
             .withResourceVersion("7782")
             .endMetadata()
             .addToData("ca-bundle.crt", "value")
->>>>>>> 31ac79b5a (Add storageType field to trustAnchorRef):kroxylicious-operator/src/test/java/io/kroxylicious/kubernetes/operator/KafkaServiceReconcilerTest.java
             .build();
 
     public static final Kafka KAFKA = new KafkaBuilder()
