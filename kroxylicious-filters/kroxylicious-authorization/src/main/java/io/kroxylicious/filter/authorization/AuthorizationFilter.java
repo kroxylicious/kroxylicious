@@ -102,7 +102,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.ALTER_CONFIGS, new AlterConfigsEnforcement());
         apiEnforcement.put(ApiKeys.INCREMENTAL_ALTER_CONFIGS, new IncrementalAlterConfigsEnforcement());
         apiEnforcement.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, new ConsumerGroupDescribeEnforcement());
-        apiEnforcement.put(ApiKeys.DESCRIBE_GROUPS, new Passthrough<>(0, 6));
+        apiEnforcement.put(ApiKeys.DESCRIBE_GROUPS, new DescribeGroupsEnforcement());
         apiEnforcement.put(ApiKeys.DESCRIBE_TRANSACTIONS, new DescribeTransactionsEnforcement());
         apiEnforcement.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEnforcement());
     }

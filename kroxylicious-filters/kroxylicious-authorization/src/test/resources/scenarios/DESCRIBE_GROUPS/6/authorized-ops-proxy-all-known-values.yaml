@@ -1,0 +1,86 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_GROUPS"
+  apiVersion: 6
+  scenario: |
+    checks that proxy can restrict authorized ops using all supported GroupResources
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_GROUPS"
+      expectedRequestVersion: 6
+      expectedRequestHeader:
+        requestApiKey: 15
+        requestApiVersion: 6
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        groups:
+          - "my-group"
+        includeAuthorizedOperations: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 55
+        groups:
+          - errorCode: 0
+            errorMessage: ""
+            groupId: "my-group"
+            groupState: "created"
+            protocolType: "consumer"
+            protocolData: "consumer"
+            members: []
+            authorizedOperations: 65535 # All org.apache.kafka.common.acl.AclOperation up to ordinal 15
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DELETE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "ALTER_CONFIGS"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE_CONFIGS"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 15
+    requestApiVersion: 6
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    groups:
+      - "my-group"
+    includeAuthorizedOperations: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 55
+    groups:
+      - errorCode: 0
+        errorMessage: ""
+        groupId: "my-group"
+        groupState: "created"
+        protocolType: "consumer"
+        protocolData: "consumer"
+        members: [ ]
+        authorizedOperations: 3400 # READ + DELETE + DESCRIBE + ALTER_CONFIGS + DESCRIBE_CONFIGS
