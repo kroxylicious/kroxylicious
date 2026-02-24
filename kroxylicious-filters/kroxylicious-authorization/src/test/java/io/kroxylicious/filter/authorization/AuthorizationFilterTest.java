@@ -312,6 +312,7 @@ class AuthorizationFilterTest {
                 ApiKeys.CREATE_TOPICS,
                 ApiKeys.CREATE_PARTITIONS,
                 ApiKeys.DELETE_TOPICS,
+                ApiKeys.DELETE_GROUPS,
                 ApiKeys.DELETE_RECORDS,
                 ApiKeys.DESCRIBE_PRODUCERS,
                 ApiKeys.OFFSET_DELETE,
