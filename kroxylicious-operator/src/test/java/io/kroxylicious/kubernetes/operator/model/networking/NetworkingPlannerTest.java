@@ -28,7 +28,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder;
-import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
+import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.IngressResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
@@ -47,7 +47,7 @@ class NetworkingPlannerTest {
     private static final String CLUSTER_NAME = "my-cluster";
     private static final String KAFKA_SERVICE_NAME = "my-kafka-service";
     private static final String NAMESPACE = "ns";
-    private static final List<ProxyModelBuilder.RouteHostDetails> ROUTE_HOST_DETAILS = List.of();
+    private static final List<RouteHostDetails> ROUTE_HOST_DETAILS = List.of();
     // @formatter:off
     private static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
