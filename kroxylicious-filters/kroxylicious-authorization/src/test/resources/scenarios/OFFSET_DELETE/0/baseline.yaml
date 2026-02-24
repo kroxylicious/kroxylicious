@@ -8,7 +8,10 @@
 metadata:
   apiKeys: "OFFSET_DELETE"
   apiVersion: 0
-  scenario: "baseline"
+  scenario: |
+    given user is allowed to DELETE group
+    and given user is allowed to READ topic
+    then request forwarded upstream
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "OFFSET_DELETE"
@@ -40,6 +43,10 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "READ"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DELETE"
   topicNames: null
 when:
   subject: "alice"
