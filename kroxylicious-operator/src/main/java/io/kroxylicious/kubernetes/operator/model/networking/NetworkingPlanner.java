@@ -24,7 +24,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRo
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
-import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
+import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterIngressNetworkingModelResult;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
@@ -68,7 +68,7 @@ public class NetworkingPlanner {
      * @return non-null ProxyIngressModel
      */
     public static ProxyNetworkingModel planNetworking(KafkaProxy primary,
-                                                      ProxyResolutionResult proxyResolutionResult, List<ProxyModelBuilder.RouteHostDetails> routeHostDetails) {
+                                                      ProxyResolutionResult proxyResolutionResult, List<RouteHostDetails> routeHostDetails) {
         AtomicInteger identifyingPorts = new AtomicInteger(PROXY_PORT_START);
         // include broken clusters in the model, so that if they are healed the ports will stay the same
         Stream<ClusterResolutionResult> virtualKafkaClusterStream = proxyResolutionResult.allResolutionResultsInClusterNameOrder();
@@ -80,7 +80,7 @@ public class NetworkingPlanner {
 
     private static ClusterNetworkingModel planClusterNetworking(KafkaProxy primary,
                                                                 ClusterResolutionResult clusterResolutionResult,
-                                                                AtomicInteger identifyingPorts, List<ProxyModelBuilder.RouteHostDetails> routeHostDetails) {
+                                                                AtomicInteger identifyingPorts, List<RouteHostDetails> routeHostDetails) {
         Stream<ClusterIngressNetworkingDefinition> networkingDefinitions = planClusterIngressNetworkingDefinitions(primary, clusterResolutionResult, routeHostDetails);
         List<ClusterIngressNetworkingModelResult> ingressResults = networkingDefinitions.map(networkingDefinition -> {
             int toAllocate = networkingDefinition.numIdentifyingPortsRequired();
@@ -112,7 +112,7 @@ public class NetworkingPlanner {
 
     static Stream<ClusterIngressNetworkingDefinition> planClusterIngressNetworkingDefinitions(KafkaProxy primary,
                                                                                               ClusterResolutionResult clusterResolutionResult,
-                                                                                              List<ProxyModelBuilder.RouteHostDetails> routeHostDetails) {
+                                                                                              List<RouteHostDetails> routeHostDetails) {
         VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
         return clusterResolutionResult.ingressResolutionResults().stream()
                 .flatMap(
@@ -132,7 +132,7 @@ public class NetworkingPlanner {
                                                                                                      KafkaProxyIngress ingress,
                                                                                                      Optional<KafkaService> service,
                                                                                                      VirtualKafkaCluster cluster,
-                                                                                                     List<ProxyModelBuilder.RouteHostDetails> routeHostDetails) {
+                                                                                                     List<RouteHostDetails> routeHostDetails) {
         // todo we should change this so that we skip if KafkaService is not resolved
         List<NodeIdRanges> nodeIdRanges = service.map(s -> s.getSpec().getNodeIdRanges()).orElse(DEFAULT_NODE_ID_RANGES);
         try {
@@ -152,7 +152,7 @@ public class NetworkingPlanner {
                                                                                          KafkaProxyIngress ingress,
                                                                                          List<NodeIdRanges> nodeIdRanges,
                                                                                          @Nullable Tls tls,
-                                                                                         List<ProxyModelBuilder.RouteHostDetails> routeHostDetails) {
+                                                                                         List<RouteHostDetails> routeHostDetails) {
         ClusterIP clusterIP = ingress.getSpec().getClusterIP();
         LoadBalancer loadBalancer = ingress.getSpec().getLoadBalancer();
         OpenShiftRoute openShiftRoute = ingress.getSpec().getOpenShiftRoute();
@@ -301,7 +301,7 @@ public class NetworkingPlanner {
                                                                     VirtualKafkaCluster cluster,
                                                                     OpenShiftRoute openShiftRoute,
                                                                     List<NodeIdRanges> nodeIdRanges,
-                                                                    Tls tls, List<ProxyModelBuilder.RouteHostDetails> routeHostDetails)
+                                                                    Tls tls, List<RouteHostDetails> routeHostDetails)
             implements ClusterIngressNetworkingDefinition {
 
         @Override
