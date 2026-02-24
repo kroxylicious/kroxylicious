@@ -73,6 +73,7 @@ import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.networking.ClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxyingress.IsOpenshiftRouteSupportedActivationCondition;
 import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterStatusFactory;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
@@ -128,7 +129,8 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
         @Dependent(
                 name = KafkaProxyReconciler.ROUTES_DEP,
                 type = ClusterRouteDependentResource.class,
-                dependsOn = { KafkaProxyReconciler.CLUSTERS_DEP }
+                dependsOn = { KafkaProxyReconciler.CLUSTERS_DEP },
+                activationCondition = IsOpenshiftRouteSupportedActivationCondition.class
         )
 })
 // @formatter:on
