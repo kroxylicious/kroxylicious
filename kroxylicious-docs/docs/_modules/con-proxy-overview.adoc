@@ -43,7 +43,7 @@ connects to a Virtual Cluster.  Kroxylicious proxies all communications made to 
 
 Each virtual cluster has one or more dedicated gateways, which Kafka clients use to establish connections.
 
-Each gateway exposes a bootstrap endpoint, which the Kafka Client must specify in its configuration as the https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[`bootstrap.servers`] property.
+Each gateway exposes a bootstrap endpoint, which the Kafka Client must specify in its configuration as the link:{ApacheKafkaDocsBase}configuration/producer-configs/#producerconfigs_bootstrap.servers[`bootstrap.servers`] property.
 
 In addition to the bootstrap endpoint, the gateway automatically exposes broker endpoints. There is one broker endpoint
 for each broker of the physical cluster.  When the Client connects to a broker endpoint, Kroxylicious proxies all
