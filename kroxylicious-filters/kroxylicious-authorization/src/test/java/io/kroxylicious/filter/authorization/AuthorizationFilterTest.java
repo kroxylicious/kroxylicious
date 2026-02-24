@@ -319,6 +319,7 @@ class AuthorizationFilterTest {
                 ApiKeys.OFFSET_FOR_LEADER_EPOCH,
                 ApiKeys.TXN_OFFSET_COMMIT,
                 ApiKeys.JOIN_GROUP,
+                ApiKeys.LIST_GROUPS,
                 ApiKeys.SYNC_GROUP,
                 ApiKeys.CONSUMER_GROUP_HEARTBEAT,
                 ApiKeys.DESCRIBE_CONFIGS,
