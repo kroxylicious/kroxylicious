@@ -1,0 +1,59 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "LIST_GROUPS"
+  apiVersion: 0
+  scenario: |
+    user allowed to describe group my-group
+    user not allowed to describe group denied-group
+    upstream responds with descriptions for my-group and denied-group
+    denied-group description removed from response
+    my-group description retained in response
+    response forwarded downstream
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_GROUPS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 16
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest: {}
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 0
+        groups:
+          - groupId: "my-group"
+            protocolType: "consumer"
+          - groupId: "denied-group"
+            protocolType: "consumer"
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 16
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request: {}
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    errorCode: 0
+    groups:
+      - groupId: "my-group"
+        protocolType: "consumer"
