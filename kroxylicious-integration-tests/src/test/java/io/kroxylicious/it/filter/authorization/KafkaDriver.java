@@ -20,6 +20,8 @@ import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.JoinGroupResponseData;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.message.OffsetCommitResponseData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.SyncGroupResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -233,5 +235,29 @@ class KafkaDriver {
         AddOffsetsToTxnResponseData response = sendRequest(request, (short) 4, AddOffsetsToTxnResponseData.class);
         assertThat(Errors.forCode(response.errorCode())).isEqualTo(Errors.NONE);
         return response;
+    }
+
+    public void commitOffsets(String group, String memberId, String groupInstanceId, int generation, String topicName, Map<Integer, Integer> offsets) {
+        OffsetCommitRequestData offsetCommitRequestData = new OffsetCommitRequestData();
+        offsetCommitRequestData.setGroupId(group);
+        offsetCommitRequestData.setMemberId(memberId);
+        offsetCommitRequestData.setGroupInstanceId(groupInstanceId);
+        offsetCommitRequestData.setGenerationIdOrMemberEpoch(generation);
+        OffsetCommitRequestData.OffsetCommitRequestTopic offsetTopic = new OffsetCommitRequestData.OffsetCommitRequestTopic();
+        offsetTopic.setName(topicName);
+        offsets.forEach((partitionId, offset) -> {
+            OffsetCommitRequestData.OffsetCommitRequestPartition partition = new OffsetCommitRequestData.OffsetCommitRequestPartition();
+            partition.setPartitionIndex(partitionId);
+            partition.setCommittedOffset(offset);
+            offsetTopic.partitions().add(partition);
+        });
+        offsetCommitRequestData.topics().add(offsetTopic);
+        // note we use topic name and v9 because the authz filter doesn't handle topicIds yet
+        OffsetCommitResponseData response = sendRequest(offsetCommitRequestData, (short) 9, OffsetCommitResponseData.class);
+        assertThat(response.topics()).isNotEmpty().allSatisfy(responseTopic -> {
+            assertThat(responseTopic.partitions()).isNotEmpty().allSatisfy(responsePartition -> {
+                assertThat(Errors.forCode(responsePartition.errorCode())).isEqualTo(Errors.NONE);
+            });
+        });
     }
 }
