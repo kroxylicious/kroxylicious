@@ -34,6 +34,7 @@ class MapperTestSupport {
 
     public static final String SERVER_CERT_SECRET_NAME = "server-cert";
     public static final String TRUST_ANCHOR_CERT_CONFIGMAP_NAME = "trust-anchor-cert";
+    public static final String TRUST_ANCHOR_CERT_SECRET_NAME = "trust-anchor-secret";
 
     // @formatter:off
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
@@ -70,21 +71,34 @@ class MapperTestSupport {
             .endSpec()
             .build();
 
-    public static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
+    public static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_CONFIGMAP_TRUST_ANCHOR = new VirtualKafkaClusterBuilder(CLUSTER_TLS_NO_FILTERS)
             .editOrNewSpec()
-                .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
-                    .withNewTls()
-                        .withNewCertificateRef()
-                            .withName(SERVER_CERT_SECRET_NAME)
-                        .endCertificateRef()
+                .editIngress(0)
+                    .editOrNewTls()
                         .withNewTrustAnchorRef()
-                        .withNewRef()
-                            .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
-                        .endRef()
-                        .withKey("ca-bundle.pem")
+                            .withNewRef()
+                                .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
+                            .endRef()
+                            .withKey("ca-bundle.pem")
                         .endTrustAnchorRef()
                     .endTls()
-                .build())
+                .endIngress()
+            .endSpec()
+            .build();
+
+        public static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_SECRET_TRUST_ANCHOR = new VirtualKafkaClusterBuilder(CLUSTER_TLS_NO_FILTERS)
+            .editOrNewSpec()
+                .editIngress(0)
+                    .editOrNewTls()
+                        .withNewTrustAnchorRef()
+                            .withNewRef()
+                                .withKind("Secret")
+                                .withName(TRUST_ANCHOR_CERT_SECRET_NAME)
+                            .endRef()
+                            .withKey("ca-bundle.pem")
+                        .endTrustAnchorRef()
+                    .endTls()
+                .endIngress()
             .endSpec()
             .build();
 
@@ -104,6 +118,16 @@ class MapperTestSupport {
     public static final ConfigMap PEM_CONFIG_MAP = new ConfigMapBuilder()
             .withNewMetadata()
                 .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
+                .withNamespace(NAMESPACE)
+                .withGeneration(42L)
+                .withUid(UUID.randomUUID().toString())
+            .endMetadata()
+            .addToData("ca-bundle.pem", "value")
+            .build();
+
+    public static final Secret TRUST_ANCHOR_PEM_SECRET = new SecretBuilder()
+            .withNewMetadata()
+                .withName(TRUST_ANCHOR_CERT_SECRET_NAME)
                 .withNamespace(NAMESPACE)
                 .withGeneration(42L)
                 .withUid(UUID.randomUUID().toString())

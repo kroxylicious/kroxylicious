@@ -12,10 +12,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -24,47 +25,34 @@ import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
-import org.apache.kafka.common.message.MetadataRequestData;
-import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.Records;
 import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
-import org.junit.jupiter.api.BeforeEach;
+import org.apache.kafka.common.requests.FetchResponse;
+import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.stubbing.Answer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.proxy.config.ConfigParser;
-import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
-import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.test.assertj.MockFilterContextAssert;
+import io.kroxylicious.test.context.MockFilterContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
 class FetchResponseTransformationFilterTest {
 
     private static final String TOPIC_NAME = "mytopic";
@@ -72,51 +60,11 @@ class FetchResponseTransformationFilterTest {
     private static final String ORIGINAL_RECORD_VALUE = "lowercasevalue";
     private static final String EXPECTED_TRANSFORMED_RECORD_VALUE = ORIGINAL_RECORD_VALUE.toUpperCase(Locale.ROOT);
     private static final String RECORD_KEY = "key";
-    private FetchResponseTransformationFilter filter;
-    @Mock(strictness = Mock.Strictness.LENIENT)
-    FilterContext context;
-
-    @Mock(strictness = Mock.Strictness.LENIENT)
-    private ResponseFilterResult responseFilterResult;
-
-    @Mock(strictness = Mock.Strictness.LENIENT, extraInterfaces = CloseOrTerminalStage.class)
-    private ResponseFilterResultBuilder responseFilterResultBuilder;
-
-    @Captor
-    private ArgumentCaptor<Integer> bufferInitialCapacity;
-
-    @Captor
-    private ArgumentCaptor<ResponseHeaderData> responseHeaderDataCaptor;
-
-    @Captor
-    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
+    public static final Uuid TOPIC_ID_2 = Uuid.randomUuid();
+    private final FetchResponseTransformationFilter filter = new FetchResponseTransformationFilter(new UpperCasing.Transformation(
+            new UpperCasing.Config("UTF-8")));
 
     private static final ObjectMapper MAPPER = ConfigParser.createObjectMapper();
-
-    @BeforeEach
-    @SuppressWarnings("unchecked")
-    void setUp() {
-        filter = new FetchResponseTransformationFilter(new UpperCasing.Transformation(
-                new UpperCasing.Config("UTF-8")));
-
-        when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(responseFilterResult));
-        when(context.responseFilterResultBuilder()).thenReturn(responseFilterResultBuilder);
-
-        when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
-        when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataCaptor.getValue());
-
-        when(responseFilterResultBuilder.forward(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture()))
-                .thenReturn((CloseOrTerminalStage<ResponseFilterResult>) responseFilterResultBuilder);
-        when(((CloseOrTerminalStage<ResponseFilterResult>) responseFilterResultBuilder).completed()).thenReturn(CompletableFuture.completedStage(responseFilterResult));
-
-        when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
-                (Answer<ByteBufferOutputStream>) invocation -> {
-                    Object[] args = invocation.getArguments();
-                    Integer size = (Integer) args[0];
-                    return new ByteBufferOutputStream(size);
-                });
-    }
 
     @Test
     void testFactory() {
@@ -186,84 +134,130 @@ class FetchResponseTransformationFilterTest {
     }
 
     @Test
-    void filterHandlesPreV13ResponseBasedOnTopicNames() throws Exception {
+    void filterHandlesPreV13ResponseBasedOnTopicNames() {
 
         var fetchResponse = new FetchResponseData();
         fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord().setTopic(TOPIC_NAME)); // Version 12
 
-        var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
-        assertThat(stage).isCompleted();
+        ResponseHeaderData header = new ResponseHeaderData();
+        MockFilterContext filterContext = MockFilterContext.builder(header, fetchResponse).build();
+        var stage = filter.onFetchResponse(fetchResponse.apiKey(), header, fetchResponse, filterContext);
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult1 -> MockFilterContextAssert.assertThat(responseFilterResult1).isForwardResponse()
+                .hasMessageInstanceOfSatisfying(FetchResponseData.class, filteredResponse -> {
+                    var filteredRecords = responseToRecordStream(filteredResponse.responses()).toList();
+                    assertThat(filteredRecords)
+                            .withFailMessage("unexpected number of records in the filter response")
+                            .hasSize(1);
 
-        var filteredResponse = (FetchResponseData) stage.toCompletableFuture().get().message();
-        var filteredRecords = responseToRecordStream(filteredResponse).toList();
-        assertThat(filteredRecords)
-                .withFailMessage("unexpected number of records in the filter response")
-                .hasSize(1);
-
-        var filteredRecord = filteredRecords.get(0);
-        assertThat(decodeUtf8Value(filteredRecord))
-                .withFailMessage("expected record value to have been transformed")
-                .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                    var filteredRecord = filteredRecords.get(0);
+                    assertThat(decodeUtf8Value(filteredRecord))
+                            .withFailMessage("expected record value to have been transformed")
+                            .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                }));
     }
 
     @Test
-    void filterHandlesV13OrHigherResponseBasedOnTopicIds() throws Exception {
+    void filterHandlesV13OrHigherResponseBasedOnTopicIds() {
 
         var fetchResponse = new FetchResponseData();
         fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord().setTopicId(TOPIC_ID));
 
-        var metadataResponse = new MetadataResponseData();
-        metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
+        ResponseHeaderData header = new ResponseHeaderData();
+        MockFilterContext filterContext = MockFilterContext.builder(header, fetchResponse).withTopicName(TOPIC_ID, TOPIC_NAME).build();
+        var stage = filter.onFetchResponse(fetchResponse.apiKey(), header, fetchResponse, filterContext);
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult1 -> MockFilterContextAssert.assertThat(responseFilterResult1).isForwardResponse()
+                .hasMessageInstanceOfSatisfying(FetchResponseData.class, filteredResponse -> {
+                    // verify that the response now has the topic name
+                    assertThat(filteredResponse.responses())
+                            .withFailMessage("expected same number of topics in the response")
+                            .hasSameSizeAs(fetchResponse.responses())
+                            .withFailMessage("expected topic response to still have the topic id")
+                            .anyMatch(ftr -> Objects.equals(ftr.topicId(), TOPIC_ID));
 
-        when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
-                .thenReturn(CompletableFuture.completedStage(metadataResponse));
+                    var filteredRecords = responseToRecordStream(filteredResponse.responses()).toList();
+                    assertThat(filteredRecords)
+                            .withFailMessage("unexpected number of records in the filter response")
+                            .hasSize(1);
 
-        var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
-        assertThat(stage).isCompleted();
-
-        var filteredResponse = (FetchResponseData) stage.toCompletableFuture().get().message();
-
-        // verify that the response now has the topic name
-        assertThat(filteredResponse.responses())
-                .withFailMessage("expected same number of topics in the response")
-                .hasSameSizeAs(fetchResponse.responses())
-                .withFailMessage("expected topic response to have been augmented with topic name")
-                .anyMatch(ftr -> Objects.equals(ftr.topic(), TOPIC_NAME))
-                .withFailMessage("expected topic response to still have the topic id")
-                .anyMatch(ftr -> Objects.equals(ftr.topicId(), TOPIC_ID));
-
-        var filteredRecords = responseToRecordStream(filteredResponse).toList();
-        assertThat(filteredRecords)
-                .withFailMessage("unexpected number of records in the filter response")
-                .hasSize(1);
-
-        var filteredRecord = filteredRecords.get(0);
-        assertThat(decodeUtf8Value(filteredRecord))
-                .withFailMessage("expected record value to have been transformed")
-                .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                    var filteredRecord = filteredRecords.get(0);
+                    assertThat(decodeUtf8Value(filteredRecord))
+                            .withFailMessage("expected record value to have been transformed")
+                            .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                }));
     }
 
     @Test
-    void filterHandlesMetadataRequestError() {
+    void filterHandlesPartialTopicIdMappingFailures() {
 
         var fetchResponse = new FetchResponseData();
-        // Version 13 switched to topic id rather than topic names.
-        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord().setTopicId(TOPIC_ID));
+        FetchableTopicResponse responseForMappableId = createFetchableTopicResponseWithOneRecord().setTopicId(TOPIC_ID);
+        fetchResponse.responses().add(responseForMappableId);
+        FetchableTopicResponse responseForFailedId = createFetchableTopicResponseWithOneRecord().setTopicId(TOPIC_ID_2);
+        fetchResponse.responses().add(responseForFailedId);
 
-        var metadataResponse = new MetadataResponseData();
-        metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
+        ResponseHeaderData header = new ResponseHeaderData();
+        MockFilterContext filterContext = MockFilterContext.builder(header, fetchResponse).withTopicName(TOPIC_ID, TOPIC_NAME).build();
+        var stage = filter.onFetchResponse(fetchResponse.apiKey(), header, fetchResponse, filterContext);
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult1 -> MockFilterContextAssert.assertThat(responseFilterResult1).isForwardResponse()
+                .hasMessageInstanceOfSatisfying(FetchResponseData.class, filteredResponse -> {
+                    // verify that the response now has the topic name
+                    ListAssert<FetchableTopicResponse> responseAssert = assertThat(filteredResponse.responses())
+                            .withFailMessage("expected same number of topics in the response")
+                            .hasSameSizeAs(fetchResponse.responses());
+                    responseAssert.element(0).isSameAs(responseForMappableId).satisfies(fetchableTopicResponse -> {
+                        var filteredRecords = responseToRecordStream(List.of(fetchableTopicResponse)).toList();
+                        assertThat(filteredRecords)
+                                .withFailMessage("unexpected number of records in the filter response")
+                                .hasSize(1);
 
-        when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
-                .thenReturn(CompletableFuture.failedStage(new IllegalStateException("out-of-band request exception")));
-
-        var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
-        assertThat(stage)
-                .withFailMessage("out-of-band request exception")
-                .isCompletedExceptionally();
+                        var filteredRecord = filteredRecords.get(0);
+                        assertThat(decodeUtf8Value(filteredRecord))
+                                .withFailMessage("expected record value to have been transformed")
+                                .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                    });
+                    responseAssert.element(1).isSameAs(responseForFailedId).satisfies(fetchableTopicResponse -> {
+                        assertThat(fetchableTopicResponse.partitions()).isNotEmpty().allSatisfy(partitionData -> {
+                            PartitionData expectedErrorResponse = new PartitionData()
+                                    .setPartitionIndex(partitionData.partitionIndex())
+                                    .setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
+                                    .setHighWatermark(FetchResponse.INVALID_HIGH_WATERMARK)
+                                    .setRecords(MemoryRecords.EMPTY);
+                            assertThat(partitionData).isEqualTo(expectedErrorResponse);
+                        });
+                    });
+                }));
     }
 
-    private Stream<Record> responseToRecordStream(FetchResponseData filteredResponse) {
-        return Stream.of(filteredResponse.responses())
+    @Test
+    void filterHandlesTopicIdNameError() {
+
+        var fetchResponse = new FetchResponseData();
+        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord().setTopicId(TOPIC_ID));
+
+        ResponseHeaderData header = new ResponseHeaderData();
+        TopicNameMappingException unknownTopicIdException = new TopicNameMappingException(Errors.UNKNOWN_TOPIC_ID, "unknown topic id");
+        MockFilterContext filterContext = MockFilterContext.builder(header, fetchResponse).withTopicNameError(TOPIC_ID, unknownTopicIdException).build();
+        var stage = filter.onFetchResponse(fetchResponse.apiKey(), header, fetchResponse, filterContext);
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse()
+                .hasMessageInstanceOfSatisfying(FetchResponseData.class, filteredResponse -> {
+                    // verify that the response now has the topic name
+                    assertThat(filteredResponse.responses())
+                            .withFailMessage("expected same number of topics in the response")
+                            .hasSameSizeAs(fetchResponse.responses())
+                            .withFailMessage("expected topic response to still have the topic id")
+                            .anyMatch(ftr -> Objects.equals(ftr.topicId(), TOPIC_ID));
+
+                    assertThat(filteredResponse.responses()).isNotEmpty().allSatisfy(fetchableTopicResponse -> {
+                        assertThat(fetchableTopicResponse.partitions()).isNotEmpty().allSatisfy(partitionData -> {
+                            assertThat(partitionData.records()).isEqualTo(MemoryRecords.EMPTY);
+                            assertThat(partitionData.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_ID.code());
+                        });
+                    });
+                }));
+    }
+
+    private Stream<Record> responseToRecordStream(List<FetchableTopicResponse> responses) {
+        return Stream.of(responses)
                 .flatMap(Collection::stream)
                 .map(FetchableTopicResponse::partitions)
                 .flatMap(Collection::stream)
@@ -277,6 +271,7 @@ class FetchResponseTransformationFilterTest {
     private static FetchableTopicResponse createFetchableTopicResponseWithOneRecord() {
         var fetchableTopicResponse = new FetchableTopicResponse();
         var partitionData1 = new PartitionData();
+        partitionData1.setPartitionIndex(1);
         partitionData1.setRecords(buildOneRecord());
         fetchableTopicResponse.partitions().add(partitionData1);
         return fetchableTopicResponse;

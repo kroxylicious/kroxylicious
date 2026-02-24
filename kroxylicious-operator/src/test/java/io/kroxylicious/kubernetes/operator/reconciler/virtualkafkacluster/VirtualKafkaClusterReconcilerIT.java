@@ -79,6 +79,7 @@ class VirtualKafkaClusterReconcilerIT {
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
     public static final String SECRET_NAME = "cert";
+    public static final String SECRET_TRUST_ANCHOR_REF_NAME = "my-secret";
 
     @RegisterExtension
     static LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler(TestFiles.INSTALL_MANIFESTS_DIR, "*.ClusterRole*.yaml");
@@ -294,6 +295,58 @@ class VirtualKafkaClusterReconcilerIT {
 
         // Then
         assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d-bootstrap.%s.svc.cluster.local:9292", Protocol.TCP);
+    }
+
+    @Test
+    void shouldResolveWithSecretTrustAnchorRef() {
+        // Given
+        testActor.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        // @formatter:off
+        var ingresses = List.of(new IngressesBuilder()
+                .withNewIngressRef()
+                    .withName(INGRESS_D)
+                .endIngressRef()
+                .withNewTls()
+                    .withNewCertificateRef()
+                        .withName(SECRET_NAME)
+                    .endCertificateRef()
+                .withNewTrustAnchorRef()
+                    .withNewRef()
+                        .withKind("Secret")
+                        .withName(SECRET_TRUST_ANCHOR_REF_NAME)
+                    .endRef()
+                    .withKey("cert.pem")
+                .endTrustAnchorRef()
+                .endTls()
+                .build());
+
+        var specBuilder = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                    .withName(CLUSTER_BAR)
+                .endMetadata()
+                .withNewSpec()
+                .withNewProxyRef()
+                    .withName(PROXY_A)
+                .endProxyRef()
+                .withIngresses(ingresses)
+                .withNewTargetKafkaServiceRef()
+                    .withName(SERVICE_H)
+                .endTargetKafkaServiceRef();
+        // @formatter:on
+        var cluster = specBuilder.endSpec().build();
+        var ingress = clusterIpIngress(INGRESS_D, PROXY_A, TLS);
+        testActor.create(tlsKeyAndCertSecret(SECRET_NAME));
+        testActor.create(secretTrustAnchorRef(SECRET_TRUST_ANCHOR_REF_NAME));
+
+        updateStatusObservedGeneration(testActor.create(ingress));
+
+        // When
+        VirtualKafkaCluster clusterBar = testActor.create(cluster);
+
+        // Then
+        assertAllConditionsTrue(clusterBar);
+        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d-bootstrap.%s.svc.cluster.local:9292", Protocol.TLS);
     }
 
     @Test
@@ -538,6 +591,15 @@ class VirtualKafkaClusterReconcilerIT {
                 .withType("kubernetes.io/tls")
                 .addToData("tls.crt", "whatever")
                 .addToData("tls.key", "whatever")
+                .build();
+    }
+
+    private Secret secretTrustAnchorRef(String name) {
+        return new SecretBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .endMetadata()
+                .addToData("cert.pem", "whatever")
                 .build();
     }
 
