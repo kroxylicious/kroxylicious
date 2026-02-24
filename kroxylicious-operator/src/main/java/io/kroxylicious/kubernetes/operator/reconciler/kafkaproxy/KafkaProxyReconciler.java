@@ -408,13 +408,34 @@ public class KafkaProxyReconciler implements
                     TrustProvider trustProvider = new TrustStore(
                             mountPath.resolve(tar.getKey()).toString(),
                             null,
-                            "PEM",
+                            tar.getStoreType() != null ? tar.getStoreType() : deriveStoreTypeFromKeySuffix(trustAnchorRef),
                             forServer ? buildTlsServerOptions(clientAuthentication) : null);
 
                     return new ConfigurationFragment<>(Optional.of(trustProvider),
                             Set.of(volumeBuilder.build()),
                             Set.of(mount));
                 }).orElse(ConfigurationFragment.empty());
+    }
+
+    /**
+     * If `storeType` is null in the KafkaService CR then derive it from the key
+     */
+    static String deriveStoreTypeFromKeySuffix(TrustAnchorRef trustAnchorRef) {
+        String ext = getKeyExtension(trustAnchorRef.getKey());
+        return switch (ext) {
+            case "p12" -> "PKCS12";
+            case "jks" -> "JKS";
+            case "pem" -> "PEM";
+            default -> throw new IllegalArgumentException("Cannot derive trust store type from the file extension of the data key '"
+                    + trustAnchorRef.getKey() + "' (extension '" + ext + "')");
+        };
+    }
+
+    /**
+     * Gets the extension of the key
+     */
+    static String getKeyExtension(String key) {
+        return key.substring(key.length() - 3);
     }
 
     /**

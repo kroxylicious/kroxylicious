@@ -547,10 +547,12 @@ public class ResourcesUtil {
                         Condition.REASON_INVALID,
                         path + " must specify 'key'"), List.of());
             }
-            if (isSupportedFileType(key)) {
+            if (isUnsupportedFileType(key) && trustAnchorRef.getStoreType() == null) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_INVALID,
-                        path + ".key should end with .pem, .p12 or .jks"), List.of());
+                        path + ".key should end with .pem, .p12 or .jks or"
+                                + " use the `storeType` field to specify the store type explicitly"),
+                        List.of());
             }
             else {
                 var dataBearingResource = dataBearing.get();
@@ -666,7 +668,7 @@ public class ResourcesUtil {
                         .equals(strimziKafkaRef.getListenerName()));
     }
 
-    private static boolean isSupportedFileType(String key) {
+    private static boolean isUnsupportedFileType(String key) {
         return !key.endsWith(".pem")
                 && !key.endsWith(".p12")
                 && !key.endsWith(".jks");
