@@ -19,6 +19,7 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.message.DescribeConfigsRequestData;
 import org.apache.kafka.common.message.DescribeConfigsRequestData.DescribeConfigsResource;
 import org.apache.kafka.common.message.DescribeConfigsResponseData;
@@ -42,7 +43,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static java.util.stream.Stream.concat;
 
-class DescribeConfigsAuthzIT extends AuthzIT {
+class DescribeConfigsTopicAuthzIT extends AuthzIT {
 
     private static final String ALICE_TOPIC_NAME = "alice-topic";
     private static final String BOB_TOPIC_NAME = "bob-topic";
@@ -153,7 +154,7 @@ class DescribeConfigsAuthzIT extends AuthzIT {
     private static DescribeConfigsResource topicResource(String topicName) {
         var resource = new DescribeConfigsResource();
         resource.setResourceName(topicName);
-        resource.setResourceType(ResourceType.TOPIC.code());
+        resource.setResourceType(ConfigResource.Type.TOPIC.id());
         return resource;
     }
 
