@@ -36,7 +36,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
-import io.kroxylicious.filter.authorization.ConfigResources;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static java.util.stream.Stream.concat;
