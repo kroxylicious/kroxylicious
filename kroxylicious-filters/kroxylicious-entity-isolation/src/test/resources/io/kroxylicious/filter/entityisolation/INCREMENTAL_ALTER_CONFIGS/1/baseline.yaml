@@ -41,6 +41,6 @@
           resourceName: "mytopic"
     diff:
       - op: replace
-        path: "/resources/0/resourceName"
+        path: "/responses/0/resourceName"
         value: mygroup
 
