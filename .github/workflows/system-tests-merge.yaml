@@ -76,7 +76,7 @@ jobs:
 
   system_tests_proxy:
     runs-on: ubuntu-latest
-    needs: run_system_tests
+    needs: [run_system_tests, run_external_kafka_client_and_operator_system_tests]
     if: always()
     permissions:
       actions: read
