@@ -296,7 +296,7 @@ public class KafkaProxyExceptionMapper {
                 break;
             case OFFSET_FETCH:
                 OffsetFetchRequestData offsetFetchRequestData = (OffsetFetchRequestData) reqBody;
-                req = OffsetFetchRequest.Builder.forTopicIdsOrNames(offsetFetchRequestData, false, true).build(apiVersion);
+                req = OffsetFetchRequest.Builder.forTopicIdsOrNames(offsetFetchRequestData, false).build(apiVersion);
                 break;
             case FIND_COORDINATOR:
                 req = new FindCoordinatorRequest.Builder((FindCoordinatorRequestData) reqBody)
