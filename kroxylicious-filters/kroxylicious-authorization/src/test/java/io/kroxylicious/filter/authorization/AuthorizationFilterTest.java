@@ -49,7 +49,6 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import nl.altindag.log.LogCaptor;
 
 import static java.util.EnumSet.complementOf;
@@ -315,6 +314,7 @@ class AuthorizationFilterTest {
                 ApiKeys.DELETE_RECORDS,
                 ApiKeys.DESCRIBE_PRODUCERS,
                 ApiKeys.OFFSET_DELETE,
+                ApiKeys.OFFSET_COMMIT,
                 ApiKeys.OFFSET_FOR_LEADER_EPOCH,
                 ApiKeys.TXN_OFFSET_COMMIT,
                 ApiKeys.JOIN_GROUP,
@@ -329,7 +329,6 @@ class AuthorizationFilterTest {
                 ApiKeys.LIST_TRANSACTIONS);
         EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.PRODUCE,
                 ApiKeys.FETCH,
-                ApiKeys.OFFSET_COMMIT,
                 ApiKeys.OFFSET_FETCH,
                 ApiKeys.ADD_PARTITIONS_TO_TXN,
                 ApiKeys.INIT_PRODUCER_ID);
@@ -372,7 +371,6 @@ class AuthorizationFilterTest {
         }
     }
 
-    @NonNull
     private static EnumSet<ApiKeys> unionOf(EnumSet<ApiKeys> allVersionsSupported, EnumSet<ApiKeys> someVersionsSupported) {
         var t = copyOf(allVersionsSupported);
         t.addAll(someVersionsSupported);
