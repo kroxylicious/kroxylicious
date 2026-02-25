@@ -28,14 +28,20 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.TypeLiteral;
 
 import io.kroxylicious.krpccodegen.model.EntityTypeSetFactory;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
+import io.kroxylicious.krpccodegen.model.MessageSpecFilters;
 import io.kroxylicious.krpccodegen.model.MessageSpecParser;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
 import io.kroxylicious.krpccodegen.model.RetrieveApiListeners;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
+import io.kroxylicious.krpccodegen.schema.RequestListenerType;
 import io.kroxylicious.krpccodegen.schema.StructRegistry;
 import io.kroxylicious.krpccodegen.schema.Versions;
 
@@ -67,6 +73,7 @@ public class KrpcGenerator {
         private String outputPackage;
         private File outputDir;
         private String outputFilePattern;
+        private String messageSpecPredicate;
 
         private Builder(GeneratorMode mode) {
             this.mode = mode;
@@ -160,13 +167,19 @@ public class KrpcGenerator {
             return this;
         }
 
+        public Builder messageSpecFilterFunction(String messageSpecPredicate) {
+            this.messageSpecPredicate = messageSpecPredicate;
+            return this;
+        }
+
         /**
          * Creates the generator.
          *
          * @return the generator.
          */
         public KrpcGenerator build() {
-            return new KrpcGenerator(logger, mode, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern);
+            return new KrpcGenerator(logger, mode, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern,
+                    messageSpecPredicate);
         }
     }
 
@@ -187,11 +200,19 @@ public class KrpcGenerator {
     private final String outputPackage;
     private final File outputDir;
     private final String outputFilePattern;
+    private final String messageSpecFilterFunction;
 
     @SuppressWarnings("java:S107") // Methods should not have too many parameters - ignored as use-case with builder seems reasonable.
-    private KrpcGenerator(Logger logger, GeneratorMode mode, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames,
-                          String outputPackage, File outputDir,
-                          String outputFilePattern) {
+    private KrpcGenerator(Logger logger,
+                          GeneratorMode mode,
+                          File messageSpecDir,
+                          String messageSpecFilter,
+                          File templateDir,
+                          List<String> templateNames,
+                          String outputPackage,
+                          File outputDir,
+                          String outputFilePattern,
+                          String messageSpecFilterFunction) {
         this.logger = logger != null ? logger : System.getLogger(KrpcGenerator.class.getName());
         this.mode = mode;
         this.messageSpecDir = messageSpecDir != null ? messageSpecDir : new File(".");
@@ -201,6 +222,7 @@ public class KrpcGenerator {
         this.outputPackage = outputPackage;
         this.outputDir = outputDir.toPath().resolve(outputPackage.replace(".", File.separator)).toFile();
         this.outputFilePattern = outputFilePattern;
+        this.messageSpecFilterFunction = messageSpecFilterFunction;
 
         if (!this.outputDir.exists()) {
             this.outputDir.mkdirs();
@@ -233,6 +255,22 @@ public class KrpcGenerator {
     public void generate() throws Exception {
         var cfg = buildFmConfiguration();
         Set<MessageSpec> messageSpecs = messageSpecs();
+
+        if (this.messageSpecFilterFunction != null) {
+            try (Context context = Context.newBuilder("js")
+                    .allowAllAccess(true)
+                    .build()) {
+                var bindings = context.getBindings("js");
+                bindings.putMember("MessageSpecFilters", MessageSpecFilters.class);
+                bindings.putMember("RequestListenerType", RequestListenerType.class);
+
+                var predicate = context.eval("js", messageSpecFilterFunction);
+                messageSpecs = predicate.execute(messageSpecs()).as(new TypeLiteral<Stream<MessageSpec>>() {
+                })
+                        .sorted(Comparator.comparing(MessageSpec::name))
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+            }
+        }
 
         long generatedFiles;
         if (mode == GeneratorMode.SINGLE) {
