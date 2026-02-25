@@ -315,6 +315,7 @@ class AuthorizationFilterTest {
                 ApiKeys.DESCRIBE_PRODUCERS,
                 ApiKeys.OFFSET_DELETE,
                 ApiKeys.OFFSET_COMMIT,
+                ApiKeys.OFFSET_FETCH,
                 ApiKeys.OFFSET_FOR_LEADER_EPOCH,
                 ApiKeys.TXN_OFFSET_COMMIT,
                 ApiKeys.JOIN_GROUP,
@@ -329,7 +330,6 @@ class AuthorizationFilterTest {
                 ApiKeys.LIST_TRANSACTIONS);
         EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.PRODUCE,
                 ApiKeys.FETCH,
-                ApiKeys.OFFSET_FETCH,
                 ApiKeys.ADD_PARTITIONS_TO_TXN,
                 ApiKeys.INIT_PRODUCER_ID);
         EnumSet<ApiKeys> noVersionsSupported = complementOf(unionOf(allVersionsSupported, someVersionsSupported));
