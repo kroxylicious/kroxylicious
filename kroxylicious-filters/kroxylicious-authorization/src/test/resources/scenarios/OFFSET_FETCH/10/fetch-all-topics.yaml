@@ -1,0 +1,80 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_FETCH"
+  apiVersion: 10
+  scenario: "fetch all topics"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_FETCH"
+      expectedRequestVersion: 10
+      expectedRequestHeader:
+        requestApiKey: 9
+        requestApiVersion: 10
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groups:
+          - groupId: "random-string-220"
+            memberId: "random-string-641"
+            memberEpoch: 990
+            topics: null
+        requireStable: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 712
+        groups:
+          - groupId: "random-string-750"
+            topics:
+              - topicId: "6wZQe3j9QSO02xct4Ph0gA" # maps to topic named 'my-topic'
+                partitions:
+                  - partitionIndex: 65
+                    committedOffset: 845
+                    committedLeaderEpoch: 240
+                    metadata: "random-string-576"
+                    errorCode: 1010
+            errorCode: 162
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames:
+    "6wZQe3j9QSO02xct4Ph0gA": "my-topic"
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 9
+    requestApiVersion: 10
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groups:
+      - groupId: "random-string-220"
+        memberId: "random-string-641"
+        memberEpoch: 990
+        topics: null
+    requireStable: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 712
+    groups:
+      - groupId: "random-string-750"
+        topics:
+          - topicId: "6wZQe3j9QSO02xct4Ph0gA" # maps to topic named 'my-topic'
+            partitions:
+              - partitionIndex: 65
+                committedOffset: 845
+                committedLeaderEpoch: 240
+                metadata: "random-string-576"
+                errorCode: 1010
+        errorCode: 162

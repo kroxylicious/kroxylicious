@@ -8,6 +8,7 @@ package io.kroxylicious.filter.authorization;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -15,6 +16,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestGroup;
 import org.apache.kafka.common.message.OffsetFetchResponseData;
@@ -35,6 +37,7 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -45,7 +48,6 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
      * offsets for multiple groups can be retrieved with a single RPC.
      */
     public static final short FIRST_VERSION_USING_GROUP_BATCHING = 8;
-    public static final int LAST_VERSION_WITH_TOPIC_NAMES = 9;
 
     // lowest version supported by proxy
     @Override
@@ -55,7 +57,7 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
 
     @Override
     short maxSupportedVersion() {
-        return LAST_VERSION_WITH_TOPIC_NAMES;
+        return 10;
     }
 
     /**
@@ -115,8 +117,18 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
         if (!state.topLevelAllTopics() && state.groupsWithAllTopics().isEmpty()) {
             context.forwardResponse(header, response);
         }
+        List<Uuid> topicIds = extractAllTopicIds(response);
+        return context.topicNames(topicIds)
+                .thenCompose(topicNameMapping -> authorizeResponseTopics(header, response, context, authorizationFilter, topicNameMapping, state));
+    }
 
-        var actions = topicActions(response);
+    private static CompletionStage<ResponseFilterResult> authorizeResponseTopics(ResponseHeaderData header,
+                                                                                 OffsetFetchResponseData response,
+                                                                                 FilterContext context,
+                                                                                 AuthorizationFilter authorizationFilter,
+                                                                                 TopicNameMapping topicNameMapping,
+                                                                                 RequestKind state) {
+        var actions = topicActions(response, topicNameMapping);
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
                     @Nullable
@@ -131,13 +143,19 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                             @Nullable
                             List<OffsetFetchResponseTopics> groupLevelTopics = group.topics();
                             if (groupLevelTopics != null) {
-                                applyGroupScopedTopicAuthz(state, authorization, group, groupLevelTopics);
+                                applyGroupScopedTopicAuthz(state, authorization, group, groupLevelTopics, topicNameMapping);
                             }
                         }
                     }
                     return context.forwardResponse(header, response);
                 });
+    }
 
+    private static List<Uuid> extractAllTopicIds(OffsetFetchResponseData response) {
+        return Optional.ofNullable(response.groups()).stream().flatMap(Collection::stream).flatMap(
+                offsetFetchResponseGroup -> offsetFetchResponseGroup.topics().stream()).map(OffsetFetchResponseTopics::topicId)
+                .filter(uuid -> !Uuid.ZERO_UUID.equals(uuid))
+                .distinct().toList();
     }
 
     private static void applyTopLevelTopicAuthz(RequestKind state,
@@ -163,7 +181,7 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
         }
     }
 
-    private static List<Action> topicActions(OffsetFetchResponseData response) {
+    private static List<Action> topicActions(OffsetFetchResponseData response, TopicNameMapping topicNameMapping) {
         return Stream.concat(
                 Optional.ofNullable(response.topics()).stream() // the non-batched case
                         .flatMap(Collection::stream)
@@ -171,19 +189,33 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                 response.groups().stream() // the batched case
                         .flatMap(g -> Optional.ofNullable(g.topics()).stream())
                         .flatMap(Collection::stream)
-                        .map(OffsetFetchResponseTopics::name)
+                        .map(offsetFetchResponseTopics -> maybeGetName(offsetFetchResponseTopics, topicNameMapping))
+                        .filter(Objects::nonNull)
                         .distinct())
                 .map(topicName -> new Action(TopicResource.DESCRIBE, topicName))
                 .toList();
     }
 
+    private static @Nullable String maybeGetName(OffsetFetchResponseTopics responseTopics, TopicNameMapping topicNameMapping) {
+        if (responseTopics.name() != null && !responseTopics.name().isEmpty()) {
+            return responseTopics.name();
+        }
+        else {
+            return topicNameMapping.topicNames().get(responseTopics.topicId());
+        }
+    }
+
     private static void applyGroupScopedTopicAuthz(RequestKind state,
                                                    AuthorizeResult authorization,
                                                    OffsetFetchResponseGroup group,
-                                                   List<OffsetFetchResponseTopics> groupScopedTopics) {
-        var denied = authorization.partition(groupScopedTopics,
+                                                   List<OffsetFetchResponseTopics> groupScopedTopics,
+                                                   TopicNameMapping topicNameMapping) {
+        Map<Boolean, List<OffsetFetchResponseTopics>> byNameKnown = groupScopedTopics.stream()
+                .collect(Collectors.partitioningBy(topics -> maybeGetName(topics, topicNameMapping) != null));
+        byNameKnown.get(false).forEach(topics -> failAllPartitions(topics, Errors.UNKNOWN_TOPIC_ID));
+        var denied = authorization.partition(byNameKnown.get(true),
                 TopicResource.DESCRIBE,
-                OffsetFetchResponseTopics::name).get(Decision.DENY);
+                topics -> maybeGetName(topics, topicNameMapping)).get(Decision.DENY);
         if (state.isGroupWithAllTopics(group)) {
             // client asked for all topics => we filter out the denied ones
             groupScopedTopics.removeAll(denied);
@@ -192,12 +224,16 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
             // client queried for specific topics, => we must include error codes for those
             for (var t : groupScopedTopics) {
                 if (denied.contains(t)) {
-                    t.setPartitions(t.partitions().stream()
-                            .map(p -> OffsetFetchEnforcement.unauthorizedGroupScopedPartition(p.partitionIndex()))
-                            .toList());
+                    failAllPartitions(t, Errors.TOPIC_AUTHORIZATION_FAILED);
                 }
             }
         }
+    }
+
+    private static void failAllPartitions(OffsetFetchResponseTopics topics, Errors error) {
+        topics.setPartitions(topics.partitions().stream()
+                .map(p -> OffsetFetchEnforcement.failedPartition(p.partitionIndex(), error))
+                .toList());
     }
 
     private static OffsetFetchResponsePartition unauthorizedTopLevelPartition(int partitionIndex) {
@@ -209,14 +245,14 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                 .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
     }
 
-    private static OffsetFetchResponsePartitions unauthorizedGroupScopedPartition(Integer partitionIndex) {
+    private static OffsetFetchResponsePartitions failedPartition(Integer partitionIndex, Errors errors) {
         // this looks almost identical to the above method: the difference is plural vs singular of the type names in the method signature
         return new OffsetFetchResponsePartitions()
                 .setPartitionIndex(partitionIndex)
                 .setCommittedOffset(OffsetFetchResponse.INVALID_OFFSET)
                 .setMetadata(OffsetFetchResponse.NO_METADATA)
                 .setCommittedLeaderEpoch(RecordBatch.NO_PARTITION_LEADER_EPOCH)
-                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
+                .setErrorCode(errors.code());
     }
 
 }
