@@ -6,12 +6,9 @@
   "automergeStrategy": "merge-commit",
   "ignoreTests": true,
   "extends": [
-    "config:recommended",
+    "config:best-practices",
     ":gitSignOff"
   ],
-  "docker": {
-    "pinDigests": true
-  },
   "packageRules": [
     {
       "matchPackageNames": ["/kubernetes/"],
