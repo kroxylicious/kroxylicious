@@ -1,0 +1,94 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_COMMIT"
+  apiVersion: 10
+  scenario: |
+    request contains some allowed topics and some denied
+    allowed topics are forwarded upstream
+    denied topics are not forwarded upstream
+    denied topic errors are augmented into response to client
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_COMMIT"
+      expectedRequestVersion: 10
+      expectedRequestHeader:
+        requestApiKey: 8
+        requestApiVersion: 10
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-600"
+        generationIdOrMemberEpoch: 957
+        memberId: "random-string-816"
+        groupInstanceId: "random-string-577"
+        topics:
+          - topicId: "6wZQe3j9QSO02xct4Ph0gA" # maps to topic named 'my-topic'
+            partitions:
+              - partitionIndex: 61
+                committedOffset: 825
+                committedLeaderEpoch: 251
+                committedMetadata: "random-string-0"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 808
+        topics:
+          - topicId: "6wZQe3j9QSO02xct4Ph0gA" # maps to topic named 'my-topic'
+            partitions:
+              - partitionIndex: 399
+                errorCode: 94
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames:
+    "6wZQe3j9QSO02xct4Ph0gA": "my-topic"
+    "2VJlngPmSGi69WMsWRVrOw": "unauthorized"
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 8
+    requestApiVersion: 10
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-600"
+    generationIdOrMemberEpoch: 957
+    memberId: "random-string-816"
+    groupInstanceId: "random-string-577"
+    topics:
+      - topicId: "6wZQe3j9QSO02xct4Ph0gA" # maps to topic named 'my-topic'
+        partitions:
+          - partitionIndex: 61
+            committedOffset: 825
+            committedLeaderEpoch: 251
+            committedMetadata: "random-string-0"
+      - topicId: "2VJlngPmSGi69WMsWRVrOw" # maps to topic named 'unauthorized'
+        partitions:
+          - partitionIndex: 61
+            committedOffset: 825
+            committedLeaderEpoch: 251
+            committedMetadata: "random-string-0"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 808
+    topics:
+      - topicId: "6wZQe3j9QSO02xct4Ph0gA" # maps to topic named 'my-topic'
+        partitions:
+          - partitionIndex: 399
+            errorCode: 94
+      - topicId: "2VJlngPmSGi69WMsWRVrOw" # maps to topic named 'unauthorized'
+        partitions:
+          - partitionIndex: 61
+            errorCode: 29 # topic authorization failure
+
