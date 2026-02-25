@@ -75,6 +75,11 @@ for SCENARIO in "${SCENARIOS[@]}"; do
     done
 done
 
+# --- Generate filtered sources for result tooling ---
+
+echo "Generating result tooling sources..."
+mvn -q process-sources -pl kroxylicious-openmessaging-benchmarks -f "${SCRIPT_DIR}/../../pom.xml"
+
 # --- Compare baseline vs proxy-no-filters ---
 
 echo "=== Comparing baseline vs proxy-no-filters ==="
@@ -82,7 +87,7 @@ echo ""
 
 FILTERED="${SCRIPT_DIR}/../target/jbang/generated-sources/io/kroxylicious/benchmarks/results/CompareResults.java"
 if [[ ! -f "${FILTERED}" ]]; then
-    echo "Skipping comparison: run 'mvn process-sources -pl kroxylicious-openmessaging-benchmarks' to enable it." >&2
+    echo "Warning: comparison tooling not available after mvn process-sources, skipping." >&2
 else
     for WORKLOAD in "${WORKLOADS[@]}"; do
         BASELINE_RESULTS=("${OUTPUT_DIR}/baseline/${WORKLOAD}/"*.json)
