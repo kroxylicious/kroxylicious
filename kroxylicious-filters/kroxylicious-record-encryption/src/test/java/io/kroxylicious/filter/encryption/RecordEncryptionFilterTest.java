@@ -20,16 +20,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.NetworkException;
+import org.apache.kafka.common.errors.UnknownTopicIdException;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
@@ -40,8 +38,6 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.ShareFetchResponseData;
 import org.apache.kafka.common.message.ShareFetchResponseData.ShareFetchableTopicResponse;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
@@ -50,16 +46,12 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.assertj.core.api.AbstractAssert;
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.matcher.AssertionMatcher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -75,13 +67,11 @@ import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.RequestNotSatisfiable;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.UnknownKeyException;
-import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
-import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
+import io.kroxylicious.test.assertj.MockFilterContextAssert;
+import io.kroxylicious.test.context.MockFilterContext;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -93,11 +83,8 @@ import static org.assertj.core.api.Assertions.atIndex;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anySet;
-import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -124,39 +111,11 @@ class RecordEncryptionFilterTest {
     @Mock(strictness = LENIENT)
     TopicNameBasedKekSelector<String> kekSelector;
 
-    @Mock(strictness = LENIENT)
-    private FilterContext context;
-
-    @Mock(strictness = LENIENT)
-    RequestFilterResultBuilder requestFilterResultBuilder;
-
-    @Mock(strictness = LENIENT)
-    private CloseOrTerminalStage<RequestFilterResult> closeOrTerminalStage;
-
-    @Captor
-    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
-
     private RecordEncryptionFilter<String> encryptionFilter;
     private SimpleMeterRegistry simpleMeterRegistry;
 
     @BeforeEach
     void setUp() {
-        when(context.getVirtualClusterName()).thenReturn("test");
-
-        when(context.forwardRequest(any(RequestHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
-            final RequestFilterResult filterResult = mock(RequestFilterResult.class);
-            return CompletableFuture.completedFuture(filterResult);
-        });
-
-        when(context.forwardResponse(any(ResponseHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
-            final ResponseFilterResult filterResult = mock(ResponseFilterResult.class);
-            return CompletableFuture.completedFuture(filterResult);
-        });
-
-        when(context.createByteBufferOutputStream(anyInt())).thenAnswer(invocationOnMock -> {
-            final int capacity = invocationOnMock.getArgument(0);
-            return new ByteBufferOutputStream(capacity);
-        });
 
         final Map<String, String> topicNameToKekId = new HashMap<>();
         topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
@@ -192,8 +151,11 @@ class RecordEncryptionFilterTest {
                 .setName(UNRESOLVED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).build();
+
         // When
-        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
+        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, produceRequestData, context);
 
         // Then
         verify(encryptionManager, never()).encrypt(any(), anyInt(), any(), any(), any());
@@ -209,8 +171,44 @@ class RecordEncryptionFilterTest {
                         .setName(UNRESOLVED_TOPIC)
                         .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).build();
+
         // When
-        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
+        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, produceRequestData, context);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_plain_records").counter())
+                .isNotNull()
+                .satisfies(counter -> {
+                    assertThat(counter.getId()).isNotNull();
+                    assertThat(counter.count()).isEqualTo(1);
+                });
+
+        assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_encrypted_records").counter())
+                .isNotNull()
+                .satisfies(counter -> {
+                    assertThat(counter.getId()).isNotNull();
+                    assertThat(counter.count()).isEqualTo(1);
+                });
+    }
+
+    @Test
+    void shouldCountPlainAndEncryptedRecordsWhenTopicIdsUsed() {
+        // Given
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
+                new TopicProduceData()
+                        .setTopicId(UNRESOLVED_TOPIC_ID)
+                        .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).withTopicName(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC)
+                .withTopicName(UNRESOLVED_TOPIC_ID, UNRESOLVED_TOPIC).build();
+
+        // When
+        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, produceRequestData, context);
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_plain_records").counter())
@@ -234,12 +232,30 @@ class RecordEncryptionFilterTest {
         var produceRequestData = buildProduceRequestData(new TopicProduceData()
                 .setName(ENCRYPTED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).build();
 
         // When
-        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
+        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, produceRequestData, context);
 
         // Then
         verify(encryptionManager).encrypt(any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    void shouldEncryptTopicWithTopicId() {
+        // Given
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).withTopicName(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC).build();
+
+        // When
+        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, produceRequestData, context);
+
+        // Then
+        verify(encryptionManager).encrypt(eq(ENCRYPTED_TOPIC), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -251,9 +267,11 @@ class RecordEncryptionFilterTest {
                 new TopicProduceData()
                         .setName(UNRESOLVED_TOPIC)
                         .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).build();
 
         // When
-        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
+        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, produceRequestData, context);
 
         // Then
         verify(encryptionManager).encrypt(any(), anyInt(), any(),
@@ -261,6 +279,55 @@ class RecordEncryptionFilterTest {
                         .hasSize(1)
                         .allSatisfy(kafkaRecord -> assertThat(kafkaRecord.value()).isEqualTo(ByteBuffer.wrap(HELLO_CIPHER_WORLD)))),
                 any());
+    }
+
+    @Test
+    void shouldRejectProduceIfTopicNameCannotBeMapped() {
+        // Given
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        produceRequestData.setAcks((short) 1);
+
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).build();
+
+        // When
+        CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                header, produceRequestData, context);
+
+        // Then
+        verify(encryptionManager, never()).encrypt(any(), anyInt(), any(), any(), any());
+        assertThat(stage).succeedsWithin(0, TimeUnit.SECONDS).satisfies(requestFilterResult -> {
+            MockFilterContextAssert.assertThat(requestFilterResult).isShortCircuitResponse()
+                    .isErrorResponse().errorResponse()
+                    .isInstanceOf(UnknownTopicIdException.class);
+        });
+
+    }
+
+    @Test
+    void shouldDropZeroAckProduceIfTopicNameCannotBeMapped() {
+        // Given
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        produceRequestData.setAcks((short) 0);
+
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).build();
+
+        // When
+        CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                header, produceRequestData, context);
+
+        // Then
+        verify(encryptionManager, never()).encrypt(any(), anyInt(), any(), any(), any());
+        assertThat(stage).succeedsWithin(0, TimeUnit.SECONDS).satisfies(requestFilterResult -> {
+            MockFilterContextAssert.assertThat(requestFilterResult)
+                    .isNotForwardRequest()
+                    .isDropRequest();
+        });
     }
 
     @Test
@@ -273,24 +340,23 @@ class RecordEncryptionFilterTest {
                         .setName(UNRESOLVED_TOPIC)
                         .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
-        when(context.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
-        when(requestFilterResultBuilder.errorResponse(any(), any(), any())).thenReturn(closeOrTerminalStage);
-        RuntimeException exception = new RuntimeException("exception");
-        CompletableFuture<RequestFilterResult> completed = CompletableFuture.failedFuture(exception);
-        when(closeOrTerminalStage.completed()).thenReturn(completed);
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).build();
 
         // When
         var rejectUnresolvedFilter = new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run),
                 UnresolvedKeyPolicy.REJECT);
         CompletionStage<RequestFilterResult> stage = rejectUnresolvedFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
-                new RequestHeaderData(), produceRequestData, context);
+                header, produceRequestData, context);
 
         // Then
         verify(encryptionManager, never()).encrypt(any(), anyInt(), any(), any(), any());
-        verify(requestFilterResultBuilder).errorResponse(any(), any(),
-                Mockito.argThat(e -> e instanceof InvalidRecordException && e.getMessage().equals("failed to resolve key for: [unresolved]")));
-
-        assertThat(stage).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().withCause(exception);
+        assertThat(stage).succeedsWithin(0, TimeUnit.SECONDS).satisfies(requestFilterResult -> {
+            MockFilterContextAssert.assertThat(requestFilterResult).isShortCircuitResponse()
+                    .isErrorResponse().errorResponse()
+                    .isInstanceOf(InvalidRecordException.class)
+                    .hasMessage("failed to resolve key for: [" + UNRESOLVED_TOPIC + "]");
+        });
 
     }
 
@@ -300,31 +366,58 @@ class RecordEncryptionFilterTest {
         var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
                 .setTopic(UNRESOLVED_TOPIC)
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData).build();
 
         // When
-        encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
+        CompletionStage<ResponseFilterResult> response = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                headerData, fetchResponseData, context);
 
         // Then
-        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .isInstanceOf(FetchResponseData.class).isEqualTo(fetchResponseData)));
+        assertThat(response).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse()
+                    .hasMessageEqualTo(fetchResponseData);
+        });
+    }
+
+    @Test
+    void shouldPassThroughUnencryptedRecordsForRequestUsingTopicId() {
+        // Given
+        var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
+                .setTopicId(UNRESOLVED_TOPIC_ID)
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData)
+                .withTopicName(UNRESOLVED_TOPIC_ID, UNRESOLVED_TOPIC).build();
+
+        // When
+        CompletionStage<ResponseFilterResult> response = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                headerData, fetchResponseData, context);
+
+        // Then
+        assertThat(response).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse()
+                    .hasMessageEqualTo(fetchResponseData);
+        });
     }
 
     @Test
     void shouldPassThroughUnencryptedShareRecords() {
         // Given
-        givenTopicNameMapping(Set.of(UNRESOLVED_TOPIC_ID), Map.of(UNRESOLVED_TOPIC_ID, UNRESOLVED_TOPIC));
         var fetchResponseData = buildShareFetchResponseData(new ShareFetchableTopicResponse()
                 .setTopicId(UNRESOLVED_TOPIC_ID)
                 .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData).withTopicName(UNRESOLVED_TOPIC_ID, UNRESOLVED_TOPIC).build();
 
         // When
-        encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
+        CompletionStage<ResponseFilterResult> response = encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                headerData, fetchResponseData, context);
 
         // Then
-        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .isInstanceOf(ShareFetchResponseData.class).isEqualTo(fetchResponseData)));
+        assertThat(response).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse().hasMessageEqualTo(fetchResponseData);
+        });
     }
 
     @Test
@@ -335,10 +428,12 @@ class RecordEncryptionFilterTest {
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
         RuntimeException exception = new RuntimeException("boom");
         when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.failedFuture(exception));
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).build();
 
         // When
         CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
-                new RequestHeaderData(), produceRequestData, context);
+                header, produceRequestData, context);
 
         // Then
         assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
@@ -347,24 +442,30 @@ class RecordEncryptionFilterTest {
     @Test
     void shouldRespondWithErrorOnRequestNotSatisfiableExceptions() {
         // Given
-        final RequestFilterResultBuilder resultBuilder = stubErrorResponse();
-
         var produceRequestData = buildProduceRequestData(new TopicProduceData()
                 .setName(ENCRYPTED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
         final RequestNotSatisfiable failure = new RequestNotSatisfiable("could not acquire a DEK", new NetworkException("could not acquire a DEK"));
 
         when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.failedFuture(failure));
+        RequestHeaderData header = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(header, produceRequestData).build();
 
         // When
         CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
-                new RequestHeaderData(), produceRequestData, context);
+                header, produceRequestData, context);
 
         // Then
         assertThat(stage)
-                .succeedsWithin(Duration.ofSeconds(10));
-        verify(context).requestFilterResultBuilder();
-        verify(resultBuilder).errorResponse(any(), any(), argThat(throwable -> assertThat(throwable.getClass()).isAssignableTo(ApiException.class)));
+                .succeedsWithin(Duration.ofSeconds(10)).satisfies(requestFilterResult -> {
+                    MockFilterContextAssert.assertThat(requestFilterResult)
+                            .isNotForwardRequest()
+                            .isErrorResponse()
+                            .isShortCircuitResponse()
+                            .errorResponse()
+                            .isInstanceOf(NetworkException.class)
+                            .hasMessage("could not acquire a DEK");
+                });
     }
 
     @Test
@@ -375,10 +476,12 @@ class RecordEncryptionFilterTest {
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
         RuntimeException exception = new RuntimeException("boom");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData).build();
 
         // When
         CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
+                headerData, fetchResponseData, context);
 
         // Then
         assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
@@ -387,12 +490,13 @@ class RecordEncryptionFilterTest {
     @Test
     void shouldPropagateShareResponseExceptions() {
         // Given
-        givenTopicNameMapping(Set.of(ENCRYPTED_TOPIC_ID), Map.of(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC));
         var fetchResponseData = buildShareFetchResponseData(new ShareFetchableTopicResponse()
                 .setTopicId(ENCRYPTED_TOPIC_ID)
                 .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
         RuntimeException exception = new RuntimeException("boom");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData).withTopicName(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC).build();
 
         // When
         CompletionStage<ResponseFilterResult> stage = encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
@@ -405,49 +509,28 @@ class RecordEncryptionFilterTest {
     @Test
     void topicNameMappingLookupFailureOnShareFetch() {
         // Given
-        givenTopicNameMappingFailure(Set.of(ENCRYPTED_TOPIC_ID), Errors.UNKNOWN_TOPIC_OR_PARTITION);
         var fetchResponseData = buildShareFetchResponseData(new ShareFetchableTopicResponse()
                 .setTopicId(ENCRYPTED_TOPIC_ID)
                 .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData)
+                .withTopicNameError(ENCRYPTED_TOPIC_ID, new TopicNameMappingException(Errors.UNKNOWN_TOPIC_OR_PARTITION)).build();
 
         // When
         CompletionStage<ResponseFilterResult> stage = encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
                 new ResponseHeaderData(), fetchResponseData, context);
 
         // Then
-        assertThat(stage).succeedsWithin(Duration.ZERO);
-
-        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .asInstanceOf(InstanceOfAssertFactories.type(ShareFetchResponseData.class))
-                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
-                .extracting(ShareFetchResponseData::responses)
-                .satisfies(ftr -> {
-                    assertThat(ftr).hasSize(1);
-                    for (ShareFetchableTopicResponse topicResponse : ftr) {
-                        assertThat(topicResponse.partitions()).hasSize(1).allSatisfy(partitionData -> {
-                            assertThat(partitionData.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse()
+                    .hasMessageInstanceOfSatisfying(ShareFetchResponseData.class, shareFetchResponseData -> {
+                        assertThat(shareFetchResponseData.responses()).hasSize(1).allSatisfy(topicResponse -> {
+                            assertThat(topicResponse.partitions()).hasSize(1).allSatisfy(partitionData -> {
+                                assertThat(partitionData.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
+                            });
                         });
-                    }
-                })));
-    }
-
-    private void givenTopicNameMappingFailure(Set<Uuid> failedTopicIds, final Errors error) {
-        when(context.topicNames(failedTopicIds)).thenReturn(CompletableFuture.completedFuture(new TopicNameMapping() {
-            @Override
-            public boolean anyFailures() {
-                return true;
-            }
-
-            @Override
-            public Map<Uuid, String> topicNames() {
-                return Map.of();
-            }
-
-            @Override
-            public Map<Uuid, TopicNameMappingException> failures() {
-                return failedTopicIds.stream().collect(Collectors.toMap(id -> id, id -> new TopicNameMappingException(error)));
-            }
-        }));
+                    });
+        });
     }
 
     @Test
@@ -458,46 +541,48 @@ class RecordEncryptionFilterTest {
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
         RuntimeException exception = new UnknownKeyException("boom");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData).withTopicName(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC).build();
 
         // When
         CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
+                headerData, fetchResponseData, context);
 
         // Then
-        assertThat(stage).succeedsWithin(Duration.ZERO);
-
-        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class))
-                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
-                .extracting(FetchResponseData::responses, InstanceOfAssertFactories.list(FetchResponseData.FetchableTopicResponse.class))
-                .singleElement()
-                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC, Errors.RESOURCE_NOT_FOUND))));
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse()
+                    .hasMessageInstanceOfSatisfying(FetchResponseData.class, fetchResponseData1 -> {
+                        assertThat(fetchResponseData1.responses()).singleElement()
+                                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC, Errors.RESOURCE_NOT_FOUND));
+                    });
+        });
     }
 
     @Test
     void shouldPropagateUnknownKeyToClientAsResourceUnknownErrorShareFetch() {
         // Given
-        givenTopicNameMapping(Set.of(ENCRYPTED_TOPIC_ID), Map.of(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC));
         var fetchResponseData = buildShareFetchResponseData(new ShareFetchableTopicResponse()
                 .setTopicId(ENCRYPTED_TOPIC_ID)
                 .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
         RuntimeException exception = new UnknownKeyException("boom");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData).withTopicName(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC).build();
 
         // When
         CompletionStage<ResponseFilterResult> stage = encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
+                headerData, fetchResponseData, context);
 
         // Then
-        assertThat(stage).succeedsWithin(Duration.ZERO);
-
-        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .asInstanceOf(InstanceOfAssertFactories.type(ShareFetchResponseData.class))
-                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
-                .extracting(shareFetchResponseData -> shareFetchResponseData.responses().stream().toList(),
-                        InstanceOfAssertFactories.list(ShareFetchableTopicResponse.class))
-                .singleElement()
-                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC_ID, Errors.RESOURCE_NOT_FOUND))));
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse()
+                    .hasMessageInstanceOfSatisfying(ShareFetchResponseData.class, shareFetchResponseData -> {
+                        assertThat(shareFetchResponseData.errorCode()).isEqualTo(Errors.NONE.code());
+                        assertThat(shareFetchResponseData.responses().stream().toList()).singleElement().satisfies(shareFetchableTopicResponse -> {
+                            assertHasSingleEmptyPartitionData(shareFetchableTopicResponse, ENCRYPTED_TOPIC_ID, Errors.RESOURCE_NOT_FOUND);
+                        });
+                    });
+        });
     }
 
     @Test
@@ -514,23 +599,22 @@ class RecordEncryptionFilterTest {
         RuntimeException exception = new UnknownKeyException("boom");
         when(decryptionManager.decrypt(eq(ENCRYPTED_TOPIC), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
         when(decryptionManager.decrypt(eq(anotherResponse.topic()), anyInt(), any(), any())).thenReturn(CompletableFuture.completedStage(makeRecord(HELLO_PLAIN_WORLD)));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData).build();
 
         // When
         CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
+                headerData, fetchResponseData, context);
 
         // Then
-        assertThat(stage).succeedsWithin(Duration.ZERO);
-
-        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class))
-                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
-                .extracting(FetchResponseData::responses, InstanceOfAssertFactories.list(FetchResponseData.FetchableTopicResponse.class))
-                .hasSize(2)
-                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, anotherResponse.topic(), Errors.NONE), atIndex(0))
-                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC, Errors.RESOURCE_NOT_FOUND), atIndex(1))
-
-        ));
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse()
+                    .hasMessageInstanceOfSatisfying(FetchResponseData.class, fetchResponseData1 -> {
+                        assertThat(fetchResponseData1.responses()).hasSize(2)
+                                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, anotherResponse.topic(), Errors.NONE), atIndex(0))
+                                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC, Errors.RESOURCE_NOT_FOUND), atIndex(1));
+                    });
+        });
     }
 
     @Test
@@ -538,7 +622,6 @@ class RecordEncryptionFilterTest {
         // Given
         Uuid anotherTopicId = Uuid.randomUuid();
         String anotherTopicName = "anotherTopic";
-        givenTopicNameMapping(Set.of(anotherTopicId, ENCRYPTED_TOPIC_ID), Map.of(anotherTopicId, anotherTopicName, ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC));
         var missingKeyResponse = new ShareFetchableTopicResponse()
                 .setTopicId(ENCRYPTED_TOPIC_ID)
                 .setPartitions(List.of(new ShareFetchResponseData.PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD))));
@@ -550,22 +633,25 @@ class RecordEncryptionFilterTest {
         RuntimeException exception = new UnknownKeyException("boom");
         when(decryptionManager.decrypt(eq(ENCRYPTED_TOPIC), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
         when(decryptionManager.decrypt(eq(anotherTopicName), anyInt(), any(), any())).thenReturn(CompletableFuture.completedStage(makeRecord(HELLO_PLAIN_WORLD)));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData).withTopicName(anotherTopicId, anotherTopicName)
+                .withTopicName(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC).build();
 
         // When
         CompletionStage<ResponseFilterResult> stage = encryptionFilter.onShareFetchResponse(ShareFetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
+                headerData, fetchResponseData, context);
 
         // Then
-        assertThat(stage).succeedsWithin(Duration.ZERO);
-
-        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .asInstanceOf(InstanceOfAssertFactories.type(ShareFetchResponseData.class))
-                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
-                .extracting(shareFetchResponseData -> shareFetchResponseData.responses().stream().toList(),
-                        InstanceOfAssertFactories.list(ShareFetchableTopicResponse.class))
-                .hasSize(2)
-                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, anotherTopicId, Errors.NONE), atIndex(0))
-                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC_ID, Errors.RESOURCE_NOT_FOUND), atIndex(1))));
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse()
+                    .hasMessageInstanceOfSatisfying(ShareFetchResponseData.class, fetchResponse -> {
+                        assertThat(fetchResponse.errorCode()).isEqualTo(Errors.NONE.code());
+                        assertThat(fetchResponse.responses().stream().toList())
+                                .hasSize(2)
+                                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, anotherTopicId, Errors.NONE), atIndex(0))
+                                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC_ID, Errors.RESOURCE_NOT_FOUND), atIndex(1));
+                    });
+        });
     }
 
     private static void assertHasSingleEmptyPartitionData(FetchableTopicResponse ftr, String expectedTopicName, Errors expectedError) {
@@ -600,10 +686,12 @@ class RecordEncryptionFilterTest {
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
         RuntimeException exception = new KmsException("boom");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, fetchResponseData).build();
 
         // When
         CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
+                headerData, fetchResponseData, context);
 
         // Then
         assertThat(stage)
@@ -621,23 +709,87 @@ class RecordEncryptionFilterTest {
 
         MemoryRecords decryptedRecords = RecordTestUtils.singleElementMemoryRecords("key", "value");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(decryptedRecords));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, encryptedFetchResponse).build();
 
         // When
-        encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), encryptedFetchResponse, context);
+        CompletionStage<ResponseFilterResult> response = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                headerData, encryptedFetchResponse, context);
 
         // Then
-        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> {
-            assertThat(actualFetchResponse)
-                    .isInstanceOf(FetchResponseData.class);
-            FetchResponseData fetchResponse = (FetchResponseData) actualFetchResponse;
-            assertThat(fetchResponse.responses()).hasSize(1);
-            FetchableTopicResponse onlyTopicResponse = fetchResponse.responses().iterator().next();
-            assertThat(onlyTopicResponse.topic()).isEqualTo(ENCRYPTED_TOPIC);
-            assertThat(onlyTopicResponse.partitions()).hasSize(1);
-            PartitionData onlyPartition = onlyTopicResponse.partitions().iterator().next();
-            assertThat(onlyPartition.records()).isSameAs(decryptedRecords);
-        }));
+        assertThat(response).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse().hasMessageInstanceOfSatisfying(FetchResponseData.class, fetchResponse -> {
+                assertThat(fetchResponse.responses()).hasSize(1);
+                FetchableTopicResponse onlyTopicResponse = fetchResponse.responses().iterator().next();
+                assertThat(onlyTopicResponse.topic()).isEqualTo(ENCRYPTED_TOPIC);
+                assertThat(onlyTopicResponse.partitions()).hasSize(1);
+                PartitionData onlyPartition = onlyTopicResponse.partitions().iterator().next();
+                assertThat(onlyPartition.records()).isSameAs(decryptedRecords);
+            });
+        });
+    }
+
+    @Test
+    void shouldDecryptEncryptedRecordsWhenFetchUsesTopicId() {
+        // Given
+        var encryptedFetchResponse = buildFetchResponseData(new FetchableTopicResponse()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(ENCRYPTED_MESSAGE_BYTES)))));
+
+        MemoryRecords decryptedRecords = RecordTestUtils.singleElementMemoryRecords("key", "value");
+        when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(decryptedRecords));
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, encryptedFetchResponse).withTopicName(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC).build();
+
+        // When
+        CompletionStage<ResponseFilterResult> response = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                headerData, encryptedFetchResponse, context);
+
+        // Then
+        assertThat(response).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse().hasMessageInstanceOfSatisfying(FetchResponseData.class, fetchResponse -> {
+                assertThat(fetchResponse.responses()).hasSize(1);
+                FetchableTopicResponse onlyTopicResponse = fetchResponse.responses().iterator().next();
+                assertThat(onlyTopicResponse.topicId()).isEqualTo(ENCRYPTED_TOPIC_ID);
+                assertThat(onlyTopicResponse.partitions()).hasSize(1);
+                PartitionData onlyPartition = onlyTopicResponse.partitions().iterator().next();
+                assertThat(onlyPartition.records()).isSameAs(decryptedRecords);
+            });
+        });
+
+        verify(decryptionManager).decrypt(eq(ENCRYPTED_TOPIC), anyInt(), any(), any());
+    }
+
+    @Test
+    void shouldSetAllFetchedPartitionsToErrorIfTopicIdCannotBeMappedToName() {
+        // Given
+        var encryptedFetchResponse = buildFetchResponseData(new FetchableTopicResponse()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(ENCRYPTED_MESSAGE_BYTES)))));
+
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        // Given Context doesn't contain name for ENCRYPTED_TOPIC_ID
+        MockFilterContext context = MockFilterContext.builder(headerData, encryptedFetchResponse).build();
+
+        // When
+        CompletionStage<ResponseFilterResult> response = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                headerData, encryptedFetchResponse, context);
+
+        // Then
+        assertThat(response).succeedsWithin(Duration.ZERO).satisfies(responseFilterResult -> {
+            MockFilterContextAssert.assertThat(responseFilterResult).isForwardResponse().hasMessageInstanceOfSatisfying(FetchResponseData.class, fetchResponse -> {
+                assertThat(fetchResponse.responses()).hasSize(1);
+                FetchableTopicResponse onlyTopicResponse = fetchResponse.responses().iterator().next();
+                assertThat(onlyTopicResponse.topicId()).isEqualTo(ENCRYPTED_TOPIC_ID);
+                assertThat(onlyTopicResponse.partitions()).hasSize(1);
+                PartitionData onlyPartition = onlyTopicResponse.partitions().iterator().next();
+                assertThat(onlyPartition.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_ID.code());
+                assertThat(onlyPartition.records()).isEqualTo(MemoryRecords.EMPTY);
+                assertThat(onlyPartition.highWatermark()).isEqualTo(-1);
+            });
+        });
+
+        verify(decryptionManager, never()).decrypt(eq(ENCRYPTED_TOPIC), anyInt(), any(), any());
     }
 
     @Test
@@ -646,85 +798,42 @@ class RecordEncryptionFilterTest {
         var produceRequestData = buildProduceRequestData(new TopicProduceData()
                 .setName(ENCRYPTED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        RequestHeaderData headerData = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, produceRequestData).build();
 
         // When
-        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
+        CompletionStage<RequestFilterResult> resultStage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(context).forwardRequest(any(), argThat(request -> assertThat(request)
-                .has(produceRequestMatching(pr -> pr.topicData().stream().anyMatch(td -> ENCRYPTED_TOPIC.equals(td.name()))))));
-    }
-
-    @Test
-    void produceRequestVersionCappedTo12() {
-        when(context.forwardResponse(any(ResponseHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
-            var filterResult = mock(ResponseFilterResult.class);
-            lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
-            return CompletableFuture.completedFuture(filterResult);
-        });
-        ApiVersionsResponseData response = new ApiVersionsResponseData();
-        response.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.PRODUCE.id).setMinVersion(ApiKeys.PRODUCE.id).setMaxVersion((short) 13));
-        CompletionStage<ResponseFilterResult> responseStage = encryptionFilter.onApiVersionsResponse(ApiKeys.API_VERSIONS.latestVersion(), new ResponseHeaderData(),
-                response,
-                context);
-        assertThat(responseStage).succeedsWithin(Duration.ofSeconds(1)).satisfies(responseFilterResult -> {
-            ApiMessage message = responseFilterResult.message();
-            assertThat(message).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> {
-                assertThat(apiVersionsResponseData.apiKeys().find(ApiKeys.PRODUCE.id)).satisfies(apiKey -> {
-                    assertThat(apiKey.maxVersion()).isEqualTo((short) 12);
-                });
-            });
+        assertThat(resultStage).succeedsWithin(Duration.ZERO).satisfies(requestFilterResult -> {
+            MockFilterContextAssert.assertThat(requestFilterResult).isForwardRequest()
+                    .hasMessageInstanceOfSatisfying(ProduceRequestData.class, data -> {
+                        assertThat(data).has(produceRequestMatching(pr -> pr.topicData().stream().anyMatch(td -> ENCRYPTED_TOPIC.equals(td.name()))));
+                    });
         });
     }
 
     @Test
-    void produceRequestVersionHandlesMissingApi() {
-        when(context.forwardResponse(any(ResponseHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
-            var filterResult = mock(ResponseFilterResult.class);
-            lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
-            return CompletableFuture.completedFuture(filterResult);
+    void shouldEncryptTopicById() {
+        // Given
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setTopicId(ENCRYPTED_TOPIC_ID)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        RequestHeaderData headerData = new RequestHeaderData();
+        MockFilterContext context = MockFilterContext.builder(headerData, produceRequestData).withTopicName(ENCRYPTED_TOPIC_ID, ENCRYPTED_TOPIC).build();
+
+        // When
+        CompletionStage<RequestFilterResult> resultStage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(), produceRequestData, context);
+
+        // Then
+        assertThat(resultStage).succeedsWithin(Duration.ZERO).satisfies(requestFilterResult -> {
+            MockFilterContextAssert.assertThat(requestFilterResult).isForwardRequest()
+                    .hasMessageInstanceOfSatisfying(ProduceRequestData.class, data -> {
+                        assertThat(data).has(produceRequestMatching(pr -> pr.topicData().stream().anyMatch(td -> ENCRYPTED_TOPIC_ID.equals(td.topicId()))));
+                    });
         });
-        ApiVersionsResponseData response = new ApiVersionsResponseData();
-        CompletionStage<ResponseFilterResult> responseStage = encryptionFilter.onApiVersionsResponse(ApiKeys.API_VERSIONS.latestVersion(), new ResponseHeaderData(),
-                response,
-                context);
-        assertThat(responseStage).succeedsWithin(Duration.ofSeconds(1)).satisfies(responseFilterResult -> {
-            ApiMessage message = responseFilterResult.message();
-            assertThat(message).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> {
-                assertThat(apiVersionsResponseData.apiKeys()).isEmpty();
-            });
-        });
-    }
-
-    @NonNull
-    @SuppressWarnings("unchecked")
-    private RequestFilterResultBuilder stubErrorResponse() {
-        final RequestFilterResultBuilder resultBuilder = mock(RequestFilterResultBuilder.class);
-        final CloseOrTerminalStage<RequestFilterResult> errorResponseBuilder = mock(CloseOrTerminalStage.class);
-        final RequestFilterResult errorResult = mock(RequestFilterResult.class);
-        when(context.requestFilterResultBuilder()).thenReturn(resultBuilder);
-        when(resultBuilder.errorResponse(any(), any(), any(ApiException.class))).thenReturn(errorResponseBuilder);
-        when(errorResponseBuilder.completed()).thenReturn(CompletableFuture.completedStage(errorResult));
-        return resultBuilder;
-    }
-
-    private void givenTopicNameMapping(Set<Uuid> unresolvedTopicId, Map<Uuid, String> mapping) {
-        when(context.topicNames(unresolvedTopicId)).thenReturn(CompletableFuture.completedFuture(new TopicNameMapping() {
-            @Override
-            public boolean anyFailures() {
-                return false;
-            }
-
-            @Override
-            public Map<Uuid, String> topicNames() {
-                return mapping;
-            }
-
-            @Override
-            public Map<Uuid, TopicNameMappingException> failures() {
-                return Map.of();
-            }
-        }));
     }
 
     private static FetchResponseData buildFetchResponseData(FetchableTopicResponse... topicResponses) {
