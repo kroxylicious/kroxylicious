@@ -9,6 +9,9 @@
     "config:recommended",
     ":gitSignOff"
   ],
+  "docker": {
+    "pinDigests": true
+  },
   "packageRules": [
     {
       "matchPackageNames": ["/kubernetes/"],
