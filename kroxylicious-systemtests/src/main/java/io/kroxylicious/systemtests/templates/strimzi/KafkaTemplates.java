@@ -87,7 +87,7 @@ public class KafkaTemplates {
     public static KafkaBuilder defaultKafka(String namespaceName, String clusterName, int kafkaReplicas) {
         // @formatter:off
         return new KafkaBuilder()
-                .withApiVersion(Constants.KAFKA_API_VERSION_V1)
+                .withApiVersion(Constants.KAFKA_API_VERSION_V1BETA2)
                 .withKind(Constants.STRIMZI_KAFKA_KIND)
                 .withNewMetadata()
                     .withName(clusterName)
