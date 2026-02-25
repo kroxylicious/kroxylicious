@@ -160,7 +160,7 @@ echo "OMB pods are ready."
 echo ""
 echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
 kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
-    sh -c '/opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
+    sh -c 'cd /opt/benchmark && bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 
 # --- Collect results ---
 
