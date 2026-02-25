@@ -58,6 +58,7 @@ jobs:
           path: kroxylicious
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
 
+      # We need to call common action from kroxylicious path as it is the path used in the previous checkout
       - name: Setup Java
         uses: ./kroxylicious/.github/actions/common/setup-java
       

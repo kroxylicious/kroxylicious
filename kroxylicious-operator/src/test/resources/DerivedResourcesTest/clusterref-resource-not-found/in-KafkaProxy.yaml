@@ -11,3 +11,4 @@ metadata:
   name: example
   namespace: proxy-ns
   generation: 1
+spec: {}

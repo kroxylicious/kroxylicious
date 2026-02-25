@@ -6,11 +6,10 @@
 
 ---
 resource:
-  kind: KafkaProxy
+  kind: KafkaProtocolFilter
   apiVersion: kroxylicious.io/v1alpha1
   metadata:
-    name: 123456789012345678901234567890123456789012345678901
+    name: missing-spec
     namespace: proxy-ns
-  spec: {}
 expectFailureMessageToContain: |
-  metadata.name: Too long
+  spec: Required value

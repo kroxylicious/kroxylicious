@@ -321,4 +321,6 @@ spec:
                         description: "Protocol specifies the network protocol this ingress expects to receive."
                         type: string
                         enum: [ "TCP", "TLS" ]
+          required:
+            - spec
 
