@@ -148,6 +148,25 @@ class KrpcGeneratorTest {
         assertFileHasExpectedContents(file, "Kproxy/KrpcRequestFilter-expected.txt");
     }
 
+    @Test
+    void messageSpecsFilteredByFilterFunction(@TempDir File tempDir) throws Exception {
+        KrpcGenerator gen = KrpcGenerator.multi()
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter("*{Request,Response}.json")
+                .messageSpecFilterFunction("specs => MessageSpecFilters.static.filterByRequestListener(specs, RequestListenerType.static.BROKER)")
+                .withTemplateDir(getTemplateDir())
+                .withTemplateNames(List.of("Kproxy/MessageSpecPredicateTest.ftl"))
+                .withOutputPackage("com.foo")
+                .withOutputDir(tempDir)
+                .withOutputFilePattern("${templateName}.txt")
+                .build();
+
+        gen.generate();
+
+        File file = join(tempDir, "com", "foo", "MessageSpecPredicateTest.txt");
+        assertFileHasExpectedContents(file, "Kproxy/MessageSpecPredicateTest-expected.txt");
+    }
+
     @SuppressWarnings("java:S2925") // sleep justified for testing logic that depends on filesystem modtimes
     @Test
     void multiGenerateDoesNotModifyFileIfContentsUnchanged(@TempDir File tempDir) throws Exception {
