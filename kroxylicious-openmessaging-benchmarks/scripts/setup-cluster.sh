@@ -86,9 +86,12 @@ fi
 # --- Strimzi operator ---
 
 echo ""
-echo "Installing Strimzi operator (${STRIMZI_VERSION})..."
-kubectl create -f "${STRIMZI_INSTALL_URL}" -n "${NAMESPACE}" 2>/dev/null \
-    || kubectl apply -f "${STRIMZI_INSTALL_URL}" -n "${NAMESPACE}"
+if kubectl get deployment strimzi-cluster-operator -n "${NAMESPACE}" &>/dev/null; then
+    echo "Strimzi operator already installed in namespace '${NAMESPACE}', skipping."
+else
+    echo "Installing Strimzi operator (${STRIMZI_VERSION})..."
+    kubectl create -f "${STRIMZI_INSTALL_URL}" -n "${NAMESPACE}"
+fi
 
 echo "Waiting for Strimzi operator to be ready..."
 kubectl wait --for=condition=ready pod \
@@ -105,23 +108,27 @@ if [[ "${SKIP_KROXYLICIOUS}" == "true" ]]; then
     echo "Skipping Kroxylicious operator installation (--skip-kroxylicious)."
 else
     echo ""
-    echo "Installing Kroxylicious operator (${KROXYLICIOUS_VERSION})..."
+    if kubectl get deployment kroxylicious-operator -n "${KROXYLICIOUS_OPERATOR_NAMESPACE}" &>/dev/null; then
+        echo "Kroxylicious operator already installed in namespace '${KROXYLICIOUS_OPERATOR_NAMESPACE}', skipping."
+    else
+        echo "Installing Kroxylicious operator (${KROXYLICIOUS_VERSION})..."
 
-    WORK_DIR="$(mktemp -d)"
-    trap 'rm -rf "${WORK_DIR}"' EXIT
+        WORK_DIR="$(mktemp -d)"
+        trap 'rm -rf "${WORK_DIR}"' EXIT
 
-    TARBALL="kroxylicious-operator-${KROXYLICIOUS_VERSION}.tar.gz"
-    echo "  Downloading ${TARBALL}..."
-    gh release download "v${KROXYLICIOUS_VERSION}" \
-        --repo kroxylicious/kroxylicious \
-        --pattern "${TARBALL}" \
-        --output "${WORK_DIR}/${TARBALL}"
+        TARBALL="kroxylicious-operator-${KROXYLICIOUS_VERSION}.tar.gz"
+        echo "  Downloading ${TARBALL}..."
+        gh release download "v${KROXYLICIOUS_VERSION}" \
+            --repo kroxylicious/kroxylicious \
+            --pattern "${TARBALL}" \
+            --output "${WORK_DIR}/${TARBALL}"
 
-    echo "  Extracting..."
-    tar xzf "${WORK_DIR}/${TARBALL}" -C "${WORK_DIR}"
+        echo "  Extracting..."
+        tar xzf "${WORK_DIR}/${TARBALL}" -C "${WORK_DIR}"
 
-    echo "  Applying manifests..."
-    kubectl apply -f "${WORK_DIR}/install/"
+        echo "  Applying manifests..."
+        kubectl apply -f "${WORK_DIR}/install/"
+    fi
 
     echo "Waiting for Kroxylicious operator to be ready..."
     kubectl wait --for=condition=ready pod \
