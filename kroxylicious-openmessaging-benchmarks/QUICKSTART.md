@@ -89,7 +89,7 @@ kubectl wait kafka/kafka --for=condition=Ready --timeout=600s -n kafka
 kubectl wait --for=condition=ready pod -l app=omb-benchmark -n kafka --timeout=300s
 
 kubectl exec -it deploy/omb-benchmark -n kafka -- \
-  sh -c 'cd /opt/benchmark && bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
+  sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 
 helm uninstall benchmark -n kafka
 kubectl delete pvc -l strimzi.io/cluster=kafka -n kafka
