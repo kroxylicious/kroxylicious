@@ -17,7 +17,7 @@ WORKLOADS=(1topic-1kb 10topics-1kb 100topics-1kb)
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") <output-dir>
+Usage: $(basename "$0") [--profile <values-file>] <output-dir>
 
 Runs the baseline and proxy-no-filters scenarios across all workloads and
 produces a side-by-side comparison to quantify proxy overhead.
@@ -34,7 +34,9 @@ Arguments:
                 <output-dir>/<scenario>/<workload>/
 
 Options:
-  -h, --help  Show this help
+  --profile <values-file>   Additional Helm values file layered on top of each scenario
+                            (e.g. helm/kroxylicious-benchmark/scenarios/single-node-values.yaml)
+  -h, --help                Show this help
 
 Environment:
   NAMESPACE              Kubernetes namespace (default: kafka)
@@ -43,13 +45,32 @@ Environment:
 
 Examples:
   $(basename "$0") ./results/run-$(date +%Y%m%d-%H%M%S)/
+  $(basename "$0") --profile ./helm/kroxylicious-benchmark/scenarios/single-node-values.yaml \
+    ./results/run-$(date +%Y%m%d-%H%M%S)/
 EOF
     exit 1
 }
 
-if [[ $# -eq 1 && ( "$1" == "-h" || "$1" == "--help" ) ]]; then
-    usage
-fi
+PROFILE_VALUES=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --profile)
+            PROFILE_VALUES="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        -*)
+            echo "Error: unknown option '$1'" >&2
+            usage
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
 
 if [[ $# -ne 1 ]]; then
     echo "Error: expected 1 argument, got $#" >&2
@@ -58,19 +79,30 @@ fi
 
 OUTPUT_DIR="$1"
 
+if [[ -n "${PROFILE_VALUES}" && ! -f "${PROFILE_VALUES}" ]]; then
+    echo "Error: profile values file not found: ${PROFILE_VALUES}" >&2
+    exit 1
+fi
+
 echo "=== Running all benchmark scenarios ==="
 echo "Scenarios: ${SCENARIOS[*]}"
 echo "Workloads: ${WORKLOADS[*]}"
 echo "Output:    ${OUTPUT_DIR}"
+if [[ -n "${PROFILE_VALUES}" ]]; then
+    echo "Profile:   ${PROFILE_VALUES}"
+fi
 echo ""
 
 # --- Run all scenario/workload combinations ---
+
+RUN_BENCHMARK_ARGS=()
+[[ -n "${PROFILE_VALUES}" ]] && RUN_BENCHMARK_ARGS+=(--profile "${PROFILE_VALUES}")
 
 for SCENARIO in "${SCENARIOS[@]}"; do
     for WORKLOAD in "${WORKLOADS[@]}"; do
         SCENARIO_OUTPUT="${OUTPUT_DIR}/${SCENARIO}/${WORKLOAD}"
         echo ">>> ${SCENARIO} / ${WORKLOAD}"
-        "${SCRIPT_DIR}/run-benchmark.sh" "${SCENARIO}" "${WORKLOAD}" "${SCENARIO_OUTPUT}"
+        "${SCRIPT_DIR}/run-benchmark.sh" "${RUN_BENCHMARK_ARGS[@]}" "${SCENARIO}" "${WORKLOAD}" "${SCENARIO_OUTPUT}"
         echo ""
     done
 done

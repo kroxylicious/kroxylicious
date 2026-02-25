@@ -18,7 +18,7 @@ POD_READY_TIMEOUT="${POD_READY_TIMEOUT:-300s}"
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") <scenario> <workload> <output-dir>
+Usage: $(basename "$0") [--profile <values-file>] <scenario> <workload> <output-dir>
 
 Runs a single benchmark scenario end-to-end:
   1. Deploy benchmark infrastructure via Helm
@@ -29,12 +29,14 @@ Runs a single benchmark scenario end-to-end:
 
 Arguments:
   scenario    Scenario name matching a file in helm/scenarios/<scenario>-values.yaml
-              Available: baseline, proxy-no-filters, smoke
+              Available: baseline, proxy-no-filters
   workload    Workload name (e.g. 1topic-1kb, 10topics-1kb, 100topics-1kb)
   output-dir  Directory to write result JSON and run metadata into
 
 Options:
-  -h, --help  Show this help
+  --profile <values-file>   Additional Helm values file layered on top of the scenario
+                            (e.g. helm/kroxylicious-benchmark/scenarios/single-node-values.yaml)
+  -h, --help                Show this help
 
 Environment:
   NAMESPACE              Kubernetes namespace (default: kafka)
@@ -43,15 +45,33 @@ Environment:
 
 Examples:
   $(basename "$0") baseline 1topic-1kb ./results/baseline/
-  $(basename "$0") proxy-no-filters 1topic-1kb ./results/proxy-no-filters/
+  $(basename "$0") --profile ./helm/kroxylicious-benchmark/scenarios/single-node-values.yaml \
+    baseline 1topic-1kb ./results/baseline/
   NAMESPACE=benchmarks $(basename "$0") baseline 1topic-1kb ./results/
 EOF
     exit 1
 }
 
-if [[ $# -eq 1 && ( "$1" == "-h" || "$1" == "--help" ) ]]; then
-    usage
-fi
+PROFILE_VALUES=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --profile)
+            PROFILE_VALUES="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        -*)
+            echo "Error: unknown option '$1'" >&2
+            usage
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
 
 if [[ $# -ne 3 ]]; then
     echo "Error: expected 3 arguments, got $#" >&2
@@ -72,6 +92,11 @@ if [[ ! -f "${SCENARIO_VALUES}" ]]; then
     exit 1
 fi
 
+if [[ -n "${PROFILE_VALUES}" && ! -f "${PROFILE_VALUES}" ]]; then
+    echo "Error: profile values file not found: ${PROFILE_VALUES}" >&2
+    exit 1
+fi
+
 teardown() {
     echo ""
     echo "--- Tearing down benchmark infrastructure ---"
@@ -86,6 +111,9 @@ teardown() {
 echo "=== Benchmark run: ${SCENARIO} / ${WORKLOAD} ==="
 echo "Namespace:  ${NAMESPACE}"
 echo "Output dir: ${OUTPUT_DIR}"
+if [[ -n "${PROFILE_VALUES}" ]]; then
+    echo "Profile:    ${PROFILE_VALUES}"
+fi
 echo ""
 
 # Ensure previous run is cleaned up before starting
@@ -97,10 +125,11 @@ fi
 # --- Deploy ---
 
 echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
-helm install "${HELM_RELEASE}" "${HELM_CHART}" \
-    -n "${NAMESPACE}" \
-    -f "${SCENARIO_VALUES}" \
-    --set omb.workload="${WORKLOAD}"
+HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
+[[ -n "${PROFILE_VALUES}" ]] && HELM_ARGS+=(-f "${PROFILE_VALUES}")
+HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
+
+helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}"
 
 # Register teardown to run on exit (success or failure) so we always clean up
 trap teardown EXIT
