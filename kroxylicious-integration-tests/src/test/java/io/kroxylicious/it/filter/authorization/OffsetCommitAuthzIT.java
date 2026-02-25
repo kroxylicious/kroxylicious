@@ -38,6 +38,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
@@ -174,6 +175,14 @@ class OffsetCommitAuthzIT extends AuthzIT {
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonNodes) {
+            JsonNode topics = jsonNodes.get("topics");
+            if (topics.isArray()) {
+                for (JsonNode topic : topics) {
+                    if (topic instanceof ObjectNode objectNode) {
+                        replaceTopicIdWithName(cluster, objectNode, "topicId");
+                    }
+                }
+            }
             return prettyJsonString(jsonNodes);
         }
 
@@ -235,8 +244,15 @@ class OffsetCommitAuthzIT extends AuthzIT {
 
                         @Override
                         public OffsetCommitRequestData request(String user, BaseClusterFixture clusterFixture) {
-                            var offsetCommitRequestTopic = new OffsetCommitRequestData.OffsetCommitRequestTopic()
-                                    .setName(user + "-topic");
+                            var offsetCommitRequestTopic = new OffsetCommitRequestData.OffsetCommitRequestTopic();
+                            String topicName = user + "-topic";
+                            if (apiVersion < 10) {
+                                offsetCommitRequestTopic.setName(topicName);
+                            }
+                            else {
+                                offsetCommitRequestTopic.setTopicId(clusterFixture.topicIds().get(topicName));
+                            }
+
                             offsetCommitRequestTopic
                                     .partitions().add(new OffsetCommitRequestData.OffsetCommitRequestPartition()
                                             .setPartitionIndex(0)
