@@ -50,6 +50,11 @@ public record RouteHostDetails(
         NODE;
 
         public static final String LABEL_KEY = "route-for";
+
+        @Override
+        public String toString() {
+            return super.toString().toLowerCase();
+        }
     }
 
     /**
@@ -106,7 +111,7 @@ public record RouteHostDetails(
             RouteFor routeFor;
             try {
                 String routeForLabelValue = route.getMetadata().getLabels().get(RouteFor.LABEL_KEY);
-                routeFor = RouteFor.valueOf(routeForLabelValue);
+                routeFor = RouteFor.valueOf(routeForLabelValue.toUpperCase());
             }
             catch (Exception e) {
                 continue;
