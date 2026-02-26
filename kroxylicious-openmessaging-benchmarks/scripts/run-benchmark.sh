@@ -212,13 +212,12 @@ if [[ -n "${PROXY_POD}" ]]; then
     # Re-fetch pod name — it changed after the rollout
     PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
-    echo "Starting JFR recording on proxy pod ${PROXY_POD}..."
     # Discover the JVM PID — jcmd with no args scans /proc without the attach
     # mechanism, so it works even before we've confirmed the socket is available.
+    # JFR starts automatically via JAVA_TOOL_OPTIONS set in the patch above.
     JVM_PID=$(kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- \
         sh -c 'jcmd | grep -v "jdk\.jcmd" | awk "NR==1{print \$1}"')
-    echo "Found JVM PID: ${JVM_PID}"
-    kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd "${JVM_PID}" JFR.start name=benchmark settings=profile
+    echo "JFR recording active on proxy pod ${PROXY_POD} (PID ${JVM_PID})"
 fi
 
 # --- Run benchmark ---
@@ -233,8 +232,8 @@ kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
 # --- Stop JFR recording ---
 
 if [[ -n "${PROXY_POD}" ]]; then
-    echo "Stopping JFR recording on proxy pod ${PROXY_POD}..."
-    kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd "${JVM_PID}" JFR.stop name=benchmark filename="${JFR_FILE}"
+    echo "Dumping JFR recording on proxy pod ${PROXY_POD}..."
+    kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd "${JVM_PID}" JFR.dump name=benchmark filename="${JFR_FILE}"
 fi
 
 stop_metrics_poller

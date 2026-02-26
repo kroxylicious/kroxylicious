@@ -4,11 +4,15 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-# Patches the proxy Deployment to mount a writable emptyDir at /tmp.
+# Patches the proxy Deployment to enable JFR recording.
 #
-# The proxy container has a read-only root filesystem, which prevents jcmd's
-# attach mechanism from creating its temp file. This patch is applied via SSA
-# by run-benchmark.sh before starting a JFR recording.
+# - Mounts a writable emptyDir at /tmp so jcmd's attach mechanism can create
+#   its socket file (the proxy container has a read-only root filesystem).
+# - Sets JAVA_TOOL_OPTIONS to start a JFR recording at JVM startup, avoiding
+#   the need for a separate jcmd JFR.start call which can OOM the container.
+#
+# After the benchmark completes, run-benchmark.sh uses jcmd JFR.dump to write
+# the recording to /tmp/benchmark.jfr for collection.
 #
 # The PROXY_DEPLOYMENT and NAMESPACE placeholders are substituted by the script
 # using envsubst before applying.
@@ -25,6 +29,9 @@ spec:
         emptyDir: {}
       containers:
       - name: proxy
+        env:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-XX:StartFlightRecording=name=benchmark,settings=profile,maxsize=64m"
         volumeMounts:
         - name: jfr-tmp
           mountPath: /tmp
