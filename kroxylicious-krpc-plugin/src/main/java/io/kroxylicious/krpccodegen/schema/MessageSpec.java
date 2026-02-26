@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.krpccodegen.schema.FieldType.Int8FieldType;
 import io.kroxylicious.krpccodegen.schema.FieldType.StringFieldType;
 
-public final class MessageSpec {
+public final class MessageSpec implements Named {
     private final StructSpec struct;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
