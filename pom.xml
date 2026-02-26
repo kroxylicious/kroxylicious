@@ -1124,6 +1124,42 @@
             </properties>
         </profile>
         <profile>
+            <id>webdocs</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <skipTests>true</skipTests>
+                <maven.javadoc.skip>false</maven.javadoc.skip>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>aggregate-javadocs</id>
+                                <goals>
+                                    <goal>aggregate</goal>
+                                </goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <!-- We have to use maven.multiModuleProjectDirectory here even though it's undocumented -->
+                                    <!-- because without it each module will output to its own target/ dir instead of the parent one -->
+                                    <outputDirectory>${maven.multiModuleProjectDirectory}/target/javadoc-web/${project.artifactId}/${project.version}</outputDirectory>
+                                    <!-- aggregate throws up without this exclusion, can remove if using aggregate-no-fork (but it takes longer) -->
+                                    <sourceFileExcludes>**/package-info.java</sourceFileExcludes>
+                                    <!-- this package makes the javadoc plugin very unhappy, must be excluded at parent POM level -->
+                                    <excludePackageNames>io.kroxylicious.authorizer.provider.acl.parser</excludePackageNames>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>qa</id>
             <activation>
                 <property>

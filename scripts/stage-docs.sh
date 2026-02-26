@@ -102,9 +102,20 @@ RELEASE_TAG="v${RELEASE_VERSION}"
 
 WEBSITE_TMP=$(mktemp -d)
 
+# NOTE: Only run Javadoc build for the modules we currently publish Javadoc for (as of 2025-12-30)
+# TODO: Probably should parameterise this or something
+JAVADOC_MODULES=":kroxylicious-api,:kroxylicious-kms,:kroxylicious-krpc-plugin,:kroxylicious-record-validation,:kroxylicious-runtime"
+
 # Use a `/.` at the end of the source path to avoid the source path being appended to the destination path if the `.../_files/` folder already exists
 KROXYLICIOUS_DOCS_LOCATION="${ORIGINAL_WORKING_DIR}/kroxylicious-docs/target/web"
 WEBSITE_DOCS_LOCATION="${WEBSITE_TMP}/"
+
+KROXYLICIOUS_JAVADOC_LOCATION="${ORIGINAL_WORKING_DIR}/target/javadoc-web"
+WEBSITE_JAVADOC_LOCATION="${WEBSITE_TMP}/javadoc/"
+
+# Define the subdirectory for raw Javadoc content
+RAW_SUBDIR="raw"
+WEBSITE_RAW_LOCATION="${WEBSITE_JAVADOC_LOCATION}/${RAW_SUBDIR}"
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
     #Disable the shell check as the colour codes only work with interpolation.
@@ -123,7 +134,12 @@ echo "Checking out tags/${RELEASE_TAG} in  in $(git remote get-url "${REPOSITORY
 git checkout "tags/${RELEASE_TAG}"
 
 # Run docs build
+echo "Run Asciidoc Build"
 mvn -P dist package --pl kroxylicious-docs
+
+# Run Javadoc build
+echo "Run Javadoc build"
+mvn -P webdocs package -pl "${JAVADOC_MODULES}"
 
 # Move to temp directory so we don't end up with website files in the main repository
 cd "${WEBSITE_TMP}"
@@ -137,6 +153,28 @@ git checkout -b "${RELEASE_DOCS_BRANCH}"
 
 echo "Copying release docs from ${KROXYLICIOUS_DOCS_LOCATION} to ${WEBSITE_DOCS_LOCATION}"
 cp -R "${KROXYLICIOUS_DOCS_LOCATION}"/* "${WEBSITE_DOCS_LOCATION}"
+
+echo "Copying release javadoc from ${KROXYLICIOUS_DOCS_LOCATION} to ${WEBSITE_DOCS_LOCATION}"
+cp -R "${KROXYLICIOUS_JAVADOC_LOCATION}"/* "${WEBSITE_RAW_LOCATION}"
+
+echo "Injecting Kroxylicious site layout into Javadoc HTML files..."
+find "${WEBSITE_RAW_LOCATION}" -name "*.html" | while read -r raw_file; do
+    # Calculate the relative path for the public wrapper URI
+    rel_path=${raw_file#${WEBSITE_RAW_LOCATION}/}
+    wrapper_file="${WEBSITE_RAW_LOCATION}/$rel_path"
+
+    # Ensure the directory structure exists for the wrapper
+    mkdir -p "$(dirname "$wrapper_file")"
+
+    # Create the wrapper page with front matter pointing to the raw content
+    # Ensure 'raw_path' matches the URI Jekyll will serve for the static file
+    cat <<EOF > "${wrapper_file}"
+---
+layout: javadoc-wrapper
+raw_path: "/javadoc/${RELEASE_VERSION}/${RAW_SUBDIR}/${rel_path}"
+---
+EOF
+done
 
 echo "Updating latest release to ${RELEASE_VERSION}"
 ${SED} -i -e "s/^latestRelease: .*$/latestRelease: ${RELEASE_VERSION}/g" _data/kroxylicious.yml
