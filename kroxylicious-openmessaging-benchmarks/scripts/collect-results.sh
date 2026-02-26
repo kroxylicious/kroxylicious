@@ -94,6 +94,18 @@ while IFS= read -r file; do
     kubectl cp "$NAMESPACE/$POD:$BENCHMARK_RESULTS_DIR/$file" "$OUTPUT_DIR/$file"
 done <<< "$RESULT_FILES"
 
+# Copy JFR recording from proxy pod if present
+PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
+JFR_FILE="/tmp/benchmark.jfr"
+
+PROXY_POD=$(kubectl get pod -n "$NAMESPACE" -l "$PROXY_POD_LABEL" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
+if [[ -n "$PROXY_POD" ]]; then
+    echo "Copying JFR recording from proxy pod $PROXY_POD..."
+    kubectl cp "$NAMESPACE/$PROXY_POD:$JFR_FILE" "$OUTPUT_DIR/benchmark.jfr" \
+        && echo "  benchmark.jfr" \
+        || echo "Warning: JFR file not found on proxy pod (was the proxy running with a JDK image?)"
+fi
+
 # Generate run metadata
 echo "Generating run metadata..."
 jbang "$FILTERED" --generate-run-metadata "$OUTPUT_DIR"

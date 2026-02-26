@@ -186,6 +186,18 @@ kubectl wait --for=condition=ready pod \
     --timeout="${POD_READY_TIMEOUT}"
 echo "OMB pods are ready."
 
+# --- Start JFR recording on proxy pod (if present) ---
+
+PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
+JFR_FILE="/tmp/benchmark.jfr"
+
+PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
+if [[ -n "${PROXY_POD}" ]]; then
+    echo "Starting JFR recording on proxy pod ${PROXY_POD}..."
+    # Kroxylicious runs as PID 1 in the container
+    kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd 1 JFR.start name=benchmark settings=profile
+fi
+
 # --- Run benchmark ---
 
 start_metrics_poller
@@ -194,6 +206,13 @@ echo ""
 echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
 kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
     sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
+
+# --- Stop JFR recording ---
+
+if [[ -n "${PROXY_POD}" ]]; then
+    echo "Stopping JFR recording on proxy pod ${PROXY_POD}..."
+    kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd 1 JFR.stop name=benchmark filename="${JFR_FILE}"
+fi
 
 stop_metrics_poller
 
