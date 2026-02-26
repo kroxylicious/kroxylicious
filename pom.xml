@@ -119,8 +119,8 @@
 
     <developers>
         <developer>
-            <organization>kroxylicious/developers</organization>
-            <organizationUrl>https://github.com/kroxylicious/.github/TEAMS.md#kroxylicious-developers</organizationUrl>
+            <organization>kroxylicious/committers</organization>
+            <organizationUrl>https://github.com/kroxylicious/.github/COMMITTERS.md</organizationUrl>
         </developer>
     </developers>
 
