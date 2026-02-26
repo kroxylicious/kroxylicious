@@ -159,7 +159,12 @@
                         <configuration>
                             <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
-                            <messageSpecFilterFunction>(specs) => MessageSpecFilters.static.filterByRequestListener(specs, RequestListenerType.static.BROKER)</messageSpecFilterFunction>
+                            <streamProcessingFunction>
+                                pairStream => pairStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER))
+                                .filter(pair => pair.request().hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)) ||
+                                pair.response().hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)))
+                             </streamProcessingFunction>
+                            <pairRequestResponseMode>true</pairRequestResponseMode>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>EntityIsolationProcessor.ftl</templateNames>
                             <!--suppress UnresolvedMavenProperty -->
