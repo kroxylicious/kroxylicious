@@ -101,9 +101,13 @@ JFR_FILE="/tmp/benchmark.jfr"
 PROXY_POD=$(kubectl get pod -n "$NAMESPACE" -l "$PROXY_POD_LABEL" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
 if [[ -n "$PROXY_POD" ]]; then
     echo "Copying JFR recording from proxy pod $PROXY_POD..."
-    kubectl cp "$NAMESPACE/$PROXY_POD:$JFR_FILE" "$OUTPUT_DIR/benchmark.jfr" \
-        && echo "  benchmark.jfr" \
-        || echo "Warning: JFR file not found on proxy pod (was the proxy running with a JDK image?)"
+    # kubectl cp requires tar in the container; use cat via exec instead
+    if kubectl exec -n "$NAMESPACE" "$PROXY_POD" -- cat "$JFR_FILE" > "$OUTPUT_DIR/benchmark.jfr" 2>/dev/null; then
+        echo "  benchmark.jfr"
+    else
+        rm -f "$OUTPUT_DIR/benchmark.jfr"
+        echo "Warning: JFR file not found on proxy pod (was the proxy running with a JDK image?)"
+    fi
 fi
 
 # Generate run metadata
