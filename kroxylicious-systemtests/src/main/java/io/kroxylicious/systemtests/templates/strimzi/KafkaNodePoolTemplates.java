@@ -95,42 +95,6 @@ public class KafkaNodePoolTemplates {
     }
 
     /**
-     * Creates a KafkaNodePool builder configured with BROKER role and persistent storage.
-     *
-     * @param namespaceName the namespace name
-     * @param kafkaClusterName the name of the Kafka cluster this pool belongs to
-     * @param kafkaReplicas the number of broker replicas for this pool
-     * @return a KafkaNodePoolBuilder with BROKER role, name "kafka-broker" and persistent storage
-     */
-    public static KafkaNodePoolBuilder poolWithBrokerRoleAndPersistentStorage(String namespaceName, String kafkaClusterName, int kafkaReplicas) {
-        return poolWithBrokerRole(namespaceName, kafkaClusterName, kafkaReplicas)
-                .editOrNewSpec()
-                .withNewPersistentClaimStorage()
-                .withSize("1Gi")
-                .withDeleteClaim(true)
-                .endPersistentClaimStorage()
-                .endSpec();
-    }
-
-    /**
-     * Creates a KafkaNodePool builder configured with CONTROLLER role and persistent storage.
-     *
-     * @param namespaceName the namespace name
-     * @param kafkaClusterName the name of the Kafka cluster this pool belongs to
-     * @param kafkaReplicas the number of kafka (controller) replicas for this pool
-     * @return a KafkaNodePoolBuilder with CONTROLLER role, name "kafka-controller" and persistent storage
-     */
-    public static KafkaNodePoolBuilder poolWithControllerRoleAndPersistentStorage(String namespaceName, String kafkaClusterName, int kafkaReplicas) {
-        return poolWithControllerRole(namespaceName, kafkaClusterName, kafkaReplicas)
-                .editOrNewSpec()
-                .withNewPersistentClaimStorage()
-                .withSize("1Gi")
-                .withDeleteClaim(true)
-                .endPersistentClaimStorage()
-                .endSpec();
-    }
-
-    /**
      * Creates a KafkaNodePool builder configured with both roles (BROKER, CONTROLLER) and persistent storage.
      *
      * @param namespaceName the namespace name
