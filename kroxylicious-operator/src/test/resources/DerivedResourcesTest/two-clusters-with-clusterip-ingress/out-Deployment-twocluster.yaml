@@ -62,6 +62,15 @@ spec:
               name: "9294-node"
             - containerPort: 9295
               name: "9295-node"
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/livez"
+              port: "management"
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            successThreshold: 1
+            timeoutSeconds: 1
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
