@@ -193,6 +193,39 @@ JFR_FILE="/tmp/benchmark.jfr"
 
 PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
 if [[ -n "${PROXY_POD}" ]]; then
+    # The proxy container has a read-only root filesystem. Patch the deployment
+    # via SSA to add a writable emptyDir at /tmp so jcmd's attach mechanism and
+    # the JFR output file both have somewhere to write.
+    PROXY_DEPLOYMENT=$(kubectl get deployment -n "${NAMESPACE}" \
+        -l "${PROXY_POD_LABEL}" \
+        -o jsonpath='{.items[0].metadata.name}')
+    echo "Patching proxy deployment ${PROXY_DEPLOYMENT} to mount writable /tmp for JFR..."
+    kubectl apply --server-side --field-manager=benchmark-jfr -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${PROXY_DEPLOYMENT}
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      volumes:
+      - name: jfr-tmp
+        emptyDir: {}
+      containers:
+      - name: proxy
+        volumeMounts:
+        - name: jfr-tmp
+          mountPath: /tmp
+EOF
+    echo "Waiting for proxy deployment rollout after patch..."
+    kubectl rollout status deployment/"${PROXY_DEPLOYMENT}" \
+        -n "${NAMESPACE}" \
+        --timeout="${POD_READY_TIMEOUT}"
+
+    # Re-fetch pod name — it changed after the rollout
+    PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
+        -o jsonpath='{.items[0].metadata.name}')
     echo "Starting JFR recording on proxy pod ${PROXY_POD}..."
     # Kroxylicious runs as PID 1 in the container
     kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd 1 JFR.start name=benchmark settings=profile
