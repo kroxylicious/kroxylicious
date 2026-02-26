@@ -122,6 +122,7 @@ public abstract class AuthzIT extends BaseIT {
             BOB, "Bob",
             EVE, "Eve");
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60)).pollDelay(Duration.ofMillis(100));
+    public static final String TEST_MAPPED_TOPIC_NAME_PROPERTY = "kroxyliciousTestMappedTopicName";
 
     @SaslMechanism(principals = {
             @SaslMechanism.Principal(user = SUPER, password = SUPER_PASSWORD),
@@ -327,10 +328,16 @@ public abstract class AuthzIT extends BaseIT {
     protected static ArrayNode sortArray(ObjectNode root, String arrayProperty, String sortProperty, String... thenSortProperties) {
         JsonNode topics = root.path(arrayProperty);
         if (topics.isArray()) {
-            Comparator<JsonNode> comparing = Comparator.comparing(itemNode -> itemNode.get(sortProperty).textValue(),
+            Comparator<JsonNode> comparing = Comparator.comparing(itemNode -> {
+                JsonNode jsonNode = itemNode.get(sortProperty);
+                return jsonNode == null ? null : jsonNode.textValue();
+            },
                     Comparator.nullsFirst(String::compareTo));
             for (var thenSortProperty : thenSortProperties) {
-                Comparator<JsonNode> thenComparator = Comparator.comparing(itemNode -> itemNode.get(thenSortProperty).textValue(),
+                Comparator<JsonNode> thenComparator = Comparator.comparing(itemNode -> {
+                    JsonNode jsonNode = itemNode.get(thenSortProperty);
+                    return jsonNode == null ? null : jsonNode.textValue();
+                },
                         Comparator.nullsFirst(String::compareTo));
                 comparing = comparing.thenComparing(thenComparator);
             }
@@ -370,6 +377,23 @@ public abstract class AuthzIT extends BaseIT {
             return TextNode.valueOf("CLOBBERED");
         }
         return uuid;
+    }
+
+    /**
+     * Replace a topicId with a topicName known to the test, the test must have assigned the topic ids to
+     * the relevant topicIdsInUnproxiedCluster or topicIdsInProxiedCluster.
+     * The topicId property is replaced with a text node called "kroxyliciousTestMappedTopicName"
+     */
+    protected static void replaceTopicIdWithName(BaseClusterFixture cluster, ObjectNode objectNode, String topicIdProperty) {
+        JsonNode jsonNode = objectNode.get(topicIdProperty);
+        if (jsonNode != null) {
+            String uuid = jsonNode.textValue();
+            Uuid topicId = Uuid.fromString(uuid);
+            String topicName = cluster.topicIds().entrySet().stream().filter(stringUuidEntry -> stringUuidEntry.getValue().equals(topicId))
+                    .map(Map.Entry::getKey).findFirst().orElseThrow(() -> new RuntimeException("failed to find topicName for id " + topicId));
+            objectNode.remove(topicIdProperty);
+            objectNode.put(TEST_MAPPED_TOPIC_NAME_PROPERTY, topicName);
+        }
     }
 
     protected static void clobberUuid(ObjectNode root, String propertyName) {
