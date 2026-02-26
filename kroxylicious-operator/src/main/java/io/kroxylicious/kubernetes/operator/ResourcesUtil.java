@@ -674,6 +674,27 @@ public class ResourcesUtil {
                 && !key.endsWith(".jks");
     }
 
+    /**
+     * If `storeType` is null in the KafkaService CR then derive it from the key
+     */
+    public static String deriveStoreTypeFromKeySuffix(TrustAnchorRef trustAnchorRef) {
+        String ext = getKeyExtension(trustAnchorRef.getKey());
+        return switch (ext) {
+            case "p12" -> "PKCS12";
+            case "jks" -> "JKS";
+            case "pem" -> "PEM";
+            default -> throw new IllegalArgumentException("Cannot derive trust store type from the file extension of the data key '"
+                    + trustAnchorRef.getKey() + "' (extension '" + ext + "')");
+        };
+    }
+
+    /**
+     * Gets the extension of the key
+     */
+    static String getKeyExtension(String key) {
+        return key.substring(key.length() - 3);
+    }
+
     public static boolean isSecret(TrustAnchorRef trustAnchorRef) {
         return "Secret".equals(trustAnchorRef.getRef().getKind());
     }
