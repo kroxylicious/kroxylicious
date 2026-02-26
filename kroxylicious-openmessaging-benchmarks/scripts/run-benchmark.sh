@@ -213,8 +213,12 @@ if [[ -n "${PROXY_POD}" ]]; then
     PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
     echo "Starting JFR recording on proxy pod ${PROXY_POD}..."
-    # Kroxylicious runs as PID 1 in the container
-    kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd 1 JFR.start name=benchmark settings=profile
+    # Discover the JVM PID — jcmd with no args scans /proc without the attach
+    # mechanism, so it works even before we've confirmed the socket is available.
+    JVM_PID=$(kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- \
+        sh -c 'jcmd | grep -v "jdk\.jcmd" | awk "NR==1{print \$1}"')
+    echo "Found JVM PID: ${JVM_PID}"
+    kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd "${JVM_PID}" JFR.start name=benchmark settings=profile
 fi
 
 # --- Run benchmark ---
@@ -230,7 +234,7 @@ kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
 
 if [[ -n "${PROXY_POD}" ]]; then
     echo "Stopping JFR recording on proxy pod ${PROXY_POD}..."
-    kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd 1 JFR.stop name=benchmark filename="${JFR_FILE}"
+    kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd "${JVM_PID}" JFR.stop name=benchmark filename="${JFR_FILE}"
 fi
 
 stop_metrics_poller
