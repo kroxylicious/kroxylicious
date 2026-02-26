@@ -41,7 +41,6 @@ import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
-import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NettySettings;
@@ -131,7 +130,6 @@ public class KafkaProxyFrontendHandler
                               EndpointReconciler endpointReconciler,
                               ApiVersionsServiceImpl apiVersionsService,
                               DelegatingDecodePredicate dp,
-                              TransportSubjectBuilder subjectBuilder,
                               ProxyChannelStateMachine proxyChannelStateMachine,
                               Optional<NettySettings> proxyNettySettings) {
         this.pfr = pfr;
