@@ -44,7 +44,6 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 class RecordEncryptionST extends AbstractSystemTests {
-    protected static final String BROKER_NODE_NAME = "kafka";
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryptionST.class);
     private static final String MESSAGE = "Hello-world";
     private static final String KEK_PREFIX = "KEK-";
