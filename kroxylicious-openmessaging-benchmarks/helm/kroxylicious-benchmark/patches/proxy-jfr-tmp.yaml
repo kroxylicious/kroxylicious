@@ -1,0 +1,30 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Patches the proxy Deployment to mount a writable emptyDir at /tmp.
+#
+# The proxy container has a read-only root filesystem, which prevents jcmd's
+# attach mechanism from creating its temp file. This patch is applied via SSA
+# by run-benchmark.sh before starting a JFR recording.
+#
+# The PROXY_DEPLOYMENT and NAMESPACE placeholders are substituted by the script
+# using envsubst before applying.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${PROXY_DEPLOYMENT}
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      volumes:
+      - name: jfr-tmp
+        emptyDir: {}
+      containers:
+      - name: proxy
+        volumeMounts:
+        - name: jfr-tmp
+          mountPath: /tmp

@@ -200,24 +200,10 @@ if [[ -n "${PROXY_POD}" ]]; then
         -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
     echo "Patching proxy deployment ${PROXY_DEPLOYMENT} to mount writable /tmp for JFR..."
-    kubectl apply --server-side --field-manager=benchmark-jfr -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ${PROXY_DEPLOYMENT}
-  namespace: ${NAMESPACE}
-spec:
-  template:
-    spec:
-      volumes:
-      - name: jfr-tmp
-        emptyDir: {}
-      containers:
-      - name: proxy
-        volumeMounts:
-        - name: jfr-tmp
-          mountPath: /tmp
-EOF
+    PROXY_DEPLOYMENT="${PROXY_DEPLOYMENT}" NAMESPACE="${NAMESPACE}" \
+        envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE}' \
+        < "${HELM_CHART}/patches/proxy-jfr-tmp.yaml" \
+        | kubectl apply --server-side --field-manager=benchmark-jfr -f -
     echo "Waiting for proxy deployment rollout after patch..."
     kubectl rollout status deployment/"${PROXY_DEPLOYMENT}" \
         -n "${NAMESPACE}" \
