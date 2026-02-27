@@ -50,7 +50,7 @@ When registry variables are not configured (e.g. on forks), the image is built b
 
 A Renovate custom manager in `/.github/renovate.json` (in the repository root) tracks the `omb.image` reference in `values.yaml` and opens PRs when new image builds are pushed to the registry.
 
-## Current Status: Phase 2 Complete ✅
+## Current Status: Phase 3 Complete ✅
 
 **Phase 1 (Baseline Scenario)** — complete:
 - Helm chart foundation
@@ -63,6 +63,11 @@ A Renovate custom manager in `/.github/renovate.json` (in the repository root) t
 - Kroxylicious operator CRs (KafkaProxy, KafkaProxyIngress, KafkaService, VirtualKafkaCluster)
 - Proxy no-filters scenario (Kroxylicious with empty filter chain)
 - Automatic bootstrap routing through proxy when enabled
+
+**Phase 3 (Automation)** — complete:
+- `setup-cluster.sh` — one-time operator installation (Strimzi + Kroxylicious)
+- `run-benchmark.sh` — end-to-end scenario execution with automatic teardown
+- `run-all-scenarios.sh` — runs baseline and proxy-no-filters, produces comparison
 
 ## Architecture
 
@@ -84,6 +89,9 @@ kroxylicious-openmessaging-benchmarks/
 ├── Containerfile
 ├── .dockerignore
 ├── scripts/
+│   ├── setup-cluster.sh          # Install Strimzi + Kroxylicious operators (one-time)
+│   ├── run-benchmark.sh          # Run one scenario end-to-end (deploy → benchmark → teardown)
+│   ├── run-all-scenarios.sh      # Run baseline + proxy-no-filters and compare
 │   ├── compare-results.sh        # Compare two OMB result files (JBang wrapper)
 │   └── collect-results.sh        # Collect results and generate metadata (JBang wrapper)
 ├── src/main/java/.../results/
@@ -122,81 +130,40 @@ kroxylicious-openmessaging-benchmarks/
 - Kubernetes cluster (minikube, kind, or cloud provider)
 - `kubectl` configured to access the cluster
 - `helm` 3.0+
-- **Strimzi Kafka Operator** installed in the cluster
-- **Kroxylicious operator** installed in the cluster (proxy scenarios only)
+- `gh` (GitHub CLI) — used by `setup-cluster.sh` to download the Kroxylicious operator
+- `jbang` — used by the result scripts (see [JBang installation](https://www.jbang.dev/download/))
+- `mvn` — used to generate JBang source filters before comparing results
 - Sufficient resources: 8 CPU cores, 16GB RAM recommended (4 CPU, 8GB RAM with smoke profile)
 
 ## Quick Start
 
-### 1. Install Strimzi Operator
+See [QUICKSTART.md](QUICKSTART.md) for the full walkthrough. The short version:
+
+### 1. Set up cluster operators (once per cluster)
 
 ```bash
-# Install Strimzi operator
-kubectl create namespace kafka
-kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
-
-# Wait for operator to be ready
-kubectl wait --for=condition=ready pod -l name=strimzi-cluster-operator -n kafka --timeout=300s
+cd kroxylicious-openmessaging-benchmarks
+./scripts/setup-cluster.sh
 ```
 
-### 2. Install Kroxylicious Operator (proxy scenarios only)
+This installs Strimzi and the Kroxylicious operator and waits for both to be ready.
 
-Skip this step for baseline scenarios. See [QUICKSTART.md](QUICKSTART.md) for detailed operator installation instructions.
+### 2. Run the proxy overhead comparison
 
 ```bash
-gh release download v0.18.0 --repo kroxylicious/kroxylicious --pattern 'kroxylicious-operator-*.tar.gz'
-tar xzf kroxylicious-operator-*.tar.gz
-kubectl apply -f install/
-kubectl wait --for=condition=ready pod -l app=kroxylicious -n kroxylicious-operator --timeout=300s
+./scripts/run-all-scenarios.sh ./results/run-$(date +%Y%m%d-%H%M%S)/
 ```
 
-### 3. Install Benchmark Scenario
+This runs the `baseline` and `proxy-no-filters` scenarios across all workloads sequentially,
+then prints a side-by-side comparison. Each run deploys fresh infrastructure and tears it
+down afterwards, so no manual cleanup is needed.
+
+### 3. Run a single scenario manually
 
 ```bash
-# Choose your scenario:
-SCENARIO=baseline-values              # Direct Kafka, no proxy
-# SCENARIO=proxy-no-filters-values    # Kroxylicious proxy, no filters
-
-# Install Helm chart with the configured scenario (production durations: 15 min test + 5 min warmup)
-helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
-  -n kafka \
-  -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml
-
-# Or for quick validation, add the smoke profile (1 min test, 1 broker, 2 workers):
-# helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark \
-#   -n kafka \
-#   -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/${SCENARIO}.yaml \
-#   -f ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/scenarios/smoke-values.yaml
-
-# Wait for Kafka cluster to be ready
-kubectl wait kafka/kafka --for=condition=Ready --timeout=300s -n kafka
-
-# Wait for all pods to be ready
-kubectl wait --for=condition=ready pod -l strimzi.io/cluster=kafka --timeout=300s -n kafka
-kubectl wait --for=condition=ready pod -l app=omb-worker --timeout=300s -n kafka
-kubectl wait --for=condition=ready pod -l app=omb-benchmark --timeout=300s -n kafka
-```
-
-### 4. Run Benchmark
-
-The `omb-benchmark` deployment is ready for manual benchmark execution:
-
-```bash
-# Get list of OMB workers
-WORKERS="omb-worker-0.omb-worker:8080,omb-worker-1.omb-worker:8080,omb-worker-2.omb-worker:8080"
-
-# Run benchmark (1 topic workload)
-kubectl exec -it deploy/omb-benchmark -n kafka -- \
-  sh -c '/opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
-
-# Results will be printed to console
-```
-
-### 5. Cleanup
-
-```bash
-helm uninstall benchmark -n kafka
-kubectl delete pvc -l strimzi.io/cluster=kafka -n kafka  # Clean up persistent volumes
+./scripts/run-benchmark.sh baseline 1topic-1kb ./results/baseline/
+./scripts/run-benchmark.sh proxy-no-filters 1topic-1kb ./results/proxy/
+./scripts/compare-results.sh ./results/baseline/*.json ./results/proxy/*.json
 ```
 
 ## Configuration
@@ -338,23 +305,10 @@ Outputs a table with Publish Latency, End-to-End Latency, and Throughput section
 
 Finds the benchmark pod, copies result JSON files from `/var/lib/omb/results`, and generates `run-metadata.json` with git commit, branch, and UTC timestamp. Set `NAMESPACE` to override the default namespace (`kafka`).
 
-## Next Phases (Planned)
+## Planned
 
-**Phase 2: Proxy Scenarios**
-- ✅ No-filters (empty filter chain) — complete
-- Encryption (RecordEncryption filter)
-- Encryption+Auth (RecordEncryption + Authorization filters)
-
-**Phase 3: Automation**
-- `run-benchmark.sh` - Automated execution
-- `run-all-scenarios.sh` - Multi-scenario testing
-- ✅ `compare-results.sh` - Performance comparison (JBang)
-- ✅ `collect-results.sh` - Result collection (JBang)
-
-**Phase 4: Documentation**
-- Setup guide
-- Running guide
-- Results interpretation
+- Encryption scenario (RecordEncryption filter + Vault)
+- Encryption+Auth scenario (RecordEncryption + Authorization filters)
 
 ## Troubleshooting
 
