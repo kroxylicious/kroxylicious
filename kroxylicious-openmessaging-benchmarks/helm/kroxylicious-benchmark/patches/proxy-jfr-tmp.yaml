@@ -31,7 +31,7 @@ spec:
       - name: proxy
         env:
         - name: JAVA_TOOL_OPTIONS
-          value: "-XX:StartFlightRecording=name=benchmark,settings=profile,maxsize=64m"
+          value: "-XX:StartFlightRecording=name=benchmark,settings=profile,maxsize=64m,disk=true,filename=/tmp/benchmark.jfr"
         volumeMounts:
         - name: jfr-tmp
           mountPath: /tmp

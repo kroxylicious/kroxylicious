@@ -212,12 +212,10 @@ if [[ -n "${PROXY_POD}" ]]; then
     # Re-fetch pod name — it changed after the rollout
     PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
-    # Discover the JVM PID — jcmd with no args scans /proc without the attach
-    # mechanism, so it works even before we've confirmed the socket is available.
-    # JFR starts automatically via JAVA_TOOL_OPTIONS set in the patch above.
-    JVM_PID=$(kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- \
-        sh -c 'jcmd | grep -v "jdk\.jcmd" | awk "NR==1{print \$1}"')
-    echo "JFR recording active on proxy pod ${PROXY_POD} (PID ${JVM_PID})"
+    # JFR starts automatically via JAVA_TOOL_OPTIONS set in the patch.
+    # disk=true means the JVM streams chunks to /tmp/benchmark.jfr continuously,
+    # so no jcmd dump is needed — collect-results.sh just cats the file.
+    echo "JFR recording active on proxy pod ${PROXY_POD}"
 fi
 
 # --- Run benchmark ---
@@ -228,13 +226,6 @@ echo ""
 echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
 kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
     sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
-
-# --- Stop JFR recording ---
-
-if [[ -n "${PROXY_POD}" ]]; then
-    echo "Dumping JFR recording on proxy pod ${PROXY_POD}..."
-    kubectl exec "${PROXY_POD}" -n "${NAMESPACE}" -- jcmd "${JVM_PID}" JFR.dump name=benchmark filename="${JFR_FILE}"
-fi
 
 stop_metrics_poller
 
