@@ -54,7 +54,7 @@ public class RunMetadata {
         metadata.put("timestamp", timestamp);
 
         Map<String, Object> minikubeProfile = minikubeProfileConfig();
-        if (minikubeProfile != null) {
+        if (!minikubeProfile.isEmpty()) {
             metadata.put("minikubeProfile", minikubeProfile);
         }
 
@@ -63,30 +63,29 @@ public class RunMetadata {
     }
 
     private static Map<String, Object> minikubeProfileConfig() {
+        Map<String, Object> config = new LinkedHashMap<>();
         try {
             String json = execCommand("minikube", "profile", "list", "-o", "json");
             JsonNode root = MAPPER.readTree(json);
             JsonNode valid = root.path("valid");
             if (!valid.isArray() || valid.isEmpty()) {
-                return null;
+                return config;
             }
             JsonNode profile = valid.get(0);
             JsonNode machine = profile.path("Config").path("MachineConfig");
             JsonNode k8s = profile.path("Config").path("KubernetesConfig");
 
-            Map<String, Object> config = new LinkedHashMap<>();
             config.put("profile", profile.path("Name").asText("unknown"));
             config.put("driver", machine.path("Driver").asText("unknown"));
             config.put("cpus", machine.path("CPUs").asInt(0));
             config.put("memoryMb", machine.path("Memory").asInt(0));
             config.put("kubernetesVersion", k8s.path("KubernetesVersion").asText("unknown"));
             config.put("containerRuntime", k8s.path("ContainerRuntime").asText("unknown"));
-            return config;
         }
         catch (Exception e) {
-            // minikube not available or not configured — omit from metadata
-            return null;
+            // minikube not available or not configured
         }
+        return config;
     }
 
     @SuppressFBWarnings(value = "COMMAND_INJECTION", justification = "command arguments are hardcoded string literals, not user input")
