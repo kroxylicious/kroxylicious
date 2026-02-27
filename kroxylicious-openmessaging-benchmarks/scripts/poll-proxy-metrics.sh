@@ -83,11 +83,15 @@ echo "Management endpoint ready."
 } > "${METRICS_FILE}"
 
 while true; do
+    NOW=$(date +%s)
     {
         echo ""
-        echo "# SNAPSHOT timestamp=$(date +%s) datetime=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "# SNAPSHOT datetime=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "# HELP benchmark_sample_timestamp_seconds Unix timestamp of this metrics snapshot"
+        echo "# TYPE benchmark_sample_timestamp_seconds gauge"
+        echo "benchmark_sample_timestamp_seconds ${NOW}"
         if ! curl -sf "http://localhost:${LOCAL_PORT}/metrics"; then
-            echo "# WARNING: metrics fetch failed at $(date +%s)"
+            echo "# WARNING: metrics fetch failed at ${NOW}"
         fi
     } >> "${METRICS_FILE}"
     sleep "${INTERVAL}"
