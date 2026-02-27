@@ -10,10 +10,10 @@ import java.util.Objects;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
-public record MessageSpecPair(String name, ApiKeys apiKeys, java.util.Set<RequestListenerType> listeners, MessageSpec request, MessageSpec response) implements Named {
+public record MessageSpecPair(String name, ApiKeys apiKey, java.util.Set<RequestListenerType> listeners, MessageSpec request, MessageSpec response) implements Named {
     public MessageSpecPair {
         Objects.requireNonNull(name);
-        Objects.requireNonNull(apiKeys);
+        Objects.requireNonNull(apiKey);
         Objects.requireNonNull(listeners);
         Objects.requireNonNull(request);
         Objects.requireNonNull(response);
