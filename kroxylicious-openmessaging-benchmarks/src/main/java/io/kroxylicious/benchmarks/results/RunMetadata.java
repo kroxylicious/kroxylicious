@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -31,6 +32,7 @@ public class RunMetadata {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final DateTimeFormatter ISO_UTC = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
             .withZone(ZoneOffset.UTC);
+    private static final String DEFAULT_UNKNOWN_VALUE = "unknown";
 
     private RunMetadata() {
     }
@@ -57,6 +59,7 @@ public class RunMetadata {
         if (!minikubeProfile.isEmpty()) {
             metadata.put("minikubeProfile", minikubeProfile);
         }
+        metadata.put("hostSystem", hostSystemInfo());
 
         Path metadataFile = outputDir.resolve("run-metadata.json");
         MAPPER.writerWithDefaultPrettyPrinter().writeValue(metadataFile.toFile(), metadata);
@@ -75,17 +78,51 @@ public class RunMetadata {
             JsonNode machine = profile.path("Config").path("MachineConfig");
             JsonNode k8s = profile.path("Config").path("KubernetesConfig");
 
-            config.put("profile", profile.path("Name").asText("unknown"));
-            config.put("driver", machine.path("Driver").asText("unknown"));
+            config.put("profile", profile.path("Name").asText(DEFAULT_UNKNOWN_VALUE));
+            config.put("driver", machine.path("Driver").asText(DEFAULT_UNKNOWN_VALUE));
             config.put("cpus", machine.path("CPUs").asInt(0));
             config.put("memoryMb", machine.path("Memory").asInt(0));
-            config.put("kubernetesVersion", k8s.path("KubernetesVersion").asText("unknown"));
-            config.put("containerRuntime", k8s.path("ContainerRuntime").asText("unknown"));
+            config.put("kubernetesVersion", k8s.path("KubernetesVersion").asText(DEFAULT_UNKNOWN_VALUE));
+            config.put("containerRuntime", k8s.path("ContainerRuntime").asText(DEFAULT_UNKNOWN_VALUE));
         }
         catch (Exception e) {
             // minikube not available or not configured
         }
         return config;
+    }
+
+    private static Map<String, Object> hostSystemInfo() {
+        Map<String, Object> info = new LinkedHashMap<>();
+        info.put("logicalCpus", Runtime.getRuntime().availableProcessors());
+        if (!System.getProperty("os.name", "").startsWith("Linux")) {
+            return info;
+        }
+        try {
+            List<String> cpuInfo = Files.readAllLines(Path.of("/proc/cpuinfo"), StandardCharsets.UTF_8);
+            cpuInfo.stream()
+                    .filter(l -> l.startsWith("model name"))
+                    .findFirst()
+                    .map(l -> l.substring(l.indexOf(':') + 1).trim())
+                    .ifPresent(model -> info.put("cpuModel", model));
+            cpuInfo.stream()
+                    .filter(l -> l.startsWith("cpu MHz"))
+                    .findFirst()
+                    .map(l -> l.substring(l.indexOf(':') + 1).trim())
+                    .ifPresent(mhz -> info.put("cpuMhz", mhz));
+            Files.readAllLines(Path.of("/proc/meminfo"), StandardCharsets.UTF_8).stream()
+                    .filter(l -> l.startsWith("MemTotal:"))
+                    .findFirst()
+                    .ifPresent(l -> {
+                        String[] parts = l.split("\\s+");
+                        if (parts.length >= 2) {
+                            info.put("totalMemoryGb", Long.parseLong(parts[1]) / (1024 * 1024));
+                        }
+                    });
+        }
+        catch (Exception e) {
+            // /proc not available or unreadable
+        }
+        return info;
     }
 
     @SuppressFBWarnings(value = "COMMAND_INJECTION", justification = "command arguments are hardcoded string literals, not user input")
@@ -106,12 +143,12 @@ public class RunMetadata {
         try {
             int exitCode = process.waitFor();
             if (exitCode != 0) {
-                return "unknown";
+                return DEFAULT_UNKNOWN_VALUE;
             }
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return "unknown";
+            return DEFAULT_UNKNOWN_VALUE;
         }
 
         return output;
