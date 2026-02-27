@@ -14,8 +14,10 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -42,26 +44,58 @@ public class RunMetadata {
     public static void generate(Path outputDir) throws IOException {
         Files.createDirectories(outputDir);
 
-        String gitCommit = execGitCommand("rev-parse", "HEAD");
-        String gitBranch = execGitCommand("rev-parse", "--abbrev-ref", "HEAD");
+        String gitCommit = execCommand("git", "rev-parse", "HEAD");
+        String gitBranch = execCommand("git", "rev-parse", "--abbrev-ref", "HEAD");
         String timestamp = ISO_UTC.format(Instant.now());
 
-        Map<String, String> metadata = Map.of(
-                "gitCommit", gitCommit,
-                "gitBranch", gitBranch,
-                "timestamp", timestamp);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("gitCommit", gitCommit);
+        metadata.put("gitBranch", gitBranch);
+        metadata.put("timestamp", timestamp);
+
+        Map<String, Object> minikubeProfile = minikubeProfileConfig();
+        if (minikubeProfile != null) {
+            metadata.put("minikubeProfile", minikubeProfile);
+        }
 
         Path metadataFile = outputDir.resolve("run-metadata.json");
         MAPPER.writerWithDefaultPrettyPrinter().writeValue(metadataFile.toFile(), metadata);
     }
 
-    @SuppressFBWarnings(value = "COMMAND_INJECTION", justification = "command arguments are hardcoded string literals, not user input")
-    private static String execGitCommand(String... args) throws IOException {
-        String[] command = new String[args.length + 1];
-        command[0] = "git";
-        System.arraycopy(args, 0, command, 1, args.length);
+    private static Map<String, Object> minikubeProfileConfig() {
+        try {
+            String json = execCommand("minikube", "profile", "list", "-o", "json");
+            JsonNode root = MAPPER.readTree(json);
+            JsonNode valid = root.path("valid");
+            if (!valid.isArray() || valid.isEmpty()) {
+                return null;
+            }
+            JsonNode profile = valid.get(0);
+            JsonNode machine = profile.path("Config").path("MachineConfig");
+            JsonNode k8s = profile.path("Config").path("KubernetesConfig");
 
-        ProcessBuilder pb = new ProcessBuilder(command);
+            Map<String, Object> config = new LinkedHashMap<>();
+            config.put("profile", profile.path("Name").asText("unknown"));
+            config.put("driver", machine.path("Driver").asText("unknown"));
+            config.put("cpus", machine.path("CPUs").asInt(0));
+            config.put("memoryMb", machine.path("Memory").asInt(0));
+            config.put("kubernetesVersion", k8s.path("KubernetesVersion").asText("unknown"));
+            config.put("containerRuntime", k8s.path("ContainerRuntime").asText("unknown"));
+            return config;
+        }
+        catch (Exception e) {
+            // minikube not available or not configured — omit from metadata
+            return null;
+        }
+    }
+
+    @SuppressFBWarnings(value = "COMMAND_INJECTION", justification = "command arguments are hardcoded string literals, not user input")
+    private static String execCommand(String command, String... args) throws IOException {
+        String[] fullCommand = new String[args.length + 1];
+        fullCommand[0] = command;
+        System.arraycopy(args, 0, fullCommand, 1, args.length);
+
+        ProcessBuilder pb = new ProcessBuilder(fullCommand);
         pb.redirectErrorStream(true);
         Process process = pb.start();
 
