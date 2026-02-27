@@ -93,6 +93,9 @@ public class RunMetadata {
 
     private static Map<String, Object> hostSystemInfo() {
         Map<String, Object> info = new LinkedHashMap<>();
+        info.put("os", System.getProperty("os.name"));
+        info.put("osVersion", System.getProperty("os.version"));
+        info.put("osArch", System.getProperty("os.arch"));
         info.put("logicalCpus", Runtime.getRuntime().availableProcessors());
         if (!System.getProperty("os.name", "").startsWith("Linux")) {
             return info;
