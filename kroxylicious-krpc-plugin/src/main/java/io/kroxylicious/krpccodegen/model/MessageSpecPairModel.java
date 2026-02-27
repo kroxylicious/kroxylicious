@@ -25,6 +25,7 @@ class MessageSpecPairModel implements TemplateHashModel, AdapterTemplateModel {
     public TemplateModel get(String key) throws TemplateModelException {
         return switch (key) {
             case "name" -> wrapper.wrap(pair.name());
+            case "apiKey" -> wrapper.wrap(pair.apiKey());
             case "request" -> wrapper.wrap(pair.request());
             case "response" -> wrapper.wrap(pair.response());
             default -> throw new TemplateModelException(pair.getClass().getSimpleName() + " doesn't have property '" + key + "'");

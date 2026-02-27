@@ -28,7 +28,7 @@ indent      java identation
                 <#else>
                     <#stop "unexpected field type">
                 </#if>
-            ${pad}}
+        ${pad}}
             <#elseif field.isResourceList>
         ${pad}// process the resource list
         ${pad}${fieldVar}.${getter}().stream()
@@ -201,18 +201,31 @@ class ${messageSpecPair.name}EntityIsolationProcessor implements EntityIsolation
 
     private static final Logger LOGGER = LoggerFactory.getLogger(${messageSpecPair.name}EntityIsolationProcessor.class);
 
-<#--    private final Set<EntityIsolation.ResourceType> resourceTypes;-->
-<#--    private final EntityNameMapper mapper;-->
+    private final Set<EntityIsolation.ResourceType> resourceTypes;
+    private final EntityNameMapper mapper;
 
-<#--    EntityIsolationFilter(Set<EntityIsolation.ResourceType> resourceTypes, EntityNameMapper mapper) {-->
-<#--        this.resourceTypes = Objects.requireNonNull(resourceTypes);-->
-<#--        this.mapper = Objects.requireNonNull(mapper);-->
-<#--    }-->
+    ${messageSpecPair.name}EntityIsolationProcessor(Set<EntityIsolation.ResourceType> resourceTypes, EntityNameMapper mapper) {
+        this.resourceTypes = Objects.requireNonNull(resourceTypes);
+        this.mapper = Objects.requireNonNull(mapper);
+    }
 
 <#if messageSpecPair.request.hasAtLeastOneEntityField(filteredEntityTypes)>
+    <#assign key="${messageSpecPair.apiKey}" dataClass="${messageSpecPair.request.dataClassName}"/>
     @Override
     public boolean shouldHandleRequest(short apiVersion) {
         return <@inVersionRange "apiVersion" messageSpecPair.request.intersectedVersionsForEntityFields(filteredEntityTypes)/>;
+    }
+
+    @Override
+    public CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                          short apiVersion,
+                                                          ${dataClass} request,
+                                                          FilterContext filterContext,
+                                                          MapperContext mapperContext) {
+        log(filterContext, "${messageSpecPair.request.type?c_lower_case}", ApiKeys.${key}, request);
+        <@mapRequestFields messageSpec=messageSpecPair.request fieldVar="request" children=messageSpecPair.request.fields indent=0/>
+        log(filterContext, "${messageSpecPair.request.type?c_lower_case} result", ApiKeys.${key}, request);
+        return filterContext.forwardRequest(header, request);
     }
 </#if>
 
@@ -365,41 +378,41 @@ class ${messageSpecPair.name}EntityIsolationProcessor implements EntityIsolation
 <#--        return filterContext.forwardResponse(header, response);-->
 <#--    }-->
 
-<#--    private boolean shouldMap(EntityIsolation.ResourceType entityType) {-->
-<#--        return resourceTypes.contains(entityType);-->
-<#--    }-->
+    private boolean shouldMap(EntityIsolation.ResourceType entityType) {
+        return resourceTypes.contains(entityType);
+    }
 
-<#--    private String map(MapperContext context, EntityIsolation.ResourceType resourceType, String originalName) {-->
-<#--        if (originalName == null || originalName.isEmpty()) {-->
-<#--            return originalName;-->
-<#--        }-->
-<#--        return mapper.map(context, resourceType, originalName);-->
-<#--    }-->
+    private String map(MapperContext context, EntityIsolation.ResourceType resourceType, String originalName) {
+        if (originalName == null || originalName.isEmpty()) {
+            return originalName;
+        }
+        return mapper.map(context, resourceType, originalName);
+    }
 
-<#--    private String unmap(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {-->
-<#--        if (mappedName.isEmpty()) {-->
-<#--            return mappedName;-->
-<#--        }-->
-<#--        return mapper.unmap(context, resourceType, mappedName);-->
-<#--    }-->
+    private String unmap(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
+        if (mappedName.isEmpty()) {
+            return mappedName;
+        }
+        return mapper.unmap(context, resourceType, mappedName);
+    }
 
-<#--    private boolean inNamespace(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {-->
-<#--        return mapper.isInNamespace(context, resourceType, mappedName);-->
-<#--    }-->
+    private boolean inNamespace(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
+        return mapper.isInNamespace(context, resourceType, mappedName);
+    }
 
-<#--    private static MapperContext buildMapperContext(FilterContext context) {-->
-<#--        return new MapperContext(context.authenticatedSubject(),-->
-<#--                context.clientTlsContext().orElse(null),-->
-<#--                context.clientSaslContext().orElse(null));-->
-<#--    }-->
+    private static MapperContext buildMapperContext(FilterContext context) {
+        return new MapperContext(context.authenticatedSubject(),
+                context.clientTlsContext().orElse(null),
+                context.clientSaslContext().orElse(null));
+    }
 
-<#--    private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {-->
-<#--        LOGGER.atDebug()-->
-<#--                .addArgument(() -> context.sessionId())-->
-<#--                .addArgument(() -> context.authenticatedSubject())-->
-<#--                .addArgument(description)-->
-<#--                .addArgument(key)-->
-<#--                .addArgument(message)-->
-<#--                .log("{} for {}: {} {}: {}");-->
-<#--    }-->
+    private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
+        LOGGER.atDebug()
+                .addArgument(() -> context.sessionId())
+                .addArgument(() -> context.authenticatedSubject())
+                .addArgument(description)
+                .addArgument(key)
+                .addArgument(message)
+                .log("{} for {}: {} {}: {}");
+    }
 }
