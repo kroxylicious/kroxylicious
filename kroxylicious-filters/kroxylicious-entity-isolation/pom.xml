@@ -139,6 +139,14 @@
 
                         <configuration>
                             <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <streamProcessingFunction>
+                                pairStream => pairStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER))
+                                .filter(pair => pair.request().hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)) ||
+                                                pair.request().hasResourceList() ||
+                                                pair.response().hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)) ||
+                                                pair.response().hasResourceList())
+                            </streamProcessingFunction>
+                            <pairRequestResponseMode>true</pairRequestResponseMode>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>EntityIsolationFilter.ftl</templateNames>
@@ -147,7 +155,6 @@
                             <outputPackage>io.kroxylicious.filter.entityisolation</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
-
                     </execution>
                     <execution>
                         <id>generate-entity-type-entity-isolation-processors</id>

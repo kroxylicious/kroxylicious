@@ -25,10 +25,10 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage> {
     default CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
                                                            short apiVersion,
                                                            Q request,
-                                                           FilterContext context,
+                                                           FilterContext filterContext,
                                                            MapperContext mapperContext) {
 
-        return context.forwardRequest(header, request);
+        return filterContext.forwardRequest(header, request);
     }
 
     default boolean shouldHandleResponse(short apiVersion) {
@@ -38,9 +38,9 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage> {
     default CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
                                                              short apiVersion,
                                                              S response,
-                                                             FilterContext context,
+                                                             FilterContext filterContext,
                                                              MapperContext mapperContext) {
-        return context.forwardResponse(header, response);
+        return filterContext.forwardResponse(header, response);
     }
 
 }

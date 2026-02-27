@@ -29,17 +29,6 @@ indent      java identation
                     <#stop "unexpected field type">
                 </#if>
         ${pad}}
-            <#elseif field.isResourceList>
-        ${pad}// process the resource list
-        ${pad}${fieldVar}.${getter}().stream()
-        ${pad}            .collect(Collectors.toMap(Function.identity(),
-        ${pad}                  r -> EntityIsolation.fromConfigResourceTypeCode(r.resourceType())))
-        ${pad}            .entrySet()
-        ${pad}            .stream()
-        ${pad}            .filter(e -> e.getValue().isPresent())
-        ${pad}            .filter(e -> shouldMap(e.getValue().get())).forEach(e -> {
-        ${pad}                e.getKey().setResourceName(map(mapperContext, e.getValue().get(), e.getKey().resourceName()));
-        ${pad}    });
             </#if>
         </#items>
     </#list>
@@ -169,28 +158,31 @@ package ${outputPackage};
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import javax.annotation.processing.Generated;
 
 import org.apache.kafka.common.message.${messageSpecPair.response.dataClassName};
 import org.apache.kafka.common.message.${messageSpecPair.request.dataClassName};
 
+<#if messageSpecPair.request.hasAtLeastOneEntityField(filteredEntityTypes)>
 import org.apache.kafka.common.message.RequestHeaderData;
+</#if>
+<#if messageSpecPair.response.hasAtLeastOneEntityField(filteredEntityTypes)>
 import org.apache.kafka.common.message.ResponseHeaderData;
+</#if>
+
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolation;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.RequestFilter;
+<#if messageSpecPair.request.hasAtLeastOneEntityField(filteredEntityTypes)>
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilter;
+</#if>
+<#if messageSpecPair.response.hasAtLeastOneEntityField(filteredEntityTypes)>
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+</#if>
 
 /**
 * Entity isolation processor for Kafka messages with fields using entity types.

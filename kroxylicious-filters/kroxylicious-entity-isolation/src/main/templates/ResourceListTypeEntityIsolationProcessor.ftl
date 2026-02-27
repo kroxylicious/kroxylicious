@@ -169,28 +169,34 @@ package ${outputPackage};
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
+<#if messageSpecPair.request.hasResourceList>
 import java.util.function.Function;
 import java.util.stream.Collectors;
+</#if>
 
 import javax.annotation.processing.Generated;
 
 import org.apache.kafka.common.message.${messageSpecPair.response.dataClassName};
 import org.apache.kafka.common.message.${messageSpecPair.request.dataClassName};
 
+<#if messageSpecPair.request.hasResourceList>
 import org.apache.kafka.common.message.RequestHeaderData;
+</#if>
+<#if messageSpecPair.response.hasResourceList>
 import org.apache.kafka.common.message.ResponseHeaderData;
+</#if>
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolation;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.RequestFilter;
+<#if messageSpecPair.request.hasResourceList>
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilter;
+</#if>
+<#if messageSpecPair.response.hasResourceList>
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+</#if>
 
 /**
 * Entity isolation processor for Kafka messages which use resource lists distingished by a type.
