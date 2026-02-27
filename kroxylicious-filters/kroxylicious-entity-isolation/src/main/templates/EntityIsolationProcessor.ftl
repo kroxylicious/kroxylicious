@@ -230,29 +230,43 @@ class ${messageSpecPair.name}EntityIsolationProcessor implements EntityIsolation
 </#if>
 
 <#if messageSpecPair.response.hasAtLeastOneEntityField(filteredEntityTypes)>
+    <#assign key="${messageSpecPair.apiKey}" dataClass="${messageSpecPair.response.dataClassName}"/>
     @Override
     public boolean shouldHandleResponse(short apiVersion) {
         return <@inVersionRange "apiVersion" messageSpecPair.response.intersectedVersionsForEntityFields(filteredEntityTypes)/>;
     }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
+                                                            short apiVersion,
+                                                            ${dataClass} response,
+                                                            FilterContext filterContext,
+                                                            MapperContext mapperContext) {
+        log(filterContext, "${messageSpecPair.response.type?c_lower_case}", ApiKeys.${key}, response);
+        <@mapAndFilterResponseFields messageSpec=messageSpecPair.response
+                                     collectionIterator=""
+                                     fieldVar="response"
+                                     children=messageSpecPair.response.fields
+                                     indent=2/>
+        log(filterContext, "${messageSpecPair.response.type?c_lower_case} result", ApiKeys.${key}, response);
+        return filterContext.forwardResponse(header, response);
+    }
+
+<#--        <#assign key=retrieveApiKey(messageSpec)-->
+<#--        dataClass="${messageSpec.dataClassName}"-->
+<#--        namePad=""?left_pad(messageSpec.name?length) />-->
+<#--    private void on${messageSpec.name}(RequestHeaderData header,-->
+<#--                    ${namePad}${dataClass} request,-->
+<#--                    ${namePad}FilterContext filterContext,-->
+<#--                    ${namePad}MapperContext mapperContext) {-->
+<#--        log(filterContext, "${messageSpec.type?c_lower_case}", ApiKeys.${key}, request);-->
+<#--    <@mapRequestFields messageSpec=messageSpec fieldVar="request" children=messageSpec.fields indent=0/>-->
+<#--        log(filterContext, "${messageSpec.type?c_lower_case} result", ApiKeys.${key}, request);-->
+<#--    }-->
+
+
 </#if>
 
-<#--    @Override-->
-<#--    public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {-->
-<#--        return switch (apiKey) {-->
-<#--            // Find coordinator uses a key type to identify entities, rather than entity field.-->
-<#--            case FIND_COORDINATOR -> true;-->
-<#--        <#list messageSpecs?filter(ms -> ms.type == 'RESPONSE' && retrieveApiListener(ms)?seq_contains("BROKER"))>-->
-<#--            <#items as messageSpec>-->
-<#--                <#if messageSpec.hasAtLeastOneEntityField(filteredEntityTypes)>-->
-<#--            case ${retrieveApiKey(messageSpec)} -> <@inVersionRange "apiVersion" messageSpec.intersectedVersionsForEntityFields(filteredEntityTypes)/>;-->
-<#--                <#elseif messageSpec.hasResourceList>-->
-<#--            case ${retrieveApiKey(messageSpec)} -> <@inVersionRange "apiVersion" messageSpec.intersectedVersionsForResourceList()/>;-->
-<#--                </#if>-->
-<#--            </#items>-->
-<#--        </#list>-->
-<#--        default -> false;-->
-<#--        };-->
-<#--    }-->
 
 <#--    private void onFindCoordinatorRequest(RequestHeaderData header,-->
 <#--                                          FindCoordinatorRequestData findCoordinatorRequestData,-->
