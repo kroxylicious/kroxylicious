@@ -59,8 +59,22 @@ kubectl port-forward "pod/${PROXY_POD}" "${LOCAL_PORT}:9190" \
     -n "${NAMESPACE}" &>/dev/null &
 PF_PID=$!
 
-# Give port-forward a moment to establish
-sleep 2
+# Poll until the endpoint responds rather than sleeping a fixed amount.
+# Also bail out early if the port-forward process dies.
+echo "Waiting for management endpoint to be ready..."
+PF_DEADLINE=$((SECONDS + 15))
+until curl -sf "http://localhost:${LOCAL_PORT}/metrics" >/dev/null 2>&1; do
+    if [[ $SECONDS -ge $PF_DEADLINE ]]; then
+        echo "ERROR: timed out waiting for port-forward to ${PROXY_POD}:9190" >&2
+        exit 1
+    fi
+    if ! kill -0 "${PF_PID}" 2>/dev/null; then
+        echo "ERROR: port-forward process exited unexpectedly" >&2
+        exit 1
+    fi
+    sleep 1
+done
+echo "Management endpoint ready."
 
 {
     echo "# proxy-metrics polling started"
