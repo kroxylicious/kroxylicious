@@ -1,0 +1,33 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: LIST_OFFSETS
+  disabled: false
+  version: 10
+  request:
+    payload:
+      replicaId: 1
+      isolationLevel: 0
+      topics:
+        - name: foo
+          partitions:
+            - partitionIndex: 0
+              currentLeaderEpoch: 0
+              timestamp: 0
+      timeoutMs: 0
+    diff: []
+  response:
+    payload:
+      throttleTimeMs: 0
+      topics:
+        - name: foo
+          partitions:
+            - partitionIndex: 0
+              errorCode: 0
+              timestamp: 0
+              offset: 0
+              leaderEpoch: 0
+    diff: []

@@ -148,6 +148,67 @@ class KrpcGeneratorTest {
         assertFileHasExpectedContents(file, "Kproxy/KrpcRequestFilter-expected.txt");
     }
 
+    @Test
+    void messageSpecsFilteredWithStreamProcessor(@TempDir File tempDir) throws Exception {
+        KrpcGenerator gen = KrpcGenerator.multi()
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter("*{Request,Response}.json")
+                .streamProcessingFunction("specStream => specStream.filter(spec => spec.name().startsWith('Alter'))")
+                .withTemplateDir(getTemplateDir())
+                .withTemplateNames(List.of("Kproxy/MessageSpecFiltering.ftl"))
+                .withOutputPackage("com.foo")
+                .withOutputDir(tempDir)
+                .withOutputFilePattern("${templateName}.txt")
+                .build();
+
+        gen.generate();
+
+        File file = join(tempDir, "com", "foo", "MessageSpecFiltering.txt");
+        assertFileHasExpectedContents(file, "Kproxy/MessageSpecFiltering-expected.txt");
+    }
+
+    @Test
+    void messageSpecPairs(@TempDir File tempDir) throws Exception {
+        KrpcGenerator gen = KrpcGenerator.multi()
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter("*{Request,Response}.json")
+                .withTemplateDir(getTemplateDir())
+                .withTemplateNames(List.of("Kproxy/MessageSpecPairs.ftl"))
+                .withOutputPackage("com.foo")
+                .withOutputDir(tempDir)
+                .withOutputFilePattern("${templateName}.txt")
+                .withPairRequestResponseMode(true)
+                .build();
+
+        gen.generate();
+
+        File file = join(tempDir, "com", "foo", "MessageSpecPairs.txt");
+        assertFileHasExpectedContents(file, "Kproxy/MessageSpecPairs-expected.txt");
+    }
+
+    @Test
+    void messageSpecPairsFilteredWithStreamProcessor(@TempDir File tempDir) throws Exception {
+        KrpcGenerator gen = KrpcGenerator.multi()
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter("*{Request,Response}.json")
+                .streamProcessingFunction(
+                        "pairStream => pairStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER)).filter(pair => pair.name().startsWith('Alter'))")
+                .withTemplateDir(getTemplateDir())
+                .withTemplateNames(List.of("Kproxy/MessageSpecPairs.ftl"))
+                .withOutputPackage("com.foo")
+                .withOutputDir(tempDir)
+                .withOutputFilePattern("${templateName}.txt")
+                .withPairRequestResponseMode(true)
+                .build();
+
+        gen.generate();
+
+        File file = join(tempDir, "com", "foo", "MessageSpecPairs.txt");
+        assertFileHasExpectedContents(file, "Kproxy/MessageSpecPairsFiltered-expected.txt");
+    }
+
+    // KWTODO - test cases for mismatched requests/responses
+
     @SuppressWarnings("java:S2925") // sleep justified for testing logic that depends on filesystem modtimes
     @Test
     void multiGenerateDoesNotModifyFileIfContentsUnchanged(@TempDir File tempDir) throws Exception {

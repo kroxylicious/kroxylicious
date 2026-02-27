@@ -1,0 +1,11 @@
+====
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+====
+AlterClientQuotas AlterClientQuotasRequest AlterClientQuotasResponse
+AlterConfigs AlterConfigsRequest AlterConfigsResponse
+AlterPartitionReassignments AlterPartitionReassignmentsRequest AlterPartitionReassignmentsResponse
+AlterReplicaLogDirs AlterReplicaLogDirsRequest AlterReplicaLogDirsResponse
+AlterShareGroupOffsets AlterShareGroupOffsetsRequest AlterShareGroupOffsetsResponse
+AlterUserScramCredentials AlterUserScramCredentialsRequest AlterUserScramCredentialsResponse

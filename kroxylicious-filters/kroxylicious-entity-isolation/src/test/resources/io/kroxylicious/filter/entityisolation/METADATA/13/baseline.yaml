@@ -1,0 +1,43 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: METADATA
+  disabled: false
+  version: 13
+  request:
+    payload:
+      topics:
+        - name:
+          topicId: AAAAAAAAAAAAAAAAAAAAAA
+      allowAutoTopicCreation: true
+      includeTopicAuthorizedOperations: true
+    diff: []
+  response:
+    payload:
+      throttleTimeMs: 0
+      brokers:
+        - nodeId: 1
+          host: localhost
+          port: 9999
+          rack: us-east1
+      clusterId: AAAAAAAAAAAAAAAAAAAAAA
+      controllerId: 1
+      topics:
+        - errorCode: 0
+          name:
+          topicId: AAAAAAAAAAAAAAAAAAAAAA
+          isInternal: false
+          partitions:
+            - errorCode: 0
+              partitionIndex: 0
+              leaderId: 1
+              leaderEpoch: 1
+              replicaNodes: []
+              isrNodes: []
+              offlineReplicas: []
+          topicAuthorizedOperations: 0
+      errorCode: 0
+    diff: []

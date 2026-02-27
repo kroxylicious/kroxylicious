@@ -1,0 +1,46 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: DESCRIBE_QUORUM
+  disabled: false
+  version: 2
+  request:
+    payload:
+      topics:
+        - topicName: foo
+          partitions:
+            - partitionIndex: 0
+    diff: []
+  response:
+    payload:
+      throttleTimeMs: 0
+      errorCode: 0
+      errorMessage:
+      topics:
+        - topicName: foo
+          partitions:
+            - partitionIndex: 0
+              errorCode: 0
+              errorMessage:
+              leaderId: 0
+              leaderEpoch: 0
+              highWatermark: 0
+              currentVoters:
+                - replicaId: 0
+                  replicaDirectoryId: AAAAAAAAAAAAAAAAAAAAAA
+                  logEndOffset: 0
+                  lastFetchTimestamp: 0
+                  lastCaughtUpTimestamp: 0
+              observers:
+                - replicaId: 0
+                  replicaDirectoryId: AAAAAAAAAAAAAAAAAAAAAA
+                  logEndOffset: 0
+                  lastFetchTimestamp: 0
+                  lastCaughtUpTimestamp: 0
+      nodes:
+        - nodeId: 0
+          listeners: []
+    diff: []

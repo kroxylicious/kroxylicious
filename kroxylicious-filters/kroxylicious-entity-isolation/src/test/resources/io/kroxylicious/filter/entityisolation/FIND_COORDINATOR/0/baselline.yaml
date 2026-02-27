@@ -1,0 +1,18 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: FIND_COORDINATOR
+  disabled: false
+  version: 0
+  request:
+    payload:
+      key: mygroup
+      keyType: 0
+      coordinatorKeys: []
+    diff:
+      - op: replace
+        path: /key
+        value: tenant1-mygroup

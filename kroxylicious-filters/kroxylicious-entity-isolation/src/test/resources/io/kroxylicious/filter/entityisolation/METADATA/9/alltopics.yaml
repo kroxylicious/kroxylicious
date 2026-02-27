@@ -1,0 +1,16 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: METADATA
+  disabled: false
+  version: 9
+  request:
+    payload:
+      topics: null
+      allowAutoTopicCreation: true
+      includeTopicAuthorizedOperations: true
+      includeClusterAuthorizedOperations: true
+    diff: []

@@ -1,0 +1,58 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: STREAMS_GROUP_HEARTBEAT
+  version: 0
+  request:
+    payload:
+      groupId: mygroup
+      memberId: mymember
+      memberEpoch: 0
+      endpointInformationEpoch: 0
+      instanceId:
+      rackId:
+      rebalanceTimeoutMs: 0
+      topology: null
+      activeTasks: []
+      standbyTasks: []
+      warmupTasks: []
+      processId:
+      userEndpoint: null
+      clientTags: null
+      taskOffsets: []
+      taskEndOffsets: []
+      shutdownApplication: false
+    diff:
+      - op: replace
+        path: "/groupId"
+        value: tenant1-mygroup
+  response:
+    payload:
+      throttleTimeMs: 0
+      errorCode: 0
+      errorMessage: ""
+      memberId: "mymember"
+      memberEpoch: 0
+      heartbeatIntervalMs: 0
+      acceptableRecoveryLag: 0
+      taskOffsetIntervalMs: 0
+      status: null
+      activeTasks: []
+      standbyTasks: []
+      warmupTasks: []
+      endpointInformationEpoch: 0
+      partitionsByUserEndpoint:
+        - userEndpoint:
+            host: localhost
+            port: 0
+          activePartitions:
+            - topic: foo
+              partitions: [0]
+          standbyPartitions:
+            - topic: foo
+              partitions: [0]
+    diff: []
+  disabled: false

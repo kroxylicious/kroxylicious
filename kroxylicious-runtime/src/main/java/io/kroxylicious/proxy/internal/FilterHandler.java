@@ -387,7 +387,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private <F extends FilterResult> @Nullable F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
         if (LOGGER.isWarnEnabled()) {
             var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
-            LOGGER.atWarn().setMessage("{}: Filter '{}' for {} {} ended exceptionally - closing connection. Cause message {}")
+            LOGGER.atWarn().setMessage("{}: Filter '{}' for {} {} ended exceptionally - closing connection. Cause message {}. Raise log level to DEBUG to see the stack.")
                     .addArgument(proxyChannelStateMachine.sessionId())
                     .addArgument(direction)
                     .addArgument(filterDescriptor())

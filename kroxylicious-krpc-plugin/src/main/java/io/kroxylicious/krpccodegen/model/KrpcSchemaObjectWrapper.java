@@ -8,6 +8,7 @@ package io.kroxylicious.krpccodegen.model;
 import io.kroxylicious.krpccodegen.schema.FieldSpec;
 import io.kroxylicious.krpccodegen.schema.FieldType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
+import io.kroxylicious.krpccodegen.schema.MessageSpecPair;
 import io.kroxylicious.krpccodegen.schema.StructSpec;
 import io.kroxylicious.krpccodegen.schema.Versions;
 
@@ -17,7 +18,7 @@ import freemarker.template.TemplateModelException;
 import freemarker.template.Version;
 
 /**
- * Wraps the java representation of the Kafka Model in a Apache FreeMaker
+ * Wraps the java representation of the Kafka Model in an Apache FreeMaker
  * template object.
  */
 public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
@@ -38,6 +39,9 @@ public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
         else if (obj instanceof MessageSpec messageSpec) {
             return new MessageSpecModel(this, messageSpec);
         }
+        else if (obj instanceof MessageSpecPair messageSpecPairs) {
+            return new MessageSpecPairModel(this, messageSpecPairs);
+        }
         else if (obj instanceof FieldSpec fieldSpec) {
             return new FieldSpecModel(this, fieldSpec);
         }
@@ -57,6 +61,9 @@ public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
     public Object unwrap(TemplateModel tm) throws TemplateModelException {
         if (tm instanceof MessageSpecModel messageSpecModel) {
             return messageSpecModel.spec;
+        }
+        if (tm instanceof MessageSpecPairModel messageSpecModelPair) {
+            return messageSpecModelPair.pair;
         }
         else if (tm instanceof FieldSpecModel fieldSpecModel) {
             return fieldSpecModel.spec;

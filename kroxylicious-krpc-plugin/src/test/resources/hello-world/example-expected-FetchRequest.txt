@@ -30,6 +30,14 @@ flexibleVersions: 12+
 flexibleVersionsString: 12+
 dataClassName: FetchRequestData
 latestVersionUnstable: no
+entityFields:
+  GROUP_ID: no
+  TRANSACTIONAL_ID: no
+  TOPIC_NAME: yes
+intersectedVersionsForEntityFields:
+  GROUP_ID:
+  TRANSACTIONAL_ID:
+  TOPIC_NAME: 4,5,6,7,8,9,10,11,12
 fields:
   name: ClusterId
   versions: 12+

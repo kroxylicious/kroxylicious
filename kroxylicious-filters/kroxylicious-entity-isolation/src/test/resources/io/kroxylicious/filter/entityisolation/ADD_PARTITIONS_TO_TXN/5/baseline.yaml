@@ -1,0 +1,41 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: ADD_PARTITIONS_TO_TXN
+  disabled: false
+  version: 5
+  request:
+    payload:
+      transactions:
+        - transactionalId: "12345"
+          producerId: 0
+          producerEpoch: 0
+          verifyOnly: false
+          topics:
+            - name: foo
+              partitions: [0]
+    diff:
+      - op: replace
+        path: "/transactions/0/transactionalId"
+        value: tenant1-12345
+#      - op: replace
+#        path: "/transactions/0/topics/0/name"
+#        value: tenant1-foo
+  response:
+    payload:
+      errorCode: 0
+      resultsByTransaction:
+        - transactionalId: tenant1-12345
+          topicResults:
+            - name: foo
+              resultsByPartition:
+                - partitionIndex: 0
+                  partitionErrorCode: 0
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/resultsByTransaction/0/transactionalId"
+        value: "12345"

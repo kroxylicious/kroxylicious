@@ -1,0 +1,28 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: LIST_CONFIG_RESOURCES
+  disabled: false
+  version: 1
+  response:
+    payload:
+      throttleTimeMs: 0
+      errorCode: 0
+      errorMessage:
+      configResources:
+        - resourceType: 32
+          resourceName: "tenant1-mygroup"
+        - resourceType: 32
+          resourceName: "tenant2-mygroup"
+        - resourceType: 2
+          resourceName: "mytopic"
+    diff:
+      - op: replace
+        path: "/configResources/0/resourceName"
+        value: mygroup
+      - op: remove
+        path: "/configResources/1"
+

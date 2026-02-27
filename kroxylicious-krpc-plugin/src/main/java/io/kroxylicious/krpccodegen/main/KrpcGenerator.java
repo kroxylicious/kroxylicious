@@ -20,28 +20,41 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Spliterator;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.TypeLiteral;
 
+import io.kroxylicious.krpccodegen.model.EntityTypeSetFactory;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
+import io.kroxylicious.krpccodegen.model.MessageSpecFilters;
+import io.kroxylicious.krpccodegen.model.MessageSpecParser;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
+import io.kroxylicious.krpccodegen.model.RetrieveApiListeners;
+import io.kroxylicious.krpccodegen.schema.EntityType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
+import io.kroxylicious.krpccodegen.schema.MessageSpecPair;
+import io.kroxylicious.krpccodegen.schema.MessageSpecType;
+import io.kroxylicious.krpccodegen.schema.Named;
+import io.kroxylicious.krpccodegen.schema.RequestListenerType;
 import io.kroxylicious.krpccodegen.schema.StructRegistry;
 import io.kroxylicious.krpccodegen.schema.Versions;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
@@ -70,6 +83,8 @@ public class KrpcGenerator {
         private String outputPackage;
         private File outputDir;
         private String outputFilePattern;
+        private String streamProcessingFunction;
+        private boolean pairRequestResponseMode;
 
         private Builder(GeneratorMode mode) {
             this.mode = mode;
@@ -163,29 +178,30 @@ public class KrpcGenerator {
             return this;
         }
 
+        public Builder streamProcessingFunction(String streamProcessingFunction) {
+            this.streamProcessingFunction = streamProcessingFunction;
+            return this;
+        }
+
+        public Builder withPairRequestResponseMode(boolean pairRequestResponseMode) {
+            this.pairRequestResponseMode = pairRequestResponseMode;
+            return this;
+        }
+
         /**
          * Creates the generator.
          *
          * @return the generator.
          */
         public KrpcGenerator build() {
-            return new KrpcGenerator(logger, mode, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern);
+            return new KrpcGenerator(logger, mode, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern,
+                    streamProcessingFunction, pairRequestResponseMode);
         }
     }
 
     enum GeneratorMode {
         SINGLE,
         MULTI;
-    }
-
-    static final ObjectMapper JSON_SERDE = new ObjectMapper();
-
-    static {
-        JSON_SERDE.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        JSON_SERDE.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
-        JSON_SERDE.configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, true);
-        JSON_SERDE.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
-        JSON_SERDE.setDefaultPropertyInclusion(JsonInclude.Include.NON_EMPTY);
     }
 
     private final Logger logger;
@@ -198,13 +214,23 @@ public class KrpcGenerator {
     private final List<String> templateNames;
 
     private final String outputPackage;
+    private final boolean pairRequestResponseMode;
     private final File outputDir;
     private final String outputFilePattern;
+    private final String streamProcessingFunction;
 
     @SuppressWarnings("java:S107") // Methods should not have too many parameters - ignored as use-case with builder seems reasonable.
-    private KrpcGenerator(Logger logger, GeneratorMode mode, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames,
-                          String outputPackage, File outputDir,
-                          String outputFilePattern) {
+    private KrpcGenerator(Logger logger,
+                          GeneratorMode mode,
+                          File messageSpecDir,
+                          String messageSpecFilter,
+                          File templateDir,
+                          List<String> templateNames,
+                          String outputPackage,
+                          File outputDir,
+                          String outputFilePattern,
+                          String streamProcessingFunction,
+                          boolean pairRequestResponseMode) {
         this.logger = logger != null ? logger : System.getLogger(KrpcGenerator.class.getName());
         this.mode = mode;
         this.messageSpecDir = messageSpecDir != null ? messageSpecDir : new File(".");
@@ -212,8 +238,10 @@ public class KrpcGenerator {
         this.templateDir = templateDir;
         this.templateNames = templateNames;
         this.outputPackage = outputPackage;
+        this.pairRequestResponseMode = pairRequestResponseMode;
         this.outputDir = outputDir.toPath().resolve(outputPackage.replace(".", File.separator)).toFile();
         this.outputFilePattern = outputFilePattern;
+        this.streamProcessingFunction = streamProcessingFunction;
 
         if (!this.outputDir.exists()) {
             this.outputDir.mkdirs();
@@ -245,14 +273,48 @@ public class KrpcGenerator {
      */
     public void generate() throws Exception {
         var cfg = buildFmConfiguration();
-        Set<MessageSpec> messageSpecs = messageSpecs();
+        var messageSpecs = messageSpecs();
+
+        Set<? extends Named> target;
+        if (pairRequestResponseMode) {
+            target = pairUp(messageSpecs);
+        }
+        else {
+            target = messageSpecs;
+        }
+
+        target = applyFilter(target);
+
+        var dataModel = Map.<String, Object> of(
+                "createEntityTypeSet", new EntityTypeSetFactory());
 
         long generatedFiles;
         if (mode == GeneratorMode.SINGLE) {
-            generatedFiles = messageSpecs.stream().mapToLong(messageSpec -> renderSingle(cfg, messageSpec)).sum();
+            generatedFiles = target.stream().mapToLong(t -> {
+                Map<String, Object> dm = new HashMap<>(dataModel);
+                if (t instanceof MessageSpec messageSpec) {
+                    dm.put("structRegistry", buildStructRegistry(messageSpec));
+                    dm.put("messageSpec", messageSpec);
+                }
+                else {
+                    dm.put("messageSpecPair", t);
+                }
+                return renderSingle(cfg, t, dm);
+            }).sum();
         }
         else {
-            generatedFiles = renderMulti(cfg, messageSpecs);
+            Map<String, Object> dm = new HashMap<>(dataModel);
+            dm.put("outputPackage", outputPackage);
+            dm.put("retrieveApiKey", new RetrieveApiKey());
+            dm.put("createEntityTypeSet", new EntityTypeSetFactory());
+            if (pairRequestResponseMode) {
+                dm.put("messageSpecPairs", target);
+            }
+            else {
+                dm.put("messageSpecs", target);
+                dm.put("retrieveApiListener", new RetrieveApiListeners((Set<MessageSpec>) target));
+            }
+            generatedFiles = renderMulti(cfg, dm);
         }
         if (generatedFiles > 0) {
             logger.log(Level.INFO, "Generated {0} source files", generatedFiles);
@@ -262,32 +324,44 @@ public class KrpcGenerator {
         }
     }
 
+    private Set<? extends Named> applyFilter(Set<? extends Named> set) {
+        if (this.streamProcessingFunction != null) {
+            try (Context context = Context.newBuilder("js")
+                    .allowAllAccess(true)
+                    .build()) {
+                var bindings = context.getBindings("js");
+                bindings.putMember("MessageSpecFilters", MessageSpecFilters.class);
+                bindings.putMember("RequestListenerType", RequestListenerType.class);
+                bindings.putMember("EntityType", EntityType.class);
+                bindings.putMember("Set", Set.class);
+
+                var predicate = context.eval("js", streamProcessingFunction);
+                return predicate.execute(set.stream()).as(new TypeLiteral<Stream<Named>>() {
+                })
+                        .sorted(Comparator.comparing(Named::name))
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+            }
+        }
+        else {
+            return set;
+        }
+    }
+
     /**
      * @return the number of files generated
      */
-    private long renderSingle(Configuration cfg, MessageSpec messageSpec) {
-        logger.log(Level.DEBUG, "Processing message spec {0}", messageSpec.name());
-        var structRegistry = new StructRegistry();
-        try {
-            structRegistry.register(messageSpec);
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        Map<String, Object> dataModel = Map.of(
-                "structRegistry", structRegistry,
-                "messageSpec", messageSpec);
+    private long renderSingle(Configuration cfg, Named target, Map<String, Object> dataModel) {
+        logger.log(Level.DEBUG, "Processing message spec {0}", target.name());
         return templateNames.stream().mapToLong(templateName -> {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
-                // TODO support output to stdout via `-`
-                return KrpcGenerator.this.writeIfChanged(outputDir, KrpcGenerator.this.outputFile(outputFilePattern, messageSpec.name(), templateName),
+                return KrpcGenerator.this.writeIfChanged(outputDir, KrpcGenerator.this.outputFile(outputFilePattern, target.name(), templateName),
                         new ThrowingWriteAction() {
                             @SuppressFBWarnings("TEMPLATE_INJECTION_FREEMARKER") // we trust the user to supply a template
                             @Override
                             public void accept(Writer writer, File finalFile) throws TemplateException, IOException {
-                                logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", messageSpec.name(), templateName, finalFile);
+                                logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", target.name(), templateName, finalFile);
                                 template.process(dataModel, writer);
                             }
                         });
@@ -363,7 +437,7 @@ public class KrpcGenerator {
      * @return the number of files generated
      */
 
-    private long renderMulti(Configuration cfg, Set<MessageSpec> messageSpecs) {
+    private long renderMulti(Configuration cfg, final Map<String, Object> dataModel) {
         logger.log(Level.DEBUG, "Processing message specs");
 
         return templateNames.stream().mapToLong(templateName -> {
@@ -375,11 +449,6 @@ public class KrpcGenerator {
                     @SuppressFBWarnings("TEMPLATE_INJECTION_FREEMARKER") // we trust the user to supply a template
                     @Override
                     public void accept(Writer writer, File finalFile) throws TemplateException, IOException {
-                        Map<String, Object> dataModel = Map.of(
-                                // "structRegistry", structRegistry,
-                                "outputPackage", outputPackage,
-                                "messageSpecs", messageSpecs,
-                                "retrieveApiKey", new RetrieveApiKey());
                         template.process(dataModel, writer);
                     }
                 });
@@ -406,11 +475,12 @@ public class KrpcGenerator {
             throw new UncheckedIOException(e);
         }
 
+        var messageSpecParser = new MessageSpecParser();
         return paths.stream()
                 .map(inputPath -> {
                     try {
                         logger.log(Level.DEBUG, "Parsing message spec {0}", inputPath);
-                        MessageSpec messageSpec = JSON_SERDE.readValue(inputPath.toFile(), MessageSpec.class);
+                        MessageSpec messageSpec = messageSpecParser.getMessageSpec(inputPath);
                         logger.log(Level.DEBUG, "Loaded {0} from {1}", messageSpec.name(), inputPath);
                         return messageSpec;
                     }
@@ -433,7 +503,7 @@ public class KrpcGenerator {
         cfg.setDirectoryForTemplateLoading(templateDir);
 
         // From here we will set the settings recommended for new projects. These
-        // aren't the defaults for backward compatibilty.
+        // aren't the defaults for backward compatibility.
 
         // Set the preferred charset template files are stored in. UTF-8 is
         // a good choice in most applications:
@@ -472,4 +542,42 @@ public class KrpcGenerator {
 
         return pattern;
     }
+
+    private Set<MessageSpecPair> pairUp(Set<MessageSpec> messageSpecs) {
+        var allRequests = messageSpecs.stream()
+                .filter(qms -> MessageSpecType.REQUEST.equals(qms.type()))
+                .collect(Collectors.toMap(x -> x.apiKey().orElseThrow(),
+                        Function.identity()));
+        var allResponses = messageSpecs.stream()
+                .filter(sms -> MessageSpecType.RESPONSE.equals(sms.type()))
+                .collect(Collectors.toMap(x -> x.apiKey().orElseThrow(),
+                        Function.identity()));
+
+        if (allRequests.size() != allResponses.size()) {
+            throw new RuntimeException("Can't pair up requests to responses");
+        }
+
+        return allRequests.keySet().stream()
+                .map(key -> {
+                    var request = Objects.requireNonNull(allRequests.get(key));
+                    if (!allResponses.containsKey(key)) {
+                        throw new NoSuchElementException("No response found for request with API key: " + key);
+                    }
+
+                    var response = allResponses.get(key);
+                    var name = request.name().replaceFirst("Request$", "");
+                    var listeners = Set.copyOf(new HashSet<>(request.listeners()));
+                    return new MessageSpecPair(name, ApiKeys.forId(key), listeners, request, response);
+                })
+                .sorted(Comparator.comparing(Named::name))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    @NonNull
+    private StructRegistry buildStructRegistry(MessageSpec messageSpec) {
+        var structRegistry = new StructRegistry();
+        structRegistry.register(messageSpec);
+        return structRegistry;
+    }
+
 }

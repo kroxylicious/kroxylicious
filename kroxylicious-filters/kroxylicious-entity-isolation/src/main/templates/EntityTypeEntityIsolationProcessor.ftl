@@ -1,0 +1,265 @@
+<#--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<#assign filteredEntityTypes = createEntityTypeSet("GROUP_ID", "TRANSACTIONAL_ID", "TOPIC_NAME")>
+
+<#-- mapRequestFields - recursive macro that generates mapping code for a request object.
+
+messageSpec message spec model object
+fieldVar    name of the java variable refering to the current field
+children    list of children directly beneath the current field
+indent      java identation
+-->
+<#macro mapRequestFields messageSpec fieldVar children indent>
+    <#local pad = ""?left_pad(4*indent)/>
+    <#list children>
+        <#items as field>
+            <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
+            <#if filteredEntityTypes?seq_contains(field.entityType)>
+        ${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/>) {
+                <#if field.type == 'string'>
+            ${pad}    ${fieldVar}.${setter}(map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
+                <#elseif field.type == '[]string'>
+            ${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream().map(orig -> map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
+                <#else>
+                    <#stop "unexpected field type">
+                </#if>
+        ${pad}}
+            </#if>
+        </#items>
+    </#list>
+    <#list children?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
+${pad}// recursively process sub-fields
+        <#items as childField>
+            <#local getter="${childField.name?uncap_first}" elementVar=childField.type?remove_beginning("[]")?uncap_first />
+${pad}if (<@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(childField.versions)/> && ${fieldVar}.${getter}() != null) {
+${pad}    ${fieldVar}.${getter}().forEach(${elementVar} -> {
+                <@mapRequestFields messageSpec elementVar childField.fields indent + 2 />
+        ${pad}    });
+        ${pad}}
+        </#items>
+    </#list>
+</#macro>
+
+<#-- mapAndFilterResponseFields - recursive macro that generates filtering and mapping code for a response object.
+
+messageSpec        message spec model object
+collectionIterator collection iteration used to remove filtered items
+fieldVar           name of the java variable refering to the current field
+children           list of children directly beneath the current field
+indent             java identation
+-->
+<#macro mapAndFilterResponseFields messageSpec collectionIterator fieldVar children indent>
+    <#local pad = ""?left_pad(4*indent)/>
+    <#list children>
+${pad}// process entity fields defined at this level
+        <#items as field>
+            <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
+            <#if filteredEntityTypes?seq_contains(field.entityType)>
+${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
+                <#if field.type == 'string'>
+${pad}    if (inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}())) {
+${pad}        ${fieldVar}.${setter}(unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
+${pad}    }
+                    <#if collectionIterator?has_content>
+${pad}    else {
+${pad}        ${collectionIterator}.remove();
+${pad}    }
+                    </#if>
+                <#elseif field.type == '[]string'>
+${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream()
+${pad}                        .filter(orig -> inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig))
+${pad}                        .map(orig -> unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
+                    <#if collectionIterator?has_content>
+${pad}    if (!${fieldVar}.${getter}().isEmpty()) {
+${pad}        ${collectionIterator}.remove();
+${pad}    }
+                    </#if>
+                <#else>
+                    <#stop "unexpected field type">
+                </#if>
+${pad}}
+            </#if>
+        </#items>
+    </#list>
+    <#list children?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
+${pad}// recursively process sub-fields
+        <#items as field>
+            <#local getter="${field.name?uncap_first}"
+                    collectionIteratorVar=field.name?uncap_first + "Iterator"
+                    elementVar=field.type?remove_beginning("[]")?uncap_first />
+${pad}if (<@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
+${pad}    var ${collectionIteratorVar} = ${fieldVar}.${getter}().iterator();
+${pad}    while (${collectionIteratorVar}.hasNext()) {
+${pad}       var ${elementVar} = ${collectionIteratorVar}.next();
+            <@mapAndFilterResponseFields messageSpec collectionIteratorVar elementVar field.fields indent + 2 />
+${pad}    }
+${pad}}
+        </#items>
+    </#list>
+</#macro>
+
+<#-- inVersionRange - generates java code expressing a version predicate
+
+varName name of java containing the version
+versions ordered version number sequence
+-->
+<#macro inVersionRange varName versions>
+<#compress>
+<#local
+minVersion = versions[0]
+maxVersion = versions[versions?size - 1] >
+<#if minVersion == maxVersion>(short) ${minVersion} == ${varName}<#else>(short) ${minVersion} <= ${varName} && ${varName} <= (short) ${maxVersion}</#if>
+</#compress>
+</#macro>
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package ${outputPackage};
+
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CompletionStage;
+
+import javax.annotation.processing.Generated;
+
+import org.apache.kafka.common.message.${messageSpecPair.response.dataClassName};
+import org.apache.kafka.common.message.${messageSpecPair.request.dataClassName};
+
+<#if messageSpecPair.request.hasAtLeastOneEntityField(filteredEntityTypes)>
+import org.apache.kafka.common.message.RequestHeaderData;
+</#if>
+<#if messageSpecPair.response.hasAtLeastOneEntityField(filteredEntityTypes)>
+import org.apache.kafka.common.message.ResponseHeaderData;
+</#if>
+
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.proxy.filter.FilterContext;
+<#if messageSpecPair.request.hasAtLeastOneEntityField(filteredEntityTypes)>
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+</#if>
+<#if messageSpecPair.response.hasAtLeastOneEntityField(filteredEntityTypes)>
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+</#if>
+
+/**
+* Entity isolation processor for Kafka messages with fields using entity types.
+* <p>Note: this class is automatically generated from a template</p>
+*/
+@Generated(value = "io.kroxylicious.krpccodegen.main.KrpcGenerator", comments = "Generated by ${.template_name}")
+class ${messageSpecPair.name}EntityIsolationProcessor implements EntityIsolationProcessor<${messageSpecPair.request.dataClassName}, ${messageSpecPair.response.dataClassName}> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(${messageSpecPair.name}EntityIsolationProcessor.class);
+
+    private final Set<EntityIsolation.ResourceType> resourceTypes;
+    private final EntityNameMapper mapper;
+
+    ${messageSpecPair.name}EntityIsolationProcessor(Set<EntityIsolation.ResourceType> resourceTypes, EntityNameMapper mapper) {
+        this.resourceTypes = Objects.requireNonNull(resourceTypes);
+        this.mapper = Objects.requireNonNull(mapper);
+    }
+
+<#if messageSpecPair.request.hasAtLeastOneEntityField(filteredEntityTypes)>
+    <#assign key="${messageSpecPair.apiKey}" dataClass="${messageSpecPair.request.dataClassName}"/>
+    @Override
+    public boolean shouldHandleRequest(short apiVersion) {
+        return <@inVersionRange "apiVersion" messageSpecPair.request.intersectedVersionsForEntityFields(filteredEntityTypes)/>;
+    }
+
+    @Override
+    public CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                          short apiVersion,
+                                                          ${dataClass} request,
+                                                          FilterContext filterContext,
+                                                          MapperContext mapperContext) {
+        log(filterContext, "${messageSpecPair.request.type?c_lower_case}", ApiKeys.${key}, request);
+        <@mapRequestFields messageSpec=messageSpecPair.request fieldVar="request" children=messageSpecPair.request.fields indent=0/>
+        log(filterContext, "${messageSpecPair.request.type?c_lower_case} result", ApiKeys.${key}, request);
+        return filterContext.forwardRequest(header, request);
+    }
+</#if>
+
+<#if messageSpecPair.response.hasAtLeastOneEntityField(filteredEntityTypes)>
+    <#assign key="${messageSpecPair.apiKey}" dataClass="${messageSpecPair.response.dataClassName}"/>
+    @Override
+    public boolean shouldHandleResponse(short apiVersion) {
+        return <@inVersionRange "apiVersion" messageSpecPair.response.intersectedVersionsForEntityFields(filteredEntityTypes)/>;
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
+                                                            short apiVersion,
+                                                            ${dataClass} response,
+                                                            FilterContext filterContext,
+                                                            MapperContext mapperContext) {
+        log(filterContext, "${messageSpecPair.response.type?c_lower_case}", ApiKeys.${key}, response);
+        <@mapAndFilterResponseFields messageSpec=messageSpecPair.response
+                                     collectionIterator=""
+                                     fieldVar="response"
+                                     children=messageSpecPair.response.fields
+                                     indent=2/>
+        log(filterContext, "${messageSpecPair.response.type?c_lower_case} result", ApiKeys.${key}, response);
+        return filterContext.forwardResponse(header, response);
+    }
+</#if>
+
+    private boolean shouldMap(EntityIsolation.ResourceType entityType) {
+        return resourceTypes.contains(entityType);
+    }
+
+    private String map(MapperContext context, EntityIsolation.ResourceType resourceType, String originalName) {
+        if (originalName == null || originalName.isEmpty()) {
+            return originalName;
+        }
+        return mapper.map(context, resourceType, originalName);
+    }
+
+    private String unmap(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
+        if (mappedName.isEmpty()) {
+            return mappedName;
+        }
+        return mapper.unmap(context, resourceType, mappedName);
+    }
+
+    private boolean inNamespace(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
+        return mapper.isInNamespace(context, resourceType, mappedName);
+    }
+
+    private static MapperContext buildMapperContext(FilterContext context) {
+        return new MapperContext(context.authenticatedSubject(),
+                context.clientTlsContext().orElse(null),
+                context.clientSaslContext().orElse(null));
+    }
+
+    private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
+        LOGGER.atDebug()
+                .addArgument(() -> context.sessionId())
+                .addArgument(() -> context.authenticatedSubject())
+                .addArgument(description)
+                .addArgument(key)
+                .addArgument(message)
+                .log("{} for {}: {} {}: {}");
+    }
+}
