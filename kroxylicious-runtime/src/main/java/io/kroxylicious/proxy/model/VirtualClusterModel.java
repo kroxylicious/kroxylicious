@@ -85,7 +85,6 @@ public class VirtualClusterModel {
     @Nullable
     private final PluginFactoryRegistry pluginFactoryRegistry;
 
-    @Nullable
     private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
 
     public VirtualClusterModel(String clusterName,
@@ -130,7 +129,7 @@ public class VirtualClusterModel {
             this.tlsCredentialSupplierManager = new TlsCredentialSupplierManager(pluginFactoryRegistry, definition);
         }
         else {
-            this.tlsCredentialSupplierManager = null;
+            this.tlsCredentialSupplierManager = TlsCredentialSupplierManager.unconfigured();
         }
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
@@ -214,33 +213,21 @@ public class VirtualClusterModel {
     }
 
     /**
-     * Returns the plugin factory registry.
-     *
-     * @return The plugin factory registry, or null if not set
-     */
-    @Nullable
-    public PluginFactoryRegistry getPluginFactoryRegistry() {
-        return pluginFactoryRegistry;
-    }
-
-    /**
      * Returns the TLS credential supplier manager for this virtual cluster.
+     * This is never null; if no supplier is configured, an unconfigured manager is returned.
      *
-     * @return The TLS credential supplier manager, or null if not configured
+     * @return The TLS credential supplier manager
      */
-    @Nullable
     public TlsCredentialSupplierManager getTlsCredentialSupplierManager() {
         return tlsCredentialSupplierManager;
     }
 
     /**
      * Closes resources associated with this virtual cluster.
-     * Currently closes the TLS credential supplier manager if present.
+     * Currently closes the TLS credential supplier manager.
      */
     public void close() {
-        if (tlsCredentialSupplierManager != null) {
-            tlsCredentialSupplierManager.close();
-        }
+        tlsCredentialSupplierManager.close();
     }
 
     /**

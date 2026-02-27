@@ -39,7 +39,7 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  * <h2>Lifecycle</h2>
  * <pre>
  * 1. {@link #initialize(ServerTlsCredentialSupplierFactoryContext, Object)} - validate config, create shared resources
- * 2. {@link #create(ServerTlsCredentialSupplierFactoryContext, Object)} - create supplier instances (may be called multiple times)
+ * 2. {@link #create(ServerTlsCredentialSupplierFactoryContext, Object)} - create a single shared supplier instance
  * 3. {@link #close(Object)} - release resources
  * </pre>
  *
@@ -180,13 +180,13 @@ public interface ServerTlsCredentialSupplierFactory<C, I> {
     /**
      * <p>Creates an instance of {@link ServerTlsCredentialSupplier}.</p>
      *
+     * <p>Called once after initialization to create a shared supplier instance. The returned supplier
+     * must be thread-safe as it will be shared across all connections to this virtual cluster.</p>
+     *
      * <p>This can be called on a different thread from {@link #initialize(ServerTlsCredentialSupplierFactoryContext, Object)}
      * and {@link #close(Object)}. Implementors should either use the {@code initializationData} to pass
      * state from {@link #initialize(ServerTlsCredentialSupplierFactoryContext, Object)} or use appropriate
      * synchronization.</p>
-     *
-     * <p>This method may be called multiple times to create multiple supplier instances. Each instance
-     * should be independent, though they may share read-only resources passed via {@code initializationData}.</p>
      *
      * @param context The factory context providing access to plugins and runtime resources
      * @param initializationData The initialization data that was returned from
