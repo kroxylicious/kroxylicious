@@ -19,7 +19,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private static final Logger LOG = LoggerFactory.getLogger(AwsKmsTestKmsFacade.class);
     private static final DockerImageName LOCALSTACK_IMAGE =
-            DockerImageName.parse("localstack/localstack:4.13.1@sha256:46302bcb91a7e8008e6394be8afafdbfa40fb77a54d4046a38be35992042d5de");
+            DockerImageName.parse("localstack/localstack:4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a");
     private @Nullable LocalStackContainer localStackContainer;
 
     @Override
