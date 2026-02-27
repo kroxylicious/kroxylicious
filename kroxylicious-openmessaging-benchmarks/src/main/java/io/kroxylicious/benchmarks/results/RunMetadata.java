@@ -97,9 +97,13 @@ public class RunMetadata {
         info.put("osVersion", System.getProperty("os.version"));
         info.put("osArch", System.getProperty("os.arch"));
         info.put("logicalCpus", Runtime.getRuntime().availableProcessors());
-        if (!System.getProperty("os.name", "").startsWith("Linux")) {
-            return info;
+        if (System.getProperty("os.name", "").startsWith("Linux")) {
+            parseProcEntries(info);
         }
+        return info;
+    }
+
+    private static void parseProcEntries(Map<String, Object> info) {
         try {
             List<String> cpuInfo = Files.readAllLines(Path.of("/proc/cpuinfo"), StandardCharsets.UTF_8);
             cpuInfo.stream()
@@ -125,7 +129,6 @@ public class RunMetadata {
         catch (Exception e) {
             // /proc not available or unreadable
         }
-        return info;
     }
 
     @SuppressFBWarnings(value = "COMMAND_INJECTION", justification = "command arguments are hardcoded string literals, not user input")
