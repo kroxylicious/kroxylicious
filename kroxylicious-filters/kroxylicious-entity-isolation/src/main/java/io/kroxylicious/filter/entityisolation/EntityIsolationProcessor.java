@@ -9,14 +9,18 @@ package io.kroxylicious.filter.entityisolation;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-interface RequestEntityIsolationProcessor<Q extends ApiMessage> {
+interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage> {
 
-    boolean shouldHandleRequest(short apiVersion);
+    default boolean shouldHandleRequest(short apiVersion) {
+        return false;
+    }
 
     default CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
                                                            short apiVersion,
@@ -25,6 +29,18 @@ interface RequestEntityIsolationProcessor<Q extends ApiMessage> {
                                                            EntityIsolationFilter authorizationFilter) {
 
         return context.forwardRequest(header, request);
+    }
+
+    default boolean shouldHandleResponse(short apiVersion) {
+        return false;
+    }
+
+    default CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
+                                                             short apiVersion,
+                                                             S response,
+                                                             FilterContext context,
+                                                             EntityIsolationFilter entityIsolationFilter) {
+        return context.forwardResponse(header, response);
     }
 
 }
