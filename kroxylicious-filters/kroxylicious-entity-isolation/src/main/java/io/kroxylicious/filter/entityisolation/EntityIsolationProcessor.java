@@ -26,7 +26,7 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage> {
                                                            short apiVersion,
                                                            Q request,
                                                            FilterContext context,
-                                                           EntityIsolationFilter authorizationFilter) {
+                                                           MapperContext mapperContext) {
 
         return context.forwardRequest(header, request);
     }
@@ -39,7 +39,7 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage> {
                                                              short apiVersion,
                                                              S response,
                                                              FilterContext context,
-                                                             EntityIsolationFilter entityIsolationFilter) {
+                                                             MapperContext mapperContext) {
         return context.forwardResponse(header, response);
     }
 
