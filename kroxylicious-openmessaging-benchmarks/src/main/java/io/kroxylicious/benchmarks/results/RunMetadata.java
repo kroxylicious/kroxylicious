@@ -75,13 +75,13 @@ public class RunMetadata {
                 return config;
             }
             JsonNode profile = valid.get(0);
-            JsonNode machine = profile.path("Config").path("MachineConfig");
-            JsonNode k8s = profile.path("Config").path("KubernetesConfig");
+            JsonNode profileConfig = profile.path("Config");
+            JsonNode k8s = profileConfig.path("KubernetesConfig");
 
             config.put("profile", profile.path("Name").asText(DEFAULT_UNKNOWN_VALUE));
-            config.put("driver", machine.path("Driver").asText(DEFAULT_UNKNOWN_VALUE));
-            config.put("cpus", machine.path("CPUs").asInt(0));
-            config.put("memoryMb", machine.path("Memory").asInt(0));
+            config.put("driver", profileConfig.path("Driver").asText(DEFAULT_UNKNOWN_VALUE));
+            config.put("cpus", profileConfig.path("CPUs").asInt(0));
+            config.put("memoryMb", profileConfig.path("Memory").asInt(0));
             config.put("kubernetesVersion", k8s.path("KubernetesVersion").asText(DEFAULT_UNKNOWN_VALUE));
             config.put("containerRuntime", k8s.path("ContainerRuntime").asText(DEFAULT_UNKNOWN_VALUE));
         }
