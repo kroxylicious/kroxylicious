@@ -7,10 +7,15 @@
 package io.kroxylicious.systemtests.installation.kms.aws;
 
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +71,26 @@ public class LocalStack implements AwsKmsClient {
                 Optional.empty(),
                 Optional.of(Path.of(TestUtils.getResourcesURI("helm_localstack_overrides.yaml"))),
                 Optional.of(Map.of("image.repository", Constants.DOCKER_REGISTRY_GCR_MIRROR + "/" + LOCALSTACK_HELM_CHART_NAME)));
+
+        Awaitility.await()
+                .atMost(30, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    var client = HttpClient.newHttpClient();
+
+                    var request = HttpRequest.newBuilder()
+                            .uri(getAwsKmsUrl().resolve("/notfound"))
+                            .GET()
+                            .build();
+
+                    var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                    LOGGER.info("Awaiting for Localstack on Kubenetes to answer {}/{}. ", response.body(), response.statusCode());
+                    if (response.statusCode() != 404) {
+                        throw new RuntimeException("Localstack seem to be not ready");
+                    }
+                    else {
+                        LOGGER.info("Endpoint seems to be minimally responsive.");
+                    }
+                });
     }
 
     @Override
