@@ -150,7 +150,7 @@
 
                     </execution>
                     <execution>
-                        <id>generate-entity-isolation-processors</id>
+                        <id>generate-entity-type-entity-isolation-processors</id>
                         <goals>
                             <goal>generate-single</goal>
                         </goals>
@@ -166,13 +166,35 @@
                              </streamProcessingFunction>
                             <pairRequestResponseMode>true</pairRequestResponseMode>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
-                            <templateNames>EntityIsolationProcessor.ftl</templateNames>
+                            <templateNames>EntityTypeEntityIsolationProcessor.ftl</templateNames>
                             <!--suppress UnresolvedMavenProperty -->
                             <outputFilePattern>${messageSpecName}EntityIsolationProcessor.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.filter.entityisolation</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-resource-list-type-entity-isolation-processors</id>
+                        <goals>
+                            <goal>generate-single</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
 
+                        <configuration>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
+                            <streamProcessingFunction>
+                                pairStream => pairStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER))
+                                .filter(pair => pair.request().hasResourceList() || pair.response().hasResourceList())
+                             </streamProcessingFunction>
+                            <pairRequestResponseMode>true</pairRequestResponseMode>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>ResourceListTypeEntityIsolationProcessor.ftl</templateNames>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <outputFilePattern>${messageSpecName}EntityIsolationProcessor.java</outputFilePattern>
+                            <outputPackage>io.kroxylicious.filter.entityisolation</outputPackage>
+                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
