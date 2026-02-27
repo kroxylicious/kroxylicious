@@ -1,0 +1,31 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Single-node profile for development/workstation clusters (e.g. minikube).
+#
+# Layer this on top of a scenario values file:
+#
+#   helm install benchmark ./helm/kroxylicious-benchmark \
+#     -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
+#     -f ./helm/kroxylicious-benchmark/scenarios/single-node-values.yaml \
+#     -n kafka
+#
+# NOTE: Results from a single-node cluster will be affected by resource
+# contention between Kafka, Kroxylicious, and OMB pods. They are suitable
+# for baseline vs proxy relative comparison but not for absolute sizing.
+
+kafka:
+  replicas: 1
+  replicationFactor: 1
+  minInSyncReplicas: 1
+
+omb:
+  workerReplicas: 2  # Minimum required for OMB distributed mode
+
+benchmark:
+  testDurationMinutes: 15
+  warmupDurationMinutes: 5
+  producerRate: 7500

@@ -34,8 +34,9 @@ spec:
         - /bin/bash
         - -c
         - |
-          # Symlink OMB lib so bin/benchmark resolves classpath from this workingDir
+          # Symlink OMB lib and payload so bin/benchmark resolves both from this workingDir
           ln -sf /opt/benchmark/lib /var/lib/omb/results/lib
+          ln -sf /opt/benchmark/payload /var/lib/omb/results/payload
 
           # Wait for workers to be ready
           echo "Waiting for OMB workers to be ready..."
