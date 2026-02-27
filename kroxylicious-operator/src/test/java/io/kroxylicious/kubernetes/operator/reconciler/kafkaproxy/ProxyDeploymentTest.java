@@ -130,6 +130,24 @@ class ProxyDeploymentTest {
     }
 
     @Test
+    void shouldConfigureReadinessProbe() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
+
+        // Then
+        assertThat(actual.getSpec().getTemplate().getSpec().getContainers()).singleElement()
+                .satisfies(container -> assertThat(container.getReadinessProbe())
+                        .isNotNull()
+                        .satisfies(probe -> {
+                            assertThat(probe.getHttpGet().getPath()).isEqualTo("/livez");
+                            assertThat(probe.getHttpGet().getPort().getStrVal()).isEqualTo("management");
+                        }));
+    }
+
+    @Test
     void shouldAddReferentChecksumAnnotation() {
         // Given
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();

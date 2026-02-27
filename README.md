@@ -49,5 +49,8 @@ Run `mvn archetype:generate -DarchetypeGroupId=io.kroxylicious -DarchetypeArtifa
 
 ## Contributing
 
-
 We welcome contributions! Please see our [contributing guidelines](https://github.com/kroxylicious/.github/blob/main/CONTRIBUTING.md) to get started.
+
+If you think you have found a security-related issue with Kroxylicious then please follow the [SECURITY process](https://github.com/kroxylicious/.github/blob/main/SECURITY.md).
+
+Our [GOVERNANCE.md](https://github.com/kroxylicious/.github/blob/main/GOVERNANCE.md) document describes how the project is run, including how decisions are made, and by whom.
