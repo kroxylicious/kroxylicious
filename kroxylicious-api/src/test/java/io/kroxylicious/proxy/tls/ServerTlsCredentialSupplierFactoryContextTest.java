@@ -6,9 +6,6 @@
 
 package io.kroxylicious.proxy.tls;
 
-import java.security.PrivateKey;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +24,6 @@ class ServerTlsCredentialSupplierFactoryContextTest {
 
     private ServerTlsCredentialSupplierFactoryContext context;
     private FilterDispatchExecutor mockExecutor;
-    private TlsCredentials mockCredentials;
 
     interface TestPlugin {
     }
@@ -38,7 +34,6 @@ class ServerTlsCredentialSupplierFactoryContextTest {
     @BeforeEach
     void setUp() {
         mockExecutor = mock(FilterDispatchExecutor.class);
-        mockCredentials = mock(TlsCredentials.class);
 
         context = new ServerTlsCredentialSupplierFactoryContext() {
             @Override
@@ -61,12 +56,6 @@ class ServerTlsCredentialSupplierFactoryContextTest {
             @NonNull
             public FilterDispatchExecutor filterDispatchExecutor() {
                 return mockExecutor;
-            }
-
-            @Override
-            @NonNull
-            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
-                return mockCredentials;
             }
         };
     }
@@ -110,15 +99,6 @@ class ServerTlsCredentialSupplierFactoryContextTest {
     }
 
     @Test
-    void testTlsCredentialsFactoryMethodAcceptsValidInput() {
-        PrivateKey mockKey = mock(PrivateKey.class);
-        Certificate[] mockChain = new Certificate[]{ mock(X509Certificate.class) };
-
-        TlsCredentials result = context.tlsCredentials(mockKey, mockChain);
-        assertThat(result).isSameAs(mockCredentials);
-    }
-
-    @Test
     void testContextSupportsMultiplePluginRequests() {
         TestPlugin plugin1 = context.pluginInstance(TestPlugin.class, "TestImpl");
         TestPlugin plugin2 = context.pluginInstance(TestPlugin.class, "TestImpl");
@@ -144,12 +124,6 @@ class ServerTlsCredentialSupplierFactoryContextTest {
             @NonNull
             public FilterDispatchExecutor filterDispatchExecutor() {
                 throw new IllegalStateException("FilterDispatchExecutor not available at factory initialization time");
-            }
-
-            @Override
-            @NonNull
-            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
-                return mock(TlsCredentials.class);
             }
         };
 

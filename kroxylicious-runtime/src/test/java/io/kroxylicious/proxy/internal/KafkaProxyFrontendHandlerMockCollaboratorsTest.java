@@ -35,9 +35,7 @@ import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.NettySettings;
-import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
@@ -341,40 +339,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     }
 
     // --- TLS credential supplier tests ---
-
-    @Test
-    void createFactoryContextDelegatesToPluginFactoryRegistry() {
-        // Given
-        FilterDispatchExecutor executor = mock(FilterDispatchExecutor.class);
-        PluginFactory pluginFactory = mock(PluginFactory.class);
-        when(pfr.pluginFactory(any())).thenReturn(pluginFactory);
-        when(pluginFactory.registeredInstanceNames()).thenReturn(java.util.Set.of("impl1", "impl2"));
-
-        // When
-        var ctx = handler.createFactoryContext(pfr, executor);
-
-        // Then
-        assertThat(ctx.filterDispatchExecutor()).isSameAs(executor);
-        assertThat(ctx.pluginImplementationNames(Object.class)).containsExactlyInAnyOrder("impl1", "impl2");
-    }
-
-    @Test
-    void createFactoryContextTlsCredentialsDelegatesToContextImpl() throws Exception {
-        // Given
-        FilterDispatchExecutor executor = mock(FilterDispatchExecutor.class);
-        var ctx = handler.createFactoryContext(pfr, executor);
-
-        // Generate real key/cert for validation
-        var keyAndCert = io.kroxylicious.proxy.internal.tls.TestCertificateUtil.generateKeyStoreAndCert();
-
-        // When
-        var creds = ctx.tlsCredentials(keyAndCert.privateKey(), new java.security.cert.Certificate[]{ keyAndCert.cert() });
-
-        // Then
-        assertThat(creds).isInstanceOf(io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl.class);
-        var impl = (io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl) creds;
-        assertThat(impl.getPrivateKey()).isSameAs(keyAndCert.privateKey());
-    }
 
     @Test
     void applySslContextToChannelRejectsNonTlsCredentialsImpl() {

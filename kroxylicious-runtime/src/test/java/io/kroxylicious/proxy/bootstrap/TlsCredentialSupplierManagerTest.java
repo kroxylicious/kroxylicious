@@ -14,16 +14,12 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition;
-import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
-import io.kroxylicious.proxy.tls.TlsCredentials;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,7 +28,6 @@ import static org.mockito.Mockito.mock;
 class TlsCredentialSupplierManagerTest {
 
     private PluginFactoryRegistry pfr;
-    private ServerTlsCredentialSupplierFactoryContext creationContext;
 
     // Test configuration classes
     public record TestConfig(String value) {}
@@ -155,37 +150,13 @@ class TlsCredentialSupplierManagerTest {
                 };
             }
         };
-
-        creationContext = new ServerTlsCredentialSupplierFactoryContext() {
-            @Override
-            public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
-                return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
-            }
-
-            @Override
-            public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
-                return pfr.pluginFactory(pluginClass).registeredInstanceNames();
-            }
-
-            @Override
-            @NonNull
-            public FilterDispatchExecutor filterDispatchExecutor() {
-                return mock(FilterDispatchExecutor.class);
-            }
-
-            @Override
-            @NonNull
-            public TlsCredentials tlsCredentials(@NonNull java.security.PrivateKey key, @NonNull java.security.cert.Certificate[] certificateChain) {
-                return mock(TlsCredentials.class);
-            }
-        };
     }
 
     @Test
     void testNullDefinitionCreatesNoFactory() {
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, null)) {
             assertThat(manager.isConfigured()).isFalse();
-            assertThat(manager.createSupplier(creationContext)).isNull();
+            assertThat(manager.getSupplier()).isNull();
         }
     }
 
@@ -197,7 +168,8 @@ class TlsCredentialSupplierManagerTest {
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             assertThat(manager.isConfigured()).isTrue();
             assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(0);
+            // Supplier is created eagerly at construction time
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(1);
             assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(0);
         }
 
@@ -211,28 +183,28 @@ class TlsCredentialSupplierManagerTest {
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             assertThat(manager.isConfigured()).isTrue();
-            ServerTlsCredentialSupplier supplier = manager.createSupplier(creationContext);
+            ServerTlsCredentialSupplier supplier = manager.getSupplier();
             assertThat(supplier).isNotNull();
         }
     }
 
     @Test
-    void testCreateSupplierMultipleTimes() {
+    void testGetSupplierReturnsSameInstance() {
         TestConfig config = new TestConfig("test-value");
         TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
-            ServerTlsCredentialSupplier supplier1 = manager.createSupplier(creationContext);
-            ServerTlsCredentialSupplier supplier2 = manager.createSupplier(creationContext);
-            ServerTlsCredentialSupplier supplier3 = manager.createSupplier(creationContext);
+            ServerTlsCredentialSupplier supplier1 = manager.getSupplier();
+            ServerTlsCredentialSupplier supplier2 = manager.getSupplier();
+            ServerTlsCredentialSupplier supplier3 = manager.getSupplier();
 
             assertThat(supplier1).isNotNull();
-            assertThat(supplier2).isNotNull();
-            assertThat(supplier3).isNotNull();
+            assertThat(supplier2).isSameAs(supplier1);
+            assertThat(supplier3).isSameAs(supplier1);
 
-            // Initialize called once, create called three times
+            // Initialize called once, create called once (eagerly)
             assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(3);
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(1);
         }
     }
 
@@ -259,17 +231,16 @@ class TlsCredentialSupplierManagerTest {
     }
 
     @Test
-    void testCreationFailureThrowsException() {
+    void testCreationFailureThrowsExceptionAtConstruction() {
         TestConfig config = new TestConfig("test-value");
         TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("FailingCreateFactory", config);
 
-        try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
-            assertThatThrownBy(() -> manager.createSupplier(creationContext))
-                    .isInstanceOf(PluginConfigurationException.class)
-                    .hasMessageContaining("FailingCreateFactory")
-                    .cause()
-                    .hasMessageContaining("Creation failed");
-        }
+        // Now the creation failure happens at construction time (eager creation)
+        assertThatThrownBy(() -> new TlsCredentialSupplierManager(pfr, definition))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("FailingCreateFactory")
+                .cause()
+                .hasMessageContaining("Creation failed");
     }
 
     @Test
@@ -295,14 +266,14 @@ class TlsCredentialSupplierManagerTest {
     }
 
     @Test
-    void testCreateSupplierAfterCloseThrowsException() {
+    void testGetSupplierAfterCloseThrowsException() {
         TestConfig config = new TestConfig("test-value");
         TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
 
         TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition);
         manager.close();
 
-        assertThatThrownBy(() -> manager.createSupplier(creationContext))
+        assertThatThrownBy(manager::getSupplier)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("is closed");
     }
@@ -446,34 +417,28 @@ class TlsCredentialSupplierManagerTest {
         TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
-            // After construction, initialize should have been called
-            assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(0);
-            assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(0);
-
-            // After first create
-            manager.createSupplier(creationContext);
+            // After construction, both initialize and create should have been called (eager creation)
             assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
             assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(1);
             assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(0);
 
-            // After second create
-            manager.createSupplier(creationContext);
-            assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(2);
-            assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(0);
+            // getSupplier() should return the same pre-created instance without calling create again
+            manager.getSupplier();
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(1);
+
+            manager.getSupplier();
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(1);
         }
 
         // After close
         assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
-        assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(2);
+        assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(1);
         assertThat(TestSupplierFactory.closeCallCount.get()).isEqualTo(1);
     }
 
     @Test
     void testConfigValidationInInitialize() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
 
         @Plugin(configType = TestConfig.class)
         class ValidatingFactory implements ServerTlsCredentialSupplierFactory<TestConfig, TestConfig> {
@@ -550,15 +515,11 @@ class TlsCredentialSupplierManagerTest {
 
             @Override
             public ServerTlsCredentialSupplier create(ServerTlsCredentialSupplierFactoryContext context, SharedContext initializationData) {
-                // Create supplier using shared resource
-                ServerTlsCredentialSupplier supplier = mock(ServerTlsCredentialSupplier.class);
-                // In real implementation, supplier would use initializationData.sharedResource()
-                return supplier;
+                return mock(ServerTlsCredentialSupplier.class);
             }
 
             @Override
             public void close(SharedContext initializationData) {
-                // Clean up shared resource
                 closeCalled = true;
                 assertThat(initializationData.sharedResource()).isEqualTo("SharedResource-test-value");
             }
@@ -597,12 +558,12 @@ class TlsCredentialSupplierManagerTest {
         TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("SharedResourceFactory", config);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(testPfr, definition)) {
-            // Create multiple suppliers
-            ServerTlsCredentialSupplier supplier1 = manager.createSupplier(creationContext);
-            ServerTlsCredentialSupplier supplier2 = manager.createSupplier(creationContext);
+            // getSupplier returns the same shared instance
+            ServerTlsCredentialSupplier supplier1 = manager.getSupplier();
+            ServerTlsCredentialSupplier supplier2 = manager.getSupplier();
 
             assertThat(supplier1).isNotNull();
-            assertThat(supplier2).isNotNull();
+            assertThat(supplier2).isSameAs(supplier1);
         }
 
         // Verify close was called with the shared context
@@ -616,8 +577,8 @@ class TlsCredentialSupplierManagerTest {
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             assertThat(manager.isConfigured()).isTrue();
 
-            // Should be able to create supplier without config
-            ServerTlsCredentialSupplier supplier = manager.createSupplier(creationContext);
+            // Should be able to get supplier without config
+            ServerTlsCredentialSupplier supplier = manager.getSupplier();
             assertThat(supplier).isNotNull();
         }
     }
@@ -632,12 +593,12 @@ class TlsCredentialSupplierManagerTest {
     }
 
     @Test
-    void testThreadSafetyOfCreateSupplier() throws Exception {
+    void testThreadSafeAccessToSharedSupplier() throws Exception {
         TestConfig config = new TestConfig("test-value");
         TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
-            // Create suppliers from multiple threads concurrently
+            // Access shared supplier from multiple threads concurrently
             int threadCount = 10;
             Thread[] threads = new Thread[threadCount];
             ServerTlsCredentialSupplier[] suppliers = new ServerTlsCredentialSupplier[threadCount];
@@ -645,7 +606,7 @@ class TlsCredentialSupplierManagerTest {
             for (int i = 0; i < threadCount; i++) {
                 int index = i;
                 threads[i] = new Thread(() -> {
-                    suppliers[index] = manager.createSupplier(creationContext);
+                    suppliers[index] = manager.getSupplier();
                 });
             }
 
@@ -659,14 +620,34 @@ class TlsCredentialSupplierManagerTest {
                 thread.join();
             }
 
-            // Verify all suppliers were created
+            // All threads should get the same shared supplier instance
+            ServerTlsCredentialSupplier firstSupplier = suppliers[0];
             for (ServerTlsCredentialSupplier supplier : suppliers) {
-                assertThat(supplier).isNotNull();
+                assertThat(supplier).isSameAs(firstSupplier);
             }
 
-            // Initialize called once, create called threadCount times
+            // Initialize and create each called exactly once (eager creation)
             assertThat(TestSupplierFactory.initializeCallCount.get()).isEqualTo(1);
-            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(threadCount);
+            assertThat(TestSupplierFactory.createCallCount.get()).isEqualTo(1);
         }
+    }
+
+    @Test
+    void testUnconfiguredManagerIsNotConfigured() {
+        TlsCredentialSupplierManager manager = TlsCredentialSupplierManager.unconfigured();
+        assertThat(manager.isConfigured()).isFalse();
+    }
+
+    @Test
+    void testUnconfiguredManagerGetSupplierReturnsNull() {
+        TlsCredentialSupplierManager manager = TlsCredentialSupplierManager.unconfigured();
+        assertThat(manager.getSupplier()).isNull();
+    }
+
+    @Test
+    void testUnconfiguredManagerCloseIsNoOp() {
+        TlsCredentialSupplierManager manager = TlsCredentialSupplierManager.unconfigured();
+        // Should not throw
+        manager.close();
     }
 }

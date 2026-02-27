@@ -54,7 +54,6 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
@@ -75,10 +74,11 @@ import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl;
 import io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl;
 import io.kroxylicious.proxy.internal.util.Metrics;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
-import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 import io.kroxylicious.proxy.tls.TlsCredentials;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -432,48 +432,23 @@ public class KafkaProxyFrontendHandler
      */
     private void invokeTlsCredentialSupplier(HostPort remote, Channel outboundChannel, ChannelPipeline pipeline, ChannelFuture serverTcpConnectFuture) {
         try {
-            PluginFactoryRegistry pfr = proxyChannelStateMachine.virtualCluster().getPluginFactoryRegistry();
-            if (pfr == null) {
-                String errorMsg = "PluginFactoryRegistry not available for credential supplier";
-                LOGGER.error(errorMsg);
-                proxyChannelStateMachine.onServerException(new IllegalStateException(errorMsg));
-                return;
-            }
-
             TlsCredentialSupplierManager manager = proxyChannelStateMachine.virtualCluster().getTlsCredentialSupplierManager();
-            if (manager == null || !manager.isConfigured()) {
-                String errorMsg = "TLS credential supplier not configured for virtual cluster";
-                LOGGER.error(errorMsg);
-                proxyChannelStateMachine.onServerException(new IllegalStateException(errorMsg));
-                return;
-            }
+            ServerTlsCredentialSupplier supplier = manager.getSupplier();
 
-            FilterDispatchExecutor executor = NettyFilterDispatchExecutor.eventLoopExecutor(outboundChannel.eventLoop());
-            ServerTlsCredentialSupplierFactoryContext factoryContext = createFactoryContext(pfr, executor);
-            ServerTlsCredentialSupplier supplier = manager.createSupplier(factoryContext);
-            if (supplier == null) {
-                String errorMsg = "Failed to create TLS credential supplier";
-                LOGGER.error(errorMsg);
-                proxyChannelStateMachine.onServerException(new IllegalStateException(errorMsg));
-                return;
-            }
+            ClientTlsContext clientCtx = proxyChannelStateMachine.clientTlsContext().orElse(null);
+            ServerTlsCredentialSupplierContextImpl supplierContext = new ServerTlsCredentialSupplierContextImpl(clientCtx);
 
-            ServerTlsCredentialSupplierContextImpl supplierContext = new ServerTlsCredentialSupplierContextImpl(null);
-
-            // Invoke the supplier using the event loop for thread safety
             outboundChannel.eventLoop().execute(() -> {
                 supplier.tlsCredentials(supplierContext).whenComplete((credentials, throwable) -> {
-                    // Ensure completion happens on the event loop thread
                     outboundChannel.eventLoop().execute(() -> {
                         if (throwable != null) {
-                            LOGGER.error("TLS credential supplier failed for connection to {}", remote, throwable);
+                            LOGGER.error("TLS credential supplier failed for {}", remote, throwable);
                             proxyChannelStateMachine.onServerException(
-                                    new IllegalStateException("Failed to obtain TLS credentials: " + throwable.getMessage(), throwable));
+                                    new IllegalStateException("Failed to obtain TLS credentials", throwable));
                         }
                         else if (credentials == null) {
-                            String errorMsg = "TLS credential supplier returned null credentials";
-                            LOGGER.error(errorMsg);
-                            proxyChannelStateMachine.onServerException(new IllegalStateException(errorMsg));
+                            proxyChannelStateMachine.onServerException(
+                                    new IllegalStateException("TLS credential supplier returned null"));
                         }
                         else {
                             applySslContextToChannel(credentials, remote, outboundChannel, pipeline);
@@ -483,37 +458,9 @@ public class KafkaProxyFrontendHandler
             });
         }
         catch (Exception e) {
-            LOGGER.error("Error invoking TLS credential supplier for connection to {}", remote, e);
+            LOGGER.error("Error invoking TLS credential supplier for {}", remote, e);
             proxyChannelStateMachine.onServerException(e);
         }
-    }
-
-    /**
-     * Creates a ServerTlsCredentialSupplierFactoryContext for supplier creation.
-     */
-    ServerTlsCredentialSupplierFactoryContext createFactoryContext(PluginFactoryRegistry pfr, FilterDispatchExecutor executor) {
-        return new ServerTlsCredentialSupplierFactoryContext() {
-            @Override
-            public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
-                return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
-            }
-
-            @Override
-            public <P> java.util.Set<String> pluginImplementationNames(Class<P> pluginClass) {
-                return pfr.pluginFactory(pluginClass).registeredInstanceNames();
-            }
-
-            @Override
-            public FilterDispatchExecutor filterDispatchExecutor() {
-                return executor;
-            }
-
-            @Override
-            public TlsCredentials tlsCredentials(java.security.PrivateKey key, java.security.cert.Certificate[] certificateChain) {
-                ServerTlsCredentialSupplierContextImpl context = new ServerTlsCredentialSupplierContextImpl(null);
-                return context.tlsCredentials(key, certificateChain);
-            }
-        };
     }
 
     /**

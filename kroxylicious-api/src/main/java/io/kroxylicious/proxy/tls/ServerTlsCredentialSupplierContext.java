@@ -69,7 +69,6 @@ public interface ServerTlsCredentialSupplierContext {
      *        and including any intermediate certificates up to (but not including) the root CA.
      * @return Validated TlsCredentials instance
      * @throws IllegalArgumentException if the key does not match the certificate or the chain is invalid
-     * @see ServerTlsCredentialSupplierFactoryContext#tlsCredentials(PrivateKey, Certificate[])
      */
     @NonNull
     TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain);

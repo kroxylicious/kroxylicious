@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.tls;
 
-import java.security.PrivateKey;
-import java.security.cert.Certificate;
 import java.util.Set;
 
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
@@ -77,26 +75,4 @@ public interface ServerTlsCredentialSupplierFactoryContext {
      */
     @NonNull
     FilterDispatchExecutor filterDispatchExecutor();
-
-    /**
-     * <p>Creates a {@link TlsCredentials} instance from the given private key and certificate chain.</p>
-     *
-     * <p>This factory method validates the provided credentials before creating the
-     * {@link TlsCredentials} instance. The validation ensures that:</p>
-     * <ul>
-     *   <li>The certificate chain is structurally valid</li>
-     *   <li>The private key matches the leaf certificate's public key</li>
-     * </ul>
-     *
-     * <p>The equivalent method on {@link ServerTlsCredentialSupplierContext} can be used
-     * when the credentials are determined at per-connection time.</p>
-     *
-     * @param key The private key corresponding to the leaf certificate.
-     * @param certificateChain The certificate chain, starting with the leaf certificate
-     *        and including any intermediate certificates up to (but not including) the root CA.
-     * @return Validated TlsCredentials instance
-     * @throws IllegalArgumentException if the key does not match the certificate or the chain is invalid
-     */
-    @NonNull
-    TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain);
 }
