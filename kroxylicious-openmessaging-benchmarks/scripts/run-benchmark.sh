@@ -15,6 +15,9 @@ NAMESPACE="${NAMESPACE:-kafka}"
 HELM_RELEASE="benchmark"
 KAFKA_READY_TIMEOUT="${KAFKA_READY_TIMEOUT:-600s}"
 POD_READY_TIMEOUT="${POD_READY_TIMEOUT:-300s}"
+METRICS_INTERVAL="${METRICS_INTERVAL:-30}"
+
+PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
 
 usage() {
     cat >&2 <<EOF
@@ -42,6 +45,7 @@ Environment:
   NAMESPACE              Kubernetes namespace (default: kafka)
   KAFKA_READY_TIMEOUT    Timeout waiting for Kafka to be ready (default: 600s)
   POD_READY_TIMEOUT      Timeout waiting for pods to be ready (default: 300s)
+  METRICS_INTERVAL       Proxy metrics polling interval in seconds (default: 30)
 
 Examples:
   $(basename "$0") baseline 1topic-1kb ./results/baseline/
@@ -97,15 +101,42 @@ if [[ -n "${PROFILE_VALUES}" && ! -f "${PROFILE_VALUES}" ]]; then
     exit 1
 fi
 
+METRICS_PID=""
+
 teardown() {
     echo ""
     echo "--- Tearing down benchmark infrastructure ---"
+    stop_metrics_poller
     if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
         helm uninstall "${HELM_RELEASE}" -n "${NAMESPACE}"
     fi
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found
     echo "Teardown complete."
+}
+
+start_metrics_poller() {
+    local proxy_pod
+    proxy_pod=$(kubectl get pod -n "${NAMESPACE}" \
+        -l "${PROXY_POD_LABEL}" \
+        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
+    if [[ -z "${proxy_pod}" ]]; then
+        return
+    fi
+    echo "Starting proxy metrics polling (every ${METRICS_INTERVAL}s) for pod ${proxy_pod}..."
+    mkdir -p "${OUTPUT_DIR}"
+    "${SCRIPT_DIR}/poll-proxy-metrics.sh" \
+        "${proxy_pod}" "${NAMESPACE}" "${OUTPUT_DIR}" "${METRICS_INTERVAL}" &
+    METRICS_PID=$!
+    echo "Metrics poller running (PID ${METRICS_PID})"
+}
+
+stop_metrics_poller() {
+    if [[ -n "${METRICS_PID}" ]]; then
+        echo "Stopping metrics poller (PID ${METRICS_PID})..."
+        kill "${METRICS_PID}" 2>/dev/null || true
+        METRICS_PID=""
+    fi
 }
 
 echo "=== Benchmark run: ${SCENARIO} / ${WORKLOAD} ==="
@@ -157,10 +188,14 @@ echo "OMB pods are ready."
 
 # --- Run benchmark ---
 
+start_metrics_poller
+
 echo ""
 echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
 kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
     sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
+
+stop_metrics_poller
 
 # --- Collect results ---
 
