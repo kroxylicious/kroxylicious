@@ -21,11 +21,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
-import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationChangeResult;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
+import io.kroxylicious.proxy.config.OnFailure;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.ReloadOptions;
 import io.kroxylicious.proxy.internal.ConfigurationChangeContext;
 import io.kroxylicious.proxy.internal.ConfigurationChangeHandler;
 import io.kroxylicious.proxy.internal.config.Features;
@@ -59,12 +61,12 @@ public class ConfigurationReloadOrchestrator {
     private final AtomicReference<FilterChainFactory> filterChainFactoryRef;
 
     public ConfigurationReloadOrchestrator(
-            Configuration initialConfiguration,
-            ConfigurationChangeHandler configurationChangeHandler,
-            PluginFactoryRegistry pluginFactoryRegistry,
-            Features features,
-            @Nullable Path configFilePath,
-            AtomicReference<FilterChainFactory> filterChainFactoryRef) {
+                                           Configuration initialConfiguration,
+                                           ConfigurationChangeHandler configurationChangeHandler,
+                                           PluginFactoryRegistry pluginFactoryRegistry,
+                                           Features features,
+                                           @Nullable Path configFilePath,
+                                           AtomicReference<FilterChainFactory> filterChainFactoryRef) {
         this.currentConfiguration = Objects.requireNonNull(initialConfiguration, "initialConfiguration cannot be null");
         this.configurationChangeHandler = Objects.requireNonNull(configurationChangeHandler, "configurationChangeHandler cannot be null");
         this.pluginFactoryRegistry = Objects.requireNonNull(pluginFactoryRegistry, "pluginFactoryRegistry cannot be null");
@@ -76,15 +78,28 @@ public class ConfigurationReloadOrchestrator {
     }
 
     /**
-     * Reload configuration with concurrency control.
-     * This method implements the Template Method pattern - it defines the reload algorithm
-     * skeleton with fixed steps.
+     * Reload configuration with default reload options.
+     * Backward-compatible overload that delegates to {@link #reload(Configuration, ReloadOptions)}.
      *
      * @param newConfig The new configuration to apply
      * @return CompletableFuture with reload result
      */
     public CompletableFuture<ReloadResult> reload(Configuration newConfig) {
+        return reload(newConfig, ReloadOptions.DEFAULT);
+    }
+
+    /**
+     * Reload configuration with concurrency control and configurable failure behavior.
+     * This method implements the Template Method pattern - it defines the reload algorithm
+     * skeleton with fixed steps.
+     *
+     * @param newConfig The new configuration to apply
+     * @param reloadOptions Options controlling reload behavior (failure handling, persistence)
+     * @return CompletableFuture with reload result
+     */
+    public CompletableFuture<ReloadResult> reload(Configuration newConfig, ReloadOptions reloadOptions) {
         Objects.requireNonNull(newConfig, "newConfig cannot be null");
+        Objects.requireNonNull(reloadOptions, "reloadOptions cannot be null");
 
         // 1. Check if reload already in progress
         if (!reloadLock.tryLock()) {
@@ -94,18 +109,19 @@ public class ConfigurationReloadOrchestrator {
         }
 
         Instant startTime = Instant.now();
+        OnFailure onFailure = reloadOptions.effectiveOnFailure();
 
         try {
             // 2. Mark reload as started
             stateManager.startReload();
-            LOGGER.info("Configuration reload started");
+            LOGGER.info("Configuration reload started (onFailure={}, persistConfigToDisk={})", onFailure, reloadOptions.persistConfigToDisk());
 
             // 3. Validate configuration
             Configuration validatedConfig = validateConfiguration(newConfig);
             LOGGER.debug("Configuration validation successful");
 
             // 4. Execute reload
-            return executeReload(validatedConfig, startTime)
+            return executeReload(validatedConfig, startTime, onFailure)
                     .whenComplete((result, error) -> {
                         if (error != null) {
                             LOGGER.error("Configuration reload failed", error);
@@ -117,8 +133,13 @@ public class ConfigurationReloadOrchestrator {
                             // Update current configuration on success
                             this.currentConfiguration = validatedConfig;
 
-                            // Persist to disk if file path is available
-                            persistConfigurationToDisk(validatedConfig);
+                            // Conditionally persist to disk
+                            if (reloadOptions.persistConfigToDisk()) {
+                                persistConfigurationToDisk(validatedConfig);
+                            }
+                            else {
+                                LOGGER.debug("Skipping disk persistence (persistConfigToDisk=false)");
+                            }
                         }
                     });
 
@@ -161,9 +182,14 @@ public class ConfigurationReloadOrchestrator {
     /**
      * Execute the configuration reload by creating a new FilterChainFactory, building a change context,
      * and delegating to the ConfigurationChangeHandler. On success, swaps to the new factory atomically.
-     * On failure, closes the new factory and rolls back to the old factory.
+     * On failure, behavior depends on the {@code onFailure} parameter:
+     * <ul>
+     *   <li>{@link OnFailure#ROLLBACK}: close new factory, keep old factory (safe default)</li>
+     *   <li>{@link OnFailure#TERMINATE}: commit new factory, close old factory (proxy will shut down)</li>
+     *   <li>{@link OnFailure#CONTINUE}: commit new factory, close old factory (keep partial state)</li>
+     * </ul>
      */
-    private CompletableFuture<ReloadResult> executeReload(Configuration newConfig, Instant startTime) {
+    private CompletableFuture<ReloadResult> executeReload(Configuration newConfig, Instant startTime, OnFailure onFailure) {
         // 1. Create new FilterChainFactory with updated filter definitions
         FilterChainFactory newFactory;
         try {
@@ -183,7 +209,7 @@ public class ConfigurationReloadOrchestrator {
         ConfigurationChangeContext changeContext = getConfigurationChangeContext(newConfig, oldFactory, newFactory);
 
         // 4. Execute configuration changes (virtual cluster restarts, etc.)
-        return configurationChangeHandler.handleConfigurationChange(changeContext)
+        return configurationChangeHandler.handleConfigurationChange(changeContext, onFailure)
                 .thenApply(v -> {
                     // SUCCESS: Atomically swap to new factory
                     LOGGER.info("Configuration changes applied successfully, swapping FilterChainFactory");
@@ -203,19 +229,36 @@ public class ConfigurationReloadOrchestrator {
                     return buildReloadResult(changeContext, startTime);
                 })
                 .exceptionally(error -> {
-                    // FAILURE: Rollback - close new factory, keep old factory
-                    LOGGER.error("Configuration reload failed, rolling back FilterChainFactory", error);
+                    if (onFailure == OnFailure.ROLLBACK) {
+                        // ROLLBACK: close new factory, keep old factory
+                        LOGGER.error("Configuration reload failed, rolling back FilterChainFactory", error);
 
-                    try {
-                        newFactory.close();
-                        LOGGER.info("New FilterChainFactory closed successfully (rollback)");
-                    }
-                    catch (Exception e) {
-                        LOGGER.warn("Exception while closing new FilterChainFactory during rollback", e);
-                    }
+                        try {
+                            newFactory.close();
+                            LOGGER.info("New FilterChainFactory closed successfully (rollback)");
+                        }
+                        catch (Exception e) {
+                            LOGGER.warn("Exception while closing new FilterChainFactory during rollback", e);
+                        }
 
-                    // filterChainFactoryRef remains unchanged - still points to oldFactory
-                    LOGGER.info("FilterChainFactory rollback complete, old factory remains active");
+                        // filterChainFactoryRef remains unchanged - still points to oldFactory
+                        LOGGER.info("FilterChainFactory rollback complete, old factory remains active");
+                    }
+                    else {
+                        // TERMINATE or CONTINUE: commit new factory, close old factory (no rollback)
+                        LOGGER.warn("Configuration reload failed with onFailure={} - committing new factory (no rollback)", onFailure);
+                        filterChainFactoryRef.set(newFactory);
+
+                        if (oldFactory != null) {
+                            try {
+                                oldFactory.close();
+                                LOGGER.info("Old FilterChainFactory closed (no rollback, onFailure={})", onFailure);
+                            }
+                            catch (Exception e) {
+                                LOGGER.warn("Exception while closing old FilterChainFactory (onFailure={})", onFailure, e);
+                            }
+                        }
+                    }
 
                     // Null-safe error message extraction
                     String errorMessage = error.getMessage();
@@ -316,4 +359,3 @@ public class ConfigurationReloadOrchestrator {
         }
     }
 }
-

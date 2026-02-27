@@ -206,7 +206,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
 
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId(), connectionTracker, inFlightTracker);
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId(), connectionTracker,
+                inFlightTracker);
 
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {
@@ -278,7 +279,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addFirst(PRE_SESSION_IDLE_HANDLER, new IdleStateHandler(0, 0, unauthenticatedIdleMillis, TimeUnit.MILLISECONDS));
         }
     }
-
 
     @Nullable
     @CheckReturnValue

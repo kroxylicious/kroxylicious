@@ -2,9 +2,24 @@
 <project version="4">
   <component name="RemoteRepositoriesConfiguration">
     <remote-repository>
+      <option name="id" value="confluent-packages" />
+      <option name="name" value="confluent-packages" />
+      <option name="url" value="https://packages.confluent.io/maven/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="central" />
       <option name="name" value="Central Repository" />
       <option name="url" value="https://repo.maven.apache.org/maven2" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="third-party-artifacts" />
+      <option name="name" value="third-party-artifacts" />
+      <option name="url" value="https://confluent-524708692776.d.codeartifact.us-west-2.amazonaws.com/maven/confluent-maven/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="central" />
+      <option name="name" value="Central Repository" />
+      <option name="url" value="https://confluent-524708692776.d.codeartifact.us-west-2.amazonaws.com/maven/confluent-maven/" />
     </remote-repository>
     <remote-repository>
       <option name="id" value="central" />
@@ -15,6 +30,11 @@
       <option name="id" value="jboss.community" />
       <option name="name" value="JBoss Community repository" />
       <option name="url" value="https://repository.jboss.org/nexus/content/repositories/public/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="confluent-codeartifact-internal" />
+      <option name="name" value="confluent-codeartifact-internal" />
+      <option name="url" value="https://confluent-519856050701.d.codeartifact.us-west-2.amazonaws.com/maven/maven/" />
     </remote-repository>
   </component>
 </project>

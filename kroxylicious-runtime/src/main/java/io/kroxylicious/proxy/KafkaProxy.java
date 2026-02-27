@@ -52,14 +52,15 @@ import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.NetworkDefinition;
+import io.kroxylicious.proxy.config.OnFailure;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.ReloadOptions;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 import io.kroxylicious.proxy.internal.ConfigurationChangeHandler;
 import io.kroxylicious.proxy.internal.ConnectionDrainManager;
 import io.kroxylicious.proxy.internal.ConnectionTracker;
 import io.kroxylicious.proxy.internal.FilterChangeDetector;
-import io.kroxylicious.proxy.internal.admin.reload.ConfigurationReloadOrchestrator;
 import io.kroxylicious.proxy.internal.InFlightMessageTracker;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
@@ -67,6 +68,8 @@ import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.VirtualClusterChangeDetector;
 import io.kroxylicious.proxy.internal.VirtualClusterManager;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
+import io.kroxylicious.proxy.internal.admin.reload.ConfigurationReloadOrchestrator;
+import io.kroxylicious.proxy.internal.admin.reload.ReloadResult;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
@@ -185,7 +188,7 @@ public final class KafkaProxy implements AutoCloseable {
         // This reference is shared with both KafkaProxyInitializer and ConfigurationReloadOrchestrator
         this.filterChainFactoryRef = new AtomicReference<>();
 
-        // Initialize reload orchestrator for HTTP endpoint (receives shared factory reference)
+        // Initialize reload orchestrator for applyConfiguration() (receives shared factory reference)
         this.reloadOrchestrator = new ConfigurationReloadOrchestrator(
                 config,
                 configurationChangeHandler,
@@ -193,7 +196,6 @@ public final class KafkaProxy implements AutoCloseable {
                 features,
                 configFilePath,
                 filterChainFactoryRef);
-        LOGGER.info("Configuration reload orchestrator initialized for HTTP endpoint support");
     }
 
     /**
@@ -265,7 +267,7 @@ public final class KafkaProxy implements AutoCloseable {
 
             enableNettyMetrics(managementEventGroup, proxyEventGroup);
 
-            var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries, reloadOrchestrator);
+            var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries);
 
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
@@ -350,14 +352,13 @@ public final class KafkaProxy implements AutoCloseable {
 
     @SuppressWarnings("resource") // suppressing resource as ExecutorService is not closeable in Java 17 (our runtime target)
     private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig,
-                                                                 MeterRegistries meterRegistries,
-                                                                 @Nullable ConfigurationReloadOrchestrator reloadOrchestrator) {
+                                                                 MeterRegistries meterRegistries) {
         return Optional.ofNullable(managementConfiguration)
                 .map(mc -> {
                     var metricsBootstrap = new ServerBootstrap().group(eventGroupConfig.bossGroup(), eventGroupConfig.workerGroup())
                             .option(ChannelOption.SO_REUSEADDR, true)
                             .channel(eventGroupConfig.clazz())
-                            .childHandler(new ManagementInitializer(meterRegistries, mc, reloadOrchestrator));
+                            .childHandler(new ManagementInitializer(meterRegistries, mc));
                     LOGGER.info("Binding management endpoint: {}:{}", mc.getEffectiveBindAddress(), mc.getEffectivePort());
 
                     var future = new CompletableFuture<Void>();
@@ -373,6 +374,41 @@ public final class KafkaProxy implements AutoCloseable {
                             }));
                     return future;
                 }).orElseGet(() -> CompletableFuture.completedFuture(null));
+    }
+
+    /**
+     * Apply a new configuration to the running proxy.
+     * Reload behavior (failure handling, disk persistence) is controlled by the
+     * {@link ReloadOptions} in the proxy's bootstrap configuration.
+     *
+     * @param newConfig the new configuration to apply
+     * @return a future that completes with the reload result
+     * @throws IllegalStateException if the proxy is not running
+     */
+    public CompletableFuture<ReloadResult> applyConfiguration(Configuration newConfig) {
+        if (!running.get()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Cannot apply configuration: proxy is not running"));
+        }
+        if (reloadOrchestrator == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Reload orchestrator not available"));
+        }
+
+        ReloadOptions options = config.effectiveReloadOptions();
+        LOGGER.info("Applying new configuration (onFailure={}, persistConfigToDisk={})",
+                options.effectiveOnFailure(), options.persistConfigToDisk());
+
+        return reloadOrchestrator.reload(newConfig, options)
+                .whenComplete((result, error) -> {
+                    if (error != null && options.effectiveOnFailure() == OnFailure.TERMINATE) {
+                        LOGGER.error("Configuration reload failed with onFailure=TERMINATE - initiating proxy shutdown", error);
+                        try {
+                            shutdown();
+                        }
+                        catch (Exception shutdownError) {
+                            LOGGER.error("Error during shutdown triggered by TERMINATE policy", shutdownError);
+                        }
+                    }
+                });
     }
 
     /**

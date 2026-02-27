@@ -9,12 +9,15 @@ package io.kroxylicious.test.tester;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.Serde;
 
+import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.internal.admin.reload.ReloadResult;
 import io.kroxylicious.test.client.KafkaClient;
 
 /**
@@ -258,6 +261,13 @@ public interface KroxyliciousTester extends Closeable {
      * Restarts the Kroxylicious server under test without closing any other resources.
      */
     void restartProxy();
+
+    /**
+     * Applies a new configuration to the running proxy, triggering a hot-reload.
+     * @param newConfig the new configuration to apply
+     * @return a future that completes with the reload result
+     */
+    CompletableFuture<ReloadResult> applyConfiguration(Configuration newConfig);
 
     /**
      * Close the Kroxylicious server under test and any other resources that need cleaning.

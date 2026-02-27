@@ -66,9 +66,7 @@ public class ReloadStateManager {
      */
     public Optional<ReloadResult> getLastResult() {
         synchronized (reloadHistory) {
-            return reloadHistory.isEmpty() ?
-                    Optional.empty() :
-                    Optional.of(reloadHistory.peekLast());
+            return reloadHistory.isEmpty() ? Optional.empty() : Optional.of(reloadHistory.peekLast());
         }
     }
 

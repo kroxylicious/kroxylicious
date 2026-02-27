@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +41,7 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.internal.admin.reload.ReloadResult;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.test.client.KafkaClient;
 
@@ -263,6 +265,14 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         catch (Exception e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<ReloadResult> applyConfiguration(Configuration newConfig) {
+        if (proxy instanceof KafkaProxy kafkaProxy) {
+            return kafkaProxy.applyConfiguration(newConfig);
+        }
+        throw new UnsupportedOperationException("applyConfiguration is only supported when proxy is a KafkaProxy instance");
     }
 
     @Override

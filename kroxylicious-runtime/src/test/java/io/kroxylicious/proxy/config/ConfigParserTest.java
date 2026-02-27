@@ -755,6 +755,7 @@ class ConfigParserTest {
                 null,
                 false,
                 Optional.empty(),
+                null,
                 null);
 
         ConfigParser cp = new ConfigParser();
@@ -896,6 +897,62 @@ class ConfigParserTest {
                 .extracting(virtualClusters -> virtualClusters.get(0))
                 .extracting(VirtualCluster::targetCluster)
                 .satisfies(targetCluster -> assertThat(targetCluster.selectionStrategy()).isInstanceOf(Class.forName(expectedClass)));
+    }
+
+    @Test
+    void shouldParseReloadOptionsFromYaml() {
+        var configurationModel = configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: localhost:9092
+                    gateways:
+                    - name: mygateway
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                reloadOptions:
+                  onFailure: TERMINATE
+                  persistConfigToDisk: false
+                """);
+        assertThat(configurationModel.reloadOptions()).isNotNull();
+        assertThat(configurationModel.reloadOptions().onFailure()).isEqualTo(OnFailure.TERMINATE);
+        assertThat(configurationModel.reloadOptions().persistConfigToDisk()).isFalse();
+    }
+
+    @Test
+    void shouldDefaultReloadOptionsWhenOmitted() {
+        var configurationModel = configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: localhost:9092
+                    gateways:
+                    - name: mygateway
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                """);
+        assertThat(configurationModel.reloadOptions()).isNull();
+        assertThat(configurationModel.effectiveReloadOptions()).isEqualTo(ReloadOptions.DEFAULT);
+    }
+
+    @Test
+    void shouldParsePartialReloadOptions() {
+        var configurationModel = configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: localhost:9092
+                    gateways:
+                    - name: mygateway
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                reloadOptions:
+                  persistConfigToDisk: false
+                """);
+        assertThat(configurationModel.reloadOptions()).isNotNull();
+        assertThat(configurationModel.reloadOptions().onFailure()).isNull();
+        assertThat(configurationModel.effectiveReloadOptions().effectiveOnFailure()).isEqualTo(OnFailure.ROLLBACK);
+        assertThat(configurationModel.reloadOptions().persistConfigToDisk()).isFalse();
     }
 
     private record NonSerializableConfig(String id) {

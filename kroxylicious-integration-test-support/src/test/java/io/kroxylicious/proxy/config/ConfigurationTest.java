@@ -561,6 +561,7 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
+                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
@@ -578,6 +579,7 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
+                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'defaultFilters' references filters not defined in 'filterDefinitions': [missing]");
@@ -598,6 +600,7 @@ class ConfigurationTest {
                 virtualClusters,
                 null, false,
                 development,
+                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'virtualClusters.vc1.filters' references filters not defined in 'filterDefinitions': [missing]");
@@ -624,6 +627,7 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
+                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': [unused]");
@@ -647,6 +651,7 @@ class ConfigurationTest {
                 null,
                 false,
                 Optional.empty(),
+                null,
                 null);
 
         // When

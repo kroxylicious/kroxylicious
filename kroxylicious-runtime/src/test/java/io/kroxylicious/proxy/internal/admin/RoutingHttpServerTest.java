@@ -93,7 +93,8 @@ class RoutingHttpServerTest {
         var route = URI.create("https://localhost/mypath").toString();
         var handler = builder().withRoute(route, rq -> responseWithStatus(rq, HttpResponseStatus.OK)).build();
         var channel = new EmbeddedChannel(handler);
-        var request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, route);
+        // PUT is not a supported HTTP method (only GET and POST are routed)
+        var request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.PUT, route);
 
         // When
         channel.writeInbound(request);

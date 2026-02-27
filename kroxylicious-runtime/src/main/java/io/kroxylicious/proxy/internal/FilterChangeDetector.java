@@ -153,9 +153,9 @@ public class FilterChangeDetector implements ChangeDetector {
      * @return list of affected cluster names
      */
     private List<String> findImpactedClusters(
-            Set<String> modifiedFilterNames,
-            boolean defaultFiltersChanged,
-            ConfigurationChangeContext context) {
+                                              Set<String> modifiedFilterNames,
+                                              boolean defaultFiltersChanged,
+                                              ConfigurationChangeContext context) {
 
         // Early return if nothing changed
         if (modifiedFilterNames.isEmpty() && !defaultFiltersChanged) {

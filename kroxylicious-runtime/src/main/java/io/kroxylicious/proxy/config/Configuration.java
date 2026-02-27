@@ -37,8 +37,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param useIoUring true to use iouring
  * @param development Development options
  * @param network Controls aspects of network configuration for the proxy.
+ * @param reloadOptions Static options controlling configuration reload behavior (failure handling, disk persistence).
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network", "reloadOptions" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
@@ -47,7 +48,8 @@ public record Configuration(
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
-                            @Nullable NetworkDefinition network) {
+                            @Nullable NetworkDefinition network,
+                            @Nullable ReloadOptions reloadOptions) {
 
     /**
      * Creates an instance of configuration.
@@ -156,6 +158,15 @@ public record Configuration(
 
     public boolean isUseIoUring() {
         return useIoUring();
+    }
+
+    /**
+     * Returns the effective reload options, defaulting to {@link ReloadOptions#DEFAULT} if not configured.
+     *
+     * @return the effective reload options, never {@code null}
+     */
+    public ReloadOptions effectiveReloadOptions() {
+        return reloadOptions != null ? reloadOptions : ReloadOptions.DEFAULT;
     }
 
     public List<VirtualClusterModel> virtualClusterModel() {

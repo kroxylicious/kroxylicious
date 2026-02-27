@@ -10,17 +10,9 @@ import java.util.Optional;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public record EndpointsConfiguration(
-                                     @Nullable PrometheusMetricsConfig prometheus,
-                                     @Nullable ConfigReloadEndpointConfig configReload) {
+                                     @Nullable PrometheusMetricsConfig prometheus) {
 
     public Optional<PrometheusMetricsConfig> maybePrometheus() {
         return Optional.ofNullable(prometheus);
-    }
-
-    /**
-     * Get config reload endpoint configuration, returning disabled config if not specified.
-     */
-    public ConfigReloadEndpointConfig configReload() {
-        return configReload != null ? configReload : ConfigReloadEndpointConfig.createDisabled();
     }
 }

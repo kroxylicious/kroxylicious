@@ -351,9 +351,10 @@ public class KafkaProxyFrontendHandler
         NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
 
         FilterChainFactory currentFactory = filterChainFactoryRef.get();
-        List<FilterAndInvoker> filterChain = currentFactory.createFilters(filterContext, this.namedFilterDefinitions);;
+        List<FilterAndInvoker> filterChain = currentFactory.createFilters(filterContext, this.namedFilterDefinitions);
+        ;
 
-            filterAndInvokers.addAll(filterChain);
+        filterAndInvokers.addAll(filterChain);
 
         if (endpointBinding.restrictUpstreamToMetadataDiscovery()) {
             filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));

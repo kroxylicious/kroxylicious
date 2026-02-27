@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.OnFailure;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 /**
@@ -42,13 +43,26 @@ public class ConfigurationChangeHandler {
     }
 
     /**
-     * Handles configuration changes detected by the file watcher.
+     * Handles configuration changes with the default {@link OnFailure#ROLLBACK} behavior.
      *
      * @param changeContext the configuration change context containing old and new configurations
      * @return CompletableFuture that completes when the configuration change is processed
      */
     public CompletableFuture<Void> handleConfigurationChange(
                                                              ConfigurationChangeContext changeContext) {
+        return handleConfigurationChange(changeContext, OnFailure.ROLLBACK);
+    }
+
+    /**
+     * Handles configuration changes with the specified failure behavior.
+     *
+     * @param changeContext the configuration change context containing old and new configurations
+     * @param onFailure the behavior when a configuration change fails
+     * @return CompletableFuture that completes when the configuration change is processed
+     */
+    public CompletableFuture<Void> handleConfigurationChange(
+                                                             ConfigurationChangeContext changeContext,
+                                                             OnFailure onFailure) {
         try {
 
             LOGGER.info("Configuration change detected. Old configuration: {} clusters, New configuration: {} clusters",
@@ -68,16 +82,22 @@ public class ConfigurationChangeHandler {
             return processConfigurationChanges(changes, changeContext, rollbackTracker)
                     .whenComplete((result, throwable) -> {
                         if (throwable != null) {
-                            LOGGER.error("Configuration change failed - initiating rollback", throwable);
-                            performRollback(rollbackTracker)
-                                    .whenComplete((rollbackResult, rollbackError) -> {
-                                        if (rollbackError != null) {
-                                            LOGGER.error("CRITICAL: Rollback failed - system may be in inconsistent state", rollbackError);
-                                        }
-                                        else {
-                                            LOGGER.info("Rollback completed successfully - system restored to previous state");
-                                        }
-                                    });
+                            if (onFailure == OnFailure.ROLLBACK) {
+                                LOGGER.error("Configuration change failed - initiating rollback", throwable);
+                                performRollback(rollbackTracker)
+                                        .whenComplete((rollbackResult, rollbackError) -> {
+                                            if (rollbackError != null) {
+                                                LOGGER.error("CRITICAL: Rollback failed - system may be in inconsistent state", rollbackError);
+                                            }
+                                            else {
+                                                LOGGER.info("Rollback completed successfully - system restored to previous state");
+                                            }
+                                        });
+                            }
+                            else {
+                                LOGGER.warn("Configuration change failed with onFailure={} - skipping rollback. {} operations were partially applied",
+                                        onFailure, rollbackTracker.getTotalOperations());
+                            }
                         }
                         else {
                             // SUCCESS LOG: Only logs after ALL operations complete without error
