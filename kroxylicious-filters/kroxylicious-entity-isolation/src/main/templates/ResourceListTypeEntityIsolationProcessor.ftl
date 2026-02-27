@@ -19,17 +19,7 @@ indent      java identation
     <#list children>
         <#items as field>
             <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
-            <#if filteredEntityTypes?seq_contains(field.entityType)>
-        ${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/>) {
-                <#if field.type == 'string'>
-            ${pad}    ${fieldVar}.${setter}(map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
-                <#elseif field.type == '[]string'>
-            ${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream().map(orig -> map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
-                <#else>
-                    <#stop "unexpected field type">
-                </#if>
-        ${pad}}
-            <#elseif field.isResourceList>
+            <#if field.isResourceList>
         ${pad}// process the resource list
         ${pad}${fieldVar}.${getter}().stream()
         ${pad}            .collect(Collectors.toMap(Function.identity(),
@@ -70,31 +60,7 @@ indent             java identation
 ${pad}// process entity fields defined at this level
         <#items as field>
             <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
-            <#if filteredEntityTypes?seq_contains(field.entityType)>
-${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
-                <#if field.type == 'string'>
-${pad}    if (inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}())) {
-${pad}        ${fieldVar}.${setter}(unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
-${pad}    }
-                    <#if collectionIterator?has_content>
-${pad}    else {
-${pad}        ${collectionIterator}.remove();
-${pad}    }
-                    </#if>
-                <#elseif field.type == '[]string'>
-${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream()
-${pad}                        .filter(orig -> inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig))
-${pad}                        .map(orig -> unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
-                    <#if collectionIterator?has_content>
-${pad}    if (!${fieldVar}.${getter}().isEmpty()) {
-${pad}        ${collectionIterator}.remove();
-${pad}    }
-                    </#if>
-                <#else>
-                    <#stop "unexpected field type">
-                </#if>
-${pad}}
-            <#elseif field.isResourceList>
+            <#if field.isResourceList>
 ${pad}// process the resource list
                 <#local collectionIteratorVar=field.name?uncap_first + "Iterator"
                         elementVar=field.type?remove_beginning("[]")?uncap_first />
@@ -102,6 +68,9 @@ ${pad}if (<@inVersionRange "apiVersion", messageSpec.validVersions.intersect(fie
 ${pad}    var ${collectionIteratorVar} = ${fieldVar}.${getter}().iterator();
 ${pad}    while (${collectionIteratorVar}.hasNext()) {
 ${pad}        var ${elementVar} = ${collectionIteratorVar}.next();
+${pad}        // TODO: this is only good for resource lists from use org.apache.kafka.common.config.ConfigResource.Type
+${pad}        // the Kafka ACL system uses different type codes org.apache.kafka.common.resource.ResourceType
+${pad}        // not sure that there is good way to map the RPC name to the type system it uses.             
 ${pad}        EntityIsolation.fromConfigResourceTypeCode(${elementVar}.resourceType())
 ${pad}              .filter(entityType -> shouldMap(entityType))
 ${pad}              .ifPresent(entityType -> {

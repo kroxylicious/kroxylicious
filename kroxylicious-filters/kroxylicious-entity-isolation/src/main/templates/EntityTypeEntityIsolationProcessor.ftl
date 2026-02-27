@@ -83,26 +83,6 @@ ${pad}    }
                     <#stop "unexpected field type">
                 </#if>
 ${pad}}
-            <#elseif field.isResourceList>
-${pad}// process the resource list
-                <#local collectionIteratorVar=field.name?uncap_first + "Iterator"
-                        elementVar=field.type?remove_beginning("[]")?uncap_first />
-${pad}if (<@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
-${pad}    var ${collectionIteratorVar} = ${fieldVar}.${getter}().iterator();
-${pad}    while (${collectionIteratorVar}.hasNext()) {
-${pad}        var ${elementVar} = ${collectionIteratorVar}.next();
-${pad}        EntityIsolation.fromConfigResourceTypeCode(${elementVar}.resourceType())
-${pad}              .filter(entityType -> shouldMap(entityType))
-${pad}              .ifPresent(entityType -> {
-${pad}            if (inNamespace(mapperContext, entityType, ${elementVar}.resourceName())) {
-${pad}                ${elementVar}.setResourceName(unmap(mapperContext, entityType, ${elementVar}.resourceName()));
-${pad}            }
-${pad}            else {
-${pad}                ${collectionIteratorVar}.remove();
-${pad}            }
-${pad}        });
-${pad}    }
-${pad}}
             </#if>
         </#items>
     </#list>
