@@ -150,12 +150,6 @@ class MockServerTlsCredentialSupplierImplementationsTest {
         public FilterDispatchExecutor filterDispatchExecutor() {
             return mock(FilterDispatchExecutor.class);
         }
-
-        @Override
-        @NonNull
-        public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
-            return mock(TlsCredentials.class);
-        }
     }
 
     public static class MockSupplierContext implements ServerTlsCredentialSupplierContext {

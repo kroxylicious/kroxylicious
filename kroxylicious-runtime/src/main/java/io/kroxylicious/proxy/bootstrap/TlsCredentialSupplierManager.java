@@ -20,7 +20,6 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
-import io.kroxylicious.proxy.tls.TlsCredentials;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -34,13 +33,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * </p>
  * <ol>
  *     <li>{@link ServerTlsCredentialSupplierFactory#initialize} - validate config, create shared resources</li>
- *     <li>{@link ServerTlsCredentialSupplierFactory#create} - create supplier instances (called once per connection)</li>
+ *     <li>{@link ServerTlsCredentialSupplierFactory#create} - create a single shared supplier instance</li>
  *     <li>{@link ServerTlsCredentialSupplierFactory#close} - release resources</li>
  * </ol>
  *
  * <p>One manager instance is created per virtual cluster during proxy startup and stored
  * in the {@link io.kroxylicious.proxy.model.VirtualClusterModel}. The factory is initialized
- * once at cluster creation time, and supplier instances are created on-demand for each connection.
+ * once at cluster creation time, and a single shared supplier instance is created eagerly.
+ * The supplier must be thread-safe as it is shared across all connections.
  * The manager follows the per-cluster lifecycle and is closed when the virtual cluster is shut down.
  * {@link PluginConfigurationException} is thrown for invalid plugin configurations at startup.</p>
  */
@@ -48,13 +48,16 @@ public class TlsCredentialSupplierManager implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TlsCredentialSupplierManager.class);
 
+    private static final TlsCredentialSupplierManager UNCONFIGURED = new TlsCredentialSupplierManager();
+
     /**
-     * Wrapper that manages the lifecycle of a single factory instance.
+     * Wrapper that manages the lifecycle of a single factory instance and its shared supplier.
      */
     private static final class FactoryWrapper {
         private final ServerTlsCredentialSupplierFactory<? super Object, ? super Object> factory;
         private final TlsCredentialSupplierDefinition definition;
         private final Object initializationData;
+        private final ServerTlsCredentialSupplier supplier;
         private final AtomicBoolean closed = new AtomicBoolean(false);
 
         private FactoryWrapper(ServerTlsCredentialSupplierFactoryContext context,
@@ -70,21 +73,30 @@ public class TlsCredentialSupplierManager implements AutoCloseable {
                 throw new PluginConfigurationException(
                         "Exception initializing TLS credential supplier factory " + definition.type() + " with config " + config + ": " + e.getMessage(), e);
             }
-        }
 
-        public ServerTlsCredentialSupplier create(ServerTlsCredentialSupplierFactoryContext context) {
-            if (closed.get()) {
-                throw new IllegalStateException("TLS credential supplier factory " + definition.type() + " is closed");
-            }
+            // Eagerly create the shared supplier instance
             try {
-                ServerTlsCredentialSupplier supplier = factory.create(context, initializationData);
-                LOGGER.debug("Created TLS credential supplier instance from factory {}", definition.type());
-                return supplier;
+                this.supplier = factory.create(context, initializationData);
+                LOGGER.debug("Created shared TLS credential supplier instance from factory {}", definition.type());
             }
             catch (Exception e) {
+                // Clean up initialization data if supplier creation fails
+                try {
+                    factory.close(initializationData);
+                }
+                catch (Exception closeEx) {
+                    LOGGER.warn("Exception closing factory after supplier creation failure", closeEx);
+                }
                 throw new PluginConfigurationException(
                         "Exception creating TLS credential supplier " + definition.type() + " using factory " + factory, e);
             }
+        }
+
+        public ServerTlsCredentialSupplier getSupplier() {
+            if (closed.get()) {
+                throw new IllegalStateException("TLS credential supplier factory " + definition.type() + " is closed");
+            }
+            return supplier;
         }
 
         public void close() {
@@ -109,6 +121,22 @@ public class TlsCredentialSupplierManager implements AutoCloseable {
 
     @Nullable
     private final FactoryWrapper factoryWrapper;
+
+    /**
+     * Private no-arg constructor for the unconfigured singleton.
+     */
+    private TlsCredentialSupplierManager() {
+        this.factoryWrapper = null;
+    }
+
+    /**
+     * Returns an unconfigured manager singleton (null-object pattern).
+     *
+     * @return An unconfigured manager where {@link #isConfigured()} returns false
+     */
+    public static TlsCredentialSupplierManager unconfigured() {
+        return UNCONFIGURED;
+    }
 
     /**
      * Creates a TlsCredentialSupplierManager for the given target cluster definition.
@@ -144,12 +172,6 @@ public class TlsCredentialSupplierManager implements AutoCloseable {
                 public FilterDispatchExecutor filterDispatchExecutor() {
                     throw new IllegalStateException("FilterDispatchExecutor not available at factory initialization time");
                 }
-
-                @Override
-                @NonNull
-                public TlsCredentials tlsCredentials(@NonNull java.security.PrivateKey key, @NonNull java.security.cert.Certificate[] certificateChain) {
-                    throw new IllegalStateException("tlsCredentials() not available at factory initialization time");
-                }
             };
 
             FactoryWrapper wrapper = null;
@@ -179,17 +201,18 @@ public class TlsCredentialSupplierManager implements AutoCloseable {
     }
 
     /**
-     * Creates a new {@link ServerTlsCredentialSupplier} instance using the initialized factory.
+     * Returns the shared {@link ServerTlsCredentialSupplier} instance, or null if no factory was configured.
+     * The supplier is created once at initialization time and shared across all connections.
+     * It must be thread-safe.
      *
-     * @param context The factory context for supplier creation
-     * @return A new supplier instance, or null if no factory was configured
+     * @return The shared supplier instance, or null if unconfigured
      */
     @Nullable
-    public ServerTlsCredentialSupplier createSupplier(ServerTlsCredentialSupplierFactoryContext context) {
+    public ServerTlsCredentialSupplier getSupplier() {
         if (factoryWrapper == null) {
             return null;
         }
-        return factoryWrapper.create(context);
+        return factoryWrapper.getSupplier();
     }
 
     /**
