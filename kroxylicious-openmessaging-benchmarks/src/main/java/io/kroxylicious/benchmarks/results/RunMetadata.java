@@ -34,6 +34,14 @@ public class RunMetadata {
             .withZone(ZoneOffset.UTC);
     private static final String DEFAULT_UNKNOWN_VALUE = "unknown";
 
+    /**
+     * Abstraction over external command execution, allowing tests to inject fixed responses.
+     */
+    @FunctionalInterface
+    interface CommandRunner {
+        String run(String command, String... args) throws IOException;
+    }
+
     private RunMetadata() {
     }
 
@@ -44,10 +52,14 @@ public class RunMetadata {
      * @throws IOException if writing fails or git commands fail
      */
     public static void generate(Path outputDir) throws IOException {
+        generate(outputDir, RunMetadata::execCommand);
+    }
+
+    static void generate(Path outputDir, CommandRunner runner) throws IOException {
         Files.createDirectories(outputDir);
 
-        String gitCommit = execCommand("git", "rev-parse", "HEAD");
-        String gitBranch = execCommand("git", "rev-parse", "--abbrev-ref", "HEAD");
+        String gitCommit = runner.run("git", "rev-parse", "HEAD");
+        String gitBranch = runner.run("git", "rev-parse", "--abbrev-ref", "HEAD");
         String timestamp = ISO_UTC.format(Instant.now());
 
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -55,7 +67,7 @@ public class RunMetadata {
         metadata.put("gitBranch", gitBranch);
         metadata.put("timestamp", timestamp);
 
-        Map<String, Object> minikubeProfile = minikubeProfileConfig();
+        Map<String, Object> minikubeProfile = minikubeProfileConfig(runner);
         if (!minikubeProfile.isEmpty()) {
             metadata.put("minikubeProfile", minikubeProfile);
         }
@@ -65,10 +77,10 @@ public class RunMetadata {
         MAPPER.writerWithDefaultPrettyPrinter().writeValue(metadataFile.toFile(), metadata);
     }
 
-    private static Map<String, Object> minikubeProfileConfig() {
+    private static Map<String, Object> minikubeProfileConfig(CommandRunner runner) {
         Map<String, Object> config = new LinkedHashMap<>();
         try {
-            String json = execCommand("minikube", "profile", "list", "-o", "json");
+            String json = runner.run("minikube", "profile", "list", "-o", "json");
             JsonNode root = MAPPER.readTree(json);
             JsonNode valid = root.path("valid");
             if (!valid.isArray() || valid.isEmpty()) {
@@ -98,14 +110,15 @@ public class RunMetadata {
         info.put("osArch", System.getProperty("os.arch"));
         info.put("logicalCpus", Runtime.getRuntime().availableProcessors());
         if (System.getProperty("os.name", "").startsWith("Linux")) {
-            parseProcEntries(info);
+            info.putAll(parseProcEntries(Path.of("/proc/cpuinfo"), Path.of("/proc/meminfo")));
         }
         return info;
     }
 
-    private static void parseProcEntries(Map<String, Object> info) {
+    static Map<String, Object> parseProcEntries(Path cpuInfoPath, Path memInfoPath) {
+        Map<String, Object> info = new LinkedHashMap<>();
         try {
-            List<String> cpuInfo = Files.readAllLines(Path.of("/proc/cpuinfo"), StandardCharsets.UTF_8);
+            List<String> cpuInfo = Files.readAllLines(cpuInfoPath, StandardCharsets.UTF_8);
             cpuInfo.stream()
                     .filter(l -> l.startsWith("model name"))
                     .findFirst()
@@ -116,7 +129,7 @@ public class RunMetadata {
                     .findFirst()
                     .map(l -> l.substring(l.indexOf(':') + 1).trim())
                     .ifPresent(mhz -> info.put("cpuMhz", mhz));
-            Files.readAllLines(Path.of("/proc/meminfo"), StandardCharsets.UTF_8).stream()
+            Files.readAllLines(memInfoPath, StandardCharsets.UTF_8).stream()
                     .filter(l -> l.startsWith("MemTotal:"))
                     .findFirst()
                     .ifPresent(l -> {
@@ -129,6 +142,7 @@ public class RunMetadata {
         catch (Exception e) {
             // /proc not available or unreadable
         }
+        return info;
     }
 
     @SuppressFBWarnings(value = "COMMAND_INJECTION", justification = "command arguments are hardcoded string literals, not user input")
