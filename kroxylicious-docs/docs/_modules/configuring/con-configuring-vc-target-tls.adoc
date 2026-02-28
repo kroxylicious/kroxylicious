@@ -149,6 +149,38 @@ virtualClusters:
 ----
 <1> List of disallowed cipher suites.
 
+For advanced use cases requiring per-client certificate selection, you can configure a TLS credential supplier.
+A TLS credential supplier is a pluggable component that dynamically provides TLS credentials based on the
+connection context, allowing different certificates to be used for different clients or connections.
+
+.Example configuring a TLS credential supplier
+[source,yaml]
+----
+virtualClusters:
+  - name: my-cluster-proxy
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        tlsCredentialSupplier:
+          type: MyCredentialSupplier  # <1>
+          config:  # <2>
+            path: /etc/certs
+            refreshInterval: 60s
+# ...
+----
+<1> The type of TLS credential supplier (references a ServerTlsCredentialSupplierFactory implementation).
+<2> Optional supplier-specific configuration.
+
+NOTE: The `tlsCredentialSupplier` configuration is optional and follows the same pattern as filter configuration
+with a `type` field identifying the supplier implementation and an optional `config` object for supplier-specific settings.
+
+IMPORTANT: The `key` and `tlsCredentialSupplier` properties are mutually exclusive. Use `key` for static credentials,
+or `tlsCredentialSupplier` for dynamic per-connection credential selection, but not both.
+
+Supplier implementations must be thread-safe, as a single instance is shared across all connections to the virtual cluster.
+Implementations must not block the calling thread; the `tlsCredentials()` method returns a `CompletionStage` for
+asynchronous credential resolution.
+
 For the purposes of testing (that is, outside a production environment), you can set the `insecure` property to `true`
 to disable TLS trust checks (hostname verification and certificate validation) so that the Kroxylicious can connect to
 any Kafka cluster.

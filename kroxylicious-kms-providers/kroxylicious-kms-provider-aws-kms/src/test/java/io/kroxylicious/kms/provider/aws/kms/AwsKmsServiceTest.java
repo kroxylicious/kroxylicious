@@ -96,7 +96,7 @@ class AwsKmsServiceTest {
         var validButUnusualCipherSuite = "TLS_EMPTY_RENEGOTIATION_INFO_SCSV"; // Valid suite, but not a true cipher
         var config = new Config(URI.create("https://host.invalid"),
                 longTermCredentialsProviderConfig, null, "us-east1", new Tls(null, null, new AllowDeny<>(
-                        List.of(validButUnusualCipherSuite), null), null));
+                        List.of(validButUnusualCipherSuite), null), null, null));
         awsKmsService.initialize(
                 config);
         var kms = awsKmsService.buildKms();

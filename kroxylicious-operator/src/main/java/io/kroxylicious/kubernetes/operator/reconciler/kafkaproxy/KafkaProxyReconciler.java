@@ -328,7 +328,8 @@ public class KafkaProxyReconciler implements
                         new Tls(keyProviderOpt.orElse(null),
                                 trustProvider.orElse(null),
                                 buildCipherSuites(ingressTls.getCipherSuites()).orElse(null),
-                                buildProtocols(ingressTls.getProtocols()).orElse(null))));
+                                buildProtocols(ingressTls.getProtocols()).orElse(null),
+                                null)));
     }
 
     private static ConfigurationFragment<TargetCluster> buildTargetCluster(KafkaService kafkaServiceRef) {
@@ -353,7 +354,8 @@ public class KafkaProxyReconciler implements
                                 new Tls(keyProviderOpt.orElse(null),
                                         trustProvider.orElse(null),
                                         buildCipherSuites(serviceTls.getCipherSuites()).orElse(null),
-                                        buildProtocols(serviceTls.getProtocols()).orElse(null)))))
+                                        buildProtocols(serviceTls.getProtocols()).orElse(null),
+                                        null))))
                 .orElse(ConfigurationFragment.empty());
     }
 

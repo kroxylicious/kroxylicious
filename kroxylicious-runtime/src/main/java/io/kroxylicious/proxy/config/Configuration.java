@@ -126,7 +126,8 @@ public record Configuration(
     }
 
     private static VirtualClusterModel toVirtualClusterModel(VirtualCluster virtualCluster,
-                                                             List<NamedFilterDefinition> filterDefinitions) {
+                                                             List<NamedFilterDefinition> filterDefinitions,
+                                                             PluginFactoryRegistry pfr) {
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
                 virtualCluster.targetCluster(),
@@ -134,7 +135,8 @@ public record Configuration(
                 virtualCluster.logFrames(),
                 filterDefinitions,
                 virtualCluster.topicNameCacheConfig(),
-                virtualCluster.subjectBuilder());
+                virtualCluster.subjectBuilder(),
+                pfr);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
@@ -158,7 +160,7 @@ public record Configuration(
         return useIoUring();
     }
 
-    public List<VirtualClusterModel> virtualClusterModel() {
+    public List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
         var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
                 .stream()
                 .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
@@ -166,7 +168,7 @@ public record Configuration(
         return virtualClusters.stream()
                 .map(virtualCluster -> {
                     List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
-                    return toVirtualClusterModel(virtualCluster, filterDefinitions);
+                    return toVirtualClusterModel(virtualCluster, filterDefinitions, pfr);
                 })
                 .toList();
     }

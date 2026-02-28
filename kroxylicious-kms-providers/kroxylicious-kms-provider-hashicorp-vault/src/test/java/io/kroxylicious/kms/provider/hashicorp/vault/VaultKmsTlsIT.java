@@ -117,7 +117,7 @@ class VaultKmsTlsIT {
         CertificateGenerator.KeyStore keyStore = clientKeys.jksServerKeystore();
         VaultKms service = getTlsVaultKms(
                 new Tls(new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), new InlinePassword(keyStore.keyPassword()), "JKS"),
-                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null), null, null),
+                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null), null, null, null),
                 testVault.getEndpoint());
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)

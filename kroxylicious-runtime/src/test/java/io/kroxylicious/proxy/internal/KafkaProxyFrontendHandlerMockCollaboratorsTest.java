@@ -42,6 +42,7 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -335,5 +336,50 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Then
         assertThat(proxyChannelStateMachine.getKafkaSession().currentState())
                 .isEqualTo(KafkaSessionState.ESTABLISHING);
+    }
+
+    // --- TLS credential supplier tests ---
+
+    @Test
+    void applySslContextToChannelRejectsNonTlsCredentialsImpl() {
+        // Given
+        io.kroxylicious.proxy.tls.TlsCredentials badCreds = mock(io.kroxylicious.proxy.tls.TlsCredentials.class);
+        Channel channel = mock(Channel.class);
+        ChannelPipeline pipeline = mock(ChannelPipeline.class);
+        HostPort remote = new HostPort("localhost", 9092);
+
+        // When
+        handler.applySslContextToChannel(badCreds, remote, channel, pipeline);
+
+        // Then - should report error to state machine
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(proxyChannelStateMachine).onServerException(captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unexpected TlsCredentials implementation");
+    }
+
+    @Test
+    void applySslContextToChannelAddsSslHandlerWithValidCredentials() throws Exception {
+        // Given
+        var keyAndCert = io.kroxylicious.proxy.internal.tls.TestCertificateUtil.generateKeyStoreAndCert();
+        var creds = new io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl(
+                keyAndCert.privateKey(), new java.security.cert.X509Certificate[]{ keyAndCert.cert() });
+
+        io.netty.channel.embedded.EmbeddedChannel channel = new io.netty.channel.embedded.EmbeddedChannel();
+        HostPort remote = new HostPort("localhost", 9092);
+
+        // Configure virtualCluster to have no TLS config (no cipher/protocol/trust overrides)
+        when(virtualCluster.targetCluster()).thenReturn(mock(io.kroxylicious.proxy.config.TargetCluster.class));
+        when(virtualCluster.targetCluster().tls()).thenReturn(Optional.empty());
+
+        // When
+        handler.applySslContextToChannel(creds, remote, channel, channel.pipeline());
+
+        // Then - SSL handler should be added to pipeline
+        assertThat(channel.pipeline().get("ssl")).isNotNull();
+        verify(proxyChannelStateMachine, never()).onServerException(any());
+
+        channel.close();
     }
 }

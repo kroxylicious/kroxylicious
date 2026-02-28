@@ -154,7 +154,7 @@ class VirtualClusterListenerModelTest {
     @MethodSource("clientAuthSettings")
     void shouldRequireDownstreamClientAuth(TlsClientAuth clientAuth, Consumer<SSLEngine> sslEngineAssertions) {
         // Given
-        var downstreamTls = Optional.of(new Tls(keyPair, new TrustStore(client, PASSWORD_PROVIDER, null, new ServerOptions(clientAuth)), null, null));
+        var downstreamTls = Optional.of(new Tls(keyPair, new TrustStore(client, PASSWORD_PROVIDER, null, new ServerOptions(clientAuth)), null, null, null));
         var nodeIdentificationStrategy = createTestNodeIdentificationStrategy();
 
         // When
