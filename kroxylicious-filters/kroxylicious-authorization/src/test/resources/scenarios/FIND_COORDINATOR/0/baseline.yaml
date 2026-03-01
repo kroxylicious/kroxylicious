@@ -19,7 +19,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        key: "random-string-715"
+        key: "my-group"
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
@@ -30,8 +30,8 @@ given:
   authorizerRules:
     allowed:
       - subject: "alice"
-        resourceName: "my-topic"
-        resourceClass: "TOPIC"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
         resourceType: "DESCRIBE"
   topicNames: null
 when:
@@ -42,9 +42,8 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    key: "random-string-715"
+    key: "my-group"
 then:
-  expectAuthorizationOutcomeLog: false
   expectedResponseHeader:
     correlationId: 1
   expectedResponse:

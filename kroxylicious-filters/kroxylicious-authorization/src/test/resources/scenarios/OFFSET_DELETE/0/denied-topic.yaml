@@ -17,6 +17,10 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "READ"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DELETE"
   topicNames: null
 when:
   subject: "alice"

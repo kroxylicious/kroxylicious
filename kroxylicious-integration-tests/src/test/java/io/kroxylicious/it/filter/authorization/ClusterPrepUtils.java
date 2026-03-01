@@ -11,11 +11,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
@@ -128,6 +130,16 @@ final class ClusterPrepUtils {
                 return false;
             }
             throw new RuntimeException(ce);
+        }
+    }
+
+    public static void deleteAllConsumerGroups(Admin admin) {
+        try {
+            List<String> groupIds = admin.listGroups().all().get(10, TimeUnit.SECONDS).stream().map(GroupListing::groupId).toList();
+            admin.deleteConsumerGroups(groupIds).all().get(10, TimeUnit.SECONDS);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

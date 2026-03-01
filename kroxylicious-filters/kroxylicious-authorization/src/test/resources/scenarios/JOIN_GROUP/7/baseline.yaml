@@ -19,7 +19,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        groupId: "random-string-752"
+        groupId: "my-group"
         sessionTimeoutMs: 753
         rebalanceTimeoutMs: 984
         memberId: "random-string-10"
@@ -47,9 +47,9 @@ given:
   authorizerRules:
     allowed:
       - subject: "alice"
-        resourceName: "my-topic"
-        resourceClass: "TOPIC"
-        resourceType: "DESCRIBE"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
   topicNames: null
 when:
   subject: "alice"
@@ -59,7 +59,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    groupId: "random-string-752"
+    groupId: "my-group"
     sessionTimeoutMs: 753
     rebalanceTimeoutMs: 984
     memberId: "random-string-10"

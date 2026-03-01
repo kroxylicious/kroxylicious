@@ -1,0 +1,37 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_DELETE"
+  apiVersion: 0
+  scenario: "group denied, request not forwarded, filter responds with error"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: # alice is not allowed to DELETE my-group
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 47
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "my-group"
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 1
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedErrorResponse: "GROUP_AUTHORIZATION_FAILED"

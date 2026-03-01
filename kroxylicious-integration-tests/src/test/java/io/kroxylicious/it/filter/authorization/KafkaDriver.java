@@ -7,6 +7,7 @@
 package io.kroxylicious.it.filter.authorization;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -20,6 +21,10 @@ import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.JoinGroupResponseData;
+import org.apache.kafka.common.message.LeaveGroupRequestData;
+import org.apache.kafka.common.message.LeaveGroupResponseData;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.message.OffsetCommitResponseData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.SyncGroupResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -47,6 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * until a coordinator is available.
  */
 class KafkaDriver {
+    public static final String JOIN_GROUP_PROTOCOL_NAME = "proto";
     private final BaseClusterFixture cluster;
     private final KafkaClient kafkaClient;
     private final String username;
@@ -93,7 +99,19 @@ class KafkaDriver {
             result.setReason("Hello, world");
         }
         result.setProtocolType(protocolType);
-        result.protocols().add(new JoinGroupRequestData.JoinGroupRequestProtocol().setName("proto").setMetadata(new byte[]{ 1 }));
+        result.protocols().add(new JoinGroupRequestData.JoinGroupRequestProtocol().setName(JOIN_GROUP_PROTOCOL_NAME).setMetadata(new byte[]{ 1 }));
+        return result;
+    }
+
+    private static LeaveGroupRequestData leaveGroupRequestData(short leaveGroupVersion, String groupId, String memberId, String groupInstanceId) {
+        LeaveGroupRequestData result = new LeaveGroupRequestData();
+        result.setGroupId(groupId);
+        if (leaveGroupVersion < 3) {
+            result.setMemberId(memberId);
+        }
+        else {
+            result.setMembers(List.of(new LeaveGroupRequestData.MemberIdentity().setMemberId(memberId).setGroupInstanceId(groupInstanceId)));
+        }
         return result;
     }
 
@@ -137,6 +155,20 @@ class KafkaDriver {
             JoinGroupResponseData response = sendRequest(request, joinGroupVersion, JoinGroupResponseData.class);
             assertThat(Errors.forCode(response.errorCode()))
                     .as("JoinGroup response from %s", cluster)
+                    .isEqualTo(Errors.NONE);
+            finalResponse.set(response);
+        });
+        return finalResponse.get();
+    }
+
+    LeaveGroupResponseData leaveGroup(String groupId, String memberId, String groupInstanceId) {
+        short leaveGroupVersion = (short) 5;
+        AtomicReference<LeaveGroupResponseData> finalResponse = new AtomicReference<>();
+        Awaitility.await().pollInterval(20, MILLISECONDS).untilAsserted(() -> {
+            LeaveGroupRequestData request = leaveGroupRequestData(leaveGroupVersion, groupId, memberId, groupInstanceId);
+            LeaveGroupResponseData response = sendRequest(request, leaveGroupVersion, LeaveGroupResponseData.class);
+            assertThat(Errors.forCode(response.errorCode()))
+                    .as("LeaveGroup response from %s", cluster)
                     .isEqualTo(Errors.NONE);
             finalResponse.set(response);
         });
@@ -232,5 +264,29 @@ class KafkaDriver {
         AddOffsetsToTxnResponseData response = sendRequest(request, (short) 4, AddOffsetsToTxnResponseData.class);
         assertThat(Errors.forCode(response.errorCode())).isEqualTo(Errors.NONE);
         return response;
+    }
+
+    public void commitOffsets(String group, String memberId, String groupInstanceId, int generation, String topicName, Map<Integer, Integer> offsets) {
+        OffsetCommitRequestData offsetCommitRequestData = new OffsetCommitRequestData();
+        offsetCommitRequestData.setGroupId(group);
+        offsetCommitRequestData.setMemberId(memberId);
+        offsetCommitRequestData.setGroupInstanceId(groupInstanceId);
+        offsetCommitRequestData.setGenerationIdOrMemberEpoch(generation);
+        OffsetCommitRequestData.OffsetCommitRequestTopic offsetTopic = new OffsetCommitRequestData.OffsetCommitRequestTopic();
+        offsetTopic.setName(topicName);
+        offsets.forEach((partitionId, offset) -> {
+            OffsetCommitRequestData.OffsetCommitRequestPartition partition = new OffsetCommitRequestData.OffsetCommitRequestPartition();
+            partition.setPartitionIndex(partitionId);
+            partition.setCommittedOffset(offset);
+            offsetTopic.partitions().add(partition);
+        });
+        offsetCommitRequestData.topics().add(offsetTopic);
+        // note we use topic name and v9 because the authz filter doesn't handle topicIds yet
+        OffsetCommitResponseData response = sendRequest(offsetCommitRequestData, (short) 9, OffsetCommitResponseData.class);
+        assertThat(response.topics()).isNotEmpty().allSatisfy(responseTopic -> {
+            assertThat(responseTopic.partitions()).isNotEmpty().allSatisfy(responsePartition -> {
+                assertThat(Errors.forCode(responsePartition.errorCode())).isEqualTo(Errors.NONE);
+            });
+        });
     }
 }

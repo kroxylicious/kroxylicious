@@ -20,7 +20,7 @@ given:
         clientId: "client-id"
       expectedRequest:
         resources:
-          - resourceType: 3
+          - resourceType: 0
             resourceName: "my-group"
             configs:
               - name: "random-string-433"
@@ -33,7 +33,7 @@ given:
         responses:
           - errorCode: 887
             errorMessage: "random-string-684"
-            resourceType: 3
+            resourceType: 0
             resourceName: "my-group"
   authorizerRules:
     allowed:
@@ -51,7 +51,7 @@ when:
     clientId: "client-id"
   request:
     resources:
-      - resourceType: 3
+      - resourceType: 0
         resourceName: "my-group"
         configs:
           - name: "random-string-433"
@@ -66,5 +66,5 @@ then:
     responses:
       - errorCode: 887
         errorMessage: "random-string-684"
-        resourceType: 3
+        resourceType: 0
         resourceName: "my-group"

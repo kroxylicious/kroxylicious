@@ -73,10 +73,13 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.CREATE_TOPICS, new CreateTopicsEnforcement());
         apiEnforcement.put(ApiKeys.CREATE_PARTITIONS, new CreatePartitionsEnforcement());
         apiEnforcement.put(ApiKeys.DELETE_TOPICS, new DeleteTopicsEnforcement());
+        apiEnforcement.put(ApiKeys.DELETE_GROUPS, new DeleteGroupsEnforcement());
         apiEnforcement.put(ApiKeys.DELETE_RECORDS, new DeleteRecordsEnforcement());
         apiEnforcement.put(ApiKeys.DESCRIBE_PRODUCERS, new DescribeProducersEnforcement());
+        apiEnforcement.put(ApiKeys.HEARTBEAT, new HeartbeatEnforcement());
 
         apiEnforcement.put(ApiKeys.LIST_OFFSETS, new ListOffsetsEnforcement());
+        apiEnforcement.put(ApiKeys.LIST_GROUPS, new ListGroupsEnforcement());
 
         apiEnforcement.put(ApiKeys.FETCH, new FetchEnforcement());
         apiEnforcement.put(ApiKeys.OFFSET_COMMIT, new OffsetCommitEnforcement());
@@ -87,8 +90,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.TXN_OFFSET_COMMIT, new TxnOffsetCommitEnforcement());
 
         apiEnforcement.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEnforcement());
-        apiEnforcement.put(ApiKeys.JOIN_GROUP, new Passthrough<>(0, 9));
-        apiEnforcement.put(ApiKeys.SYNC_GROUP, new Passthrough<>(0, 5));
+        apiEnforcement.put(ApiKeys.JOIN_GROUP, new JoinGroupEnforcement());
+        apiEnforcement.put(ApiKeys.SYNC_GROUP, new SyncGroupEnforcement());
+        apiEnforcement.put(ApiKeys.LEAVE_GROUP, new LeaveGroupEnforcement());
         apiEnforcement.put(ApiKeys.CONSUMER_GROUP_HEARTBEAT, new ConsumerGroupHeartbeatEnforcement());
         apiEnforcement.put(ApiKeys.INIT_PRODUCER_ID, new InitProducerIdEnforcement());
         apiEnforcement.put(ApiKeys.ADD_PARTITIONS_TO_TXN, new AddPartitionsToTxnEnforcement());
@@ -99,7 +103,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         apiEnforcement.put(ApiKeys.ALTER_CONFIGS, new AlterConfigsEnforcement());
         apiEnforcement.put(ApiKeys.INCREMENTAL_ALTER_CONFIGS, new IncrementalAlterConfigsEnforcement());
         apiEnforcement.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, new ConsumerGroupDescribeEnforcement());
-        apiEnforcement.put(ApiKeys.DESCRIBE_GROUPS, new Passthrough<>(0, 6));
+        apiEnforcement.put(ApiKeys.DESCRIBE_GROUPS, new DescribeGroupsEnforcement());
         apiEnforcement.put(ApiKeys.DESCRIBE_TRANSACTIONS, new DescribeTransactionsEnforcement());
         apiEnforcement.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEnforcement());
     }
