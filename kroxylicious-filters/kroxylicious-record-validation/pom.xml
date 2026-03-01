@@ -58,16 +58,6 @@
         </dependency>
         <dependency>
             <groupId>io.apicurio</groupId>
-            <artifactId>apicurio-registry-schema-resolver</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.projectlombok</groupId>
-                    <artifactId>lombok</artifactId>
-                </exclusion>
-            </exclusions> 
-        </dependency>
-        <dependency>
-            <groupId>io.apicurio</groupId>
             <artifactId>apicurio-registry-schema-validation-jsonschema</artifactId>
         </dependency>
         <dependency>
@@ -128,6 +118,24 @@
         <dependency>
             <groupId>io.apicurio</groupId>
             <artifactId>apicurio-registry-serde-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.apicurio</groupId>
+            <artifactId>apicurio-registry-serde-kafka-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.apicurio</groupId>
+            <artifactId>apicurio-registry-schema-resolver</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.kiota</groupId>
+                    <artifactId>kiota-http-vertx</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.kiota</groupId>
+            <artifactId>kiota-http-jdk</artifactId>
         </dependency>
     </dependencies>
 
