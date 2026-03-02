@@ -155,7 +155,7 @@ jobs:
               '$ARGS.named' > RELEASE_STATE.json
 
       - name: 'Archive release state (used by the promote workflow)'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: RELEASE_STATE.json
           path: RELEASE_STATE.json
