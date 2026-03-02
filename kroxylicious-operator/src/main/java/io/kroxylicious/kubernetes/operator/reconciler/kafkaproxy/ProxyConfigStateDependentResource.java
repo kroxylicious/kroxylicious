@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.processing.dependent.kubernetes.BooleanWithUndefined;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
@@ -32,7 +33,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 /**
  * Generates a Kube {@code ConfigMap} containing some internal state related to proxy configuration.
  */
-@KubernetesDependent
+@KubernetesDependent(useSSA = BooleanWithUndefined.TRUE)
 public class ProxyConfigStateDependentResource
         extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
 
