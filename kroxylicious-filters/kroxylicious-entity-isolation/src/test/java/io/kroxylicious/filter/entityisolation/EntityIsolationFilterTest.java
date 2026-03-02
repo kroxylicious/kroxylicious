@@ -7,156 +7,198 @@
 package io.kroxylicious.filter.entityisolation;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiMessageType;
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.RequestHeaderDataJsonConverter;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderDataJsonConverter;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.flipkart.zjsonpatch.JsonDiff;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.reflect.ClassPath;
-import com.google.common.reflect.ClassPath.ResourceInfo;
 
-import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
-import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
+import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.requestConverterFor;
-import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mock.Strictness.LENIENT;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIsolationFilterTest {
+    private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
+
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
             String.format("%s/[A-Z_]+/\\d+/.*\\.yaml", EntityIsolationFilterTest.class.getPackageName().replace(".", "/")));
-    private static final String TENANT_1 = "tenant1";
 
-    private static List<ResourceInfo> getTestResources() throws IOException {
-        var resources = ClassPath.from(EntityIsolationFilterTest.class.getClassLoader()).getResources().stream()
+    static Stream<Arguments> scenarios() throws Exception {
+        List<ClassPath.ResourceInfo> resources = ClassPath.from(EntityIsolationFilterTest.class.getClassLoader()).getResources().stream()
                 .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches()).toList();
-        checkState(!resources.isEmpty(), "no test resource files found on classpath matching %s", TEST_RESOURCE_FILTER);
-
-        return resources;
+        return resources.stream()
+                .map(resourceInfo -> {
+                    try {
+                        ScenarioDefinition scenarioDefinition = MAPPER.reader().readValue(resourceInfo.asByteSource().read(), ScenarioDefinition.class);
+                        return Arguments.argumentSet(resourceInfo.getResourceName(), scenarioDefinition);
+                    }
+                    catch (IOException e) {
+                        throw new UncheckedIOException("Failed to unmarshall" + resourceInfo, e);
+                    }
+                });
     }
 
-    private final EntityIsolationFilter filter = new EntityIsolationFilter(
-            Set.of(EntityIsolation.ResourceType.GROUP_ID, EntityIsolation.ResourceType.TRANSACTIONAL_ID),
-            new EntityNameMapper() {
-                @Override
-                public String map(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String unmappedResourceName) {
-                    return TENANT_1 + "-" + unmappedResourceName;
-                }
+    private static EntityNameMapper createEntityMapper(String subject) {
+        return new EntityNameMapper() {
+            @Override
+            public String map(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String unmappedResourceName) {
+                return subject + "-" + unmappedResourceName;
+            }
 
-                @Override
-                public String unmap(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String mappedResourceName) {
-                    var prefix = TENANT_1 + "-";
-                    boolean hasPrefix = mappedResourceName.startsWith(prefix);
-                    return hasPrefix ? mappedResourceName.substring(prefix.length()) : mappedResourceName;
-                }
+            @Override
+            public String unmap(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String mappedResourceName) {
+                var prefix = subject + "-";
+                boolean hasPrefix = mappedResourceName.startsWith(prefix);
+                return hasPrefix ? mappedResourceName.substring(prefix.length()) : mappedResourceName;
+            }
 
-                @Override
-                public boolean isInNamespace(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String mappedResourceName) {
-                    var prefix = TENANT_1 + "-";
-                    return mappedResourceName.startsWith(prefix);
-                }
-            });
-
-    private final FilterInvoker invoker = getOnlyElement(FilterAndInvoker.build(((Filter) filter).getClass().getSimpleName(), filter)).invoker();
-
-    @Mock(strictness = LENIENT)
-    private FilterContext context;
-
-    @Captor
-    private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
-
-    @Mock(strictness = LENIENT)
-    private RequestFilterResult requestFilterResult;
-    @Captor
-    private ArgumentCaptor<ResponseHeaderData> responseHeaderDataArgumentCaptor;
-    @Mock(strictness = LENIENT)
-    private ResponseFilterResult responseFilterResult;
-
-    @Captor
-    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
-
-    public static Stream<Arguments> requests() throws Exception {
-        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.request() != null)
-                .map(td -> Arguments.argumentSet(td.testName(), td.apiKey(), td.header(), td.request()));
+            @Override
+            public boolean isInNamespace(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String mappedResourceName) {
+                var prefix = subject + "-";
+                return mappedResourceName.startsWith(prefix);
+            }
+        };
     }
 
     @ParameterizedTest
-    @MethodSource(value = "requests")
-    void requestsTransformed(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef)
-            throws Exception {
-        var request = requestTestDef.message();
-        // marshalled the request object back to json, this is used for the comparison later.
-        var requestWriter = requestConverterFor(apiMessageType).writer();
-        var marshalled = requestWriter.apply(request, header.requestApiVersion());
+    @MethodSource("scenarios")
+    void shouldIsolate(ScenarioDefinition definition) throws Exception {
+        var entityMapper = createEntityMapper(definition.when().subject());
+        var isolationFilter = new EntityIsolationFilter(definition.given().resourceTypes(), entityMapper);
+        ApiKeys apiKeys = definition.metadata().apiKeys();
+        short version = definition.metadata().apiVersion();
+        short requestHeaderVersion = apiKeys.requestHeaderVersion(version);
+        MockUpstream mockUpstream = new MockUpstream(definition.given().mockedUpstreamResponses());
 
-        when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
-        when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
-        when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(requestFilterResult));
+        ApiMessage request = KafkaApiMessageConverter.requestConverterFor(apiKeys.messageType).reader().apply(definition.when().request(), version);
+        RequestHeaderData requestHeader = RequestHeaderDataJsonConverter.read(definition.when().requestHeader(), requestHeaderVersion);
 
-        var stage = invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
-        assertThat(stage).isCompleted();
-        var forward = stage.toCompletableFuture().get().message();
-
-        var filtered = requestWriter.apply(forward, header.requestApiVersion());
-        assertEquals(requestTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
+        Map<Uuid, String> topicNames = Optional.ofNullable(definition.given().topicNames()).orElse(Map.of());
+        Subject subject = new Subject(new User(definition.when().subject()));
+        FilterContext context = new MockFilterContext(requestHeader, request, subject, topicNames, mockUpstream);
+        CompletionStage<RequestFilterResult> stage = isolationFilter.onRequest(apiKeys, version, requestHeader, request, context);
+        ScenarioDefinition.RequestError expectedRequestError = definition.then().expectedRequestError();
+        if (expectedRequestError != null) {
+            assertThat(stage).failsWithin(0, TimeUnit.SECONDS)
+                    .withThrowableThat()
+                    .havingCause().isInstanceOf(expectedRequestError.getCauseType())
+                    .withMessage(expectedRequestError.withCauseMessage());
+        }
+        else {
+            handleRequestForward(definition, stage, mockUpstream, subject, topicNames, isolationFilter, apiKeys, version);
+        }
+        if (!mockUpstream.isFinished()) {
+            throw new IllegalStateException("test has finished, but mock responses are still queued");
+        }
     }
 
-    public static Stream<Arguments> responses() throws Exception {
-        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.response() != null)
-                .map(td -> Arguments.argumentSet(td.testName(), td.apiKey(), td.header(), td.response()));
+    private static void handleRequestForward(ScenarioDefinition definition, CompletionStage<RequestFilterResult> stage, MockUpstream mockUpstream, Subject subject,
+                                             Map<Uuid, String> topicNames, EntityIsolationFilter isolationFilter, ApiKeys apiKeys, short version) {
+        RequestFilterResult actual = assertThat(stage).succeedsWithin(Duration.ZERO).actual();
+        if (actual.drop()) {
+            if (!mockUpstream.isFinished()) {
+                throw new IllegalStateException("mock upstream still has responses queued, but request was dropped by filter");
+            }
+            assertThat(definition.then().isExpectRequestDropped()).isTrue();
+        }
+        else {
+            if (!actual.shortCircuitResponse()) {
+                if (mockUpstream.isFinished()) {
+                    throw new IllegalStateException("mock upstream has no responses queued, but filter forwarded request");
+                }
+                ApiMessage forwardedMessage = Objects.requireNonNull(actual.message());
+                ApiMessage forwardedHeader = Objects.requireNonNull(actual.header());
+                MockUpstream.Response response = mockUpstream.respond((RequestHeaderData) forwardedHeader, forwardedMessage);
+                if (definition.then().getHasResponse()) {
+                    MockFilterContext responseContext = new MockFilterContext(response.header(), response.message(), subject, topicNames, mockUpstream);
+                    CompletionStage<ResponseFilterResult> filterResultCompletionStage = isolationFilter.onResponse(apiKeys, version, response.header(),
+                            response.message(),
+                            responseContext);
+                    ResponseFilterResult responseResult = assertThat(filterResultCompletionStage).succeedsWithin(Duration.ZERO).actual();
+                    if (responseResult.drop()) {
+                        assertThat(definition.then().expectedResponse()).isNull();
+                        assertThat(definition.then().expectedResponseHeader()).isNull();
+                    }
+                    else {
+                        String actualMessage = toYaml(
+                                KafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(responseResult.message(), version));
+                        ApiMessage header = Objects.requireNonNull(responseResult.header());
+                        String actualHeader = toYaml(ResponseHeaderDataJsonConverter.write((ResponseHeaderData) header, apiKeys.responseHeaderVersion(version)));
+                        assertThat(actualMessage)
+                                .as("Body of response to client")
+                                .isEqualTo(toYaml(definition.then().expectedResponse()));
+                        assertThat(actualHeader)
+                                .as("Header of response to client")
+                                .isEqualTo(toYaml(definition.then().expectedResponseHeader()));
+                    }
+                }
+                else {
+                    assertThat(response).isNull();
+                }
+            }
+            else {
+                if (!mockUpstream.isFinished()) {
+                    throw new IllegalStateException("mock upstream still has responses queued, but filter short circuit responded");
+                }
+                if (definition.then().expectedErrorResponse() != null) {
+                    assertThat(actual).isInstanceOfSatisfying(MockFilterContext.ErrorRequestFilterResult.class,
+                            result -> assertThat(result.apiException()).isEqualTo(definition.then().expectedErrorResponse().exception()));
+                }
+                else {
+                    assertThat(actual)
+                            .withFailMessage("request unexpectedly resulted in a short-circuit error response")
+                            .isNotInstanceOf(MockFilterContext.ErrorRequestFilterResult.class);
+                    if (definition.then().expectedResponseHeader() != null) {
+                        ApiMessage forwardedHeader = Objects.requireNonNull(actual.header());
+                        String actualHeader = toYaml(
+                                ResponseHeaderDataJsonConverter.write((ResponseHeaderData) forwardedHeader, apiKeys.responseHeaderVersion(version)));
+                        assertThat(actualHeader).isEqualTo(toYaml(definition.then().expectedResponseHeader()));
+                    }
+                    if (definition.then().expectedResponse() != null) {
+                        ApiMessage forwardedMessage = Objects.requireNonNull(actual.message());
+                        String actualMessage = toYaml(KafkaApiMessageConverter.responseConverterFor(apiKeys.messageType).writer().apply(forwardedMessage, version));
+                        assertThat(actualMessage).isEqualTo(toYaml(definition.then().expectedResponse()));
+                    }
+                }
+            }
+        }
     }
 
-    @ParameterizedTest
-    @MethodSource(value = "responses")
-    void responseTransformed(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef)
-            throws Exception {
-        var response = responseTestDef.message();
-        // marshalled the response object back to json, this is used for comparison later.
-        var responseWriter = responseConverterFor(apiMessageType).writer();
-
-        var marshalled = responseWriter.apply(response, header.requestApiVersion());
-
-        when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
-        when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataArgumentCaptor.getValue());
-        when(context.forwardResponse(responseHeaderDataArgumentCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(responseFilterResult));
-
-        ResponseHeaderData headerData = new ResponseHeaderData();
-        var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
-        assertThat(stage).isCompleted();
-        var forward = stage.toCompletableFuture().get().message();
-
-        var filtered = responseWriter.apply(forward, header.requestApiVersion());
-        assertEquals(responseTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
+    private static String toYaml(Object actualBody) {
+        try {
+            return MAPPER.writer().writeValueAsString(actualBody);
+        }
+        catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
-
 }

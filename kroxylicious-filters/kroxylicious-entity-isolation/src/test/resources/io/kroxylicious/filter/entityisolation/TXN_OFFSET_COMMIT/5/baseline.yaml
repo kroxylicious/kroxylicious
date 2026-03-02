@@ -4,38 +4,74 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-- apiMessageType: TXN_OFFSET_COMMIT
-  disabled: false
-  version: 3
+metadata:
+  apiKeys: "TXN_OFFSET_COMMIT"
+  apiVersion: 5
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "TXN_OFFSET_COMMIT"
+      expectedRequestVersion: 5
+      expectedRequestHeader:
+        requestApiKey: 28
+        requestApiVersion: 5
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "alice-12345"
+        groupId: alice-mygroup
+        producerId: 0
+        producerEpoch: 0
+        generationId: 0
+        memberId: mymemberid
+        groupInstanceId: mygroupinstanceid
+        topics:
+          - name: foo
+            partitions:
+              - partitionIndex: 0
+                committedOffset: 0
+                committedLeaderEpoch: 0
+                committedMetadata: metadata
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        topics:
+          - name: foo
+            partitions:
+              - partitionIndex: 0
+                errorCode: 0
+  resourceTypes: ["GROUP_ID", "TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 28
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      transactionalId: "12345"
-      groupId: mygroup
-      producerId: 0
-      producerEpoch: 0
-      generationId: 0
-      groupInstanceId: mygroupinstanceid
-      memberId: mymemberid
-      topics:
-        - name: foo
-          partitions:
-            - partitionIndex: 0
-              committedOffset: 0
-              committedLeaderEpoch: 0
-              committedMetadata: metadata
-    diff:
-      - op: replace
-        path: "/transactionalId"
-        value: tenant1-12345
-      - op: replace
-        path: "/groupId"
-        value: tenant1-mygroup
-  response:
-    payload:
-      throttleTimeMs: 0
-      topics:
-        - name: tenant1-foo
-          partitions:
-            - partitionIndex: 0
-              errorCode: 0
-    diff: []
+    transactionalId: "12345"
+    groupId: mygroup
+    producerId: 0
+    producerEpoch: 0
+    generationId: 0
+    memberId: mymemberid
+    groupInstanceId: mygroupinstanceid
+    topics:
+      - name: foo
+        partitions:
+          - partitionIndex: 0
+            committedOffset: 0
+            committedLeaderEpoch: 0
+            committedMetadata: metadata
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    topics:
+      - name: foo
+        partitions:
+          - partitionIndex: 0
+            errorCode: 0

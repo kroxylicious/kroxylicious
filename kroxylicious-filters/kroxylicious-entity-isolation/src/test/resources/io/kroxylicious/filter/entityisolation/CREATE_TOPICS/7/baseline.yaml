@@ -3,31 +3,69 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
-- apiMessageType: CREATE_TOPICS
-  version: 7
+metadata:
+  apiKeys: "CREATE_TOPICS"
+  apiVersion: 19
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CREATE_TOPICS"
+      expectedRequestVersion: 7
+      expectedRequestHeader:
+        requestApiKey: 19
+        requestApiVersion: 7
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - name: foo
+            numPartitions: 0
+            replicationFactor: 1
+            assignments: [ ]
+            configs: [ ]
+        timeoutMs: 0
+        validateOnly: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        topics:
+          - name: foo
+            topicId: AAAAAAAAAAAAAAAAAAAAAA
+            numPartitions: 0
+            replicationFactor: 1
+            assignments: [ ]
+            configs: [ ]
+            errorCode: 0
+            errorMessage:
+        throttleTimeMs: 0
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 19
+    requestApiVersion: 7
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      topics:
-        - name: foo
-          numPartitions: 0
-          replicationFactor: 1
-          assignments: [ ]
-          configs: [ ]
-      timeoutMs: 0
-      validateOnly: false
-    diff: []
-  response:
-    payload:
-      topics:
-        - name: foo
-          topicId: AAAAAAAAAAAAAAAAAAAAAA
-          numPartitions: 0
-          replicationFactor: 1
-          assignments: [ ]
-          configs: [ ]
-          errorCode: 0
-          errorMessage:
-      throttleTimeMs: 0
-    diff: []
-  disabled: false
+    topics:
+      - name: foo
+        numPartitions: 0
+        replicationFactor: 1
+        assignments: [ ]
+        configs: [ ]
+    timeoutMs: 0
+    validateOnly: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    topics:
+      - name: foo
+        topicId: AAAAAAAAAAAAAAAAAAAAAA
+        errorCode: 0
+        errorMessage:
+        numPartitions: 0
+        replicationFactor: 1
+        configs: [ ]

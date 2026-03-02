@@ -3,27 +3,62 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
-- apiMessageType: LIST_PARTITION_REASSIGNMENTS
-  disabled: false
-  version: 0
+metadata:
+  apiKeys: "LIST_PARTITION_REASSIGNMENTS"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_PARTITION_REASSIGNMENTS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 46
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        timeoutMs: 0
+        topics:
+          - name: foo
+            partitionIndexes: [0]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        errorMessage:
+        topics:
+          - name: foo
+            partitions:
+              - partitionIndex: 0
+                replicas: [0]
+                addingReplicas: [0]
+                removingReplicas: [0]
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 46
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      timeoutMs: 0
-      topics:
-        - name: foo
-          partitionIndexes: [0]
-    diff: []
-  response:
-    payload:
-      throttleTimeMs: 0
-      errorCode: 0
-      errorMessage:
-      topics:
-        - name: foo
-          partitions:
-            - partitionIndex: 0
-              replicas: [0]
-              addingReplicas: [0]
-              removingReplicas: [0]
-    diff: []
+    timeoutMs: 0
+    topics:
+      - name: foo
+        partitionIndexes: [0]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    errorMessage:
+    topics:
+      - name: foo
+        partitions:
+          - partitionIndex: 0
+            replicas: [0]
+            addingReplicas: [0]
+            removingReplicas: [0]

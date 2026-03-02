@@ -4,25 +4,61 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-- apiMessageType: DELETE_RECORDS
-  disabled: false
-  version: 2
+---
+metadata:
+  apiKeys: "DELETE_RECORDS"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DELETE_RECORDS"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 21
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - name: foo
+            partitions:
+              - partitionIndex: 0
+                offset: 0
+        timeoutMs: 0
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        topics:
+          - name: foo
+            partitions:
+              - partitionIndex: 0
+                lowWatermark: 0
+                errorCode: 0
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 21
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      topics:
-        - name: foo
-          partitions:
-            - partitionIndex: 0
-              offset: 0
-      timeoutMs: 0
-    diff: []
-  response:
-    payload:
-      topics:
-        - name: foo
-          partitions:
-            - partitionIndex: 0
-              lowWatermark: 0
-              errorCode: 0
-      throttleTimeMs: 0
-    diff: []
+    topics:
+      - name: foo
+        partitions:
+          - partitionIndex: 0
+            offset: 0
+    timeoutMs: 0
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    topics:
+      - name: foo
+        partitions:
+          - partitionIndex: 0
+            lowWatermark: 0
+            errorCode: 0

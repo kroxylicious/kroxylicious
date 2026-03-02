@@ -3,39 +3,68 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
-- apiMessageType: ADD_PARTITIONS_TO_TXN
-  disabled: false
-  version: 5
+metadata:
+  apiKeys: "ADD_PARTITIONS_TO_TXN"
+  apiVersion: 5
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "ADD_PARTITIONS_TO_TXN"
+      expectedRequestVersion: 5
+      expectedRequestHeader:
+        requestApiKey: 24
+        requestApiVersion: 5
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactions:
+          - transactionalId: "alice-12345"
+            producerId: 0
+            producerEpoch: 0
+            verifyOnly: false
+            topics:
+              - name: foo
+                partitions: [0]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 0
+        resultsByTransaction:
+          - transactionalId: alice-12345
+            topicResults:
+              - name: foo
+                resultsByPartition:
+                  - partitionIndex: 0
+                    partitionErrorCode: 0
+        throttleTimeMs: 0
+  resourceTypes: ["TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 24
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      transactions:
-        - transactionalId: "12345"
-          producerId: 0
-          producerEpoch: 0
-          verifyOnly: false
-          topics:
-            - name: foo
-              partitions: [0]
-    diff:
-      - op: replace
-        path: "/transactions/0/transactionalId"
-        value: tenant1-12345
-#      - op: replace
-#        path: "/transactions/0/topics/0/name"
-#        value: tenant1-foo
-  response:
-    payload:
-      errorCode: 0
-      resultsByTransaction:
-        - transactionalId: tenant1-12345
-          topicResults:
-            - name: foo
-              resultsByPartition:
-                - partitionIndex: 0
-                  partitionErrorCode: 0
-      throttleTimeMs: 0
-    diff:
-      - op: replace
-        path: "/resultsByTransaction/0/transactionalId"
-        value: "12345"
+    transactions:
+      - transactionalId: "12345"
+        producerId: 0
+        producerEpoch: 0
+        verifyOnly: false
+        topics:
+          - name: foo
+            partitions: [0]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    resultsByTransaction:
+      - transactionalId: "12345"
+        topicResults:
+          - name: foo
+            resultsByPartition:
+              - partitionIndex: 0
+                partitionErrorCode: 0

@@ -3,28 +3,64 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
-- apiMessageType: OFFSET_FOR_LEADER_EPOCH
-  disabled: false
-  version: 4
+metadata:
+  apiKeys: "OFFSET_FOR_LEADER_EPOCH"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_FOR_LEADER_EPOCH"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 23
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 1
+        topics:
+          - topic: foo
+            partitions:
+              - partition: 0
+                currentLeaderEpoch: 0
+                leaderEpoch: 0
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        topics:
+          - topic: foo
+            partitions:
+              - errorCode: 0
+                partition: 0
+                leaderEpoch: 0
+                endOffset: 0
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 23
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      replicaId: 1
-      topics:
-        - topic: foo
-          partitions:
-            - partition: 0
-              currentLeaderEpoch: 0
-              leaderEpoch: 0
-    diff: []
-  response:
-    payload:
-      topics:
-        - topic: foo
-          partitions:
-            - partition: 0
-              errorCode: 0
-              leaderEpoch: 0
-              endOffset: 0
-      throttleTimeMs: 0
-    diff: []
+    replicaId: 1
+    topics:
+      - topic: foo
+        partitions:
+          - partition: 0
+            currentLeaderEpoch: 0
+            leaderEpoch: 0
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    topics:
+      - topic: foo
+        partitions:
+          - errorCode: 0
+            partition: 0
+            leaderEpoch: 0
+            endOffset: 0

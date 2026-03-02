@@ -4,34 +4,71 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-- apiMessageType: CONSUMER_GROUP_DESCRIBE
-  disabled: false
-  version: 0
-  response:
-    payload:
-      groups:
-        - groupId: tenant1-mygroup
-          groupState: ""
-          groupEpoch: 0
-          assignmentEpoch: 0
-          assignorName: ""
-          members: []
-          authorizedOperations: 0
-          errorCode: 0
-          errorMessage: ""
-        - groupId: tenant2-mygroup
-          groupState: ""
-          groupEpoch: 0
-          assignmentEpoch: 0
-          assignorName: ""
-          members: []
-          authorizedOperations: 0
-          errorCode: 0
-          errorMessage: ""
-      throttleTimeMs: 0
-    diff:
-      - op: replace
-        path: "/groups/0/groupId"
-        value: mygroup
-      - op: remove
-        path: "/groups/1"
+metadata:
+  apiKeys: "CONSUMER_GROUP_DESCRIBE"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CONSUMER_GROUP_DESCRIBE"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 69
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupIds:
+          - alice-mygroup
+        includeAuthorizedOperations: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+          groups:
+            - groupId: alice-mygroup
+              groupState: ""
+              groupEpoch: 0
+              assignmentEpoch: 0
+              assignorName: ""
+              members: []
+              authorizedOperations: 0
+              errorCode: 0
+              errorMessage: ""
+            - groupId: bob-mygroup
+              groupState: ""
+              groupEpoch: 0
+              assignmentEpoch: 0
+              assignorName: ""
+              members: []
+              authorizedOperations: 0
+              errorCode: 0
+              errorMessage: ""
+          throttleTimeMs: 0
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 69
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupIds:
+      - mygroup
+    includeAuthorizedOperations: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    groups:
+      - errorCode: 0
+        errorMessage: ""
+        groupId: mygroup
+        groupState: ""
+        groupEpoch: 0
+        assignmentEpoch: 0
+        assignorName: ""
+        members: []
+        authorizedOperations: 0
