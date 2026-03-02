@@ -38,12 +38,12 @@ jobs:
         run: |
           mvn --quiet --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
       - name: 'Archive kroxylicious proxy image'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: kroxylicious-proxy
           path: kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
       - name: 'Archive kroxylicious operator image'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: kroxylicious-operator
           path: kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
