@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -46,6 +47,7 @@ import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
@@ -206,6 +208,50 @@ public class KafkaProxyReconcilerIT {
 
         // then
         assertDeploymentReplicaCount(created.proxy(), 3);
+    }
+
+    @Test
+    void externalSsaPatchOnDeploymentSurvivesOperatorReconcile() {
+        // given — create a proxy with 1 replica and wait for the Deployment
+        var created = doCreate(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP), kafkaProxy(PROXY_A, 1));
+        KafkaProxy proxy = created.proxy();
+        String deploymentName = ProxyDeploymentDependentResource.deploymentName(proxy);
+        String namespace = extension.getNamespace();
+
+        AWAIT.alias("Deployment to exist").untilAsserted(() -> assertThat(testActor.get(Deployment.class, deploymentName)).isNotNull());
+
+        // when — an external tool applies an SSA patch with its own field manager
+        Deployment externalPatch = new DeploymentBuilder()
+                .withNewMetadata()
+                .withName(deploymentName)
+                .withNamespace(namespace)
+                .addToAnnotations("test.kroxylicious.io/external", "present")
+                .endMetadata()
+                .build();
+        try (var client = new io.fabric8.kubernetes.client.KubernetesClientBuilder().build()) {
+            client.resource(externalPatch)
+                    .fieldManager("test-external-tool")
+                    .serverSideApply();
+        }
+
+        // When
+        // trigger a reconcile that causes the operator to update the Deployment
+        // by changing the replica count — the operator must update its owned fields
+        KafkaProxy updatedProxy = Objects.requireNonNull(testActor.get(KafkaProxy.class, name(proxy)))
+                .edit().editSpec().withReplicas(2).endSpec().build();
+        testActor.replace(updatedProxy);
+
+        // Then
+        // assert the operator has reconciled and updated the replica count
+        assertDeploymentReplicaCount(proxy, 2);
+
+        // then — external annotation must still be present after the operator reconciled
+        assertThat(testActor.get(Deployment.class, deploymentName))
+                .isNotNull()
+                .extracting(d -> d.getMetadata().getAnnotations(),
+                        InstanceOfAssertFactories.map(String.class, String.class))
+                .as("External SSA annotation should be preserved after operator reconcile")
+                .containsEntry("test.kroxylicious.io/external", "present");
     }
 
     @Test
