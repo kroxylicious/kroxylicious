@@ -4,21 +4,66 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-- apiMessageType: SYNC_GROUP
-  version: 5
+metadata:
+  apiKeys: "SYNC_GROUP"
+  apiVersion: 5
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "SYNC_GROUP"
+      expectedRequestVersion: 5
+      expectedRequestHeader:
+        requestApiKey: 14
+        requestApiVersion: 5
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: alice-mygroup
+        generationId: 0
+        memberId: mymemberid
+        groupInstanceId: mygroupinstanceid
+        protocolType: consumer
+        protocolName: protocolname
+        assignments:
+          - memberId: mymemberid
+            assignment: !!binary |-
+              aGVsbG8K
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        protocolType: ""
+        protocolName: ""
+        assignment: !!binary |-
+          aGVsbG8K
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 14
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      groupId: mygroup
-      generationId: 0
-      memberId: mymemberid
-      groupInstanceId: mygroupinstanceid
-      protocolType: consumer
-      protocolName: protocolname
-      assignments:
-        - memberId: mymemberid
-          assignment: aGVsbG8K
-    diff:
-      - op: replace
-        path: "/groupId"
-        value: tenant1-mygroup
-  disabled: false
+    groupId: mygroup
+    generationId: 0
+    memberId: mymemberid
+    groupInstanceId: mygroupinstanceid
+    protocolType: consumer
+    protocolName: protocolname
+    assignments:
+      - memberId: mymemberid
+        assignment: !!binary |-
+          aGVsbG8K
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    protocolType: ""
+    protocolName: ""
+    assignment: !!binary |-
+      aGVsbG8K

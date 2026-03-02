@@ -3,39 +3,72 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
-- apiMessageType: DESCRIBE_SHARE_GROUP_OFFSETS
-  version: 0
+metadata:
+  apiKeys: "DESCRIBE_SHARE_GROUP_OFFSETS"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_SHARE_GROUP_OFFSETS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 90
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groups:
+          - groupId: alice-mygroup
+            topics:
+              - topicName: foo
+                partitions: [0]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        groups:
+          - groupId: alice-mygroup
+            topics:
+              - topicName: foo
+                topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+                partitions:
+                  - partitionIndex: 0
+                    startOffset: 0
+                    leaderEpoch: 0
+                    errorCode: 0
+                    errorMessage: ""
+            errorCode: 0
+            errorMessage: ""
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 90
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      groups:
-        - groupId: mygroup
-          topics:
-            - topicName: foo
-              partitions: [0]
-    diff:
-      - op: replace
-        path: "/groups/0/groupId"
-        value: tenant1-mygroup
-  response:
-    payload:
-      throttleTimeMs: 0
-      groups:
-        - groupId: tenant1-mygroup
-          topics:
-            - topicName: foo
-              topicId: "AAAAAAAAAAAAAAAAAAAAAA"
-              partitions:
-                - partitionIndex: 0
-                  startOffset: 0
-                  leaderEpoch: 0
-                  errorCode: 0
-                  errorMessage: ""
-          errorCode: 0
-          errorMessage: ""
-      authorizedOperations: 0
-    diff:
-      - op: replace
-        path: "/groups/0/groupId"
-        value: mygroup
-  disabled: false
+    groups:
+      - groupId: mygroup
+        topics:
+          - topicName: foo
+            partitions: [0]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    groups:
+      - groupId: mygroup
+        topics:
+          - topicName: foo
+            topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions:
+              - partitionIndex: 0
+                startOffset: 0
+                leaderEpoch: 0
+                errorCode: 0
+                errorMessage: ""
+        errorCode: 0
+        errorMessage: ""

@@ -4,15 +4,47 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-- apiMessageType: FIND_COORDINATOR
-  disabled: false
-  version: 0
+---
+metadata:
+  apiKeys: "FIND_COORDINATOR"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FIND_COORDINATOR"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 10
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        key: alice-mygroup
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 0
+        nodeId: 0
+        host: "random-string-822"
+        port: 919
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 10
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      key: mygroup
-      keyType: 0
-      coordinatorKeys: []
-    diff:
-      - op: replace
-        path: /key
-        value: tenant1-mygroup
+    key: mygroup
+    keyType: 0
+    coordinatorKeys: []
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    errorCode: 0
+    nodeId: 0
+    host: "random-string-822"
+    port: 919

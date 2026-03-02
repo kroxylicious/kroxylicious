@@ -4,31 +4,57 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-- apiMessageType: FIND_COORDINATOR
-  disabled: false
-  version: 4
+---
+metadata:
+  apiKeys: "FIND_COORDINATOR"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FIND_COORDINATOR"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 10
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        keyType: 0
+        coordinatorKeys:
+          - alice-mygroup
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1016
+        coordinators:
+          - key: "alice-mygroup"
+            nodeId: 639
+            host: "random-string-641"
+            port: 919
+            errorCode: 0
+            errorMessage: ""
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 10
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      keyType: 0
-      coordinatorKeys:
-        - mygroup
-      timeoutMs: 0
-      validateOnly: false
-    diff:
-      - op: replace
-        path: /coordinatorKeys/0
-        value: tenant1-mygroup
-  response:
-    payload:
-      throttleTimeMs: 0
-      coordinators:
-        - key: tenant1-mygroup
-          nodeId: 0
-          host: localhost
-          port: 12345
-          errorCode: 0
-          errorMessage:
-    diff:
-      - op: replace
-        path: "/coordinators/0/key"
-        value: mygroup
+    keyType: 0
+    coordinatorKeys:
+      - mygroup
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1016
+    coordinators:
+      - key: "mygroup"
+        nodeId: 639
+        host: "random-string-641"
+        port: 919
+        errorCode: 0
+        errorMessage: ""

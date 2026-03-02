@@ -3,20 +3,47 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
-- apiMessageType: ADD_OFFSETS_TO_TXN
-  disabled: false
-  version: 4
+---
+metadata:
+  apiKeys: "ADD_OFFSETS_TO_TXN"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "ADD_OFFSETS_TO_TXN"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 25
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "alice-12345"
+        producerId: 0
+        producerEpoch: 0
+        groupId: alice-mygroup
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1016
+        errorCode: 0
+  resourceTypes: ["GROUP_ID", "TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 25
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      transactionalId: "12345"
-      producerId: 0
-      producerEpoch: 0
-      groupId: mygroup
-    diff:
-      - op: replace
-        path: "/transactionalId"
-        value: tenant1-12345
-      - op: replace
-        path: "/groupId"
-        value: tenant1-mygroup
+    transactionalId: "12345"
+    producerId: 0
+    producerEpoch: 0
+    groupId: mygroup
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1016
+    errorCode: 0

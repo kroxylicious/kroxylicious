@@ -3,32 +3,58 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
-- apiMessageType: DESCRIBE_GROUPS
-  version: 6
+metadata:
+  apiKeys: "DESCRIBE_GROUPS"
+  apiVersion: 6
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_GROUPS"
+      expectedRequestVersion: 6
+      expectedRequestHeader:
+        requestApiKey: 15
+        requestApiVersion: 6
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groups: [alice-mygroup]
+        includeAuthorizedOperations: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        groups:
+          - errorCode: 0
+            errorMessage: ""
+            groupId: alice-mygroup
+            groupState: ""
+            protocolType: ""
+            protocolData: ""
+            members: []
+            authorizedOperations: 0
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 15
+    requestApiVersion: 6
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      groups: [mygroup]
-      includeAuthorizedOperations: false
-    diff:
-      - op: replace
-        path: "/groups/0"
-        value: tenant1-mygroup
-  response:
-    payload:
-      groups:
-        - groupId: tenant1-mygroup
-          errorCode: 0
-          errorMessage: ""
-          groupState: ""
-          protocolType: ""
-          protocolData: ""
-          members: []
-          authorizedOperations: 0
-      throttleTimeMs: 0
-      authorizedOperations: 0
-    diff:
-      - op: replace
-        path: "/groups/0/groupId"
-        value: mygroup
-  disabled: false
+    groups: [mygroup]
+    includeAuthorizedOperations: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    groups:
+      - errorCode: 0
+        errorMessage: ""
+        groupId: mygroup
+        groupState: ""
+        protocolType: ""
+        protocolData: ""
+        members: []
+        authorizedOperations: 0

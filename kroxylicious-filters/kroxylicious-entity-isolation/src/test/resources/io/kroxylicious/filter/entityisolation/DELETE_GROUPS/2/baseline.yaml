@@ -3,27 +3,44 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
-- apiMessageType: DELETE_GROUPS
-  version: 2
+metadata:
+  apiKeys: "DELETE_GROUPS"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DELETE_GROUPS"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 42
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupsNames: [alice-mygroup]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        results:
+          - groupId: alice-mygroup
+            errorCode: 0
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 42
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      groupsNames: [mygroup]
-      timeoutMs: 0
-      validateOnly: false
-    diff:
-      - op: replace
-        path: "/groupsNames/0"
-        value: tenant1-mygroup
-  response:
-    payload:
-      results:
-        - groupId: tenant1-mygroup
-          errorCode: 0
-          errorMessage:
-      throttleTimeMs: 0
-    diff:
-      - op: replace
-        path: "/results/0/groupId"
-        value: mygroup
-  disabled: false
+    groupsNames: [mygroup]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    results:
+      - groupId: mygroup
+        errorCode: 0

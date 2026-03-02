@@ -3,36 +3,68 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
-- apiMessageType: DESCRIBE_LOG_DIRS
-  disabled: false
-  version: 4
+metadata:
+  apiKeys: "DESCRIBE_LOG_DIRS"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_LOG_DIRS"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 35
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - topic: foo
+            partitions: [0]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        results:
+          - errorCode: 0
+            logDir: ""
+            topics:
+              - name: foo
+                partitions:
+                  - partitionIndex: 0
+                    partitionSize: 0
+                    offsetLag: 0
+                    isFutureKey: false
+            totalBytes: 0
+            usableBytes: 0
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 35
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
   request:
-    payload:
-      timeoutMs: 0
-      allowReplicationFactorChange: false
-      topics:
-        - topic: foo
-          partitions: [0]
-    diff: []
-  response:
-    payload:
-      throttleTimeMs: 0
-      allowReplicationFactorChange: false
-      errorMessage: ""
-      errorCode: 0
-      results:
-        - errorCode: 0
-          logDir: ""
-          topics:
-            - name: foo
-              partitions:
-                - partitionIndex: 0
-                  partitionSize: 0
-                  offsetLag: 0
-                  isFutureKey: false
-                  errorCode: 0
-                  errorMessage: ""
-          totalBytes: 0
-          usableBytes: 0
-    diff: []
+    topics:
+      - topic: foo
+        partitions: [0]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    results:
+      - errorCode: 0
+        logDir: ""
+        topics:
+          - name: foo
+            partitions:
+              - partitionIndex: 0
+                partitionSize: 0
+                offsetLag: 0
+                isFutureKey: false
+        totalBytes: 0
+        usableBytes: 0
