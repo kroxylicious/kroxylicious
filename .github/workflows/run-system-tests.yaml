@@ -116,7 +116,7 @@ jobs:
 
       - name: Archive JUnit test results
         if: ${{ always() }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: junit-results-${{ matrix.tests }}-${{ inputs.kafkaClient }}
           path: kroxylicious-systemtests/target/surefire-reports/**/TEST-*.xml
@@ -124,7 +124,7 @@ jobs:
 
       - name: Archive systemtest logs
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: systemtest-logs-${{ matrix.tests }}-${{ inputs.kafkaClient }}
           path: kroxylicious-systemtests/target/logs
