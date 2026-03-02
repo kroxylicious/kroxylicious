@@ -14,8 +14,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -25,6 +27,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,11 +48,13 @@ import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
@@ -210,48 +217,75 @@ public class KafkaProxyReconcilerIT {
         assertDeploymentReplicaCount(created.proxy(), 3);
     }
 
-    @Test
-    void externalSsaPatchOnDeploymentSurvivesOperatorReconcile() {
-        // given — create a proxy with 1 replica and wait for the Deployment
+    @ParameterizedTest
+    @MethodSource("dependentResourceSsaTestCases")
+    void externalSsaPatchSurvivesOperatorReconcile(
+            Class<? extends HasMetadata> resourceClass,
+            Function<KafkaProxy, String> resourceNameFn,
+            BiFunction<String, String, HasMetadata> patchFn) {
+        // given — create a proxy with 1 replica and wait for the target resource to exist
         var created = doCreate(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP), kafkaProxy(PROXY_A, 1));
         KafkaProxy proxy = created.proxy();
-        String deploymentName = ProxyDeploymentDependentResource.deploymentName(proxy);
         String namespace = extension.getNamespace();
+        String resourceName = resourceNameFn.apply(proxy);
 
-        AWAIT.alias("Deployment to exist").untilAsserted(() -> assertThat(testActor.get(Deployment.class, deploymentName)).isNotNull());
+        AWAIT.alias(resourceName + " to exist").untilAsserted(() ->
+                assertThat(testActor.get(resourceClass, resourceName)).isNotNull());
 
         // when — an external tool applies an SSA patch with its own field manager
-        Deployment externalPatch = new DeploymentBuilder()
-                .withNewMetadata()
-                .withName(deploymentName)
-                .withNamespace(namespace)
-                .addToAnnotations("test.kroxylicious.io/external", "present")
-                .endMetadata()
-                .build();
-        try (var client = new io.fabric8.kubernetes.client.KubernetesClientBuilder().build()) {
-            client.resource(externalPatch)
+        try (var client = new KubernetesClientBuilder().build()) {
+            client.resource(patchFn.apply(resourceName, namespace))
                     .fieldManager("test-external-tool")
                     .serverSideApply();
         }
 
-        // When
-        // trigger a reconcile that causes the operator to update the Deployment
-        // by changing the replica count — the operator must update its owned fields
+        // when — trigger a reconcile by changing the replica count
         KafkaProxy updatedProxy = Objects.requireNonNull(testActor.get(KafkaProxy.class, name(proxy)))
                 .edit().editSpec().withReplicas(2).endSpec().build();
         testActor.replace(updatedProxy);
 
-        // Then
-        // assert the operator has reconciled and updated the replica count
+        // then — wait for reconcile to complete (observable via Deployment replica change)
         assertDeploymentReplicaCount(proxy, 2);
 
         // then — external annotation must still be present after the operator reconciled
-        assertThat(testActor.get(Deployment.class, deploymentName))
+        assertThat(testActor.get(resourceClass, resourceName))
                 .isNotNull()
-                .extracting(d -> d.getMetadata().getAnnotations(),
+                .extracting(r -> r.getMetadata().getAnnotations(),
                         InstanceOfAssertFactories.map(String.class, String.class))
                 .as("External SSA annotation should be preserved after operator reconcile")
                 .containsEntry("test.kroxylicious.io/external", "present");
+    }
+
+    static Stream<Arguments> dependentResourceSsaTestCases() {
+        return Stream.of(
+                Arguments.argumentSet("Deployment",
+                        Deployment.class,
+                        (Function<KafkaProxy, String>) ProxyDeploymentDependentResource::deploymentName,
+                        (BiFunction<String, String, HasMetadata>) (name, ns) -> new DeploymentBuilder()
+                                .withNewMetadata().withName(name).withNamespace(ns)
+                                .addToAnnotations("test.kroxylicious.io/external", "present")
+                                .endMetadata().build()),
+                Arguments.argumentSet("proxy-config ConfigMap",
+                        ConfigMap.class,
+                        (Function<KafkaProxy, String>) ProxyConfigDependentResource::configMapName,
+                        (BiFunction<String, String, HasMetadata>) (name, ns) -> new ConfigMapBuilder()
+                                .withNewMetadata().withName(name).withNamespace(ns)
+                                .addToAnnotations("test.kroxylicious.io/external", "present")
+                                .endMetadata().build()),
+                Arguments.argumentSet("config-state ConfigMap",
+                        ConfigMap.class,
+                        (Function<KafkaProxy, String>) ProxyConfigStateDependentResource::configMapName,
+                        (BiFunction<String, String, HasMetadata>) (name, ns) -> new ConfigMapBuilder()
+                                .withNewMetadata().withName(name).withNamespace(ns)
+                                .addToAnnotations("test.kroxylicious.io/external", "present")
+                                .endMetadata().build()),
+                Arguments.argumentSet("cluster Service",
+                        Service.class,
+                        (Function<KafkaProxy, String>) proxy -> CLUSTER_BAR + "-" + CLUSTER_BAR_CLUSTERIP_INGRESS + "-bootstrap",
+                        (BiFunction<String, String, HasMetadata>) (name, ns) -> new ServiceBuilder()
+                                .withNewMetadata().withName(name).withNamespace(ns)
+                                .addToAnnotations("test.kroxylicious.io/external", "present")
+                                .endMetadata().build()));
     }
 
     @Test
