@@ -26,6 +26,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.processing.dependent.kubernetes.BooleanWithUndefined;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
@@ -52,7 +53,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 /**
  * Generates the Kube {@code Deployment} for the proxy
  */
-@KubernetesDependent
+@KubernetesDependent(useSSA = BooleanWithUndefined.TRUE)
 public class ProxyDeploymentDependentResource
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 
