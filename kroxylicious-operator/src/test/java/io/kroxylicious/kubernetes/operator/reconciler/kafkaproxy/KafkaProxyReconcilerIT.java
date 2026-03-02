@@ -220,17 +220,16 @@ public class KafkaProxyReconcilerIT {
     @ParameterizedTest
     @MethodSource("dependentResourceSsaTestCases")
     void externalSsaPatchSurvivesOperatorReconcile(
-            Class<? extends HasMetadata> resourceClass,
-            Function<KafkaProxy, String> resourceNameFn,
-            BiFunction<String, String, HasMetadata> patchFn) {
+                                                   Class<? extends HasMetadata> resourceClass,
+                                                   Function<KafkaProxy, String> resourceNameFn,
+                                                   BiFunction<String, String, HasMetadata> patchFn) {
         // given — create a proxy with 1 replica and wait for the target resource to exist
         var created = doCreate(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP), kafkaProxy(PROXY_A, 1));
         KafkaProxy proxy = created.proxy();
         String namespace = extension.getNamespace();
         String resourceName = resourceNameFn.apply(proxy);
 
-        AWAIT.alias(resourceName + " to exist").untilAsserted(() ->
-                assertThat(testActor.get(resourceClass, resourceName)).isNotNull());
+        AWAIT.alias(resourceName + " to exist").untilAsserted(() -> assertThat(testActor.get(resourceClass, resourceName)).isNotNull());
 
         // when — an external tool applies an SSA patch with its own field manager
         try (var client = new KubernetesClientBuilder().build()) {
