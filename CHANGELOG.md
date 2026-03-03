@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.19.0
 
 * [#3331](https://github.com/kroxylicious/kroxylicious/pull/3331): fix(crd): make the spec object required across all the CRDs except KafkaProxy.
