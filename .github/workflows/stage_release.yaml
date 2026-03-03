@@ -227,3 +227,5 @@ jobs:
           Thank you,
           Your friendly Kroxylicious Github Robot.
           EOF
+      - name: 'Clean Kroxylicious Maven packages'
+        uses: ./.github/actions/common/clean-kroxylicious-maven-packages
