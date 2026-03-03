@@ -17,6 +17,8 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
+import org.opentest4j.TestAbortedException;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -139,6 +141,6 @@ public class TestUtils {
         if (throwable == null) {
             return true;
         }
-        return !throwable.getClass().getSimpleName().equals("TestAbortedException");
+        return !(throwable instanceof TestAbortedException);
     }
 }
