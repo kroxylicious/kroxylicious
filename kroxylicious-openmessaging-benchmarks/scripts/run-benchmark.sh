@@ -240,14 +240,15 @@ echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
 kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
     sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 
-# --- Trigger JFR dump by scaling proxy to zero ---
+# --- Dump JFR recording ---
 
-if [[ -n "${PROXY_DEPLOYMENT}" ]]; then
+if [[ -n "${PROXY_POD}" ]]; then
     echo ""
     echo "--- Dumping JFR recording ---"
-    echo "Scaling down proxy deployment to trigger JFR dumponexit..."
-    kubectl scale deployment "${PROXY_DEPLOYMENT}" -n "${NAMESPACE}" --replicas=0
-    kubectl wait pod "${PROXY_POD}" -n "${NAMESPACE}" --for=delete --timeout="${POD_READY_TIMEOUT}"
+    JVM_PID=$(kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+        sh -c 'pgrep -f "java" | head -1')
+    kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+        jcmd "${JVM_PID}" JFR.dump name=benchmark filename=/tmp/benchmark.jfr
     echo "JFR dump complete."
 fi
 

@@ -8,9 +8,9 @@
 #
 # - Mounts a PVC at /tmp so the JFR recording survives pod termination and can
 #   be collected after the proxy has been scaled to zero.
-# - Sets JAVA_TOOL_OPTIONS to start a JFR recording at JVM startup with
-#   dumponexit=true so the recording is written to /tmp/benchmark.jfr when the
-#   JVM shuts down gracefully (i.e. when the pod is scaled to zero).
+# - Sets JAVA_TOOL_OPTIONS to start a JFR recording at JVM startup.
+#   After the benchmark completes, run-benchmark.sh uses jcmd JFR.dump to write
+#   the recording to /tmp/benchmark.jfr while the proxy pod is still running.
 #
 # The PROXY_DEPLOYMENT, NAMESPACE, JFR_PVC_NAME, and JFR_MAX_SIZE placeholders
 # are substituted by the script using envsubst before applying.
@@ -30,7 +30,7 @@ spec:
       - name: proxy
         env:
         - name: JAVA_TOOL_OPTIONS
-          value: "-XX:StartFlightRecording=name=benchmark,settings=profile,maxsize=${JFR_MAX_SIZE},disk=true,dumponexit=true,filename=/tmp/benchmark.jfr"
+          value: "-XX:StartFlightRecording=name=benchmark,settings=profile,maxsize=${JFR_MAX_SIZE},disk=true,filename=/tmp/benchmark.jfr"
         volumeMounts:
         - name: jfr-tmp
           mountPath: /tmp

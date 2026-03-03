@@ -125,7 +125,11 @@ EOF
     kubectl wait pod "${DEBUG_POD}" -n "${NAMESPACE}" --for=condition=ready --timeout=60s
     kubectl cp "${NAMESPACE}/${DEBUG_POD}:${JFR_FILE}" "${OUTPUT_DIR}/benchmark.jfr"
     kubectl delete pod "${DEBUG_POD}" -n "${NAMESPACE}" --ignore-not-found
-    echo "  benchmark.jfr"
+    if [[ ! -s "${OUTPUT_DIR}/benchmark.jfr" ]]; then
+        echo "Warning: benchmark.jfr is empty — JFR dump may not have completed before pod terminated" >&2
+    else
+        echo "  benchmark.jfr ($(du -h "${OUTPUT_DIR}/benchmark.jfr" | cut -f1))"
+    fi
 fi
 
 # Generate run metadata
