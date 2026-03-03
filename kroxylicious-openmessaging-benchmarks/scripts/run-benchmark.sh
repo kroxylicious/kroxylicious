@@ -246,12 +246,12 @@ if [[ -n "${PROXY_POD}" ]]; then
     echo ""
     echo "--- Dumping JFR recording ---"
     JVM_PID=$(kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-        sh -c 'jcmd | grep -v "^[0-9]* jdk\." | awk "NR==1{print \$1}"')
+        sh -c 'JAVA_TOOL_OPTIONS="" jcmd 2>/dev/null | awk "/^[0-9]+[[:space:]]/ && !/jdk\.jcmd/{print \$1; exit}"')
     if [[ -z "${JVM_PID}" ]]; then
         echo "Warning: could not find JVM PID — skipping JFR dump" >&2
     else
         kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-            jcmd "${JVM_PID}" JFR.dump name=benchmark filename=/tmp/benchmark.jfr
+            sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.dump name=benchmark filename=/tmp/benchmark.jfr"
     fi
     echo "JFR dump complete."
 fi
