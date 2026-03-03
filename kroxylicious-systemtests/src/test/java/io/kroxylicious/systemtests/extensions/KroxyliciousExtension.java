@@ -28,6 +28,7 @@ import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.logs.TestLogCollector;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -92,7 +93,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         String testMethodName = extensionContext.getRequiredTestMethod().getName();
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
-            exception.filter(t -> !t.getClass().getSimpleName().equals("TestAbortedException"))
+            exception.filter(TestUtils::isNotExceptionToSkipTest)
                     .ifPresent(e -> logCollector.collectLogs(testClassName, testMethodName));
         }
         finally {

@@ -129,4 +129,16 @@ public class TestUtils {
             throw new UncheckedIOException(e);
         }
     }
+
+    /**
+     * Check if exception is not thrown to skip the test
+     * @param throwable the exception
+     * @return false if test has been skipped, true otherwise
+     */
+    public static boolean isNotExceptionToSkipTest(Throwable throwable) {
+        if (throwable == null) {
+            return true;
+        }
+        return !throwable.getClass().getSimpleName().equals("TestAbortedException");
+    }
 }
