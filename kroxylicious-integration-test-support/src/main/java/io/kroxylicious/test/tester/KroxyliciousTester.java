@@ -242,6 +242,8 @@ public interface KroxyliciousTester extends Closeable {
      */
     KafkaClient simpleTestClient();
 
+    KafkaClient simpleTestClient(String address, boolean useTls);
+
     /**
      * Creates a Mock Request client configured with the kroxylicious bootstrap server
      * for a specific virtual cluster. This client can be used to send multiple
@@ -294,6 +296,8 @@ public interface KroxyliciousTester extends Closeable {
      * @param clusterName the name of the virtual cluster from which to delete the topics.
      */
     void deleteTopics(String clusterName);
+
+    Map<String, Object> clientConfiguration();
 
     /**
      * @return the bootstrap address of the only virtual cluster

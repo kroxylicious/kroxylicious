@@ -34,7 +34,7 @@ class ApiVersionsDowngradeFilterTest extends FilterHarness {
     void shortCircuitDowngradeApiVersionsRequests() {
         buildChannel(new ApiVersionsDowngradeFilter(new ApiVersionsServiceImpl()));
         writeRequest(ApiVersionsDowngradeFilter.downgradeApiVersionsFrame(5));
-        DecodedResponseFrame<ApiVersionsResponseData> response = channel.readInbound();
+        DecodedResponseFrame<ApiVersionsResponseData> response = channel.readOutbound();
         assertThat(response.body()).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> {
             assertThat(apiVersionsResponseData.errorCode()).isEqualTo(Errors.UNSUPPORTED_VERSION.code());
             ApiVersionsResponseData.ApiVersion apiVersion = new ApiVersionsResponseData.ApiVersion();
@@ -49,7 +49,7 @@ class ApiVersionsDowngradeFilterTest extends FilterHarness {
     void shortCircuitDowngradeApiVersionsRequestsConsidersLatestVersionOverride() {
         buildChannel(new ApiVersionsDowngradeFilter(new ApiVersionsServiceImpl(Map.of(ApiKeys.API_VERSIONS, (short) 2))));
         writeRequest(ApiVersionsDowngradeFilter.downgradeApiVersionsFrame(5));
-        DecodedResponseFrame<ApiVersionsResponseData> response = channel.readInbound();
+        DecodedResponseFrame<ApiVersionsResponseData> response = channel.readOutbound();
         assertThat(response.body()).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> {
             assertThat(apiVersionsResponseData.errorCode()).isEqualTo(Errors.UNSUPPORTED_VERSION.code());
             ApiVersionsResponseData.ApiVersion apiVersion = new ApiVersionsResponseData.ApiVersion();
@@ -64,7 +64,7 @@ class ApiVersionsDowngradeFilterTest extends FilterHarness {
     void passThroughAnythingElse() {
         buildChannel(new ApiVersionsDowngradeFilter(new ApiVersionsServiceImpl()));
         DecodedRequestFrame<ApiVersionsRequestData> request = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readOutbound();
+        var propagated = channel.readInbound();
         assertThat(propagated).isEqualTo(request);
     }
 

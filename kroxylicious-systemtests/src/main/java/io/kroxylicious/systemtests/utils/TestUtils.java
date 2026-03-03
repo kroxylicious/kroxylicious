@@ -17,9 +17,11 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 /**
@@ -87,7 +89,7 @@ public class TestUtils {
      * @return the random pod name
      */
     public static String getRandomPodNameSuffix() {
-        return MobyNamesGenerator.getRandomName().replace("_", "-");
+        return MobyNamesGenerator.getRandomName(1).replace("_", "-");
     }
 
     /**
@@ -96,9 +98,32 @@ public class TestUtils {
      * @param fileName the file name
      * @return the json file content
      */
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN") // this is not production code
     public static String getJsonFileContent(String fileName) {
         try {
             return OBJECT_MAPPER.readTree(new File(Path.of(getResourcesURI(fileName)).toString())).toString();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Merge json files.
+     *
+     * @param baseJson the base json string content
+     * @param overrideJson the override json string content
+     * @return  the merged json files string
+     */
+    public static String mergeJsonFiles(String baseJson, String overrideJson) {
+        try {
+            JsonNode base = OBJECT_MAPPER.readTree(baseJson);
+            if (overrideJson.isEmpty()) {
+                return base.toString();
+            }
+            JsonNode merged = OBJECT_MAPPER.readerForUpdating(base).readTree(overrideJson);
+
+            return OBJECT_MAPPER.writeValueAsString(merged);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);

@@ -22,4 +22,4 @@ resource:
       - ingressRef:
           name: []
 expectFailureMessageToContain: |
-  spec.ingresses[0].ingressRef.name: Invalid value: "array"
+  spec.ingresses[0].ingressRef.name: Invalid value

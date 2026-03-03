@@ -14,7 +14,7 @@ public class Kubectl extends BaseCmdKubeClient<Kubectl> {
     /**
      * The constant KUBECTL.
      */
-    public static final String KUBECTL = "kubectl";
+    public static final String KUBECTL_CMD = "kubectl";
 
     /**
      * Instantiates a new Kubectl.
@@ -48,6 +48,6 @@ public class Kubectl extends BaseCmdKubeClient<Kubectl> {
 
     @Override
     public String cmd() {
-        return KUBECTL;
+        return KUBECTL_CMD;
     }
 }

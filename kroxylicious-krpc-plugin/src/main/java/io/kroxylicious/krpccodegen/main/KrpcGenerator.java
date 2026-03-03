@@ -10,18 +10,20 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.function.Predicate;
@@ -40,6 +42,7 @@ import io.kroxylicious.krpccodegen.schema.MessageSpec;
 import io.kroxylicious.krpccodegen.schema.StructRegistry;
 import io.kroxylicious.krpccodegen.schema.Versions;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
@@ -176,12 +179,13 @@ public class KrpcGenerator {
     }
 
     static final ObjectMapper JSON_SERDE = new ObjectMapper();
+
     static {
         JSON_SERDE.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         JSON_SERDE.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
         JSON_SERDE.configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, true);
         JSON_SERDE.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
-        JSON_SERDE.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+        JSON_SERDE.setDefaultPropertyInclusion(JsonInclude.Include.NON_EMPTY);
     }
 
     private final Logger logger;
@@ -191,13 +195,11 @@ public class KrpcGenerator {
     private final String messageSpecFilter;
 
     private final File templateDir;
-    private final Charset templateEncoding = StandardCharsets.UTF_8;
     private final List<String> templateNames;
 
     private final String outputPackage;
     private final File outputDir;
     private final String outputFilePattern;
-    private final Charset outputEncoding = StandardCharsets.UTF_8;
 
     @SuppressWarnings("java:S107") // Methods should not have too many parameters - ignored as use-case with builder seems reasonable.
     private KrpcGenerator(Logger logger, GeneratorMode mode, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames,
@@ -245,19 +247,26 @@ public class KrpcGenerator {
         var cfg = buildFmConfiguration();
         Set<MessageSpec> messageSpecs = messageSpecs();
 
+        long generatedFiles;
         if (mode == GeneratorMode.SINGLE) {
-            for (MessageSpec messageSpec : messageSpecs) {
-                renderSingle(cfg, messageSpec);
-            }
+            generatedFiles = messageSpecs.stream().mapToLong(messageSpec -> renderSingle(cfg, messageSpec)).sum();
         }
         else {
-            renderMulti(cfg, messageSpecs);
+            generatedFiles = renderMulti(cfg, messageSpecs);
         }
-
+        if (generatedFiles > 0) {
+            logger.log(Level.INFO, "Generated {0} source files", generatedFiles);
+        }
+        else {
+            logger.log(Level.INFO, "Nothing to generate - all sources up to date");
+        }
     }
 
-    private void renderSingle(Configuration cfg, MessageSpec messageSpec) {
-        logger.log(Level.INFO, "Processing message spec {0}", messageSpec.name());
+    /**
+     * @return the number of files generated
+     */
+    private long renderSingle(Configuration cfg, MessageSpec messageSpec) {
+        logger.log(Level.DEBUG, "Processing message spec {0}", messageSpec.name());
         var structRegistry = new StructRegistry();
         try {
             structRegistry.register(messageSpec);
@@ -265,20 +274,23 @@ public class KrpcGenerator {
         catch (Exception e) {
             throw new RuntimeException(e);
         }
-        templateNames.forEach(templateName -> {
+        Map<String, Object> dataModel = Map.of(
+                "structRegistry", structRegistry,
+                "messageSpec", messageSpec);
+        return templateNames.stream().mapToLong(templateName -> {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
                 // TODO support output to stdout via `-`
-                var outputFile = new File(outputDir, outputFile(outputFilePattern, messageSpec.name(), templateName));
-                logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
-                try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
-                    logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", messageSpec.name(), templateName, outputFile);
-                    Map<String, Object> dataModel = Map.of(
-                            "structRegistry", structRegistry,
-                            "messageSpec", messageSpec);
-                    template.process(dataModel, writer);
-                }
+                return KrpcGenerator.this.writeIfChanged(outputDir, KrpcGenerator.this.outputFile(outputFilePattern, messageSpec.name(), templateName),
+                        new ThrowingWriteAction() {
+                            @SuppressFBWarnings("TEMPLATE_INJECTION_FREEMARKER") // we trust the user to supply a template
+                            @Override
+                            public void accept(Writer writer, File finalFile) throws TemplateException, IOException {
+                                logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", messageSpec.name(), templateName, finalFile);
+                                template.process(dataModel, writer);
+                            }
+                        });
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -286,37 +298,91 @@ public class KrpcGenerator {
             catch (TemplateException e) {
                 throw new RuntimeException(e);
             }
-        });
+        }).sum();
     }
 
-    private void renderMulti(Configuration cfg, Set<MessageSpec> messageSpecs) {
-        logger.log(Level.INFO, "Processing message specs");
+    private interface ThrowingWriteAction {
+        void accept(Writer writer, File outputFile) throws TemplateException, IOException;
+    }
 
-        // TODO not actually used right now
-        // var structRegistry = new StructRegistry();
-        // try {
-        // for (MessageSpec messageSpec : messageSpecs) {
-        // structRegistry.register(messageSpec);
-        // }
-        // }
-        // catch (Exception e) {
-        // throw new RuntimeException(e);
-        // }
-        templateNames.forEach(templateName -> {
+    /**
+     * Execute a write action with a target final file. The intent is that the final file always ends up with the desired content, but that
+     * we do not modify an existing file if it's already in the desired state. We write the content to a temporary file, then we only update
+     * the final file if the final file does not exist, or it differs in any way from the temporary file.
+     *
+     * @return the count of final source files that were created or updated (should be 0 or 1).
+     */
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN") // we trust the user-supplied file name
+    private long writeIfChanged(File outputDir, String finalFileName, ThrowingWriteAction consumer) throws IOException, TemplateException {
+        String tempOutputFileName = finalFileName + ".tmp";
+        var outputFile = new File(outputDir, tempOutputFileName);
+        Path outPath = outputDir.toPath();
+        Path tempPath = outPath.resolve(tempOutputFileName);
+        Path finalPath = outPath.resolve(finalFileName);
+        logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
+        try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), StandardCharsets.UTF_8)) {
+            consumer.accept(writer, finalPath.toFile());
+        }
+        if (!filesEqual(tempPath, finalPath)) {
+            logger.log(Level.DEBUG, "File with new content generated, replacing {0}", finalPath);
+            Files.move(tempPath, finalPath, StandardCopyOption.REPLACE_EXISTING);
+            return 1;
+        }
+        else {
+            logger.log(Level.DEBUG, "Contents unchanged, deleting temporary file {0}", tempPath);
+            Files.delete(tempPath);
+            return 0;
+        }
+    }
+
+    static boolean filesEqual(Path generatedFile, Path finalFile) {
+        Objects.requireNonNull(generatedFile, "generatedFile cannot be null");
+        Objects.requireNonNull(finalFile, "finalFile cannot be null");
+        if (!Files.exists(generatedFile)) {
+            throw new IllegalArgumentException("File " + generatedFile + " does not exist");
+        }
+        if (Files.exists(generatedFile) && !Files.isRegularFile(generatedFile)) {
+            throw new IllegalArgumentException(new IOException("File '" + generatedFile + "' exists but is not a regular file"));
+        }
+        if (Files.exists(finalFile) && !Files.isRegularFile(finalFile)) {
+            throw new IllegalArgumentException(new IOException("File '" + finalFile + "' exists but is not a regular file"));
+        }
+        if (!Files.exists(finalFile)) {
+            return false;
+        }
+        try {
+            long mismatch = Files.mismatch(generatedFile, finalFile);
+            return mismatch == -1;
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("IO exception while comparing files for mismatch", e);
+        }
+    }
+
+    /**
+     * @return the number of files generated
+     */
+
+    private long renderMulti(Configuration cfg, Set<MessageSpec> messageSpecs) {
+        logger.log(Level.DEBUG, "Processing message specs");
+
+        return templateNames.stream().mapToLong(templateName -> {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
                 // TODO support output to stdout via `-`
-                var outputFile = new File(outputDir, outputFile(outputFilePattern, null, templateName));
-                logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
-                try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
-                    Map<String, Object> dataModel = Map.of(
-                            // "structRegistry", structRegistry,
-                            "outputPackage", outputPackage,
-                            "messageSpecs", messageSpecs,
-                            "retrieveApiKey", new RetrieveApiKey());
-                    template.process(dataModel, writer);
-                }
+                return KrpcGenerator.this.writeIfChanged(outputDir, KrpcGenerator.this.outputFile(outputFilePattern, null, templateName), new ThrowingWriteAction() {
+                    @SuppressFBWarnings("TEMPLATE_INJECTION_FREEMARKER") // we trust the user to supply a template
+                    @Override
+                    public void accept(Writer writer, File finalFile) throws TemplateException, IOException {
+                        Map<String, Object> dataModel = Map.of(
+                                // "structRegistry", structRegistry,
+                                "outputPackage", outputPackage,
+                                "messageSpecs", messageSpecs,
+                                "retrieveApiKey", new RetrieveApiKey());
+                        template.process(dataModel, writer);
+                    }
+                });
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -324,11 +390,11 @@ public class KrpcGenerator {
             catch (TemplateException e) {
                 throw new RuntimeException(e);
             }
-        });
+        }).sum();
     }
 
     private Set<MessageSpec> messageSpecs() {
-        logger.log(Level.INFO, "Finding message specs in {0}", messageSpecDir);
+        logger.log(Level.DEBUG, "Finding message specs in {0}", messageSpecDir);
         logger.log(Level.DEBUG, "{0}", Arrays.toString(messageSpecDir.listFiles()));
         Set<Path> paths;
         try (DirectoryStream<Path> directoryStream = Files
@@ -371,7 +437,7 @@ public class KrpcGenerator {
 
         // Set the preferred charset template files are stored in. UTF-8 is
         // a good choice in most applications:
-        cfg.setDefaultEncoding(templateEncoding.name());
+        cfg.setDefaultEncoding(StandardCharsets.UTF_8.name());
 
         // Sets how errors will appear.
         // During web page *development* TemplateExceptionHandler.HTML_DEBUG_HANDLER is better.

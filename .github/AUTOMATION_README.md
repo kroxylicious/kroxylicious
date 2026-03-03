@@ -24,6 +24,22 @@ that user initiated actions can, you have to create a separate set of Secrets at
 [docs](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/configuring-access-to-private-registries-for-dependabot).
 In practice this means we have some duplicated secrets across `Actions` and `Dependabot`.
 
+## Sonatype / Maven Central
+
+In order to release to Maven Central, the Kroxylicious Robot has an account at https://central.sonatype.com/.
+This is used by the release stage and promote workflows.
+The credentials for the Kroxylicious Robot are in the 1Password safe.
+
+The workflows themselves authenticate using a Sonatype *user token* belonging to the  Kroxylicious Robot.  There's no
+expiration on the token.
+
+To refresh the token:
+
+1. Login to https://central.sonatype.com/ as the Kroxylicious Robot.
+2. Navigate to "View Account".
+3. Select "Generate user token"
+4. Store the username and password at the Github organisational level in variable/secret `KROXYLICIOUS_SONATYPE_TOKEN_USERNAME` and `KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD`
+
 ## Fortanix DSM Integration Tests
 
 In order for CI to execute the Fortanix DSM Integration Tests, a Fortanix DSM SaaS account has been created.  kroxylicious-admin@.. is an
@@ -43,3 +59,33 @@ found on this page https://uk.smartkey.io/#/settings.
 In order to be able to run the system and performance tests for our Pull Requests (PR) using Jenkins, we have defined the following Personal Access Token (PAT) 
 `KROXYLICIOUS_JENKINS_TOKEN` to allow `kroxylicious-robot` writing comments with the results of the test execution and adding a new status check in the PR.
 
+## Slack Integration
+
+We use a slack webhook to send messages to the `#kroxylicious-bots` channel on slack. The webhook is stored in an organization secret called `KROXYLICIOUS_SLACK_WEBHOOK`.
+
+## Deploying the Snapshot Website to GitHub Pages on a Fork
+
+We have automation to deploy a snapshot version of the website (source at https://github.com/kroxylicious/kroxylicious.github.io) with the latest documentation
+from this repository incorporated. This is deployed to https://kroxylicious.io/kroxylicious so that we can see what the documentation in this repository looks
+like when combined with the website, testing the API between the two repos.
+
+To exercise the GitHub workflows and share documentation changes it can be convenient to deploy this to your own fork. To do this you need to add some configuration
+so that:
+1. Actions can deploy to GitHub Pages
+2. The built HTML refers to your github pages URL as it will be hosted at `https://<your-name>.github.io/kroxylicious/`. Jekyll builds up absolute URLs using a
+   configured site url.
+
+To enable pages on your fork:
+1. go to `https://github.com/${yourname}/kroxylicious.github.io/settings` in a browser, replacing `${yourname}` with your GitHub username.
+2. Navigate to "Pages" under "Code and automation"
+3. Under "Build and deployment", under "Source", select "Github Actions".
+4. Navigate to "Actions" under "Secrets and variables" under "Security"
+5. Select the "Variables" tab
+6. Click "New repository variable"
+7. Create a new repository variable named `JEKYLL_CONFIG_OVERRIDES` with value:
+   ```yaml
+   url: "https://${yourname}.github.io"
+   ```
+   replacing `${yourname}` with your GitHub username.
+8. Push changes to any branch of your fork and then trigger a manual run of `https://github.com/${yourname}/kroxylicious/actions/workflows/publish-snapshot-docs-to-website.yaml`.
+   supplying the branch you want to checkout and deploy as a parameter. 

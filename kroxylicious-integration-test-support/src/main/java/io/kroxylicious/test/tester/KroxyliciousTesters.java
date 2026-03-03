@@ -20,6 +20,13 @@ import io.kroxylicious.test.server.MockServer;
 public class KroxyliciousTesters {
 
     /**
+     * Prevent construction of utility class
+     */
+    private KroxyliciousTesters() {
+        // private constructor
+    }
+
+    /**
      * Creates a kroxylicious tester for the given KroxyliciousConfigBuilder.
      * This will create and start an in-process kroxylicious instance, it is
      * up to the client to close it.

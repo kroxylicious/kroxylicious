@@ -1,0 +1,38 @@
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// assembly-preparing-fortanix-dsm.adoc
+
+[id='proc-fortanix-dsm-key-creation-{context}']
+= Creating Fortanix DSM keys
+
+[role="_abstract"]
+This procedure describes how to create AES-256 symmetric keys for use with the Record Encryption filter. The procedure uses the Fortanix DSM CLI to create a key according to your naming convention and assign it to the required group.
+
+.Prerequisites
+
+* Access to the Fortanix DSM CLI with sufficient permissions to create keys and list groups.
+* The ID of the Fortanix DSM group that will contain the keys.
+* Familiarity with basic Fortanix DSM key management operations.
+
+.Procedure
+
+. Identify the ID of the group to contain the keys:
++
+[source, shell]
+----
+GROUP_ID=$(sdkms-cli  --api-endpoint https://<region>.smartkey.io list-groups | grep topic-keks | awk '{print $1}')
+----
+* This example extracts the ID of the group named `topic-keks`.
+
+. Create a key and associate it with the group:
++
+[source, shell]
+----
+KEY_NAME="KEK-<name>"
+sdkms-cli  --api-endpoint https://<region>.smartkey.io create-key --obj-type AES --key-size 256 --group-id ${GROUP_ID} --name ${KEY_NAME} --key-ops ENCRYPT,DECRYPT,APPMANAGEABLE
+----
+* Specify the key operations as `ENCRYPT,DECRYPT,APPMANAGEABLE`. These are the minimal permissions required for record encryption to function.
+
+. (Optional) Enable a key rotation policy. Details can be found in the Fortanix DSM documentation.

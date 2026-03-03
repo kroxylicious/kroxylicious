@@ -6,10 +6,13 @@
 
 package io.kroxylicious.microbenchmarks;
 
+import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -29,10 +32,12 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-import io.kroxylicious.filters.FourInterfaceFilter0;
-import io.kroxylicious.filters.FourInterfaceFilter1;
-import io.kroxylicious.filters.FourInterfaceFilter2;
-import io.kroxylicious.filters.FourInterfaceFilter3;
+import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter0;
+import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter1;
+import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter2;
+import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter3;
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
+import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -43,6 +48,8 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
 @Fork(value = 2, jvmArgsAppend = "-XX:LoopUnrollLimit=1")
@@ -160,7 +167,12 @@ public class InvokerDispatchBenchmark {
     private static class StubFilterContext implements FilterContext {
         @Override
         public String channelDescriptor() {
-            return null;
+            return "";
+        }
+
+        @Override
+        public String sessionId() {
+            return "";
         }
 
         @Override
@@ -179,7 +191,42 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
+        public Optional<ClientTlsContext> clientTlsContext() {
+            return Optional.empty();
+        }
+
+        @Override
+        public void clientSaslAuthenticationSuccess(String mechanism, String authorizedId) {
+
+        }
+
+        @Override
+        public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
+
+        }
+
+        @Override
+        public void clientSaslAuthenticationFailure(String mechanism, String authorizedId, Exception exception) {
+
+        }
+
+        @Override
+        public Optional<ClientSaslContext> clientSaslContext() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Subject authenticatedSubject() {
+            return Subject.anonymous();
+        }
+
+        @Override
         public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header, ApiMessage request) {
+            return null;
+        }
+
+        @Override
+        public CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
             return null;
         }
 

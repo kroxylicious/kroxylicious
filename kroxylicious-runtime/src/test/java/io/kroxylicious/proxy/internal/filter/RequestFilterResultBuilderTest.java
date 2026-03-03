@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -152,6 +153,30 @@ class RequestFilterResultBuilderTest {
 
         // When
         var future = builder.errorResponse(header, versionedMessage.apiMessage(), FILTER_RUNTIME_EXCEPTION).completed();
+
+        // Then
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(10))
+                .satisfies(result -> {
+                    assertThat(result.header())
+                            .satisfies(headerMessage -> assertThat(headerMessage).asInstanceOf(InstanceOfAssertFactories.type(ResponseHeaderData.class))
+                                    .satisfies(responseHeaderData -> assertThat(responseHeaderData.correlationId()).isEqualTo(header.correlationId())));
+                    assertThat(result.message()).satisfies(actualResponse -> assertThat(actualResponse).isExactlyInstanceOf(responseMessageClass));
+                });
+    }
+
+    @Test
+    void shouldBuildErrorResponseForIllegitimateLeaveGroupRequest() {
+        // Given
+        final ApiKeys apiKey = ApiKeys.LEAVE_GROUP;
+        final Class<? extends ApiMessage> responseMessageClass = apiKey.messageType.newResponse().getClass();
+        var header = new RequestHeaderData();
+        header.setRequestApiKey(apiKey.id);
+        header.setRequestApiVersion(apiKey.latestVersion());
+        header.setCorrelationId(23456);
+
+        // When
+        var future = builder.errorResponse(header, new LeaveGroupRequestData(), FILTER_RUNTIME_EXCEPTION).completed();
 
         // Then
         assertThat(future)

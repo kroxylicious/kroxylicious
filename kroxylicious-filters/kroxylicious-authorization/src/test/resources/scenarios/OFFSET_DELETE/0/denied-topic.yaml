@@ -1,0 +1,44 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_DELETE"
+  apiVersion: 0
+  scenario: "all topics denied, filter short circuit responds with error"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 47
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "my-group"
+    topics:
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 1
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    errorCode: 0
+    throttleTimeMs: 0
+    topics:
+      - name: "unauthorized"
+        partitions:
+          - partitionIndex: 1
+            errorCode: 29

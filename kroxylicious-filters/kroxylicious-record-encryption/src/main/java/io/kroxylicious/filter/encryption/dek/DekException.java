@@ -8,7 +8,7 @@ package io.kroxylicious.filter.encryption.dek;
 
 public class DekException extends RuntimeException {
     public DekException(String message) {
-        super((message));
+        super(message);
     }
 
     public DekException() {

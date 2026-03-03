@@ -1,0 +1,101 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "CREATE_TOPICS"
+  apiVersion: 7
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CREATE_TOPICS"
+      expectedRequestVersion: 7
+      expectedRequestHeader:
+        requestApiKey: 19
+        requestApiVersion: 7
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - name: "my-topic"
+            numPartitions: 14
+            replicationFactor: 996
+            assignments:
+              - partitionIndex: 910
+                brokerIds:
+                  - 964
+            configs:
+              - name: "random-string-21"
+                value: "random-string-457"
+        timeoutMs: 314
+        validateOnly: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 167
+        topics:
+          - name: "my-topic"
+            topicId: "6get6nl1SHiAaBAJ_3XYMw"
+            errorCode: 746
+            errorMessage: "random-string-874"
+            numPartitions: 330
+            replicationFactor: 90
+            configs:
+              - name: "random-string-170"
+                value: "random-string-623"
+                readOnly: false
+                configSource: 103
+                isSensitive: true
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "CREATE"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE_CONFIGS"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 19
+    requestApiVersion: 7
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - name: "my-topic"
+        numPartitions: 14
+        replicationFactor: 996
+        assignments:
+          - partitionIndex: 910
+            brokerIds:
+              - 964
+        configs:
+          - name: "random-string-21"
+            value: "random-string-457"
+    timeoutMs: 314
+    validateOnly: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 167
+    topics:
+      - name: "my-topic"
+        topicId: "6get6nl1SHiAaBAJ_3XYMw"
+        errorCode: 746
+        errorMessage: "random-string-874"
+        numPartitions: 330
+        replicationFactor: 90
+        configs:
+          - name: "random-string-170"
+            value: "random-string-623"
+            readOnly: false
+            configSource: 103
+            isSensitive: true

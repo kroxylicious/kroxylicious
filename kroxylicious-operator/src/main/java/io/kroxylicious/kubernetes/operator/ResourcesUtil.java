@@ -29,12 +29,19 @@ import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaStatus;
+import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
+import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.common.StrimziKafkaRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
@@ -43,8 +50,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 
@@ -62,7 +69,7 @@ public class ResourcesUtil {
                 || inRange(ch, '0', '9');
     }
 
-    static boolean isDnsLabel(String string, boolean rfc1035) {
+    public static boolean isDnsLabel(String string, boolean rfc1035) {
         int length = string.length();
         if (length == 0 || length > 63) {
             return false;
@@ -86,27 +93,31 @@ public class ResourcesUtil {
         return true;
     }
 
-    static String requireIsDnsLabel(String string, boolean rfc1035, String message) {
+    public static String requireIsDnsLabel(String string, boolean rfc1035, String message) {
         if (!isDnsLabel(string, rfc1035)) {
             throw new IllegalArgumentException(message);
         }
         return string;
     }
 
-    static String volumeName(String group, String plural, String resourceName) {
+    public static String volumeName(String group, String plural, String resourceName) {
         String volumeNamePrefix = group.isEmpty() ? plural : group + "." + plural;
         String volumeName = volumeNamePrefix + "-" + resourceName;
-        ResourcesUtil.requireIsDnsLabel(volumeName, true,
+        return ResourcesUtil.requireIsDnsLabel(volumeName, true,
                 "volume name would not be a DNS label: " + volumeName);
-        return volumeName;
     }
 
-    static boolean isSecret(LocalRef<?> ref) {
+    public static boolean isSecret(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Secret".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
 
-    static boolean isConfigMap(LocalRef<?> ref) {
+    public static boolean isStrimziKafka(LocalRef<?> ref) {
+        return (ref.getKind() == null || ref.getKind().isEmpty() || "Kafka".equals(ref.getKind()))
+                && (ref.getGroup() == null || ref.getGroup().isEmpty() || "kafka.strimzi.io".equals(ref.getGroup()));
+    }
+
+    public static boolean isConfigMap(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "ConfigMap".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
@@ -202,10 +213,10 @@ public class ResourcesUtil {
         return resource.getApiVersion().substring(0, resource.getApiVersion().indexOf("/"));
     }
 
-    static <T extends HasMetadata> Set<ResourceID> filteredResourceIdsInSameNamespace(EventSourceContext<?> context,
-                                                                                      HasMetadata primary,
-                                                                                      Class<T> clazz,
-                                                                                      Predicate<T> predicate) {
+    public static <T extends HasMetadata> Set<ResourceID> filteredResourceIdsInSameNamespace(EventSourceContext<?> context,
+                                                                                             HasMetadata primary,
+                                                                                             Class<T> clazz,
+                                                                                             Predicate<T> predicate) {
         return resourcesInSameNamespace(context, primary, clazz)
                 .filter(predicate)
                 .map(ResourceID::fromResource)
@@ -220,7 +231,7 @@ public class ResourcesUtil {
      * @return A stream of resources
      * @param <T> The type of the resource
      */
-    static <T extends HasMetadata> Stream<T> resourcesInSameNamespace(EventSourceContext<?> context, HasMetadata primary, Class<T> clazz) {
+    public static <T extends HasMetadata> Stream<T> resourcesInSameNamespace(EventSourceContext<?> context, HasMetadata primary, Class<T> clazz) {
         return context.getClient()
                 .resources(clazz)
                 .inNamespace(namespace(primary))
@@ -229,7 +240,7 @@ public class ResourcesUtil {
                 .stream();
     }
 
-    static <T> boolean isReferent(LocalRef<T> ref, HasMetadata resource) {
+    public static <T> boolean isReferent(LocalRef<T> ref, HasMetadata resource) {
         return Objects.equals(ResourcesUtil.name(resource), ref.getName());
     }
 
@@ -241,12 +252,12 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefAsResourceId(O owner, LocalRef<R> ref) {
+    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefAsResourceId(O owner, LocalRef<R> ref) {
         return Set.of(new ResourceID(ref.getName(), owner.getMetadata().getNamespace()));
     }
 
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner,
-                                                                                                 List<? extends LocalRef<R>> refs) {
+    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner,
+                                                                                                        List<? extends LocalRef<R>> refs) {
         return refs.stream()
                 .map(ref -> new ResourceID(ref.getName(), owner.getMetadata().getNamespace()))
                 .collect(Collectors.toSet());
@@ -263,14 +274,36 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
-                                                                                        R referent,
-                                                                                        Class<O> owner,
-                                                                                        Function<O, Optional<LocalRef<R>>> refAccessor) {
+    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
+                                                                                               R referent,
+                                                                                               Class<O> owner,
+                                                                                               Function<O, Optional<LocalRef<R>>> refAccessor) {
         return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
                 referent,
                 owner,
                 primary -> refAccessor.apply(primary).map(lr -> ResourcesUtil.isReferent(lr, referent)).orElse(false));
+    }
+
+    /**
+     * Finds the (ids of) the resources which reference the given OwnerReference
+     * @param context The context
+     * @param hasNamespace A resource bearing the namespace we wish to search
+     * @param referent The referent OwnerReference
+     * @param owner The type of the owner of the reference
+     * @param refAccessor A function which returns the reference from a given owner.
+     * @return The ids of reference owners which refer to the referent.
+     * @param <O> The type of the reference owner
+     * @param <R> The type of the referent
+     */
+    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
+                                                                                               OwnerReference referent,
+                                                                                               HasMetadata hasNamespace,
+                                                                                               Class<O> owner,
+                                                                                               Function<O, Optional<LocalRef<R>>> refAccessor) {
+        return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
+                hasNamespace,
+                owner,
+                primary -> refAccessor.apply(primary).map(lr -> referent.getName().equals(lr.getName()) && referent.getKind().equals(lr.getKind())).orElse(false));
     }
 
     /**
@@ -284,10 +317,10 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrersMulti(EventSourceContext<?> context,
-                                                                                             R referent,
-                                                                                             Class<O> owner,
-                                                                                             Function<O, Collection<? extends LocalRef<R>>> refAccessor) {
+    public static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrersMulti(EventSourceContext<?> context,
+                                                                                                    R referent,
+                                                                                                    Class<O> owner,
+                                                                                                    Function<O, Collection<? extends LocalRef<R>>> refAccessor) {
         return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
                 referent,
                 owner,
@@ -304,9 +337,21 @@ public class ResourcesUtil {
         return slug(ref) + " in namespace '" + namespace(resource) + "'";
     }
 
+    public static String namespacedSlug(HasMetadata resource) {
+        return slug(resource) + " in namespace '" + namespace(resource) + "'";
+    }
+
     private static String slug(LocalRef<?> ref) {
         String group = ref.getGroup();
         String name = ref.getName();
+        String kind = ref.getKind() == null || ref.getKind().isEmpty() ? "" : ref.getKind().toLowerCase(Locale.ROOT);
+        String groupString = group == null || group.isEmpty() ? "" : "." + group;
+        return kind + groupString + "/" + name;
+    }
+
+    private static String slug(HasMetadata ref) {
+        String group = group(ref);
+        String name = name(ref);
         String groupString = group.isEmpty() ? "" : "." + group;
         return ref.getKind().toLowerCase(Locale.ROOT) + groupString + "/" + name;
     }
@@ -341,12 +386,13 @@ public class ResourcesUtil {
     }
 
     /**
-     * Checks that the status contains a fresh ResolvedRefs=false condition
+     * Checks that the status contains a fresh ResolvedRefs=false condition. Fresh means that the
+     * observedGeneration of the condition is equal to the metadata.generation of the resource.
      * @param hasMetadata hasMetadata
      * @throws IllegalStateException if hasMetadata is not a CustomResource type owned by the Kroxylicious Operator which uses ResolvedRefs Conditions
      * @return true if hasMetadata status contains a fresh ResolvedRefs=false condition
      */
-    public static boolean hasResolvedRefsFalseCondition(HasMetadata hasMetadata) {
+    public static boolean hasFreshResolvedRefsFalseCondition(HasMetadata hasMetadata) {
         Objects.requireNonNull(hasMetadata);
         List<Condition> conditions;
         if (hasMetadata instanceof KafkaProtocolFilter filter) {
@@ -364,7 +410,9 @@ public class ResourcesUtil {
         else {
             throw new IllegalArgumentException("Resource kind '" + HasMetadata.getKind(hasMetadata.getClass()) + "' does not use ResolveRefs conditions");
         }
-        return conditions.stream().anyMatch(Condition::isResolvedRefsFalse);
+        return conditions.stream()
+                .filter(condition -> condition.getObservedGeneration().equals(hasMetadata.getMetadata().getGeneration()))
+                .anyMatch(Condition::isResolvedRefsFalse);
     }
 
     public static Predicate<HasMetadata> isStatusFresh() {
@@ -375,8 +423,8 @@ public class ResourcesUtil {
         return isStatusFresh().negate();
     }
 
-    public static Predicate<HasMetadata> hasResolvedRefsFalseCondition() {
-        return ResourcesUtil::hasResolvedRefsFalseCondition;
+    public static Predicate<HasMetadata> hasFreshResolvedRefsFalseCondition() {
+        return ResourcesUtil::hasFreshResolvedRefsFalseCondition;
     }
 
     public static Predicate<HasMetadata> hasKind(String kind) {
@@ -417,7 +465,7 @@ public class ResourcesUtil {
             if (secretOpt.isEmpty()) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced resource not found"), List.of());
+                        path + ": referenced secret not found"), List.of());
             }
             else {
                 Secret secret = secretOpt.get();
@@ -457,6 +505,7 @@ public class ResourcesUtil {
      *
      * @param <T> custom resource type
      */
+    @SuppressWarnings("java:S3776")
     public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkTrustAnchorRef(T resource,
                                                                                               Context<T> context,
                                                                                               String eventSourceName,
@@ -464,43 +513,175 @@ public class ResourcesUtil {
                                                                                               String path,
                                                                                               StatusFactory<T> statusFactory) {
         if (isConfigMap(trustAnchorRef.getRef())) {
-            Optional<ConfigMap> configMapOpt = context.getSecondaryResource(ConfigMap.class, eventSourceName);
-            if (configMapOpt.isEmpty()) {
+            var configMapOpt = context.getSecondaryResource(ConfigMap.class, eventSourceName);
+            return doCheckTrustAnchorRef(resource, trustAnchorRef, path, statusFactory, configMapOpt, "configmap", hasMetadata -> ((ConfigMap) hasMetadata).getData());
+        }
+        else if (isSecret(trustAnchorRef.getRef())) {
+            var secretOpt = context.getSecondaryResource(Secret.class, eventSourceName);
+            return doCheckTrustAnchorRef(resource, trustAnchorRef, path, statusFactory, secretOpt, "secret", hasMetadata -> ((Secret) hasMetadata).getData());
+        }
+        else {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
+                    path + " supports referents: configmaps or secrets"), List.of());
+        }
+    }
+
+    @NonNull
+    private static <T extends CustomResource<?, ?>> ResourceCheckResult<T> doCheckTrustAnchorRef(T resource,
+                                                                                                 TrustAnchorRef trustAnchorRef,
+                                                                                                 String path,
+                                                                                                 StatusFactory<T> statusFactory,
+                                                                                                 Optional<? extends HasMetadata> dataBearing,
+                                                                                                 String dataBearingTypeName,
+                                                                                                 Function<HasMetadata, Map<String, String>> dataSupplier) {
+        if (dataBearing.isEmpty()) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REFS_NOT_FOUND,
+                    "%s: referenced %s not found".formatted(path, dataBearingTypeName)), List.of());
+        }
+        else {
+            String key = trustAnchorRef.getKey();
+            if (key == null) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                        Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced resource not found"), List.of());
+                        Condition.REASON_INVALID,
+                        path + " must specify 'key'"), List.of());
+            }
+            if (isSupportedFileType(key)) {
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                        Condition.REASON_INVALID,
+                        path + ".key should end with .pem, .p12 or .jks"), List.of());
             }
             else {
-                String key = trustAnchorRef.getKey();
-                if (key == null) {
+                var dataBearingResource = dataBearing.get();
+                var dataMap = dataSupplier.apply(dataBearingResource);
+                if (!dataMap.containsKey(trustAnchorRef.getKey())) {
                     return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                            Condition.REASON_INVALID,
-                            path + " must specify 'key'"), List.of());
-                }
-                if (!key.endsWith(".pem")
-                        && !key.endsWith(".p12")
-                        && !key.endsWith(".jks")) {
-                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                            Condition.REASON_INVALID,
-                            path + ".key should end with .pem, .p12 or .jks"), List.of());
+                            Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                            path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
                 }
                 else {
-                    ConfigMap configMap = configMapOpt.get();
-                    if (!configMap.getData().containsKey(trustAnchorRef.getKey())) {
-                        return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                                Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                                path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
-                    }
-                    else {
-                        return new ResourceCheckResult<>(null, List.of(configMap));
-                    }
+                    return new ResourceCheckResult<>(null, List.of(dataBearingResource));
                 }
+            }
+        }
+    }
+
+    public static <T extends CustomResource<?, ?>> Optional<Kafka> getKafka(Context<T> context, String eventSourceName) {
+        return context.getSecondaryResource(Kafka.class, eventSourceName);
+    }
+
+    public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkStrimziKafkaRef(T resource,
+                                                                                               Context<T> context,
+                                                                                               String eventSourceName,
+                                                                                               StrimziKafkaRef strimziKafkaRef,
+                                                                                               String path,
+                                                                                               StatusFactory<T> statusFactory) {
+
+        if (context.getClient().getApiGroup("kafka.strimzi.io") == null) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REFS_NOT_FOUND,
+                    "strimziKafkaRef present but Kafka api group not found on cluster. Is the Strimzi Operator installed?"), List.of());
+        }
+
+        if (isStrimziKafka(strimziKafkaRef.getRef())) {
+            Optional<Kafka> kafkaOpt = getKafka(context, eventSourceName);
+            if (kafkaOpt.isEmpty()) {
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        path + ": referenced Kafka resource not found"), List.of());
+            }
+            else {
+                return handleListener(resource, strimziKafkaRef, statusFactory, kafkaOpt.get());
             }
         }
         else {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                    path + " supports referents: configmaps"), List.of());
+                    path + " supports referents: kafka"), List.of());
         }
+    }
+
+    public static Optional<ListenerStatus> retrieveBootstrapServerAddress(Context<KafkaService> context,
+                                                                          KafkaService service,
+                                                                          String eventSourceName) {
+
+        Optional<Kafka> kafka = getKafka(context, eventSourceName);
+        return kafka.flatMap(value -> value.getStatus().getListeners().stream()
+                .filter(listenerStatus -> listenerStatus.getName()
+                        .equals(service.getSpec().getStrimziKafkaRef().getListenerName()))
+                .findFirst());
+    }
+
+    private static <T extends CustomResource<?, ?>> ResourceCheckResult<T> handleListener(T resource, StrimziKafkaRef strimziKafkaRef,
+                                                                                          StatusFactory<T> statusFactory,
+                                                                                          Kafka kafka) {
+        if (!isListenerPresentInSpec(strimziKafkaRef, kafka)) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                    "Referenced resource does not contain listener name: "
+                            + strimziKafkaRef.getListenerName()),
+                    List.of());
+        }
+
+        if (!isSpecifiedListenerPlain(strimziKafkaRef, kafka)) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                    "Referenced resource should have listener as `plain`"),
+                    List.of());
+        }
+
+        if (!isListenerPresentInStatus(strimziKafkaRef, kafka)) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED,
+                    "Referenced resource has not yet reconciled listener name: "
+                            + strimziKafkaRef.getListenerName()),
+                    List.of());
+        }
+        else {
+            return new ResourceCheckResult<>(null, List.of(kafka));
+        }
+    }
+
+    private static boolean isSpecifiedListenerPlain(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
+        Optional<GenericKafkaListener> listener = kafka.getSpec().getKafka().getListeners().stream()
+                .filter(listenerStatus -> listenerStatus.getName()
+                        .equals(strimziKafkaRef.getListenerName()))
+                .findFirst();
+        return !listener.map(GenericKafkaListener::isTls).orElse(false);
+    }
+
+    private static boolean isListenerPresentInSpec(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
+        return kafka.getSpec().getKafka().getListeners().stream()
+                .anyMatch(listenerStatus -> listenerStatus.getName()
+                        .equals(strimziKafkaRef.getListenerName()));
+    }
+
+    private static boolean isListenerPresentInStatus(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
+        return Optional.ofNullable(kafka.getStatus())
+                .map(KafkaStatus::getListeners)
+                .stream()
+                .flatMap(Collection::stream)
+                .anyMatch(listenerStatus -> listenerStatus.getName()
+                        .equals(strimziKafkaRef.getListenerName()));
+    }
+
+    private static boolean isSupportedFileType(String key) {
+        return !key.endsWith(".pem")
+                && !key.endsWith(".p12")
+                && !key.endsWith(".jks");
+    }
+
+    public static boolean isSecret(TrustAnchorRef trustAnchorRef) {
+        return "Secret".equals(trustAnchorRef.getRef().getKind());
+    }
+
+    /**
+     * @return an address that any pod in the same k8s cluster can use to address the service, regardless of which namespace the pod is in
+     * @param serviceName service name
+     * @param namespacedResource resource in the namespace of the Service
+     */
+    public static String crossNamespaceServiceAddress(String serviceName, HasMetadata namespacedResource) {
+        return serviceName + "." + namespace(namespacedResource) + ".svc.cluster.local";
     }
 }

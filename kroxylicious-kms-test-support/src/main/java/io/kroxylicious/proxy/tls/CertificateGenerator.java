@@ -65,7 +65,7 @@ public class CertificateGenerator {
 
     @NonNull
     private static Path writeToPem(Object obj, File file) throws IOException {
-        try (JcaPEMWriter pemWriter = new JcaPEMWriter(new FileWriter(file))) {
+        try (JcaPEMWriter pemWriter = new JcaPEMWriter(new FileWriter(file, StandardCharsets.UTF_8))) {
             pemWriter.writeObject(obj);
         }
         return file.toPath();
@@ -123,23 +123,25 @@ public class CertificateGenerator {
         }
     }
 
-    private static Path buildPkcs12TrustStore(X509Certificate cert, String password) {
+    private static Path buildPkcs12TrustStore(X509Certificate cert, @Nullable String password) {
         return buildTrustStore(cert, password, ".p12", PKCS_12);
     }
 
-    private static Path buildJksTrustStore(X509Certificate cert, String password) {
+    private static Path buildJksTrustStore(X509Certificate cert, @Nullable String password) {
         return buildTrustStore(cert, password, ".jks", JKS);
     }
 
     @NonNull
-    private static Path buildTrustStore(X509Certificate cert, String password, String suffix, String type) {
+    private static Path buildTrustStore(X509Certificate cert, @Nullable String password, String suffix, String type) {
         try {
             File certFile = createTempFile("trust", suffix);
             java.security.KeyStore store = java.security.KeyStore.getInstance(type);
             store.load(null, null);
             store.setCertificateEntry(ALIAS, cert);
             char[] pass = password != null ? password.toCharArray() : null;
-            store.store(new FileOutputStream(certFile), pass);
+            try (FileOutputStream outputStream = new FileOutputStream(certFile)) {
+                store.store(outputStream, pass);
+            }
             return certFile.toPath();
         }
         catch (Exception e) {
@@ -164,6 +166,7 @@ public class CertificateGenerator {
                        TrustStore pkcs12NoPasswordClientTruststore,
                        KeyStore jksServerKeystore) {}
 
+    @SuppressWarnings("java:S2068") // java:S2068 concerns hardcoded passwords. This code is used exclusively in tests so it is considered acceptable.
     public static Keys generate() {
         String password = "changeit";
         KeyPair pair = generateRsaKeyPair();

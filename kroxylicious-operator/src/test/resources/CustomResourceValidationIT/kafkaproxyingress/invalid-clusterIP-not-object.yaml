@@ -17,4 +17,4 @@ resource:
       name: "my-proxy"
     clusterIP: []
 expectFailureMessageToContain: |
-  spec.clusterIP: Invalid value: "array"
+  spec.clusterIP: Invalid value

@@ -48,8 +48,9 @@ public class RecordTestUtils {
      * leaving {@code buffer}'s position unchanged.
      * We don't use {@link ByteBuffer#array()} because that returns the whole backing array, and isn't available for all ByteBuffers.
      * @param buffer The buffer to get the bytes of
-     * @return The bytes in the buffer
+     * @return The bytes in the buffer, or null if the buffer is null
      */
+    @SuppressWarnings("java:S1168") // returns null intentionally
     private static byte[] bytesOf(ByteBuffer buffer) {
         if (buffer == null) {
             return null;

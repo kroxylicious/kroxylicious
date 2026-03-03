@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.test.codec;
 
+import java.util.Objects;
+
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.MessageSizeAccumulator;
@@ -105,7 +107,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     @Override
     public final int estimateEncodedSize() {
         if (headerAndBodyEncodedLength != -1) {
-            assert serializationCache != null;
+            Objects.requireNonNull(serializationCache);
             return FRAME_SIZE_LENGTH + headerAndBodyEncodedLength;
         }
         var headerVersion = headerVersion();
@@ -134,7 +136,10 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         final ObjectSerializationCache cache = serializationCache;
         header.write(out, cache, headerVersion());
         body.write(out, cache, apiVersion());
-        assert (out.writerIndex() - initialIndex) == encodedSize;
+        int writtenBytes = out.writerIndex() - initialIndex;
+        if (writtenBytes != encodedSize) {
+            throw new IllegalStateException("written bytes " + writtenBytes + " != encoded size " + encodedSize);
+        }
     }
 
     @Override

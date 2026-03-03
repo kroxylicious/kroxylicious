@@ -22,7 +22,6 @@ public class FixedChecksumGenerator implements MetadataChecksumGenerator {
         base64Value = Base64.getEncoder().withoutPadding().encodeToString(byteBuffer.array());
     }
 
-    @Override
     public void appendMetadata(ObjectMeta objectMeta) {
         // no-op as we already know the final result
     }

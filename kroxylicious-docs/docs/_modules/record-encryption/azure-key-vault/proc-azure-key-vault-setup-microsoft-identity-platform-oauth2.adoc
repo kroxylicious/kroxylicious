@@ -1,0 +1,64 @@
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// proc-azure-key-vault-setup.adoc
+
+[id='proc-azure-key-vault-setup-microsoft-identity-platform-oauth2-{context}']
+
+= Authenticating with Microsoft Identity Platform via OAuth 2.0
+
+[role="_abstract"]
+This procedure describes how to create a Service Principal (an application identity) within Microsoft Entra ID to allow the Record Encryption filter to authenticate to Azure Key Vault using the OAuth 2.0 Client Credentials flow. The process uses the Azure CLI to create the application identity and assign the required Azure Role-Based Access Control (RBAC) role.
+
+NOTE: This identity is used solely for application-to-application (machine-to-machine) authentication. Grant the Service Principal only the minimum permissions needed to access Azure Key Vault to avoid increasing security risk.
+
+.Prerequisites
+
+* Access to the Azure CLI
+* A user with permissions to create and manage service principals and RBAC roles
+
+.Procedure
+
+. Create the service principal and retrieve the credentials:
++
+[source,shell]
+----
+az ad sp create-for-rbac --name "kroxylicious" --query '[appId, password, tenant, appId]' --output tsv
+----
++
+This command creates the Service Principal and outputs, in order, the Client ID, Client Secret, Tenant ID, and App ID of the Service Principal. You require the Principal ID for the next step. You can replace `kroxylicious` with a different user name.
+
+. Assign the built-in Azure Key Vault RBAC role to the service principal:
++
+[source,shell]
+----
+PRINCIPAL_ID="00000000-0000-0000-0000-000000000000"
+KEY_VAULT_NAME="kroxylicious-key-vault"
+RESOURCE_GROUP="my-resource-group"
+SCOPE_ID=$(az keyvault show --name ${KEY_VAULT_NAME} --resource-group ${RESOURCE_GROUP} --query "id" --output tsv)
+az role assignment create --assignee ${PRINCIPAL_ID} --role "Key Vault Crypto Service Encryption User" --scope ${SCOPE_ID}
+----
+* Set `PRINCIPAL_ID` to the App ID output in the previous step.
+* Set `RESOURCE_GROUP` to the resource group where your key vault is deployed.
++
+These commands assign the built-in Key Vault Crypto Service Encryption User role to the Service Principal, scoped to the target Key Vault. Replace `KEY_VAULT_NAME` and `RESOURCE_GROUP` with your actual values.
+
+. (Optional) If you do not use the built-in RBAC roles, assign the following permissions to the managed identity instead:
+* `Microsoft.KeyVault/vaults/keys/read`
+* `Microsoft.KeyVault/vaults/keys/wrap/action`
+* `Microsoft.KeyVault/vaults/keys/unwrap/action`
++
+If you are using Managed HSM, also assign `Microsoft.KeyVault/managedhsms/rng/action`.
+
+. Verify that the Service Principal has the correct role assignment and scope:
++
+[source,shell]
+----
+PRINCIPAL_ID="00000000-0000-0000-0000-000000000000"
+SCOPE_ID=$(az keyvault show --name ${KEY_VAULT_NAME} --resource-group ${RESOURCE_GROUP} --query "id" --output tsv)
+az role assignment list --assignee "${PRINCIPAL_ID}" --query '[].{Role:roleDefinitionName, Scope:scope}' --output tsv --scope ${SCOPE_ID}
+----
+* `PRINCIPAL_ID` is the object identifier (Service Principal App ID) we output in the first step.
++
+Confirm that the output shows the Key Vault Crypto Service Encryption User role and the full resource ID of your key vault (for example, `/subscriptions/.../resourceGroups/.../vaults/kroxylicious-key-vault`).

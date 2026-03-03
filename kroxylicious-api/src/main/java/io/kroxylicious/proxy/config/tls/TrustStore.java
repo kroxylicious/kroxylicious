@@ -27,9 +27,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
 public record TrustStore(@JsonProperty(required = true) String storeFile,
-                         @JsonProperty(value = "storePassword") PasswordProvider storePasswordProvider,
-                         String storeType,
-                         @Nullable @JsonProperty(value = "trustOptions") TrustOptions trustOptions)
+                         @JsonProperty(value = "storePassword") @Nullable PasswordProvider storePasswordProvider,
+                         @Nullable String storeType,
+                         @JsonProperty(value = "trustOptions") @Nullable TrustOptions trustOptions)
         implements TrustProvider {
 
     public TrustStore {

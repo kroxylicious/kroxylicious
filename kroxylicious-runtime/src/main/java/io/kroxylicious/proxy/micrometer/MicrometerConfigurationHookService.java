@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Service to build a MicrometerConfigurationHook for a configuration. Implementations should be
  * annotated with {@link io.kroxylicious.proxy.plugin.Plugin} and added to the ServiceLoader
@@ -20,7 +18,6 @@ public interface MicrometerConfigurationHookService<T> {
      * @param config config
      * @return hook
      */
-    @NonNull
     MicrometerConfigurationHook build(T config);
 
 }

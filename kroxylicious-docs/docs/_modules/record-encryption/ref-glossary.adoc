@@ -1,0 +1,10 @@
+:_mod-docs-content-type: REFERENCE
+
+= Glossary
+
+[role="_abstract"]
+Glossary of terms used in the Record Encryption guide.
+
+DEK:: Data Encryption Key, a secret key used to encrypt the kafka records
+KEK:: Key Encryption Key, a secret key that resides within the boundaries of a KMS.
+KMS:: Key Management System. A dedicated system for controlling access to cryptographic material, and providing operations which use that material.

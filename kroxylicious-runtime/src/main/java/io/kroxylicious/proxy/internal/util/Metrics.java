@@ -9,71 +9,228 @@ package io.kroxylicious.proxy.internal.util;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-
-import org.apache.kafka.common.protocol.ApiKeys;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.binder.BaseUnits;
+import io.micrometer.core.instrument.binder.netty4.NettyAllocatorMetrics;
+import io.micrometer.core.instrument.binder.netty4.NettyEventExecutorMetrics;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufAllocatorMetricProvider;
+import io.netty.channel.EventLoopGroup;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import io.kroxylicious.proxy.VersionInfo;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.micrometer.core.instrument.Metrics.counter;
-import static io.micrometer.core.instrument.Metrics.summary;
+import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Metrics {
 
-    // creating a constant for all Metrics in the one place so we can easily see what metrics there are
+    // Common Labels
+    public static final String VIRTUAL_CLUSTER_LABEL = "virtual_cluster";
+    public static final String NODE_ID_LABEL = "node_id";
+    public static final String API_KEY_LABEL = "api_key";
+    public static final String API_VERSION_LABEL = "api_version";
+    public static final String DECODED_LABEL = "decoded";
 
-    private static final String KROXYLICIOUS_DOWNSTREAM = "kroxylicious_downstream_";
-    private static final String KROXYLICIOUS_UPSTREAM = "kroxylicious_upstream_";
+    // Base Metric Names
 
-    public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";
-    public static final String KROXYLICIOUS_DOWNSTREAM_CONNECTIONS = KROXYLICIOUS_DOWNSTREAM + "connections";
-    public static final String KROXYLICIOUS_DOWNSTREAM_ERRORS = KROXYLICIOUS_DOWNSTREAM + "errors";
+    private static final String CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME = "kroxylicious_client_to_proxy_request";
+    private static final String PROXY_TO_SERVER_REQUEST_BASE_METER_NAME = "kroxylicious_proxy_to_server_request";
+    private static final String SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME = "kroxylicious_server_to_proxy_response";
+    private static final String PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME = "kroxylicious_proxy_to_client_response";
+    private static final String CLIENT_TO_PROXY_ERROR_BASE_METER_NAME = "kroxylicious_client_to_proxy_errors";
+    private static final String PROXY_TO_SERVER_ERROR_BASE_METER_NAME = "kroxylicious_proxy_to_server_errors";
+    private static final String CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_connections";
+    private static final String CLIENT_TO_PROXY_DISCONNECTS_BASE_METER_NAME = "kroxylicious_client_to_proxy_disconnects";
+    private static final String PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_connections";
+    private static final String KROXYLICIOUS_SERVER_TO_PROXY_READS_PAUSED_NAME = "kroxylicious_server_to_proxy_reads_paused";
+    private static final String KROXYLICIOUS_CLIENT_TO_PROXY_READS_PAUSED_NAME = "kroxylicious_client_to_proxy_reads_paused";
+    private static final String CLIENT_TO_PROXY_ACTIVE_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_active_connections";
+    private static final String PROXY_TO_SERVER_ACTIVE_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_active_connections";
+    private static final String SIZE_SUFFIX = "_size";
 
-    public static final String KROXYLICIOUS_UPSTREAM_CONNECTIONS = KROXYLICIOUS_UPSTREAM + "connections";
-    public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS = KROXYLICIOUS_UPSTREAM + "connection_attempts";
-    public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES = KROXYLICIOUS_UPSTREAM + "connection_failures";
-    public static final String KROXYLICIOUS_UPSTREAM_ERRORS = KROXYLICIOUS_UPSTREAM + "errors";
+    /**
+     * Name of the build_info metric.  Note that the {@code .info} suffix is significant
+     * to Micrometer and is used to indicate an 'info' metric to it.  The metric
+     * name emitted by Prometheus will be called {@code kroxylicious_build_info}.
+     */
+    private static final String INFO_METRIC_NAME = "kroxylicious_build.info";
 
-    public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
+    /**
+     * Cache for tracking the number of active connections from clients to the proxy.
+     * This is used to provide metrics on the number of active connections per virtual cluster node.
+     */
+    private static final ConcurrentHashMap<VirtualClusterNode, AtomicInteger> CLIENT_TO_PROXY_CONNECTION_CACHE = new ConcurrentHashMap<>();
 
-    public static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
+    /**
+     * Cache for tracking the number of active connections from the proxy to servers.
+     * This is used to provide metrics on the number of active connections per virtual cluster node.
+     */
+    private static final ConcurrentHashMap<VirtualClusterNode, AtomicInteger> PROXY_TO_SERVER_CONNECTION_CACHE = new ConcurrentHashMap<>();
 
-    public static final String FLOWING_TAG = "flowing";
-    public static final String VIRTUAL_CLUSTER_TAG = "virtualCluster";
+    private Metrics() {
+        // unused
+    }
 
-    public static final String DOWNSTREAM = "downstream";
-    public static final String UPSTREAM = "upstream";
+    public static MeterProvider<Counter> clientToProxyMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME,
+                "Count of the number of requests received by the proxy from the client.",
+                clusterName, nodeId);
+    }
 
-    @NonNull
+    public static MeterProvider<DistributionSummary> proxyToClientMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME,
+                "Distribution of the size, in bytes, of responses sent from the proxy to the client.",
+                clusterName, BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToClientMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME,
+                "Count of the number of responses sent from the proxy to the client.", clusterName,
+                nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> clientToProxyMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME,
+                "Distribution of the size, in bytes, of the requests received from the client.",
+                clusterName, BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> serverToProxyMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME,
+                "Distribution of the size, in bytes, of responses received from the server.",
+                clusterName, BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> proxyToServerMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(PROXY_TO_SERVER_REQUEST_BASE_METER_NAME,
+                "Distribution of size, in bytes, of requests sent to the server",
+                clusterName,
+                BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<Counter> serverToProxyMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME,
+                "Count of the number of responses received by the proxy from the server.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToServerMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_SERVER_REQUEST_BASE_METER_NAME,
+                "Count of the number of requests sent to the server.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Counter> clientToProxyConnectionCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME,
+                "Count of the number of times a connection is accepted from the clients.", clusterName,
+                nodeId);
+    }
+
+    /**
+     * Creates a counter for tracking client to proxy disconnections by cause.
+     *
+     * @param clusterName the virtual cluster name
+     * @param nodeId the node ID (can be null for bootstrap connections)
+     * @param cause the disconnect cause label (e.g., "idle_timeout", "client_closed", "server_closed")
+     * @return a meter provider for the disconnect counter
+     */
+    public static MeterProvider<Counter> clientToProxyDisconnectsCounter(String clusterName, @Nullable Integer nodeId, String cause) {
+        return Counter
+                .builder(CLIENT_TO_PROXY_DISCONNECTS_BASE_METER_NAME)
+                .description("Count of client to proxy disconnections by cause.")
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .tag("cause", cause)
+                .withRegistry(globalRegistry);
+    }
+
+    public static MeterProvider<Counter> clientToProxyErrorCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(CLIENT_TO_PROXY_ERROR_BASE_METER_NAME,
+                "Count of the number of times a connection is closed due to any downstream error.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToServerConnectionCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME,
+                "Count of the number of times a connection is made to the server from the proxy.",
+                clusterName,
+                nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToServerErrorCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_SERVER_ERROR_BASE_METER_NAME,
+                "Count of the number of times a connection is closed due to any upstream error.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Timer> serverToProxyBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
+        return buildTimerMeterProvider(KROXYLICIOUS_SERVER_TO_PROXY_READS_PAUSED_NAME,
+                "Timer showing how long the proxy has paused reading from a upstream connection because the downstream connection is unwriteable.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Timer> clientToProxyBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
+        return buildTimerMeterProvider(KROXYLICIOUS_CLIENT_TO_PROXY_READS_PAUSED_NAME,
+                "Timer showing how long the proxy has paused reading from a downstream connection because the upstream connection is unwriteable.",
+                clusterName, nodeId);
+    }
+
+    public static ActivationToken clientToProxyConnectionToken(VirtualClusterNode node) {
+        AtomicInteger currentCounter = clientToProxyConnectionCounter(node);
+        return new ActivationToken(currentCounter);
+    }
+
+    public static AtomicInteger clientToProxyConnectionCounter(VirtualClusterNode node) {
+        return CLIENT_TO_PROXY_CONNECTION_CACHE.computeIfAbsent(node, n -> {
+            AtomicInteger activeCount = new AtomicInteger();
+            Gauge.builder(CLIENT_TO_PROXY_ACTIVE_CONNECTION_BASE_METER_NAME, activeCount, AtomicInteger::get)
+                    .strongReference(true)
+                    .description("Number of currently active connections from the client to the proxy.")
+                    .tag(VIRTUAL_CLUSTER_LABEL, node.clusterName())
+                    .tag(NODE_ID_LABEL, nodeIdToLabelValue(node.nodeId()))
+                    .register(globalRegistry);
+            return activeCount;
+        });
+    }
+
+    public static ActivationToken proxyToServerConnectionToken(VirtualClusterNode node) {
+        AtomicInteger currentCounter = proxyToServerConnectionCounter(node);
+        return new ActivationToken(currentCounter);
+    }
+
+    public static AtomicInteger proxyToServerConnectionCounter(VirtualClusterNode node) {
+        return PROXY_TO_SERVER_CONNECTION_CACHE.computeIfAbsent(node, n -> {
+            AtomicInteger activeCount = new AtomicInteger();
+            Gauge.builder(PROXY_TO_SERVER_ACTIVE_CONNECTION_BASE_METER_NAME, activeCount, AtomicInteger::get)
+                    .strongReference(true)
+                    .description("Number of currently active connections from the proxy to the server.")
+                    .tag(VIRTUAL_CLUSTER_LABEL, node.clusterName())
+                    .tag(NODE_ID_LABEL, nodeIdToLabelValue(node.nodeId()))
+                    .register(globalRegistry);
+            return activeCount;
+        });
+    }
+
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
         return counter(counterName, tags);
     }
 
-    public static DistributionSummary payloadSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion, String virtualCluster) {
-        return payloadSizeBytesSummary(apiKey, apiVersion, UPSTREAM, virtualCluster);
-    }
-
-    public static DistributionSummary payloadSizeBytesDownstreamSummary(ApiKeys apiKey, short apiVersion, String virtualCluster) {
-        return payloadSizeBytesSummary(apiKey, apiVersion, DOWNSTREAM, virtualCluster);
-    }
-
-    private static DistributionSummary payloadSizeBytesSummary(ApiKeys apiKey, short apiVersion, String flowing, String virtualCluster) {
-        List<Tag> tags = tags(
-                "ApiKey", apiKey.name(),
-                "ApiVersion", String.valueOf(apiVersion),
-                FLOWING_TAG, flowing,
-                VIRTUAL_CLUSTER_TAG, virtualCluster);
-        return summary(KROXYLICIOUS_PAYLOAD_SIZE_BYTES, tags);
-    }
-
-    public static List<Tag> tags(@NonNull String name, String value) {
+    public static List<Tag> tags(String name, String value) {
         return List.of(Tag.of(name, required(value)));
     }
 
-    public static List<Tag> tags(@NonNull String name1, String value1, @NonNull String name2, String value2) {
+    public static List<Tag> tags(String name1, String value1, String name2, String value2) {
         return List.of(Tag.of(name1, required(value1)), Tag.of(name2, required(value2)));
     }
 
@@ -88,11 +245,84 @@ public class Metrics {
         return List.copyOf(tagsList);
     }
 
-    @NonNull
     private static String required(String value) {
-        if ((Objects.isNull(value) || value.trim().isEmpty())) {
+        if (Objects.isNull(value) || value.trim().isEmpty()) {
             throw new IllegalArgumentException("tag value supplied without a value");
         }
         return value;
     }
+
+    private static String nodeIdToLabelValue(@Nullable Integer nodeId) {
+        return Optional.ofNullable(nodeId).map(Object::toString).orElse("bootstrap");
+    }
+
+    private static MeterProvider<Counter> buildCounterMeterProvider(String meterName,
+                                                                    String description,
+                                                                    String clusterName,
+                                                                    @Nullable Integer nodeId) {
+        return Counter
+                .builder(meterName)
+                .description(description)
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
+    }
+
+    private static MeterProvider<Timer> buildTimerMeterProvider(String meterName,
+                                                                String description,
+                                                                String clusterName,
+                                                                @Nullable Integer nodeId) {
+        return Timer
+                .builder(meterName)
+                .description(description)
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
+    }
+
+    private static MeterProvider<DistributionSummary> buildDistributionSummaryMeterProvider(String meterName,
+                                                                                            String description,
+                                                                                            String clusterName,
+                                                                                            String baseUnit,
+                                                                                            @Nullable Integer nodeId) {
+        var name = meterName + SIZE_SUFFIX;
+        return DistributionSummary.builder(name)
+                .baseUnit(baseUnit)
+                .description(description)
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
+    }
+
+    /**
+     * Exposes a <a href="https://www.robustperception.io/exposing-the-software-version-to-prometheus/">build info metric</a> describing Kroxylicious version etc.
+     *
+     * @param versionInfo version info
+     */
+    public static void versionInfoMetric(VersionInfo versionInfo) {
+        Gauge.builder(INFO_METRIC_NAME, () -> 1.0)
+                .description("Reports Kroxylicious version information")
+                .tag("version", versionInfo.version())
+                .tag("commit_id", versionInfo.commitId())
+                .strongReference(true)
+                .register(globalRegistry);
+    }
+
+    public static void clear() {
+        CLIENT_TO_PROXY_CONNECTION_CACHE.clear();
+        PROXY_TO_SERVER_CONNECTION_CACHE.clear();
+    }
+
+    public static void bindNettyEventExecutorMetrics(final EventLoopGroup... eventLoopGroups) {
+        for (final var eventLoopGroup : eventLoopGroups) {
+            new NettyEventExecutorMetrics(eventLoopGroup).bindTo(globalRegistry);
+        }
+    }
+
+    public static void bindNettyAllocatorMetrics(final ByteBufAllocator alloc) {
+        if (alloc instanceof ByteBufAllocatorMetricProvider byteBufAllocatorMetricProvider) {
+            new NettyAllocatorMetrics(byteBufAllocatorMetricProvider).bindTo(globalRegistry);
+        }
+    }
+
 }

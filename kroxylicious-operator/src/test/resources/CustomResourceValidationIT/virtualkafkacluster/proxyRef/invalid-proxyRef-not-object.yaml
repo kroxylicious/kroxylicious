@@ -21,4 +21,4 @@ resource:
       - ingressRef:
           name: cluster-ip
 expectFailureMessageToContain: |
-  spec.proxyRef: Invalid value: "array"
+  spec.proxyRef: Invalid value

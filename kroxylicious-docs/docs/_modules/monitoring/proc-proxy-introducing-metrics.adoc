@@ -1,0 +1,35 @@
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// assembly-monitoring-proxy.adoc
+
+[id='proc-proxy-introducing-metrics-{context}']
+= Introducing metrics
+
+[role="_abstract"]
+If you want to introduce metrics to your Kroxylicious deployment, you can configure an insecure HTTP and Prometheus endpoint (at `/metrics`).
+
+Add the following to the `ConfigMap` resource that defines the Kroxylicious configuration:
+
+.Minimal metrics configuration
+[source,yaml]
+----
+management:
+  endpoints:
+    prometheus: {}
+----
+
+By default, the HTTP endpoint listens on `0.0.0.0:9190`.
+You can change the bind address and port as follows:
+
+.Example metrics configuration with bind address and port
+[source,yaml]
+----
+management:
+  bindAddress: 127.0.0.1
+  port: 9999
+  endpoints:
+    prometheus: {}
+----
+

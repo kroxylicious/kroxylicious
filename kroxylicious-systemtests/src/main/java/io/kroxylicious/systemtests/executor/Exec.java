@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,6 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static java.lang.String.join;
 
@@ -132,7 +135,7 @@ public class Exec {
      * @return the pid
      */
     public static long execWithoutWait(String... command) {
-        return execWithoutWait(Arrays.asList(command));
+        return execWithoutWait(null, Arrays.asList(command));
     }
 
     /**
@@ -183,12 +186,13 @@ public class Exec {
     /**
      * Exec without wait exec result.
      *
+     * @param input the input
      * @param command the command
-     * @return the pid
+     * @return  the pid
      */
-    public static long execWithoutWait(List<String> command) {
+    public static long execWithoutWait(String input, List<String> command) {
         Exec executor = new Exec();
-        return executor.executeWithoutWait(command, null);
+        return executor.executeWithoutWait(input, command, null);
     }
 
     /**
@@ -277,12 +281,12 @@ public class Exec {
             LOGGER.info("Input: {}", input);
         }
         LOGGER.info("RETURN code: {}", ret);
-        if (!execOut.isEmpty()) {
+        if (!execOut.isEmpty() && LOGGER.isDebugEnabled()) {
             LOGGER.debug("======STDOUT START=======");
             LOGGER.debug("{}", cutExecutorLog(execOut));
             LOGGER.debug("======STDOUT END======");
         }
-        if (!execErr.isEmpty()) {
+        if (!execErr.isEmpty() && LOGGER.isDebugEnabled()) {
             LOGGER.debug("======STDERR START=======");
             LOGGER.debug("{}", cutExecutorLog(execErr));
             LOGGER.debug("======STDERR END======");
@@ -301,8 +305,9 @@ public class Exec {
      * @throws InterruptedException the interrupted exception
      * @throws ExecutionException the execution exception
      */
+    @SuppressFBWarnings("COMMAND_INJECTION") // this is not production code
     public int execute(String input, List<String> commands, Duration timeout, File dir) throws IOException, InterruptedException, ExecutionException {
-        LOGGER.debug("Running command - {}", String.join(" ", commands.toArray(new String[0])));
+        LOGGER.atDebug().setMessage("Running command - {}").addArgument(() -> String.join(" ", commands.toArray(new String[0]))).log();
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
         dir = dir == null ? new File(System.getProperty("user.dir")) : dir;
@@ -310,7 +315,7 @@ public class Exec {
         process = builder.start();
         OutputStream outputStream = process.getOutputStream();
         if (input != null) {
-            LOGGER.debug("With stdin {}", input);
+            LOGGER.debug("With stdin {}", (Supplier<String>) () -> input);
             outputStream.write(input.getBytes(Charset.defaultCharset()));
         }
         // Close subprocess' stdin
@@ -359,17 +364,25 @@ public class Exec {
      * @param dir the dir
      * @return the pid
      */
-    public long executeWithoutWait(List<String> commands, File dir) {
-        LOGGER.debug("Running command - {}", String.join(" ", commands.toArray(new String[0])));
+    @SuppressFBWarnings("COMMAND_INJECTION") // this is not production code
+    public long executeWithoutWait(String input, List<String> commands, File dir) {
+        LOGGER.atDebug().setMessage("Running command - {}").addArgument(() -> String.join(" ", commands.toArray(new String[0]))).log();
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
         dir = dir == null ? new File(System.getProperty("user.dir")) : dir;
         builder.directory(dir);
         try {
             process = builder.start();
+            if (input != null) {
+                OutputStream outputStream = process.getOutputStream();
+                LOGGER.debug("With stdin {}", input);
+                outputStream.write(input.getBytes(Charset.defaultCharset()));
+                // Close subprocess' stdin
+                outputStream.close();
+            }
         }
         catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
         return process.pid();
     }
@@ -397,6 +410,7 @@ public class Exec {
     /**
      * Get stdOut and stdErr and store it into files
      */
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN") // this is not production code
     private void storeOutputsToFile() {
         if (logPath != null) {
             try {

@@ -22,10 +22,11 @@ public abstract class OpaqueFrame implements Frame {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OpaqueFrame.class);
 
-    /**
-     * Number of bytes required for storing the frame length.
-     */
-    private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
+    /** Api key id */
+    private final short apiKeyId;
+
+    /* Api Key version */
+    private final short apiVersion;
 
     protected final int length;
     protected final int correlationId;
@@ -33,11 +34,15 @@ public abstract class OpaqueFrame implements Frame {
     protected final ByteBuf buf;
 
     /**
+     * @param apiKeyId api key id
+     * @param apiVersion api key version
      * @param buf The message buffer (excluding the frame size)
      * @param correlationId The correlation id
      * @param length The length of the frame within {@code buf}.
      */
-    OpaqueFrame(ByteBuf buf, int correlationId, int length) {
+    OpaqueFrame(short apiKeyId, short apiVersion, ByteBuf buf, int correlationId, int length) {
+        this.apiKeyId = apiKeyId;
+        this.apiVersion = apiVersion;
         Objects.requireNonNull(buf);
         this.length = length;
         this.correlationId = correlationId;
@@ -48,8 +53,23 @@ public abstract class OpaqueFrame implements Frame {
     }
 
     @Override
+    public short apiKeyId() {
+        return apiKeyId;
+    }
+
+    @Override
+    public short apiVersion() {
+        return apiVersion;
+    }
+
+    @Override
     public int correlationId() {
         return correlationId;
+    }
+
+    @Override
+    public boolean isDecoded() {
+        return false;
     }
 
     @Override
@@ -88,6 +108,8 @@ public abstract class OpaqueFrame implements Frame {
     public String toString() {
         return getClass().getSimpleName() + "(" +
                 "length=" + length +
+                ", apiKeyId=" + apiKeyId +
+                ", apiVersion=" + apiVersion +
                 ", buf=" + buf +
                 ')';
     }

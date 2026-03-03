@@ -6,29 +6,14 @@
 
 package io.kroxylicious.test.tester;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.NamedRange;
-import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-
-import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
-import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 
 /**
  * Class for utilities related to manipulating KroxyliciousConfig and it's builder.
@@ -62,7 +47,7 @@ public class KroxyliciousConfigUtils {
      * @return builder
      */
     public static ConfigurationBuilder proxy(String clusterBootstrapServers, String... virtualClusterNames) {
-        final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        final ConfigurationBuilder configurationBuilder = baseConfigurationBuilder();
         for (int i = 0; i < virtualClusterNames.length; i++) {
             String virtualClusterName = virtualClusterNames[i];
             var vcb = new VirtualClusterBuilder()
@@ -102,25 +87,13 @@ public class KroxyliciousConfigUtils {
         if (cluster.isEmpty()) {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
-        var first = getVirtualClusterGatewayStream(cluster.get()).filter(l -> l.name().equals(gateway)).map(VirtualClusterGateway::clusterNetworkAddressConfigProvider)
-                .findFirst();
-        var provider = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
-
+        var first = cluster.get().gateways().stream().filter(l -> l.name().equals(gateway)).map(
+                virtualClusterGateway -> virtualClusterGateway.buildNodeIdentificationStrategy(virtualCluster)).findFirst();
+        var nodeIdentificationStrategy = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
         // Need proper way to do this for embedded use-cases. We should have a way to query kroxy for the virtual cluster's
         // actual bootstrap after the proxy is started. The provider might support dynamic ports (port 0), so querying the
         // config might not work.
-        if (provider.config() instanceof PortPerBrokerClusterNetworkAddressConfigProviderConfig c) {
-            return c.getBootstrapAddress().toString();
-        }
-        if (provider.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig c) {
-            return c.getBootstrapAddress().toString();
-        }
-        else if (provider.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig c) {
-            return new HostPort(c.getBootstrapAddress().host(), c.getAdvertisedPort()).toString();
-        }
-        else {
-            throw new IllegalStateException("I don't know how to handle ClusterEndpointConfigProvider type:" + provider.type());
-        }
+        return nodeIdentificationStrategy.getClusterBootstrapAddress().toString();
     }
 
     public static VirtualClusterGatewayBuilder defaultGatewayBuilder() {
@@ -141,55 +114,13 @@ public class KroxyliciousConfigUtils {
     public static VirtualClusterGatewayBuilder defaultSniHostIdentifiesNodeGatewayBuilder(HostPort bootstrapAddress, String advertisedBrokerAddressPattern) {
         return defaultGatewayBuilder()
                 .withNewSniHostIdentifiesNode()
-                .withBootstrapAddress(bootstrapAddress)
+                .withBootstrapAddress(bootstrapAddress.toString())
                 .withAdvertisedBrokerAddressPattern(advertisedBrokerAddressPattern)
                 .endSniHostIdentifiesNode();
     }
 
     public static VirtualClusterGatewayBuilder defaultSniHostIdentifiesNodeGatewayBuilder(String bootstrapAddress, String advertisedBrokerAddressPattern) {
         return defaultSniHostIdentifiesNodeGatewayBuilder(HostPort.parse(bootstrapAddress), advertisedBrokerAddressPattern);
-    }
-
-    public static Stream<VirtualClusterGateway> getVirtualClusterGatewayStream(VirtualCluster cluster) {
-        return Optional.ofNullable(cluster.gateways())
-                .filter(Predicate.not(List::isEmpty))
-                .map(Collection::stream)
-                .orElseGet(() -> buildGatewayFromDeprecatedNetworkProvider(cluster));
-    }
-
-    @NonNull
-    @SuppressWarnings("removal")
-    private static Stream<VirtualClusterGateway> buildGatewayFromDeprecatedNetworkProvider(VirtualCluster cluster) {
-        var providerDefinition = cluster.clusterNetworkAddressConfigProvider();
-        if (providerDefinition.config() instanceof PortPerBrokerClusterNetworkAddressConfigProviderConfig pc) {
-            var strategy = new PortIdentifiesNodeIdentificationStrategy(pc.getBootstrapAddress(),
-                    pc.getBrokerAddressPattern(),
-                    pc.getBrokerStartPort(),
-                    null);
-
-            return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
-                    strategy, null, cluster.tls()));
-        }
-        else if (providerDefinition.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rc) {
-            var ranges = rc.getNodeIdRanges().stream()
-                    .map(nir -> new NamedRange(nir.name(), nir.rangeSpec().startInclusive(), nir.rangeSpec().endExclusive() - 1))
-                    .toList();
-            var strategy = new PortIdentifiesNodeIdentificationStrategy(rc.getBootstrapAddress(),
-                    rc.getNodeAddressPattern(),
-                    rc.getNodeStartPort(),
-                    ranges);
-
-            return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
-                    strategy, null, cluster.tls()));
-        }
-        else if (providerDefinition.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sc) {
-            var strategy = new SniHostIdentifiesNodeIdentificationStrategy(sc.getBootstrapAddress(),
-                    sc.getBrokerAddressPattern());
-
-            return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
-                    null, strategy, cluster.tls()));
-        }
-        throw new UnsupportedOperationException(providerDefinition.type() + " is unrecognised");
     }
 
     @NonNull
@@ -199,5 +130,14 @@ public class KroxyliciousConfigUtils {
                 .withBootstrapServers(cluster.getBootstrapServers())
                 .endTargetCluster()
                 .withName(clusterName);
+    }
+
+    public static ConfigurationBuilder baseConfigurationBuilder() {
+        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        configurationBuilder.withNewNetwork()
+                .withNewManagement().withShutdownQuietPeriodSeconds(0).endManagement()
+                .withNewProxy().withShutdownQuietPeriodSeconds(0).endProxy()
+                .endNetwork();
+        return configurationBuilder;
     }
 }

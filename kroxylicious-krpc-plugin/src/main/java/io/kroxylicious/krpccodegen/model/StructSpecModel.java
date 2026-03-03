@@ -23,23 +23,18 @@ class StructSpecModel implements TemplateHashModel, AdapterTemplateModel {
 
     @Override
     public TemplateModel get(String key) throws TemplateModelException {
-        switch (key) {
-            case "name":
-                return wrapper.wrap(spec.name());
-            case "fields":
-                return wrapper.wrap(spec.fields());
-            case "versions":
-                return wrapper.wrap(spec.versions());
-            case "versionsString":
-                return wrapper.wrap(spec.versionsString());
-            case "hasKeys":
-                return wrapper.wrap(spec.hasKeys());
-        }
-        throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property " + key);
+        return switch (key) {
+            case "name" -> wrapper.wrap(spec.name());
+            case "fields" -> wrapper.wrap(spec.fields());
+            case "versions" -> wrapper.wrap(spec.versions());
+            case "versionsString" -> wrapper.wrap(spec.versionsString());
+            case "hasKeys" -> wrapper.wrap(spec.hasKeys());
+            default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property " + key);
+        };
     }
 
     @Override
-    public boolean isEmpty() throws TemplateModelException {
+    public boolean isEmpty() {
         return false;
     }
 

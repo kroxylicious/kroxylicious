@@ -5,10 +5,15 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.Assertions;
@@ -23,12 +28,17 @@ import io.netty.buffer.Unpooled;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.proxy.internal.codec.ByteBufs.writeByteBuf;
 import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class ResponseDecoderTest extends AbstractCodecTest {
 
@@ -37,7 +47,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
     private int frameMaxSizeBytes;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         mgr = new CorrelationManager(12);
         frameMaxSizeBytes = DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
         responseDecoder = createResponseDecoder(mgr, frameMaxSizeBytes);
@@ -61,7 +71,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
+    void testApiVersionsExactlyOneFrame_opaque(short apiVersion) {
         mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, false);
         assertEquals(52, exactlyOneFrame_encoded(apiVersion,
                 ApiKeys.API_VERSIONS::responseHeaderVersion,
@@ -72,9 +82,31 @@ class ResponseDecoderTest extends AbstractCodecTest {
                 "Unexpected correlation id");
     }
 
-    @NonNull
+    @Test
+    void shouldFireListenerOnDecode() {
+        // Given
+        var correlationManager = mock(CorrelationManager.class);
+        when(correlationManager.getBrokerCorrelation(anyInt())).thenReturn(mock());
+
+        KafkaMessageListener listener = mock(KafkaMessageListener.class);
+
+        ResponseHeaderData exampleHeader = exampleResponseHeader();
+        ApiVersionsResponseData exampleBody = exampleApiVersionsResponse();
+        short apiVersion = ApiKeys.API_VERSIONS.latestVersion();
+        short headerVersion = ApiKeys.API_VERSIONS.responseHeaderVersion(apiVersion);
+        ByteBuffer response = serializeUsingKafkaApis(headerVersion, exampleHeader, apiVersion, exampleBody);
+        int expectedSizeIncludingLength = response.remaining();
+        var decoder = new KafkaResponseDecoder(correlationManager, Integer.MAX_VALUE, listener);
+
+        // When
+        decoder.decode(null, Unpooled.wrappedBuffer(response), new ArrayList<>());
+
+        // Then
+        verify(listener).onMessage(isA(OpaqueResponseFrame.class), eq(expectedSizeIncludingLength));
+    }
+
     private static KafkaResponseDecoder createResponseDecoder(CorrelationManager mgr, int socketFrameMaxSizeBytes) {
-        return new KafkaResponseDecoder(mgr, socketFrameMaxSizeBytes, "vc");
+        return new KafkaResponseDecoder(mgr, socketFrameMaxSizeBytes, null);
     }
 
     @Test
@@ -150,5 +182,42 @@ class ResponseDecoderTest extends AbstractCodecTest {
                 .singleElement()
                 .extracting("body")
                 .isEqualTo(new ApiVersionsResponseData().setErrorCode(Errors.UNSUPPORTED_VERSION.code()));
+    }
+
+    @Test
+    void throwsOnUndecodableV0ApiVersionsResponse() throws IOException {
+        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 0, 52, true, null, null, true);
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
+        dataOutputStream.writeInt(4); // framesize
+        dataOutputStream.writeInt(upstreamCorrelationId);
+        dataOutputStream.close();
+        // given
+        ByteBuf buffer = Unpooled.wrappedBuffer(byteArrayOutputStream.toByteArray());
+        List<Object> objects = new ArrayList<>();
+
+        // when
+        assertThatThrownBy(() -> {
+            responseDecoder.decode(null, buffer, objects);
+        }).isInstanceOf(IndexOutOfBoundsException.class);
+
+    }
+
+    @Test
+    void throwsOnUndecodableNonV0ApiVersionsResponse() throws IOException {
+        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
+        dataOutputStream.writeInt(4); // framesize
+        dataOutputStream.writeInt(upstreamCorrelationId);
+        dataOutputStream.close();
+        // given
+        ByteBuf buffer = Unpooled.wrappedBuffer(byteArrayOutputStream.toByteArray());
+        List<Object> objects = new ArrayList<>();
+
+        // then
+        assertThatThrownBy(() -> {
+            responseDecoder.decode(null, buffer, objects);
+        }).isInstanceOf(IndexOutOfBoundsException.class);
     }
 }

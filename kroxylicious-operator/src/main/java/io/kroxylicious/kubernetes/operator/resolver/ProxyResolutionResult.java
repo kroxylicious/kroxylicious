@@ -26,7 +26,7 @@ import static java.util.Comparator.comparing;
 public class ProxyResolutionResult {
     private final Set<ClusterResolutionResult> clusterResolutionResults;
 
-    ProxyResolutionResult(Set<ClusterResolutionResult> clusterResolutionResults) {
+    public ProxyResolutionResult(Set<ClusterResolutionResult> clusterResolutionResults) {
         Objects.requireNonNull(clusterResolutionResults);
         this.clusterResolutionResults = clusterResolutionResults;
     }
@@ -37,7 +37,7 @@ public class ProxyResolutionResult {
      */
     public List<VirtualKafkaCluster> fullyResolvedClustersInNameOrder() {
         return clustersSatisfying(
-                clusterResolutionResult -> clusterResolutionResult.allReferentsFullyResolved() && !ResourcesUtil.hasResolvedRefsFalseCondition(
+                clusterResolutionResult -> clusterResolutionResult.allReferentsFullyResolved() && !ResourcesUtil.hasFreshResolvedRefsFalseCondition(
                         clusterResolutionResult.cluster()));
     }
 

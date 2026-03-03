@@ -1,0 +1,18 @@
+:_mod-docs-content-type: SNIPPET
+
+A set of trust anchors for the TLS client can be specified using a PKCS#12 or JKS key store file.
+
+.Example TLS client trust change configuration using a PKCS#12 key store file
+[source,yaml]
+----
+trust:
+  storeFile: /opt/cert/server.p12 # <1>
+  storeType: PKCS12 # <2>
+  storePassword: # <3>
+    passwordFile: /opt/cert/store.password
+----
+<1> `storeFile` specifies PKCS#12 file
+<2> `storeType` specifies what the keystore file type is. Supported values include `PKCS12` and `JKS`.
+<3> Optionally, a keystore file password may be specified.
+
+

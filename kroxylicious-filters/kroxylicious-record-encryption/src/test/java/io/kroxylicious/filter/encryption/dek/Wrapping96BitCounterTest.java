@@ -78,15 +78,15 @@ class Wrapping96BitCounterTest {
 
             @Override
             public int nextInt() {
-                var count = this.count;
+                var initialCount = this.count;
                 this.count++;
-                if (count == 0) {
+                if (initialCount == 0) {
                     return first;
                 }
-                else if (count == 1) {
+                else if (initialCount == 1) {
                     return second;
                 }
-                else if (count == 2) {
+                else if (initialCount == 2) {
                     return third;
                 }
                 else {

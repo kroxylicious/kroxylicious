@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.config.admin;
 
 import java.util.Optional;
 
-public record EndpointsConfiguration(PrometheusMetricsConfig prometheus) {
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+public record EndpointsConfiguration(@Nullable PrometheusMetricsConfig prometheus) {
     public Optional<PrometheusMetricsConfig> maybePrometheus() {
         return Optional.ofNullable(prometheus);
     }

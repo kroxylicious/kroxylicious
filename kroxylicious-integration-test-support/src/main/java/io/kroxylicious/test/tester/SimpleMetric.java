@@ -36,7 +36,7 @@ public record SimpleMetric(String name, Map<String, String> labels, double value
 
     private record LineMatcher(String line, Matcher matcher) {}
 
-    static List<SimpleMetric> parse(String output) {
+    public static List<SimpleMetric> parse(String output) {
         try (var reader = new BufferedReader(new StringReader(output))) {
             return reader.lines()
                     .filter(line -> !(line.startsWith("#") || line.isEmpty()))

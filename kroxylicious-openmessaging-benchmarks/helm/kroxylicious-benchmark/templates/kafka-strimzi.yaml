@@ -1,0 +1,29 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: kafka
+  labels:
+    app: kafka
+spec:
+  kafka:
+    version: {{ .Values.kafka.version }}
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+    config:
+      offsets.topic.replication.factor: {{ .Values.kafka.replicationFactor }}
+      transaction.state.log.replication.factor: {{ .Values.kafka.replicationFactor }}
+      transaction.state.log.min.isr: {{ .Values.kafka.minInSyncReplicas }}
+      default.replication.factor: {{ .Values.kafka.replicationFactor }}
+      min.insync.replicas: {{ .Values.kafka.minInSyncReplicas }}
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

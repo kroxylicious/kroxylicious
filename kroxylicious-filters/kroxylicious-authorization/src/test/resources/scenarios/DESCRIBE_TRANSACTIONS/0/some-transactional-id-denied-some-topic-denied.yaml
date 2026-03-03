@@ -1,0 +1,86 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_TRANSACTIONS"
+  apiVersion: 0
+  scenario: "all transactions and topics allowed"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_TRANSACTIONS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 65
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        transactionalIds:
+          - "my-transactional-id"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 55
+        transactionStates:
+          - errorCode: 0
+            transactionalId: "my-transactional-id"
+            transactionState: "state"
+            transactionTimeoutMs: 1000
+            transactionStartTimeMs: 1000
+            producerId: 1
+            producerEpoch: 1
+            topics:
+              - topic: my-topic
+                partitions: []
+              - topic: denied-topic
+                partitions: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 65
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    transactionalIds:
+      - "my-transactional-id"
+      - "denied-transactional-id"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 55
+    transactionStates:
+      - errorCode: 0
+        transactionalId: "my-transactional-id"
+        transactionState: "state"
+        transactionTimeoutMs: 1000
+        transactionStartTimeMs: 1000
+        producerId: 1
+        producerEpoch: 1
+        topics:
+          - topic: my-topic
+            partitions: [ ]
+      - errorCode: 53
+        transactionalId: "denied-transactional-id"
+        transactionState: ""
+        transactionTimeoutMs: 0
+        transactionStartTimeMs: 0
+        producerId: 0
+        producerEpoch: 0
+        topics: [ ]

@@ -13,13 +13,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
@@ -34,17 +29,14 @@ import static java.util.stream.Collectors.toSet;
 
 class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TemplateTopicNameKekSelector.class);
-    private static final AtomicBoolean emittedPlaceholderDeprecationWarning = new AtomicBoolean(false);
-
-    public static final Pattern PATTERN = Pattern.compile("\\$(?:\\((.*?)\\)|\\{(.*?)})");
+    public static final Pattern PATTERN = Pattern.compile("\\$\\((.*?)\\)");
     private final String template;
     private final Kms<K, ?> kms;
 
     TemplateTopicNameKekSelector(@NonNull Kms<K, ?> kms, @NonNull String template) {
         var matcher = PATTERN.matcher(Objects.requireNonNull(template));
         while (matcher.find()) {
-            String parameterName = templateParameterName(matcher);
+            String parameterName = matcher.group(1);
             if (parameterName.equals("topicName")) {
                 continue;
             }
@@ -52,18 +44,6 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
         }
         this.template = Objects.requireNonNull(template);
         this.kms = Objects.requireNonNull(kms);
-    }
-
-    private static String templateParameterName(Matcher matcher) {
-        String group = matcher.group(1);
-        if (group == null) {
-            group = matcher.group(2);
-            if (!emittedPlaceholderDeprecationWarning.getAndSet(true)) {
-                LOGGER.warn("Use of $\\{}-style placeholders in the KEK template of the record encryption filter is deprecated and will be removed in a future version. "
-                        + "Please replace '${{}}' in the template with '$({})'.", group, group);
-            }
-        }
-        return group;
     }
 
     private record Pair<K>(String topicName, K kekId) {}
@@ -96,7 +76,7 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
         StringBuilder sb = new StringBuilder();
         while (matcher.find()) {
             String replacement;
-            if (templateParameterName(matcher).equals("topicName")) {
+            if (matcher.group(1).equals("topicName")) {
                 replacement = topicName;
             }
             else { // this should be impossible because of the check in the constructor

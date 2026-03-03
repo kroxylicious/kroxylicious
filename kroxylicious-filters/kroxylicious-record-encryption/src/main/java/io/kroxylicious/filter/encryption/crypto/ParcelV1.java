@@ -170,6 +170,7 @@ public class ParcelV1 implements Parcel {
         }
     }
 
+    @SuppressWarnings("java:S1168") // returns null intentionally to distinguish null from absent
     private static Header[] readHeaders(ByteBuffer parcel) {
         var headersLength = ByteUtils.readVarint(parcel);
         if (headersLength == ABSENT_MARKER) {

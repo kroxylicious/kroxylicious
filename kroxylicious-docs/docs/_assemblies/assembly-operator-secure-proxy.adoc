@@ -1,0 +1,21 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-operator-secure-proxy-{context}']
+= Securing a proxy
+
+[role="_abstract"]
+Secure proxies by using TLS and storing sensitive values in external resources.
+
+== Prerequisites
+
+* A running Kroxylicious Proxy instance
+
+include::assembly-operator-secure-client-proxy-connection.adoc[leveloffset=+1]
+
+include::assembly-operator-secure-proxy-broker-connection.adoc[leveloffset=+1]
+
+include::assembly-operator-secure-filter.adoc[leveloffset=+1]

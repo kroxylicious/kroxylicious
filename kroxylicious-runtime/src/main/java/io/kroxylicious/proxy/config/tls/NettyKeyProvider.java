@@ -18,10 +18,13 @@ import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 public class NettyKeyProvider {
 
     interface SslContextBuilderA {
-        SslContextBuilder keyManager(File keyCertChainFile, File keyFile, String keyPassword);
+        SslContextBuilder keyManager(File keyCertChainFile, File keyFile, @Nullable String keyPassword);
     }
 
     interface SslContextBuilderB {
@@ -45,6 +48,7 @@ public class NettyKeyProvider {
 
     private SslContextBuilder configureBuilder(SslContextBuilderA a, SslContextBuilderB b) {
         return this.delegate.accept(new KeyProviderVisitor<>() {
+            @SuppressFBWarnings("PATH_TRAVERSAL_IN")
             @Override
             public SslContextBuilder visit(KeyPair keyPair) {
                 try {
@@ -56,6 +60,7 @@ public class NettyKeyProvider {
                 }
             }
 
+            @SuppressFBWarnings("PATH_TRAVERSAL_IN")
             @Override
             public SslContextBuilder visit(KeyStore keyStore) {
                 try {
@@ -76,6 +81,7 @@ public class NettyKeyProvider {
         });
     }
 
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
     private KeyManagerFactory keyManagerFactory(KeyStore store) {
         try (var is = new FileInputStream(store.storeFile())) {
             var password = Optional.ofNullable(store.storePasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);

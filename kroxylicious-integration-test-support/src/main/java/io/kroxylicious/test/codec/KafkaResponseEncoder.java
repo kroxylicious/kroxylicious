@@ -17,6 +17,7 @@ public class KafkaResponseEncoder extends KafkaMessageEncoder<Frame> {
      * Create KafkaResponseEncoder
      */
     public KafkaResponseEncoder() {
+        // explicit default constructor for javadoc
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaResponseEncoder.class);

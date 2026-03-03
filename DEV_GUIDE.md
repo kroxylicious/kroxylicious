@@ -3,35 +3,45 @@
 This document gives a detailed breakdown of the various build processes and options for building the Kroxylicious from source.
 
 <!-- TOC -->
-- [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
-  - [Build status](#build-status)
-  - [Build Prerequisites](#build-prerequisites)
-  - [Build](#build)
-    - [Formatting the Code](#formatting-the-code)
-    - [Logging Conventions](#logging-conventions)
-  - [Run](#run)
-    - [Debugging](#debugging)
-  - [Building and pushing a Kroxylicious Container Image](#building-and-pushing-a-kroxylicious-container-image)
-  - [IDE setup](#ide-setup)
-    - [Intellij](#intellij)
-  - [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
-    - [Installing WSL](#installing-wsl)
-    - [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
-    - [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
-    - [macOS](#macos)
-    - [Linux](#linux)
-    - [Verify that the fix is effective](#verify-that-the-fix-is-effective)
-  - [Running system tests locally](#running-system-tests-locally)
-    - [Prerequisites](#prerequisites)
-    - [Environment variables](#environment-variables)
-    - [Launch system tests](#launch-system-tests)
-    - [Jenkins pipeline for system tests](#jenkins-pipeline-for-system-tests)
-  - [Rendering documentation](#rendering-documentation)
-  - [Producing an Asciinema Cast](#producing-an-asciinema-cast)
-  - [Continuous Integration](#continuous-integration)
-    - [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
-  - [DCO Signoff](#dco-signoff)
-- [Deprecation Policy](#deprecation-policy)
+* [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
+  * [Build status](#build-status)
+  * [Build Prerequisites](#build-prerequisites)
+  * [Build](#build)
+    * [Formatting the Code](#formatting-the-code)
+    * [Logging Conventions](#logging-conventions)
+  * [Run](#run)
+    * [Debugging](#debugging)
+  * [Building and pushing Kroxylicious Container Images](#building-and-pushing-kroxylicious-container-images)
+  * [IDE setup](#ide-setup)
+    * [Intellij](#intellij)
+  * [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
+    * [Installing WSL](#installing-wsl)
+    * [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
+  * [Running Integration Tests on Podman](#running-integration-tests-on-podman)
+    * [DOCKER_HOST environment variable](#docker_host-environment-variable)
+    * [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
+    * [macOS](#macos)
+    * [Linux](#linux)
+    * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
+  * [Running system tests locally](#running-system-tests-locally)
+    * [Prerequisites](#prerequisites)
+    * [Environment variables](#environment-variables)
+    * [Launch system tests](#launch-system-tests)
+    * [Jenkins pipeline for system tests](#jenkins-pipeline-for-system-tests)
+  * [Rendering documentation](#rendering-documentation)
+  * [Producing an Asciinema Cast](#producing-an-asciinema-cast)
+  * [Continuous Integration](#continuous-integration)
+    * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
+  * [DCO Signoff](#dco-signoff)
+* [Development Guide for Kroxylicious Operator](#development-guide-for-kroxylicious-operator)
+  * [Hacking and Debugging](#hacking-and-debugging)
+  * [Building the operator](#building-the-operator)
+  * [Installing the operator](#installing-the-operator)
+  * [Installing the operator](#installing-the-operator-1)
+  * [Creating a `KafkaProxy`](#creating-a-kafkaproxy)
+  * [Testing](#testing)
+    * [System Tests](#system-tests)
+* [Deprecation Policy](#deprecation-policy)
 <!-- TOC -->
 
 ## Build status
@@ -39,8 +49,8 @@ This document gives a detailed breakdown of the various build processes and opti
 
 ## Build Prerequisites
 
-- [JDK](https://openjdk.org/projects/jdk/17/) (version 21 and above) - JDK
-- [`mvn`](https://maven.apache.org/index.html) (version 3.6.3 and above) - [Apache Maven®](https://maven.apache.org)
+- [JDK](https://openjdk.org/projects/jdk/21/) (version 21 and above) - JDK
+- [`mvn`](https://maven.apache.org/index.html) (version 3.8.8 and above) - [Apache Maven®](https://maven.apache.org)
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 
 > :warning: **If you are using Podman please see [these notes](#running-integration-tests-on-podman) below**
@@ -52,7 +62,7 @@ This document gives a detailed breakdown of the various build processes and opti
 JDK version 21 or newer, and [Apache Maven®](https://maven.apache.org) are required for building this project.
 
 Kroxylicious targets language level 17, except for the `integrationtests` module
-which targets 21 to access some new language features.
+which targets 21 to access some new language features. At production runtime, Java 17 remains supported but is deprecated. Use Java 21 or later.
 
 Build the project like this:
 
@@ -65,8 +75,10 @@ The running of the tests can be controlled with the following Maven properties:
 | property           | description                                                                               |
 |--------------------|-------------------------------------------------------------------------------------------|
 | `-DskipUTs=true`   | skip unit tests                                                                           |
+| `-DskipKTs=true`   | skip container image tests                                                                |
 | `-DskipITs=true`   | skip integration tests                                                                    |
 | `-DskipSTs=true`   | skip system tests                                                                         |
+| `-DskipDTs=true`   | skip documentation tests                                                                  |
 | `-DskipTests=true` | skip all tests                                                                            |
 | `-Pdebug`          | enables logging so you can see what the Kafka clients, Proxy and in VM brokers are up to. |
 
@@ -182,13 +194,59 @@ Low level network and frame logging is turned off by default for better performa
   logFrames: true
 ```
 
-## Building and pushing a Kroxylicious Container Image
+## Building and pushing Kroxylicious Container Images
 
-There is a script to build a Kroxylicious Container Image and push it to a container registry of your choice.
+To build the proxy and operator image, first build the project using :
 
 ```shell
-PUSH_IMAGE=y REGISTRY_DESTINATION=quay.io/$your_quay_org$/kroxylicious ./scripts/build-image.sh
+mvn -Pdist package
 ```
+
+as Maven will be responsible to build the container images as tgz files.
+
+Once the project is built you should be able to see `kroxylicious-operator.img.tar.gz` and `kroxylicious-proxy.img.tar.gz` in the `target` folder of `kroxylicious-operator` and `kroxylicious-app` directories.
+
+Now if you want to push the Kroxylicious container and operator image to a specific registry like `quay.io` or `docker.io`, you can follow these steps:
+
+**NOTE: Container runtime are illustrated using podman CLI. If you are using docker, replace podman with docker.**
+
+First load the image from `tar.gz` file into podman daemon:
+
+```shell
+podman load <kroxylicious-operator.img.tar.gz-or-kroxylicious-proxy.img.tar.gz>
+```
+
+You can check the loaded image using:
+
+```shell
+podman images
+```
+
+Now you can tag the loaded image with the appropriate `quay.io` registry and username:
+
+```shell
+podman tag <loaded-image-name-or-id> quay.io/<your-username>/<repository-name>:<tag>
+```
+
+Once you have tagged the image, now you can push the image to `quay.io`:
+
+```shell
+podman push quay.io/<your-username>/<repository-name>:<tag>
+```
+
+Alternatively, to test locally made changes, push the built operator and proxy images into your Minikube.
+
+```
+minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
+minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
+```
+
+> :warning: Some minikube container runtimes may not be able to load a gzipped tar (https://github.com/kubernetes/minikube/issues/21678), if the above commands report a failure 
+> like `cache_images.go:265] failed pushing to: minikube`, then run:
+> ```
+> gunzip --to-stdout kroxylicious-operator/target/kroxylicious-operator.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
+> gunzip --to-stdout kroxylicious-app/target/kroxylicious-proxy.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
+> ```
 
 ## IDE setup
 
@@ -207,7 +265,7 @@ as a suggestion if you used sdkman to install it).
 
 In the IDEA Maven dialogue click on `Generate Sources and Update Folders For All Projects`.
 
-Build the entire project by running `Build > Build Project` and then check that you can run `io.kroxylicious.proxy.FilterIT`
+Build the entire project by running `Build > Build Project` and then check that you can run `io.kroxylicious.it.FilterIT`
 
 If you encounter any further issues with generated sources, you can try running `mvn clean install -DskipTests` again or running 
 `Generate Sources and Update Folders` for the specific module that is having problems.
@@ -241,15 +299,15 @@ While Kroxylicious is a java application we've had reports of issues running the
       Expect output similar to: 
       ```shell
       > java --version
-   openjdk 19.0.2 2023-01-17
-   OpenJDK Runtime Environment Temurin-19.0.2+7 (build 19.0.2+7)
-   OpenJDK 64-Bit Server VM Temurin-19.0.2+7 (build 19.0.2+7, mixed mode, sharing)
+   openjdk 21.0.8 2025-07-15 LTS
+   OpenJDK Runtime Environment Temurin-21.0.8+9 (build 21.0.8+9-LTS)
+   OpenJDK 64-Bit Server VM Temurin-21.0.8+9 (build 21.0.8+9-LTS, mixed mode, sharing
    ```
     2. Update if needed: sample update command like:
     ```shell
     sudo apt update
     sudo apt upgrade
-    sudo apt install openjdk-18-jre-headless
+    sudo apt install openjdk-21-jre-headless
     ```
 4. Ensure GIT is available
    1. ```shell
@@ -324,7 +382,31 @@ You'll see an API response.  If the service_timeout change is effective, the soc
 will continue for 3 minutes.  If `socat` terminates after about 10 seconds, the workaround
 has been applied ineffectively.
 
+## Running integration tests with IO_Uring
+
+THe integration test suite enables IO_Uring un-conditionally which may trigger issues with memory limits. Certain platforms e.g. Fedora default to running with `RLIMIT_MEMLOCK` set.
+
+If you see test failures such as 
+```shell
+[ERROR] Errors:
+[ERROR]   MockServerTest.testClientCanSendAndReceiveRPCToMock:47 » IllegalState failed to create a child event loop
+```
+or 
+```shell
+java.lang.IllegalStateException: failed to create a child event loop
+...
+Caused by: java.lang.RuntimeException: failed to allocate memory for io_uring ring; try raising memlock limit (see getrlimit(RLIMIT_MEMLOCK, ...) or ulimit -l): Cannot allocate memory
+```
+
+Raise the `RLIMIT_MEMLOCK` (see https://lwn.net/Articles/876288/ for a discussion on the merits or otherwise of the default) by adding entries to `/etc/security/limits.conf` (see https://access.redhat.com/solutions/61334 for details on the file) the updates will take effect in the next login shell.
+example config entry:
+```text
+* hard memlock unlimited
+* soft memlock unlimited
+```
+
 ## Running system tests locally
+
 ### Prerequisites
 * minikube ([install guide](https://minikube.sigs.k8s.io/docs/start/))
 * helm ([install guide](https://helm.sh/docs/helm/helm_install/))
@@ -333,28 +415,30 @@ has been applied ineffectively.
 * [OPTIONAL] aws cli ([install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)): in case an AWS Cloud account is used for KMS.
 
 ### Environment variables
-* `KROXYLICIOUS_REGISTRY`: url to the registry where the image of kroxylicious is located. Default value: `quay.io`
-* `KROXYLICIOUS_ORG`: name of the organisation in the registry where kroxylicious is located. Default value: `kroxylicious`
-* `KROXYLICIOUS_IMAGE_NAME`: name of the image of kroxylicious to be used. Default value: `kroxylicious`
 * `KROXYLICIOUS_OPERATOR_REGISTRY`: url to the registry where the image of kroxylicious operator is located. Default value: `quay.io`
 * `KROXYLICIOUS_OPERATOR_ORG`: name of the organisation in the registry where kroxylicious operator is located. Default value: `kroxylicious`
 * `KROXYLICIOUS_OPERATOR_IMAGE_NAME`: name of the image of kroxylicious operator to be used. Default value: `operator`
-* `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `${project.version}` in pom file
+* `ARCHITECTURE`: architecture of the cluster where the test clients are deployed. Default value: `System.getProperty("os.arch")`
 * `KROXYLICIOUS_OPERATOR_VERSION`: version of kroxylicious operator to be used. Default value: `${project.version}` in pom file
+* `KROXYLICIOUS_OPERATOR_INSTALL_DIR`: directory of the operator install files. Used for operator yaml installation. Default value: `System.getProperty("user.dir") + "/target/kroxylicious-operator-dist/install/"`
+* `KROXYLICIOUS_IMAGE`: image location of the kroxylicious (proxy) image. Defaults to `quay.io/kroxylicious/kroxylicious:${project.version}`
 * `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
 * `STRIMZI_VERSION`: strimzi version to be used. Default value: `${strimzi.version}` in pom file
 * `STRIMZI_NAMESPACE`: namespace used for strimzi cluster operator installation. Useful when strimzi is previously installed. Default value: `kafka`
 * `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. Default value: `false`
+* `SYNC_RESOURCES_DELETION`: variable for test diagnosis purposes to delete the resources synchronously. Default value: `false`
 * `CONTAINER_CONFIG_PATH`: directory where `config.json` file is located. This file contains the pull secrets to be used by
 the container engine. Default value: `$HOME/.docker/config.json`
 * `SKIP_STRIMZI_INSTALL`: skip strimzi installation. Default value: `false`
-* `KAFKA_CLIENT`: client used to produce/consume messages. Default value: `strimzi_test_client`. Currently supported values: `strimzi_test_client`, `kaf`, `kcat`
-* `AWS_USE_CLOUD`: set to `true` in case AWS Cloud is used for Record Encryption System Tests. LocalStack will be used by default. Default value: `false`
+* `KAFKA_CLIENT`: client used to produce/consume messages. Default value: `strimzi_test_client`. Currently supported values: `strimzi_test_client`, `kaf`, `kcat`, `python_test_client`
+* `TEST_CLIENTS_IMAGE`: strimzi test client image to be used when running the tests. It is useful when running regression tests. Default value: `quay.io/strimzi-test-clients/test-clients:latest-kafka-${kafka.version}`
+* `USE_CLOUD_KMS`: set to `true` in case AWS/Azure Cloud is used for Record Encryption System Tests. LocalStack/Lowkey-Vault will be used by default. Default value: `false`
 * `AWS_REGION`: region of the AWS Cloud account to be used for KMS management. Default value: `us-east-2`
 * `AWS_ACCESS_KEY_ID`: key id of the aws account with admin permissions to be used for KMS management. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_SECRET_ACCESS_KEY`: secret access key of the aws account with admin permissions to be used for KMS management. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_KROXYLICIOUS_ACCESS_KEY_ID`: key id of the aws account to be used for Kroxylicious config Map to encrypt/decrypt the messages. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_KROXYLICIOUS_SECRET_ACCESS_KEY`: secret access key of the aws account to be used for Kroxylicious config Map to encrypt/decrypt the messages. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
+* `CURL_IMAGE`: curl image to be used in the corresponding arch for metrics tests. Default value: `mirror.gcr.io/curlimages/curl:8.18.0`
 
 ### Launch system tests
 First of all, the code must be compiled and the distribution artifacts created:
@@ -363,42 +447,25 @@ First of all, the code must be compiled and the distribution artifacts created:
 mvn clean install -Dquick -Pdist
 ```
 
-If the tests are going to be run against local changes, use the [deploy-image.sh](./scripts/build-image.sh)
-describe [above](#building-and-pushing-a-kroxylicious-container-image) to create a test image.
-
-Start minikube:
+Start Minikube:
 ```shell
 minikube start
 ```
 
-Then, you can run them from system test or root folder:
+By default, the system tests will pull the Operator from `quay.io/kroxylicious/operator:${project.version}` and the Proxy from `quay.io/kroxylicious/kroxylicious:${project.version}`.
+These will be the latest images built by CI.  You can change this behaviour by setting the environment variables shown in the table above.
 
-* Run the system tests from [kroxylicious-systemtests](kroxylicious-systemtests) folder:
+Alternatively, to run system tests against locally made changes, push the built operator and proxy images into your Minikube. Refer to section [Building and pushing Kroxylicious Container Images](#building-and-pushing-kroxylicious-container-images).
 
-```shell
-KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean integration-test -DskipSTs=false
-```
-
-* Run them from root folder of kroxylicious project:
-
-```shell
-KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean verify -DskiptITs=true -DskiptUTs=true -DskipSTs=false
-```
-
-### Jenkins pipeline for system tests
-
-When a PR is created and the system tests are needed, if you are a member of
-[Developers](https://github.com/orgs/kroxylicious/teams/developers), you may add the following comment into the PR to trigger the run.
+Run the system tests like this:
 
 ```
-@kroxylicious-robot run system tests
+mvn clean verify -DskipITs=true -DskipUTs=true -DskipSTs=false -Pdist
 ```
-
-It will launch the `kroxylicious-system-tests-pr` build, that will insert a comment with a summary into the PR.
 
 ## Rendering documentation
 
-For information on updating and rendering the documentation, see the `docs` directory [README](docs/README.md). 
+For information on updating and rendering the documentation, see the `kroxylicious-docs` directory [README](kroxylicious-docs/README.md). 
 
 ## Producing an Asciinema Cast
 
@@ -423,7 +490,7 @@ The whole process looks like this:
 
 ```shell
 # Extract the commands and narration
-./scripts/extract-markdown-fencedcodeblocks.sh < kubernetes-examples/envelope-encryption/README.md > /tmp/cmds
+./scripts/extract-markdown-fencedcodeblocks.sh < path/to/some/markdown.md > /tmp/cmds
 asciinema rec --overwrite --command './scripts/demoizer.sh /tmp/cmds .' demo.cast
 # Uses quantize to reduce lengthy periods of inactivity resulting from awaits for resource to come ready etc.
 asciinema-edit quantize --range 5 demo.cast > demo_processed.cast
@@ -457,6 +524,99 @@ Certificate of Origin (DCO)](./DCO.txt).
 
 This can be done using `git commit -s` for each commit
 in your pull request. Alternatively, to signoff a bunch of commits you can use `git rebase --signoff _your-branch_`.
+
+# Development Guide for Kroxylicious Operator
+
+This is the development guide for Kroxylicious operator for Kubernetes.
+
+## Hacking and Debugging
+
+If you want to iterate quickly on the operator the simplest way is to run it as a process on your host (i.e. *not* running it within a Kubernetes cluster).
+
+Note: The Integration Tests will only run if your kubectl context is pointing at a cluster. For development, we recommend using  `minikube`, for example:
+
+```bash
+minikube start --kubernetes-version=latest
+````
+
+You should now be able to run the tests using `mvn`.
+
+If you want to run the `OperatorMain` (e.g. from your IDE, maybe for debugging) then you'll need to install the CRD:
+
+```bash
+kubectl apply -f kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8
+```
+
+You should now be able to play around with `KafkaProxy` CRs; read the "Creating a `KafkaProxy`" section.
+
+Alternatively you can build the operator and run it within Kubernetes by following the instructions below.
+
+## Building the operator
+
+Refer to section [Building and pushing Kroxylicious Container Images](#building-and-pushing-kroxylicious-container-images).
+
+## Installing the operator
+
+Spin up a minikube custer:
+
+```bash
+minikube start --kubernetes-version=latest
+````
+
+## Installing the operator
+
+```bash
+kubectl apply -f kroxylicious-operator/target/packaged/install 
+```
+
+You can check that worked with something like
+
+```bash
+kubectl logs -n kroxylicious-operator deployment/kroxylicious-operator -c operator
+```
+
+## Changing the Operand Image deployed by the Operator
+
+Sometimes we want to use the Operator to deploy a different Proxy image than the default. We can control this by setting 
+the KROXYLICIOUS_IMAGE environment variable on the operators container.
+
+```bash
+kubectl set env deployment/kroxylicious-operator -nkroxylicious-operator KROXYLICIOUS_IMAGE=${YOUR IMAGE}
+```
+
+## Creating a `KafkaProxy`
+
+```bash
+kubectl apply -f kroxylicious-operator/target/packaged/examples/simple/
+```
+
+You can check that worked with something like
+
+```bash
+kubectl get proxy simple -n my-proxy -o jsonpath='{.status}'
+```
+
+## Testing
+
+To test things properly you'll need to point your virtual clusters at a running Kafka and also run a Kafka client so the proxy is handling some load.
+
+### System Tests
+
+The Kroxylicious system test suite uses the operator to deploy resources, so tests can be written in
+java and executed locally in one's IDE. They do however require access to a Kubernetes clusters (usually minikube) and
+helm, with the appropriate RBAC permissions to install operators and provision resources.
+
+System tests are slow running things and are often difficult to diagnose issues just from external observation. To
+support developers working with the operator while the tests execute the system test framework will enable remote debug
+connections to the Kroxylicious Operator and create a LoadBalancer service (`debug-kroxylicious-operator`) to expose it.
+Running `minikube tunnel` will make that available to the IDE, thus allowing developers to connect to the operator and
+add breakpoints and step through execution. Note if we find ourselves doing this regularly we should look at improving
+our unit test coverage and logging to make the diagnosis and avoidance of such issues much easier in less accessible
+environments.
+
+## Manual testing
+
+To help simplify local testing we also have a simple composefile in `compose/kafa-compose.yaml`. See the [compose/README.md](./compose/README.md) for details about how to use the proxy deployed.
 
 # Deprecation Policy
 

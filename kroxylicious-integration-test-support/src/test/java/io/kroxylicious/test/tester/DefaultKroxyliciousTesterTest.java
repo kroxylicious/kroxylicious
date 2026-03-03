@@ -10,21 +10,19 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.consumer.MockConsumer;
-import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.clients.consumer.internals.AutoOffsetResetStrategy.StrategyType;
 import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.KafkaFuture;
@@ -35,20 +33,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinition;
-import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
@@ -106,7 +97,7 @@ class DefaultKroxyliciousTesterTest {
 
     private final MockProducer<String, String> producer = new MockProducer<>();
 
-    private final MockConsumer<String, String> consumer = new MockConsumer<>(OffsetResetStrategy.LATEST);
+    private final MockConsumer<String, String> consumer = new MockConsumer<>(StrategyType.LATEST.toString());
 
     @BeforeEach
     void setUp() {
@@ -406,53 +397,6 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    @SuppressWarnings("removal")
-    static Stream<Arguments> shouldCreateSingleTopicUsingLegacyProvider() {
-        return Stream.of(
-                Arguments.argumentSet("PortPerBrokerClusterNetworkAddressConfigProvider",
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP)
-                                .build()),
-                Arguments.argumentSet("RangeAwarePortPerNodeClusterNetworkAddressConfigProvider",
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.class.getName())
-                                .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP,
-                                        "nodeIdRanges", List.of(Map.of("name", "myrange", "range", Map.of("startInclusive", 0, "endExclusive", "1"))))
-                                .build()));
-    }
-
-    @ParameterizedTest
-    @MethodSource
-    @SuppressWarnings("deprecation")
-    void shouldCreateSingleTopicUsingLegacyProvider(ClusterNetworkAddressConfigProviderDefinition bootstrapAddress) {
-        // Given
-        final CreateTopicsResult createTopicsResult = mock(CreateTopicsResult.class);
-        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResult);
-        when(createTopicsResult.all()).thenReturn(KafkaFuture.completedFuture(null));
-
-        var vcb = new VirtualClusterBuilder()
-                .withName(DEFAULT_CLUSTER)
-                .withNewTargetCluster()
-                .withBootstrapServers(backingCluster)
-                .endTargetCluster()
-                .withClusterNetworkAddressConfigProvider(
-                        bootstrapAddress);
-        var configurationBuilder = new ConfigurationBuilder()
-                .addToVirtualClusters(vcb.build());
-
-        try (KroxyliciousTester tester = new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
-                .setClientFactory(clientFactory)
-                .createDefaultKroxyliciousTester()) {
-
-            // When
-            final String actualTopicName = tester.createTopic(DEFAULT_CLUSTER);
-
-            // Then
-            verify(admin).createTopics(argThat(topics -> assertThat(topics).hasSize(1)));
-            assertThat(actualTopicName).isNotBlank();
-        }
-    }
-
     @Test
     void shouldCreateMultipleTopics() {
         // Given
@@ -612,7 +556,7 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @Test
-    void shouldFailIfAdminHttpNotConfigured() {
+    void shouldFailIfManagementNotConfigured() {
         try (var tester = buildDefaultTester()) {
             assertThatThrownBy(tester::getManagementClient)
                     .isInstanceOf(IllegalStateException.class)
@@ -634,9 +578,9 @@ class DefaultKroxyliciousTesterTest {
 
         try (var tester = (KroxyliciousTester) testerBuilder
                 .createDefaultKroxyliciousTester()) {
-            var adminHttpClient = tester.getManagementClient();
-            assertThat(adminHttpClient).isNotNull();
-            var metrics = adminHttpClient.scrapeMetrics();
+            var managementClient = tester.getManagementClient();
+            assertThat(managementClient).isNotNull();
+            var metrics = managementClient.scrapeMetrics();
             assertThat(metrics).hasSizeGreaterThan(0);
         }
     }

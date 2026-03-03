@@ -19,6 +19,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A frame that has been decoded (as opposed to an {@link OpaqueFrame}).
  *
@@ -32,11 +34,6 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DecodedFrame.class);
 
-    /**
-     * Number of bytes required for storing the frame length.
-     */
-    private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
-
     protected final short apiVersion;
     protected final int correlationId;
     protected final H header;
@@ -44,7 +41,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
-    private ObjectSerializationCache serializationCache;
+    private @Nullable ObjectSerializationCache serializationCache;
 
     DecodedFrame(short apiVersion, int correlationId, H header, B body) {
         this.apiVersion = apiVersion;
@@ -60,6 +57,22 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         return correlationId;
     }
 
+    public short apiKeyId() {
+        return body.apiKey();
+    }
+
+    public ApiKeys apiKey() {
+        return ApiKeys.forId(apiKeyId());
+    }
+
+    public short apiVersion() {
+        return apiVersion;
+    }
+
+    public boolean isDecoded() {
+        return true;
+    }
+
     protected abstract short headerVersion();
 
     public H header() {
@@ -68,14 +81,6 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     public B body() {
         return body;
-    }
-
-    public ApiKeys apiKey() {
-        return ApiKeys.forId(body.apiKey());
-    }
-
-    public short apiVersion() {
-        return apiVersion;
     }
 
     @Override
@@ -140,4 +145,5 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         frame.buffers.addAll(this.buffers);
         this.buffers.clear();
     }
+
 }

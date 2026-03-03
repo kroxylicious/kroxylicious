@@ -13,8 +13,6 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 @Plugin(configType = MissingPluginImplName.Config.class)
 public class MissingPluginImplName implements FilterFactory<MissingPluginImplName.Config, Void> {
 
@@ -27,7 +25,6 @@ public class MissingPluginImplName implements FilterFactory<MissingPluginImplNam
         return null;
     }
 
-    @NonNull
     @Override
     public Filter createFilter(FilterFactoryContext context, Void initializationData) {
         return null;

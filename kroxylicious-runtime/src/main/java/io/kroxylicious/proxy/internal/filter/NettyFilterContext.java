@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.Set;
+
 import io.netty.channel.EventLoop;
 
 import io.kroxylicious.proxy.config.PluginFactory;
@@ -13,8 +15,6 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.internal.NettyFilterDispatchExecutor;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class NettyFilterContext implements FilterFactoryContext {
     private final FilterDispatchExecutor dispatchExecutor;
@@ -31,11 +31,19 @@ public class NettyFilterContext implements FilterFactoryContext {
         return dispatchExecutor;
     }
 
-    @NonNull
     @Override
-    public <P> P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName) {
-        PluginFactory<P> pluginFactory = pluginFactoryRegistry.pluginFactory(pluginClass);
-        return pluginFactory.pluginInstance(instanceName);
+    public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
+        PluginFactory<P> pluginFactory = pluginFactory(pluginClass);
+        return pluginFactory.pluginInstance(implementationName);
+    }
+
+    @Override
+    public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
+        return pluginFactory(pluginClass).registeredInstanceNames();
+    }
+
+    private <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
+        return pluginFactoryRegistry.pluginFactory(pluginClass);
     }
 
 }

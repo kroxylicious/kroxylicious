@@ -1,0 +1,48 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+name: "Slack Notification"
+description: "Slack Notification"
+
+inputs:
+  slackWebhook:
+    description: "Slack webhook"
+    required: false
+    default: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+  slackColor:
+    description: "Color for the message"
+    required: false
+    default: ${{ job.status }}
+  slackTitle:
+    description: "Title of the message"
+    required: false
+    default: 'Title: ${{ github.repository }}'
+  slackMessage:
+    description: "Message to be published on Slack"
+    required: false
+    default: 'The workflow ${{ job.status }} on branch ${{ github.ref_name }}.'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Slack Notification
+      uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
+      env:
+        SLACK_WEBHOOK: ${{ inputs.slackWebhook }}
+        SLACK_COLOR: ${{ inputs.slackColor }}
+        SLACK_TITLE: ${{ inputs.slackTitle }}
+        SLACK_MESSAGE: ${{ inputs.slackMessage }}

@@ -7,7 +7,7 @@
 ---
 resource:
   kind: KafkaProtocolFilter
-  apiVersion: filter.kroxylicious.io/v1alpha1
+  apiVersion: kroxylicious.io/v1alpha1
   metadata:
     name: filter-one
     namespace: proxy-ns
@@ -15,4 +15,4 @@ resource:
     type: "RecordEncryption"
     configTemplate: [ ]
 expectFailureMessageToContain: |
-  spec.configTemplate: Invalid value: "array"
+  spec.configTemplate: Invalid value

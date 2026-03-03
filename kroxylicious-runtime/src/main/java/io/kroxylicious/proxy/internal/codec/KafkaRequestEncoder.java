@@ -15,6 +15,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestEncoder.class);
@@ -24,7 +26,9 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
     public static final int API_VERSION = 2;
     private final CorrelationManager correlationManager;
 
-    public KafkaRequestEncoder(CorrelationManager correlationManager) {
+    public KafkaRequestEncoder(CorrelationManager correlationManager,
+                               @Nullable KafkaMessageListener listener) {
+        super(listener);
         this.correlationManager = correlationManager;
     }
 
@@ -36,13 +40,9 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
     @Override
     protected void encode(ChannelHandlerContext ctx, RequestFrame frame, ByteBuf out) throws Exception {
         super.encode(ctx, frame, out);
-        // TODO re-reading from the encoded buffer like this is ugly
-        // probably better to just include apiKey and apiVersion in the frame
-        var ri = out.readerIndex();
         var wi = out.writerIndex();
-        out.readerIndex(LENGTH);
-        short apiKey = out.readShort();
-        short apiVersion = out.readShort();
+        short apiKey = frame.apiKeyId();
+        short apiVersion = frame.apiVersion();
         boolean hasResponse = frame.hasResponse();
         boolean decodeResponse = frame.decodeResponse();
         int downstreamCorrelationId = frame.correlationId();
@@ -51,14 +51,14 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
                 downstreamCorrelationId,
                 hasResponse,
                 frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).recipient() : null,
-                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null, decodeResponse);
+                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null,
+                decodeResponse);
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: {} downstream correlation id {} assigned upstream correlation id: {}",
                     ctx, ApiKeys.forId(apiKey), downstreamCorrelationId, upstreamCorrelationId);
         }
-        out.readerIndex(ri);
         out.writerIndex(wi);
     }
 

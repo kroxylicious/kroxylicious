@@ -1,0 +1,74 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "LIST_TRANSACTIONS"
+  apiVersion: 2
+  scenario: "some transactionalIds in the response are denied, some are allowed, causing denied entries to be removed"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_TRANSACTIONS"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 66
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        stateFilters:
+          - "random-string-419"
+        producerIdFilters:
+          - 443
+        durationFilter: 906
+        transactionalIdPattern: "random-string-200"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 776
+        errorCode: 1003
+        unknownStateFilters:
+          - "random-string-936"
+        transactionStates:
+          - transactionalId: "my-transactional-id"
+            producerId: 913
+            transactionState: "random-string-578"
+          - transactionalId: "denied-transactional-id"
+            producerId: 913
+            transactionState: "random-string-578"
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 66
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    stateFilters:
+      - "random-string-419"
+    producerIdFilters:
+      - 443
+    durationFilter: 906
+    transactionalIdPattern: "random-string-200"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 776
+    errorCode: 1003
+    unknownStateFilters:
+      - "random-string-936"
+    transactionStates:
+      - transactionalId: "my-transactional-id"
+        producerId: 913
+        transactionState: "random-string-578"

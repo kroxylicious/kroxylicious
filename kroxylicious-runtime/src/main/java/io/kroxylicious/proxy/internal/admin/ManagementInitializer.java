@@ -19,16 +19,14 @@ import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class ManagementInitializer extends ChannelInitializer<SocketChannel> {
 
     private static final String LIVEZ = "/livez";
     private final MeterRegistries registries;
     private final ManagementConfiguration managementConfiguration;
 
-    public ManagementInitializer(@NonNull MeterRegistries registries,
-                                 @NonNull ManagementConfiguration managementConfiguration) {
+    public ManagementInitializer(MeterRegistries registries,
+                                 ManagementConfiguration managementConfiguration) {
         Objects.requireNonNull(registries);
         Objects.requireNonNull(managementConfiguration);
         this.registries = registries;

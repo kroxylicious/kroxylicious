@@ -25,6 +25,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import io.kroxylicious.test.Request;
+import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.codec.DecodedRequestFrame;
 
 /**
@@ -51,11 +52,12 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * Create mockhandler with initial message to serve
-     * @param message message to respond with, nullable
+     * @param payload payload to respond with, nullable
      */
-    public MockHandler(ApiMessage message) {
-        if (message != null) {
-            setMockResponseForApiKey(ApiKeys.forId(message.apiKey()), message);
+    public MockHandler(ResponsePayload payload) {
+        if (payload != null && payload.message() != null) {
+            ApiMessage message = payload.message();
+            setMockResponseForApiKey(ApiKeys.forId(message.apiKey()), message, payload.responseApiVersion());
         }
     }
 

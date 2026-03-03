@@ -21,19 +21,21 @@ import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
-import io.kroxylicious.proxy.internal.util.Metrics;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaResponseDecoder.class);
+    public static final short EMERGENCY_API_VERSION = (short) 0;
 
     private final CorrelationManager correlationManager;
-    private final String clusterName;
 
-    public KafkaResponseDecoder(CorrelationManager correlationManager, int socketRequestMaxSizeBytes, String clusterName) {
-        super(socketRequestMaxSizeBytes);
+    public KafkaResponseDecoder(CorrelationManager correlationManager,
+                                int socketRequestMaxSizeBytes,
+                                @Nullable KafkaMessageListener listener) {
+        super(socketRequestMaxSizeBytes, listener);
         this.correlationManager = correlationManager;
-        this.clusterName = clusterName;
     }
 
     @Override
@@ -69,30 +71,49 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             log().trace("{}: Header version: {}", ctx, headerVersion);
             ResponseHeaderData header = readHeader(headerVersion, accessor);
             log().trace("{}: Header: {}", ctx, header);
-            ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
+            ApiMessageVersion body = decodeBody(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
             Filter recipient = correlation.recipient();
-            Metrics.payloadSizeBytesDownstreamSummary(apiKey, apiVersion, clusterName).record(length);
             if (recipient == null) {
-                frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
+                frame = new DecodedResponseFrame<>(body.apiVersion(), correlationId, header, body.apiMessage());
             }
             else {
-                frame = new InternalResponseFrame<>(recipient, apiVersion, correlationId, header, body, correlation.promise());
+                frame = new InternalResponseFrame<>(recipient, body.apiVersion(), correlationId, header, body.apiMessage(), correlation.promise());
             }
         }
         else {
-            frame = opaqueFrame(in, correlationId, length);
+            frame = opaqueFrame(correlation.apiKey(), correlation.apiVersion(), in, correlationId, length);
         }
         log().trace("{}: Frame: {}", ctx, frame);
         return frame;
     }
 
-    private OpaqueFrame opaqueFrame(ByteBuf in, int correlationId, int length) {
-        return new OpaqueResponseFrame(in.readSlice(length).retain(), correlationId, length);
+    private static ApiMessageVersion decodeBody(ApiKeys apiKey, short apiVersion, ByteBufAccessorImpl accessor) {
+        int prev = accessor.readerIndex();
+        try {
+            return new ApiMessageVersion(BodyDecoder.decodeResponse(apiKey, apiVersion, accessor), apiVersion);
+        }
+        catch (RuntimeException e) {
+            // KIP-511 when the client receives an unsupported version for the ApiVersionResponse, it fails back to version 0
+            // Use the same algorithm as
+            // https://github.com/apache/kafka/blob/a41c10fd49841381b5207c184a385622094ed440/clients/src/main/java/org/apache/kafka/common/requests/ApiVersionsResponse.java#L90-L106
+            accessor.readerIndex(prev);
+            if (ApiKeys.API_VERSIONS.equals(apiKey) && apiVersion != 0) {
+                return new ApiMessageVersion(BodyDecoder.decodeResponse(apiKey, EMERGENCY_API_VERSION, accessor), EMERGENCY_API_VERSION);
+            }
+            else {
+                throw e;
+            }
+        }
+    }
+
+    private OpaqueFrame opaqueFrame(short apiKeyId, short apiVersion, ByteBuf in, int correlationId, int length) {
+        return new OpaqueResponseFrame(apiKeyId, apiVersion, in.readSlice(length).retain(), correlationId, length);
     }
 
     private ResponseHeaderData readHeader(short headerVersion, Readable accessor) {
         return new ResponseHeaderData(accessor, headerVersion);
     }
 
+    record ApiMessageVersion(ApiMessage apiMessage, short apiVersion) {}
 }

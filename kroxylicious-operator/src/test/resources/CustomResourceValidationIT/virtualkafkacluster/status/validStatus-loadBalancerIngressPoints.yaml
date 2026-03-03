@@ -1,0 +1,28 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: VirtualKafkaCluster
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: bar
+  namespace: proxy-ns
+spec:
+  proxyRef:
+    name: proxy
+  targetKafkaServiceRef:
+    name: serviceName
+  ingresses:
+    - ingressRef:
+        name: 'cluster-ip'
+status:
+  ingresses:
+    - bootstrapServer: bootstrap.example.com:9083
+      loadBalancerIngressPoints:
+        - ip: 10.13.0.1
+          hostname: loadbalancer.hostname.cloud.provider
+      name: cluster-ip
+      protocol: TLS

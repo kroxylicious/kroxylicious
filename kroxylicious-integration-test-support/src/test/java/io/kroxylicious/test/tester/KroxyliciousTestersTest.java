@@ -28,6 +28,7 @@ import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -288,15 +289,18 @@ class KroxyliciousTestersTest {
     @Test
     void testIllegalToAskForNonExistentVirtualCluster() {
         try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
+            // these are variables to prevent multiple method invocations within assertThrows
+            Map<String, Object> emptyMap = Map.of();
+            Serde<String> stringSerde = Serdes.String();
             assertThrows(IllegalArgumentException.class, () -> tester.simpleTestClient("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST"));
-            assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Map.of()));
-            assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Serdes.String(), Serdes.String(), Map.of()));
+            assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", emptyMap));
+            assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", stringSerde, stringSerde, emptyMap));
             assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST"));
-            assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", Map.of()));
-            assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", Serdes.String(), Serdes.String(), Map.of()));
+            assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", emptyMap));
+            assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", stringSerde, stringSerde, emptyMap));
             assertThrows(IllegalArgumentException.class, () -> tester.admin("NON_EXIST"));
-            assertThrows(IllegalArgumentException.class, () -> tester.admin("NON_EXIST", Map.of()));
+            assertThrows(IllegalArgumentException.class, () -> tester.admin("NON_EXIST", emptyMap));
         }
     }
 
@@ -309,13 +313,16 @@ class KroxyliciousTestersTest {
         try (var tester = kroxyliciousTester(proxy)) {
             assertThrows(AmbiguousVirtualClusterException.class, tester::simpleTestClient);
             assertThrows(AmbiguousVirtualClusterException.class, tester::consumer);
-            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(Map.of()));
-            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(Serdes.String(), Serdes.String(), Map.of()));
+            // these are variables to prevent multiple method invocations within assertThrows
+            Map<String, Object> emptyMap = Map.of();
+            Serde<String> stringSerde = Serdes.String();
+            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(emptyMap));
+            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(stringSerde, stringSerde, emptyMap));
             assertThrows(AmbiguousVirtualClusterException.class, tester::producer);
-            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.producer(Map.of()));
-            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.producer(Serdes.String(), Serdes.String(), Map.of()));
+            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.producer(emptyMap));
+            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.producer(stringSerde, stringSerde, emptyMap));
             assertThrows(AmbiguousVirtualClusterException.class, tester::admin);
-            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.admin(Map.of()));
+            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.admin(emptyMap));
         }
     }
 

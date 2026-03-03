@@ -8,12 +8,10 @@ package io.kroxylicious.krpccodegen.maven;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
@@ -65,11 +63,10 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     }
 
     @Override
-    public void execute() throws MojoExecutionException, MojoFailureException {
+    public void execute() throws MojoExecutionException {
         if (buildContext == null || !buildContext.isIncremental()) {
             List<String> templates = Stream.of(templateNames.split(","))
-                    .map(String::trim)
-                    .collect(Collectors.toList());
+                    .map(String::trim).toList();
 
             KrpcGenerator gen = builder()
                     .withLogger(new MavenLogger(KrpcGenerator.class.getName(), getLog()))
@@ -92,18 +89,17 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
             String absolutePath = outputDirectory.getAbsolutePath();
             Arrays.stream(addToProjectSourceRoots.split(",")).forEach(sourceRoot -> {
                 switch (sourceRoot) {
-                    case "compile" -> {
-                        project.addCompileSourceRoot(absolutePath);
-                    }
-                    case "testCompile" -> {
-                        project.addTestCompileSourceRoot(absolutePath);
-                    }
-                    default -> {
-                        throw new IllegalArgumentException("unexpected source root " + sourceRoot);
-                    }
+                    case "compile" -> project.addCompileSourceRoot(absolutePath);
+                    case "testCompile" -> project.addTestCompileSourceRoot(absolutePath);
+                    default -> throw new IllegalArgumentException("unexpected source root " + sourceRoot);
                 }
             });
         }
+    }
+
+    // visible for testing
+    public MavenProject project() {
+        return project;
     }
 
     abstract KrpcGenerator.Builder builder();

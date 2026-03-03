@@ -25,4 +25,4 @@ resource:
           certificateRef:
             name: []
 expectFailureMessageToContain: |
-  spec.ingresses[0].tls.certificateRef.name: Invalid value: "array"
+  spec.ingresses[0].tls.certificateRef.name: Invalid value

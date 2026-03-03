@@ -7,7 +7,8 @@
 # Helm Overrides File for HashiCorp Vault used by the system tests.
 server:
   image:
-    tag: 1.19.3
+    repository: "mirror.gcr.io/hashicorp/vault"
+    tag: 1.21.3
   dev:
     enabled: true
   ha:

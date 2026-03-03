@@ -33,13 +33,13 @@ import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -173,6 +173,7 @@ class OperatorMainIT {
                     assertThat(response.statusCode()).isEqualTo(200);
                     assertThat(response.body())
                             .isNotEmpty()
+                            .anySatisfy(line -> assertThat(line).contains("kroxylicious_operator_build_info"))
                             .anySatisfy(line -> assertThat(line).contains("operator_sdk_reconciliations_executions_kafkaproxyreconciler"))
                             .anySatisfy(line -> assertThat(line).contains("operator_sdk_events_received"));
                 });

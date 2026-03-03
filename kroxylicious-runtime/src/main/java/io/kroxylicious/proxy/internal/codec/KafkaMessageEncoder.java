@@ -13,10 +13,18 @@ import io.netty.handler.codec.MessageToByteEncoder;
 
 import io.kroxylicious.proxy.frame.Frame;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Abstraction for request and response encoders.
  */
-public abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder<F> {
+abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder<F> {
+    @Nullable
+    private final KafkaMessageListener listener;
+
+    protected KafkaMessageEncoder(@Nullable KafkaMessageListener listener) {
+        this.listener = listener;
+    }
 
     /*
      * TODO In org.apache.kafka.common.protocol.SendBuilder.buildSend Kafka gets to optimize how it writes to the
@@ -43,6 +51,11 @@ public abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByte
     @Override
     protected void encode(ChannelHandlerContext ctx, F frame, ByteBuf out) throws Exception {
         log().trace("{}: Encoding {} to buffer {}", ctx, frame, out);
+        var beforeIndex = out.writerIndex();
         frame.encode(new ByteBufAccessorImpl(out));
+        if (listener != null) {
+            var afterIndex = out.writerIndex();
+            listener.onMessage(frame, afterIndex - beforeIndex);
+        }
     }
 }

@@ -15,10 +15,8 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
- * A reference to the file containing a plain text password in UTF-8 encoding.  If the password file
+ * A reference to the file containing a nonempty plain text password in UTF-8 encoding.  If the password file
  * contains more than one line, only the characters of the first line are taken to be the password,
  * excluding the line ending.  Subsequent lines are ignored.
  *
@@ -41,10 +39,13 @@ public record FilePassword(@JsonProperty(required = true) String passwordFile) i
                 "passwordFile=" + passwordFile + ']';
     }
 
-    @NonNull
     static String readPasswordFile(String passwordFile) {
         try (var fr = new BufferedReader(new FileReader(passwordFile, StandardCharsets.UTF_8))) {
-            return fr.readLine();
+            String line = fr.readLine();
+            if (line == null) {
+                throw new IOException("Empty file");
+            }
+            return line;
         }
         catch (IOException e) {
             throw new UncheckedIOException("Exception reading " + passwordFile, e);

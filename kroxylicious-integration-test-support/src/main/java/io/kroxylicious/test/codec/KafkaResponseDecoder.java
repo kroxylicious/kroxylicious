@@ -55,20 +55,26 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         else if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Recovered correlation {} for upstream correlation id {}", ctx, correlation, correlationId);
         }
-
-        final DecodedResponseFrame<?> frame;
-        ApiKeys apiKey = ApiKeys.forId(correlation.apiKey());
-        short apiVersion = correlation.apiVersion();
-        var accessor = new ByteBufAccessorImpl(in);
-        short headerVersion = apiKey.responseHeaderVersion(apiVersion);
-        log().trace("{}: Header version: {}", ctx, headerVersion);
-        ResponseHeaderData header = readHeader(headerVersion, accessor);
-        log().trace("{}: Header: {}", ctx, header);
-        ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
-        log().trace("{}: Body: {}", ctx, body);
-        frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
-        correlation.responseFuture().complete(new SequencedResponse(frame, i++));
-        return frame;
+        try {
+            final DecodedResponseFrame<?> frame;
+            ApiKeys apiKey = ApiKeys.forId(correlation.apiKey());
+            short apiVersion = correlation.responseApiVersion();
+            var accessor = new ByteBufAccessorImpl(in);
+            short headerVersion = apiKey.responseHeaderVersion(apiVersion);
+            ResponseHeaderData header = readHeader(headerVersion, accessor);
+            ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
+            frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
+            log().trace("{}: Frame: {}", ctx, frame);
+            if (in.readableBytes() != 0) {
+                throw new IllegalStateException("Unread bytes remaining in frame, potentially response api version differs from expectation");
+            }
+            correlation.responseFuture().complete(new SequencedResponse(frame, i++));
+            return frame;
+        }
+        catch (Exception e) {
+            correlation.responseFuture().completeExceptionally(e);
+            throw e;
+        }
     }
 
     private ResponseHeaderData readHeader(short headerVersion, Readable accessor) {

@@ -76,7 +76,7 @@ class ConditionTest {
     }
 
     @Test
-    void shouldReturnTrueForResolveRefsFalse() {
+    void isResolveRefsFalse_shouldReturnTrueForResolveRefsFalse() {
         // Given
         Condition resolvedFalseCondition = new ConditionBuilder()
                 .withType(Condition.Type.ResolvedRefs)
@@ -95,7 +95,7 @@ class ConditionTest {
     }
 
     @Test
-    void shouldReturnFalseForResolveRefsTrue() {
+    void isResolveRefsFalse_shouldReturnFalseForResolveRefsTrue() {
         // Given
         Condition resolvedFalseCondition = new ConditionBuilder()
                 .withType(Condition.Type.ResolvedRefs)
@@ -114,11 +114,98 @@ class ConditionTest {
     }
 
     @Test
-    void shouldReturnFalseForReadyCondition() {
+    void isResolveRefsFalse_shouldReturnFalseForReadyCondition() {
         // Given
 
         // When
         boolean actual = Condition.isResolvedRefsFalse(readyCondition);
+
+        // Then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void shouldReturnFalseForAcceptedCondition() {
+        // Given
+        Condition resolvedFalseCondition = new ConditionBuilder()
+                .withType(Condition.Type.Accepted)
+                .withStatus(Condition.Status.FALSE)
+                .withMessage("its no werkin")
+                .withReason("BROKEN")
+                .withObservedGeneration(345678L)
+                .withLastTransitionTime(Instant.now())
+                .build();
+
+        // When
+        boolean actual = Condition.isResolvedRefsFalse(resolvedFalseCondition);
+
+        // Then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void isResolveRefsTrue_shouldReturnTrueForResolveRefsTrue() {
+        // Given
+        Condition resolvedTrueCondition = new ConditionBuilder()
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.TRUE)
+                .withMessage("its ALIVE")
+                .withObservedGeneration(345678L)
+                .withReason("FOUND_IT")
+                .withLastTransitionTime(Instant.now())
+                .build();
+
+        // When
+        boolean actual = Condition.isResolvedRefsTrue(resolvedTrueCondition);
+
+        // Then
+        assertThat(actual).isTrue();
+    }
+
+    @Test
+    void isResolveRefsTrue_shouldReturnFalseForResolveRefsFalse() {
+        // Given
+        Condition resolvedFalseCondition = new ConditionBuilder()
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withMessage("its no werkin")
+                .withReason("BROKEN")
+                .withObservedGeneration(345678L)
+                .withLastTransitionTime(Instant.now())
+                .build();
+
+        // When
+        boolean actual = Condition.isResolvedRefsTrue(resolvedFalseCondition);
+
+        // Then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void isResolveRefsTrue_shouldReturnFalseForAcceptedCondition() {
+        // Given
+        Condition resolvedFalseCondition = new ConditionBuilder()
+                .withType(Condition.Type.Accepted)
+                .withStatus(Condition.Status.FALSE)
+                .withMessage("its no werkin")
+                .withReason("BROKEN")
+                .withObservedGeneration(345678L)
+                .withLastTransitionTime(Instant.now())
+                .build();
+
+        // When
+        boolean actual = Condition.isResolvedRefsTrue(resolvedFalseCondition);
+
+        // Then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void isResolveRefsTrue_shouldReturnFalseForReadyCondition() {
+        // Given
+
+        // When
+        boolean actual = Condition.isResolvedRefsTrue(readyCondition);
 
         // Then
         assertThat(actual).isFalse();

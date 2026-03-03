@@ -11,7 +11,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
+
+import io.kroxylicious.krpccodegen.KrpcCodeGenerationException;
 
 /**
  * Contains structure data for Kafka MessageData classes.
@@ -62,15 +63,15 @@ public final class StructRegistry {
     /**
      * Register all the structures contained a message spec.
      */
-    public void register(MessageSpec message) throws Exception {
+    public void register(MessageSpec message) {
         // Register common structures.
         for (StructSpec struct : message.commonStructs()) {
             if (!firstIsCapitalized(struct.name())) {
-                throw new RuntimeException("Can't process structure " + struct.name() +
+                throw new KrpcCodeGenerationException("Can't process structure " + struct.name() +
                         ": the first letter of structure names must be capitalized.");
             }
             if (structs.containsKey(struct.name())) {
-                throw new RuntimeException("Common struct " + struct.name() + " was specified twice.");
+                throw new KrpcCodeGenerationException("Common struct " + struct.name() + " was specified twice.");
             }
             structs.put(struct.name(), new StructInfo(struct, struct.versions()));
             commonStructNames.add(struct.name());
@@ -95,13 +96,13 @@ public final class StructRegistry {
                     // If we're using a common structure, we can't specify its fields.
                     // The fields should be specified in the commonStructs area.
                     if (!field.fields().isEmpty()) {
-                        throw new RuntimeException("Can't re-specify the common struct " +
+                        throw new KrpcCodeGenerationException("Can't re-specify the common struct " +
                                 typeName + " as an inline struct.");
                     }
                 }
                 else if (structs.containsKey(typeName)) {
                     // Inline structures should only appear once.
-                    throw new RuntimeException("Struct " + typeName +
+                    throw new KrpcCodeGenerationException("Struct " + typeName +
                             " was specified twice.");
                 }
                 else {
@@ -133,12 +134,12 @@ public final class StructRegistry {
             structFieldName = structType.typeName();
         }
         else {
-            throw new RuntimeException("Field " + field.name() +
+            throw new KrpcCodeGenerationException("Field " + field.name() +
                     " cannot be treated as a structure.");
         }
         StructInfo structInfo = structs.get(structFieldName);
         if (structInfo == null) {
-            throw new RuntimeException("Unable to locate a specification for the structure " +
+            throw new KrpcCodeGenerationException("Unable to locate a specification for the structure " +
                     structFieldName);
         }
         return structInfo.spec;
@@ -158,7 +159,7 @@ public final class StructRegistry {
         }
         StructInfo structInfo = structs.get(arrayType.elementName());
         if (structInfo == null) {
-            throw new RuntimeException("Unable to locate a specification for the structure " +
+            throw new KrpcCodeGenerationException("Unable to locate a specification for the structure " +
                     arrayType.elementName());
         }
         return structInfo.spec.hasKeys();
@@ -166,13 +167,6 @@ public final class StructRegistry {
 
     public Set<String> commonStructNames() {
         return commonStructNames;
-    }
-
-    /**
-     * Returns an iterator that will step through all the common structures.
-     */
-    public List<StructSpec> commonStructs() {
-        return commonStructNames.stream().map(name -> structs.get(name).spec).collect(Collectors.toList());
     }
 
     public Collection<StructInfo> structs() {

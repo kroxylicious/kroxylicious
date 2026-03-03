@@ -22,13 +22,20 @@ import com.sun.net.httpserver.HttpServer;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.monitoring.micrometer.MicrometerMetrics;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 
 import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaprotocolfilter.KafkaProtocolFilterReconciler;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxyingress.KafkaProxyIngressReconciler;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.KafkaServiceReconciler;
+import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
+import io.kroxylicious.proxy.VersionInfo;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -44,6 +51,13 @@ public class OperatorMain {
     private static final int DEFAULT_MANAGEMENT_PORT = 8080;
     static final String HTTP_PATH_LIVEZ = "/livez";
     static final String HTTP_PATH_METRICS = "/metrics";
+
+    /**
+     * Name of the build_info metric.  Note that the {@code .info} suffix is significant
+     * to Micrometer and is used to indicate an 'info' metric to it.  The metric
+     * name emitted by Prometheus will be called {@code kroxylicious_operator_build_info}.
+     */
+    private static final String BUILD_INFO_METRIC_NAME = "kroxylicious_operator_build.info";
     private final Operator operator;
     private final HttpServer managementServer;
 
@@ -88,7 +102,21 @@ public class OperatorMain {
         managementServer.start();
         addHttpGetHandler(HTTP_PATH_LIVEZ, this::livezStatusCode);
         operator.start();
-        LOGGER.info("Operator started");
+        var versionInfo = VersionInfo.VERSION_INFO;
+        LOGGER.atInfo()
+                .setMessage("Platform: Java {}({}) running on {} {}/{}")
+                .addArgument(Runtime::version)
+                .addArgument(() -> System.getProperty("java.vendor"))
+                .addArgument(() -> System.getProperty("os.name"))
+                .addArgument(() -> System.getProperty("os.version"))
+                .addArgument(() -> System.getProperty("os.arch"))
+                .log();
+        LOGGER.atInfo().setMessage("Operator started (version: {}, commit id: {})")
+                .addArgument(versionInfo::version)
+                .addArgument(versionInfo::commitId)
+                .log();
+        versionInfoMetric(versionInfo);
+
     }
 
     private void addHttpGetHandler(
@@ -176,6 +204,15 @@ public class OperatorMain {
 
         LOGGER.info("Starting management server on: {}:{}", bindToInterface, bindToPort);
         return new InetSocketAddress(bindToInterface, bindToPort);
+    }
+
+    private static void versionInfoMetric(VersionInfo versionInfo) {
+        Gauge.builder(BUILD_INFO_METRIC_NAME, () -> 1.0)
+                .description("Reports Kroxylicious Operator version information")
+                .tag("version", versionInfo.version())
+                .tag("commit_id", versionInfo.commitId())
+                .strongReference(true)
+                .register(Metrics.globalRegistry);
     }
 
 }

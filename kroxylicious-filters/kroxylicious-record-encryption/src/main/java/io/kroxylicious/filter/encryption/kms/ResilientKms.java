@@ -113,16 +113,14 @@ public class ResilientKms<K, E> implements Kms<K, E> {
             return operation.get();
         }
         CompletableFuture<A> future = new CompletableFuture<>();
-        executorService.schedule(() -> {
-            operation.get().whenComplete((a, throwable) -> {
-                if (throwable != null) {
-                    future.completeExceptionally(throwable);
-                }
-                else {
-                    future.complete(a);
-                }
-            });
-        }, duration.toMillis(), TimeUnit.MILLISECONDS);
+        executorService.schedule((Runnable) () -> operation.get().whenComplete((a, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+            }
+            else {
+                future.complete(a);
+            }
+        }), duration.toMillis(), TimeUnit.MILLISECONDS);
         return future;
     }
 }

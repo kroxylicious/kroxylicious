@@ -1,0 +1,13 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// assembly-kms-key-creation.adoc
+
+[id='assembly-key-creation-hashicorp-vault-{context}']
+= Creating keys in HashiCorp Vault
+
+[role="_abstract"]
+To create a key in HashiCorp Vault for use with the Record Encryption filter, use the following procedure.
+
+include::../../../_modules/record-encryption/hashicorp-vault/proc-vault-key-creation.adoc[leveloffset=+1]

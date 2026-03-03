@@ -15,22 +15,22 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.13.0-SNAPSHOT</version>
+        <version>0.19.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-kubernetes-api</artifactId>
-    <version>0.13.0-SNAPSHOT</version>
-    <name>CRD API</name>
+    <version>0.19.0-SNAPSHOT</version>
+    <name>Kubernetes CRD API</name>
     <description>The Kubernetes Custom Resource Definitions for the Kroxylicious Operator and their Java equivalents.
 
         Note we only consider the CRD's themselves to be our public API. We do not ensure compatability with the Java classes.
     </description>
 
     <properties>
-        <josdk.version>5.0.3</josdk.version>
+        <josdk.version>5.2.3</josdk.version>
         <log4j.version>2.20.0</log4j.version>
-        <fabric8-client.version>7.1.0</fabric8-client.version>
-        <lombok.version>1.18.38</lombok.version>
+        <fabric8-client.version>7.4.0</fabric8-client.version>
+        <lombok.version>1.18.42</lombok.version>
     </properties>
 
     <dependencyManagement>
@@ -127,6 +127,14 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <parameters>true</parameters>
+                    <proc>full</proc>
+                </configuration>
+            </plugin>
+            <plugin>
                 <!-- Our CRDs are the source of truth for the Kube API; Java code is derived -->
                 <groupId>io.fabric8</groupId>
                 <artifactId>java-generator-maven-plugin</artifactId>
@@ -150,6 +158,9 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
                             io.fabric8.kubernetes.api.model.PodTemplateSpec
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.proxycontainer.Resources>
+                            io.fabric8.kubernetes.api.model.ResourceRequirements
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.proxycontainer.Resources>
 
                         <!-- Common types used across our own CRDs -->
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ProxyRef>
@@ -158,6 +169,9 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef>
                             io.kroxylicious.kubernetes.api.common.ProxyRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.StrimziKafkaRef>
+                            io.kroxylicious.kubernetes.api.common.StrimziKafkaRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.StrimziKafkaRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetKafkaServiceRef>
                             io.kroxylicious.kubernetes.api.common.KafkaServiceRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetKafkaServiceRef>
@@ -206,12 +220,18 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Conditions>
                             io.kroxylicious.kubernetes.api.common.Condition
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Conditions>
-                        <io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterstatus.Conditions>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaprotocolfilterstatus.Conditions>
                             io.kroxylicious.kubernetes.api.common.Condition
-                        </io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterstatus.Conditions>
-                        <io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaprotocolfilterstatus.Conditions>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
                             java.lang.Object
-                        </io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.clusterip.Protocol>
+                            io.kroxylicious.kubernetes.api.common.Protocol
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.clusterip.Protocol>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.ingresses.Protocol>
+                            io.kroxylicious.kubernetes.api.common.Protocol
+                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.ingresses.Protocol>
                     </existingJavaTypes>
                     <packageOverrides>
                         <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->
@@ -245,7 +265,15 @@
                     </execution>
                 </executions>
             </plugin>
-
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <!-- disable for packages containing the sundrio generated classes -->
+                    <excludePackageNames>io.kroxylicious.proxy.config:io.kroxylicious.proxy.config.admin
+                    </excludePackageNames>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

@@ -12,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -25,8 +26,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
 public record KeyStore(@JsonProperty(required = true) String storeFile,
-                       @JsonProperty(value = "storePassword") PasswordProvider storePasswordProvider,
-                       @JsonProperty(value = "keyPassword") PasswordProvider keyPasswordProvider,
+                       @JsonProperty(value = "storePassword") @Nullable PasswordProvider storePasswordProvider,
+                       @JsonProperty(value = "keyPassword") @Nullable PasswordProvider keyPasswordProvider,
                        String storeType)
         implements KeyProvider {
 

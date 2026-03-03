@@ -1,0 +1,40 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Test values with fixed versions for predictable test assertions
+# These values are independent of production values.yaml
+
+kafka:
+  version: "3.8.0"
+  replicas: 3
+  replicationFactor: 3
+  minInSyncReplicas: 2
+  storage:
+    size: 10Gi
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: 1000m
+    limits:
+      memory: 2Gi
+      cpu: 1000m
+
+omb:
+  image: "openmessaging/benchmark:latest"
+  imagePullPolicy: IfNotPresent
+  workerReplicas: 3
+  driver: "kafka"
+  workload: "simple"
+  resources:
+    requests:
+      memory: 1Gi
+      cpu: 500m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+
+kroxylicious:
+  enabled: false

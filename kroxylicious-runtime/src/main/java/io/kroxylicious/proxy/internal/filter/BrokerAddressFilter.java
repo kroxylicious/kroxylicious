@@ -159,13 +159,13 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         return context.forwardResponse(header, response);
     }
 
-    private <T> void apply(FilterContext context, T broker, Function<T, Integer> nodeIdGetter, Function<T, String> hostGetter, ToIntFunction<T> portGetter,
+    private <T> void apply(FilterContext context, T broker, ToIntFunction<T> nodeIdGetter, Function<T, String> hostGetter, ToIntFunction<T> portGetter,
                            BiConsumer<T, String> hostSetter,
                            ObjIntConsumer<T> portSetter) {
         String incomingHost = hostGetter.apply(broker);
         int incomingPort = portGetter.applyAsInt(broker);
 
-        Integer nodeId = nodeIdGetter.apply(broker);
+        int nodeId = nodeIdGetter.applyAsInt(broker);
         var advertisedAddress = listenerModel.getAdvertisedBrokerAddress(nodeId);
 
         LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}", context, incomingHost, incomingPort, advertisedAddress);

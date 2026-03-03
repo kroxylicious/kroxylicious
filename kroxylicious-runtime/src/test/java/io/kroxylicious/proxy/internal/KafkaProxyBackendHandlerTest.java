@@ -27,11 +27,12 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
+import io.kroxylicious.proxy.config.NamedRange;
+import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -42,11 +43,10 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyBackendHandlerTest {
 
-    @SuppressWarnings("removal")
-    private static final ClusterNetworkAddressConfigProvider ADDRESS_CONFIG_PROVIDER = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
-            new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("localhost", 9090), "broker-", 9190,
-                    0, 10));
-    @Mock
+    private static final NodeIdentificationStrategy NODE_IDENTIFICATION_STRATEGY = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9090),
+            "broker-", 9190, List.of(new NamedRange("default", 0, 9))).buildStrategy("cluster");
+    public static final String CLUSTER_NAME = "wibble";
+    @Mock(strictness = Mock.Strictness.LENIENT)
     ProxyChannelStateMachine proxyChannelStateMachine;
 
     private KafkaProxyBackendHandler kafkaProxyBackendHandler;
@@ -56,11 +56,11 @@ class KafkaProxyBackendHandlerTest {
     @BeforeEach
     void setUp() {
         outboundChannel = new EmbeddedChannel();
-        var virtualClusterModel = new VirtualClusterModel("wibble", new TargetCluster("localhost:9090", Optional.empty()), false, false,
+        var virtualClusterModel = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("localhost:9090", Optional.empty()), false, false,
                 List.of());
-        virtualClusterModel.addGateway("default", ADDRESS_CONFIG_PROVIDER, Optional.empty());
-        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine,
-                virtualClusterModel);
+        virtualClusterModel.addGateway("default", NODE_IDENTIFICATION_STRATEGY, Optional.empty());
+        when(proxyChannelStateMachine.virtualCluster()).thenReturn(virtualClusterModel);
+        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine);
         outboundChannel.pipeline().addFirst(kafkaProxyBackendHandler);
         outboundContext = outboundChannel.pipeline().firstContext();
     }

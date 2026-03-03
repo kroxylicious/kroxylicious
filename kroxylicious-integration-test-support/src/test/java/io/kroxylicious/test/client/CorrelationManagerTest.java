@@ -21,8 +21,8 @@ class CorrelationManagerTest {
         CorrelationManager correlationManager = new CorrelationManager();
         CompletableFuture<SequencedResponse> responseFuture = new CompletableFuture<>();
         CompletableFuture<SequencedResponse> responseFuture2 = new CompletableFuture<>();
-        correlationManager.putBrokerRequest((short) 1, (short) 1, 1, responseFuture);
-        correlationManager.putBrokerRequest((short) 1, (short) 1, 2, responseFuture2);
+        correlationManager.putBrokerRequest((short) 1, (short) 1, 1, responseFuture, (short) 1);
+        correlationManager.putBrokerRequest((short) 1, (short) 1, 2, responseFuture2, (short) 1);
 
         // when
         correlationManager.onChannelClose();
@@ -37,8 +37,8 @@ class CorrelationManagerTest {
         // given
         CorrelationManager correlationManager = new CorrelationManager();
         CompletableFuture<SequencedResponse> responseFuture = new CompletableFuture<>();
-        correlationManager.putBrokerRequest((short) 1, (short) 1, 1, responseFuture);
-        correlationManager.putBrokerRequest((short) 1, (short) 1, 2, null);
+        correlationManager.putBrokerRequest((short) 1, (short) 1, 1, responseFuture, (short) 1);
+        correlationManager.putBrokerRequest((short) 1, (short) 1, 2, null, (short) 1);
 
         // when
         correlationManager.onChannelClose();
@@ -53,7 +53,7 @@ class CorrelationManagerTest {
         int correlationId = 1;
         CorrelationManager correlationManager = new CorrelationManager();
         CompletableFuture<SequencedResponse> responseFuture = new CompletableFuture<>();
-        correlationManager.putBrokerRequest((short) 1, (short) 1, correlationId, responseFuture);
+        correlationManager.putBrokerRequest((short) 1, (short) 1, correlationId, responseFuture, (short) 1);
         CorrelationManager.Correlation brokerCorrelation = correlationManager.getBrokerCorrelation(correlationId);
         assertThat(brokerCorrelation).isNotNull();
 

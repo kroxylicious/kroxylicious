@@ -34,11 +34,11 @@ import io.fabric8.kubernetes.client.dsl.NamespaceableResource;
 import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -86,9 +86,34 @@ class CustomResourceValidationIT {
         });
     }
 
+    public static Stream<Arguments> testResourceInvalidStatus() {
+        return TestFiles.recursiveFilesInDirectoryForTest(CustomResourceValidationIT.class, "invalidStatus-*.yaml").stream().map(p -> {
+            try {
+                return Arguments.argumentSet(p.toString(), YAML_MAPPER.readValue(p.toFile(), InvalidResource.class));
+            }
+            catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
     @MethodSource
     @ParameterizedTest
     void testDerivedResourceInputsValid(Path validYaml) {
+        testValid(validYaml);
+    }
+
+    public static Stream<Path> testResourceValid() {
+        return TestFiles.recursiveFilesInDirectoryForTest(CustomResourceValidationIT.class, "valid-*.yaml").stream();
+    }
+
+    @MethodSource
+    @ParameterizedTest
+    void testResourceValid(Path validYaml) {
+        testValid(validYaml);
+    }
+
+    private static void testValid(Path validYaml) {
         try (InputStream is = Files.newInputStream(validYaml)) {
             NamespaceableResource<HasMetadata> resource = OperatorTestUtils.kubeClient().resource(is);
             Assertions.assertThatCode(resource::create).doesNotThrowAnyException();
@@ -116,6 +141,47 @@ class CustomResourceValidationIT {
         NamespaceableResource<HasMetadata> resource = OperatorTestUtils.kubeClient().resource(invalidYaml.resourceAsString());
         try {
             Assertions.assertThatThrownBy(resource::create).isInstanceOfSatisfying(KubernetesClientException.class, e -> {
+                Status status = e.getStatus();
+                assertThat(status).isNotNull();
+                assertThat(status.getCode()).isEqualTo(422);
+                assertThat(status.getMessage()).contains(invalidYaml.expectFailureMessageToContain);
+            });
+        }
+        finally {
+            try {
+                resource.delete();
+            }
+            catch (KubernetesClientException e) {
+                // ignored, redundantly deleting in case the resource was accidentally valid
+            }
+        }
+    }
+
+    public static Stream<Path> testResourceValidStatus() {
+        return TestFiles.recursiveFilesInDirectoryForTest(CustomResourceValidationIT.class, "validStatus-*.yaml").stream();
+    }
+
+    @MethodSource
+    @ParameterizedTest
+    void testResourceValidStatus(Path validYaml) {
+        try (InputStream is = Files.newInputStream(validYaml)) {
+            NamespaceableResource<HasMetadata> resource = OperatorTestUtils.kubeClient().resource(is);
+            Assertions.assertThatCode(resource::create).doesNotThrowAnyException();
+            Assertions.assertThatCode(resource::patchStatus).doesNotThrowAnyException();
+            Assertions.assertThatCode(resource::delete).doesNotThrowAnyException();
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @MethodSource
+    @ParameterizedTest
+    void testResourceInvalidStatus(InvalidResource invalidYaml) {
+        NamespaceableResource<HasMetadata> resource = OperatorTestUtils.kubeClient().resource(invalidYaml.resourceAsString());
+        try {
+            Assertions.assertThatCode(resource::create).doesNotThrowAnyException();
+            Assertions.assertThatThrownBy(resource::patchStatus).isInstanceOfSatisfying(KubernetesClientException.class, e -> {
                 Status status = e.getStatus();
                 assertThat(status).isNotNull();
                 assertThat(status.getCode()).isEqualTo(422);

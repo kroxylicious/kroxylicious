@@ -9,5 +9,6 @@ package io.kroxylicious.systemtests.enums;
 public enum KafkaClientType {
     STRIMZI_TEST_CLIENT,
     KCAT,
-    KAF
+    KAF,
+    PYTHON_TEST_CLIENT
 }

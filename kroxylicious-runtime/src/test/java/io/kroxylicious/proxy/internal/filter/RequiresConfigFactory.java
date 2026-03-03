@@ -20,8 +20,6 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 @Plugin(configType = ExampleConfig.class)
 public class RequiresConfigFactory implements FilterFactory<ExampleConfig, ExampleConfig> {
 
@@ -30,7 +28,6 @@ public class RequiresConfigFactory implements FilterFactory<ExampleConfig, Examp
         return Plugins.requireConfig(this, config);
     }
 
-    @NonNull
     @Override
     public Filter createFilter(FilterFactoryContext context, ExampleConfig configuration) {
         return new Filter(context, configuration, this.getClass());
@@ -48,7 +45,7 @@ public class RequiresConfigFactory implements FilterFactory<ExampleConfig, Examp
         }
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
             throw new IllegalStateException("not implemented!");
         }
 

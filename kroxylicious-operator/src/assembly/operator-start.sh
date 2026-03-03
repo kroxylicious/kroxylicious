@@ -25,6 +25,11 @@ classpath() {
   echo "${class_path}"
 }
 
+if [ "${JAVA_MAX_MEM_RATIO+set}" != set ]; then
+  # Increase heap from 25% of memory to 50%.  Operator doesn't use direct memory so 25% is unjustifiably small.
+  export JAVA_MAX_MEM_RATIO="50"
+fi
+
 if [ "${KROXYLICIOUS_LOGGING_OPTIONS+set}" != set ]; then
   KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=$(script_dir)/../config/log4j2.yaml"
 fi

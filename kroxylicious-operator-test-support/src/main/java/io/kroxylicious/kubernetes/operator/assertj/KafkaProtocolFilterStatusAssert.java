@@ -6,7 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.assertj;
 
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterStatus;
 
 public class KafkaProtocolFilterStatusAssert extends AbstractStatusAssert<KafkaProtocolFilterStatus, KafkaProtocolFilterStatusAssert> {
     protected KafkaProtocolFilterStatusAssert(

@@ -1,0 +1,19 @@
+:_mod-docs-content-type: SNIPPET
+
+where:
+
+* `<field name>` identifies the field to extract. Valid field names are listed in the **Supported fields** table.
+* `<match replace flags 1>`...`<match replace flags n>` define a set of replacement matchers used to match and transform the field value.
+* `else` defines the behavior when none of the replacement matchers match the field value.
+`identity` generates a principal based on the original (unmapped) field value.
+`anonymous` generates an anonymous principal.
+* `<principal factory>` the name of a `PrincipalFactory` implementation. Currently, only `UserFactory` is supported.
+
+Field values are tested against the replacement matchers in the order they are configured.
+The first matcher that matches the field value generates the principal.
+After a successful match, remaining matchers for that field are ignored.
+
+If no matcher matches, the outcome is defined by the `else` clause.
+If there is no match and no `else` cause is provided, no principal is generated for this field.
+
+NOTE: Currently, the subject builder is restricted to producing a subject containing at most one user principal.

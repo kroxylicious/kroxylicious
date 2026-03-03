@@ -8,7 +8,7 @@ package io.kroxylicious.kubernetes.operator.model;
 
 import java.util.List;
 
-import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 
@@ -17,11 +17,11 @@ import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
  * During a reconciliation we take the raw Custom Resources, resolve the graph of references between them
  * and allocate shared resources, like container ports to various components.
  * @param resolutionResult the resolved dependencies for this reconciliation
- * @param ingressModel the ingress model for this reconciliation
- * @param clustersWithValidIngresses virtual kafka clusters that are fully resolved and have valid ingresses
+ * @param networkingModel the networking model for this reconciliation
+ * @param clustersWithValidNetworking virtual kafka clusters that are fully resolved and have valid networking models
  */
 public record ProxyModel(ProxyResolutionResult resolutionResult,
-                         ProxyIngressModel ingressModel,
-                         List<ClusterResolutionResult> clustersWithValidIngresses) {
+                         ProxyNetworkingModel networkingModel,
+                         List<ClusterResolutionResult> clustersWithValidNetworking) {
 
 }

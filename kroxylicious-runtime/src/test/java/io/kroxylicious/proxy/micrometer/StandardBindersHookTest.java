@@ -32,7 +32,8 @@ class StandardBindersHookTest {
 
     @Test
     void testNullHookConfigThrows() {
-        assertThatThrownBy(() -> new StandardBindersHook().build(null)).isInstanceOf(IllegalArgumentException.class);
+        StandardBindersHook standardBindersHook = new StandardBindersHook();
+        assertThatThrownBy(() -> standardBindersHook.build(null)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -81,7 +82,7 @@ class StandardBindersHookTest {
         verify(closeableBinder).bindTo(registry);
 
         hook.close();
-        verify(((AutoCloseable) closeableBinder)).close();
+        verify((AutoCloseable) closeableBinder).close();
     }
 
     private static void thenUptimeMeterRegistered(MeterRegistry registry) {

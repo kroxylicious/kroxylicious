@@ -22,8 +22,9 @@ class MeterRegistriesTest {
         MeterRegistries.preventDifferentTagNameRegistration(registry);
         registry.counter("abc", List.of(Tag.of("a", "b")));
         registry.counter("abc", List.of(Tag.of("a", "c")));
+        List<Tag> tags = List.of(Tag.of("c", "d"));
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            registry.counter("abc", List.of(Tag.of("c", "d")));
+            registry.counter("abc", tags);
         });
     }
 

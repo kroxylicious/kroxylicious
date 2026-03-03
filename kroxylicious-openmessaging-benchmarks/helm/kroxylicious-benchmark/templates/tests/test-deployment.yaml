@@ -1,0 +1,36 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Release.Name }}-test-deployment
+  labels:
+    app: omb-benchmark-test
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+  - name: test
+    image: bitnami/kubectl:latest
+    command:
+    - /bin/sh
+    - -c
+    - |
+      echo "Testing OMB Benchmark deployment..."
+
+      # Check Deployment exists and is ready
+      kubectl wait --for=condition=available --timeout=300s deployment/omb-benchmark -n {{ .Release.Namespace }}
+
+      # Check StatefulSet exists and is ready
+      kubectl wait --for=jsonpath='{.status.readyReplicas}'={{ .Values.omb.workerReplicas }} statefulset/omb-worker -n {{ .Release.Namespace }} --timeout=300s
+
+      # Check Kafka is ready
+      kubectl wait --for=condition=Ready kafka/kafka -n {{ .Release.Namespace }} --timeout=600s
+
+      echo "All components are ready!"

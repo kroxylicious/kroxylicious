@@ -19,6 +19,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 
+@SuppressWarnings("java:S2160") // equals on superclass checks reference equality, not object equality
 abstract class AbstractStatusAssert<A, S extends AbstractStatusAssert<A, S>> extends AbstractObjectAssert<S, A> {
     private final Function<A, Long> observedGenerationAccessor;
     private final Function<A, List<Condition>> conditionsAccessor;

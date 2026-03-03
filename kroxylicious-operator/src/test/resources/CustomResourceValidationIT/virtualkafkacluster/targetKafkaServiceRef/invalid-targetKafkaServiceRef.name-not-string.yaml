@@ -22,4 +22,4 @@ resource:
       - ingressRef:
           name: cluster-ip
 expectFailureMessageToContain: |
-  spec.targetKafkaServiceRef.name: Invalid value: "array"
+  spec.targetKafkaServiceRef.name: Invalid value

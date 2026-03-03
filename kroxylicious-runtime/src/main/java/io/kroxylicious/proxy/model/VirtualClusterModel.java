@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -27,22 +28,32 @@ import org.slf4j.LoggerFactory;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilderService;
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
+import io.kroxylicious.proxy.config.tls.SslContextBuildException;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
+import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class VirtualClusterModel {
@@ -63,24 +74,41 @@ public class VirtualClusterModel {
     private final List<NamedFilterDefinition> filters;
 
     private final Optional<SslContext> upstreamSslContext;
+    private final CacheConfiguration topicNameCacheConfig;
+    private final @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig;
+    // lazily initialize to delay statistics registration until after the meter registry has been configured
+    @Nullable
+    private TopicNameCacheFilter topicNameCacheFilter = null;
 
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
                                boolean logNetwork,
                                boolean logFrames,
-                               @NonNull List<NamedFilterDefinition> filters) {
-        this.clusterName = clusterName;
-        this.targetCluster = targetCluster;
+                               List<NamedFilterDefinition> filters) {
+        this(clusterName, targetCluster, logNetwork, logFrames, filters, new CacheConfiguration(null, null, null), null);
+    }
+
+    public VirtualClusterModel(String clusterName,
+                               TargetCluster targetCluster,
+                               boolean logNetwork,
+                               boolean logFrames,
+                               List<NamedFilterDefinition> filters,
+                               CacheConfiguration topicNameCacheConfig,
+                               @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig) {
+        this.clusterName = Objects.requireNonNull(clusterName);
+        this.targetCluster = Objects.requireNonNull(targetCluster);
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.filters = filters;
+        this.topicNameCacheConfig = topicNameCacheConfig;
+        this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
     }
 
     public void logVirtualClusterSummary() {
-        var upstreamHostPort = targetCluster.bootstrapServersList().get(0);
+        var upstreamHostPort = targetCluster.bootstrapServersList();
         var upstreamTlsSummary = generateTlsSummary(targetCluster.tls());
 
         LOGGER.info("Virtual Cluster '{}' - gateway summary", clusterName);
@@ -115,8 +143,8 @@ public class VirtualClusterModel {
         return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
 
-    public void addGateway(String name, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
-        gateways.put(name, new VirtualClusterGatewayModel(this, provider, tls, name));
+    public void addGateway(String name, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls) {
+        gateways.put(name, new VirtualClusterGatewayModel(this, nodeIdentificationStrategy, tls, name));
     }
 
     public TargetCluster targetCluster() {
@@ -155,7 +183,6 @@ public class VirtualClusterModel {
         return upstreamSslContext;
     }
 
-    @NonNull
     private static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
         final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
         return new NettyTrustProvider(trustProvider);
@@ -235,7 +262,7 @@ public class VirtualClusterModel {
             return SSLContext.getDefault().getDefaultSSLParameters();
         }
         catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new SslContextBuildException(e);
         }
     }
 
@@ -244,11 +271,11 @@ public class VirtualClusterModel {
             return SSLContext.getDefault().getSupportedSSLParameters();
         }
         catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new SslContextBuildException(e);
         }
     }
 
-    public @NonNull List<NamedFilterDefinition> getFilters() {
+    public List<NamedFilterDefinition> getFilters() {
         return filters;
     }
 
@@ -256,40 +283,69 @@ public class VirtualClusterModel {
         return Collections.unmodifiableMap(gateways);
     }
 
+    public TransportSubjectBuilder subjectBuilder(PluginFactoryRegistry pfr) {
+        var pf = pfr.pluginFactory(TransportSubjectBuilderService.class);
+        String type;
+        Object config;
+        if (this.transportSubjectBuilderConfig == null) {
+            type = DefaultTransportSubjectBuilderService.class.getName();
+            config = new DefaultTransportSubjectBuilderService.Config(List.of());
+        }
+        else {
+            type = this.transportSubjectBuilderConfig.type();
+            config = this.transportSubjectBuilderConfig.config();
+        }
+        Class<?> configType = pf.configType(type);
+        if (config != null && !configType.isInstance(config)) {
+            throw new PluginConfigurationException("SubjectBuilder " + type + " accepts config of type " +
+                    configType.getName() + " but provided with config of type " + config.getClass().getName());
+        }
+        TransportSubjectBuilderService subjectBuilderService = pf.pluginInstance(type);
+        subjectBuilderService.initialize(config);
+        return subjectBuilderService.build();
+    }
+
+    public TopicNameCacheFilter getTopicNameCacheFilter() {
+        if (topicNameCacheFilter == null) {
+            topicNameCacheFilter = new TopicNameCacheFilter(topicNameCacheConfig, clusterName);
+        }
+        return topicNameCacheFilter;
+    }
+
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public static class VirtualClusterGatewayModel implements EndpointGateway {
         private final VirtualClusterModel virtualCluster;
-        private final ClusterNetworkAddressConfigProvider provider;
+        private final NodeIdentificationStrategy nodeIdentificationStrategy;
         private final Optional<Tls> tls;
         private final Optional<SslContext> downstreamSslContext;
         private final String name;
 
         @VisibleForTesting
-        VirtualClusterGatewayModel(VirtualClusterModel virtualCluster, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls, String name) {
+        VirtualClusterGatewayModel(VirtualClusterModel virtualCluster, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls, String name) {
             this.virtualCluster = virtualCluster;
-            this.provider = provider;
+            this.nodeIdentificationStrategy = nodeIdentificationStrategy;
             this.tls = tls;
             this.name = name;
-            validatePortUsage(provider);
-            validateTLsSettings(provider, tls);
+            validatePortUsage(nodeIdentificationStrategy);
+            validateTLsSettings(nodeIdentificationStrategy, tls);
             this.downstreamSslContext = buildDownstreamSslContext();
         }
 
-        private void validatePortUsage(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider) {
+        private void validatePortUsage(NodeIdentificationStrategy nodeIdentificationStrategy) {
             // This validation seems misplaced.
-            var conflicts = clusterNetworkAddressConfigProvider.getExclusivePorts().stream().filter(p -> clusterNetworkAddressConfigProvider.getSharedPorts().contains(p))
+            var conflicts = nodeIdentificationStrategy.getExclusivePorts().stream().filter(p -> nodeIdentificationStrategy.getSharedPorts().contains(p))
                     .collect(Collectors.toSet());
             if (!conflicts.isEmpty()) {
                 throw new IllegalStateException(
-                        "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: "
+                        "The set of exclusive ports described by the Node Identification Strategy must be distinct from those described as shared. Intersection: "
                                 + conflicts);
             }
         }
 
-        private void validateTLsSettings(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider, Optional<Tls> tls) {
-            if (clusterNetworkAddressConfigProvider.requiresServerNameIndication() && (tls.isEmpty() || !tls.get().definesKey())) {
+        private void validateTLsSettings(NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls) {
+            if (nodeIdentificationStrategy.requiresServerNameIndication() && (tls.isEmpty() || !tls.get().definesKey())) {
                 throw new IllegalStateException(
-                        "Cluster endpoint provider requires ServerNameIndication, but virtual cluster gateway '%s' does not configure TLS and provide a certificate for the server"
+                        "Node Identification Strategy requires ServerNameIndication, but virtual cluster gateway '%s' does not configure TLS and provide a certificate for the server"
                                 .formatted(name()));
             }
         }
@@ -299,13 +355,13 @@ public class VirtualClusterModel {
             return virtualCluster;
         }
 
-        private ClusterNetworkAddressConfigProvider getClusterNetworkAddressConfigProvider() {
-            return provider;
+        private NodeIdentificationStrategy getNodeIdentificationStrategy() {
+            return nodeIdentificationStrategy;
         }
 
         @Override
         public HostPort getClusterBootstrapAddress() {
-            return getClusterNetworkAddressConfigProvider().getClusterBootstrapAddress();
+            return getNodeIdentificationStrategy().getClusterBootstrapAddress();
         }
 
         @Override
@@ -315,37 +371,37 @@ public class VirtualClusterModel {
 
         @Override
         public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
-            return getClusterNetworkAddressConfigProvider().getBrokerAddress(nodeId);
+            return getNodeIdentificationStrategy().getBrokerAddress(nodeId);
         }
 
         @Override
         public Optional<String> getBindAddress() {
-            return getClusterNetworkAddressConfigProvider().getBindAddress();
+            return getNodeIdentificationStrategy().getBindAddress();
         }
 
         @Override
         public boolean requiresServerNameIndication() {
-            return getClusterNetworkAddressConfigProvider().requiresServerNameIndication();
+            return getNodeIdentificationStrategy().requiresServerNameIndication();
         }
 
         @Override
         public Set<Integer> getExclusivePorts() {
-            return getClusterNetworkAddressConfigProvider().getExclusivePorts();
+            return getNodeIdentificationStrategy().getExclusivePorts();
         }
 
         @Override
         public Set<Integer> getSharedPorts() {
-            return getClusterNetworkAddressConfigProvider().getSharedPorts();
+            return getNodeIdentificationStrategy().getSharedPorts();
         }
 
         @Override
         public Map<Integer, HostPort> discoveryAddressMap() {
-            return getClusterNetworkAddressConfigProvider().discoveryAddressMap();
+            return getNodeIdentificationStrategy().discoveryAddressMap();
         }
 
         @Override
-        public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
-            return getClusterNetworkAddressConfigProvider().getBrokerIdFromBrokerAddress(brokerAddress);
+        public @Nullable Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
+            return getNodeIdentificationStrategy().getBrokerIdFromBrokerAddress(brokerAddress);
         }
 
         @Override
@@ -355,7 +411,7 @@ public class VirtualClusterModel {
 
         @Override
         public HostPort getAdvertisedBrokerAddress(int nodeId) {
-            return getClusterNetworkAddressConfigProvider().getAdvertisedBrokerAddress(nodeId);
+            return getNodeIdentificationStrategy().getAdvertisedBrokerAddress(nodeId);
         }
 
         @Override
@@ -374,6 +430,12 @@ public class VirtualClusterModel {
 
         private Optional<SslContext> buildDownstreamSslContext() {
             return tls.map(tlsConfiguration -> {
+                if (tlsConfiguration.key() == null) {
+                    throw new IllegalConfigurationException(
+                            "Virtual cluster '%s', gateway '%s': 'tls' object is missing the mandatory attribute 'key'. See %s for details"
+                                    .formatted(virtualCluster.getClusterName(), name(),
+                                            StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)));
+                }
                 try {
                     var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
                             .orElseThrow();
@@ -394,7 +456,7 @@ public class VirtualClusterModel {
             return "VirtualClusterGatewayModel[" +
                     "name=" + name + ", " +
                     "virtualCluster=" + virtualCluster.getClusterName() + ", " +
-                    "provider=" + provider + ", " +
+                    "nodeIdentificationStrategy=" + nodeIdentificationStrategy + ", " +
                     "tls=" + isUseTls() + ']';
         }
     }

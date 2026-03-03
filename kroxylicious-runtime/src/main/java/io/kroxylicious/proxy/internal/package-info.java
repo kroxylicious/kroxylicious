@@ -29,7 +29,6 @@
  * <h3>KafkaProxyFrontendHandler</h3>
  * {@link io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler} handles the proxy lifecycle, it:
  * <ul>
- *    <li>Selects a backend server to proxy to using the {@link io.kroxylicious.proxy.filter.NetFilter} API</li>
  *    <li>Initiates a Channel connection to the selected backend server</li>
  *    <li>Creates a {@link io.kroxylicious.proxy.internal.KafkaProxyBackendHandler}</li>
  *    <li>Writes messages read from the downstream channel to the upstream channel</li>
@@ -43,4 +42,12 @@
  * {@link io.kroxylicious.proxy.internal.KafkaProxyBackendHandler} signals to the Frontend Handler when the upstream channel is ready to be written to, and it writes
  * Responses to the downstream channel after it has read them from the upstream channel.
  */
+@ReturnValuesAreNonnullByDefault
+@DefaultAnnotationForParameters(NonNull.class)
+@DefaultAnnotation(NonNull.class)
 package io.kroxylicious.proxy.internal;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.ReturnValuesAreNonnullByDefault;

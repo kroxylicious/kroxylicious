@@ -9,19 +9,22 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Arrays;
-import java.util.Properties;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.KafkaProxy;
+import io.kroxylicious.proxy.VersionInfo;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -36,7 +39,6 @@ import picocli.CommandLine.Spec;
 public class Kroxylicious implements Callable<Integer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
-    private static final String UNKNOWN = "unknown";
     private final KafkaProxyBuilder proxyBuilder;
 
     interface KafkaProxyBuilder {
@@ -47,19 +49,22 @@ public class Kroxylicious implements Callable<Integer> {
         this(KafkaProxy::new);
     }
 
+    @VisibleForTesting
     Kroxylicious(KafkaProxyBuilder proxyBuilder) {
         this.proxyBuilder = proxyBuilder;
     }
 
     @Spec
-    private CommandSpec spec;
+    private @Nullable CommandSpec spec;
 
     @Option(names = { "-c", "--config" }, description = "name of the configuration file", required = true)
-    private File configFile;
+    private @Nullable File configFile;
 
     @Override
     public Integer call() throws Exception {
+        Objects.requireNonNull(configFile, "configFile");
         if (!configFile.exists()) {
+            Objects.requireNonNull(spec, "spec");
             throw new ParameterException(spec.commandLine(), String.format("Given configuration file does not exist: %s", configFile.toPath().toAbsolutePath()));
         }
 
@@ -98,7 +103,7 @@ public class Kroxylicious implements Callable<Integer> {
         return builder.build();
     }
 
-    private static void printBannerAndVersions(Features features) throws Exception {
+    private static void printBannerAndVersions(Features features) {
         new BannerLogger().log();
         String[] versions = new VersionProvider().getVersion();
         for (String version : versions) {
@@ -126,18 +131,9 @@ public class Kroxylicious implements Callable<Integer> {
 
     static class VersionProvider implements CommandLine.IVersionProvider {
         @Override
-        public String[] getVersion() throws Exception {
-            try (InputStream resource = this.getClass().getClassLoader().getResourceAsStream("META-INF/metadata.properties")) {
-                if (resource != null) {
-                    Properties properties = new Properties();
-                    properties.load(resource);
-                    String version = properties.getProperty("kroxylicious.version", UNKNOWN);
-                    String commitId = properties.getProperty("git.commit.id", UNKNOWN);
-                    String commitMessage = properties.getProperty("git.commit.message.short", UNKNOWN);
-                    return new String[]{ "kroxylicious: " + version, "commit id: " + commitId, "commit message: " + commitMessage };
-                }
-            }
-            return new String[]{ UNKNOWN };
+        public String[] getVersion() {
+            var versionInfo = VersionInfo.VERSION_INFO;
+            return new String[]{ "kroxylicious: " + versionInfo.version(), "commit id: " + versionInfo.commitId() };
         }
     }
 }

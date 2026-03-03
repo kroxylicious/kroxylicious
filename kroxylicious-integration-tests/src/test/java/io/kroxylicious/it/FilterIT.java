@@ -1,0 +1,838 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.it;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.errors.InvalidTopicException;
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.CreateTopicsRequestData;
+import org.apache.kafka.common.message.CreateTopicsResponseData;
+import org.apache.kafka.common.message.ListGroupsResponseData;
+import org.apache.kafka.common.message.ListTransactionsRequestData;
+import org.apache.kafka.common.message.ListTransactionsResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.protocol.types.RawTaggedField;
+import org.apache.kafka.common.serialization.Serdes;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
+
+import io.kroxylicious.filter.simpletransform.FetchResponseTransformation;
+import io.kroxylicious.filter.simpletransform.ProduceRequestTransformation;
+import io.kroxylicious.it.testplugins.ForwardingStyle;
+import io.kroxylicious.it.testplugins.GenericRequestSpecificResponseFilter;
+import io.kroxylicious.it.testplugins.GenericRequestSpecificResponseFilterFactory;
+import io.kroxylicious.it.testplugins.GenericResponseSpecificRequestFilter;
+import io.kroxylicious.it.testplugins.GenericResponseSpecificRequestFilterFactory;
+import io.kroxylicious.it.testplugins.RejectingCreateTopicFilter;
+import io.kroxylicious.it.testplugins.RejectingCreateTopicFilterFactory;
+import io.kroxylicious.it.testplugins.RequestResponseMarkingFilter;
+import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
+import io.kroxylicious.it.testplugins.TopicIdToNameResponseStamper;
+import io.kroxylicious.it.testplugins.TopicNameMetadataPrefixer;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.proxy.internal.TopicNameRetriever;
+import io.kroxylicious.test.Request;
+import io.kroxylicious.test.Response;
+import io.kroxylicious.test.ResponsePayload;
+import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Topic;
+
+import static io.kroxylicious.it.UnknownTaggedFields.unknownTaggedFieldsToStrings;
+import static io.kroxylicious.it.testplugins.RequestResponseMarkingFilter.FILTER_NAME_TAG;
+import static io.kroxylicious.it.testplugins.TopicIdToNameResponseStamper.topicNameMapping;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
+import static io.kroxylicious.test.tester.MockServerKroxyliciousTester.zeroAckProduceRequestMatcher;
+import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
+import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
+import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
+import static org.apache.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
+import static org.apache.kafka.common.protocol.ApiKeys.FETCH;
+import static org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS;
+import static org.apache.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
+import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
+import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.awaitility.Awaitility.await;
+
+@ExtendWith(KafkaClusterExtension.class)
+@ExtendWith(NettyLeakDetectorExtension.class)
+class FilterIT {
+
+    private static final String PLAINTEXT = "Hello, world!";
+    private static final NamedFilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new NamedFilterDefinitionBuilder(RejectingCreateTopicFilterFactory.class.getName(),
+            RejectingCreateTopicFilterFactory.class.getName());
+
+    private static final NamedFilterDefinitionBuilder GENERIC_REQUEST_SPECIFIC_RESPONSE = new NamedFilterDefinitionBuilder(
+            GenericRequestSpecificResponseFilterFactory.class.getName(),
+            GenericRequestSpecificResponseFilterFactory.class.getName());
+
+    private static final NamedFilterDefinitionBuilder GENERIC_RESPONSE_SPECIFIC_REQUEST = new NamedFilterDefinitionBuilder(
+            GenericResponseSpecificRequestFilterFactory.class.getName(),
+            GenericResponseSpecificRequestFilterFactory.class.getName());
+
+    public static final String TOPIC_ID_LOOKUP_FILTER_NAME = "topicIdLookup";
+    public static final String TOPIC_NAME_PREFIXER_FILTER_NAME = "topicNamePrefixer";
+
+    @Test
+    void filtersCanLookUpEmptyTopicNames(KafkaCluster cluster) {
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, "".getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            // checking that the request/response flows through despite requesting an empty topic id list
+            assertThat(response).isNotNull();
+        }
+    }
+
+    @Test
+    void filtersCanLookUpEmptyTopicNamesInitiatedFromNonFilterDispatchThread(KafkaCluster cluster) {
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .withConfig("asyncTopicNameLookup", true)
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, "".getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            // checking that the request/response flows through despite requesting an empty topic id list
+            assertThat(response).isNotNull();
+        }
+    }
+
+    @Test
+    void filtersCanLookUpTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) {
+        Uuid topic1Id = topic1.topicId().orElseThrow();
+        Uuid topic2Id = topic2.topicId().orElseThrow();
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id + "," + topic2Id).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            String[] topicNames = extractTopicNames(response);
+            assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1.name(), null), topicNameMapping(topic2Id, topic2.name(), null));
+        }
+    }
+
+    @Test
+    void topicNamesAreCached() {
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> {
+            ConfigurationBuilder proxy = proxy(bootstrap);
+            proxy.addToFilterDefinitions(namedFilterDefinition)
+                    .addToDefaultFilters(namedFilterDefinition.name());
+            return proxy;
+        });
+                var client = tester.simpleTestClient()) {
+            Uuid topic1Id = Uuid.randomUuid();
+            String topic1Name = "topic1";
+            Uuid topic2Id = Uuid.randomUuid();
+            String topic2Name = "topic2";
+            MetadataResponseData responseData = new MetadataResponseData();
+            responseData.topics().add(getResponseTopic(topic1Name, topic1Id));
+            responseData.topics().add(getResponseTopic(topic2Name, topic2Id));
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, TopicNameRetriever.METADATA_API_VER_WITH_TOPIC_ID_SUPPORT, responseData));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            ApiVersionsRequestData message = new ApiVersionsRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id + "," + topic2Id).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", message));
+            String[] topicNames = extractTopicNames(response);
+            assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1Name, null), topicNameMapping(topic2Id, topic2Name, null));
+            assertThat(tester.getRequestsForApiKey(METADATA)).hasSize(1);
+            assertThat(tester.getRequestsForApiKey(API_VERSIONS)).hasSize(1);
+
+            Response response2 = client.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", message));
+            String[] topicNames2 = extractTopicNames(response2);
+            assertThat(topicNames2).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1Name, null), topicNameMapping(topic2Id, topic2Name, null));
+            // we infer that the topic ids were cached as they have been augmented onto the response but the mock server
+            // has received no further metadata requests
+            assertThat(tester.getRequestsForApiKey(METADATA)).hasSize(1);
+            assertThat(tester.getRequestsForApiKey(API_VERSIONS)).hasSize(2);
+        }
+    }
+
+    @Test
+    void topicNamesCachingScopedToCluster() {
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> {
+            ConfigurationBuilder proxy = proxy(bootstrap);
+            proxy.addToFilterDefinitions(namedFilterDefinition)
+                    .addToDefaultFilters(namedFilterDefinition.name());
+            return proxy;
+        });
+                var client = tester.simpleTestClient();
+                var client2 = tester.simpleTestClient()) {
+            Uuid topic1Id = Uuid.randomUuid();
+            String topic1Name = "topic1";
+            Uuid topic2Id = Uuid.randomUuid();
+            String topic2Name = "topic2";
+            MetadataResponseData responseData = new MetadataResponseData();
+            responseData.topics().add(getResponseTopic(topic1Name, topic1Id));
+            responseData.topics().add(getResponseTopic(topic2Name, topic2Id));
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, TopicNameRetriever.METADATA_API_VER_WITH_TOPIC_ID_SUPPORT, responseData));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            ApiVersionsRequestData message = new ApiVersionsRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id + "," + topic2Id).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", message));
+            String[] topicNames = extractTopicNames(response);
+            assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1Name, null), topicNameMapping(topic2Id, topic2Name, null));
+            assertThat(tester.getRequestsForApiKey(METADATA)).hasSize(1);
+            assertThat(tester.getRequestsForApiKey(API_VERSIONS)).hasSize(1);
+
+            // using a second client to prove that the cache scope is virtual-cluster wide
+            Response response2 = client2.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", message));
+            String[] topicNames2 = extractTopicNames(response2);
+            assertThat(topicNames2).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1Name, null), topicNameMapping(topic2Id, topic2Name, null));
+            // we infer that the topic names were cached as a single metadata requests was sent to the mock
+            assertThat(tester.getRequestsForApiKey(METADATA)).hasSize(1);
+            assertThat(tester.getRequestsForApiKey(API_VERSIONS)).hasSize(2);
+        }
+    }
+
+    private static String[] extractTopicNames(Response response) {
+        List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+        assertThat(tags).hasSize(1);
+        String tag = tags.getFirst();
+        return tag.split(",");
+    }
+
+    private static MetadataResponseData.MetadataResponseTopic getResponseTopic(String topic1Name, Uuid topic1Id) {
+        MetadataResponseData.MetadataResponseTopic topic = new MetadataResponseData.MetadataResponseTopic();
+        topic.setName(topic1Name);
+        topic.setTopicId(topic1Id);
+        return topic;
+    }
+
+    @Test
+    void filtersCanLookUpNonExistentTopicNames(KafkaCluster cluster) {
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            Uuid nonexistentTopic = Uuid.randomUuid();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, nonexistentTopic.toString().getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+            assertThat(tags).hasSize(1);
+            String tag = tags.getFirst();
+            assertThat(tag).isEqualTo(topicNameMapping(nonexistentTopic, null, "UNKNOWN_TOPIC_ID"));
+        }
+    }
+
+    @Test
+    void filtersCanLookUpPartiallyExistingTopics(KafkaCluster cluster, Topic topic1) {
+        Uuid topic1Id = topic1.topicId().orElseThrow();
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            Uuid nonexistentTopic = Uuid.randomUuid();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (nonexistentTopic + "," + topic1Id).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            String[] topicNames = extractTopicNames(response);
+            assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1.name(), null),
+                    topicNameMapping(nonexistentTopic, null, "UNKNOWN_TOPIC_ID"));
+        }
+    }
+
+    @Test
+    void topicNameLookupComposesWithDownstreamFilter(KafkaCluster cluster, Topic topic1, Topic topic2) {
+        String nameOne = TopicNameMetadataPrefixer.PREFIX + topic1.name();
+        String nameTwo = TopicNameMetadataPrefixer.PREFIX + topic2.name();
+        String[] filterOrder = { TOPIC_ID_LOOKUP_FILTER_NAME, TOPIC_NAME_PREFIXER_FILTER_NAME };
+        assertTopicStampingFilterObservesTopicNames(cluster, topic1, topic2, filterOrder, nameOne, nameTwo);
+    }
+
+    @Test
+    void topicNameLookupComposesWithUpstreamFilter(KafkaCluster cluster, Topic topic1, Topic topic2) {
+        String[] filterOrder = { TOPIC_NAME_PREFIXER_FILTER_NAME, TOPIC_ID_LOOKUP_FILTER_NAME };
+        assertTopicStampingFilterObservesTopicNames(cluster, topic1, topic2, filterOrder, topic1.name(), topic2.name());
+    }
+
+    private static void assertTopicStampingFilterObservesTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2, String[] filterOrder, String expectedNameForTopic1,
+                                                                    String expectedNameForTopic2) {
+        Uuid topic1Id = topic1.topicId().orElseThrow();
+        Uuid topic2Id = topic2.topicId().orElseThrow();
+
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(TOPIC_ID_LOOKUP_FILTER_NAME,
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        NamedFilterDefinition topicNamePrefixer = new NamedFilterDefinitionBuilder(TOPIC_NAME_PREFIXER_FILTER_NAME,
+                TopicNameMetadataPrefixer.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToFilterDefinitions(topicNamePrefixer)
+                .addToDefaultFilters(filterOrder);
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id + "," + topic2Id).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            String[] topicNames = extractTopicNames(response);
+            assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, expectedNameForTopic1, null),
+                    topicNameMapping(topic2Id, expectedNameForTopic2, null));
+        }
+    }
+
+    @Test
+    void reversibleEncryption() {
+        // The precise details of the cipher don't matter
+        // What matters is that it the ciphertext key depends on the topic name
+        // and that decode() is the inverse of encode()
+        var name = UUID.randomUUID().toString();
+        var encoded = encode(name, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8)));
+        var decoded = new String(decode(name, encoded).array(), StandardCharsets.UTF_8);
+        assertThat(decoded)
+                .isEqualTo(PLAINTEXT);
+    }
+
+    @Test
+    void encryptionDistinguishedByName() {
+        var name = UUID.randomUUID().toString();
+        var differentName = UUID.randomUUID().toString();
+        assertThat(differentName).isNotEqualTo(name);
+
+        var encoded = encode(name, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(encoded)
+                .isNotEqualTo(encode(differentName, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))));
+    }
+
+    static ByteBuffer encode(String topicName, ByteBuffer in) {
+        var out = ByteBuffer.allocate(in.limit());
+        for (int index = 0; index < in.limit(); index++) {
+            byte rot = getRot(topicName, index);
+            byte b = in.get(index);
+            byte rotated = (byte) (b + rot);
+            out.put(index, rotated);
+        }
+        return out;
+    }
+
+    private static byte getRot(String topicName, int index) {
+        char c = topicName.charAt(index % topicName.length());
+        int i = topicName.hashCode() + c;
+        return (byte) (i % Byte.MAX_VALUE);
+    }
+
+    static ByteBuffer decode(String topicName, ByteBuffer in) {
+        var out = ByteBuffer.allocate(in.limit());
+        out.limit(in.limit());
+        for (int index = 0; index < in.limit(); index++) {
+            byte b = in.get(index);
+            byte rot = (byte) -getRot(topicName, index);
+            byte rotated = (byte) (b + rot);
+            out.put(index, rotated);
+        }
+        return out;
+    }
+
+    @Test
+    void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Topic topic) throws Exception {
+
+        try (var tester = kroxyliciousTester(proxy(cluster));
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester.consumer()) {
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", "Hello, world!")).get();
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            consumer.close();
+
+            assertThat(records.iterator())
+                    .toIterable()
+                    .hasSize(1)
+                    .map(ConsumerRecord::value)
+                    .containsExactly(PLAINTEXT);
+
+        }
+    }
+
+    @Test
+    @SuppressWarnings("java:S5841")
+    // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
+        var config = proxy(cluster)
+                .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name());
+
+        var topicName = UUID.randomUUID().toString();
+        try (var tester = kroxyliciousTester(config);
+                var proxyAdmin = tester.admin()) {
+            assertCreatingTopicThrowsExpectedException(proxyAdmin, topicName);
+
+            // check no topic created on the cluster
+            Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
+            assertThat(names).doesNotContain(topicName);
+        }
+    }
+
+    @Test
+    void filtersCanImplementGenericRequestFilterAndSpecificResponseFilter() {
+        try (var tester = mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap)
+                .addToFilterDefinitions(GENERIC_REQUEST_SPECIFIC_RESPONSE.build())
+                .addToDefaultFilters(GENERIC_REQUEST_SPECIFIC_RESPONSE.name()));
+                var simpleTestClient = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            String clientIdHeader = "my-client";
+            CompletableFuture<Response> responseFuture = simpleTestClient.get(
+                    new Request(API_VERSIONS, API_VERSIONS.latestVersion(), clientIdHeader, new ApiVersionsRequestData()));
+            assertThat(responseFuture).succeedsWithin(Duration.ofSeconds(10)).satisfies(response -> {
+                List<String> clientIds = unknownTaggedFieldsToStrings(response.payload().message(), GenericRequestSpecificResponseFilter.CLIENT_ID_TAG).toList();
+                // the filter extracts the client id from the request and correlates it with the response, attaching it as an
+                // unknown tagged field to the body. This demonstrates that messages are routed to a single instance of a Filter
+                // implementing the generic RequestFilter and a specific response message filter interface.
+                assertThat(clientIds).describedAs("client id extracted from request should be attached to response").singleElement().isEqualTo(clientIdHeader);
+            });
+        }
+    }
+
+    @Test
+    void filtersCanImplementGenericResponseFilterAndSpecificRequestFilter() {
+        try (var tester = mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap)
+                .addToFilterDefinitions(GENERIC_RESPONSE_SPECIFIC_REQUEST.build())
+                .addToDefaultFilters(GENERIC_RESPONSE_SPECIFIC_REQUEST.name()));
+                var simpleTestClient = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            String clientIdHeader = "my-client";
+            CompletableFuture<Response> responseFuture = simpleTestClient.get(
+                    new Request(API_VERSIONS, API_VERSIONS.latestVersion(), clientIdHeader, new ApiVersionsRequestData()));
+            assertThat(responseFuture).succeedsWithin(Duration.ofSeconds(10)).satisfies(response -> {
+                List<String> clientIds = unknownTaggedFieldsToStrings(response.payload().message(), GenericResponseSpecificRequestFilter.CLIENT_ID_TAG).toList();
+                // the filter extracts the client id from the request and correlates it with the response, attaching it as an
+                // unknown tagged field to the body. This demonstrates that messages are routed to a single instance of a Filter
+                // implementing the generic ResponseFilter and a specific request message filter interface.
+                assertThat(clientIds).describedAs("client id extracted from request should be attached to response").singleElement().isEqualTo(clientIdHeader);
+            });
+        }
+    }
+
+    static Stream<Arguments> requestFilterCanShortCircuitResponse() {
+        return Stream.of(
+                Arguments.of("synchronous with close", true, ForwardingStyle.SYNCHRONOUS),
+                Arguments.of("synchronous without close", false, ForwardingStyle.SYNCHRONOUS),
+                Arguments.of("asynchronous with close", true, ForwardingStyle.ASYNCHRONOUS_DELAYED),
+                Arguments.of("asynchronous without close", true, ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    void requestFilterCanShortCircuitResponse(String name, boolean withCloseConnection, ForwardingStyle forwardingStyle) {
+        var rejectFilter = REJECTING_CREATE_TOPIC_FILTER
+                .withConfig("withCloseConnection", withCloseConnection,
+                        "forwardingStyle", forwardingStyle)
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap)
+                .addToFilterDefinitions(rejectFilter)
+                .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name()));
+                var requestClient = tester.simpleTestClient()) {
+
+            if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
+                tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+            }
+
+            var createTopic = new CreateTopicsRequestData();
+            createTopic.topics().add(new CreateTopicsRequestData.CreatableTopic().setName("foo"));
+
+            var response = requestClient.getSync(new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", createTopic));
+            assertThat(response.payload().message()).isInstanceOf(CreateTopicsResponseData.class);
+
+            var responseMessage = (CreateTopicsResponseData) response.payload().message();
+            assertThat(responseMessage.topics())
+                    .hasSameSizeAs(createTopic.topics())
+                    .allMatch(p -> p.errorCode() == Errors.INVALID_TOPIC_EXCEPTION.code(),
+                            "response contains topics without the expected errorCode");
+
+            var expectConnectionOpen = !withCloseConnection;
+            await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> assertThat(requestClient.isOpen()).isEqualTo(expectConnectionOpen));
+        }
+    }
+
+    /**
+     * This test verifies the use-case where a filter needs delay a request/response forward
+     * until a 3rd party asynchronous action completes.
+     * @param direction direction of the flow
+     */
+    @ParameterizedTest
+    @EnumSource(value = RequestResponseMarkingFilterFactory.Direction.class)
+    void supportsForwardDeferredByAsynchronousAction(RequestResponseMarkingFilterFactory.Direction direction) {
+        doSupportsForwardDeferredByAsynchronousRequest(direction,
+                "supportsForwardDeferredByAsynchronousAction",
+                ForwardingStyle.ASYNCHRONOUS_DELAYED);
+    }
+
+    /**
+     * This test verifies the use-case where a filter needs delay a request/response forward
+     * until a 3rd party asynchronous action completes.
+     * @param direction direction of the flow
+     */
+    @ParameterizedTest
+    @EnumSource(value = RequestResponseMarkingFilterFactory.Direction.class)
+    void supportsForwardDeferredByAsynchronousActionOnEventLoop(RequestResponseMarkingFilterFactory.Direction direction) {
+        doSupportsForwardDeferredByAsynchronousRequest(direction,
+                "supportsForwardDeferredByAsynchronousActionOnEventLoop",
+                ForwardingStyle.ASYNCHRONOUS_DELAYED_ON_EVENTlOOP);
+    }
+
+    /**
+     * This test verifies the use-case where a filter needs delay a request/response forward
+     * until an asynchronous request to the broker completes.
+     * @param direction direction of the flow
+     */
+    @ParameterizedTest
+    @EnumSource(value = RequestResponseMarkingFilterFactory.Direction.class)
+    void supportsForwardDeferredByAsynchronousBrokerRequest(RequestResponseMarkingFilterFactory.Direction direction) {
+        doSupportsForwardDeferredByAsynchronousRequest(direction,
+                "supportsForwardDeferredByAsynchronousBrokerRequest",
+                ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER);
+    }
+
+    private void doSupportsForwardDeferredByAsynchronousRequest(RequestResponseMarkingFilterFactory.Direction direction, String name,
+                                                                ForwardingStyle forwardingStyle) {
+        var markingFilter = new NamedFilterDefinitionBuilder(name, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
+                        "direction", Set.of(direction),
+                        "name", name,
+                        "forwardingStyle", forwardingStyle)
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap)
+                .addToFilterDefinitions(markingFilter)
+                .addToDefaultFilters(name));
+                var kafkaClient = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
+            ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
+            apiVersionsResponseData.apiKeys()
+                    .add(new ApiVersionsResponseData.ApiVersion().setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersionsResponseData));
+
+            // In the ASYNCHRONOUS_REQUEST_TO_BROKER case, the filter will send an async list_group
+            // request to the broker and defer the forward of the list transaction response until the list groups
+            // response arrives.
+            if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
+                tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+            }
+
+            var response = kafkaClient
+                    .getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+            var requestMessageReceivedByBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
+            var responseMessageReceivedByClient = response.payload().message();
+
+            assertThat(requestMessageReceivedByBroker).isInstanceOf(ListTransactionsRequestData.class);
+            assertThat(responseMessageReceivedByClient).isInstanceOf(ListTransactionsResponseData.class);
+
+            var target = direction == RequestResponseMarkingFilterFactory.Direction.REQUEST ? requestMessageReceivedByBroker : responseMessageReceivedByClient;
+            assertThat(unknownTaggedFieldsToStrings(target, FILTER_NAME_TAG)).containsExactly(
+                    RequestResponseMarkingFilter.class.getSimpleName() + "-%s-%s".formatted(name, direction.toString().toLowerCase(Locale.ROOT)));
+        }
+    }
+
+    @Test
+    @SuppressWarnings("java:S5841")
+    // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
+        var config = proxy(cluster)
+                .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name());
+
+        var name = UUID.randomUUID().toString();
+        try (var tester = kroxyliciousTester(config);
+                var proxyAdmin = tester.admin()) {
+            // loop because System.gc doesn't make any guarantees that the buffer will be collected
+            for (int i = 0; i < 20; i++) {
+                // CreateTopicRejectFilter allocates a buffer and then short-circuit responds
+                assertCreatingTopicThrowsExpectedException(proxyAdmin, name);
+                // buffers must be garbage collected before it causes leak detection during
+                // a subsequent buffer allocation
+                System.gc();
+            }
+
+            // check no topic created on the cluster
+            Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
+            assertThat(names).doesNotContain(name);
+        }
+    }
+
+    private static void assertCreatingTopicThrowsExpectedException(Admin proxyAdmin, String topicName) {
+        assertThatExceptionOfType(ExecutionException.class)
+                .isThrownBy(() -> proxyAdmin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get())
+                .withCauseInstanceOf(InvalidTopicException.class)
+                .havingCause()
+                .withMessage(RejectingCreateTopicFilter.ERROR_MESSAGE);
+    }
+
+    @Test
+    void shouldModifyProduceMessage(KafkaCluster cluster, Topic topic1, Topic topic2) throws Exception {
+
+        var bytes = PLAINTEXT.getBytes(StandardCharsets.UTF_8);
+        var expectedEncoded1 = encode(topic1.name(), ByteBuffer.wrap(bytes)).array();
+        var expectedEncoded2 = encode(topic2.name(), ByteBuffer.wrap(bytes)).array();
+
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(ProduceRequestTransformation.class.getName(),
+                ProduceRequestTransformation.class.getName())
+                .withConfig("transformation", TestEncoderFactory.class.getName()).build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester
+                        .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            producer.send(new ProducerRecord<>(topic1.name(), "my-key", PLAINTEXT)).get();
+            producer.send(new ProducerRecord<>(topic2.name(), "my-key", PLAINTEXT)).get();
+            producer.flush();
+
+            consumer.subscribe(Set.of(topic1.name(), topic2.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+
+            assertThat(records).hasSize(2);
+            assertThat(records.records(topic1.name()))
+                    .hasSize(1)
+                    .map(ConsumerRecord::value)
+                    .containsExactly(expectedEncoded1);
+
+            assertThat(records.records(topic2.name()))
+                    .hasSize(1)
+                    .map(ConsumerRecord::value)
+                    .containsExactly(expectedEncoded2);
+        }
+    }
+
+    @Test
+    void requestFiltersCanRespondWithoutProxyingRespondsInCorrectOrder() throws Exception {
+
+        try (var tester = mockKafkaKroxyliciousTester(
+                s -> proxy(s).addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                        .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name()));
+                var client = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            CreateTopicsRequestData.CreatableTopic topic = new CreateTopicsRequestData.CreatableTopic();
+            CreateTopicsRequestData data = new CreateTopicsRequestData();
+            data.topics().add(topic);
+            client.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", new ApiVersionsRequestData()));
+            Request requestA = new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData());
+            Request requestB = new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", data);
+            var futureA = client.get(requestA);
+            var futureB = client.get(requestB);
+            Response responseA = futureA.get(10, TimeUnit.SECONDS);
+            Response responseB = futureB.get(10, TimeUnit.SECONDS);
+            assertThat(responseA.sequenceNumber()).withFailMessage(() -> "responses received out of order").isLessThan(responseB.sequenceNumber());
+        }
+    }
+
+    @Test
+    void clientsCanSendMultipleMessagesImmediately() {
+
+        try (var tester = mockKafkaKroxyliciousTester(
+                s -> proxy(s).addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                        .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name()));
+                var client = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            Request requestA = new Request(METADATA, METADATA.latestVersion(), "clientA", new MetadataRequestData());
+            Request requestB = new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "clientB", new ApiVersionsRequestData());
+            var futureA = client.get(requestA);
+            var futureB = client.get(requestB);
+            assertThat(futureA).succeedsWithin(10, TimeUnit.SECONDS);
+            assertThat(futureB).succeedsWithin(10, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void zeroAckProduceRequestsDoNotInterfereWithResponseReorderingLogic() throws Exception {
+
+        try (var tester = mockKafkaKroxyliciousTester(
+                s -> proxy(s).addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                        .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name()));
+                var client = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            tester.dropWhen(zeroAckProduceRequestMatcher());
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            CreateTopicsRequestData.CreatableTopic topic = new CreateTopicsRequestData.CreatableTopic();
+            CreateTopicsRequestData data = new CreateTopicsRequestData();
+            data.topics().add(topic);
+            client.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", new ApiVersionsRequestData()));
+            Request requestA = new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData());
+            Request requestB = new Request(PRODUCE, PRODUCE.latestVersion(), "client", new ProduceRequestData().setAcks((short) 0));
+            Request requestC = new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", data);
+            var futureA = client.get(requestA);
+            client.get(requestB);
+            var futureC = client.get(requestC);
+            Response responseA = futureA.get(10, TimeUnit.SECONDS);
+            Response responseC = futureC.get(10, TimeUnit.SECONDS);
+            assertThat(responseA.sequenceNumber()).withFailMessage(() -> "responses received out of order").isLessThan(responseC.sequenceNumber());
+        }
+    }
+
+    // zero-ack produce requests require special handling because they have no response associated
+    // this checks that Kroxy can handle the basics of forwarding them.
+    @Test
+    void shouldModifyZeroAckProduceMessage(KafkaCluster cluster, Topic topic) throws Exception {
+        String className = ProduceRequestTransformation.class.getName();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(new NamedFilterDefinitionBuilder(className, className)
+                        .withConfig("transformation", TestEncoderFactory.class.getName()).build())
+                .addToDefaultFilters(className);
+
+        var expectedEncoded = encode(topic.name(), ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))).array();
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ACKS_CONFIG, "0"));
+                var consumer = tester
+                        .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", PLAINTEXT)).get();
+            producer.flush();
+
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+
+            assertThat(records.iterator())
+                    .toIterable()
+                    .hasSize(1)
+                    .map(ConsumerRecord::value)
+                    .containsExactly(expectedEncoded);
+        }
+    }
+
+    @Test
+    void shouldForwardUnfilteredZeroAckProduceMessage(KafkaCluster cluster, Topic topic) throws Exception {
+
+        var config = proxy(cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ACKS_CONFIG, "0"));
+                var consumer = tester
+                        .consumer(Serdes.String(), Serdes.String(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", PLAINTEXT)).get();
+            producer.flush();
+
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+
+            assertThat(records).hasSize(1);
+            assertThat(records.iterator())
+                    .toIterable()
+                    .map(ConsumerRecord::value)
+                    .containsExactly(PLAINTEXT);
+        }
+    }
+
+    @Test
+    void shouldModifyFetchMessage(KafkaCluster cluster, Topic topic1, Topic topic2) throws Exception {
+
+        var bytes = PLAINTEXT.getBytes(StandardCharsets.UTF_8);
+        var encoded1 = encode(topic1.name(), ByteBuffer.wrap(bytes)).array();
+        var encoded2 = encode(topic2.name(), ByteBuffer.wrap(bytes)).array();
+
+        NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder("filter-1", FetchResponseTransformation.class.getName());
+        var config = proxy(cluster)
+                .addToFilterDefinitions(filterDefinitionBuilder
+                        .withConfig("transformation", TestDecoderFactory.class.getName()).build())
+                .addToDefaultFilters(filterDefinitionBuilder.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Serdes.String(), Serdes.ByteArray(),
+                        Map.of(CLIENT_ID_CONFIG, "shouldModifyFetchMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester.consumer()) {
+
+            producer.send(new ProducerRecord<>(topic1.name(), "my-key", encoded1)).get();
+            producer.send(new ProducerRecord<>(topic2.name(), "my-key", encoded2)).get();
+
+            consumer.subscribe(Set.of(topic1.name(), topic2.name()));
+            var records = consumer.poll(Duration.ofSeconds(100));
+            assertThat(records).hasSize(2);
+            assertThat(records.records(topic1.name()))
+                    .hasSize(1)
+                    .map(ConsumerRecord::value).containsExactly(PLAINTEXT);
+            assertThat(records.records(topic2.name()))
+                    .hasSize(1)
+                    .map(ConsumerRecord::value).containsExactly(PLAINTEXT);
+        }
+    }
+
+}

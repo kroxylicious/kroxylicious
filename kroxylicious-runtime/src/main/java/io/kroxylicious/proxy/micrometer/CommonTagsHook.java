@@ -7,7 +7,6 @@ package io.kroxylicious.proxy.micrometer;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,14 +18,13 @@ import io.micrometer.core.instrument.Tag;
 
 import io.kroxylicious.proxy.plugin.Plugin;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 @Plugin(configType = CommonTagsHook.CommonTagsHookConfig.class)
 public class CommonTagsHook implements MicrometerConfigurationHookService<CommonTagsHook.CommonTagsHookConfig> {
 
     private static final Logger log = LoggerFactory.getLogger(CommonTagsHook.class);
 
-    @NonNull
     @Override
     public MicrometerConfigurationHook build(CommonTagsHookConfig config) {
         return new Hook(config);
@@ -36,7 +34,7 @@ public class CommonTagsHook implements MicrometerConfigurationHookService<Common
         private final Map<String, String> commonTags;
 
         @JsonCreator
-        public CommonTagsHookConfig(Map<String, String> commonTags) {
+        public CommonTagsHookConfig(@Nullable Map<String, String> commonTags) {
             this.commonTags = commonTags == null ? Map.of() : commonTags;
         }
     }
@@ -53,7 +51,7 @@ public class CommonTagsHook implements MicrometerConfigurationHookService<Common
 
         @Override
         public void configure(MeterRegistry targetRegistry) {
-            List<Tag> tags = config.commonTags.entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).collect(Collectors.toList());
+            List<Tag> tags = config.commonTags.entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).toList();
             targetRegistry.config().commonTags(tags);
             log.info("configured micrometer registry with tags: {}", tags);
         }

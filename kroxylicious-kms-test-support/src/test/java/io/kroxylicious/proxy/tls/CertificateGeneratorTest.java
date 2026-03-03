@@ -32,6 +32,7 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.junit.jupiter.api.Test;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -97,7 +98,7 @@ class CertificateGeneratorTest {
         assertTrustStore(keys.pkcs12NoPasswordClientTruststore(), certificate, null, "PKCS12");
     }
 
-    private void assertTrustStore(CertificateGenerator.TrustStore trustStore, X509Certificate certificate, String password, String type) throws Exception {
+    private void assertTrustStore(CertificateGenerator.TrustStore trustStore, X509Certificate certificate, @Nullable String password, String type) throws Exception {
         assertThat(trustStore).isNotNull();
         assertThat(trustStore.password()).isEqualTo(password);
         if (password != null) {
@@ -120,9 +121,7 @@ class CertificateGeneratorTest {
         PrivateKey privateKey = keyPair.getPrivate();
         assertThat(privateKey.getAlgorithm()).isEqualTo("RSA");
         assertThat(privateKey.getFormat()).isEqualTo("PKCS#8");
-        assertThat(privateKey).isInstanceOfSatisfying(RSAPrivateKey.class, rsaPrivateKey -> {
-            assertThat(rsaPrivateKey.getModulus().bitLength()).isEqualTo(1024);
-        });
+        assertThat(privateKey).isInstanceOfSatisfying(RSAPrivateKey.class, rsaPrivateKey -> assertThat(rsaPrivateKey.getModulus().bitLength()).isEqualTo(1024));
     }
 
     private static void assertPemAtPathContainsPrivateKey(Path path, KeyPair keyPair) throws IOException {
@@ -187,7 +186,7 @@ class CertificateGeneratorTest {
         assertThat(certificate).isEqualTo(x509Certificate);
     }
 
-    private static @NonNull KeyStore loadKeyStore(Path path, String password, String type) {
+    private static @NonNull KeyStore loadKeyStore(Path path, @Nullable String password, String type) {
         try {
             KeyStore store = KeyStore.getInstance(type);
             store.load(Files.newInputStream(path), password == null ? null : password.toCharArray());

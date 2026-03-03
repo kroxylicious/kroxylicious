@@ -11,6 +11,7 @@ import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 
 class MetadataAssertTest {
@@ -45,7 +46,8 @@ class MetadataAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> MetadataAssert.assertThat(thingWithMetadata).hasAnnotations()).isInstanceOf(AssertionError.class);
+        MetadataAssert<KafkaProxyIngress> metadataAssert = MetadataAssert.assertThat(thingWithMetadata);
+        Assertions.assertThatThrownBy(metadataAssert::hasAnnotations).isInstanceOf(AssertionError.class);
     }
 
     @Test
@@ -55,7 +57,8 @@ class MetadataAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> MetadataAssert.assertThat(thingWithoutMetadata).assertHasObjectMeta()).isInstanceOf(AssertionError.class);
+        MetadataAssert<KafkaProxyIngress> metadataAssert = MetadataAssert.assertThat(thingWithoutMetadata);
+        Assertions.assertThatThrownBy(metadataAssert::assertHasObjectMeta).isInstanceOf(AssertionError.class);
     }
 
     @Test
@@ -66,9 +69,9 @@ class MetadataAssertTest {
 
         // When
         // Then
+        MetadataAssert<KafkaProxyIngress> metadataAssert = MetadataAssert.assertThat(thingWithoutMetadata);
         Assertions.assertThatThrownBy(
-                () -> MetadataAssert.assertThat(thingWithoutMetadata)
-                        .hasAnnotationSatisfying("MissingAnnotation", value -> Assertions.assertThat(value).isNotNull()))
+                () -> metadataAssert.hasAnnotationSatisfying("MissingAnnotation", value -> Assertions.assertThat(value).isNotNull()))
                 .isInstanceOf(AssertionError.class);
     }
 
@@ -80,9 +83,9 @@ class MetadataAssertTest {
 
         // When
         // Then
+        MetadataAssert<KafkaProxyIngress> metadataAssert = MetadataAssert.assertThat(thingWithoutMetadata);
         Assertions.assertThatThrownBy(
-                () -> MetadataAssert.assertThat(thingWithoutMetadata)
-                        .hasAnnotationSatisfying(ANNOTATION_A, value -> Assertions.assertThat(value).isBlank()))
+                () -> metadataAssert.hasAnnotationSatisfying(ANNOTATION_A, value -> Assertions.assertThat(value).isBlank()))
                 .isInstanceOf(AssertionError.class);
     }
 

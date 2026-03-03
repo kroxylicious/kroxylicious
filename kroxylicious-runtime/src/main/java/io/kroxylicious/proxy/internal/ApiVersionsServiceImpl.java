@@ -23,8 +23,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class ApiVersionsServiceImpl {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsServiceImpl.class);
@@ -55,7 +53,7 @@ public class ApiVersionsServiceImpl {
         return Stream.of();
     }
 
-    private ApiVersionsServiceImpl(@NonNull Function<ApiKeys, Short> apiKeysShortFunction) {
+    private ApiVersionsServiceImpl(Function<ApiKeys, Short> apiKeysShortFunction) {
         Objects.requireNonNull(apiKeysShortFunction);
         this.apiKeysShortFunction = apiKeysShortFunction;
     }
@@ -69,13 +67,13 @@ public class ApiVersionsServiceImpl {
         intersectApiVersions(channel, apiVersionsResponse, apiKeysShortFunction);
     }
 
-    private static void intersectApiVersions(String channel, ApiVersionsResponseData resp, Function<ApiKeys, Short> apiKeysShortFunction) {
+    private static void intersectApiVersions(String sessionId, ApiVersionsResponseData resp, Function<ApiKeys, Short> apiKeysShortFunction) {
         Set<ApiVersion> unknownApis = new HashSet<>();
         for (var key : resp.apiKeys()) {
             short apiId = key.apiKey();
             if (ApiKeys.hasId(apiId)) {
                 ApiKeys apiKey = ApiKeys.forId(apiId);
-                intersectApiVersion(channel, key, apiKey, apiKeysShortFunction);
+                intersectApiVersion(sessionId, key, apiKey, apiKeysShortFunction);
             }
             else {
                 unknownApis.add(key);
@@ -88,32 +86,37 @@ public class ApiVersionsServiceImpl {
      * Update the given {@code key}'s max and min versions so that the client uses APIs versions mutually
      * understood by both the proxy and the broker.
      *
-     * @param channel The channel.
+     * @param sessionId The sessionId.
      * @param key The key data from an upstream API_VERSIONS response.
      * @param apiKey The proxy's API key for this API.
-     * @param apiKeysShortFunction
+     * @param apiKeysShortFunction function to determine the maximum supported version for a particular API Key
      */
-    private static void intersectApiVersion(String channel, ApiVersion key, ApiKeys apiKey, Function<ApiKeys, Short> apiKeysShortFunction) {
+    private static void intersectApiVersion(String sessionId, ApiVersion key, ApiKeys apiKey, Function<ApiKeys, Short> apiKeysShortFunction) {
         short mutualMin = (short) Math.max(
                 key.minVersion(),
                 apiKey.messageType.lowestSupportedVersion());
-        if (mutualMin != key.minVersion()) {
-            LOGGER.trace("{}: {} min version changed to {} (was: {})", channel, apiKey, mutualMin, key.maxVersion());
+        if (ApiKeys.PRODUCE.equals(apiKey)
+                && key.minVersion() <= apiKey.messageType.lowestSupportedVersion()) {
+            LOGGER.trace("{}: {} min version downgraded to v0 (is: {}) to support KAFKA-18659", sessionId, apiKey, key.minVersion());
+            key.setMinVersion(apiKey.messageType.lowestDeprecatedVersion());
+        }
+        else if (mutualMin != key.minVersion()) {
+            LOGGER.trace("{}: {} min version changed to {} (was: {})", sessionId, apiKey, mutualMin, key.maxVersion());
             key.setMinVersion(mutualMin);
         }
         else {
-            LOGGER.trace("{}: {} min version unchanged (is: {})", channel, apiKey, mutualMin);
+            LOGGER.trace("{}: {} min version unchanged (is: {})", sessionId, apiKey, mutualMin);
         }
 
         short mutualMax = (short) Math.min(
                 key.maxVersion(),
                 apiKeysShortFunction.apply(apiKey));
         if (mutualMax != key.maxVersion()) {
-            LOGGER.trace("{}: {} max version changed to {} (was: {})", channel, apiKey, mutualMin, key.maxVersion());
+            LOGGER.trace("{}: {} max version changed to {} (was: {})", sessionId, apiKey, mutualMin, key.maxVersion());
             key.setMaxVersion(mutualMax);
         }
         else {
-            LOGGER.trace("{}: {} max version unchanged (is: {})", channel, apiKey, mutualMin);
+            LOGGER.trace("{}: {} max version unchanged (is: {})", sessionId, apiKey, mutualMin);
         }
     }
 

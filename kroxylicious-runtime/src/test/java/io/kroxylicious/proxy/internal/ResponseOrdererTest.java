@@ -39,6 +39,21 @@ class ResponseOrdererTest {
             return correlationId;
         }
 
+        @Override
+        public short apiKeyId() {
+            return 0;
+        }
+
+        @Override
+        public short apiVersion() {
+            return 0;
+        }
+
+        @Override
+        public boolean isDecoded() {
+            return false;
+        }
+
     }
 
     record TestRequestFrame(int correlationId, boolean hasResponse) implements RequestFrame {
@@ -50,7 +65,7 @@ class ResponseOrdererTest {
 
         @Override
         public void encode(ByteBufAccessor out) {
-
+            throw new IllegalStateException("Not implemented");
         }
 
         @Override
@@ -64,6 +79,21 @@ class ResponseOrdererTest {
         }
 
         @Override
+        public short apiKeyId() {
+            return 0;
+        }
+
+        @Override
+        public short apiVersion() {
+            return 0;
+        }
+
+        @Override
+        public boolean isDecoded() {
+            return false;
+        }
+
+        @Override
         public boolean decodeResponse() {
             return false;
         }
@@ -71,7 +101,7 @@ class ResponseOrdererTest {
     }
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         embeddedChannel = new EmbeddedChannel();
         orderer = new ResponseOrderer();
         embeddedChannel.pipeline().addFirst(orderer);

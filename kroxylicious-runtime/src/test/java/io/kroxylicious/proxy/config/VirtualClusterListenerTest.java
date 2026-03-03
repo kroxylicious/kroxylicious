@@ -14,9 +14,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,7 +31,7 @@ class VirtualClusterListenerTest {
     SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNode;
 
     @Mock
-    ClusterNetworkAddressConfigProviderDefinition providerDefinition;
+    NodeIdentificationStrategy nodeIdentificationStrategy;
 
     @Test
     void rejectsMissing() {
@@ -73,19 +75,18 @@ class VirtualClusterListenerTest {
 
     @Test
     void createsPortIdentifiesProvider() {
-        when(portIdentifiesNode.get()).thenReturn(providerDefinition);
+        when(portIdentifiesNode.buildStrategy(anyString())).thenReturn(nodeIdentificationStrategy);
         var listener = new VirtualClusterGateway("name", portIdentifiesNode, null, Optional.empty());
-        var provider = listener.clusterNetworkAddressConfigProvider();
-        assertThat(provider).isEqualTo(providerDefinition);
+        var strategy = listener.buildNodeIdentificationStrategy("cluster");
+        assertThat(strategy).isEqualTo(this.nodeIdentificationStrategy);
     }
 
     @Test
     void createsSniHostIdentifiesProvider() {
         var tls = Optional.of(new Tls(null, null, null, null));
-
-        when(sniHostIdentifiesNode.get()).thenReturn(providerDefinition);
+        when(sniHostIdentifiesNode.buildStrategy(anyString())).thenReturn(nodeIdentificationStrategy);
         var listener = new VirtualClusterGateway("name", null, sniHostIdentifiesNode, tls);
-        var provider = listener.clusterNetworkAddressConfigProvider();
-        assertThat(provider).isEqualTo(providerDefinition);
+        var strategy = listener.buildNodeIdentificationStrategy("cluster");
+        assertThat(strategy).isEqualTo(this.nodeIdentificationStrategy);
     }
 }

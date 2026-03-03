@@ -18,7 +18,7 @@ name: Build Kroxylicious Operator
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'release/**' ]
   pull_request:
     types: [ opened, synchronize, reopened ]
 
@@ -36,91 +36,69 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> $GITHUB_ENV
+      - name: 'Test for Slack secret'
+        env:
+          KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+        run: |
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
       - name: 'Check out repository'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          submodules: 'true'
           fetch-depth: 0
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: 'Set up Java'
-        uses: actions/setup-java@v4
-        with:
-          java-version: 21
-          distribution: 'temurin'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@v2.14.0
-        with:
-          "minikube version": 'v1.35.0'
-          "kubernetes version": 'v1.32.0'
-          "github token": ${{ secrets.GITHUB_TOKEN }}
-          driver: docker
-      - name: 'Test for unpublished reference release (japicmp)'
+        uses: ./.github/actions/common/setup-minikube
+      - name: 'Set up Docker Buildx'
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - name: 'Cache Maven packages'
+        uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Build Kroxylicious Operand Container Image'
         run: |
-          REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
-          echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
+          GIT_HASH="$(git rev-parse HEAD)"
+          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
+          KROXYLICIOUS_IMAGE=quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}
+          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app -DskipTests clean package -Dio.kroxylicious.proxy.image.name=${KROXYLICIOUS_IMAGE}
+          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
+      - name: 'Load Kroxylicious Operand Docker Image in Minikube'
+        run: |
+          # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
+          minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
+          minikube image ls | grep --fixed-strings ${KROXYLICIOUS_IMAGE}
       - name: Cache SonarCloud packages
-        uses: actions/cache@v4
-        if: github.ref_name == 'main' || env.SONAR_TOKEN_SET == 'true'
+        uses: actions/cache@v5
+        if: github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-      - name: 'Cache Maven packages'
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
-      - name: 'Build & unit test Kroxylicious operator'
+      - name: 'Build & test Kroxylicious operator'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          GIT_HASH="$(git rev-parse HEAD)"
-          IMAGE_TAG="dev-git-${GIT_HASH}"
-          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
-          KROXYLICIOUS_IMAGE="quay.io/kroxylicious/kroxylicious:${IMAGE_TAG}"
-          echo "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" >> "$GITHUB_ENV"
-          # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
-          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
-          # make sure everything is built and compiles
-          mvn -B install -DskipTests -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -pl ':kroxylicious-operator' -am
-          # now run just the operator unit tests.         
-          mvn -B verify -DskipITs -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -pl ':kroxylicious-operator'
-      - name: 'Set up Docker Buildx'
-        uses: docker/setup-buildx-action@v3
-      - name: 'Build tagged Docker image'
-        uses: docker/build-push-action@v6
-        with:
-          file: Dockerfile
-          context: .
-          build-args:
-            KROXYLICIOUS_VERSION=${{ env.KROXYLICIOUS_VERSION }}
-          tags: ${{ env.KROXYLICIOUS_IMAGE }}
-          push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,compression=zstd
-          load: 'true'
-      - name: 'Load Kroxylicious Image in Minikube'
-        run: minikube image load  ${{ env.KROXYLICIOUS_IMAGE }}
-      - name: 'Run Kroxylicious operator integration tests'
-        if: github.ref_name != 'main' || env.SONAR_TOKEN_SET != 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -DskipUTs -pl ':kroxylicious-operator'
-      - name: 'Build Kroxylicious maven project on main with Sonar'
+          mvn -B install -Pci -Djapicmp.skip=true -pl ':kroxylicious-operator' -am
+      - name: 'SonarCloud scan on main for the Operator'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:5.0.0.4389:sonar -Dsonar.projectKey=kroxylicious_kroxylicious  -pl ':kroxylicious-operator,:kroxylicious-parent'
+        run: mvn -B verify -Pci -Djapicmp.skip=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar -Dsonar.projectName='Kroxylicious Operator' -Dsonar.projectKey='kroxylicious_operator' -pl ':kroxylicious-operator,:kroxylicious-parent'
       - name: Save PR number to file
         if: github.event_name == 'pull_request'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: PR_NUMBER
           path: PR_NUMBER.txt
-
+      - name: Slack Notification on Failure
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true'
+        uses: ./.github/actions/common/slack-notification
+        with:
+          slackTitle: 'Failure Alert: ${{ github.repository }}'
+          slackMessage: 'The operator maven workflow failed on branch ${{ github.ref_name }}.'
+      - name: 'Clean Kroxylicious Maven packages'
+        uses: ./.github/actions/common/clean-kroxylicious-maven-packages

@@ -1,0 +1,75 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "SYNC_GROUP"
+  apiVersion: 5
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "SYNC_GROUP"
+      expectedRequestVersion: 5
+      expectedRequestHeader:
+        requestApiKey: 14
+        requestApiVersion: 5
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-533"
+        generationId: 638
+        memberId: "random-string-998"
+        groupInstanceId: "random-string-40"
+        protocolType: "random-string-469"
+        protocolName: "random-string-810"
+        assignments:
+          - memberId: "random-string-738"
+            assignment: !!binary |-
+              dvOjL2A=
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1006
+        errorCode: 685
+        protocolType: "random-string-801"
+        protocolName: "random-string-374"
+        assignment: !!binary |-
+          V3FtJR0=
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 14
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-533"
+    generationId: 638
+    memberId: "random-string-998"
+    groupInstanceId: "random-string-40"
+    protocolType: "random-string-469"
+    protocolName: "random-string-810"
+    assignments:
+      - memberId: "random-string-738"
+        assignment: !!binary |-
+          dvOjL2A=
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1006
+    errorCode: 685
+    protocolType: "random-string-801"
+    protocolName: "random-string-374"
+    assignment: !!binary |-
+      V3FtJR0=

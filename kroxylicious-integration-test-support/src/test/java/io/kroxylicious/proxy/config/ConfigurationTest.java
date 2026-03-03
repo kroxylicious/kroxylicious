@@ -6,13 +6,12 @@
 
 package io.kroxylicious.proxy.config;
 
-import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -20,16 +19,19 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.flipkart.zjsonpatch.JsonDiff;
 
-import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
@@ -57,163 +59,58 @@ class ConfigurationTest {
 
     @Test
     void shouldRejectVirtualClusterWithNoGateways() {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                              name: cluster
-                              targetCluster:
-                                bootstrapServers: kafka.example:1234
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("no gateways configured for virtualCluster");
+        assertThatThrownBy(() -> MAPPER.readValue(
+                """
+                          name: cluster
+                          targetCluster:
+                            bootstrapServers: kafka.example:1234
+                        """, VirtualCluster.class)).isInstanceOf(MismatchedInputException.class)
+                .hasMessageContaining("Missing required creator property 'gateways'");
     }
 
     @Test
     void shouldRejectVirtualClusterWithNullGateways() {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                              name: cluster
-                              targetCluster:
-                                bootstrapServers: kafka.example:1234
-                              gateways: null
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
+        assertThatThrownBy(() -> MAPPER.readValue(
+                """
+                          name: cluster
+                          targetCluster:
+                            bootstrapServers: kafka.example:1234
+                          gateways: null
+                        """, VirtualCluster.class)).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("no gateways configured for virtualCluster");
+                .hasMessageContaining("no gateways configured for virtual cluster 'cluster'");
     }
 
     @Test
     void shouldRejectVirtualClusterNullGatewayValue() {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                              name: cluster
-                              targetCluster:
-                                bootstrapServers: kafka.example:1234
-                              gateways: [null]
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("one or more gateways were null");
-    }
-
-    @Test
-    void shouldRejectVirtualClusterWithLegacyTlsButNoLegacyProvider() {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                              name: cluster
-                              targetCluster:
-                                bootstrapServers: kafka.example:1234
-                              tls:
-                                 key:
-                                   certificateFile: /tmp/cert
-                                   privateKeyFile: /tmp/key
-                                   keyPassword:
-                                     password: keypassword
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("Deprecated virtualCluster property 'tls' supplied, but 'clusterNetworkAddressConfigProvider' is null");
-    }
-
-    @Test
-    void shouldRejectVirtualClusterWithTlsButNullLegacyProvider() {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                              name: cluster
-                              targetCluster:
-                                bootstrapServers: kafka.example:1234
-                              tls:
-                                 key:
-                                   certificateFile: /tmp/cert
-                                   privateKeyFile: /tmp/key
-                                   keyPassword:
-                                     password: keypassword
-                              clusterNetworkAddressConfigProvider: null
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("Deprecated virtualCluster property 'tls' supplied, but 'clusterNetworkAddressConfigProvider' is null");
-    }
-
-    @Test
-    void shouldRejectVirtualClusterWithLegacyProviderAndNewGateways() {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                              name: cluster
-                              targetCluster:
-                                bootstrapServers: kafka.example:1234
-                              gateways:
-                              - name: default
-                                sniHostIdentifiesNode:
-                                    bootstrapAddress: cluster1:9192
-                                    advertisedBrokerAddressPattern: broker-$(nodeId)
-                                tls:
-                                  key:
-                                    certificateFile: /tmp/cert
-                                    privateKeyFile: /tmp/key
-                              clusterNetworkAddressConfigProvider:
-                                type: SniRoutingClusterNetworkAddressConfigProvider
-                                config:
-                                  bootstrapAddress: cluster1:9192
-                                  advertisedBrokerAddressPattern: broker-$(nodeId)
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("When using gateways, the virtualCluster properties 'clusterNetworkAddressConfigProvider' and 'tls' must be omitted");
-    }
-
-    @Test
-    @SuppressWarnings("removal")
-    void shouldAcceptDeprecatedTopLevelNetworkConfigProvider() throws IOException {
-        var vc = MAPPER.readValue(
+        assertThatThrownBy(() -> MAPPER.readValue(
                 """
-                                  name: cluster
-                                  targetCluster:
-                                    bootstrapServers: kafka.example:1234
-                                  clusterNetworkAddressConfigProvider:
-                                    type: SniRoutingClusterNetworkAddressConfigProvider
-                                    config:
-                                      bootstrapAddress: cluster1:9192
-                                      brokerAddressPattern: broker-$(nodeId)
-                        """, VirtualCluster.class);
-
-        assertThat(vc.clusterNetworkAddressConfigProvider().type())
-                .isEqualTo("SniRoutingClusterNetworkAddressConfigProvider");
+                          name: cluster
+                          targetCluster:
+                            bootstrapServers: kafka.example:1234
+                          gateways: [null]
+                        """, VirtualCluster.class)).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("one or more gateways were null for virtual cluster 'cluster'");
     }
 
     @Test
-    @SuppressWarnings("removal")
-    void shouldAcceptDeprecatedTopLevelTls() throws IOException {
-        var vc = MAPPER.readValue(
+    void shouldRejectSniGatewayWithNoAdvertisedBrokerAddressPattern() {
+        assertThatThrownBy(() -> MAPPER.readValue(
                 """
-                                  name: cluster
-                                  targetCluster:
-                                    bootstrapServers: kafka.example:1234
-                                  clusterNetworkAddressConfigProvider:
-                                    type: SniRoutingClusterNetworkAddressConfigProvider
-                                    config: {}
-                                  tls:
-                                     key:
-                                       certificateFile: /tmp/cert
-                                       privateKeyFile: /tmp/key
-                        """, VirtualCluster.class);
-
-        assertThat(vc.tls())
-                .isPresent()
-                .get()
-                .satisfies(tls -> {
-                    assertThat(tls.key())
-                            .asInstanceOf(InstanceOfAssertFactories.type(KeyPair.class))
-                            .satisfies(kp -> {
-                                assertThat(kp.privateKeyFile()).isEqualTo("/tmp/key");
-                            });
-                });
+                          name: cluster
+                          targetCluster:
+                            bootstrapServers: kafka.example:1234
+                          gateways:
+                          - name: default
+                            sniHostIdentifiesNode:
+                                bootstrapAddress: cluster1:9192
+                            tls:
+                              key:
+                                certificateFile: /tmp/cert
+                                privateKeyFile: /tmp/key
+                        """, VirtualCluster.class)).isInstanceOf(MismatchedInputException.class)
+                .hasMessageContaining("Missing required creator property 'advertisedBrokerAddressPattern'");
     }
 
     static Stream<Arguments> fluentApiConfigYamlFidelity() {
@@ -234,27 +131,6 @@ class ConfigurationTest {
                               portIdentifiesNode:
                                 bootstrapAddress: example.com:1234
                         """),
-                argumentSet("With filters",
-                        new ConfigurationBuilder()
-                                .addToVirtualClusters(VIRTUAL_CLUSTER)
-                                .addToFilters(filter.asFilterDefinition())
-                                .build(),
-                        """
-                                    filters:
-                                    - type: ExampleFilterFactory
-                                      config:
-                                        examplePlugin: ExamplePluginInstance
-                                        examplePluginConfig:
-                                          pluginKey: pluginValue
-                                    virtualClusters:
-                                      - name: demo
-                                        targetCluster:
-                                          bootstrapServers: kafka.example:1234
-                                        gateways:
-                                        - name: default
-                                          portIdentifiesNode:
-                                            bootstrapAddress: example.com:1234
-                                """),
                 argumentSet("With filterDefinitions",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters(VIRTUAL_CLUSTER)
@@ -527,6 +403,135 @@ class ConfigurationTest {
                                     - name: default
                                       portIdentifiesNode:
                                         bootstrapAddress: cluster1:9192
+                                """),
+                argumentSet("BootstrapServerSelection",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters(new VirtualClusterBuilder()
+                                        .withName("demo")
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .withNewTls()
+                                        .withNewInsecureTlsTrust(true)
+                                        .endTls()
+                                        .withSelectionStrategy(new RoundRobinBootstrapSelectionStrategy())
+                                        .endTargetCluster()
+                                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                      bootstrapServerSelection:
+                                        strategy: round-robin
+                                      tls:
+                                         trust:
+                                            insecure: true
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: cluster1:9192
+                                """),
+                argumentSet("Proxy worker shutdown quiet period seconds",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withShutdownQuietPeriodSeconds(5).endProxy()
+                                .endNetwork()
+                                .build(),
+                        """
+                                network:
+                                    proxy:
+                                        shutdownQuietPeriodSeconds: 5
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("Proxy worker thread count",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withWorkerThreadCount(5).endProxy().endNetwork()
+                                .build(),
+                        """
+                                network:
+                                    proxy:
+                                        workerThreadCount: 5
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("Management worker shutdown quiet period seconds",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement().withShutdownQuietPeriodSeconds(5)
+                                .endManagement()
+                                .endNetwork().build(),
+                        """
+                                network:
+                                    management:
+                                        shutdownQuietPeriodSeconds: 5
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("Management worker thread count",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement().withWorkerThreadCount(2).endManagement()
+                                .endNetwork().build(),
+                        """
+                                network:
+                                    management:
+                                        workerThreadCount: 2
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("UnAuthenticatedIdleTimeout",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork()
+                                .withNewProxy().withUnauthenticatedIdleTimeout(Duration.ofSeconds(90)).endProxy()
+                                .endNetwork().build(),
+                        """
+                                network:
+                                    proxy:
+                                        unauthenticatedIdleTimeout: 1m30s
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("AuthenticatedIdleTimeout",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork()
+                                .withNewProxy().withAuthenticatedIdleTimeout(Duration.ofMinutes(10)).endProxy()
+                                .endNetwork().build(),
+                        """
+                                network:
+                                    proxy:
+                                        authenticatedIdleTimeout: 10m
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
                                 """)
 
         );
@@ -543,38 +548,6 @@ class ConfigurationTest {
     }
 
     @Test
-    void shouldGenerateUniqueNames() {
-        List<FilterDefinition> filters = List.of(
-                new FilterDefinition("Bar", "1"),
-                new FilterDefinition("Foo", "2"),
-                new FilterDefinition("Bar", "3"));
-        assertThat(Configuration.toNamedFilterDefinitions(filters)).isEqualTo(List.of(
-                new NamedFilterDefinition("Bar-0", "Bar", "1"),
-                new NamedFilterDefinition("Foo", "Foo", "2"),
-                new NamedFilterDefinition("Bar-1", "Bar", "3")));
-    }
-
-    @Test
-    @SuppressWarnings({ "java:S5738", "removal" })
-    void shouldRejectBothFiltersAndFilterDefinitions() {
-        List<NamedFilterDefinition> filterDefinitions = List.of(new NamedFilterDefinition("foo", "", ""));
-        List<FilterDefinition> filters = List.of(new FilterDefinition("", ""));
-        Optional<Map<String, Object>> development = Optional.empty();
-        var virtualCluster = List.of(VIRTUAL_CLUSTER);
-        assertThatThrownBy(() -> new Configuration(null,
-                filterDefinitions,
-                null,
-                virtualCluster,
-                filters,
-                null,
-                false,
-                development))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("'filters' and 'filterDefinitions' can't both be set");
-    }
-
-    @Test
-    @SuppressWarnings({ "java:S5738", "removal" })
     void shouldRejectFilterDefinitionsWithSameName() {
         List<NamedFilterDefinition> filterDefinitions = List.of(
                 new NamedFilterDefinition("foo", "", ""),
@@ -586,9 +559,9 @@ class ConfigurationTest {
                 null,
                 virtualCluster,
                 null,
-                null,
                 false,
-                development))
+                development,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
     }
@@ -602,8 +575,10 @@ class ConfigurationTest {
         assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
                 defaultFilters,
                 virtualCluster,
-                null, false,
-                development))
+                null,
+                false,
+                development,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'defaultFilters' references filters not defined in 'filterDefinitions': [missing]");
     }
@@ -615,13 +590,15 @@ class ConfigurationTest {
         List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
         TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
         List<VirtualCluster> virtualClusters = List
-                .of(new VirtualCluster("vc1", targetCluster, null, Optional.empty(), defaultGateway, false, false, List.of("missing")));
+                .of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
-                null, filterDefinitions,
+                null,
+                filterDefinitions,
                 null,
                 virtualClusters,
                 null, false,
-                development))
+                development,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'virtualClusters.vc1.filters' references filters not defined in 'filterDefinitions': [missing]");
     }
@@ -639,33 +616,17 @@ class ConfigurationTest {
         List<String> defaultFilters = List.of("used1");
         List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
         TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
-        List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, null, Optional.empty(), defaultGateway, false, false, List.of("used2")));
-        assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
+        List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("used2")));
+        assertThatThrownBy(() -> new Configuration(null,
+                filterDefinitions,
                 defaultFilters,
                 virtualClusters,
-                null, false,
-                development))
+                null,
+                false,
+                development,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': [unused]");
-    }
-
-    @Test
-    @SuppressWarnings({ "java:S5738", "removal" })
-    void shouldRejectVirtualClusterFiltersWhenTopLevelFilters() {
-        Optional<Map<String, Object>> development = Optional.empty();
-        List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
-        TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
-        List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, null, Optional.empty(), defaultGateway, false, false, List.of()));
-        assertThatThrownBy(() -> new Configuration(
-                null,
-                null,
-                null,
-                virtualClusters,
-                List.<FilterDefinition> of(),
-                null, false,
-                development))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("'filters' cannot be specified on a virtual cluster when 'filters' is defined at the top level.");
     }
 
     @Test
@@ -674,80 +635,42 @@ class ConfigurationTest {
         List<NamedFilterDefinition> filterDefinitions = List.of(
                 new NamedFilterDefinition("foo", "Foo", ""),
                 new NamedFilterDefinition("bar", "Bar", ""));
-        VirtualCluster direct = new VirtualCluster("direct", new TargetCluster("y:9092", Optional.empty()),
-                null, Optional.empty(),
-                List.of(new VirtualClusterGateway("mygateway",
-                        new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
-                        null,
-                        Optional.empty())),
-                false,
-                false,
-                List.of("foo")); // filters defined on cluster
 
-        VirtualCluster defaulted = new VirtualCluster("defaulted", new TargetCluster("x:9092", Optional.empty()),
-                null,
-                Optional.empty(),
-                List.of(new VirtualClusterGateway("mygateway",
-                        new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
-                        null,
-                        Optional.empty())),
-                false,
-                false,
-                null); // filters not defined => should default to the top level
+        VirtualCluster direct = buildVirtualCluster("direct", "y:9092", List.of("foo")); // filters defined on cluster
+        VirtualCluster defaulted = buildVirtualCluster("defaulted", "x:9092", null); // filters not defined => should default to the top level
 
         Configuration configuration = new Configuration(
-                null, filterDefinitions,
+                null,
+                filterDefinitions,
                 List.of("bar"),
                 List.of(direct, defaulted),
-                null, false,
-                Optional.empty());
-
-        // When
-        var model = configuration.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
-
-        // Then
-        var directModel = model.stream().filter(x -> x.getClusterName().equals("direct")).findFirst().get();
-        var defaultModel = model.stream().filter(x -> x.getClusterName().equals("defaulted")).findFirst().get();
-        assertThat(directModel.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Foo");
-        assertThat(defaultModel.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Bar");
-    }
-
-    @Test
-    @SuppressWarnings("removal")
-    void virtualClusterModelCreatedWithDeprecatedNetworkProvider() {
-        // Given
-        var filterDefinitions = List.of(new NamedFilterDefinition("foo", "Foo", ""));
-
-        var targetCluster = new TargetCluster("y:9092", Optional.empty());
-        var bootstrapAddress = new HostPort("example.com", 3);
-        var cluster = new VirtualCluster("myvc", targetCluster,
-                new ClusterNetworkAddressConfigProviderDefinition("PortPerBrokerClusterNetworkAddressConfigProvider",
-                        new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrapAddress, null,
-                                null, null, null)),
+                null,
+                false,
                 Optional.empty(),
-                List.of(),
-                false,
-                false,
                 null);
 
-        Configuration configuration = new Configuration(
-                null, filterDefinitions,
-                List.of("foo"),
-                List.of(cluster),
-                null, false,
-                Optional.empty());
-
         // When
-        var models = configuration.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
+        var model = configuration.virtualClusterModel();
 
         // Then
-        assertThat(models)
-                .singleElement()
-                .satisfies(m -> {
-                    assertThat(m.gateways())
-                            .hasEntrySatisfying("default", l -> {
-                                assertThat(l.getClusterBootstrapAddress()).isEqualTo(bootstrapAddress);
-                            });
-                });
+        assertThat(model.stream().filter(x -> x.getClusterName().equals("direct")).findFirst())
+                .isPresent()
+                .hasValueSatisfying(vcm -> assertThat(vcm.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Foo"));
+        assertThat(model.stream().filter(x -> x.getClusterName().equals("defaulted")).findFirst())
+                .isPresent()
+                .hasValueSatisfying(vcm -> assertThat(vcm.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Bar"));
     }
+
+    @NonNull
+    private static VirtualCluster buildVirtualCluster(String virtualClusterName, String targetBootstrap, @Nullable List<String> filterNames) {
+        return new VirtualCluster(virtualClusterName, new TargetCluster(targetBootstrap, Optional.empty()),
+                List.of(new VirtualClusterGateway("mygateway",
+                        new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
+                        null,
+                        Optional.empty())),
+                false,
+                false,
+                filterNames);
+    }
+
 }

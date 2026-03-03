@@ -94,4 +94,12 @@
  * record NettyConfig(String trustStore) { }
  * </code></pre>
  */
+@ReturnValuesAreNonnullByDefault
+@DefaultAnnotationForParameters(NonNull.class)
+@DefaultAnnotation(NonNull.class)
 package io.kroxylicious.proxy.plugin;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.ReturnValuesAreNonnullByDefault;

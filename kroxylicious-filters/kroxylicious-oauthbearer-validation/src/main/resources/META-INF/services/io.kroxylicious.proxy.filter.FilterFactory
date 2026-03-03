@@ -1,1 +1,1 @@
-io.kroxylicious.proxy.filter.oauthbearer.OauthBearerValidation
+io.kroxylicious.filter.oauthbearer.OauthBearerValidation

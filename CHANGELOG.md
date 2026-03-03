@@ -7,13 +7,213 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3331](https://github.com/kroxylicious/kroxylicious/pull/3331): fix(crd): make the spec object required across all the CRDs except KafkaProxy.
+* [#3246](https://github.com/kroxylicious/kroxylicious/pull/3246): deps(kafka): upgrade to Kafka 4.2
+* [#3334](https://github.com/kroxylicious/kroxylicious/pull/3334): build(deps): bump com.fasterxml.jackson:jackson-bom from 2.21.0 to 2.21.1
+* [#3325](https://github.com/kroxylicious/kroxylicious/pull/3325): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.2.2 to 5.2.3
+* [#3323](https://github.com/kroxylicious/kroxylicious/pull/3323): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.2 to 2.25.3
+* [#3277](https://github.com/kroxylicious/kroxylicious/pull/3277): Extend authorization filter to cover transactionalId authorization
+* [#3046](https://github.com/kroxylicious/kroxylicious/pull/3046): Add configurable idle connection timeouts for client connections
+* [#3242](https://github.com/kroxylicious/kroxylicious/pull/3242): chore: remove deprecated template kek selector brace style
+* [#3224](https://github.com/kroxylicious/kroxylicious/pull/3224): Add support for using Secret in `trustAnchorRef` field of the KafkaService and the VirtualKafkaCluster CRs.
+* [#3171](https://github.com/kroxylicious/kroxylicious/pull/3171): build(deps): bump io.strimzi:api from 0.48.0 to 0.50.0
+* [#3147](https://github.com/kroxylicious/kroxylicious/pull/3129): Deprecate Java 17. Upgrade to Java 21 in containers.
+* [#3127](https://github.com/kroxylicious/kroxylicious/pull/3127): build(deps): bump kubernetes-client.version from 7.4.0 to 7.5.0
+* [#3112](https://github.com/kroxylicious/kroxylicious/pull/3112): cache topic name lookups per VirtualCluster
+* [#3129](https://github.com/kroxylicious/kroxylicious/pull/3129): build(deps): bump netty.version from 4.2.7.Final to 4.2.9.Final
+* [#2969](https://github.com/kroxylicious/kroxylicious/issues/2969): Give `ResponseFilter#onResponse` access to the api-version
+* [#3035](https://github.com/kroxylicious/kroxylicious/issues/3035): fix(sasl inspector): Fix config parsing error if SaslInspector with subject builder
+* [#2861](https://github.com/kroxylicious/kroxylicious/pull/2861): Add JWS Signature validator
+
+### Changes, deprecations and removals
+
+* Running Kroxylicious on Java 17 is deprecated. The minimum required Java version will be raised to 21 in a future release.
+* Containers have been upgraded to use Java 21.
+* The four argument forms of `RequestFilter#onRequest` and `ResponseFilter#onResponse` are deprecated and will be removed in a future release.
+  Implement the five argument form, which includes the `apiVersion` instead.
+* A JSON Web Signature (JWS) Signature validator has been added. WARNING: This validator does NOT include JSON Web Token (JWT) validation (expiration, issuer, etc. are NOT checked).
+* Curly-brace style topicName tokens are no longer supported in the Record Encryption TemplateKekSelector template. `template` should use `$(topicName)` instead of `${topicName}`.
+  The was deprecated in version 0.11.0.
+* Idle connection timeout support added with two optional configuration properties under `network.proxy`:
+  * `unauthenticatedIdleTimeout` - Applies to connections where authentication cannot be detected
+  * `authenticatedIdleTimeout` - Applies to connections with established identities
+  Both properties use Go-style duration format (e.g., `30s`, `5m`, `1h30m`) with supported units: `d`, `h`, `m`, `s`, `ms`, `μs`/`us`, `ns`.
+* A new metric `kroxylicious_client_to_proxy_disconnects_total` tracks client-to-proxy disconnections with a `cause` label to distinguish between:
+  * `idle_timeout` - Connection exceeded the configured idle timeout duration
+  * `client_closed` - Client initiated the connection close
+  * `server_closed` - Backend server closed the connection, causing the proxy to close the client connection
+* The Authorization Filter can now enforce authorization of Transactional IDs.
+  The `AclAuthorizerService` can import `io.kroxylicious.filter.authorization.TransactionalIdResource` to authorize `WRITE` and `DESCRIBE` with parity with Apache Kafka ACL authorization.
+  Backwards compatibility is preserved, existing `AclAuthorizerService` Rules configurations that only import `TopicResource` will allow all Transactional ID operations.
+* The operator will now emit a deprecation warning if it encounters a KafkaProxy object without a `spec` object.
+  Such KafkaProxy CRs should be updated to have an empty `spec` object.
+
+## 0.18.0
+
+* [#2922](https://github.com/kroxylicious/kroxylicious/pull/2922): build(deps): bump kafka.version from 4.1.0 to 4.1.1
+* [#1318](https://github.com/kroxylicious/kroxylicious/issues/1318): Add FilterContext#topicNames to enable filters to retrieve names for topic ids
+* [#2821](https://github.com/kroxylicious/kroxylicious/pull/2821): Fix OauthBearerValidationFilter unnecessarily copying the authentication bytes from an incoming request to a failed response 
+* [#2893](https://github.com/kroxylicious/kroxylicious/pull/2893): Add Subject, replace FilterContext#clientSaslAuthenticationSuccess
+* [#2899](https://github.com/kroxylicious/kroxylicious/pull/2898): Add SaslSubjectBuilder API
+* [#2913](https://github.com/kroxylicious/kroxylicious/pull/2913): Add TransportSubjectBuilder API, enable user to configure one per virtual cluster
+* [#2899](https://github.com/kroxylicious/kroxylicious/pull/2899): Add the Authorizer API
+* [#2903](https://github.com/kroxylicious/kroxylicious/pull/2903): Add an ACL Authorizer implementation
+* [#2909](https://github.com/kroxylicious/kroxylicious/pull/2909): Add an Authorizer Filter that can authorize Topic operations
+* [#2904](https://github.com/kroxylicious/kroxylicious/pull/2904): SaslInspection Filter publishes Subject using pluggable SaslSubjectBuilder
+* [#2951](https://github.com/kroxylicious/kroxylicious/pull/2951): Allow SaslInspection to function as a barrier
+
+### Changes, deprecations and removals
+
+* `Subject`, `Principal` and `User` principal added to `io.kroxylicious.proxy.authentication` package.
+* `Subject authenticatedSubject();` added to `FilterContext`, enabling Filters to access the current authenticated Subject.
+* `io.kroxylicious.proxy.authentication.SaslSubjectBuilder` has been added to `kroxylicious-api`. This is an optional
+  Service interface that SASL-oriented Filters can choose to load.
+* `FilterContext#clientSaslAuthenticationSuccess(String mechanism, String authorizedId)` is deprecated. Use
+  `FilterContext#clientSaslAuthenticationSuccess(String mechanism, Subject subject)` instead. Initially the framework
+   expects the Subject to contain a single `io.kroxylicious.proxy.authentication.User` principal which contains the
+   `authorizedId`, though this may change in the future.
+* A Virtual Cluster now has a pluggable `io.kroxylicious.proxy.authentication.TransportSubjectBuilder` associated with it.
+  This new Service is responsible for building a `Subject` from mTLS certificates presented by the client to the proxy.
+  This is configurable on the virtual cluster using the `subjectBuilder`:
+  ```yaml
+  virtualClusters:
+    - name: demo
+      subjectBuilder:
+        type: YourSubjectBuilderType
+        config:
+          your: "configObject"
+  ```
+* A new module `kroxylicious-authorizer-api` has been added. This contains `io.kroxylicious.authorizer.service.Authorizer`,
+  an interface which abstracts making an allow/deny decision about some Subject performing some Action on a resource.
+* The `SaslInspection` filter can be configured with a pluggable `SaslSubjectBuilder` using configuration like:
+  ```yaml
+  type: SaslInspection
+  config:
+    subjectBuilder: YourSubjectBuilder
+    subjectBuilderConfig:
+      your: "config"
+    enabledMechanisms:
+      - SCRAM-SHA-512
+  ```
+* `AuthorizationFilter` is added to the binary distribution and image. Note this is a new experimental Filter, not yet
+  ready for production environments.
+* `FilterContext` now offers a `topicNames` method to map from topic ids to topic names. Caching the result is initially
+  a Filter responsibility.
+
+## 0.17.1
+
+* [#2844](https://github.com/kroxylicious/kroxylicious/issues/2844): Match the behaviour of Kafka 4.0 when negotiating API versions for Produce Requests to allow older builds of librdkafka to enable compression.
+
+## 0.17.0
+
+* [#2830](https://github.com/kroxylicious/kroxylicious/pull/2830): Refactor authentication configuration class names and optional fields in Azure KMS provider for Record Encryption
+* [#2784](https://github.com/kroxylicious/kroxylicious/issues/2784): Add support for Managed Identity authentication to Azure KMS provider for Record Encryption
+* [#2754](https://github.com/kroxylicious/kroxylicious/issues/2754): Add support for OAUTHBEARER tokens into SaslInspectionFilter
+* [#2580](https://github.com/kroxylicious/kroxylicious/issues/2580): Add an Azure Key Vault KMS implementation for Record Encryption
+* [#2759](https://github.com/kroxylicious/kroxylicious/pull/2759): Remove kroxylicious-sample and document how to use io.kroxylicious:kroxylicious-filter-archetype
+* [#2671](https://github.com/kroxylicious/kroxylicious/pull/2671): SASL inspection filter supporting PLAIN, SCRAM-SHA-256 and SCRAM-SHA-512.
+* [#2681](https://github.com/kroxylicious/kroxylicious/pull/2681): Create a maven archetype for filter development io.kroxylicious:kroxylicious-filter-archetype
+* [#2778](https://github.com/kroxylicious/kroxylicious/pull/2778): The proxy now allocates a sessionId to connect client and server channels for logging purposes. Allowing users to track activity between downstream and upstream channels.
+* [#143](https://github.com/kroxylicious/kroxylicious/issues/143): Add support for Netty metrics
+* [#2809](https://github.com/kroxylicious/kroxylicious/pull/2809): Add optional configuration parameter to control the number of worker threads used by Netty.
+* [#1467](https://github.com/kroxylicious/kroxylicious/pull/1467): Migrate to Netty 4.2
+* [#2693](https://github.com/kroxylicious/kroxylicious/pull/2693): Kroxylicious operator can now discover plain bootstrap address from Strimzi Kafka custom resource 
+
+## 0.16.0
+
+* [#2710](https://github.com/kroxylicious/kroxylicious/pull/2710): bump org.apache.logging.log4j:log4j-bom from 2.25.1 to 2.25.2
+* [#2542](https://github.com/kroxylicious/kroxylicious/issues/2542): Add support for Kafka 4.1.0
+* [#2688](https://github.com/kroxylicious/kroxylicious/pull/2688): bump io.netty:netty-bom from 4.1.126.Final to 4.1.127.Final
+* [#2685](https://github.com/kroxylicious/kroxylicious/pull/2685): build(deps): bump kubernetes-client.version from 7.3.1 to 7.4.0
+* [#1927](https://github.com/kroxylicious/kroxylicious/issues/1927): chore(docs): Remove deprecated adminHttp configuration property.
+* [#1885](https://github.com/kroxylicious/kroxylicious/issues/1885): chore(docs): Remove deprecated support for virtualClusters expressed as a map.
+* [#2598](https://github.com/kroxylicious/kroxylicious/pull/2598): feat(metrics): Add metrics for the number of active connections
+
+### Changes, deprecations and removals
+
+* The `virtualClusters` configuration property now requires a list of `virtualCluster` objects.  The support
+  for supplying a virtual cluster map (which was deprecated at 0.11.0) is now removed.
+* Support for the `adminHttp` configuration property (which was deprecated in 0.11.0) is removed. Use `management` instead.
+  Also support for the `host` configuration property within that object (which was also deprecated in 0.11.0) is removed. Use `bindAddress` instead.
+* **breaking** kroxylicious-api change. `ListClientMetricsResourcesResponseFilter` and `ListClientMetricsResourcesRequestFilter` are removed, replaced
+  with `ListConfigResourcesResponseFilter` and `ListConfigResourcesRequestFilter` due to the RPC being renamed in kafka-clients. Filters that implement
+  the old interfaces will be incompatible with this version of the proxy and must migrate to the new interfaces.
+* The 'old' metrics that were deprecated at 0.13.0 are now removed. See the documentation for the details of the new metrics.
+
+## 0.15.0
+
+* [#2585](https://github.com/kroxylicious/kroxylicious/pull/2585): feat(runtime): Optional configurable policy for selecting the upstream bootstrap server from the bootstrap servers list on connection to the proxies bootstrap address. Available options are `round-robin` (default) and `random`.
+* [#2402](https://github.com/kroxylicious/kroxylicious/issues/2402): feat(docs): Encryption-at-rest quickstart
+* [#2565](https://github.com/kroxylicious/kroxylicious/pull/2565): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.0.4 to 5.1.2
+
+## 0.14.0
+
+* [#2541](https://github.com/kroxylicious/kroxylicious/issues/2541): feat(metrics): Add duration metrics for how long the proxy is applying back pressure on connections.
+* [#2504](https://github.com/kroxylicious/kroxylicious/issues/2504): fix(record-encryption): Record Encryption fails when event size exceeds 1MB
+* [#2491](https://github.com/kroxylicious/kroxylicious/pull/2491): build(deps): bump io.netty:netty-bom from 4.1.121.Final to 4.1.123.Final
+* [#2472](https://github.com/kroxylicious/kroxylicious/pull/2472): Restrictions on which interfaces Filter implementations an implementation could implement have been relaxed.
+* [#2474](https://github.com/kroxylicious/kroxylicious/pull/2474): Add ClientTlsContext, allows Filters to use information from the TLS client certificate provided by Kafka client
+* [#2480](https://github.com/kroxylicious/kroxylicious/pull/2480): Add ClientSaslContext, allows Filters to access SASL details and report SASL auth success/failure
+* [#2440](https://github.com/kroxylicious/kroxylicious/issues/2440): Fail fast on unknown properties in proxy configuration file 
+* [#2450](https://github.com/kroxylicious/kroxylicious/issues/2450): fix(proxy): Forward ApiVersions v0 response on UNSUPPORTED_VERSION v0 response from upstream
+* [#2455](https://github.com/kroxylicious/kroxylicious/pull/2455): refactor: make oauth bearer validation filter content into a standalone guide.
+* [#2378](https://github.com/kroxylicious/kroxylicious/issues/2378): refactor: Finish factoring out filter documentation into standalone guides.
+* [#2412](https://github.com/kroxylicious/kroxylicious/pull/2412): [Operator] Add hostname/ip information to VKC loadbalancer status
+* [#2314](https://github.com/kroxylicious/kroxylicious/pull/2314): Bump kubernetes-client.version from 7.2.0 to 7.3.1 (and Jackson from 2.18.3 to 2.19.1)
+* [#2432](https://github.com/kroxylicious/kroxylicious/pull/2432): Bump io.micrometer:micrometer-bom from 1.15.0 to 1.15.2
+* [#2431](https://github.com/kroxylicious/kroxylicious/pull/2431): Bump io.prometheus:prometheus-metrics-bom from 1.3.7 to 1.3.10
+* [#2286](https://github.com/kroxylicious/kroxylicious/pull/2286): Bump apicurio-registry.version from 2.6.8.Final to 2.6.11.Final
+* [#2414](https://github.com/kroxylicious/kroxylicious/pull/2414): Remove tcp and clusterNetworkAddressConfigProvider configuration options from virtual cluster
+* [#2385](https://github.com/kroxylicious/kroxylicious/issues/2385) fix: Prevent existing proxy pod(s) rolling if number of replicas is changed.
+* [#2464](https://github.com/kroxylicious/kroxylicious/pull/2464) Bump the log level for upstream fame and network loggers to match the downstream side. 
+
+### Changes, deprecations and removals
+
+* Remove deprecated `tls` and `clusterNetworkAddressConfigProvider` fields from virtual cluster. You must define
+  at least one gateway in the `gateways` array of your virtual cluster instead.
+* Warning: We have made the Proxy configuration parsing less lenient. If your configuration YAML contains unknown properties, then this will cause
+  the proxy to log an exception and fail to start.
+
+## 0.13.0
+
+* [#2346](https://github.com/kroxylicious/kroxylicious/issues/2346) fix: #2346: report failure to decrypt within the fetch response.
+* [#1914](https://github.com/kroxylicious/kroxylicious/issues/1914) Remove deprecated AWS KMS service accessKey / secretKey config properties
+* [#2240](https://github.com/kroxylicious/kroxylicious/issues/2240) Implement new message size distribution tracking metrics
+* [#2241](https://github.com/kroxylicious/kroxylicious/issues/2241) Implement new connection counting metrics
+* [#2239](https://github.com/kroxylicious/kroxylicious/issues/2239) Implement new message counting metrics
+* [#2302](https://github.com/kroxylicious/kroxylicious/issues/2302) add build_info metric to Kroxylicious exposing version information
+* [#2268](https://github.com/kroxylicious/kroxylicious/issues/2268) Ensure downstream connection is closed if proxy cannot match SNI hostname against a virtual cluster
+* [#2185](https://github.com/kroxylicious/kroxylicious/pull/2185) Add $(virtualClusterName) placeholders to SNI bootstrap address and advertised broker address pattern
+* [#2198](https://github.com/kroxylicious/kroxylicious/pull/2198) Require VirtualCluster name to be a valid DNS label
+* [#2188](https://github.com/kroxylicious/kroxylicious/pull/2188) Delete deprecated bootstrapAddressPattern SNI gateway property
+* [#2186](https://github.com/kroxylicious/kroxylicious/pull/2186) Remove deprecated FilterFactory implementations
+* [#2164](https://github.com/kroxylicious/kroxylicious/issues/2164) Remove deprecated top-level configuration property filters
 * [#1871](https://github.com/kroxylicious/kroxylicious/issues/1871) Remove deprecated configuration property bootstrap_servers
 
 ### Changes, deprecations and removals
 
-* Remove the deprecated configuration property `bootstrap_servers` from the `targetCluster` object. Use `bootstrapServers`
+* The deprecated top-level configuration property `filters` has been removed. Define filters using `filterDefinitions`
+  Use `defaultFilters` (or the virtual cluster property `filters`) to assign filters to the virtual clusters.
+* Removal the deprecated configuration property `bootstrap_servers` from the `targetCluster` object. Use `bootstrapServers`
   instead.
-
+* Remove deprecated `MultiTenantTransformationFilterFactory`. Use `MultiTenant` instead.
+* Remove deprecated `SampleProduceRequestFilterFactory`. Use `SampleProduceRequest` instead.
+* Remove deprecated `SampleFetchResponseFilterFactory`. Use `SampleFetchResponse` instead.
+* Remove deprecated `ProduceRequestTransformationFilterFactory`. Use `ProduceRequestTransformation` instead.
+* Remove deprecated `FetchResponseTransformationFilterFactory`. Use `FetchResponseTransformation` instead.
+* Remove deprecated `io.kroxylicious.proxy.config.tls.Tls(KeyProvider, TrustProvider)` constructor.
+* Remove the deprecated configuration property `brokerAddressPattern` from `sniHostIdentifiesNode` gateway configuration. Use
+  `advertisedBrokerAddressPattern` instead.
+* VirtualCluster names are now restricted to a maximum length of 63, and must match pattern `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` (case insensitive).
+* `virtualClusters[].gateways[].sniHostIdentifiesNode.bootstrapAddress` can now contain an optional replacement token `$(virtualClusterName)`.
+When this is present, it will be replaced with the name of that gateway's VirtualCluster.
+* `virtualClusters[].gateways[].sniHostIdentifiesNode.advertisedBrokerAddressPattern` can now contain an optional replacement token `$(virtualClusterName)`.
+When this is present, it will be replaced with the name of that gateway's VirtualCluster.
+* All the existing metrics emitted by the proxy have been deprecated. They have been replaced with connection and message metrics.
+  See the documentation for the details of the new metrics.
+* Configuration the `AwsKms` directly with `accessKey` and `secretKey` config properties was deprecated at 0.9.0.  Support
+  for this configuration is now removed.  Configure using a `longTermCredentials` object with `accessKeyId` and
+  `secretAccessKey` properties instead.
 
 ## 0.12.0
 

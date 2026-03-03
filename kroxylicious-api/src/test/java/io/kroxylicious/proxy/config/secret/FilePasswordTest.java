@@ -35,8 +35,8 @@ class FilePasswordTest {
 
     @AfterEach
     void afterEach() {
-        if (file != null) {
-            var ignored = file.delete();
+        if (file != null && Files.exists(file.toPath()) && !file.delete()) {
+            throw new IllegalStateException("Could not delete temp file: " + file.getAbsolutePath());
         }
     }
 

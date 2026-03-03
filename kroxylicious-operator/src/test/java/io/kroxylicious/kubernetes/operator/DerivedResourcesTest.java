@@ -15,7 +15,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +28,6 @@ import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
-import org.mockito.stubbing.Answer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,21 +43,28 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManag
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.FixedChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ClusterServiceDependentResource;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyConfigDependentResource;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyConfigReconcilePrecondition;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyConfigStateDependentResource;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.KROXYLICIOUS_IMAGE_ENV_VAR;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.KROXYLICIOUS_IMAGE_ENV_VAR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.doReturn;
@@ -70,6 +75,7 @@ class DerivedResourcesTest {
     static final ObjectMapper YAML_MAPPER = new YAMLMapper()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
             .enable(YAMLGenerator.Feature.LITERAL_BLOCK_STYLE)
+            .disable(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID)
             .registerModule(new JavaTimeModule());
 
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
@@ -128,7 +134,7 @@ class DerivedResourcesTest {
     record SingletonDependentResourceDesiredFn<D extends KubernetesDependentResource<R, P>, P extends HasMetadata, R extends HasMetadata>(
                                                                                                                                           D dependentResource,
                                                                                                                                           String dependentResourceKind,
-                                                                                                                                          io.javaoperatorsdk.operator.processing.dependent.workflow.Condition<R, P> reconcilePrecondition,
+                                                                                                                                          @Nullable io.javaoperatorsdk.operator.processing.dependent.workflow.Condition<R, P> reconcilePrecondition,
                                                                                                                                           TriFunction<D, P, Context<P>, R> fn)
             implements DesiredFn<P, R> {
         @Override
@@ -151,10 +157,10 @@ class DerivedResourcesTest {
      * Specialization of {@link DesiredFn} for BulkDependentResource
      * (i.e. where the desired() method returns a Map<String, R>).
      */
-    record BulkDependentResourceDesiredFn<D extends KubernetesDependentResource<R, P> & BulkDependentResource<R, P>, P extends HasMetadata, R extends HasMetadata>(
-                                                                                                                                                                   D dependentResource,
-                                                                                                                                                                   String dependentResourceKind,
-                                                                                                                                                                   TriFunction<D, P, Context<P>, Map<String, R>> fn)
+    record BulkDependentResourceDesiredFn<D extends KubernetesDependentResource<R, P> & BulkDependentResource<R, P, String>, P extends HasMetadata, R extends HasMetadata>(
+                                                                                                                                                                           D dependentResource,
+                                                                                                                                                                           String dependentResourceKind,
+                                                                                                                                                                           TriFunction<D, P, Context<P>, Map<String, R>> fn)
             implements DesiredFn<P, R> {
 
         @Override
@@ -307,11 +313,6 @@ class DerivedResourcesTest {
                                                     List<KafkaService> kafkaServiceRefs,
                                                     List<KafkaProxyIngress> ingresses)
             throws IOException {
-        Answer<?> throwOnUnmockedInvocation = invocation -> {
-            var stringifiedArgs = Arrays.stream(invocation.getArguments()).map(String::valueOf).collect(
-                    Collectors.joining(", "));
-            throw new RuntimeException("Unmocked method: " + invocation.getMethod() + "(" + stringifiedArgs + ")");
-        };
         Context<KafkaProxy> context = mock(Context.class);
 
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);

@@ -8,3 +8,6 @@
 replicas: 1
 #featureGates: ""
 
+# Reduce full recon interval from 120s to 15s to reduce the risk of a delay in the cluster operator
+# reconciliation leading to a spurious system test suite failure.
+fullReconciliationIntervalMs: 15000

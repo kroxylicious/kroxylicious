@@ -1,0 +1,6 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: Oauth Bearer Validation Guide
+description: Covers using the Oauth Bearer validation filter.
+tags:
+  - filter
+rank: "023"

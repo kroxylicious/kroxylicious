@@ -36,4 +36,8 @@ public interface RequestFrame extends Frame {
      */
     short apiVersion();
 
+    default short responseApiVersion() {
+        return apiVersion();
+    }
+
 }

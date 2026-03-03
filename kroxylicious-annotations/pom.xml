@@ -13,10 +13,11 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.13.0-SNAPSHOT</version>
+        <version>0.19.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-annotations</artifactId>
-    <description></description>
+    <name>Common annotations</name>
+    <description>Common annotations</description>
 
 </project>

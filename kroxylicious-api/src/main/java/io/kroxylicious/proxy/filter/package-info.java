@@ -62,4 +62,12 @@
  *  when it is creating an instance of a Filter. Ensure that any work executes quickly as this is the IO thread for potentially
  *  many connections.</p>
  */
+@ReturnValuesAreNonnullByDefault
+@DefaultAnnotationForParameters(NonNull.class)
+@DefaultAnnotation(NonNull.class)
 package io.kroxylicious.proxy.filter;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.ReturnValuesAreNonnullByDefault;

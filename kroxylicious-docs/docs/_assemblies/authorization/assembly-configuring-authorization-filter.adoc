@@ -1,0 +1,54 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// index.adoc
+
+[id='assembly-configuring-authorization-filter-{context}']
+= Configuring the Authorization filter
+
+[role="_abstract"]
+This procedure describes how to set up the Authorization filter by configuring it in Kroxylicious.
+
+.Prerequisites
+
+* An instance of Kroxylicious.
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
+
+.Procedure
+
+. Configure an `Authorization` type filter.
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-example-proxy-config-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment using a `KafkaProtocolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
+endif::[]
+. Configure the ACL rules.
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-example-rules-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment use a `ConfigMap` resource. See <<con-example-rules-configmap-resource-{context}>>
+endif::[]
+
+ifdef::include-platform-bare-metal[]
+include::../../_modules/authorization/con-example-proxy-config.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-platform-kubernetes[]
+include::../../_modules/authorization/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-platform-bare-metal[]
+include::../../_modules/authorization/con-example-rules.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-platform-kubernetes[]
+include::../../_modules/authorization/con-example-rules-configmap-resource.adoc[leveloffset=+1]
+endif::[]

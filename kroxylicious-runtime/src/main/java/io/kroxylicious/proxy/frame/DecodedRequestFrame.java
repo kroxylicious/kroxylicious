@@ -7,6 +7,8 @@ package io.kroxylicious.proxy.frame;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
@@ -45,7 +47,23 @@ public class DecodedRequestFrame<B extends ApiMessage>
     }
 
     private boolean isZeroAcksProduceRequest() {
-        return apiKey() == PRODUCE && ((ProduceRequestData) body).acks() == 0;
+        return apiKeyId() == PRODUCE.id && ((ProduceRequestData) body).acks() == 0;
     }
 
+    // we don't know the response type
+    @SuppressWarnings("java:S1452")
+    public DecodedResponseFrame<? extends ApiMessage> responseFrame(ResponseHeaderData header, ApiMessage message) {
+        if (message.apiKey() != apiKeyId()) {
+            throw new AssertionError(
+                    "Attempt to create responseFrame with ApiMessage of type " + ApiKeys.forId(message.apiKey()) + " but request is of type "
+                            + apiKey());
+        }
+        return createResponseFrame(header, message);
+    }
+
+    // we don't know the response type
+    @SuppressWarnings("java:S1452")
+    protected DecodedResponseFrame<? extends ApiMessage> createResponseFrame(ResponseHeaderData header, ApiMessage message) {
+        return new DecodedResponseFrame<>(apiVersion(), correlationId(), header, message);
+    }
 }

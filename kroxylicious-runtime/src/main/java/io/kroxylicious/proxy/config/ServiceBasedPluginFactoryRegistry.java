@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -19,10 +21,11 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@link PluginFactoryRegistry} that is implemented using {@link ServiceLoader} discovery.
@@ -31,8 +34,8 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServiceBasedPluginFactoryRegistry.class);
 
-    public record ProviderAndConfigType(@NonNull ServiceLoader.Provider<?> provider,
-                                        @NonNull Class<?> config) {
+    public record ProviderAndConfigType(ServiceLoader.Provider<?> provider,
+                                        Class<?> config) {
         public ProviderAndConfigType {
             Objects.requireNonNull(provider);
             Objects.requireNonNull(config);
@@ -41,8 +44,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private final Map<Class<?>, Map<String, ProviderAndConfigType>> pluginInterfaceToNameToProvider = new ConcurrentHashMap<>();
 
-    @NonNull
-    Map<String, ProviderAndConfigType> load(@NonNull Class<?> pluginInterface) {
+    Map<String, ProviderAndConfigType> load(Class<?> pluginInterface) {
         Objects.requireNonNull(pluginInterface);
         return pluginInterfaceToNameToProvider.computeIfAbsent(pluginInterface,
                 i -> loadProviders(pluginInterface));
@@ -59,7 +61,9 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             }
             else {
                 ProviderAndConfigType providerAndConfigType = new ProviderAndConfigType(provider, annotation.configType());
-                Stream.of(providerType.getName(), providerType.getSimpleName()).forEach(name2 -> nameToProviders.compute(name2, (k2, v) -> {
+                Stream<String> names = Stream.of(providerType.getName(), providerType.getSimpleName());
+                names = maybeAddOldNames(providerType, names);
+                names.forEach(name -> nameToProviders.compute(name, (k2, v) -> {
                     if (v == null) {
                         v = new HashSet<>();
                     }
@@ -72,12 +76,43 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 Collectors.partitioningBy(e -> e.getValue().size() == 1));
         if (LOGGER.isWarnEnabled()) {
             for (Map.Entry<String, Set<ProviderAndConfigType>> ambiguousInstanceNameToProviders : bySingleton.get(false)) {
-                LOGGER.warn("'{}' would be an ambiguous reference to a {} provider. "
-                        + "It could refer to any of {}"
-                        + " so to avoid ambiguous behaviour those fully qualified names must be used",
-                        ambiguousInstanceNameToProviders.getKey(),
-                        pluginInterface.getSimpleName(),
-                        ambiguousInstanceNameToProviders.getValue().stream().map(p -> p.provider().type().getName()).collect(Collectors.joining(", ")));
+                String ambiguousKey = ambiguousInstanceNameToProviders.getKey();
+                var implementationClasses = ambiguousInstanceNameToProviders.getValue().stream()
+                        .map(p -> p.provider().type())
+                        .sorted(Comparator.comparing(Class::getName))
+                        .toList();
+                var fqCollision = implementationClasses.stream().filter(c -> c.isAnnotationPresent(DeprecatedPluginName.class))
+                        .flatMap(c -> implementationClasses.stream()
+                                .filter(c2 -> {
+                                    var cOldName = c.getAnnotation(DeprecatedPluginName.class).oldName();
+                                    return !c.equals(c2) && (c2.getName().equals(cOldName)
+                                            || (c2.isAnnotationPresent(DeprecatedPluginName.class) &&
+                                                    c2.getAnnotation(DeprecatedPluginName.class).oldName().equals(cOldName)));
+                                })
+                                .map(c2 -> Map.entry(c, c2)))
+                        .findFirst();
+                if (fqCollision.isPresent()) {
+                    var entry = fqCollision.get();
+                    var annotatedClass = entry.getKey();
+                    var classWithCollidingFqName = entry.getValue();
+                    LOGGER.warn("Plugin implementation class {} is annotated with @{}(oldName=\"{}\") which collides with the plugin implementation class {}. "
+                            + "You must remove one of these classes from the class path.",
+                            annotatedClass.getName(),
+                            DeprecatedPluginName.class.getSimpleName(),
+                            annotatedClass.getAnnotation(DeprecatedPluginName.class).oldName(),
+                            classWithCollidingFqName.getName());
+                    throw new RuntimeException("Ambiguous plugin implementation name '" + ambiguousKey + "'");
+                }
+                else {
+                    LOGGER.warn("'{}' would be an ambiguous reference to a {} provider. "
+                            + "It could refer to any of {}"
+                            + " so to avoid ambiguous behaviour those fully qualified names must be used",
+                            ambiguousKey,
+                            pluginInterface.getSimpleName(),
+                            implementationClasses.stream()
+                                    .map(Class::getName)
+                                    .collect(Collectors.joining(", ")));
+                }
             }
         }
         return bySingleton.get(true).stream().collect(Collectors.toMap(
@@ -85,23 +120,49 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 e -> e.getValue().iterator().next()));
     }
 
+    private static Stream<String> maybeAddOldNames(Class<?> providerType, Stream<String> names) {
+        if (providerType.isAnnotationPresent(DeprecatedPluginName.class)) {
+            String oldName = providerType.getAnnotation(DeprecatedPluginName.class).oldName();
+            if (oldName.equals(providerType.getName())) {
+                LOGGER.warn("@DeprecatedPluginName annotation on {} "
+                        + "specifies an oldName == newName. "
+                        + "This annotation is not being used correctly.",
+                        providerType.getName());
+            }
+            else {
+                names = Stream.concat(names, Stream.of(oldName));
+                String shortName = simpleName(oldName);
+                if (shortName != null) {
+                    names = Stream.concat(names, Stream.of(shortName));
+                }
+            }
+        }
+        return names;
+    }
+
+    private static @Nullable String simpleName(String oldName) {
+        String substring = null;
+        var idx = oldName.lastIndexOf('.');
+        if (idx != -1 && idx != oldName.length() - 1) {
+            substring = oldName.substring(idx + 1);
+        }
+        return substring;
+    }
+
     @Override
-    public <P> @NonNull PluginFactory<P> pluginFactory(@NonNull Class<P> pluginClass) {
+    public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
         var nameToProvider = load(pluginClass);
         return new PluginFactory<>() {
             @Override
-            public @NonNull P pluginInstance(@NonNull String instanceName) {
+            public P pluginInstance(String instanceName) {
                 if (Objects.requireNonNull(instanceName).isEmpty()) {
                     throw new IllegalArgumentException();
                 }
                 var provider = nameToProvider.get(instanceName);
                 if (provider != null) {
                     Class<?> type = provider.provider().type();
-                    if (type.isAnnotationPresent(Deprecated.class)) {
-                        LOGGER.warn("{} plugin with id {} is deprecated",
-                                pluginClass.getName(),
-                                instanceName);
-                    }
+                    maybeWarnAboutDeprecatedPluginClass(instanceName, type, pluginClass);
+                    maybeWarnAboutDeprecatedPluginName(instanceName, type, pluginClass);
                     return pluginClass.cast(provider.provider().get());
                 }
                 throw unknownPluginInstanceException(instanceName);
@@ -113,15 +174,54 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                         + "Plugins must be loadable by java.util.ServiceLoader and annotated with @" + Plugin.class.getSimpleName() + ".");
             }
 
-            @NonNull
             @Override
-            public Class<?> configType(@NonNull String instanceName) {
+            public Class<?> configType(String instanceName) {
                 var providerAndConfigType = nameToProvider.get(instanceName);
                 if (providerAndConfigType != null) {
                     return providerAndConfigType.config();
                 }
                 throw unknownPluginInstanceException(instanceName);
             }
+
+            @Override
+            public Set<String> registeredInstanceNames() {
+                return Collections.unmodifiableSet(nameToProvider.keySet());
+            }
         };
+    }
+
+    private static <P> void maybeWarnAboutDeprecatedPluginName(String instanceName, Class<?> type, Class<P> pluginClass) {
+        if (type.isAnnotationPresent(DeprecatedPluginName.class)) {
+            DeprecatedPluginName deprecatedName = type.getAnnotation(DeprecatedPluginName.class);
+            if (isOldInstanceName(instanceName, deprecatedName, type)) {
+                LOGGER.warn("{} plugin with name '{}' should now be referred to using the name '{}'. "
+                        + "The plugin has been renamed and "
+                        + "in the future the old name '{}' will cease to work.",
+                        pluginClass.getName(),
+                        instanceName,
+                        type.getName(),
+                        instanceName);
+            }
+        }
+    }
+
+    private static <P> void maybeWarnAboutDeprecatedPluginClass(String instanceName, Class<?> type, Class<P> pluginClass) {
+        if (type.isAnnotationPresent(Deprecated.class)) {
+            LOGGER.warn("{} plugin with name '{}' is deprecated.",
+                    pluginClass.getName(),
+                    instanceName);
+        }
+    }
+
+    private static boolean isOldInstanceName(String instanceName, DeprecatedPluginName deprecatedName, Class<?> type) {
+        return instanceName.equals(deprecatedName.oldName())
+                || (!isFqName(instanceName) // is a short name
+                        && !instanceName.equals(type.getSimpleName()) // given shortName is not the class's simpleName
+                        && instanceName.equals(simpleName(deprecatedName.oldName())) // but is the short form of the old name
+                );
+    }
+
+    private static boolean isFqName(String instanceName) {
+        return instanceName.indexOf('.') != -1;
     }
 }

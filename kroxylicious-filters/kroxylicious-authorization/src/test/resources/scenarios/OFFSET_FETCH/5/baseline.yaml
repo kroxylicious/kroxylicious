@@ -1,0 +1,73 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_FETCH"
+  apiVersion: 5
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_FETCH"
+      expectedRequestVersion: 5
+      expectedRequestHeader:
+        requestApiKey: 9
+        requestApiVersion: 5
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-769"
+        topics:
+          - name: "my-topic"
+            partitionIndexes:
+              - 127
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 819
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 122
+                committedOffset: 407
+                committedLeaderEpoch: 659
+                metadata: "random-string-834"
+                errorCode: 10
+        errorCode: 693
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 9
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-769"
+    topics:
+      - name: "my-topic"
+        partitionIndexes:
+          - 127
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 819
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 122
+            committedOffset: 407
+            committedLeaderEpoch: 659
+            metadata: "random-string-834"
+            errorCode: 10
+    errorCode: 693

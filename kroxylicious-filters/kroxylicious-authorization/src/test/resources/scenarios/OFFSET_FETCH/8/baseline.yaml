@@ -1,0 +1,81 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_FETCH"
+  apiVersion: 8
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_FETCH"
+      expectedRequestVersion: 8
+      expectedRequestHeader:
+        requestApiKey: 9
+        requestApiVersion: 8
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groups:
+          - groupId: "random-string-540"
+            topics:
+              - name: "my-topic"
+                partitionIndexes:
+                  - 620
+        requireStable: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 220
+        groups:
+          - groupId: "random-string-107"
+            topics:
+              - name: "my-topic"
+                partitions:
+                  - partitionIndex: 344
+                    committedOffset: 888
+                    committedLeaderEpoch: 425
+                    metadata: "random-string-490"
+                    errorCode: 23
+            errorCode: 642
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 9
+    requestApiVersion: 8
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groups:
+      - groupId: "random-string-540"
+        topics:
+          - name: "my-topic"
+            partitionIndexes:
+              - 620
+    requireStable: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 220
+    groups:
+      - groupId: "random-string-107"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 344
+                committedOffset: 888
+                committedLeaderEpoch: 425
+                metadata: "random-string-490"
+                errorCode: 23
+        errorCode: 642

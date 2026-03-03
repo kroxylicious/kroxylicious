@@ -7,14 +7,24 @@
 package io.kroxylicious.systemtests.templates.testclients;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.LocalObjectReference;
+import io.fabric8.kubernetes.api.model.PodSpecBuilder;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
+import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.templates.ContainerTemplates;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -34,33 +44,44 @@ public class TestClientsJobTemplates {
     private static final String PRODUCER_ACKS_VAR = "PRODUCER_ACKS";
     private static final String DELAY_MS_VAR = "DELAY_MS";
     private static final String OUTPUT_FORMAT_VAR = "OUTPUT_FORMAT";
+    private static final String ADDITIONAL_CONFIG_VAR = "ADDITIONAL_CONFIG";
 
     private TestClientsJobTemplates() {
     }
 
     private static JobBuilder baseClientJob(String jobName) {
         Map<String, String> labelSelector = Map.of("app", jobName);
+
+        PodSpecBuilder podSpecBuilder = new PodSpecBuilder();
+
+        if (Environment.TEST_CLIENTS_PULL_SECRET != null && !Environment.TEST_CLIENTS_PULL_SECRET.isEmpty()) {
+            List<LocalObjectReference> imagePullSecrets = Collections.singletonList(new LocalObjectReference(Environment.TEST_CLIENTS_PULL_SECRET));
+            podSpecBuilder.withImagePullSecrets(imagePullSecrets);
+        }
+
+        // @formatter:off
         return new JobBuilder()
                 .withApiVersion("batch/v1")
                 .withKind(Constants.JOB)
                 .withNewMetadata()
-                .withName(jobName)
-                .addToLabels(labelSelector)
+                    .withName(jobName)
+                    .addToLabels(labelSelector)
                 .endMetadata()
                 .withNewSpec()
-                .withBackoffLimit(0)
-                .withCompletions(1)
-                .withParallelism(1)
-                .withNewTemplate()
-                .withNewMetadata()
-                .withLabels(labelSelector)
-                .withName(jobName)
-                .endMetadata()
-                .withNewSpec()
-                .withRestartPolicy(Constants.RESTART_POLICY_NEVER)
-                .endSpec()
-                .endTemplate()
+                    .withBackoffLimit(0)
+                    .withCompletions(1)
+                    .withParallelism(1)
+                    .withNewTemplate()
+                        .withNewMetadata()
+                            .withLabels(labelSelector)
+                            .withName(jobName)
+                        .endMetadata()
+                        .withNewSpecLike(podSpecBuilder.build())
+                            .withRestartPolicy(Constants.RESTART_POLICY_NEVER)
+                        .endSpec()
+                    .endTemplate()
                 .endSpec();
+        // @formatter:on
     }
 
     /**
@@ -75,9 +96,42 @@ public class TestClientsJobTemplates {
                 .editSpec()
                 .editTemplate()
                 .editSpec()
-                .withContainers(ContainerTemplates.baseImageBuilder("admin", Constants.TEST_CLIENTS_IMAGE)
+                .withContainers(ContainerTemplates.baseImageBuilder("admin", Environment.TEST_CLIENTS_IMAGE)
                         .withCommand("admin-client")
                         .withArgs(args)
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    /**
+     * Authentication admin client job builder.
+     *
+     * @param jobName the job name
+     * @param args the admin client arguments
+     * @param additionalConfig the additional config (SASL/SSL properties)
+     * @return  the job builder
+     */
+    public static JobBuilder authenticationAdminClientJob(String jobName, List<String> args, String additionalConfig) {
+        // Firstly configure admin client with additional configuration, then run the actual admin-client command from arguments
+        String command = "admin-client configure common --from-env && admin-client " + String.join(" ", args);
+
+        return baseClientJob(jobName)
+                .editSpec()
+                .editTemplate()
+                .editSpec()
+                .withContainers(ContainerTemplates.baseImageBuilder("admin", Environment.TEST_CLIENTS_IMAGE)
+                        .withCommand("sh")
+                        .withArgs("-c", command)
+                        .addNewEnv()
+                        .withName("CONFIG_FOLDER_PATH")
+                        .withValue("/tmp")
+                        .endEnv()
+                        .addNewEnv()
+                        .withName(ADDITIONAL_CONFIG_VAR)
+                        .withValue(additionalConfig)
+                        .endEnv()
                         .build())
                 .endSpec()
                 .endTemplate()
@@ -92,15 +146,16 @@ public class TestClientsJobTemplates {
      * @param topicName the topic name
      * @param numOfMessages the num of messages
      * @param message the message
-     * @param messageKey
-     * @return the job builder
+     * @param messageKey the message key
+     * @param additionalConfig the additional config
+     * @return  the job builder
      */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
-                                                          @Nullable String messageKey) {
+                                                          @Nullable String messageKey, Map<String, String> additionalConfig) {
         return newJobForContainer(jobName,
                 "test-client-producer",
-                Constants.TEST_CLIENTS_IMAGE,
-                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey));
+                Environment.TEST_CLIENTS_IMAGE,
+                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey, additionalConfig));
     }
 
     private static JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
@@ -123,13 +178,15 @@ public class TestClientsJobTemplates {
      * @param bootstrap the bootstrap
      * @param topicName the topic name
      * @param numOfMessages the num of messages
-     * @return the job builder
+     * @param additionalKafkaProps the additional kafka props
+     * @return  the job builder
      */
-    public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages) {
+    public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages,
+                                                          Map<String, String> additionalKafkaProps) {
         return newJobForContainer(jobName,
                 "test-client-consumer",
-                Constants.TEST_CLIENTS_IMAGE,
-                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages));
+                Environment.TEST_CLIENTS_IMAGE,
+                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages, additionalKafkaProps));
     }
 
     /**
@@ -142,8 +199,10 @@ public class TestClientsJobTemplates {
     public static JobBuilder defaultKcatJob(String jobName, List<String> args) {
         return baseClientJob(jobName)
                 .editSpec()
+                .withBackoffLimit(3)
                 .editTemplate()
                 .editSpec()
+                .withRestartPolicy(Constants.RESTART_POLICY_ON_FAILURE)
                 .withContainers(ContainerTemplates.baseImageBuilder("kcat", Constants.KCAT_CLIENT_IMAGE)
                         .withArgs(args)
                         .build())
@@ -153,21 +212,87 @@ public class TestClientsJobTemplates {
     }
 
     /**
-     * Default kafka go consumer job builder.
+     * Default python job builder.
      *
      * @param jobName the job name
      * @param args the args
      * @return the job builder
      */
-    public static JobBuilder defaultKafkaGoConsumerJob(String jobName, List<String> args) {
+    public static JobBuilder defaultPythonJob(String jobName, List<String> args) {
         return baseClientJob(jobName)
                 .editSpec()
                 .withBackoffLimit(3)
                 .editTemplate()
                 .editSpec()
-                .withRestartPolicy(Constants.RESTART_POLICY_ONFAILURE)
-                .withContainers(ContainerTemplates.baseImageBuilder("kafka-go-consumer", Constants.KAF_CLIENT_IMAGE)
+                .withRestartPolicy(Constants.RESTART_POLICY_ON_FAILURE)
+                .withContainers(ContainerTemplates.baseImageBuilder("python", Constants.PYTHON_CLIENT_IMAGE)
                         .withArgs(args)
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    /**
+     * Default kafka go job builder.
+     *
+     * @param jobName the job name
+     * @param args the args
+     * @return the job builder
+     */
+    public static JobBuilder defaultKafkaGoJob(String jobName, List<String> args) {
+        return baseClientJob(jobName)
+                .editSpec()
+                .withBackoffLimit(3)
+                .editTemplate()
+                .editSpec()
+                .withRestartPolicy(Constants.RESTART_POLICY_ON_FAILURE)
+                .withContainers(ContainerTemplates.baseImageBuilder("kafka-go", Constants.KAF_CLIENT_IMAGE)
+                        .withArgs(args)
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    /**
+     * Authentication kafka go job builder.
+     *
+     * @param jobName the job name
+     * @param args the args
+     * @return  the job builder
+     */
+    public static JobBuilder authenticationKafkaGoJob(String jobName, List<String> args) {
+        List<VolumeMount> volumeMounts = new ArrayList<>();
+        List<Volume> volumes = new ArrayList<>();
+        Volume configVolume = new VolumeBuilder()
+                .withName(Constants.KAF_CLIENT_CONFIG_NAME)
+                .withConfigMap(new ConfigMapVolumeSourceBuilder()
+                        .withName(Constants.KAF_CLIENT_CONFIG_NAME)
+                        .addNewItem()
+                        .withKey(Constants.KAF_CONFIG_FILE_NAME)
+                        .withPath(Constants.KAF_CONFIG_FILE_NAME)
+                        .endItem()
+                        .build())
+                .build();
+
+        VolumeMount configMount = new VolumeMountBuilder()
+                .withName(Constants.KAF_CLIENT_CONFIG_NAME)
+                .withMountPath(Constants.KAF_CONFIG_TEMP_DIR)
+                .build();
+        volumeMounts.add(configMount);
+        volumes.add(configVolume);
+
+        return baseClientJob(jobName)
+                .editSpec()
+                .withBackoffLimit(3)
+                .editTemplate()
+                .editSpec()
+                .withRestartPolicy(Constants.RESTART_POLICY_ON_FAILURE)
+                .withVolumes(volumes)
+                .withContainers(ContainerTemplates.baseImageBuilder("kafka-go", Constants.KAF_CLIENT_IMAGE)
+                        .withArgs(args)
+                        .withVolumeMounts(volumeMounts)
                         .build())
                 .endSpec()
                 .endTemplate()
@@ -181,7 +306,11 @@ public class TestClientsJobTemplates {
                 .build();
     }
 
-    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message, @Nullable String messageKey) {
+    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message,
+                                                           @Nullable String messageKey, Map<String, String> additionalKafkaProps) {
+        String additionalConfigVar = additionalKafkaProps.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("\n"));
+
         List<EnvVar> envVars = new ArrayList<>(List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(DELAY_MS_VAR, "200"),
@@ -190,14 +319,19 @@ public class TestClientsJobTemplates {
                 envVar(MESSAGE_VAR, message),
                 envVar(PRODUCER_ACKS_VAR, "all"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
-                envVar(CLIENT_TYPE_VAR, "KafkaProducer")));
+                envVar(CLIENT_TYPE_VAR, "KafkaProducer"),
+                envVar(ADDITIONAL_CONFIG_VAR, additionalConfigVar)));
         if (messageKey != null) {
             envVars.add(envVar(MESSAGE_KEY_VAR, messageKey));
         }
+
         return envVars;
     }
 
-    private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages) {
+    private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages, Map<String, String> additionalKafkaProps) {
+        String additionalConfigVar = additionalKafkaProps.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("\n"));
+
         return List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(TOPIC_VAR, topicName),
@@ -205,6 +339,7 @@ public class TestClientsJobTemplates {
                 envVar(GROUP_ID_VAR, "my-group"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
                 envVar(CLIENT_TYPE_VAR, "KafkaConsumer"),
-                envVar(OUTPUT_FORMAT_VAR, "json"));
+                envVar(OUTPUT_FORMAT_VAR, "json"),
+                envVar(ADDITIONAL_CONFIG_VAR, additionalConfigVar));
     }
 }

@@ -16,12 +16,12 @@ import io.kroxylicious.proxy.filter.FilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends FilterResult>
         implements FilterResultBuilder<H, R>, CloseOrTerminalStage<R> {
-    private ApiMessage message;
-    private ApiMessage header;
+    private @Nullable ApiMessage message;
+    private @Nullable ApiMessage header;
     private boolean closeConnection;
     private boolean drop;
 
@@ -29,7 +29,7 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends Fi
     }
 
     @Override
-    public CloseOrTerminalStage<R> forward(@NonNull H header, @NonNull ApiMessage message) {
+    public CloseOrTerminalStage<R> forward(H header, ApiMessage message) {
         validateForward(header, message);
         this.header = header;
         this.message = message;
@@ -46,10 +46,12 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends Fi
         }
     }
 
+    @Nullable
     ApiMessage header() {
         return header;
     }
 
+    @Nullable
     ApiMessage message() {
         return message;
     }

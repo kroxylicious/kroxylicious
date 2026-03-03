@@ -6,7 +6,7 @@
 
 ---
 kind: KafkaProtocolFilter
-apiVersion: filter.kroxylicious.io/v1alpha1
+apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: filter-two
   namespace: proxy-ns

@@ -1,0 +1,81 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "JOIN_GROUP"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "JOIN_GROUP"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 11
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "random-string-922"
+        sessionTimeoutMs: 346
+        rebalanceTimeoutMs: 1002
+        memberId: "random-string-819"
+        protocolType: "random-string-265"
+        protocols:
+          - name: "random-string-94"
+            metadata: !!binary |-
+              mPUDDZg=
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 684
+        errorCode: 70
+        generationId: 947
+        protocolName: "random-string-871"
+        leader: "random-string-373"
+        memberId: "random-string-538"
+        members:
+          - memberId: "random-string-808"
+            metadata: !!binary |-
+              7DvzO3Y=
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 11
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "random-string-922"
+    sessionTimeoutMs: 346
+    rebalanceTimeoutMs: 1002
+    memberId: "random-string-819"
+    protocolType: "random-string-265"
+    protocols:
+      - name: "random-string-94"
+        metadata: !!binary |-
+          mPUDDZg=
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 684
+    errorCode: 70
+    generationId: 947
+    protocolName: "random-string-871"
+    leader: "random-string-373"
+    memberId: "random-string-538"
+    members:
+      - memberId: "random-string-808"
+        metadata: !!binary |-
+          7DvzO3Y=

@@ -26,8 +26,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
-import io.netty.channel.ChannelPromise;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -37,9 +36,12 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -54,9 +56,11 @@ public abstract class FilterHarness {
     public static final String TEST_CLIENT = "test-client";
     public static final List<HostPort> TARGET_CLUSTER_BOOTSTRAP = List.of(HostPort.parse("targetCluster:9091"));
     protected EmbeddedChannel channel;
+
     private final AtomicInteger outboundCorrelationId = new AtomicInteger(1);
     private final Map<Integer, Correlation> pendingInternalRequestMap = new HashMap<>();
     private long timeoutMs = 1000L;
+    ProxyChannelStateMachine proxyChannelStateMachine;
 
     /**
      * Sets the timeout for applied to the filters.
@@ -81,19 +85,34 @@ public abstract class FilterHarness {
         when(targetCluster.bootstrapServersList()).thenReturn(TARGET_CLUSTER_BOOTSTRAP);
         var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", targetCluster, false,
                 false, List.of());
-        testVirtualCluster.addGateway("default", mock(ClusterNetworkAddressConfigProvider.class), Optional.empty());
+        testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
         var inboundChannel = new EmbeddedChannel();
-        var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());
+        var channelProcessors = Stream.<ChannelHandler> of(new CorrelationIdIssuer(), new InternalRequestTracker());
 
+        var endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.nodeId()).thenReturn(0);
+        var gw = mock(EndpointGateway.class);
+        when(gw.virtualCluster()).thenReturn(testVirtualCluster);
+        when(endpointBinding.endpointGateway()).thenReturn(gw);
+
+        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
+        var forwarding = new ProxyChannelState.Forwarding(null, null, null);
+        proxyChannelStateMachine.forceState(
+                forwarding,
+                mock(KafkaProxyFrontendHandler.class),
+                mock(KafkaProxyBackendHandler.class),
+                new KafkaSession(KafkaSessionState.ESTABLISHING));
         var filterHandlers = Arrays.stream(filters)
-                .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addFirst, (d1, d2) -> {
+                .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addLast, (d1, d2) -> {
                     d2.addAll(d1);
                     return d2;
                 })) // reverses order
                 .stream()
-                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f)), timeoutMs, null, testVirtualCluster, inboundChannel))
+                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, inboundChannel,
+                        proxyChannelStateMachine))
+
                 .map(ChannelHandler.class::cast);
-        var handlers = Stream.concat(channelProcessors, filterHandlers);
+        var handlers = Stream.concat(filterHandlers, channelProcessors);
 
         channel = new EmbeddedChannel(handlers.toArray(ChannelHandler[]::new));
     }
@@ -117,6 +136,23 @@ public abstract class FilterHarness {
 
     /**
      * Write a client request to the pipeline.
+     * @param data The request body.
+     * @return The frame that was sent.
+     * @param <B> The type of the request.
+     */
+    protected <B extends ApiMessage> InternalRequestFrame<B> writeInternalRequest(B data, Filter recipient) {
+        var apiKey = ApiKeys.forId(data.apiKey());
+        var header = new RequestHeaderData();
+        int correlationId = 42;
+        header.setCorrelationId(correlationId);
+        header.setRequestApiKey(apiKey.id);
+        header.setRequestApiVersion(apiKey.latestVersion());
+        header.setClientId(TEST_CLIENT);
+        return writeInternalRequest(header, data, recipient);
+    }
+
+    /**
+     * Write a client request to the pipeline.
      * @param headerData The request header.
      * @param data The request body.
      * @return The frame that was sent.
@@ -127,6 +163,12 @@ public abstract class FilterHarness {
         return writeRequest(frame);
     }
 
+    protected <B extends ApiMessage> InternalRequestFrame<B> writeInternalRequest(RequestHeaderData headerData, B data, Filter recipient) {
+        var frame = new InternalRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, recipient, new CompletableFuture<>(), headerData, data);
+        writeRequest(frame);
+        return frame;
+    }
+
     /**
      * Write a client request frame to the pipeline.
      * @param frame The request header.
@@ -134,7 +176,7 @@ public abstract class FilterHarness {
      * @param <B> The type of the request.
      */
     protected <B extends ApiMessage> DecodedRequestFrame<B> writeRequest(DecodedRequestFrame<B> frame) {
-        channel.writeOutbound(frame);
+        channel.writeInbound(frame);
         return frame;
     }
 
@@ -149,8 +191,8 @@ public abstract class FilterHarness {
     }
 
     protected OpaqueRequestFrame writeArbitraryOpaqueRequest(ByteBuf buffer) {
-        OpaqueRequestFrame frame = new OpaqueRequestFrame(buffer, 55, false, buffer.readableBytes(), false);
-        channel.writeOneOutbound(frame);
+        OpaqueRequestFrame frame = new OpaqueRequestFrame(buffer, ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), 55, false, buffer.readableBytes(), false);
+        channel.writeOneInbound(frame);
         return frame;
     }
 
@@ -165,8 +207,8 @@ public abstract class FilterHarness {
     }
 
     protected OpaqueResponseFrame writeArbitraryOpaqueResponse(ByteBuf buffer) {
-        OpaqueResponseFrame frame = new OpaqueResponseFrame(buffer, 55, buffer.readableBytes());
-        channel.writeOneInbound(frame);
+        OpaqueResponseFrame frame = new OpaqueResponseFrame(ApiKeys.PRODUCE.id, ApiKeys.PRODUCE.latestVersion(), buffer, 55, buffer.readableBytes());
+        channel.writeOneOutbound(frame);
         return frame;
     }
 
@@ -182,7 +224,7 @@ public abstract class FilterHarness {
         int correlationId = 42;
         header.setCorrelationId(correlationId);
         var frame = new DecodedResponseFrame<>(apiKey.latestVersion(), correlationId, header, data);
-        channel.writeInbound(frame);
+        channel.writeOutbound(frame);
         return frame;
     }
 
@@ -202,10 +244,10 @@ public abstract class FilterHarness {
         header.setCorrelationId(requestCorrelationId);
         var correlation = pendingInternalRequestMap.remove(requestCorrelationId);
         if (correlation == null) {
-            throw new IllegalStateException("No corresponding internal request known " + requestCorrelationId);
+            throw new IllegalStateException("No corresponding internal request known for correlationId=" + requestCorrelationId);
         }
         var frame = new InternalResponseFrame<>(correlation.recipient(), apiKey.latestVersion(), requestCorrelationId, header, data, correlation.promise());
-        channel.writeInbound(frame);
+        channel.writeOutbound(frame);
         return frame;
 
     }
@@ -243,27 +285,34 @@ public abstract class FilterHarness {
     /**
      * Tracks outstanding internal requests by associating the correlation id with the recipient/promise tuple.
      */
-    private class InternalRequestTracker extends ChannelOutboundHandlerAdapter {
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof InternalRequestFrame<?> irf && irf.hasResponse()) {
-                if (pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.recipient(), irf.promise())) != null) {
-                    throw new IllegalStateException("correlationId %d already has a promise associated with it".formatted(irf.correlationId()));
+    private class InternalRequestTracker extends ChannelInboundHandlerAdapter {
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            if (msg instanceof InternalRequestFrame<?> irf) {
+                if (irf.hasResponse()) {
+                    if (pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.recipient(), irf.promise())) != null) {
+                        throw new IllegalStateException("correlationId %d already has a promise associated with it".formatted(irf.correlationId()));
+                    }
+                }
+                else {
+                    // no response expected, complete the promise immediately
+                    irf.promise().complete(null);
                 }
             }
-            super.write(ctx, msg, promise);
+            super.channelRead(ctx, msg);
         }
     }
 
     /**
      * Issues a unique correlation id to every request.
      */
-    private class CorrelationIdIssuer extends ChannelOutboundHandlerAdapter {
+    private class CorrelationIdIssuer extends ChannelInboundHandlerAdapter {
         @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg instanceof DecodedRequestFrame<?> drf) {
                 drf.header().setCorrelationId(outboundCorrelationId.getAndIncrement());
             }
-            super.write(ctx, msg, promise);
+            super.channelRead(ctx, msg);
         }
     }
 }

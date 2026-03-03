@@ -65,11 +65,12 @@ public class FetchRequestData implements ApiMessage {
         SCHEMA_14,
         SCHEMA_15,
         SCHEMA_16,
-        SCHEMA_17
+        SCHEMA_17,
+        SCHEMA_18
     };
 
     public static final short LOWEST_SUPPORTED_VERSION = 4;
-    public static final short HIGHEST_SUPPORTED_VERSION = 17;
+    public static final short HIGHEST_SUPPORTED_VERSION = 18;
 
     public FetchRequestData(Readable _readable, short _version) {
         read(_readable, _version);
@@ -105,7 +106,7 @@ public class FetchRequestData implements ApiMessage {
     /** @return the highest valid version for this message. */
     @Override
     public short highestSupportedVersion() {
-        return 17;
+        return 18;
     }
 
     @Override

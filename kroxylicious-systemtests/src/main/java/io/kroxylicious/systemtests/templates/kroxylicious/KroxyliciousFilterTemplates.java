@@ -8,23 +8,57 @@ package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
+
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.cfg.ConstructorDetector;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 
+import io.kroxylicious.authorizer.provider.acl.AclAuthorizerConfig;
+import io.kroxylicious.authorizer.provider.acl.AclAuthorizerService;
+import io.kroxylicious.filter.authorization.Authorization;
+import io.kroxylicious.filter.authorization.AuthorizationConfig;
 import io.kroxylicious.filter.encryption.RecordEncryption;
+import io.kroxylicious.filter.sasl.inspection.Config;
+import io.kroxylicious.filter.sasl.inspection.SaslInspection;
 import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 /**
  * The type Kroxylicious filter templates.
  */
 public final class KroxyliciousFilterTemplates {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = createBaseObjectMapper();
 
     private KroxyliciousFilterTemplates() {
+    }
+
+    private static ObjectMapper createBaseObjectMapper() {
+        YAMLFactory yamlFactory = new YAMLFactory();
+        yamlFactory.configure(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID, false);
+        return new ObjectMapper(yamlFactory)
+                .setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.NONE)
+                .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+                .setVisibility(PropertyAccessor.CREATOR, JsonAutoDetect.Visibility.ANY)
+                .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
+                .enable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY)
+                .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+                .setDefaultPropertyInclusion(JsonInclude.Include.NON_DEFAULT);
     }
 
     /**
@@ -41,7 +75,7 @@ public final class KroxyliciousFilterTemplates {
                     .withName(filterName)
                     .withNamespace(namespaceName)
                 .endMetadata()
-                    .withNewSpec()
+                .withNewSpec()
                 .endSpec();
         // @formatter:on
     }
@@ -56,6 +90,8 @@ public final class KroxyliciousFilterTemplates {
      */
     public static KafkaProtocolFilterBuilder kroxyliciousRecordEncryptionFilter(String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade,
                                                                                 ExperimentalKmsConfig experimentalKmsConfig) {
+        DeploymentUtils.copySecretInToNamespace(namespaceName, Constants.KEYSTORE_SECRET_NAME);
+        DeploymentUtils.copySecretInToNamespace(namespaceName, Constants.TRUSTSTORE_SECRET_NAME);
         return baseFilterDeployment(namespaceName, Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME)
                 .withNewSpec()
                 .withType(RecordEncryption.class.getTypeName())
@@ -72,7 +108,7 @@ public final class KroxyliciousFilterTemplates {
                 "kms", testKmsFacade.getKmsServiceClass().getSimpleName(),
                 "kmsConfig", kmsConfigMap,
                 "selector", "TemplateKekSelector",
-                "selectorConfig", Map.of("template", "KEK_$(topicName)")));
+                "selectorConfig", Map.of("template", "KEK-$(topicName)")));
 
         if (experimentalKmsConfig != null) {
             Map<String, Object> experimentalKmsConfigMap = OBJECT_MAPPER
@@ -82,5 +118,52 @@ public final class KroxyliciousFilterTemplates {
         }
 
         return map;
+    }
+
+    /**
+     * Kroxylicious authorization filter builder.
+     *
+     * @param namespace the namespace
+     * @param aclFile the acl file
+     * @return  the kafka protocol filter builder
+     */
+    public static KafkaProtocolFilterBuilder kroxyliciousAuthorizationFilter(String namespace, String aclFile) {
+        return baseFilterDeployment(namespace, Constants.KROXYLICIOUS_AUTHORIZATION_FILTER_NAME)
+                .withNewSpec()
+                .withType(Authorization.class.getSimpleName())
+                .withConfigTemplate(getAuthorizationConfigMap(aclFile))
+                .endSpec();
+    }
+
+    private static Map<String, Object> getAuthorizationConfigMap(String aclFile) {
+        AuthorizationConfig authorizationConfig = new AuthorizationConfig(AclAuthorizerService.class.getSimpleName(),
+                new AclAuthorizerConfig(aclFile));
+
+        return OBJECT_MAPPER
+                .convertValue(authorizationConfig, new TypeReference<>() {
+                });
+    }
+
+    /**
+     * Kroxylicious sasl inspector filter builder.
+     *
+     * @param namespace the namespace
+     * @return  the kafka protocol filter builder
+     */
+    public static KafkaProtocolFilterBuilder kroxyliciousSaslInspectorFilter(String namespace) {
+        return baseFilterDeployment(namespace, Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME)
+                .withNewSpec()
+                .withType(SaslInspection.class.getSimpleName())
+                .withConfigTemplate(getSaslInspectionConfigMap())
+                .endSpec();
+
+    }
+
+    private static Map<String, Object> getSaslInspectionConfigMap() {
+        Config saslInspectionConfig = new Config(Set.of(ScramMechanism.SCRAM_SHA_512.mechanismName()), null, null, true);
+
+        return OBJECT_MAPPER
+                .convertValue(saslInspectionConfig, new TypeReference<>() {
+                });
     }
 }

@@ -7,9 +7,9 @@ package io.kroxylicious.test.codec;
 
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.ProduceRequest;
 
 import io.kroxylicious.test.client.SequencedResponse;
 
@@ -22,19 +22,24 @@ public class DecodedRequestFrame<B extends ApiMessage>
         implements RequestFrame {
 
     private final CompletableFuture<SequencedResponse> responseFuture = new CompletableFuture<>();
+    private final short responseApiVersion;
 
     /**
      * Create a decoded request frame
+     *
      * @param apiVersion apiVersion
      * @param correlationId correlationId
      * @param header header
      * @param body body
+     * @param responseApiVersion
      */
     public DecodedRequestFrame(short apiVersion,
                                int correlationId,
                                RequestHeaderData header,
-                               B body) {
+                               B body,
+                               short responseApiVersion) {
         super(apiVersion, correlationId, header, body);
+        this.responseApiVersion = responseApiVersion;
     }
 
     @Override
@@ -52,6 +57,11 @@ public class DecodedRequestFrame<B extends ApiMessage>
      */
     @Override
     public boolean hasResponse() {
-        return !(body instanceof ProduceRequest pr && pr.acks() == 0);
+        return !(body instanceof ProduceRequestData pr && pr.acks() == 0);
+    }
+
+    @Override
+    public short responseApiVersion() {
+        return responseApiVersion;
     }
 }

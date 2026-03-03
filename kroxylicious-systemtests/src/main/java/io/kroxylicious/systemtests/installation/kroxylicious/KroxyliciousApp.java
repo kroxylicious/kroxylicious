@@ -45,12 +45,17 @@ public class KroxyliciousApp implements Runnable {
 
     public void run() {
         LOGGER.info("Launching kroxylicious app");
-        Path parentPath = Path.of(System.getProperty("user.dir")).getParent();
+        Path parentPath = getProjectRoot();
         final Path targetPath = parentPath.resolve("kroxylicious-app").resolve("target");
 
         final Path startScript = resolveStartScript(targetPath);
         final Path configFile = generateKroxyliciousConfiguration();
         pid = Exec.execWithoutWait(startScript.toAbsolutePath().toString(), "-c", configFile.toAbsolutePath().toString());
+    }
+
+    private static Path getProjectRoot() {
+        return Optional.ofNullable(System.getProperty("user.dir")).map(Path::of).map(Path::getParent)
+                .orElseThrow(() -> new IllegalStateException("Unable to determine project root"));
     }
 
     private Path generateKroxyliciousConfiguration() {

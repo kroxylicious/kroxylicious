@@ -9,10 +9,8 @@ apiVersion: "apps/v1"
 kind: "Deployment"
 metadata:
   labels:
-    app: "kroxylicious"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
   name: "minimal"
@@ -25,19 +23,15 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: "kroxylicious"
-      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/managed-by: "kroxylicious-operator"
-      app.kubernetes.io/name: "kroxylicious-proxy"
+      app.kubernetes.io/name: "kroxylicious"
       app.kubernetes.io/instance: "minimal"
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
       labels:
-        app: "kroxylicious"
-        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/managed-by: "kroxylicious-operator"
-        app.kubernetes.io/name: "kroxylicious-proxy"
+        app.kubernetes.io/name: "kroxylicious"
         app.kubernetes.io/instance: "minimal"
         app.kubernetes.io/component: "proxy"
       annotations:
@@ -68,6 +62,15 @@ spec:
               name: "9294-node"
             - containerPort: 9295
               name: "9295-node"
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/livez"
+              port: "management"
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            successThreshold: 1
+            timeoutSeconds: 1
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

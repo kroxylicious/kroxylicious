@@ -14,6 +14,7 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -23,11 +24,11 @@ import io.netty.buffer.Unpooled;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class RequestEncoderTest extends AbstractCodecTest {
 
@@ -50,7 +51,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
         ByteBuffer expected = serializeUsingKafkaApis(headerVersion, exampleHeader, apiVersion, exampleBody);
 
         CorrelationManager correlationManager = new CorrelationManager(exampleHeader.correlationId());
-        var encoder = new KafkaRequestEncoder(correlationManager);
+        var encoder = new KafkaRequestEncoder(correlationManager, null);
         testEncode(expected, new DecodedRequestFrame<ApiVersionsRequestData>(apiVersion, exampleHeader.correlationId(), true, exampleHeader, exampleBody), encoder);
         var corr = correlationManager.getBrokerCorrelation(exampleHeader.correlationId());
         assertEquals(ApiKeys.API_VERSIONS.id, corr.apiKey());
@@ -69,7 +70,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
     @MethodSource("testResponseFrames")
     void testRequestsWithNoResponseArentStoredInCorrelationManager() throws Exception {
 
-        givenRequestFrame frame = createRequestFrame(false);
+        GivenRequestFrame frame = createRequestFrame(false);
 
         var correlationManager = new CorrelationManager(78);
         whenRequestEncoded(frame, correlationManager);
@@ -82,7 +83,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
     @MethodSource("testResponseFrames")
     void testRequestsWithResponseAreStoredInCorrelationManager() throws Exception {
 
-        givenRequestFrame frame = createRequestFrame(true);
+        GivenRequestFrame frame = createRequestFrame(true);
 
         var correlationManager = new CorrelationManager(78);
         whenRequestEncoded(frame, correlationManager);
@@ -93,19 +94,41 @@ public class RequestEncoderTest extends AbstractCodecTest {
                 "Expect request with response to have a correlation");
     }
 
-    private static void whenRequestEncoded(givenRequestFrame result, CorrelationManager correlationManager) throws Exception {
-        ByteBuf out = Unpooled.buffer(result.byteBuffer().capacity() + 4);
-        new KafkaRequestEncoder(correlationManager).encode(null, result.frame(), out);
+    @Test
+    void shouldFireListenerOnEncode() throws Exception {
+        // Given
+        KafkaMessageListener listener = mock(KafkaMessageListener.class);
+        CorrelationManager correlationManager = mock(CorrelationManager.class);
+
+        short apiVersion = ApiKeys.API_VERSIONS.latestVersion();
+        short headerVersion = ApiKeys.API_VERSIONS.requestHeaderVersion(apiVersion);
+        RequestHeaderData exampleHeader = exampleRequestHeader(apiVersion);
+        exampleHeader.setCorrelationId(0);
+        ApiVersionsRequestData exampleBody = exampleApiVersionsRequest();
+        ByteBuffer expected = serializeUsingKafkaApis(headerVersion, exampleHeader, apiVersion, exampleBody);
+        int expectedSizeIncludingLength = expected.remaining();
+        DecodedRequestFrame<ApiVersionsRequestData> toBeEncoded = new DecodedRequestFrame<>(apiVersion, exampleHeader.correlationId(), false, exampleHeader, exampleBody);
+
+        // When
+        testEncode(expected, toBeEncoded, new KafkaRequestEncoder(correlationManager, listener));
+
+        // Then
+        verify(listener).onMessage(toBeEncoded, expectedSizeIncludingLength);
     }
 
-    @NonNull
-    private static givenRequestFrame createRequestFrame(boolean hasResponse) {
-        short produceVersion = ApiKeys.PRODUCE.latestVersion();
+    private static void whenRequestEncoded(GivenRequestFrame result, CorrelationManager correlationManager) throws Exception {
+        ByteBuf out = Unpooled.buffer(result.byteBuffer().capacity() + 4);
+        new KafkaRequestEncoder(correlationManager, null).encode(null, result.frame(), out);
+    }
+
+    private static GivenRequestFrame createRequestFrame(boolean hasResponse) {
+        var produceKey = ApiKeys.PRODUCE;
+        short produceVersion = produceKey.latestVersion();
         var header = new RequestHeaderData()
-                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiKey(produceKey.id)
                 .setRequestApiVersion(produceVersion)
                 .setCorrelationId(45);
-        short headerVersion = ApiKeys.PRODUCE.requestHeaderVersion(produceVersion);
+        short headerVersion = produceKey.requestHeaderVersion(produceVersion);
         if (headerVersion >= 1) {
             header.setClientId("323423");
         }
@@ -120,10 +143,9 @@ public class RequestEncoderTest extends AbstractCodecTest {
 
         ByteBuf buf = Unpooled.copiedBuffer(byteBuffer);
 
-        var frame = new OpaqueRequestFrame(buf, 12, true, frameSize, hasResponse);
-        givenRequestFrame result = new givenRequestFrame(byteBuffer, frame);
-        return result;
+        var frame = new OpaqueRequestFrame(buf, produceKey.id, produceVersion, 12, true, frameSize, hasResponse);
+        return new GivenRequestFrame(byteBuffer, frame);
     }
 
-    private record givenRequestFrame(ByteBuffer byteBuffer, OpaqueRequestFrame frame) {}
+    private record GivenRequestFrame(ByteBuffer byteBuffer, OpaqueRequestFrame frame) {}
 }

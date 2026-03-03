@@ -28,7 +28,7 @@ import io.kroxylicious.systemtests.k8s.cmd.KubeCmdClient;
 public class KubeClusterResource {
     private static final Logger LOGGER = LoggerFactory.getLogger(KubeClusterResource.class);
     private KubeCluster kubeCluster;
-    private KubeCmdClient cmdClient;
+    private KubeCmdClient<?> cmdClient;
     private KubeClient client;
     private HelmClient helmClient;
     private static KubeClusterResource kubeClusterResource;
@@ -125,7 +125,7 @@ public class KubeClusterResource {
      *
      * @return the kube cmd client
      */
-    public synchronized KubeCmdClient cmdClient() {
+    public synchronized KubeCmdClient<?> cmdClient() {
         if (cmdClient == null) {
             cmdClient = cluster().defaultCmdClient();
         }

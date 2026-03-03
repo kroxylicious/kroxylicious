@@ -60,7 +60,7 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     public final Config getKmsServiceConfig() {
         var longTermCredentialsProviderConfig = new LongTermCredentialsProviderConfig(new InlinePassword(getKroxyliciousAccessKey()),
                 new InlinePassword(getKroxyliciousSecretKey()));
-        return new Config(getAwsUrl(), null, null, longTermCredentialsProviderConfig, null, getRegion(), null);
+        return new Config(getAwsUrl(), longTermCredentialsProviderConfig, null, getRegion(), null);
     }
 
     @Override

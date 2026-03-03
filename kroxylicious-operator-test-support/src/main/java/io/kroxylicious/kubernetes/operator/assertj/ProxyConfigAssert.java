@@ -16,6 +16,7 @@ import org.assertj.core.api.Assertions;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -69,6 +70,29 @@ public class ProxyConfigAssert extends AbstractObjectAssert<ProxyConfigAssert, C
             return new ProxyConfigPortIdentifiesNodeGatewayAssert(actual.portIdentifiesNode());
         }
 
+        public ProxyConfigSniHostIdentifiesNodeGatewayAssert sniHostIdentifiesNode() {
+            Assertions.assertThat(actual.sniHostIdentifiesNode()).isNotNull();
+            return new ProxyConfigSniHostIdentifiesNodeGatewayAssert(actual.sniHostIdentifiesNode());
+        }
+
+    }
+
+    public static class ProxyConfigSniHostIdentifiesNodeGatewayAssert
+            extends AbstractObjectAssert<ProxyConfigSniHostIdentifiesNodeGatewayAssert, SniHostIdentifiesNodeIdentificationStrategy> {
+
+        public ProxyConfigSniHostIdentifiesNodeGatewayAssert(SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNodeIdentificationStrategy) {
+            super(sniHostIdentifiesNodeIdentificationStrategy, ProxyConfigSniHostIdentifiesNodeGatewayAssert.class);
+        }
+
+        public ProxyConfigSniHostIdentifiesNodeGatewayAssert hasBootstrapAddress(String bootstrapAddress) {
+            Assertions.assertThat(actual.getBootstrapAddress()).isEqualTo(bootstrapAddress);
+            return this;
+        }
+
+        public ProxyConfigSniHostIdentifiesNodeGatewayAssert hasAdvertisedBrokerAddressPattern(String advertisedBrokerAddressPattern) {
+            Assertions.assertThat(actual.getAdvertisedBrokerAddressPattern()).isEqualTo(advertisedBrokerAddressPattern);
+            return this;
+        }
     }
 
     public static class ProxyConfigPortIdentifiesNodeGatewayAssert
@@ -79,12 +103,12 @@ public class ProxyConfigAssert extends AbstractObjectAssert<ProxyConfigAssert, C
         }
 
         public NamedRangeAssert namedRange(String name) {
-            Set<String> names = Optional.ofNullable(this.actual.nodeIdRanges()).orElse(List.of()).stream().map(NamedRange::name).collect(toSet());
+            Set<String> names = Optional.ofNullable(this.actual.getNodeIdRanges()).orElse(List.of()).stream().map(NamedRange::name).collect(toSet());
             Assertions.assertThat(names)
                     .withFailMessage("gateway has no node id ranges configured").isNotEmpty()
                     .withFailMessage("node id ranges for gateway does not contain range named '" + name + "', ranges in gateway config: " + names)
                     .contains(name);
-            List<NamedRange> namedRanges = Optional.ofNullable(actual.nodeIdRanges()).orElse(List.of());
+            List<NamedRange> namedRanges = Optional.ofNullable(actual.getNodeIdRanges()).orElse(List.of());
             List<NamedRange> ranges = namedRanges.stream().filter(r -> r.name().equals(name)).toList();
             Assertions.assertThat(ranges).hasSize(1);
             NamedRange namedRange = ranges.get(0);
@@ -92,14 +116,14 @@ public class ProxyConfigAssert extends AbstractObjectAssert<ProxyConfigAssert, C
         }
 
         public ProxyConfigPortIdentifiesNodeGatewayAssert hasBootstrapAddress(HostPort expected) {
-            Assertions.assertThat(actual.bootstrapAddress())
-                    .withFailMessage("expected bootstrap address for gateway: '" + expected + "' but was '" + actual.bootstrapAddress() + "'")
+            Assertions.assertThat(actual.getBootstrapAddress())
+                    .withFailMessage("expected bootstrap address for gateway: '" + expected + "' but was '" + actual.getBootstrapAddress() + "'")
                     .isEqualTo(expected);
             return this;
         }
 
         public ProxyConfigPortIdentifiesNodeGatewayAssert hasNullNodeStartPort() {
-            Assertions.assertThat(actual.nodeStartPort()).describedAs("node start port").isNull();
+            Assertions.assertThat(actual.getNodeStartPort()).describedAs("node start port").isNull();
             return this;
         }
     }

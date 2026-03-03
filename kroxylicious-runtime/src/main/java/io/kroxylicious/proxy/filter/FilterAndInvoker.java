@@ -12,10 +12,11 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * A Filter and it's respective invoker
- * @param filter filter
- * @param invoker invoker
+ * @param filterName The name of the filter (from the config)
+ * @param filter filter The filter instance
+ * @param invoker invoker The invoker
  */
-public record FilterAndInvoker(Filter filter, FilterInvoker invoker) {
+public record FilterAndInvoker(String filterName, Filter filter, FilterInvoker invoker) {
 
     /**
      * A Filter and it's respective invoker
@@ -32,7 +33,16 @@ public record FilterAndInvoker(Filter filter, FilterInvoker invoker) {
      * @param filter filter
      * @return a filter and its respective invoker
      */
-    public static List<FilterAndInvoker> build(Filter filter) {
-        return FilterInvokers.from(filter);
+    public static List<FilterAndInvoker> build(String filterName, Filter filter) {
+        return FilterInvokers.from(filterName, filter);
+    }
+
+    @Override
+    public String toString() {
+        return "FilterAndInvoker{" +
+                "filter='" + filterName + '\'' +
+                ", filterClass='" + filter.getClass().getSimpleName() + '\'' +
+                ", invoker=" + invoker +
+                '}';
     }
 }

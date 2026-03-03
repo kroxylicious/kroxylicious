@@ -12,6 +12,8 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public abstract class AbstractDefinitionBuilder<D> {
     protected static final ObjectMapper mapper;
     static {
@@ -19,7 +21,7 @@ public abstract class AbstractDefinitionBuilder<D> {
     }
 
     private final String type;
-    private Map<String, Object> config;
+    private @Nullable Map<String, Object> config;
 
     protected AbstractDefinitionBuilder(String type) {
         Objects.requireNonNull(type);
@@ -56,5 +58,5 @@ public abstract class AbstractDefinitionBuilder<D> {
         return buildInternal(type, config);
     }
 
-    protected abstract D buildInternal(String type, Map<String, Object> config);
+    protected abstract D buildInternal(String type, @Nullable Map<String, Object> config);
 }

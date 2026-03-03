@@ -4,7 +4,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-FROM registry.access.redhat.com/ubi9/openjdk-17:1.22-1.1745840591 AS builder
+FROM registry.access.redhat.com/ubi9/openjdk-21:1.24-2.1772091453 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -38,19 +38,18 @@ RUN set -ex; \
     chmod +x ${TINI_DEST}
 
 COPY . .
-RUN mvn -q -B clean package -Pdist -Dquick
+RUN mvn -q -B clean package -Pdist -Dquick -DskipContainerImageBuild=true -DskipDocs=true -Dmaven.test.skip
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6-1745487894
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7-1771346502
 
-ARG JAVA_VERSION=17
+ARG JAVA_VERSION=21
 ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER=kroxylicious
 ARG CONTAINER_USER_UID=185
 
 USER root
 
-RUN microdnf -y update \
-    && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y \
+RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y \
                 java-${JAVA_VERSION}-openjdk-headless \
                 openssl \
                 shadow-utils \
@@ -58,7 +57,7 @@ RUN microdnf -y update \
     && microdnf remove -y shadow-utils \
     && microdnf clean all
 
-ENV JAVA_HOME=/usr/lib/jvm/jre-17
+ENV JAVA_HOME=/usr/lib/jvm/jre-21
 
 COPY --from=builder /opt/tini/bin/tini /usr/bin/tini
 COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious/
@@ -66,3 +65,7 @@ COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-$
 USER ${CONTAINER_USER_UID}
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]
+
+LABEL url="https://kroxylicious.io/"
+LABEL vendor="The Kroxylicious Project"
+LABEL maintainer="Kroxylicious Maintainers"

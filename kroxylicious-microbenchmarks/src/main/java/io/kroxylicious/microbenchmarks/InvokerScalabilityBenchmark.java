@@ -19,8 +19,8 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-import io.kroxylicious.filters.TwoInterfaceFilter0;
-import io.kroxylicious.filters.TwoInterfaceFilter1;
+import io.kroxylicious.microbenchmarks.filters.TwoInterfaceFilter0;
+import io.kroxylicious.microbenchmarks.filters.TwoInterfaceFilter1;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterInvoker;

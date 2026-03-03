@@ -71,7 +71,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             log().trace("{}: body {}", ctx, body);
         }
 
-        frame = new DecodedRequestFrame<>(apiVersion, correlationId, header, body);
+        frame = new DecodedRequestFrame<>(apiVersion, correlationId, header, body, apiVersion);
         if (log().isTraceEnabled()) {
             log().trace("{}: frame {}", ctx, frame);
         }

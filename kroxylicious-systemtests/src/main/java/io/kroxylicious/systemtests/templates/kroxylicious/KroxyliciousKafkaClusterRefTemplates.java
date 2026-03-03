@@ -8,9 +8,8 @@ package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
-import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
@@ -39,27 +38,12 @@ public class KroxyliciousKafkaClusterRefTemplates {
         // @formatter:on
     }
 
-    /**
-     * Kafka cluster ref CR with tls.
-     *
-     * @param namespaceName the namespace name
-     * @param clusterRefName the cluster ref name
-     * @return the kafka service builder
-     */
-    public static KafkaServiceBuilder kafkaClusterRefCRWithTls(String namespaceName, String clusterRefName) {
+    public static KafkaServiceBuilder kafkaClusterRefCRWithTls(String namespaceName, String clusterRefName, Tls tls) {
         // @formatter:off
         return defaultKafkaClusterRefCR(namespaceName, clusterRefName)
                 .editSpec()
                     .withBootstrapServers(getKafkaBootstrap("tls", clusterRefName))
-                    .withTls(new TlsBuilder()
-                            .withTrustAnchorRef(new TrustAnchorRefBuilder()
-                                    .withNewRef()
-                                        .withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT)
-                                        .withKind(Constants.CONFIG_MAP)
-                                    .endRef()
-                                    .withKey(Constants.KROXYLICIOUS_TLS_CA_NAME)
-                                    .build())
-                            .build())
+                    .withTls(tls)
                 .endSpec();
         // @formatter:on
     }

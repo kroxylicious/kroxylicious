@@ -10,11 +10,11 @@ package io.kroxylicious.proxy.internal.net;
  * This class is the general class of exceptions produced by failed endpoint operations.
  */
 public abstract class EndpointException extends RuntimeException {
-    public EndpointException(String message) {
+    protected EndpointException(String message) {
         super(message);
     }
 
-    public EndpointException(String message, Throwable cause) {
+    protected EndpointException(String message, Throwable cause) {
         super(message, cause);
     }
 }

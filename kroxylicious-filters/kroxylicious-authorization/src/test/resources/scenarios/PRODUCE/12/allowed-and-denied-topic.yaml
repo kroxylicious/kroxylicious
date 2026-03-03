@@ -1,0 +1,102 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "PRODUCE"
+  apiVersion: 12
+  scenario: |
+    allowed topics are forwarded to the upstream
+    denied topics are not forwarded to the upstream
+    denied topic errors are augmented into the response
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "PRODUCE"
+      expectedRequestVersion: 12
+      expectedRequestHeader:
+        requestApiKey: 0
+        requestApiVersion: 12
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "random-string-292"
+        acks: 1
+        timeoutMs: 141
+        topicData:
+          - name: "my-topic"
+            partitionData:
+              - index: 134
+                records: !!binary ""
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        responses:
+          - name: "my-topic"
+            partitionResponses:
+              - index: 969
+                errorCode: 51
+                baseOffset: 581
+                logAppendTimeMs: 693
+                logStartOffset: 269
+                recordErrors:
+                  - batchIndex: 164
+                    batchIndexErrorMessage: "random-string-410"
+                errorMessage: "random-string-667"
+        throttleTimeMs: 141
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "WRITE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 0
+    requestApiVersion: 12
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-292"
+    acks: 1
+    timeoutMs: 141
+    topicData:
+      - name: "my-topic"
+        partitionData:
+          - index: 134
+            records: !!binary ""
+      - name: "unauthorized"
+        partitionData:
+          - index: 133
+            records: !!binary ""
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    responses:
+      - name: "my-topic"
+        partitionResponses:
+          - index: 969
+            errorCode: 51
+            baseOffset: 581
+            logAppendTimeMs: 693
+            logStartOffset: 269
+            recordErrors:
+              - batchIndex: 164
+                batchIndexErrorMessage: "random-string-410"
+            errorMessage: "random-string-667"
+      - name: "unauthorized"
+        partitionResponses:
+          - index: 133
+            errorCode: 29
+            baseOffset: 0
+            logAppendTimeMs: -1
+            logStartOffset: -1
+            recordErrors: [ ]
+            errorMessage: "Topic authorization failed."
+    throttleTimeMs: 141
+

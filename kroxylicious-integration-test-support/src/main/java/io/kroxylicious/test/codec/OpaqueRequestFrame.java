@@ -36,20 +36,39 @@ public class OpaqueRequestFrame implements RequestFrame {
     private final boolean hasResponse;
     private final CompletableFuture<SequencedResponse> responseFuture = new CompletableFuture<>();
     private final ApiKeys apiKey;
-    private final short apiVersion;
+    private final short requestApiVersion;
+    private final short responseApiVersion;
 
     /**
      * @param buf The message buffer (excluding the frame size)
      * @param correlationId The correlation id
      * @param length The length of the frame within {@code buf}.
      * @param hasResponse do we expect a response
+     * @param apiKey the API key of the frame
+     * @param apiVersion the apiVersion used for the request and response
      */
     public OpaqueRequestFrame(ByteBuf buf, int correlationId, int length, boolean hasResponse, ApiKeys apiKey, short apiVersion) {
+        this(buf, correlationId, length, hasResponse, apiKey, apiVersion, apiVersion);
+    }
+
+    /**
+     * This is a special case for testing API Versions RPCs. In general, we should use {@link OpaqueRequestFrame#OpaqueRequestFrame(ByteBuf, int, int, boolean, ApiKeys, short)}
+     * <p>
+     * @param buf The message buffer (excluding the frame size)
+     * @param correlationId The correlation id
+     * @param length The length of the frame within {@code buf}.
+     * @param hasResponse do we expect a response
+     * @param apiKey the API key of the frame
+     * @param requestApiVersion the api Version of the request frame being sent
+     * @param responseApiVersion the expected api version of the response
+     */
+    public OpaqueRequestFrame(ByteBuf buf, int correlationId, int length, boolean hasResponse, ApiKeys apiKey, short requestApiVersion, short responseApiVersion) {
         this.length = length;
         this.correlationId = correlationId;
         this.buf = buf.asReadOnly();
         this.apiKey = apiKey;
-        this.apiVersion = apiVersion;
+        this.requestApiVersion = requestApiVersion;
+        this.responseApiVersion = responseApiVersion;
         if (buf.readableBytes() != length) {
             throw new AssertionError("readable: " + buf.readableBytes() + " length: " + length);
         }
@@ -105,6 +124,11 @@ public class OpaqueRequestFrame implements RequestFrame {
 
     @Override
     public short apiVersion() {
-        return apiVersion;
+        return requestApiVersion;
+    }
+
+    @Override
+    public short responseApiVersion() {
+        return responseApiVersion;
     }
 }

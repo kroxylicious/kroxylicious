@@ -17,8 +17,6 @@ import java.util.function.Function;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * <p>An API for manipulating batches of {@link org.apache.kafka.common.record.Record}s.
  * This is loosely inspired by {@code java.util.stream.Stream},
@@ -64,7 +62,7 @@ public class RecordStream<T> {
      * @param records The records
      * @return A stream over those records.
      */
-    public static RecordStream<Void> ofRecords(@NonNull MemoryRecords records) {
+    public static RecordStream<Void> ofRecords(MemoryRecords records) {
         Objects.requireNonNull(records);
         return new RecordStream<>(records, (batch, record, idx) -> null);
     }
@@ -75,7 +73,7 @@ public class RecordStream<T> {
      * @param records The records
      * @return A stream over those records.
      */
-    public static RecordStream<Integer> ofRecordsWithIndex(@NonNull MemoryRecords records) {
+    public static RecordStream<Integer> ofRecordsWithIndex(MemoryRecords records) {
         Objects.requireNonNull(records);
         return new RecordStream<>(records, (batch, record, idx) -> idx);
     }
@@ -152,8 +150,8 @@ public class RecordStream<T> {
      * @param transform The record transform
      * @return The mapped records
      */
-    public MemoryRecords toMemoryRecords(@NonNull ByteBufferOutputStream buffer,
-                                         @NonNull RecordTransform<T> transform) {
+    public MemoryRecords toMemoryRecords(ByteBufferOutputStream buffer,
+                                         RecordTransform<T> transform) {
         BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(buffer);
         int indexInStream = 0;
         for (var batch : records.batches()) {

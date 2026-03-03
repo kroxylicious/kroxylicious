@@ -1,0 +1,15 @@
+:_mod-docs-content-type: REFERENCE
+
+= Trademark notice
+
+[role="_abstract"]
+* Apache Kafka is a registered trademark of The Apache Software Foundation.
+* Kubernetes is a registered trademark of The Linux Foundation.
+* Prometheus is a registered trademark of The Linux Foundation.
+* Strimzi is a trademark of The Linux Foundation.
+* Hashicorp Vault is a registered trademark of HashiCorp, Inc.
+* AWS Key Management Service is a trademark of Amazon.com, Inc. or its affiliates.
+* Microsoft, Azure, and Microsoft Entra are trademarks of the Microsoft group of companies.
+ifdef::include-fortanix-dsm-kms[]
+* Fortanix and Data Security Manager are trademarks of Fortanix, Inc.
+endif::[]

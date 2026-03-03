@@ -12,8 +12,7 @@ Kroxylicious is a Kafka protocol proxy, addressing use cases such as encryption,
   * [Developer Guide](#developer-guide)
   * [Releasing this project](#releasing-this-project)
   * [Performance Testing](#performance-testing)
-  * [Kroxylicious Samples](#kroxylicious-samples)
-  * [Kubernetes Examples](#kubernetes-examples)
+  * [Contributing](#contributing)
 <!-- TOC -->
 
 ## Quick Links
@@ -42,11 +41,16 @@ See the [Release Guide](RELEASING.md)
 
 See the [Performance Guide](PERFORMANCE.md) for information on running basic performance tests for this proxy.
 
-## Kroxylicious Samples
+## Kroxylicious Filter Development
 
-See [kroxylicious-sample](kroxylicious-sample) to learn more about sample filters. Try them out and customise them for a hands-on introduction to custom filters in Kroxylicious.
+Use [kroxylicious-filter-archetype](kroxylicious-filter-archetype) to get started developing a Custom Filter.
 
-## Kubernetes Examples
+Run `mvn archetype:generate -DarchetypeGroupId=io.kroxylicious -DarchetypeArtifactId=kroxylicious-filter-archetype` to generate a standalone Filter project.
 
-[kubernetes-examples](kubernetes-examples/README.md) illustrate Kroxylicious running inside a Kubernetes
-Cluster integrated with components such as Strimzi and cert-manager.
+## Contributing
+
+We welcome contributions! Please see our [contributing guidelines](https://github.com/kroxylicious/.github/blob/main/CONTRIBUTING.md) to get started.
+
+If you think you have found a security-related issue with Kroxylicious then please follow the [SECURITY process](https://github.com/kroxylicious/.github/blob/main/SECURITY.md).
+
+Our [GOVERNANCE.md](https://github.com/kroxylicious/.github/blob/main/GOVERNANCE.md) document describes how the project is run, including how decisions are made, and by whom.

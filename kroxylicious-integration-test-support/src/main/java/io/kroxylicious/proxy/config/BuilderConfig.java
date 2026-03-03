@@ -18,6 +18,7 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.VirtualClusterGateway",
         "io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy",
         "io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy",
+        "io.kroxylicious.proxy.config.TransportSubjectBuilderConfig",
         "io.kroxylicious.proxy.config.NamedRange",
         "io.kroxylicious.proxy.config.admin.ManagementConfiguration",
         "io.kroxylicious.proxy.config.admin.EndpointsConfiguration",
@@ -29,7 +30,9 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.tls.ServerOptions",
         "io.kroxylicious.proxy.config.tls.InsecureTls",
         "io.kroxylicious.proxy.config.tls.KeyStore",
-        "io.kroxylicious.proxy.config.tls.KeyPair"
+        "io.kroxylicious.proxy.config.tls.KeyPair",
+        "io.kroxylicious.proxy.config.NetworkDefinition",
+        "io.kroxylicious.proxy.config.NettySettings"
 })
 public final class BuilderConfig {
     public static final String TARGET_CONFIG_PACKAGE = "io.kroxylicious.proxy.config.model";

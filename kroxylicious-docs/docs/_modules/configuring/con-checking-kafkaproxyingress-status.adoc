@@ -1,0 +1,35 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-checking-kafkaproxyingress-status-{context}']
+= Checking the status of the `KafkaProxyIngress` resource
+
+[role="_abstract"]
+The status of a `KafkaProxyIngress` resource provides feedback on its configuration through a set of conditions.
+These include the `ResolvedRefs` condition, which indicates whether all referenced resources exist.
+
+When you create a `KafkaProxyIngress`, the operator checks whether a `KafkaProxy` corresponding to the `spec.proxyRef` exists.
+The result is reported in `status.conditions` with a `ResolvedRefs` condition accordingly.
+
+.Example `KafkaProxyIngress` status when `spec.proxyRef` exists
+[source,yaml]
+----
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: cluster-ip
+  namespace: my-proxy
+  generation: 12
+spec:
+  # ...
+status:
+  observedGeneration: 12 # <1>
+  conditions:
+    - type: ResolvedRefs # <2>
+      status: True # <3>
+      observedGeneration: 12
+----
+<1> The `observedGeneration` in the status matches the `metadata.generation`, indicating that the status is up-to-date for the latest `spec`.
+<2> The `ResolvedRefs` condition type reports any issues with referenced resources.
+<3> A status value of `True` means that all referenced resources exist. 
+
+A status value of `False` means that the `KafkaProxy` resource is missing. In this case, the condition includes `reason` and `message` properties with more details.

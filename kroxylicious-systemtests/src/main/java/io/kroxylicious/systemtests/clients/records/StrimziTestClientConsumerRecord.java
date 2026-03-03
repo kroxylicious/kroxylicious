@@ -37,14 +37,10 @@ public class StrimziTestClientConsumerRecord extends ConsumerRecord {
                                            @JsonProperty("payload") String payload,
                                            @JsonProperty("partition") int partition,
                                            @JsonProperty("offset") long offset) {
+        super(topic, key, payload, partition, offset);
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
             headers.forEach(h -> recordHeaders.put(h.getKey(), h.getValue()));
         }
-        this.topic = topic;
-        this.key = key;
-        this.value = payload;
-        this.partition = partition;
-        this.offset = offset;
     }
 }

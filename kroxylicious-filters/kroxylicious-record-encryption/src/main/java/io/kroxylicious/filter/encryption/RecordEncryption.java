@@ -10,6 +10,7 @@ import java.security.Provider;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -27,6 +28,7 @@ import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
+import io.kroxylicious.filter.encryption.config.EncryptionBufferConfig;
 import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
@@ -55,6 +57,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A {@link FilterFactory} for {@link RecordEncryptionFilter}.
@@ -101,9 +104,12 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     }
 
     @Override
+    @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     public SharedEncryptionContext<K, E> initialize(FilterFactoryContext context,
-                                                    RecordEncryptionConfig configuration)
+                                                    @NonNull RecordEncryptionConfig configuration)
             throws PluginConfigurationException {
+        Objects.requireNonNull(configuration, "configuration must not be null");
+        LOGGER.debug("Record encryption buffer size configuration: {}", configuration.encryptionBuffer());
         checkCipherSuite();
         KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
         kmsPlugin.initialize(configuration.kmsConfig());
@@ -121,15 +127,16 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
     @NonNull
     @Override
+    @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     public RecordEncryptionFilter<K> createFilter(FilterFactoryContext context,
-                                                  SharedEncryptionContext<K, E> sharedEncryptionContext) {
-
+                                                  @NonNull SharedEncryptionContext<K, E> sharedEncryptionContext) {
         ScheduledExecutorService filterThreadExecutor = context.filterDispatchExecutor();
         FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
+        EncryptionBufferConfig encryptionBufferConfig = sharedEncryptionContext.configuration().encryptionBuffer();
         var encryptionManager = new InBandEncryptionManager<>(Encryption.V2,
                 sharedEncryptionContext.dekManager().edekSerde(),
-                1024 * 1024,
-                8 * 1024 * 1024,
+                encryptionBufferConfig.minSizeBytes(),
+                encryptionBufferConfig.maxSizeBytes(),
                 sharedEncryptionContext.encryptionDekCache(),
                 executor);
 
@@ -145,7 +152,8 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     }
 
     @NonNull
-    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
     private static <C, K, E> Kms<K, E> buildKms(RecordEncryptionConfig configuration, KmsService<C, K, E> kmsPlugin) {
         Kms<K, E> kms = kmsPlugin.buildKms();
         kms = InstrumentedKms.wrap(kms, kmsMetrics);
@@ -164,7 +172,8 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     }
 
     @Override
-    public void close(SharedEncryptionContext<K, E> initializationData) {
+    @SuppressWarnings("java:S2638") // Tightening UnknownNullness
+    public void close(@NonNull SharedEncryptionContext<K, E> initializationData) {
         initializationData.kmsServiceCloser().run();
     }
 }

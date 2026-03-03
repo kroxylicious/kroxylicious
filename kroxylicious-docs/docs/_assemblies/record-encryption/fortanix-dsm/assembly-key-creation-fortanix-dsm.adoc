@@ -1,0 +1,13 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// assembly-kms-key-creation.adoc
+
+[id='assembly-key-creation-fortanix-dsm-{context}']
+= Creating keys in Fortanix Data Security Manager (DSM)
+
+[role="_abstract"]
+To create a key in Fortanix Data Security Manager (DSM) for use with the Record Encryption filter, use the following procedure.
+
+include::../../../_modules/record-encryption/fortanix-dsm/proc-fortanix-dsm-key-creation.adoc[leveloffset=+1]

@@ -47,4 +47,8 @@ public class KafkaProxyStatusAssert extends AbstractStatusAssert<KafkaProxyStatu
         return Assertions.assertThat(actual.getClusters())
                 .asInstanceOf(InstanceOfAssertFactories.list(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters.class));
     }
+
+    public void replicas(int expectedReplicaCount) {
+        Assertions.assertThat(actual.getReplicas()).isEqualTo(expectedReplicaCount);
+    }
 }

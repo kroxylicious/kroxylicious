@@ -22,14 +22,14 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
         this.clock = clock;
     }
 
-    ConditionBuilder newConditionBuilder(HasMetadata observedGenerationSource) {
+    public ConditionBuilder newConditionBuilder(HasMetadata observedGenerationSource) {
         var now = clock.instant();
         return new ConditionBuilder()
                 .withLastTransitionTime(now)
                 .withObservedGeneration(ResourcesUtil.generation(observedGenerationSource));
     }
 
-    Condition newTrueCondition(HasMetadata observedGenerationSource, Condition.Type type) {
+    public Condition newTrueCondition(HasMetadata observedGenerationSource, Condition.Type type) {
         return newConditionBuilder(observedGenerationSource)
                 .withType(type)
                 .withStatus(Condition.Status.TRUE)
@@ -38,11 +38,11 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
                 .build();
     }
 
-    Condition newFalseCondition(
-                                HasMetadata observedGenerationSource,
-                                Condition.Type type,
-                                String reason,
-                                String message) {
+    public Condition newFalseCondition(
+                                       HasMetadata observedGenerationSource,
+                                       Condition.Type type,
+                                       String reason,
+                                       String message) {
         return newConditionBuilder(observedGenerationSource)
                 .withType(type)
                 .withStatus(Condition.Status.FALSE)
@@ -51,7 +51,7 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
                 .build();
     }
 
-    Condition newUnknownCondition(HasMetadata observedResource, Condition.Type type, Exception e) {
+    public Condition newUnknownCondition(HasMetadata observedResource, Condition.Type type, Exception e) {
         return newConditionBuilder(observedResource)
                 .withType(type)
                 .withStatus(Condition.Status.UNKNOWN)
@@ -60,18 +60,18 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
                 .build();
     }
 
-    abstract R newUnknownConditionStatusPatch(R observedProxy,
-                                              Condition.Type type,
-                                              Exception e);
+    public abstract R newUnknownConditionStatusPatch(R observedProxy,
+                                                     Condition.Type type,
+                                                     Exception e);
 
-    abstract R newFalseConditionStatusPatch(R observedProxy,
-                                            Condition.Type type,
-                                            String reason,
-                                            String message);
+    public abstract R newFalseConditionStatusPatch(R observedProxy,
+                                                   Condition.Type type,
+                                                   String reason,
+                                                   String message);
 
-    abstract R newTrueConditionStatusPatch(R observedProxy,
-                                           Condition.Type type,
-                                           String checksum);
+    public abstract R newTrueConditionStatusPatch(R observedProxy,
+                                                  Condition.Type type,
+                                                  String checksum);
 
     /**
      * Deprecated in favour of {@link StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type, String)}
@@ -79,6 +79,6 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
      * @deprecated
      */
     @Deprecated(forRemoval = true)
-    abstract R newTrueConditionStatusPatch(R observedProxy,
-                                           Condition.Type type);
+    public abstract R newTrueConditionStatusPatch(R observedProxy,
+                                                  Condition.Type type);
 }

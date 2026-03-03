@@ -15,6 +15,7 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaList;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.enums.ConditionStatus;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 
 /**
@@ -52,7 +53,12 @@ public class KafkaType implements ResourceType<Kafka> {
 
     @Override
     public boolean isReady(Kafka resource) {
-        return getClient().inNamespace(resource.getMetadata().getNamespace()).resource(resource).isReady();
+        var fd = getClient().inNamespace(resource.getMetadata().getNamespace())
+                .withName(resource.getMetadata().getName())
+                .get();
+
+        return fd.getStatus().getConditions().stream()
+                .anyMatch(condition -> condition.getType().equalsIgnoreCase("Ready") && condition.getStatus().toUpperCase().equals(ConditionStatus.TRUE.toString()));
     }
 
     @Override

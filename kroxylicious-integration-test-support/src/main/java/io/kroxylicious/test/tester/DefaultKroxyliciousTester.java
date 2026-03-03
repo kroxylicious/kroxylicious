@@ -48,7 +48,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.getVirtualClusterGatewayStream;
 
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
@@ -91,6 +90,12 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
     }
 
+    @Override
+    public Map<String, Object> clientConfiguration() {
+        var vc = onlyVirtualCluster();
+        return buildDefaultClientConfiguration(vc, DEFAULT_GATEWAY_NAME);
+    }
+
     private KroxyliciousClients clients(String virtualCluster, String gateway) {
         GatewayId key = new GatewayId(virtualCluster, gateway);
         return clients.computeIfAbsent(key,
@@ -121,7 +126,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         var definedCluster = kroxyliciousConfig.virtualClusters().stream().filter(v -> v.name().equals(virtualCluster)).findFirst();
         definedCluster.ifPresent(cluster -> {
 
-            var first = getVirtualClusterGatewayStream(cluster).filter(g -> g.name().equals(gateway)).findFirst();
+            var first = cluster.gateways().stream().filter(g -> g.name().equals(gateway)).findFirst();
             var vcl = first.orElseThrow(() -> new IllegalArgumentException("cluster " + virtualCluster + " does not contain gateway named " + gateway));
             final Optional<Tls> tls = vcl.tls();
             if (tls.isPresent()) {
@@ -178,6 +183,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public KafkaClient simpleTestClient() {
         return clients().simpleTestClient();
+    }
+
+    @Override
+    public KafkaClient simpleTestClient(String address, boolean useTls) {
+        return clients().simpleTestClient(address, useTls);
     }
 
     @Override
@@ -294,8 +304,8 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public Set<String> createTopics(String virtualCluster, int numberOfTopics) {
         try (Admin admin = clients(virtualCluster, DEFAULT_GATEWAY_NAME).admin()) {
-            final List<NewTopic> newTopics = IntStream.range(0, numberOfTopics).mapToObj(ignored -> {
-                final String topicName = MobyNamesGenerator.getRandomName();
+            final List<NewTopic> newTopics = IntStream.range(0, numberOfTopics).mapToObj(index -> {
+                final String topicName = MobyNamesGenerator.getRandomName() + "-" + index;
                 return new NewTopic(topicName, (short) 1, (short) 1);
             }).toList();
             final CreateTopicsResult createTopicsResult = admin.createTopics(newTopics);

@@ -53,12 +53,12 @@ class RecordEncryptorTest {
     }
 
     @BeforeAll
-    public static void initKeyContext() {
+    static void initKeyContext() {
         components = setup(256);
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         components.close();
     }
 

@@ -9,9 +9,8 @@ apiVersion: "v1"
 kind: "ConfigMap"
 metadata:
   labels:
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
   name: "example-proxy-config"
@@ -27,12 +26,12 @@ data:
       endpoints:
         prometheus: {}
     filterDefinitions:
-    - name: "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
+    - name: "filter-one.KafkaProtocolFilter.kroxylicious.io"
       type: "org.example.some.java.Class"
       config:
         filterOneConfig: true
         password: "/opt/kroxylicious/secure/secret/my-secret/filter-one"
-    - name: "filter-two.KafkaProtocolFilter.filter.kroxylicious.io"
+    - name: "filter-two.KafkaProtocolFilter.kroxylicious.io"
       type: "com.example.what.Ever"
       config:
         filterTwoConfig: 42
@@ -41,15 +40,17 @@ data:
     - name: "foo"
       targetCluster:
         bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+        bootstrapServerSelection:
+          strategy: "round-robin"
       gateways:
-      - name: "default"
+      - name: "cluster-ip"
         portIdentifiesNode:
           bootstrapAddress: "localhost:9292"
-          advertisedBrokerAddressPattern: "foo-cluster-ip.proxy-ns.svc.cluster.local"
+          advertisedBrokerAddressPattern: "foo-cluster-ip-bootstrap.proxy-ns.svc.cluster.local"
           nodeIdRanges:
           - name: "default"
             start: 0
             end: 2
       filters:
-      - "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
-      - "filter-two.KafkaProtocolFilter.filter.kroxylicious.io"
+      - "filter-one.KafkaProtocolFilter.kroxylicious.io"
+      - "filter-two.KafkaProtocolFilter.kroxylicious.io"

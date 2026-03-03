@@ -1,0 +1,67 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_DELETE"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_DELETE"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 47
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "my-group"
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 1
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 0
+        throttleTimeMs: 52
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 1
+                errorCode: 0
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 47
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "my-group"
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 1
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    errorCode: 0
+    throttleTimeMs: 52
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 1
+            errorCode: 0

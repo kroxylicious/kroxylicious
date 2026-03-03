@@ -39,7 +39,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
     protected void encode(ChannelHandlerContext ctx, RequestFrame frame, ByteBuf out) throws Exception {
         super.encode(ctx, frame, out);
         if (frame.hasResponse()) {
-            correlationManager.putBrokerRequest(frame.apiKey().id, frame.apiVersion(), frame.correlationId(), frame.getResponseFuture());
+            correlationManager.putBrokerRequest(frame.apiKey().id, frame.apiVersion(), frame.correlationId(), frame.getResponseFuture(), frame.responseApiVersion());
         }
     }
 

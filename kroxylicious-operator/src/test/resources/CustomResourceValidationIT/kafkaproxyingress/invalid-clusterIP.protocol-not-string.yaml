@@ -18,4 +18,4 @@ resource:
     clusterIP:
       protocol: {}
 expectFailureMessageToContain: |
-  spec.clusterIP.protocol: Invalid value: "object"
+  spec.clusterIP.protocol: Invalid value

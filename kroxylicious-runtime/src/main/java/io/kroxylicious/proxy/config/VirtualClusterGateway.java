@@ -12,8 +12,8 @@ import java.util.Optional;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -24,10 +24,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param sniHostIdentifiesNode network config
  * @param tls tls settings
  */
-public record VirtualClusterGateway(@NonNull @JsonProperty(required = true) String name,
+public record VirtualClusterGateway(@JsonProperty(required = true) String name,
                                     @Nullable @JsonProperty(required = false) PortIdentifiesNodeIdentificationStrategy portIdentifiesNode,
                                     @Nullable @JsonProperty(required = false) SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNode,
-                                    @NonNull Optional<Tls> tls) {
+                                    Optional<Tls> tls) {
 
     public VirtualClusterGateway {
         Objects.requireNonNull(name);
@@ -42,12 +42,12 @@ public record VirtualClusterGateway(@NonNull @JsonProperty(required = true) Stri
         }
     }
 
-    public ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider() {
+    public NodeIdentificationStrategy buildNodeIdentificationStrategy(String clusterName) {
         if (portIdentifiesNode() != null) {
-            return portIdentifiesNode().get();
+            return portIdentifiesNode().buildStrategy(clusterName);
         }
         else if (sniHostIdentifiesNode() != null) {
-            return sniHostIdentifiesNode().get();
+            return sniHostIdentifiesNode().buildStrategy(clusterName);
         }
         else {
             throw new IllegalStateException("Failed to create provider for " + this);

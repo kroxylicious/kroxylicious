@@ -23,53 +23,33 @@ class FieldSpecModel implements TemplateHashModel, AdapterTemplateModel {
 
     @Override
     public TemplateModel get(String key) throws TemplateModelException {
-        switch (key) {
-            case "name":
-                return wrapper.wrap(spec.name());
-            case "fields":
-                return wrapper.wrap(spec.fields());
-            case "type":
-                return wrapper.wrap(spec.type());
-            case "typeString":
-                return wrapper.wrap(spec.typeString());
-            case "about":
-                return wrapper.wrap(spec.about());
-            case "entityType":
-                return wrapper.wrap(spec.entityType());
-            case "flexibleVersions":
-                return wrapper.wrap(spec.flexibleVersions());
-            case "flexibleVersionsString":
-                return wrapper.wrap(spec.flexibleVersionsString());
-            case "defaultString":
-                return wrapper.wrap(spec.defaultString());
-            case "ignorable":
-                return wrapper.wrap(spec.ignorable());
-            case "mapKey":
-                return wrapper.wrap(spec.mapKey());
-            case "nullableVersions":
-                return wrapper.wrap(spec.nullableVersions());
-            case "nullableVersionsString":
-                return wrapper.wrap(spec.nullableVersionsString());
-            case "tag":
-                return wrapper.wrap(spec.tag());
-            case "taggedVersions":
-                return wrapper.wrap(spec.taggedVersions());
-            case "tagInteger":
-                return wrapper.wrap(spec.tagInteger());
-            case "taggedVersionsString":
-                return wrapper.wrap(spec.taggedVersionsString());
-            case "versions":
-                return wrapper.wrap(spec.versions());
-            case "versionsString":
-                return wrapper.wrap(spec.versionsString());
-            case "zeroCopy":
-                return wrapper.wrap(spec.zeroCopy());
-        }
-        throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property " + key);
+        return switch (key) {
+            case "name" -> wrapper.wrap(spec.name());
+            case "fields" -> wrapper.wrap(spec.fields());
+            case "type" -> wrapper.wrap(spec.type());
+            case "typeString" -> wrapper.wrap(spec.typeString());
+            case "about" -> wrapper.wrap(spec.about());
+            case "entityType" -> wrapper.wrap(spec.entityType());
+            case "flexibleVersions" -> wrapper.wrap(spec.flexibleVersions());
+            case "flexibleVersionsString" -> wrapper.wrap(spec.flexibleVersionsString());
+            case "defaultString" -> wrapper.wrap(spec.defaultString());
+            case "ignorable" -> wrapper.wrap(spec.ignorable());
+            case "mapKey" -> wrapper.wrap(spec.mapKey());
+            case "nullableVersions" -> wrapper.wrap(spec.nullableVersions());
+            case "nullableVersionsString" -> wrapper.wrap(spec.nullableVersionsString());
+            case "tag" -> wrapper.wrap(spec.tag());
+            case "taggedVersions" -> wrapper.wrap(spec.taggedVersions());
+            case "tagInteger" -> wrapper.wrap(spec.tagInteger());
+            case "taggedVersionsString" -> wrapper.wrap(spec.taggedVersionsString());
+            case "versions" -> wrapper.wrap(spec.versions());
+            case "versionsString" -> wrapper.wrap(spec.versionsString());
+            case "zeroCopy" -> wrapper.wrap(spec.zeroCopy());
+            default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property " + key);
+        };
     }
 
     @Override
-    public boolean isEmpty() throws TemplateModelException {
+    public boolean isEmpty() {
         return false;
     }
 

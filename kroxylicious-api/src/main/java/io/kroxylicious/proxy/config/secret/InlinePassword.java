@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.config.secret;
 
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -21,6 +22,7 @@ public record InlinePassword(@JsonProperty(required = true) String password) imp
         Objects.requireNonNull(password);
     }
 
+    @JsonIgnore
     @Override
     public String getProvidedPassword() {
         return password;

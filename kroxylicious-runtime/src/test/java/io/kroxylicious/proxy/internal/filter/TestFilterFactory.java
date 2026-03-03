@@ -17,10 +17,9 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 @Plugin(configType = ExampleConfig.class)
 public class TestFilterFactory implements FilterFactory<ExampleConfig, ExampleConfig> {
@@ -30,13 +29,12 @@ public class TestFilterFactory implements FilterFactory<ExampleConfig, ExampleCo
         return Plugins.requireConfig(this, config);
     }
 
-    @NonNull
     @Override
     public TestFilterImpl createFilter(FilterFactoryContext context, ExampleConfig configuration) {
         return new TestFilterImpl(context, configuration, this.getClass());
     }
 
-    public static class TestFilterImpl implements RequestFilter, TestFilter {
+    public static class TestFilterImpl implements RequestFilter, TestFilter, ResponseFilter {
         private final FilterFactoryContext context;
         private final ExampleConfig exampleConfig;
         private final Class<? extends FilterFactory> contributorClass;
@@ -48,7 +46,7 @@ public class TestFilterFactory implements FilterFactory<ExampleConfig, ExampleCo
         }
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
             throw new IllegalStateException("not implemented!");
         }
 

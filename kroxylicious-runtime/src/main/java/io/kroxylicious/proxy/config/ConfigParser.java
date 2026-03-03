@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.jsontype.TypeResolverBuilder;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
@@ -45,7 +46,7 @@ import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class ConfigParser implements PluginFactoryRegistry {
 
@@ -53,7 +54,7 @@ public class ConfigParser implements PluginFactoryRegistry {
     private static final ServiceBasedPluginFactoryRegistry pluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
 
     @Override
-    public <T> @NonNull PluginFactory<T> pluginFactory(@NonNull Class<T> pluginClass) {
+    public <T> PluginFactory<T> pluginFactory(Class<T> pluginClass) {
         return pluginFactoryRegistry.pluginFactory(pluginClass);
     }
 
@@ -96,7 +97,9 @@ public class ConfigParser implements PluginFactoryRegistry {
      */
     @VisibleForTesting
     public static ObjectMapper createBaseObjectMapper() {
-        return new ObjectMapper(new YAMLFactory())
+        YAMLFactory yamlFactory = new YAMLFactory();
+        yamlFactory.configure(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID, false);
+        return new ObjectMapper(yamlFactory)
                 .registerModule(new ParameterNamesModule())
                 .registerModule(new Jdk8Module())
                 .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))
@@ -105,10 +108,10 @@ public class ConfigParser implements PluginFactoryRegistry {
                 .setVisibility(PropertyAccessor.CREATOR, Visibility.ANY)
                 .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
                 .enable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY)
                 .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
-                .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT);
+                .setDefaultPropertyInclusion(JsonInclude.Include.NON_DEFAULT);
     }
 
     private static class PluginModule extends SimpleModule {
@@ -125,27 +128,27 @@ public class ConfigParser implements PluginFactoryRegistry {
 
     private static class PluginHandlerInstantiator extends HandlerInstantiator {
         @Override
-        public JsonDeserializer<?> deserializerInstance(DeserializationConfig config, Annotated annotated, Class<?> deserClass) {
+        public @Nullable JsonDeserializer<?> deserializerInstance(DeserializationConfig config, Annotated annotated, Class<?> deserClass) {
             return null;
         }
 
         @Override
-        public KeyDeserializer keyDeserializerInstance(DeserializationConfig config, Annotated annotated, Class<?> keyDeserClass) {
+        public @Nullable KeyDeserializer keyDeserializerInstance(DeserializationConfig config, Annotated annotated, Class<?> keyDeserClass) {
             return null;
         }
 
         @Override
-        public JsonSerializer<?> serializerInstance(SerializationConfig config, Annotated annotated, Class<?> serClass) {
+        public @Nullable JsonSerializer<?> serializerInstance(SerializationConfig config, Annotated annotated, Class<?> serClass) {
             return null;
         }
 
         @Override
-        public TypeResolverBuilder<?> typeResolverBuilderInstance(MapperConfig<?> config, Annotated annotated, Class<?> builderClass) {
+        public @Nullable TypeResolverBuilder<?> typeResolverBuilderInstance(MapperConfig<?> config, Annotated annotated, Class<?> builderClass) {
             return null;
         }
 
         @Override
-        public TypeIdResolver typeIdResolverInstance(MapperConfig<?> config, Annotated annotated, Class<?> resolverClass) {
+        public @Nullable TypeIdResolver typeIdResolverInstance(MapperConfig<?> config, Annotated annotated, Class<?> resolverClass) {
             if (resolverClass == PluginConfigTypeIdResolver.class) {
                 PluginImplName pluginImplName = null;
                 if (annotated instanceof AnnotatedParameter ap) {
@@ -163,7 +166,7 @@ public class ConfigParser implements PluginFactoryRegistry {
             return null;
         }
 
-        private PluginImplName pluginReferenceFromParameter(Annotated annotated, AnnotatedParameter ap) {
+        private @Nullable PluginImplName pluginReferenceFromParameter(Annotated annotated, AnnotatedParameter ap) {
             PluginImplName pluginImplName;
             var pcAnno = ap.getAnnotation(PluginImplConfig.class);
             if (pcAnno == null) {
@@ -175,7 +178,7 @@ public class ConfigParser implements PluginFactoryRegistry {
             return pluginImplName;
         }
 
-        private PluginImplName pluginReferenceFromField(Annotated annotated, AnnotatedField af) {
+        private @Nullable PluginImplName pluginReferenceFromField(Annotated annotated, AnnotatedField af) {
             PluginImplName pluginImplName = null;
             var pcAnno = af.getAnnotation(PluginImplConfig.class);
             if (pcAnno == null) {
@@ -198,7 +201,7 @@ public class ConfigParser implements PluginFactoryRegistry {
             return new PluginConfigTypeIdResolver(providersByName);
         }
 
-        private PluginImplName findPluginReferenceAnnotation(AnnotatedWithParams owner, String instanceNameProperty) {
+        private @Nullable PluginImplName findPluginReferenceAnnotation(AnnotatedWithParams owner, String instanceNameProperty) {
             AnnotatedElement parameterOwner = owner.getAnnotated();
             if (parameterOwner instanceof Constructor<?> ctor) {
                 return findPluginReferenceAnnotation(instanceNameProperty, ctor);
@@ -208,7 +211,7 @@ public class ConfigParser implements PluginFactoryRegistry {
             }
         }
 
-        private static PluginImplName findPluginReferenceAnnotation(String instanceNameProperty, Constructor<?> ctor) {
+        private static @Nullable PluginImplName findPluginReferenceAnnotation(String instanceNameProperty, Constructor<?> ctor) {
             Parameter[] parameters = ctor.getParameters();
             for (Parameter parameter : parameters) {
                 if (instanceNameProperty.equals(parameter.getName())) {

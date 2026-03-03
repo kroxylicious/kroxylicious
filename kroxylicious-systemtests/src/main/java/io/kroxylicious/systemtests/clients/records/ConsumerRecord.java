@@ -17,16 +17,24 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class ConsumerRecord {
+public abstract class ConsumerRecord {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerRecord.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     protected String topic;
     protected String key;
-    protected String value;
+    protected String payload;
     protected int partition;
     protected long offset;
     protected Map<String, String> recordHeaders;
+
+    protected ConsumerRecord(String topic, String key, String payload, int partition, long offset) {
+        this.topic = topic;
+        this.key = key;
+        this.payload = payload;
+        this.partition = partition;
+        this.offset = offset;
+    }
 
     public String getTopic() {
         return topic;
@@ -36,16 +44,8 @@ public class ConsumerRecord {
         return key;
     }
 
-    public String getValue() {
-        return value;
-    }
-
-    public int getPartition() {
-        return partition;
-    }
-
-    public long getOffset() {
-        return offset;
+    public String getPayload() {
+        return payload;
     }
 
     public Map<String, String> getRecordHeaders() {
@@ -63,7 +63,7 @@ public class ConsumerRecord {
         ConsumerRecord that = (ConsumerRecord) o;
         return Objects.equals(topic, that.topic) &&
                 Objects.equals(key, that.key) &&
-                Objects.equals(value, that.value) &&
+                Objects.equals(payload, that.payload) &&
                 partition == that.partition &&
                 offset == that.offset &&
                 Objects.deepEquals(recordHeaders, that.recordHeaders);
@@ -71,7 +71,7 @@ public class ConsumerRecord {
 
     @Override
     public int hashCode() {
-        return Objects.hash(topic, key, value, partition, offset, recordHeaders);
+        return Objects.hash(topic, key, payload, partition, offset, recordHeaders);
     }
 
     /**
@@ -96,7 +96,7 @@ public class ConsumerRecord {
     public String toString() {
         return "ConsumerRecord(topic: " + this.topic +
                 ", key: " + this.key +
-                ", value: " + this.value +
+                ", payload: " + this.payload +
                 ", partition: " + this.partition +
                 ", offset: " + this.offset +
                 ", headers: " + this.recordHeaders +

@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.admin;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
@@ -32,6 +34,7 @@ import static io.netty.handler.codec.http.HttpHeaderValues.CLOSE;
 import static io.netty.handler.codec.http.HttpHeaderValues.KEEP_ALIVE;
 import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.rtsp.RtspHeaderNames.CONTENT_TYPE;
 
@@ -40,7 +43,8 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
     private final Map<String, Function<HttpRequest, HttpResponse>> routes;
     private static final Logger LOGGER = LoggerFactory.getLogger(RoutingHttpServer.class);
 
-    public RoutingHttpServer(Map<String, Function<HttpRequest, HttpResponse>> routes) {
+    private RoutingHttpServer(Map<String, Function<HttpRequest, HttpResponse>> routes) {
+        Objects.requireNonNull(routes, "routes");
         this.routes = routes;
     }
 
@@ -58,7 +62,16 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
         if (msg instanceof HttpRequest req) {
             boolean keepAlive = HttpUtil.isKeepAlive(req);
 
-            HttpResponse response = getResponse(req);
+            HttpResponse response;
+            if (HttpMethod.GET.equals(req.method())) {
+                response = getResponse(req);
+            }
+            else {
+                response = responseWithStatus(req, METHOD_NOT_ALLOWED);
+                // DoS defence - stops the server reading an excessive POST/PUT body to prevent resource allocation,
+                ctx.channel().config().setAutoRead(false);
+                keepAlive = false;
+            }
 
             if (keepAlive) {
                 if (!req.protocolVersion().isKeepAliveDefault()) {
@@ -112,7 +125,7 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
         ctx.close();
     }
 
-    static class RoutingHttpServerBuilder {
+    public static class RoutingHttpServerBuilder {
 
         private final Map<String, Function<HttpRequest, HttpResponse>> routes = new HashMap<>();
 

@@ -26,15 +26,18 @@ public class KafkaServiceStatusAssert extends AbstractStatusAssert<KafkaServiceS
         return new KafkaServiceStatusAssert(actual);
     }
 
+    @Override
     public AbstractLongAssert<?> observedGeneration() {
         return Assertions.assertThat(actual.getObservedGeneration());
     }
 
+    @Override
     public ListAssert<Condition.Status> conditions() {
         return Assertions.assertThat(actual.getConditions())
                 .asInstanceOf(InstanceOfAssertFactories.list(Condition.Status.class));
     }
 
+    @Override
     public ConditionAssert singleCondition() {
         return conditions().singleElement(AssertFactory.condition());
     }
