@@ -68,7 +68,7 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                     (AfterEachCallback) extensionContext -> {
                         try {
                             Optional<Throwable> exception = extensionContext.getExecutionException();
-                            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
+                            exception.filter(t -> !t.getClass().getSimpleName().equals("TestAbortedException")).ifPresent(e -> {
                                 logCollector.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
                             });
                         }
