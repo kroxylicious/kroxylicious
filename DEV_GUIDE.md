@@ -441,15 +441,10 @@ the container engine. Default value: `$HOME/.docker/config.json`
 * `CURL_IMAGE`: curl image to be used in the corresponding arch for metrics tests. Default value: `mirror.gcr.io/curlimages/curl:8.18.0`
 
 ### Launch system tests
-First of all, the code must be compiled and the distribution artifacts created:
+First of all, start Minikube:
 
 ```shell
-mvn clean install -Dquick -Pdist
-```
-
-Start Minikube:
-```shell
-minikube start
+minikube start --cpus 4
 ```
 
 By default, the system tests will pull the Operator from `quay.io/kroxylicious/operator:${project.version}` and the Proxy from `quay.io/kroxylicious/kroxylicious:${project.version}`.
@@ -460,7 +455,7 @@ Alternatively, to run system tests against locally made changes, push the built 
 Run the system tests like this:
 
 ```
-mvn clean verify -DskipITs=true -DskipUTs=true -DskipSTs=false -Pdist
+mvn clean verify -Psystemtest -Pdist -DskipDocs=true
 ```
 
 ## Rendering documentation
