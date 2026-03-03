@@ -116,7 +116,7 @@ spec:
       claimName: ${JFR_PVC_NAME}
   containers:
   - name: debug
-    image: busybox
+    image: busybox:latest@sha256:b3255e7dfbcd10cb367af0d409747d511aeb66dfac98cf30e97e87e4207dd76f
     command: ["sleep", "infinity"]
     volumeMounts:
     - name: jfr
