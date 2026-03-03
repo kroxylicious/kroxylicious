@@ -124,9 +124,9 @@ class KafkaServiceReconcilerTest {
 
     public static final ConfigMap CRT_CONFIG_MAP = new ConfigMapBuilder()
             .withNewMetadata()
-            .withName("my-configmap")
-            .withUid("uid")
-            .withResourceVersion("7782")
+                .withName("my-configmap")
+                .withUid("uid")
+                .withResourceVersion("7782")
             .endMetadata()
             .addToData("ca-bundle.crt", "value")
             .build();
