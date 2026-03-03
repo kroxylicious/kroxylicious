@@ -468,6 +468,22 @@ class KafkaServiceReconcilerTest {
                             .isResolvedRefsTrue()));
         }
 
+        // no client cert, crt trust bundle
+        {
+            Context<KafkaService> context = mock();
+            mockGetSecret(context, Optional.empty());
+            mockGetKafka(context, Optional.empty());
+            mockGetConfigMap(context, Optional.of(CRT_CONFIG_MAP));
+            result.add(Arguments.argumentSet("crt trust bundle of pem store type",
+                    new KafkaServiceBuilder(SERVICE).editSpec().withStrimziKafkaRef(null).editTls()
+                            .withCertificateRef(null)
+                            .editTrustAnchorRef().withKey("ca-bundle.crt").withStoreType("PEM").endTrustAnchorRef()
+                            .endTls().endSpec().build(),
+                    context,
+                    (Consumer<ConditionListAssert>) conditionList -> conditionList
+                            .singleElement()
+                            .isResolvedRefsTrue()));
+        }
         //
         // client certificate cases....
 
@@ -615,26 +631,6 @@ class KafkaServiceReconcilerTest {
         assertThat(updateControl).isNotNull();
         assertThat(updateControl.isPatchResourceAndStatus()).isTrue();
         assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
-            assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
-        });
-    }
-
-    @Test
-    void shouldHandleANewKeyIfSupportedStoreTypeMentioned() {
-        Context<KafkaService> context = mockContext();
-        mockGetConfigMap(context, Optional.of(CRT_CONFIG_MAP));
-        KafkaService service = new KafkaServiceBuilder(SERVICE).editSpec().withStrimziKafkaRef(null).editTls().withCertificateRef(null).editTrustAnchorRef()
-                .withKey("ca-bundle.crt")
-                .withStoreType("PEM")
-                .endTrustAnchorRef().endTls().endSpec().build();
-        // When
-        final UpdateControl<KafkaService> updateControl = kafkaServiceReconciler.reconcile(service, context);
-
-        // Then
-        assertThat(updateControl).isNotNull();
-        assertThat(updateControl.isPatchResourceAndStatus()).isTrue();
-        assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
-            assertThat(kafkaService.getStatus().getConditions().get(0).getStatus().equals(Condition.Status.TRUE));
             assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
         });
     }

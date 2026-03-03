@@ -547,7 +547,7 @@ public class ResourcesUtil {
                         Condition.REASON_INVALID,
                         path + " must specify 'key'"), List.of());
             }
-            if (isUnsupportedFileType(key) && trustAnchorRef.getStoreType() == null) {
+            if (isUnsupportedKeyExtension(key) && trustAnchorRef.getStoreType() == null) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_INVALID,
                         path + ".key should end with .pem, .p12 or .jks or"
@@ -668,7 +668,7 @@ public class ResourcesUtil {
                         .equals(strimziKafkaRef.getListenerName()));
     }
 
-    private static boolean isUnsupportedFileType(String key) {
+    private static boolean isUnsupportedKeyExtension(String key) {
         return !key.endsWith(".pem")
                 && !key.endsWith(".p12")
                 && !key.endsWith(".jks");
@@ -692,7 +692,14 @@ public class ResourcesUtil {
      * Gets the extension of the key
      */
     static String getKeyExtension(String key) {
-        return key.substring(key.length() - 3);
+
+        int lastIndex = key.lastIndexOf('.');
+
+        if (lastIndex > 0 && lastIndex < key.length() - 1) {
+            return key.substring(lastIndex + 1);
+        }
+
+        return "";
     }
 
     public static boolean isSecret(TrustAnchorRef trustAnchorRef) {

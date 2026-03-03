@@ -590,5 +590,4 @@ class KafkaProxyReconcilerTest {
         String storeType = KafkaProxyReconciler.deriveStoreTypeFromKeySuffix(trustAnchorRef);
         assertThat(storeType).isEqualTo("PEM");
     }
-
 }

@@ -222,6 +222,28 @@ class AllReconcilersIT {
                     // @formatter:on
                     actor.create(trust);
                     return ref;
+                })),
+                argumentSet("tls with trust from secret with store type", (Function<TestActor, Tls>) (actor -> {
+                // @formatter:off
+                    var trust = new SecretBuilder()
+                            .withNewMetadata()
+                                .withName("upstream-trust")
+                            .endMetadata()
+                            .addToStringData("trust.crt", TestKeyMaterial.TEST_CERT_PEM)
+                            .build();
+                    var ref = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder()
+                            .withNewTrustAnchorRef()
+                                .withNewRef()
+                                  .withName(name(trust))
+                                  .withKind("Secret")
+                                .endRef()
+                              .withStoreType("PEM")
+                              .withKey("trust.crt")
+                            .endTrustAnchorRef()
+                            .build();
+                    // @formatter:on
+                    actor.create(trust);
+                    return ref;
                 })));
     }
 
@@ -303,7 +325,6 @@ class AllReconcilersIT {
                             actor.create(downstreamTrust);
                             return tls;
                         })),
-
                 argumentSet("tls with trust from secret",
                         (Function<TestActor, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
 
@@ -324,6 +345,30 @@ class AllReconcilersIT {
                             .endTrustAnchorRef()
                             .build();
                         // @formatter:on
+                            actor.create(downstreamCert);
+                            actor.create(downstreamTrust);
+                            return tls;
+                        })),
+                argumentSet("tls with trust from configmap with new key of supported store type",
+                        (Function<TestActor, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
+
+                        // @formatter:off
+                    var downstreamTrust = new ConfigMapBuilder()
+                            .withNewMetadata()
+                                .withName("downstream-trust-configmap")
+                            .endMetadata()
+                            .addToData("trust.crt", TestKeyMaterial.TEST_CERT_PEM)
+                            .build();
+                    var tls = new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder(downstreamTls)
+                            .editOrNewTrustAnchorRef()
+                                .withNewRef()
+                                    .withName(name(downstreamTrust))
+                                .endRef()
+                                .withKey("trust.crt")
+                                .withStoreType("PEM")
+                            .endTrustAnchorRef()
+                            .build();
+                    // @formatter:on
                             actor.create(downstreamCert);
                             actor.create(downstreamTrust);
                             return tls;

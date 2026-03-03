@@ -844,7 +844,7 @@ class ResourcesUtilTest {
 
     @ParameterizedTest
     @CsvSource(value = { "key.pem, null", "key.p12, null", "key.jks, null", "key.crt, PEM", "key.cer, PEM" }, nullValues = { "null" })
-    void shouldAcceptSupportedKeyfileExtensions(String key, @Nullable String storeType) {
+    void shouldAcceptSupportedKeyExtensions(String key, @Nullable String storeType) {
         // Given
         TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder().withKey(key).withStoreType(storeType).withNewRef().withName("configmap").endRef().build();
         Ingresses ingress = new IngressesBuilder().withNewTls().withTrustAnchorRef(trustAnchorRef).endTls().build();
@@ -938,5 +938,19 @@ class ResourcesUtilTest {
                         null,
                         Condition.REASON_REFS_NOT_FOUND,
                         (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced Kafka resource not found")));
+    }
+
+    @Test
+    void testDeriveStoreTypeFromKeySuffix() {
+        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder()
+                .withKey("key.pem")
+                .withRef(new AnyLocalRefBuilder()
+                        .withName("test")
+                        .withKind("ConfigMap")
+                        .build())
+                .build();
+
+        String storeType = ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef);
+        assertThat(storeType).isEqualTo("PEM");
     }
 }

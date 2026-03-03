@@ -36,7 +36,6 @@ class TrustAnchorRefTest {
         assertThat(secretRefFoo2).isEqualTo(secretRefFoo);
         assertThat(secretRefFoo).isNotEqualTo(diffStoreTypeSecretFoo);
         assertThat(secretRefFoo).hasSameHashCodeAs(secretRefFoo2);
-
         assertThat(secretRefFoo).isNotEqualTo(cmRefFoo);
     }
 
