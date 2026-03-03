@@ -11,8 +11,8 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious"
-    app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
+    app.kubernetes.io/instance: "minimal"
   name: "minimal"
   namespace: "proxy-ns"
   ownerReferences:
@@ -25,8 +25,8 @@ spec:
     matchLabels:
       app.kubernetes.io/managed-by: "kroxylicious-operator"
       app.kubernetes.io/name: "kroxylicious"
-      app.kubernetes.io/instance: "minimal"
       app.kubernetes.io/component: "proxy"
+      app.kubernetes.io/instance: "minimal"
   template:
     metadata:
       labels:
@@ -56,6 +56,15 @@ spec:
               name: "management"
             - containerPort: 9291
               name: "shared-sni-port"
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/livez"
+              port: "management"
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            successThreshold: 1
+            timeoutSeconds: 1
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
