@@ -19,7 +19,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 @Plugin(configType = MultiTenantConfig.class)
 public class MultiTenant implements FilterFactory<MultiTenantConfig, MultiTenantConfig> {
 
-    private static final MultiTenantConfig DEFAULT_TENANT_CONFIG = new MultiTenantConfig(null);
+    private static final MultiTenantConfig DEFAULT_TENANT_CONFIG = new MultiTenantConfig(null, null);
 
     @Override
     public MultiTenantConfig initialize(FilterFactoryContext context, MultiTenantConfig config) {
