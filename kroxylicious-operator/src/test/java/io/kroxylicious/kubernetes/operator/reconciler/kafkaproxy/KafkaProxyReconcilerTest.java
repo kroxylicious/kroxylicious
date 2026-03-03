@@ -33,7 +33,10 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
@@ -572,6 +575,20 @@ class KafkaProxyReconcilerTest {
 
     private static KafkaProxyBuilder proxyBuilder(String name) {
         return new KafkaProxyBuilder().withNewMetadata().withName(name).endMetadata();
+    }
+
+    @Test
+    void testDeriveStoreTypeFromKeySuffix() {
+        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder()
+                .withKey("key.pem")
+                .withRef(new AnyLocalRefBuilder()
+                        .withName("test")
+                        .withKind("ConfigMap")
+                        .build())
+                .build();
+
+        String storeType = KafkaProxyReconciler.deriveStoreTypeFromKeySuffix(trustAnchorRef);
+        assertThat(storeType).isEqualTo("PEM");
     }
 
 }
