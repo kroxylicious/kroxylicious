@@ -1,43 +1,29 @@
 {
-  "baseBranchPatterns": [
-    "main"
-  ],
+  "baseBranches": ["main"],
   "rebaseWhen": "conflicted",
-  "labels": [
-    "dependencies"
-  ],
-  "ignorePaths": [
-    ".github/renovate.json"
-  ],
+  "labels": ["dependencies"],
+  "ignorePaths": [".github/renovate.json"],
   "automergeStrategy": "merge-commit",
   "ignoreTests": true,
   "extends": [
-    "config:best-practices",
+    "config:recommended",
     ":gitSignOff"
   ],
   "packageRules": [
     {
-      "matchPackageNames": [
-        "/kubernetes/"
-      ],
+      "matchPackageNames": ["/kubernetes/"],
       "groupName": "kubernetes packages"
     },
     {
-      "matchPackageNames": [
-        "/hashicorp/"
-      ],
+      "matchPackageNames": ["/hashicorp/"],
       "groupName": "hashicorp vault packages"
     },
     {
-      "matchPackageNames": [
-        "/lowkey-vault/"
-      ],
+      "matchPackageNames": ["/lowkey-vault/"],
       "groupName": "lowkey-vault packages"
     },
     {
-      "matchPackageNames": [
-        "/localstack/"
-      ],
+      "matchPackageNames": ["/localstack/"],
       "groupName": "localstack packages"
     }
   ],
@@ -49,11 +35,11 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-hashicorp-vault-test-support/src/main/java/io/kroxylicious/kms/provider/hashicorp/vault/VaultTestKmsFacade.java/",
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-hashicorp-vault/src/test/java/io/kroxylicious/kms/provider/hashicorp/vault/TestVault.java/",
-        "/kroxylicious-systemtests/src/main/resources/helm_vault_overrides.yaml/",
-        "/performance-tests/perf-tests.sh/"
+      "fileMatch": [
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-hashicorp-vault-test-support/src/main/java/io/kroxylicious/kms/provider/hashicorp/vault/VaultTestKmsFacade.java",
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-hashicorp-vault/src/test/java/io/kroxylicious/kms/provider/hashicorp/vault/TestVault.java",
+        "kroxylicious-systemtests/src/main/resources/helm_vault_overrides.yaml",
+        "performance-tests/perf-tests.sh"
       ],
       "matchStrings": [
         "DockerImageName\\.parse\\(\"(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
@@ -65,10 +51,10 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/AzureKeyVaultKmsTestKmsFacade.java/",
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms/src/test/java/io/kroxylicious/kms/provider/azure/keyvault/KeyVaultClientIT.java/",
-        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/LowkeyVault.java/"
+      "fileMatch": [
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/AzureKeyVaultKmsTestKmsFacade.java",
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms/src/test/java/io/kroxylicious/kms/provider/azure/keyvault/KeyVaultClientIT.java",
+        "kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/LowkeyVault.java"
       ],
       "matchStrings": [
         "nagyesta/lowkey-vault:(?<currentValue>\\d+\\.\\d+\\.\\d+)"
@@ -78,8 +64,8 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-systemtests/src/main/resources/helm_cert_manager_overrides.yaml/"
+      "fileMatch": [
+        "kroxylicious-systemtests/src/main/resources/helm_cert_manager_overrides.yaml"
       ],
       "matchStrings": [
         "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
@@ -89,10 +75,9 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java/",
-        "/kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml/"
-      ],
+      "fileMatch": [
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java",
+        "kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml"],
       "matchStrings": [
         "DockerImageName\\.parse\\(\"localstack/localstack:(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
         "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
@@ -102,10 +87,10 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/oauthbearer/BaseOauthBearerIT.java/",
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/OauthServerContainer.java/",
-        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/MockOauthServer.java/"
+      "fileMatch": [
+        "kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/oauthbearer/BaseOauthBearerIT.java",
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/OauthServerContainer.java",
+        "kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/MockOauthServer.java"
       ],
       "matchStrings": [
         "\"(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)"
@@ -114,9 +99,7 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/validation/JsonSchemaRecordValidationIT.java/"
-      ],
+      "fileMatch": ["kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/validation/JsonSchemaRecordValidationIT.java"],
       "matchStrings": [
         "(?<depName>quay.io/apicurio/apicurio-registry-mem):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.\\w+)"
       ],
@@ -126,9 +109,7 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Constants.java/"
-      ],
+      "fileMatch": ["kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Constants.java"],
       "matchStrings": [
         "(?<depName>quay.io/kroxylicious/python-kafka-test-client):(?<verCompatibility>\\d+\\.\\d+\\.\\d+)-(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
@@ -137,9 +118,7 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Constants.java/"
-      ],
+      "fileMatch": ["kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Constants.java"],
       "matchStrings": [
         "(?<depName>quay.io/kroxylicious/kcat):(?<currentValue>\\d+\\.\\d+\\.\\d+)",
         "(?<depName>quay.io/kroxylicious/kaf):(?<currentValue>\\d+\\.\\d+\\.\\d+)",
@@ -149,9 +128,9 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java/",
-        "/DEV_GUIDE.md/"
+      "fileMatch": [
+        "kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java",
+        "DEV_GUIDE.md"
       ],
       "matchStrings": [
         "(?<depName>curlimages/curl):(?<currentValue>\\d+\\.\\d+\\.\\d+)",
@@ -161,8 +140,8 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/.github/workflows/*.yaml/"
+      "fileMatch": [
+        ".github/workflows/*.yaml"
       ],
       "matchStrings": [
         "(?<depName>org.sonarsource.scanner.maven:sonar-maven-plugin):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.\\d+)"
@@ -171,8 +150,8 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/^\\.github\\/actions\\/common\\/setup-minikube\\/.*\\.ya?ml$/"
+      "fileMatch": [
+        "^\\.github\\/actions\\/common\\/setup-minikube\\/.*\\.ya?ml$"
       ],
       "matchStrings": [
         "minikube version.*:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
@@ -182,8 +161,8 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/^\\.github\\/actions\\/common\\/setup-minikube\\/.*\\.ya?ml$/"
+      "fileMatch": [
+        "^\\.github\\/actions\\/common\\/setup-minikube\\/.*\\.ya?ml$"
       ],
       "matchStrings": [
         "kubernetes version.*:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
@@ -193,8 +172,8 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
+      "fileMatch": [
+        "kroxylicious-docs/docs/record-encryption-quickstart/index.adoc"
       ],
       "matchStrings": [
         ":vault-chart-version:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
@@ -204,8 +183,8 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
+      "fileMatch": [
+        "kroxylicious-docs/docs/record-encryption-quickstart/index.adoc"
       ],
       "matchStrings": [
         ":localstack-chart-version:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
@@ -216,8 +195,8 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
+      "fileMatch": [
+        "kroxylicious-docs/docs/record-encryption-quickstart/index.adoc"
       ],
       "matchStrings": [
         ":localstack-chart-version:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
@@ -228,8 +207,8 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
+      "fileMatch": [
+        "kroxylicious-docs/docs/record-encryption-quickstart/index.adoc"
       ],
       "matchStrings": [
         ":strimzi-version:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
@@ -239,8 +218,8 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/values.yaml/"
+      "fileMatch": [
+        "kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/values.yaml"
       ],
       "matchStrings": [
         "(?<depName>quay\\.io/kroxylicious/kroxylicious-omb):(?<currentValue>omb-[a-f0-9]+-krox-[a-f0-9]+-\\d+)"
