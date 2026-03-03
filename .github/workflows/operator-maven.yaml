@@ -90,7 +90,7 @@ jobs:
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: PR_NUMBER
           path: PR_NUMBER.txt
@@ -100,3 +100,5 @@ jobs:
         with:
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The operator maven workflow failed on branch ${{ github.ref_name }}.'
+      - name: 'Clean Kroxylicious Maven packages'
+        uses: ./.github/actions/common/clean-kroxylicious-maven-packages

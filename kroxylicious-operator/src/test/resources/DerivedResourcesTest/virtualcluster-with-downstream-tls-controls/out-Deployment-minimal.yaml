@@ -56,6 +56,15 @@ spec:
               name: "management"
             - containerPort: 9291
               name: "shared-sni-port"
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/livez"
+              port: "management"
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            successThreshold: 1
+            timeoutSeconds: 1
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
