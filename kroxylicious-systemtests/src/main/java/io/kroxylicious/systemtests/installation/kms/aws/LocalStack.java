@@ -81,6 +81,7 @@ public class LocalStack implements AwsKmsClient {
         var client = HttpClient.newHttpClient();
         Awaitility.await()
                 .atMost(30, TimeUnit.SECONDS)
+                .ignoreExceptions()
                 .until(() -> {
                     LOGGER.info("Probing localstack endpoint for responsiveness.");
                     var probeUri = getAwsKmsUrl().resolve("/notfound");
