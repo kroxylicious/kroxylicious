@@ -30,6 +30,7 @@ Options:
 
 Environment:
   NAMESPACE                 Kubernetes namespace (default: kafka)
+  JFR_PVC_NAME              Name of the PVC holding the JFR recording (set by run-benchmark.sh)
 
 Prerequisites:
   - kubectl configured with access to the cluster
@@ -94,20 +95,37 @@ while IFS= read -r file; do
     kubectl cp "$NAMESPACE/$POD:$BENCHMARK_RESULTS_DIR/$file" "$OUTPUT_DIR/$file"
 done <<< "$RESULT_FILES"
 
-# Copy JFR recording from proxy pod if present
-PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
+# Copy JFR recording from PVC if one was created by run-benchmark.sh
+JFR_PVC_NAME="${JFR_PVC_NAME:-}"
 JFR_FILE="/tmp/benchmark.jfr"
 
-PROXY_POD=$(kubectl get pod -n "$NAMESPACE" -l "$PROXY_POD_LABEL" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
-if [[ -n "$PROXY_POD" ]]; then
-    echo "Copying JFR recording from proxy pod $PROXY_POD..."
-    # kubectl cp requires tar in the container; use cat via exec instead
-    if kubectl exec -n "$NAMESPACE" "$PROXY_POD" -- cat "$JFR_FILE" > "$OUTPUT_DIR/benchmark.jfr" 2>/dev/null; then
-        echo "  benchmark.jfr"
-    else
-        rm -f "$OUTPUT_DIR/benchmark.jfr"
-        echo "Warning: JFR file not found on proxy pod (was the proxy running with a JDK image?)"
-    fi
+if [[ -n "${JFR_PVC_NAME}" ]] && kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
+    echo "Copying JFR recording from PVC ${JFR_PVC_NAME}..."
+    DEBUG_POD="jfr-collect-$$"
+    kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${DEBUG_POD}
+  namespace: ${NAMESPACE}
+spec:
+  restartPolicy: Never
+  volumes:
+  - name: jfr
+    persistentVolumeClaim:
+      claimName: ${JFR_PVC_NAME}
+  containers:
+  - name: debug
+    image: busybox
+    command: ["sleep", "infinity"]
+    volumeMounts:
+    - name: jfr
+      mountPath: /tmp
+EOF
+    kubectl wait pod "${DEBUG_POD}" -n "${NAMESPACE}" --for=condition=ready --timeout=60s
+    kubectl cp "${NAMESPACE}/${DEBUG_POD}:${JFR_FILE}" "${OUTPUT_DIR}/benchmark.jfr"
+    kubectl delete pod "${DEBUG_POD}" -n "${NAMESPACE}" --ignore-not-found
+    echo "  benchmark.jfr"
 fi
 
 # Generate run metadata

@@ -6,16 +6,14 @@
 
 # Patches the proxy Deployment to enable JFR recording.
 #
-# - Mounts a writable emptyDir at /tmp so jcmd's attach mechanism can create
-#   its socket file (the proxy container has a read-only root filesystem).
-# - Sets JAVA_TOOL_OPTIONS to start a JFR recording at JVM startup, avoiding
-#   the need for a separate jcmd JFR.start call which can OOM the container.
+# - Mounts a PVC at /tmp so the JFR recording survives pod termination and can
+#   be collected after the proxy has been scaled to zero.
+# - Sets JAVA_TOOL_OPTIONS to start a JFR recording at JVM startup with
+#   dumponexit=true so the recording is written to /tmp/benchmark.jfr when the
+#   JVM shuts down gracefully (i.e. when the pod is scaled to zero).
 #
-# After the benchmark completes, run-benchmark.sh uses jcmd JFR.dump to write
-# the recording to /tmp/benchmark.jfr for collection.
-#
-# The PROXY_DEPLOYMENT and NAMESPACE placeholders are substituted by the script
-# using envsubst before applying.
+# The PROXY_DEPLOYMENT, NAMESPACE, JFR_PVC_NAME, and JFR_MAX_SIZE placeholders
+# are substituted by the script using envsubst before applying.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,12 +24,13 @@ spec:
     spec:
       volumes:
       - name: jfr-tmp
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: ${JFR_PVC_NAME}
       containers:
       - name: proxy
         env:
         - name: JAVA_TOOL_OPTIONS
-          value: "-XX:StartFlightRecording=name=benchmark,settings=profile,maxsize=64m,disk=true,filename=/tmp/benchmark.jfr"
+          value: "-XX:StartFlightRecording=name=benchmark,settings=profile,maxsize=${JFR_MAX_SIZE},disk=true,dumponexit=true,filename=/tmp/benchmark.jfr"
         volumeMounts:
         - name: jfr-tmp
           mountPath: /tmp

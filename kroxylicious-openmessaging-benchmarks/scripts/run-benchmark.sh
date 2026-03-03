@@ -19,6 +19,13 @@ METRICS_INTERVAL="${METRICS_INTERVAL:-30}"
 
 PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
 
+# JFR configuration
+JFR_MAX_SIZE_MB="${JFR_MAX_SIZE_MB:-64}"
+JFR_MAX_SIZE="${JFR_MAX_SIZE_MB}m"
+JFR_PVC_SIZE_MI=$(( JFR_MAX_SIZE_MB * 110 / 100 ))
+JFR_PVC_SIZE="${JFR_PVC_SIZE_MI}Mi"
+JFR_PVC_NAME="${HELM_RELEASE}-jfr"
+
 usage() {
     cat >&2 <<EOF
 Usage: $(basename "$0") [--profile <values-file>] <scenario> <workload> <output-dir>
@@ -46,6 +53,7 @@ Environment:
   KAFKA_READY_TIMEOUT    Timeout waiting for Kafka to be ready (default: 600s)
   POD_READY_TIMEOUT      Timeout waiting for pods to be ready (default: 300s)
   METRICS_INTERVAL       Proxy metrics polling interval in seconds (default: 30)
+  JFR_MAX_SIZE_MB        Maximum size of the JFR recording in megabytes (default: 64)
 
 Examples:
   $(basename "$0") baseline 1topic-1kb ./results/baseline/
@@ -112,6 +120,8 @@ teardown() {
     fi
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found
+    # Delete JFR PVC if one was created
+    kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found
     echo "Teardown complete."
 }
 
@@ -189,19 +199,25 @@ echo "OMB pods are ready."
 # --- Start JFR recording on proxy pod (if present) ---
 
 PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
-JFR_FILE="/tmp/benchmark.jfr"
+PROXY_DEPLOYMENT=""
+PROXY_POD=""
 
 PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
 if [[ -n "${PROXY_POD}" ]]; then
-    # The proxy container has a read-only root filesystem. Patch the deployment
-    # via SSA to add a writable emptyDir at /tmp so jcmd's attach mechanism and
-    # the JFR output file both have somewhere to write.
     PROXY_DEPLOYMENT=$(kubectl get deployment -n "${NAMESPACE}" \
         -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
-    echo "Patching proxy deployment ${PROXY_DEPLOYMENT} to mount writable /tmp for JFR..."
+
+    echo "Creating JFR PVC ${JFR_PVC_NAME} (${JFR_PVC_SIZE})..."
+    JFR_PVC_NAME="${JFR_PVC_NAME}" NAMESPACE="${NAMESPACE}" JFR_PVC_SIZE="${JFR_PVC_SIZE}" \
+        envsubst '${JFR_PVC_NAME} ${NAMESPACE} ${JFR_PVC_SIZE}' \
+        < "${HELM_CHART}/patches/proxy-jfr-pvc.yaml" \
+        | kubectl apply -f -
+
+    echo "Patching proxy deployment ${PROXY_DEPLOYMENT} to mount JFR PVC at /tmp..."
     PROXY_DEPLOYMENT="${PROXY_DEPLOYMENT}" NAMESPACE="${NAMESPACE}" \
-        envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE}' \
+        JFR_PVC_NAME="${JFR_PVC_NAME}" JFR_MAX_SIZE="${JFR_MAX_SIZE}" \
+        envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE} ${JFR_PVC_NAME} ${JFR_MAX_SIZE}' \
         < "${HELM_CHART}/patches/proxy-jfr-tmp.yaml" \
         | kubectl apply --server-side --field-manager=benchmark-jfr -f -
     echo "Waiting for proxy deployment rollout after patch..."
@@ -212,10 +228,7 @@ if [[ -n "${PROXY_POD}" ]]; then
     # Re-fetch pod name — it changed after the rollout
     PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
-    # JFR starts automatically via JAVA_TOOL_OPTIONS set in the patch.
-    # disk=true means the JVM streams chunks to /tmp/benchmark.jfr continuously,
-    # so no jcmd dump is needed — collect-results.sh just cats the file.
-    echo "JFR recording active on proxy pod ${PROXY_POD}"
+    echo "JFR recording active on proxy pod ${PROXY_POD} (maxsize=${JFR_MAX_SIZE})"
 fi
 
 # --- Run benchmark ---
@@ -227,6 +240,17 @@ echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
 kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
     sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 
+# --- Trigger JFR dump by scaling proxy to zero ---
+
+if [[ -n "${PROXY_DEPLOYMENT}" ]]; then
+    echo ""
+    echo "--- Dumping JFR recording ---"
+    echo "Scaling down proxy deployment to trigger JFR dumponexit..."
+    kubectl scale deployment "${PROXY_DEPLOYMENT}" -n "${NAMESPACE}" --replicas=0
+    kubectl wait pod "${PROXY_POD}" -n "${NAMESPACE}" --for=delete --timeout="${POD_READY_TIMEOUT}"
+    echo "JFR dump complete."
+fi
+
 stop_metrics_poller
 
 # --- Collect results ---
@@ -234,7 +258,7 @@ stop_metrics_poller
 echo ""
 echo "--- Collecting results ---"
 mkdir -p "${OUTPUT_DIR}"
-"${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
+JFR_PVC_NAME="${JFR_PVC_NAME}" "${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
 
 echo ""
 echo "=== Benchmark complete: ${SCENARIO} / ${WORKLOAD} ==="
