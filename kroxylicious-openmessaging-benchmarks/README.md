@@ -50,7 +50,7 @@ When registry variables are not configured (e.g. on forks), the image is built b
 
 A Renovate custom manager in `/.github/renovate.json` (in the repository root) tracks the `omb.image` reference in `values.yaml` and opens PRs when new image builds are pushed to the registry.
 
-## Current Status: Phase 3 Complete ✅
+## Current Status: Phase 4 Complete ✅
 
 **Phase 1 (Baseline Scenario)** — complete:
 - Helm chart foundation
@@ -68,6 +68,10 @@ A Renovate custom manager in `/.github/renovate.json` (in the repository root) t
 - `setup-cluster.sh` — one-time operator installation (Strimzi + Kroxylicious)
 - `run-benchmark.sh` — end-to-end scenario execution with automatic teardown
 - `run-all-scenarios.sh` — runs baseline and proxy-no-filters, produces comparison
+
+**Phase 4 (Proxy Metrics Collection)** — complete:
+- `poll-proxy-metrics.sh` — polls proxy management endpoint during benchmark runs
+- Prometheus snapshots written to `proxy-metrics.txt` alongside OMB result JSON
 
 ## Architecture
 
@@ -93,7 +97,8 @@ kroxylicious-openmessaging-benchmarks/
 │   ├── run-benchmark.sh          # Run one scenario end-to-end (deploy → benchmark → teardown)
 │   ├── run-all-scenarios.sh      # Run baseline + proxy-no-filters and compare
 │   ├── compare-results.sh        # Compare two OMB result files (JBang wrapper)
-│   └── collect-results.sh        # Collect results and generate metadata (JBang wrapper)
+│   ├── collect-results.sh        # Collect results and generate metadata (JBang wrapper)
+│   └── poll-proxy-metrics.sh     # Poll proxy /metrics during a run (started by run-benchmark.sh)
 ├── src/main/java/.../results/
 │   ├── OmbResult.java             # Jackson model for OMB result JSON
 │   ├── ResultComparator.java      # Comparison logic: two OmbResults → formatted table
@@ -296,6 +301,23 @@ JBang-based CLI tools for working with OMB result files. Requires [JBang](https:
 ```
 
 Outputs a table with Publish Latency, End-to-End Latency, and Throughput sections showing baseline vs candidate values with deltas and percentage changes.
+
+### Proxy Metrics
+
+For proxy scenarios, `run-benchmark.sh` automatically polls the proxy management endpoint
+(`/metrics` on port 9190) throughout the benchmark run, writing timestamped Prometheus
+snapshots to `proxy-metrics.txt` in the output directory. Baseline scenario runs produce
+no metrics file (there is no proxy pod).
+
+Each snapshot is preceded by a `benchmark_sample_timestamp_seconds` gauge metric containing
+the Unix epoch of that sample, making it straightforward to align metrics to the benchmark
+timeline or graph them with external tooling.
+
+The polling interval defaults to 30 seconds and can be overridden with `METRICS_INTERVAL`:
+
+```bash
+METRICS_INTERVAL=10 ./scripts/run-benchmark.sh proxy-no-filters 1topic-1kb ./results/
+```
 
 ### Collect Results
 
