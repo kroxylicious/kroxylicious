@@ -15,7 +15,7 @@ class TrustAnchorRefTest {
     @Test
     // we knowingly use equals across types because we want the property that specific LocalRef types are equal to any other LocalRef
     // with the same group, kind and name.
-    @SuppressWarnings("java:S5845")
+    @SuppressWarnings({ "java:S5845", "java:S5853" })
     void shouldRespectEqualsAndHashCode() {
         var secretRefFoo = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build()).withKey("key")
                 .withStoreType("PEM").build();

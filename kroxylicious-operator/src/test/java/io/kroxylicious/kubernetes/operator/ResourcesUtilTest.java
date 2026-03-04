@@ -77,6 +77,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.Mockito.anyString;
@@ -940,10 +941,11 @@ class ResourcesUtilTest {
                         (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced Kafka resource not found")));
     }
 
-    @Test
-    void testDeriveStoreTypeFromKeySuffix() {
+    @ParameterizedTest
+    @CsvSource(value = { "key.pem, PEM", "key.jks, JKS", "key.p12, PKCS12" })
+    void testDeriveStoreTypeFromKeySuffix(String key, String expectedStoreType) {
         TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder()
-                .withKey("key.pem")
+                .withKey(key)
                 .withRef(new AnyLocalRefBuilder()
                         .withName("test")
                         .withKind("ConfigMap")
@@ -951,6 +953,21 @@ class ResourcesUtilTest {
                 .build();
 
         String storeType = ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef);
-        assertThat(storeType).isEqualTo("PEM");
+        assertThat(storeType).isEqualTo(expectedStoreType);
+    }
+
+    @Test
+    void testFailToDeriveStoreTypeFromKeySuffix() {
+        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder()
+                .withKey("key")
+                .withRef(new AnyLocalRefBuilder()
+                        .withName("test")
+                        .withKind("ConfigMap")
+                        .build())
+                .build();
+
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef))
+                .withMessage("No file extension associated to the data key: key");
     }
 }
