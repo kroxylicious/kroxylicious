@@ -83,7 +83,8 @@
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/LowkeyVault.java/"
       ],
       "matchStrings": [
-        "nagyesta/lowkey-vault:(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\""
+        "nagyesta/lowkey-vault:(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
+        "nagyesta/lowkey-vault:(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "nagyesta/lowkey-vault",
       "datasourceTemplate": "docker"
