@@ -106,7 +106,7 @@ spec:
                       type: string
                 openShiftRoute:
                   description: |-
-                    specifies that this ingress is for access from outside the OpenShift cluster via an OpenShift Route.
+                    specifies that this ingress is for access from outside the OpenShift cluster via OpenShift Routes.
                   type: object
             status:
               type: object
