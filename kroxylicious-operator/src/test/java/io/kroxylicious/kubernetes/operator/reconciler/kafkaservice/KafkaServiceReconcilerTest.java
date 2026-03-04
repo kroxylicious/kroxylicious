@@ -416,7 +416,7 @@ class KafkaServiceReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_INVALID,
-                                    "spec.tls.trustAnchorRef.key should end with .pem, .p12 or .jks or use the `storeType` field to specify the store type explicitly")));
+                                    "spec.tls.trustAnchorRef.key should end with .pem, .p12 or .jks or use the `storeType` field to specify the format of the key store explicitly")));
         }
 
         // no client cert, pem trust bundle
@@ -479,7 +479,6 @@ class KafkaServiceReconcilerTest {
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewTls()
-                                    .withCertificateRef(null)
                                     .withNewTrustAnchorRef()
                                         .withNewRef()
                                             .withName("my-configmap")

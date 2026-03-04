@@ -552,7 +552,7 @@ public class ResourcesUtil {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_INVALID,
                         path + ".key should end with .pem, .p12 or .jks or"
-                                + " use the `storeType` field to specify the store type explicitly"),
+                                + " use the `storeType` field to specify the format of the key store explicitly"),
                         List.of());
             }
             else {
