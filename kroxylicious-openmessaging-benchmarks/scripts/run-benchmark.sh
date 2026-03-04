@@ -257,7 +257,7 @@ if [[ -n "${PROXY_DEPLOYMENT}" ]]; then
         echo "Warning: could not find JVM PID — skipping JFR dump" >&2
     else
         kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-            sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.dump name=benchmark filename=/tmp/benchmark.jfr"
+            sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.stop name=benchmark filename=/tmp/benchmark.jfr"
     fi
     echo "JFR dump complete."
 fi
