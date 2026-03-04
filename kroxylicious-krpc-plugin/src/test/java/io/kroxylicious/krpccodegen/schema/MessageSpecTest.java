@@ -31,7 +31,7 @@ class MessageSpecTest {
     private MessageSpec nestedTopicNameMessageSpec;
 
     @BeforeEach
-    void setUp() throws JsonProcessingException {
+    void setUp() {
         groupIdMessageSpec = definitionToMessageSpec("""
                   {
                     "apiKey": 11,
