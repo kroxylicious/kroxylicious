@@ -23,10 +23,13 @@ import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.admin.ListConfigResourcesOptions;
+import org.apache.kafka.clients.admin.ListShareGroupOffsetsSpec;
+import org.apache.kafka.clients.admin.ShareGroupDescription;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.KafkaShareConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.GroupState;
@@ -36,6 +39,7 @@ import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.coordinator.group.GroupConfig;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
@@ -96,6 +100,12 @@ class EntityIsolationIT {
         ensureGroupIsolationMaintained(consumerStyle, cluster, topic, true);
     }
 
+    @Test
+    void describeShareGroupMaintainsGroupIsolation(Topic topic) {
+
+        ensureShareGroupIsolationMaintained(cluster, topic, true);
+    }
+
     /**
      * Group isolation - list groups.
      * <br/>
@@ -131,6 +141,34 @@ class EntityIsolationIT {
             else {
                 verifyConsumerGroupsWithList(aliceAdmin, Set.of("AliceGroup"));
                 verifyConsumerGroupsWithList(bobAdmin, Set.of("BobGroup"));
+            }
+        }
+    }
+
+    private void ensureShareGroupIsolationMaintained(KafkaCluster cluster, Topic topic, boolean useDescribe) {
+        var configBuilder = buildProxyConfig(cluster);
+
+        var aliceConfig = buildClientConfig("alice", "pwd");
+        var bobConfig = buildClientConfig("bob", "pwd");
+        try (var tester = kroxyliciousTester(configBuilder);
+                var aliceAdmin = tester.admin(aliceConfig);
+                var bobAdmin = tester.admin(bobConfig)) {
+
+            try (var producer = tester.producer(aliceConfig)) {
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
+
+            runConsumerInOrderToCreateShareGroup(tester, "AliceGroup", topic, aliceConfig);
+            runConsumerInOrderToCreateShareGroup(tester, "BobGroup", topic, bobConfig);
+
+            if (useDescribe) {
+                verifyShareConsumerGroupsWithDescribe(aliceAdmin, Set.of("AliceGroup"), Set.of("BobGroup", "idontexist"));
+                verifyShareConsumerGroupsWithDescribe(bobAdmin, Set.of("BobGroup"), Set.of("AliceGroup", "idontexist"));
+            }
+            else {
+                verifyShareConsumerGroupsWithList(aliceAdmin, Set.of("AliceGroup"));
+                verifyShareConsumerGroupsWithList(bobAdmin, Set.of("BobGroup"));
             }
         }
     }
@@ -365,8 +403,33 @@ class EntityIsolationIT {
         });
     }
 
+    private void verifyShareConsumerGroupsWithDescribe(Admin admin, Set<String> expectedPresent, Set<String> expectedAbsent) {
+        assertThat(admin.describeShareGroups(expectedPresent).all())
+                .succeedsWithin(Duration.ofSeconds(5))
+                .asInstanceOf(map(String.class, ShareGroupDescription.class))
+                .allSatisfy((s, shareGroupDescription) -> assertThat(shareGroupDescription.groupState()).isNotIn(GroupState.DEAD));
+
+        expectedAbsent.forEach(absent -> {
+            var set = Set.of(absent);
+            assertThat(admin.describeShareGroups(set).all())
+                    .withFailMessage("Expected group %s to be reported absent but was not", absent)
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableThat()
+                    .havingRootCause()
+                    .isInstanceOf(GroupIdNotFoundException.class);
+        });
+    }
+
     private void verifyConsumerGroupsWithList(Admin admin, Set<String> expected) {
         assertThat(admin.listGroups().all())
+                .succeedsWithin(Duration.ofSeconds(5))
+                .asInstanceOf(collection(GroupListing.class))
+                .extracting(GroupListing::groupId)
+                .containsExactlyInAnyOrderElementsOf(expected);
+    }
+
+    private void verifyShareConsumerGroupsWithList(Admin admin, Set<String> expected) {
+        assertThat(admin.listShareGroupOffsets(Map.of("foo", new ListShareGroupOffsetsSpec().topicPartitions(List.of(new TopicPartition("bar", 0))))).all())
                 .succeedsWithin(Duration.ofSeconds(5))
                 .asInstanceOf(collection(GroupListing.class))
                 .extracting(GroupListing::groupId)
@@ -406,6 +469,34 @@ class EntityIsolationIT {
             var zeroOffset = new OffsetAndMetadata(0);
             consumer.commitSync(consumer.assignment().stream().collect(Collectors.toMap(Function.identity(), a -> zeroOffset)));
         }
+    }
+
+    private void runConsumerInOrderToCreateShareGroup(KroxyliciousTester tester,
+                                                      String groupId,
+                                                      Topic topic,
+                                                      Map<String, Object> saslConfig) {
+        var consumerConfig = new HashMap<>(saslConfig);
+        consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+
+        try (var admin = tester.admin(saslConfig)) {
+            prepareClusterForShareGroups(admin, groupId);
+        }
+        consumerConfig.putAll(tester.clientConfiguration());
+        consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        try (var shareConsumer = new KafkaShareConsumer<>(consumerConfig)) {
+            shareConsumer.subscribe(List.of(topic.name()));
+            var recs = shareConsumer.poll(Duration.ofSeconds(10));
+            assertThat(recs).hasSize(1);
+        }
+    }
+
+    private static void prepareClusterForShareGroups(Admin admin, String groupName) {
+        ConfigResource configResource = new ConfigResource(ConfigResource.Type.GROUP, groupName);
+        ConfigEntry autoOffsetReset = new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest");
+        List<AlterConfigOp> alterConfig = List.of(new AlterConfigOp(autoOffsetReset, AlterConfigOp.OpType.SET));
+        assertThat(admin.incrementalAlterConfigs(Map.of(configResource, alterConfig)).all())
+                .succeedsWithin(Duration.ofSeconds(5));
     }
 
     private static class PartitionAssignmentAwaitingRebalanceListener<K, V> implements ConsumerRebalanceListener {
