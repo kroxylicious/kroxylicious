@@ -121,7 +121,7 @@ spec:
                           type: string
                           default: ""
                         storeType:
-                          description: The store type of the certificate
+                          description: The format of the key store containing the trusted CA certificates.
                           type: string
                           enum:
                             - PEM

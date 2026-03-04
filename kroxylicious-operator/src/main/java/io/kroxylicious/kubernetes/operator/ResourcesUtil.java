@@ -52,6 +52,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 
@@ -683,23 +684,26 @@ public class ResourcesUtil {
             case "p12" -> "PKCS12";
             case "jks" -> "JKS";
             case "pem" -> "PEM";
-            default -> throw new IllegalArgumentException("Cannot derive trust store type from the file extension of the data key '"
+            case null, default -> throw new IllegalArgumentException("Cannot derive trust store type from the file extension of the data key '"
                     + trustAnchorRef.getKey() + "' (extension '" + ext + "')");
         };
     }
 
     /**
-     * Gets the extension of the key
+     * Determines the store type by extracting the extension from a ConfigMap or Secret key.
+     * Assumes the key follows a filename-like format where the trailing extension
+     * represents the store format (e.g., "key.pem" returns "pem").
      */
+    @Nullable
     static String getKeyExtension(String key) {
 
         int lastIndex = key.lastIndexOf('.');
 
-        if (lastIndex > 0 && lastIndex < key.length() - 1) {
+        if (lastIndex != -1 && lastIndex < key.length() - 1) {
             return key.substring(lastIndex + 1);
         }
 
-        return "";
+        return null;
     }
 
     public static boolean isSecret(TrustAnchorRef trustAnchorRef) {

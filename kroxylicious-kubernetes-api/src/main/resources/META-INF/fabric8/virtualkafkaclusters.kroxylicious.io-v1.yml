@@ -159,7 +159,7 @@ spec:
                                 description: The name of the resource containing the TLS trust anchor(s).
                                 type: string
                               storeType:
-                                description: The store type of the certificate
+                                description: The format of the key store containing the trusted CA certificates.
                                 type: string
                                 enum:
                                   - PEM

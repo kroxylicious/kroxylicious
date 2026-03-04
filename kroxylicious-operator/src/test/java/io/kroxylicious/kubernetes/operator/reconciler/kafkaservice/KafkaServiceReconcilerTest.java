@@ -475,10 +475,20 @@ class KafkaServiceReconcilerTest {
             mockGetKafka(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(CRT_CONFIG_MAP));
             result.add(Arguments.argumentSet("crt trust bundle of pem store type",
-                    new KafkaServiceBuilder(SERVICE).editSpec().withStrimziKafkaRef(null).editTls()
-                            .withCertificateRef(null)
-                            .editTrustAnchorRef().withKey("ca-bundle.crt").withStoreType("PEM").endTrustAnchorRef()
-                            .endTls().endSpec().build(),
+                    new KafkaServiceBuilder(SERVICE)
+                            .withNewSpec()
+                                .withNewTls()
+                                    .withCertificateRef(null)
+                                    .withNewTrustAnchorRef()
+                                        .withNewRef()
+                                            .withName("my-configmap")
+                                        .endRef()
+                                        .withKey("ca-bundle.crt")
+                                        .withStoreType("PEM")
+                                    .endTrustAnchorRef()
+                                .endTls()
+                            .endSpec()
+                            .build(),
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
