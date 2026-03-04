@@ -7,7 +7,6 @@
 package io.kroxylicious.systemtests.extensions;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -24,7 +23,8 @@ import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 import io.kroxylicious.systemtests.logs.TestLogCollector;
-import io.kroxylicious.systemtests.utils.TestUtils;
+
+import static io.kroxylicious.systemtests.utils.TestUtils.isAbortedTest;
 
 public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider {
     private static final TestLogCollector logCollector = TestLogCollector.getInstance();
@@ -68,10 +68,9 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                     },
                     (AfterEachCallback) extensionContext -> {
                         try {
-                            Optional<Throwable> exception = extensionContext.getExecutionException();
-                            exception.filter(TestUtils::isNotExceptionToSkipTest).ifPresent(e -> {
+                            if (!isAbortedTest(extensionContext)) {
                                 logCollector.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
-                            });
+                            }
                         }
                         finally {
                             kmsFacade.stop();

@@ -298,7 +298,7 @@ class RecordEncryptionST extends AbstractSystemTests {
     }
 
     private boolean isVaultKms(TestKmsFacade<?, ?, ?> testKmsFacade) {
-        LOGGER.info("Checking if Vault Kms is used");
+        LOGGER.debug("Checking if Vault Kms is used");
         return testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().startsWith("vault");
     }
 }

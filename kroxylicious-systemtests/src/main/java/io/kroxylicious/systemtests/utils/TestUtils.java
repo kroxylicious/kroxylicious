@@ -15,8 +15,10 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Optional;
 import java.util.Set;
 
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.opentest4j.TestAbortedException;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -133,14 +135,12 @@ public class TestUtils {
     }
 
     /**
-     * Check if exception is not thrown to skip the test
-     * @param throwable the exception
-     * @return false if test has been skipped, true otherwise
+     * Check if the test is aborted
+     * @param extensionContext the extension context
+     * @return false if test has been aborted, true otherwise
      */
-    public static boolean isNotExceptionToSkipTest(Throwable throwable) {
-        if (throwable == null) {
-            return true;
-        }
-        return !(throwable instanceof TestAbortedException);
+    public static boolean isAbortedTest(ExtensionContext extensionContext) {
+        Optional<Throwable> exception = extensionContext.getExecutionException();
+        return exception.filter(t -> t instanceof TestAbortedException).isPresent();
     }
 }
