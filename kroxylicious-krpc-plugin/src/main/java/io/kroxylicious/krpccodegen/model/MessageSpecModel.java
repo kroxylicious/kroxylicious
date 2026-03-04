@@ -59,12 +59,14 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
         return spec;
     }
 
+    @SuppressWarnings("java:S3740") // The Freemaker API is in terms of raw Lists
     private boolean handleHasAtLeastOneEntityField(List args) throws TemplateModelException {
         var seq = ModelUtils.modelArgsToSimpleSequence(args, wrapper);
         var set = ModelUtils.asEnumSet(seq, EntityType.class);
         return spec.hasAtLeastOneEntityField(set);
     }
 
+    @SuppressWarnings("java:S3740") // The Freemaker API is in terms of raw Lists
     private List<Short> handleIntersectedVersionsForEntityFields(List args) throws TemplateModelException {
         var seq = ModelUtils.modelArgsToSimpleSequence(args, wrapper);
         var set = ModelUtils.asEnumSet(seq, EntityType.class);

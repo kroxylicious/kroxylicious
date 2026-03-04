@@ -59,6 +59,7 @@ class FieldSpecModel implements TemplateHashModel, AdapterTemplateModel {
         return false;
     }
 
+    @SuppressWarnings("java:S3740") // The Freemaker API is in terms of raw Lists
     private boolean handleHasAtLeastOneEntityField(List args) throws TemplateModelException {
         var seq = ModelUtils.modelArgsToSimpleSequence(args, wrapper);
         var set = ModelUtils.asEnumSet(seq, EntityType.class);
