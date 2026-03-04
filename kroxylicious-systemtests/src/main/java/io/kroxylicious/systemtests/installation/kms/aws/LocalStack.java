@@ -7,10 +7,15 @@
 package io.kroxylicious.systemtests.installation.kms.aws;
 
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +71,35 @@ public class LocalStack implements AwsKmsClient {
                 Optional.empty(),
                 Optional.of(Path.of(TestUtils.getResourcesURI("helm_localstack_overrides.yaml"))),
                 Optional.of(Map.of("image.repository", Constants.DOCKER_REGISTRY_GCR_MIRROR + "/" + LOCALSTACK_HELM_CHART_NAME)));
+
+        pingLocalStackEndpoint();
+    }
+
+    // Experimental workaround for https://github.com/kroxylicious/kroxylicious/issues/3362
+    @SuppressWarnings("java:S2095") // try-with-resources for "HttpClient" is not available until we adopt JDK21
+    private void pingLocalStackEndpoint() {
+        var client = HttpClient.newHttpClient();
+        Awaitility.await()
+                .atMost(30, TimeUnit.SECONDS)
+                .ignoreExceptions()
+                .until(() -> {
+                    LOGGER.info("Probing localstack endpoint for responsiveness.");
+                    var probeUri = getAwsKmsUrl().resolve("/notfound");
+                    var request = HttpRequest.newBuilder()
+                            .uri(probeUri) // Intent is to deliberately provoke a 404
+                            .GET()
+                            .build();
+
+                    var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                    LOGGER.debug("Probe {} gave response {}/{}.", probeUri, response.body(), response.statusCode());
+                    if (response.statusCode() != 404) {
+                        throw new IllegalStateException("Localstack %s endpoint seems not to be responsive.".formatted(getAwsKmsUrl()));
+                    }
+                    else {
+                        LOGGER.info("Endpoint {} seems to be minimally responsive.", getAwsKmsUrl());
+                        return true;
+                    }
+                });
     }
 
     @Override
