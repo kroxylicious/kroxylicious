@@ -3,6 +3,7 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
+
 metadata:
   apiKeys: "ADD_PARTITIONS_TO_TXN"
   apiVersion: 5
