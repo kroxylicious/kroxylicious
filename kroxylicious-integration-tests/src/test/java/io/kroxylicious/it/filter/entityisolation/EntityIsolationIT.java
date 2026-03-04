@@ -100,10 +100,35 @@ class EntityIsolationIT {
         ensureGroupIsolationMaintained(consumerStyle, cluster, topic, true);
     }
 
+    /**
+     * Share Group isolation - describe groups.
+     * <br/>
+     * Alice and Bob both consume from the same topic using distinct own group names.
+     * Test uses describeShareConsumerGroups to ensure that Alice only sees her group and Bob only sees his.
+     *
+     * @param topic topic
+     */
     @Test
     void describeShareGroupMaintainsGroupIsolation(Topic topic) {
+        var configBuilder = buildProxyConfig(cluster);
 
-        ensureShareGroupIsolationMaintained(cluster, topic, true);
+        var aliceConfig = buildClientConfig("alice", "pwd");
+        var bobConfig = buildClientConfig("bob", "pwd");
+        try (var tester = kroxyliciousTester(configBuilder);
+                var aliceAdmin = tester.admin(aliceConfig);
+                var bobAdmin = tester.admin(bobConfig)) {
+
+            try (var producer = tester.producer(aliceConfig)) {
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
+
+            runConsumerInOrderToCreateShareGroup(tester, "AliceGroup", topic, aliceConfig);
+            runConsumerInOrderToCreateShareGroup(tester, "BobGroup", topic, bobConfig);
+
+            verifyShareConsumerGroupsWithDescribe(aliceAdmin, Set.of("AliceGroup"), Set.of("BobGroup", "idontexist"));
+            verifyShareConsumerGroupsWithDescribe(bobAdmin, Set.of("BobGroup"), Set.of("AliceGroup", "idontexist"));
+        }
     }
 
     /**
@@ -145,7 +170,7 @@ class EntityIsolationIT {
         }
     }
 
-    private void ensureShareGroupIsolationMaintained(KafkaCluster cluster, Topic topic, boolean useDescribe) {
+    private void ensureShareGroupIsolationMaintained(KafkaCluster cluster, Topic topic) {
         var configBuilder = buildProxyConfig(cluster);
 
         var aliceConfig = buildClientConfig("alice", "pwd");
@@ -162,14 +187,8 @@ class EntityIsolationIT {
             runConsumerInOrderToCreateShareGroup(tester, "AliceGroup", topic, aliceConfig);
             runConsumerInOrderToCreateShareGroup(tester, "BobGroup", topic, bobConfig);
 
-            if (useDescribe) {
-                verifyShareConsumerGroupsWithDescribe(aliceAdmin, Set.of("AliceGroup"), Set.of("BobGroup", "idontexist"));
-                verifyShareConsumerGroupsWithDescribe(bobAdmin, Set.of("BobGroup"), Set.of("AliceGroup", "idontexist"));
-            }
-            else {
-                verifyShareConsumerGroupsWithList(aliceAdmin, Set.of("AliceGroup"));
-                verifyShareConsumerGroupsWithList(bobAdmin, Set.of("BobGroup"));
-            }
+            verifyShareConsumerGroupsWithDescribe(aliceAdmin, Set.of("AliceGroup"), Set.of("BobGroup", "idontexist"));
+            verifyShareConsumerGroupsWithDescribe(bobAdmin, Set.of("BobGroup"), Set.of("AliceGroup", "idontexist"));
         }
     }
 
