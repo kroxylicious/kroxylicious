@@ -474,6 +474,7 @@ class KafkaServiceReconcilerTest {
             mockGetSecret(context, Optional.empty());
             mockGetKafka(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(CRT_CONFIG_MAP));
+            // @formatter:off
             result.add(Arguments.argumentSet("crt trust bundle of pem store type",
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
@@ -489,6 +490,7 @@ class KafkaServiceReconcilerTest {
                                 .endTls()
                             .endSpec()
                             .build(),
+                    // @formatter:on
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
