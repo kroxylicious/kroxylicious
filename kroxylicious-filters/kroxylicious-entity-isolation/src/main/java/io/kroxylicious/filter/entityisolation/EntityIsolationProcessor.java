@@ -16,7 +16,10 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage> {
+import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.UnknownNullness;
+
+interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C> {
 
     default boolean shouldHandleRequest(short apiVersion) {
         return false;
@@ -37,10 +40,15 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage> {
 
     default CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
                                                              short apiVersion,
+                                                             @UnknownNullness C correlatedRequestContext,
                                                              S response,
                                                              FilterContext filterContext,
                                                              MapperContext mapperContext) {
         return filterContext.forwardResponse(header, response);
     }
 
+    @Nullable
+    default C createCorrelatedRequestContext(Q request) {
+        return null;
+    }
 }

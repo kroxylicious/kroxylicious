@@ -119,6 +119,9 @@ class EntityIsolationFilterTest {
         if (!mockUpstream.isFinished()) {
             throw new IllegalStateException("test has finished, but mock responses are still queued");
         }
+
+        assertThat(isolationFilter.getCorrelatedRequestContextMap())
+                .isEmpty();
     }
 
     private static void handleRequestForward(ScenarioDefinition definition, CompletionStage<RequestFilterResult> stage, MockUpstream mockUpstream, Subject subject,
