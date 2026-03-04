@@ -124,12 +124,22 @@ spec:
 EOF
     kubectl wait pod "${DEBUG_POD}" -n "${NAMESPACE}" --for=condition=ready --timeout=60s
     kubectl cp "${NAMESPACE}/${DEBUG_POD}:${JFR_FILE}" "${OUTPUT_DIR}/benchmark.jfr"
-    kubectl delete pod "${DEBUG_POD}" -n "${NAMESPACE}" --ignore-not-found
     if [[ ! -s "${OUTPUT_DIR}/benchmark.jfr" ]]; then
         echo "Warning: benchmark.jfr is empty — JFR dump may not have completed before pod terminated" >&2
     else
         echo "  benchmark.jfr ($(du -h "${OUTPUT_DIR}/benchmark.jfr" | cut -f1))"
     fi
+
+    # Copy flamegraph if async-profiler produced one
+    FLAMEGRAPH_FILE="/tmp/flamegraph.html"
+    if kubectl exec -n "${NAMESPACE}" "${DEBUG_POD}" -- test -s "${FLAMEGRAPH_FILE}" 2>/dev/null; then
+        kubectl cp "${NAMESPACE}/${DEBUG_POD}:${FLAMEGRAPH_FILE}" "${OUTPUT_DIR}/flamegraph.html"
+        echo "  flamegraph.html ($(du -h "${OUTPUT_DIR}/flamegraph.html" | cut -f1))"
+    else
+        echo "Warning: flamegraph.html is absent or empty — async-profiler may not have run or perf events were unavailable" >&2
+    fi
+
+    kubectl delete pod "${DEBUG_POD}" -n "${NAMESPACE}" --ignore-not-found
 fi
 
 # Generate run metadata
