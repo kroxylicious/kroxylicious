@@ -680,13 +680,18 @@ public class ResourcesUtil {
      */
     public static String deriveStoreTypeFromKeySuffix(TrustAnchorRef trustAnchorRef) {
         String ext = getKeyExtension(trustAnchorRef.getKey());
-        return switch (ext) {
-            case "p12" -> "PKCS12";
-            case "jks" -> "JKS";
-            case "pem" -> "PEM";
-            case null, default -> throw new IllegalArgumentException("Cannot derive trust store type from the file extension of the data key '"
-                    + trustAnchorRef.getKey() + "' (extension '" + ext + "')");
-        };
+        if (ext != null) {
+            return switch (ext) {
+                case "p12" -> "PKCS12";
+                case "jks" -> "JKS";
+                case "pem" -> "PEM";
+                default -> throw new IllegalArgumentException("Cannot derive trust store type from the file extension of the data key '"
+                        + trustAnchorRef.getKey() + "' (extension '" + ext + "')");
+            };
+        }
+        else {
+            throw new IllegalArgumentException("No file extension associated to the data key: " + trustAnchorRef.getKey());
+        }
     }
 
     /**
