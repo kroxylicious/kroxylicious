@@ -20,7 +20,8 @@ import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 @SuppressWarnings("java:S2160") // equals on superclass is not intended for use
 class OauthServerContainer extends GenericContainer<OauthServerContainer> {
 
-    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:3.0.1");
+    private static final DockerImageName DOCKER_IMAGE_NAME =
+            DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:3.0.1@sha256:4f3660e5f3586b81fe2e0d42d0c9fcd3c8c64268db0d3ade261dadd70d27020b");
     private static final String LOCALHOST = "localhost";
     private static final String CERT_FILE_MOUNT_PATH = "/etc/custom-certs";
     private final KeytoolCertificateGenerator certs;

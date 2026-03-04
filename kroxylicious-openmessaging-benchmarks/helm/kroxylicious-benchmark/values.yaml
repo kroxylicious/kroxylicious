@@ -43,7 +43,7 @@ kroxylicious:
 # HashiCorp Vault (for encryption scenarios)
 vault:
   enabled: false
-  image: hashicorp/vault:1.15
+  image: hashicorp/vault:1.21.3@sha256:5f244d447c6f90107149c9565da5ffedf847cec673ba0062a82fc3dd83c89e65
   imagePullPolicy: IfNotPresent
   resources:
     requests:
@@ -56,7 +56,7 @@ vault:
 # OpenMessaging Benchmark workers
 omb:
   workerReplicas: 3
-  image: quay.io/kroxylicious/kroxylicious-omb:omb-8559989-krox-e329e4d-2
+  image: quay.io/kroxylicious/kroxylicious-omb:omb-8559989-krox-e329e4d-2@sha256:addb5ed87a1d1ed87e0a2df9223c25b33d25bf8331709c1d372124420572fe3c
   imagePullPolicy: IfNotPresent
   driver: baseline  # Can be 'baseline' or 'proxy'
   workload: 1topic-1kb  # Workload name to run
