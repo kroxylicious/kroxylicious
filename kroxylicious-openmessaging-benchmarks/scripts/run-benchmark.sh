@@ -242,9 +242,15 @@ kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
 
 # --- Dump JFR recording ---
 
-if [[ -n "${PROXY_POD}" ]]; then
+if [[ -n "${PROXY_DEPLOYMENT}" ]]; then
     echo ""
     echo "--- Dumping JFR recording ---"
+    # Re-fetch pod name — the operator may have rolled out a new pod during the benchmark
+    PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
+        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
+    if [[ -z "${PROXY_POD}" ]]; then
+        echo "Warning: proxy pod not found — skipping JFR dump" >&2
+    fi
     JVM_PID=$(kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
         sh -c 'JAVA_TOOL_OPTIONS="" jcmd 2>/dev/null | awk "/^[0-9]+[[:space:]]/ && !/jdk\.jcmd/{print \$1; exit}"')
     if [[ -z "${JVM_PID}" ]]; then
