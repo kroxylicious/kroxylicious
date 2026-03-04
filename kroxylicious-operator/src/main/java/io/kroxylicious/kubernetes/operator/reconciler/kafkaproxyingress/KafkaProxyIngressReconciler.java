@@ -74,8 +74,8 @@ public class KafkaProxyIngressReconciler implements
         LOGGER.debug("spec.proxyRef.name resolves to: {}", proxyOpt);
 
         boolean isIngressSpecUsingOpenshiftRoute = ingress.getSpec().getOpenShiftRoute() != null;
-        boolean isIngressRunningOnOpenshift = context.getClient().supports(Route.class);
-        boolean isOpenshiftRouteUsedInSpecAndSupported = isIngressSpecUsingOpenshiftRoute && isIngressRunningOnOpenshift;
+        boolean isOpenShiftRouteApiAvailable = context.getClient().supports(Route.class);
+        boolean isOpenshiftRouteUsedInSpecAndSupported = isIngressSpecUsingOpenshiftRoute && isOpenShiftRouteApiAvailable;
 
         UpdateControl<KafkaProxyIngress> updateControl;
         if (proxyOpt.isPresent()) {
