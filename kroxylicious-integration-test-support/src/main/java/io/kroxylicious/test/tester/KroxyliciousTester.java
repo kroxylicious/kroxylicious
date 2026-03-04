@@ -12,6 +12,7 @@ import java.util.Set;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ShareConsumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.Serde;
 
@@ -49,12 +50,12 @@ public interface KroxyliciousTester extends Closeable {
      * Creates an Admin Client configured with the kroxylicious bootstrap server
      * for a specific virtual cluster.
      * @param virtualCluster the virtual cluster we want the client to connect to
-     * @param listenerName the listener we want the client to connect to
+     * @param gateway the gateway we want the client to connect to
      * @param additionalConfig additional configuration for the Admin client
      * @return Admin client
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
      */
-    Admin admin(String virtualCluster, String listenerName, Map<String, Object> additionalConfig);
+    Admin admin(String virtualCluster, String gateway, Map<String, Object> additionalConfig);
 
     /**
      * Creates an Admin Client configured with the kroxylicious bootstrap server
@@ -66,7 +67,7 @@ public interface KroxyliciousTester extends Closeable {
 
     /**
      * Creates an Admin Client configured with the kroxylicious bootstrap server
-     * for a specific virtual cluster with a single listener.
+     * for a specific virtual cluster with a single gateway.
      * @param virtualCluster the virtual cluster we want the client to connect to
      * @return Admin client
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
@@ -75,13 +76,13 @@ public interface KroxyliciousTester extends Closeable {
 
     /**
      * Creates an Admin Client configured with the kroxylicious bootstrap server
-     * for a specific listener on a specific virtual cluster
+     * for a specific gateway on a specific virtual cluster
      * @param virtualCluster the virtual cluster we want the client to connect to
-     * @param listener the listener we want the client to connect to
+     * @param gateway the gateway we want the client to connect to
      * @return Admin client
-     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server, or if the virtual cluster does not have a listener with this name
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server, or if the virtual cluster does not have a gateway with this name
      */
-    Admin admin(String virtualCluster, String listener);
+    Admin admin(String virtualCluster, String gateway);
 
     /**
      * Creates a Producer configured with the kroxylicious bootstrap server
@@ -112,7 +113,7 @@ public interface KroxyliciousTester extends Closeable {
 
     /**
      * Creates a Producer configured with the kroxylicious bootstrap server
-     * for a specific virtual cluster for the default listener.
+     * for a specific virtual cluster for the default gateway.
      * @param virtualCluster the virtual cluster we want the client to connect to
      * @return Producer
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
@@ -121,13 +122,13 @@ public interface KroxyliciousTester extends Closeable {
 
     /**
      * Creates a Producer configured with the kroxylicious bootstrap server
-     * for a specific virtual cluster for the default listener.
+     * for a specific virtual cluster for the default gateway.
      * @param virtualCluster the virtual cluster we want the client to connect to
-     * @param listener the listener we want the client to connect to
+     * @param gateway the gateway we want the client to connect to
      * @return Producer
-     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server or if the virtual cluster doesn't have the named listener
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server or if the virtual cluster doesn't have the named gateway
      */
-    Producer<String, String> producer(String virtualCluster, String listener);
+    Producer<String, String> producer(String virtualCluster, String gateway);
 
     /**
      * Creates a Producer configured with the kroxylicious bootstrap server
@@ -196,14 +197,14 @@ public interface KroxyliciousTester extends Closeable {
 
     /**
      * Creates a Consumer configured with the kroxylicious bootstrap server
-     * for a specific virtual cluster and listener. Also sets a random group id
+     * for a specific virtual cluster and gateway. Also sets a random group id
      * and sets auto offset reset to "earliest".
      * @param virtualCluster the virtual cluster we want the client to connect to
-     * @param listener the listener to connect to
+     * @param gateway the gateway to connect to
      * @return Consumer
-     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server or if the virtual cluster doesn't have the named listener
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server or if the virtual cluster doesn't have the named gateway
      */
-    Consumer<String, String> consumer(String virtualCluster, String listener);
+    Consumer<String, String> consumer(String virtualCluster, String gateway);
 
     /**
      * Creates a Consumer configured with the kroxylicious bootstrap server
@@ -213,7 +214,7 @@ public interface KroxyliciousTester extends Closeable {
      * @param keySerde key serde
      * @param valueSerde value serde
      * @param additionalConfig additional consumer config
-     * @return Admin client
+     * @return Consumer
      * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
      */
     <U, V> Consumer<U, V> consumer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig);
@@ -232,6 +233,86 @@ public interface KroxyliciousTester extends Closeable {
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
      */
     <U, V> Consumer<U, V> consumer(String virtualCluster, Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig);
+
+    /**
+     * Creates a ShareConsumer configured with the kroxylicious bootstrap server
+     * for the only virtual cluster configured. Also sets a random group id
+     * and sets auto offset reset to "earliest".
+     * @param groupName name of share group
+     * @return ShareConsumer
+     * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
+     */
+    ShareConsumer<String, String> shareConsumer(String groupName);
+
+    /**
+     * Creates a ShareConsumer configured with the kroxylicious bootstrap server
+     * for a specific virtual cluster. Also sets a random group id
+     * and sets auto offset reset to "earliest".
+     *
+     * @param groupName name of share group
+     * @param virtualCluster the virtual cluster we want the client to connect to
+     * @return ShareConsumer
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
+     */
+    ShareConsumer<String, String> shareConsumer(String groupName, String virtualCluster);
+
+    /**
+     * Creates a ShareConsumer configured with the kroxylicious bootstrap server
+     * for a specific virtual cluster. Also sets auto offset reset to "earliest".
+     *
+     * @param groupName name of share group
+     * @param virtualCluster the virtual cluster we want the client to connect to
+     * @return ShareConsumer
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
+     */
+    ShareConsumer<String, String> shareConsumer(String groupName, String virtualCluster, String gatewayName);
+
+    /**
+     * Creates a ShareConsumer configured with the kroxylicious bootstrap server
+     * for the only virtual cluster configured.
+     * @param additionalConfig additional consumer config
+     * @return ShareConsumer
+     * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
+     */
+    ShareConsumer<String, String> shareConsumer(Map<String, Object> additionalConfig);
+
+    /**
+     * Creates a ShareConsumer configured with the kroxylicious bootstrap server
+     * for a specific virtual cluster.
+     * @param additionalConfig additional consumer config
+     * @param virtualCluster the virtual cluster we want the client to connect to
+     * @return ShareConsumer
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
+     */
+    ShareConsumer<String, String> shareConsumer(String virtualCluster, Map<String, Object> additionalConfig);
+
+    /**
+     * Creates a ShareConsumer configured with the kroxylicious bootstrap server
+     * for the only virtual cluster configured.
+     * @param <U> key type
+     * @param <V> value type
+     * @param keySerde key serde
+     * @param valueSerde value serde
+     * @param additionalConfig additional consumer config
+     * @return ShareConsumer
+     * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
+     */
+    <U, V> ShareConsumer<U, V> shareConsumer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig);
+
+    /**
+     * Creates a ShareConsumer configured with the kroxylicious bootstrap server
+     * for a specific virtual cluster. Also sets a random group id
+     * and sets auto offset reset to "earliest".
+     * @param <U> key type
+     * @param <V> value type
+     * @param keySerde key serde
+     * @param valueSerde value serde
+     * @param additionalConfig additional consumer config
+     * @param virtualCluster the virtual cluster we want the client to connect to
+     * @return ShareConsumer
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
+     */
+    <U, V> ShareConsumer<U, V> shareConsumer(String virtualCluster, Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig);
 
     /**
      * Creates a Mock Request client configured with the kroxylicious bootstrap server
@@ -308,11 +389,12 @@ public interface KroxyliciousTester extends Closeable {
     /**
      * @return the bootstrap address of the named virtual cluster
      */
-    String getBootstrapAddress(String clusterName, String listener);
+    String getBootstrapAddress(String clusterName, String gateway);
 
     /**
      * @return the Admin Http Client
      * @throws IllegalStateException admin interface not available
      */
     ManagementClient getManagementClient();
+
 }

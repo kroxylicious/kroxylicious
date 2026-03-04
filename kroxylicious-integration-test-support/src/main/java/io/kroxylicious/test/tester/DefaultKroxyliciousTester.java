@@ -27,6 +27,8 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ShareConsumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -181,6 +183,41 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
+    public ShareConsumer<String, String> shareConsumer(String groupName) {
+        return clients().shareConsumer(Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupName));
+    }
+
+    @Override
+    public ShareConsumer<String, String> shareConsumer(String groupName, String virtualCluster) {
+        return shareConsumer(groupName, virtualCluster, DEFAULT_GATEWAY_NAME);
+    }
+
+    @Override
+    public ShareConsumer<String, String> shareConsumer(String groupName, String virtualCluster, String gateway) {
+        return clients(virtualCluster, gateway).shareConsumer(Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupName));
+    }
+
+    @Override
+    public ShareConsumer<String, String> shareConsumer(Map<String, Object> additionalConfig) {
+        return clients().shareConsumer(additionalConfig);
+    }
+
+    @Override
+    public ShareConsumer<String, String> shareConsumer(String virtualCluster, Map<String, Object> additionalConfig) {
+        return clients(virtualCluster, DEFAULT_GATEWAY_NAME).shareConsumer(additionalConfig);
+    }
+
+    @Override
+    public <U, V> ShareConsumer<U, V> shareConsumer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
+        return clients().shareConsumer(keySerde, valueSerde, additionalConfig);
+    }
+
+    @Override
+    public <U, V> ShareConsumer<U, V> shareConsumer(String virtualCluster, Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
+        return clients(virtualCluster, DEFAULT_GATEWAY_NAME).shareConsumer(keySerde, valueSerde, additionalConfig);
+    }
+
+    @Override
     public KafkaClient simpleTestClient() {
         return clients().simpleTestClient();
     }
@@ -201,8 +238,8 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
-    public Admin admin(String virtualCluster, String gatewayName, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster, gatewayName).admin(additionalConfig);
+    public Admin admin(String virtualCluster, String gateway, Map<String, Object> additionalConfig) {
+        return clients(virtualCluster, gateway).admin(additionalConfig);
     }
 
     @Override

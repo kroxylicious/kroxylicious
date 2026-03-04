@@ -14,13 +14,19 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.AlterConfigOp;
+import org.apache.kafka.clients.admin.ConfigEntry;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.ShareConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.message.DescribeAclsRequestData;
 import org.apache.kafka.common.message.DescribeAclsResponseData;
 import org.apache.kafka.common.message.ListTransactionsRequestData;
@@ -32,6 +38,7 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.coordinator.group.GroupConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -45,12 +52,14 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
 import io.kroxylicious.testing.kafka.clients.CloseableProducer;
+import io.kroxylicious.testing.kafka.clients.CloseableShareConsumer;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
@@ -150,6 +159,7 @@ class KroxyliciousTestersTest {
             // Then
             assertClientIsInstanceOf(CloseableConsumer.class, tester::consumer);
             assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
+            assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, DEFAULT_GATEWAY_NAME));
             assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(Map.of()));
             assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
             assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(Serdes.String(), Serdes.String(), Map.of()));
@@ -158,10 +168,28 @@ class KroxyliciousTestersTest {
     }
 
     @Test
+    void shouldReturnClosableShareConsumer() {
+        // Given
+        var groupName = "mygroup";
+        var config = Map.<String, Object> of(ConsumerConfig.GROUP_ID_CONFIG, groupName);
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
+            // Then
+            assertClientIsInstanceOf(CloseableShareConsumer.class, () -> tester.shareConsumer(groupName));
+            assertClientIsInstanceOf(CloseableShareConsumer.class, () -> tester.shareConsumer(groupName, DEFAULT_VIRTUAL_CLUSTER));
+            assertClientIsInstanceOf(CloseableShareConsumer.class, () -> tester.shareConsumer(groupName, DEFAULT_VIRTUAL_CLUSTER, DEFAULT_GATEWAY_NAME));
+            assertClientIsInstanceOf(CloseableShareConsumer.class, () -> tester.shareConsumer(config));
+            assertClientIsInstanceOf(CloseableShareConsumer.class, () -> tester.shareConsumer(DEFAULT_VIRTUAL_CLUSTER, config));
+            assertClientIsInstanceOf(CloseableShareConsumer.class, () -> tester.shareConsumer(Serdes.String(), Serdes.String(), config));
+            assertClientIsInstanceOf(CloseableShareConsumer.class, () -> tester.shareConsumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), config));
+        }
+    }
+
+    @Test
     void testConsumerMethods(@Name("underlyingCluster") Topic topic) throws Exception {
-        KafkaProducer<String, String> producer = new KafkaProducer<>(kafkaCluster.getKafkaClientConfiguration(), new StringSerializer(), new StringSerializer());
         String topicName = topic.name();
-        producer.send(new ProducerRecord<>(topicName, "key", "value")).get(10, TimeUnit.SECONDS);
+        try (KafkaProducer<String, String> producer = new KafkaProducer<>(kafkaCluster.getKafkaClientConfiguration(), new StringSerializer(), new StringSerializer())) {
+            producer.send(new ProducerRecord<>(topicName, "key", "value")).get(10, TimeUnit.SECONDS);
+        }
         try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             withConsumer(tester::consumer, consumer -> assertOneRecordConsumedFrom(consumer, topicName));
             withConsumer(() -> tester.consumer(randomGroupIdAndEarliestReset()), consumer -> assertOneRecordConsumedFrom(consumer, topicName));
@@ -174,8 +202,40 @@ class KroxyliciousTestersTest {
         }
     }
 
+    @Test
+    void testShareConsumerMethods(@Name("underlyingCluster") Topic topic) {
+        String topicName = topic.name();
+        var groupName = "mygroup";
+        var config = Map.<String, Object> of(ConsumerConfig.GROUP_ID_CONFIG, groupName);
+        try (var producer = new KafkaProducer<>(kafkaCluster.getKafkaClientConfiguration(), new StringSerializer(), new StringSerializer())) {
+            assertThat(producer.send(new ProducerRecord<>(topicName, "key", "value"))).succeedsWithin(Duration.ofSeconds(10));
+        }
+        try (var admin = KafkaAdminClient.create(kafkaCluster.getKafkaClientConfiguration())) {
+            prepareClusterForShareGroups(admin, groupName);
+
+            try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
+                withShareConsumer(() -> tester.shareConsumer(groupName), shareConsumer -> assertOneRecordConsumedFrom(shareConsumer, topicName));
+                withShareConsumer(() -> tester.shareConsumer(groupName, DEFAULT_VIRTUAL_CLUSTER), shareConsumer -> assertOneRecordConsumedFrom(shareConsumer, topicName));
+                withShareConsumer(() -> tester.shareConsumer(DEFAULT_VIRTUAL_CLUSTER, config), shareConsumer -> assertOneRecordConsumedFrom(shareConsumer, topicName));
+                withShareConsumer(() -> tester.shareConsumer(Serdes.String(), Serdes.String(), config),
+                        shareConsumer -> assertOneRecordConsumedFrom(shareConsumer, topicName));
+                withShareConsumer(() -> tester.shareConsumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), config),
+                        shareConsumer -> assertOneRecordConsumedFrom(shareConsumer, topicName));
+            }
+            finally {
+                removeShareGroup(admin, groupName);
+            }
+        }
+    }
+
     private void withConsumer(Supplier<Consumer<String, String>> supplier, java.util.function.Consumer<Consumer<String, String>> consumerFunc) {
         try (Consumer<String, String> consumer = supplier.get()) {
+            consumerFunc.accept(consumer);
+        }
+    }
+
+    private void withShareConsumer(Supplier<ShareConsumer<String, String>> supplier, java.util.function.Consumer<ShareConsumer<String, String>> consumerFunc) {
+        try (ShareConsumer<String, String> consumer = supplier.get()) {
             consumerFunc.accept(consumer);
         }
     }
@@ -296,6 +356,7 @@ class KroxyliciousTestersTest {
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", emptyMap));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", stringSerde, stringSerde, emptyMap));
+            assertThrows(IllegalArgumentException.class, () -> tester.shareConsumer("mygroup", "NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", emptyMap));
             assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", stringSerde, stringSerde, emptyMap));
@@ -381,6 +442,12 @@ class KroxyliciousTestersTest {
         assertEquals(1, records.count());
     }
 
+    private static void assertOneRecordConsumedFrom(ShareConsumer<String, String> consumer, String topicName) {
+        consumer.subscribe(List.of(topicName));
+        ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(10));
+        assertEquals(1, records.count());
+    }
+
     private <T> void assertClientIsInstanceOf(Class<? extends T> expectedClass, Supplier<? extends T> clientSupplier) {
         final T client = clientSupplier.get();
         assertThat(client).isInstanceOf(expectedClass);
@@ -391,5 +458,18 @@ class KroxyliciousTestersTest {
         final T otherClient = clientSupplier.get();
         assertThat(otherClient).isNotNull();
         assertThat(client).isNotNull().isNotSameAs(otherClient);
+    }
+
+    private static void prepareClusterForShareGroups(Admin admin, String groupName) {
+        ConfigResource configResource = new ConfigResource(ConfigResource.Type.GROUP, groupName);
+        ConfigEntry autoOffsetReset = new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest");
+        List<AlterConfigOp> alterConfig = List.of(new AlterConfigOp(autoOffsetReset, AlterConfigOp.OpType.SET));
+        assertThat(admin.incrementalAlterConfigs(Map.of(configResource, alterConfig)).all())
+                .succeedsWithin(Duration.ofSeconds(10));
+    }
+
+    private static void removeShareGroup(Admin admin, String groupName) {
+        assertThat(admin.deleteConsumerGroups(List.of(groupName)).all())
+                .succeedsWithin(Duration.ofSeconds(10));
     }
 }
