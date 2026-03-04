@@ -8,7 +8,6 @@ package io.kroxylicious.systemtests.extensions;
 
 import java.lang.reflect.Parameter;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
@@ -30,6 +29,8 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.systemtests.utils.TestUtils.isAbortedTest;
 
 /**
  * The type Kroxylicious extension.
@@ -91,9 +92,9 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         String testClassName = extensionContext.getRequiredTestClass().getName();
         String testMethodName = extensionContext.getRequiredTestMethod().getName();
         try {
-            Optional<Throwable> exception = extensionContext.getExecutionException();
-            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException"))
-                    .ifPresent(e -> logCollector.collectLogs(testClassName, testMethodName));
+            if (!isAbortedTest(extensionContext)) {
+                logCollector.collectLogs(testClassName, testMethodName);
+            }
         }
         finally {
             if (Environment.SYNC_RESOURCES_DELETION) {
