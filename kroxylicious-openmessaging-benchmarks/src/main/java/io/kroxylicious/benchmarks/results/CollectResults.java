@@ -9,6 +9,7 @@ package io.kroxylicious.benchmarks.results;
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 21+
 //DEPS com.fasterxml.jackson.core:jackson-core:${jackson.version}
+//DEPS org.slf4j:slf4j-api:${slf4j.version}
 //DEPS com.fasterxml.jackson.core:jackson-databind:${jackson.version}
 //DEPS info.picocli:picocli:${picocli.version}
 //DEPS com.github.spotbugs:spotbugs-annotations:${spotbugs-annotations.version}
