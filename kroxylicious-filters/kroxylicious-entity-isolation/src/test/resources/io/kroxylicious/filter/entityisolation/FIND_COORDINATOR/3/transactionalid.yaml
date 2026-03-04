@@ -1,0 +1,55 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FIND_COORDINATOR"
+  apiVersion: 3
+  scenario: "transactional id mapping"
+  # version 0 didn't have a keyType
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FIND_COORDINATOR"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 10
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        key: alice-12345
+        keyType: 1
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        errorMessage: ""
+        nodeId: 0
+        host: "random-string-822"
+        port: 919
+  resourceTypes: ["TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 10
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    key: "12345"
+    keyType: 1
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    errorMessage: ""
+    nodeId: 0
+    host: "random-string-822"
+    port: 919

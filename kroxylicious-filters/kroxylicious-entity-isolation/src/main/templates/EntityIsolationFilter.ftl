@@ -44,6 +44,7 @@ import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
 * Entity isolation filter.
@@ -58,6 +59,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
     private final EntityNameMapper mapper;
 
     private final Map<ApiKeys, EntityIsolationProcessor> processorMap;
+    private final Map<Integer, Object> correlatedRequestContext = new HashMap<>();
 
     EntityIsolationFilter(Set<EntityIsolation.ResourceType> resourceTypes, EntityNameMapper mapper) {
         this.resourceTypes = Objects.requireNonNull(resourceTypes);
@@ -92,9 +94,13 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                                                           RequestHeaderData header,
                                                           ApiMessage request,
                                                           FilterContext filterContext) {
-        var mapperContext = buildMapperContext(filterContext);
         return Optional.ofNullable(processorMap.get(apiKey))
-                .map(eip -> eip.onRequest(header, apiVersion, request, filterContext, mapperContext))
+                .map(eip -> {
+                    var mapperContext = buildMapperContext(filterContext);
+                    Optional.ofNullable(eip.createCorrelatedRequestContext(request))
+                            .ifPresent(crc -> correlatedRequestContext.put(header.correlationId(), crc));
+                    return eip.onRequest(header, apiVersion, request, filterContext, mapperContext);
+                })
                 .orElse(filterContext.forwardRequest(header, request));
 
     }
@@ -105,10 +111,18 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                                                             ResponseHeaderData header,
                                                             ApiMessage response,
                                                             FilterContext filterContext) {
-        var mapperContext = buildMapperContext(filterContext);
         return Optional.ofNullable(processorMap.get(apiKey))
-                .map(eip ->  eip.onResponse(header, apiVersion, response, filterContext, mapperContext))
+                .map(eip ->  {
+                    var mapperContext = buildMapperContext(filterContext);
+                    var crc = correlatedRequestContext.remove(header.correlationId());
+                    return eip.onResponse(header, apiVersion, crc, response, filterContext, mapperContext);
+                })
                 .orElse(filterContext.forwardResponse(header, response));
+    }
+
+    @VisibleForTesting
+    Map<Integer, Object> getCorrelatedRequestContextMap() {
+        return correlatedRequestContext;
     }
 
     private static MapperContext buildMapperContext(FilterContext context) {

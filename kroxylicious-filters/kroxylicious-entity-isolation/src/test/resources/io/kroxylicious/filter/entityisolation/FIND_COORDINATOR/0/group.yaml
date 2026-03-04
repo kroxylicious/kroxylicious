@@ -8,7 +8,8 @@
 metadata:
   apiKeys: "FIND_COORDINATOR"
   apiVersion: 0
-  scenario: "baseline"
+  scenario: "group mapping"
+  # version 0 supported only group coordination
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "FIND_COORDINATOR"
@@ -38,7 +39,6 @@ when:
     clientId: "clientId"
   request:
     key: mygroup
-    keyType: 0
     coordinatorKeys: []
 then:
   expectedResponseHeader:
