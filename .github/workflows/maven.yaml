@@ -60,6 +60,8 @@ jobs:
           javaDistro: ${{ matrix.java.distro }}
       - name: Setup Minikube
         uses: ./.github/actions/common/setup-minikube
+        with:
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Test for unpublished reference release (japicmp)'
         run: |
           REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
