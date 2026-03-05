@@ -125,10 +125,7 @@ class EntityIsolationIT {
                 var aliceAdmin = tester.admin(aliceConfig);
                 var bobAdmin = tester.admin(bobConfig)) {
 
-            try (var producer = tester.producer(aliceConfig)) {
-                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
-                        .succeedsWithin(Duration.ofSeconds(5));
-            }
+            produceRecords(topic, tester, aliceConfig, 1);
 
             String aliceGroup = "AliceGroup";
             String bobGroup = "BobGroup";
@@ -395,10 +392,7 @@ class EntityIsolationIT {
         try (var tester = kroxyliciousTester(configBuilder);
                 var aliceAdmin = tester.admin(aliceConfig)) {
 
-            try (var producer = tester.producer(aliceConfig)) {
-                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
-                        .succeedsWithin(Duration.ofSeconds(5));
-            }
+            produceRecords(topic, tester, aliceConfig, 1);
 
             var aliceGroup1 = "AliceGroup1";
             var aliceGroup2 = "AliceGroup2";
@@ -474,7 +468,7 @@ class EntityIsolationIT {
 
         try (var tester = kroxyliciousTester(configBuilder)) {
             try (var admin = tester.admin(aliceConfig)) {
-                produceOneInTransaction(topic, tester, aliceConfig, true);
+                produceInTransaction(topic, tester, aliceConfig, true);
 
                 assertThat(admin.listTransactions(new ListTransactionsOptions()).all())
                         .succeedsWithin(Duration.ofSeconds(5))
@@ -487,6 +481,66 @@ class EntityIsolationIT {
                                         assertThat(t.state()).isEqualTo(TransactionState.COMPLETE_COMMIT);
                                     });
                         });
+            }
+        }
+    }
+
+    /**
+     * Verifies that a transaction used on the produce side with offset committing is functional when isolated.
+     *
+     * @param input topic
+     * @param output topic
+     */
+    @Test
+    void produceAndConsumeInTransaction(Topic input, Topic output) {
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID));
+
+        var transactionalId = "mytxn";
+        var aliceConfig = buildClientConfig("alice", "pwd");
+
+        try (var tester = kroxyliciousTester(configBuilder)) {
+            // put some records in an input topic
+            produceRecords(input, tester, aliceConfig, 2);
+
+            var aliceConfigForTxnProduce = new HashMap<>(aliceConfig);
+            aliceConfigForTxnProduce.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId);
+
+            var aliceConfigForConsumer = new HashMap<>(aliceConfig);
+            aliceConfigForConsumer.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+            aliceConfigForConsumer.put(ConsumerConfig.GROUP_ID_CONFIG, "AliceGroup");
+
+            // now consume and from input and produce to output, using a transaction.
+            try (var producer = tester.producer(aliceConfigForTxnProduce);
+                 var consumer = tester.consumer(aliceConfigForConsumer)) {
+                producer.initTransactions();
+
+                consumer.assign(List.of(new TopicPartition(input.name(), 0)));
+
+                int processed = 0;
+                do {
+                    var records = consumer.poll(Duration.ofSeconds(30));
+                    for (var r : records) {
+                        producer.beginTransaction();
+
+                        var key = r.key();
+                        var value = r.value();
+                        assertThat(producer.send(new ProducerRecord<>(output.name(), 0, key, value)))
+                                .succeedsWithin(Duration.ofSeconds(5));
+
+                        producer.sendOffsetsToTransaction(Map.of(new TopicPartition(r.topic(), r.partition()),
+                                new OffsetAndMetadata(r.offset() + 1)), consumer.groupMetadata());
+                        producer.commitTransaction();
+                        processed++;
+                    }
+                } while (processed < 2);
+
+                consumer.assign(List.of(new TopicPartition(output.name(), 0)));
+                var records = consumer.poll(Duration.ofSeconds(30));
+                assertThat(records.iterator())
+                        .toIterable()
+                        .hasSize(2)
+                        .map(ConsumerRecord::value)
+                        .containsExactly("v1", "v2");
             }
         }
     }
@@ -508,8 +562,8 @@ class EntityIsolationIT {
                 Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId));
 
         try (var tester = kroxyliciousTester(configBuilder)) {
-            produceOneInTransaction(topic, tester, aliceConfig, true);
-            produceOneInTransaction(topic, tester, bobConfig, false);
+            produceInTransaction(topic, tester, aliceConfig, true);
+            produceInTransaction(topic, tester, bobConfig, false);
 
             try (var aliceAdmin = tester.admin(aliceConfig)) {
                 assertThat(aliceAdmin.listTransactions(new ListTransactionsOptions()).all())
@@ -541,7 +595,7 @@ class EntityIsolationIT {
         }
     }
 
-    private static void produceOneInTransaction(Topic topic, KroxyliciousTester tester, Map<String, Object> aliceConfig, boolean commit) {
+    private static void produceInTransaction(Topic topic, KroxyliciousTester tester, Map<String, Object> aliceConfig, boolean commit) {
         try (var producer = tester.producer(aliceConfig)) {
             producer.initTransactions();
             producer.beginTransaction();
@@ -555,7 +609,6 @@ class EntityIsolationIT {
             else {
                 producer.abortTransaction();
             }
-
         }
     }
 
@@ -718,4 +771,14 @@ class EntityIsolationIT {
             });
         }
     }
+
+    private static void produceRecords(Topic topic, KroxyliciousTester tester, Map<String, Object> producerConfig, int numberOfRecords) {
+        try (var producer = tester.producer(producerConfig)) {
+            for (int i = 1; i <= numberOfRecords; i++) {
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k" + i, "v" + i)))
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
+        }
+    }
+
 }
