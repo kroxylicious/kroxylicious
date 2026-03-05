@@ -959,7 +959,7 @@ class ResourcesUtilTest {
     @Test
     void testFailToDeriveStoreTypeFromKeySuffix() {
         TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder()
-                .withKey("key")
+                .withKey("exampleKey")
                 .withRef(new AnyLocalRefBuilder()
                         .withName("test")
                         .withKind("ConfigMap")
@@ -968,6 +968,7 @@ class ResourcesUtilTest {
 
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef))
-                .withMessage("No file extension associated to the data key: key");
+                .withMessage("Cannot derive trust store type from the data key: exampleKey as the data key does not include a file extension."
+                        + " Use the `storeType` field to specify the format of the key store.");
     }
 }
