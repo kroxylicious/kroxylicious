@@ -15,13 +15,17 @@ class TrustAnchorRefTest {
     @Test
     // we knowingly use equals across types because we want the property that specific LocalRef types are equal to any other LocalRef
     // with the same group, kind and name.
-    @SuppressWarnings("java:S5845")
+    @SuppressWarnings({ "java:S5845", "java:S5853" }) // assertions comparing incompatible types required and chaining asserts are not beneficial as per the use case
     void shouldRespectEqualsAndHashCode() {
-        var secretRefFoo = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build()).withKey("key").build();
-        var secretRefFoo2 = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build()).withKey("key").build();
+        var secretRefFoo = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build()).withKey("key")
+                .withStoreType("PEM").build();
+        var secretRefFoo2 = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build()).withKey("key")
+                .withStoreType("PEM").build();
         var cmRefFoo = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("ConfigMap").withGroup("").build()).withKey("key").build();
         var diffGroupSecretFoo = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("not.the.usual.group").build())
                 .withKey("key").build();
+        var diffStoreTypeSecretFoo = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build()).withKey("key")
+                .withStoreType("JKS").build();
         var diffKeySecretFoo = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build()).withKey("diff.key")
                 .build();
         assertThat(secretRefFoo).isEqualTo(secretRefFoo);
@@ -30,8 +34,8 @@ class TrustAnchorRefTest {
         assertThat(secretRefFoo).isNotEqualTo(diffKeySecretFoo);
         assertThat(secretRefFoo).isEqualTo(secretRefFoo2);
         assertThat(secretRefFoo2).isEqualTo(secretRefFoo);
+        assertThat(secretRefFoo).isNotEqualTo(diffStoreTypeSecretFoo);
         assertThat(secretRefFoo).hasSameHashCodeAs(secretRefFoo2);
-
         assertThat(secretRefFoo).isNotEqualTo(cmRefFoo);
     }
 

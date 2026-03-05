@@ -158,6 +158,13 @@ spec:
                               name:
                                 description: The name of the resource containing the TLS trust anchor(s).
                                 type: string
+                              storeType:
+                                description: The format of the key store containing the trusted CA certificates.
+                                type: string
+                                enum:
+                                  - PEM
+                                  - JKS
+                                  - PKCS12
                               key:
                                 description: |
                                   The name of the key identifying the certificate bundle within the resource. 

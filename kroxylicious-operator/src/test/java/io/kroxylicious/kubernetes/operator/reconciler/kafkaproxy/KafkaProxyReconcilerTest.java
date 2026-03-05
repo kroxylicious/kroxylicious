@@ -573,5 +573,4 @@ class KafkaProxyReconcilerTest {
     private static KafkaProxyBuilder proxyBuilder(String name) {
         return new KafkaProxyBuilder().withNewMetadata().withName(name).endMetadata();
     }
-
 }

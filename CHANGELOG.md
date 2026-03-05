@@ -11,6 +11,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## 0.19.0
 
+* [#3250](https://github.com/kroxylicious/kroxylicious/pull/3250): Added `storeType` field to the `trustAnchorRef` property of the KafkaService and VirtualKafkaCluster CRs.
 * [#3331](https://github.com/kroxylicious/kroxylicious/pull/3331): fix(crd): make the spec object required across all the CRDs except KafkaProxy.
 * [#3246](https://github.com/kroxylicious/kroxylicious/pull/3246): deps(kafka): upgrade to Kafka 4.2
 * [#3334](https://github.com/kroxylicious/kroxylicious/pull/3334): build(deps): bump com.fasterxml.jackson:jackson-bom from 2.21.0 to 2.21.1

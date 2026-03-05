@@ -420,7 +420,7 @@ public class KafkaProxyReconciler implements
                     TrustProvider trustProvider = new TrustStore(
                             mountPath.resolve(tar.getKey()).toString(),
                             null,
-                            "PEM",
+                            tar.getStoreType() != null ? tar.getStoreType() : ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef),
                             forServer ? buildTlsServerOptions(clientAuthentication) : null);
 
                     return new ConfigurationFragment<>(Optional.of(trustProvider),

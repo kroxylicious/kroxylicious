@@ -77,6 +77,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.Mockito.anyString;
@@ -88,7 +89,6 @@ class ResourcesUtilTest {
     public static final String RESOURCE_NAME = "name";
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
     protected static final ConfigMap EMPTY_CONFIG_NMAP = new ConfigMapBuilder().withData(Map.of()).build();
-    protected static final Kafka EMPTY_KAFKA = new Kafka();
     public static final String KAFKA_GROUP_NAME = "kafka.strimzi.io";
 
     @Test
@@ -844,17 +844,17 @@ class ResourcesUtilTest {
     }
 
     @ParameterizedTest
-    @CsvSource({ "key.pem", "key.p12", "key.jks" })
-    void shouldAcceptSupportedKeyfileExtensions(String key) {
+    @CsvSource(value = { "key.pem, null", "key.p12, null", "key.jks, null", "key.crt, PEM", "key.cer, PEM" }, nullValues = { "null" })
+    void shouldAcceptSupportedKeyExtensions(String key, @Nullable String storeType) {
         // Given
-        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder().withKey(key).withNewRef().withName("configmap").endRef().build();
+        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder().withKey(key).withStoreType(storeType).withNewRef().withName("configmap").endRef().build();
         Ingresses ingress = new IngressesBuilder().withNewTls().withTrustAnchorRef(trustAnchorRef).endTls().build();
         VirtualKafkaCluster vkc = new VirtualKafkaClusterBuilder().withNewSpec().withIngresses(List.of(ingress)).endSpec().build();
         @SuppressWarnings("unchecked")
         Context<VirtualKafkaCluster> reconcilerContext = mock(Context.class);
         when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME))
                 .thenReturn(Optional.ofNullable(
-                        new ConfigMapBuilder().withNewMetadata().withName("configmap").endMetadata().withData(Map.of(key, "I'm a key honnest")).build()));
+                        new ConfigMapBuilder().withNewMetadata().withName("configmap").endMetadata().withData(Map.of(key, "I'm a key honest")).build()));
 
         // When
         ResourceCheckResult<VirtualKafkaCluster> actual = ResourcesUtil.checkTrustAnchorRef(vkc, reconcilerContext,
@@ -902,12 +902,14 @@ class ResourcesUtilTest {
                         new TrustAnchorRefBuilder().withKey("").withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,
                         Condition.REASON_INVALID,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith(".key should end with .pem, .p12 or .jks")),
-                argumentSet("unsupported key file extension",
+                        (ThrowingConsumer<String>) message -> assertThat(message)
+                                .endsWith(".key should end with .pem, .p12 or .jks or use the `storeType` field to specify the format of the key store explicitly")),
+                argumentSet("unsupported key file extension and store type not provided",
                         new TrustAnchorRefBuilder().withKey("/path/to/random.key").withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,
                         Condition.REASON_INVALID,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith(".key should end with .pem, .p12 or .jks")),
+                        (ThrowingConsumer<String>) message -> assertThat(message)
+                                .endsWith(".key should end with .pem, .p12 or .jks or use the `storeType` field to specify the format of the key store explicitly")),
                 argumentSet("Config map does not contain key",
                         new TrustAnchorRefBuilder().withKey("key.p12").withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,
@@ -937,5 +939,36 @@ class ResourcesUtilTest {
                         null,
                         Condition.REASON_REFS_NOT_FOUND,
                         (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced Kafka resource not found")));
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = { "key.pem, PEM", "key.jks, JKS", "key.p12, PKCS12" })
+    void testDeriveStoreTypeFromKeySuffix(String key, String expectedStoreType) {
+        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder()
+                .withKey(key)
+                .withRef(new AnyLocalRefBuilder()
+                        .withName("test")
+                        .withKind("ConfigMap")
+                        .build())
+                .build();
+
+        String storeType = ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef);
+        assertThat(storeType).isEqualTo(expectedStoreType);
+    }
+
+    @Test
+    void testFailToDeriveStoreTypeFromKeySuffix() {
+        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder()
+                .withKey("exampleKey")
+                .withRef(new AnyLocalRefBuilder()
+                        .withName("test")
+                        .withKind("ConfigMap")
+                        .build())
+                .build();
+
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef))
+                .withMessage("Cannot derive trust store type from the data key: exampleKey as the data key does not include a file extension."
+                        + " Use the `storeType` field to specify the format of the key store.");
     }
 }
