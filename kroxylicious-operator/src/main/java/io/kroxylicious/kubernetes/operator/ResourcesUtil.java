@@ -690,7 +690,8 @@ public class ResourcesUtil {
             };
         }
         else {
-            throw new IllegalArgumentException("No file extension associated to the data key: " + trustAnchorRef.getKey());
+            throw new IllegalArgumentException("Cannot derive trust store type from the data key: " + trustAnchorRef.getKey()
+                    + " as the data key does not include a file extension. Use the `storeType` field to specify the format of the key store.");
         }
     }
 
