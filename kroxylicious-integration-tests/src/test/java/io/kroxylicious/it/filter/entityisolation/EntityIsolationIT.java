@@ -24,14 +24,17 @@ import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.admin.ListConfigResourcesOptions;
 import org.apache.kafka.clients.admin.ListShareGroupOffsetsSpec;
+import org.apache.kafka.clients.admin.ListTransactionsOptions;
 import org.apache.kafka.clients.admin.ShareGroupDescription;
 import org.apache.kafka.clients.admin.SharePartitionOffsetInfo;
+import org.apache.kafka.clients.admin.TransactionState;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ShareAcknowledgementMode;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.GroupState;
 import org.apache.kafka.common.TopicPartition;
@@ -69,6 +72,11 @@ import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests for Entity Isolation Filter.
+ * <br/>
+ * These tests use the Kafka Client API. They aim to show that entity isolation
+ * is functioning correctly. Owing to the nature of the API, these tests exercise
+ * several RPCs at once.
+ * <br/>
  * TODO: transactional id tests
  */
 @ExtendWith(KafkaClusterExtension.class)
@@ -96,7 +104,6 @@ class EntityIsolationIT {
     @ParameterizedTest
     @EnumSource(value = ConsumerStyle.class)
     void describeGroupMaintainsGroupIsolation(ConsumerStyle consumerStyle, Topic topic) {
-
         ensureGroupIsolationMaintained(consumerStyle, cluster, topic, true);
     }
 
@@ -110,7 +117,7 @@ class EntityIsolationIT {
      */
     @Test
     void describeShareGroupMaintainsGroupIsolation(Topic topic) {
-        var configBuilder = buildProxyConfig(cluster);
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         var bobConfig = buildClientConfig("bob", "pwd");
@@ -155,12 +162,11 @@ class EntityIsolationIT {
     @EnumSource(value = ConsumerStyle.class)
     void listGroupMaintainsGroupIsolation(ConsumerStyle consumerStyle,
                                           Topic topic) {
-
         ensureGroupIsolationMaintained(consumerStyle, cluster, topic, false);
     }
 
     private void ensureGroupIsolationMaintained(ConsumerStyle consumerStyle, KafkaCluster cluster, Topic topic, boolean useDescribe) {
-        var configBuilder = buildProxyConfig(cluster);
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         var bobConfig = buildClientConfig("bob", "pwd");
@@ -193,7 +199,7 @@ class EntityIsolationIT {
     @Test
     void consumerGroupOffsetCommitMaintainsGroupIsolation(Topic topic) {
 
-        var configBuilder = buildProxyConfig(cluster);
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
         var aliceConfig = buildClientConfig("alice", "pwd",
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
@@ -256,7 +262,7 @@ class EntityIsolationIT {
     @Test
     void listConsumerGroupOffsets(Topic topic) {
 
-        var configBuilder = buildProxyConfig(cluster);
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
         var aliceConfig = buildClientConfig("alice", "pwd",
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
@@ -305,7 +311,7 @@ class EntityIsolationIT {
      */
     @Test
     void deleteConsumerGroups(Topic topic) {
-        var configBuilder = buildProxyConfig(cluster);
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         try (var tester = kroxyliciousTester(configBuilder);
@@ -332,7 +338,7 @@ class EntityIsolationIT {
     @Test
     void listShareConsumerGroupOffsets(Topic topic) {
 
-        var configBuilder = buildProxyConfig(cluster);
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
         var aliceConfig = buildClientConfig("alice", "pwd",
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
                         ConsumerConfig.SHARE_ACKNOWLEDGEMENT_MODE_CONFIG, ShareAcknowledgementMode.EXPLICIT.name()));
@@ -370,7 +376,6 @@ class EntityIsolationIT {
                     .extractingByKey(new TopicPartition(topic.name(), 0))
                     .satisfies(spoi -> assertThat(spoi.startOffset()).isEqualTo(1));
 
-
             assertThat(aliceAdmin.deleteShareGroups(Set.of(CONSUMER_GROUP_NAME)).all()).succeedsWithin(Duration.ofSeconds(5));
         }
     }
@@ -384,7 +389,7 @@ class EntityIsolationIT {
      */
     @Test
     void deleteShareConsumerGroups(Topic topic) {
-        var configBuilder = buildProxyConfig(cluster);
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         try (var tester = kroxyliciousTester(configBuilder);
@@ -423,7 +428,7 @@ class EntityIsolationIT {
      */
     @Test
     void groupConfigIsolation() {
-        var configBuilder = buildProxyConfig(cluster);
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         var bobConfig = buildClientConfig("bob", "pwd");
@@ -454,7 +459,107 @@ class EntityIsolationIT {
         }
     }
 
-    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster) {
+    /**
+     * Verifies that a transaction used on the produce side is functional when isolated.
+     *
+     * @param topic topic
+     */
+    @Test
+    void produceInTransaction(Topic topic) {
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID));
+
+        var transactionalId = "mytxn";
+        var aliceConfig = buildClientConfig("alice", "pwd",
+                Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId));
+
+        try (var tester = kroxyliciousTester(configBuilder)) {
+            try (var admin = tester.admin(aliceConfig)) {
+                produceOneInTransaction(topic, tester, aliceConfig, true);
+
+                assertThat(admin.listTransactions(new ListTransactionsOptions()).all())
+                        .succeedsWithin(Duration.ofSeconds(5))
+                        .satisfies(tl -> {
+                            assertThat(tl.iterator())
+                                    .toIterable()
+                                    .singleElement()
+                                    .satisfies(t -> {
+                                        assertThat(t.transactionalId()).isEqualTo(transactionalId);
+                                        assertThat(t.state()).isEqualTo(TransactionState.COMPLETE_COMMIT);
+                                    });
+                        });
+            }
+        }
+    }
+
+    /**
+     * Verifies that produce transactions are isolated from each other when
+     * Alice and Bob use the same transactionalId.
+     *
+     * @param topic topic
+     */
+    @Test
+    void produceTransactionIsolation(Topic topic) {
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID));
+
+        var transactionalId = "mytxn";
+        var aliceConfig = buildClientConfig("alice", "pwd",
+                Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId));
+        var bobConfig = buildClientConfig("bob", "pwd",
+                Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId));
+
+        try (var tester = kroxyliciousTester(configBuilder)) {
+            produceOneInTransaction(topic, tester, aliceConfig, true);
+            produceOneInTransaction(topic, tester, bobConfig, false);
+
+            try (var aliceAdmin = tester.admin(aliceConfig)) {
+                assertThat(aliceAdmin.listTransactions(new ListTransactionsOptions()).all())
+                        .succeedsWithin(Duration.ofSeconds(5))
+                        .satisfies(tl -> {
+                            assertThat(tl.iterator())
+                                    .toIterable()
+                                    .singleElement()
+                                    .satisfies(t -> {
+                                        assertThat(t.transactionalId()).isEqualTo(transactionalId);
+                                        assertThat(t.state()).isEqualTo(TransactionState.COMPLETE_COMMIT);
+                                    });
+                        });
+            }
+
+            try (var bobAdmin = tester.admin(bobConfig)) {
+                assertThat(bobAdmin.listTransactions(new ListTransactionsOptions()).all())
+                        .succeedsWithin(Duration.ofSeconds(5))
+                        .satisfies(tl -> {
+                            assertThat(tl.iterator())
+                                    .toIterable()
+                                    .singleElement()
+                                    .satisfies(t -> {
+                                        assertThat(t.transactionalId()).isEqualTo(transactionalId);
+                                        assertThat(t.state()).isEqualTo(TransactionState.COMPLETE_ABORT);
+                                    });
+                        });
+            }
+        }
+    }
+
+    private static void produceOneInTransaction(Topic topic, KroxyliciousTester tester, Map<String, Object> aliceConfig, boolean commit) {
+        try (var producer = tester.producer(aliceConfig)) {
+            producer.initTransactions();
+            producer.beginTransaction();
+
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
+                    .succeedsWithin(Duration.ofSeconds(5));
+
+            if (commit) {
+                producer.commitTransaction();
+            }
+            else {
+                producer.abortTransaction();
+            }
+
+        }
+    }
+
+    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, List<EntityIsolation.ResourceType> resourcesTypes) {
         var configBuilder = KroxyliciousConfigUtils.proxy(cluster);
 
         var saslInspectionFilter = new NamedFilterDefinitionBuilder(
@@ -468,7 +573,7 @@ class EntityIsolationIT {
                 EntityIsolation.class.getName(),
                 EntityIsolation.class.getName());
 
-        entityIsolationFilter.withConfig("resourceTypes", List.of("GROUP_ID"),
+        entityIsolationFilter.withConfig("resourceTypes", resourcesTypes,
                 "mapper", PrincipalEntityNameMapperService.class.getSimpleName(),
                 "mapperConfig", Map.of("principalType", User.class.getName()));
         var entityIsolation = entityIsolationFilter.build();
