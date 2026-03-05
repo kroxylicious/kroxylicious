@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpec;
@@ -35,6 +36,7 @@ import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 
@@ -70,6 +72,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
     private static final String PREFIX = "optr-cd";
+    private static final Duration ASERTION_DURATION = Duration.ofSeconds(90);
     private static Kroxylicious kroxylicious;
     private static CertManager certManager;
     private final String kafkaClusterName = PREFIX + "-cluster";
@@ -235,7 +238,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         LOGGER.info("Kafka proxy updated");
 
         // Then
-        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
+        await().atMost(ASERTION_DURATION).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
             assertThat(proxyDeployment)
                     .isNotNull()
@@ -276,6 +279,25 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     }
 
     @Test
+    void shouldPreserveExternalSsaPatchOnProxyDeploymentAfterReconcile(String namespace) {
+        // Given
+        KubeClient kubeClient = kubeClient(namespace);
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
+        getInitialChecksum(namespace); // wait for deployment to be ready
+
+        addEnvVarToDeployment(namespace, kubeClient);
+
+        KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
+                .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
+
+        // When — operator reconciles after an external SSA patch has been applied
+        resourceManager.replaceResourceWithRetries(kafkaProxy, current -> current.getSpec().setReplicas(2));
+
+        // Then — replica count changes (proves reconcile completed) and the external env var is still present
+        assertEnvVarsStillPresent(namespace, kubeClient);
+    }
+
+    @Test
     void shouldUpdateDeploymentWhenSecretChanges(String namespace) {
         // Given
         resourceManager.createOrUpdateResourceWithWait(
@@ -308,7 +330,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     private static void assertDeploymentUpdated(String namespace, String originalChecksum) {
         var kubeClient = kubeClient(namespace);
         AtomicReference<String> newChecksumFromAnnotation = new AtomicReference<>();
-        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
+        await().atMost(ASERTION_DURATION).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
             assertThat(proxyDeployment).isNotNull();
             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
@@ -323,7 +345,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     @SuppressWarnings("SameParameterValue")
     private static void assertDeploymentUnchanged(String namespace, String originalChecksum, int expectedReplicaCount) {
         var kubeClient = kubeClient(namespace);
-        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
+        await().atMost(ASERTION_DURATION).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
             assertThat(proxyDeployment).isNotNull()
                     .extracting(Deployment::getSpec)
@@ -363,13 +385,13 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     private String getInitialChecksum(String namespace) {
         var kubeClient = kubeClient(namespace);
         AtomicReference<String> checksumFromAnnotation = new AtomicReference<>();
-        await().atMost(Duration.ofSeconds(90))
+        await().atMost(ASERTION_DURATION)
                 .untilAsserted(() -> assertThat(kubeClient.getClient().resources(VirtualKafkaCluster.class)
                         .inNamespace(namespace)
                         .waitUntilCondition(OperatorChangeDetectionST::isVirtualClusterReady, 9, TimeUnit.SECONDS))
                         .isNotNull());
 
-        await().atMost(Duration.ofSeconds(90))
+        await().atMost(ASERTION_DURATION)
                 .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious")
                         .stream().filter(p -> p.getMetadata().getLabels().get("app.kubernetes.io/component").equalsIgnoreCase("proxy")).toList(),
                         proxyPods -> {
@@ -416,4 +438,44 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                 .replaceResourceWithRetries(resolver,
                         ingress -> ingress.getSpec().getClusterIP().setProtocol(protocol));
     }
+
+    private static void assertEnvVarsStillPresent(String namespace, KubeClient kubeClient) {
+        await().atMost(ASERTION_DURATION).untilAsserted(() -> {
+            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
+            assertThat(proxyDeployment).isNotNull();
+            assertThat(proxyDeployment.getSpec().getReplicas()).isEqualTo(2);
+            assertThat(proxyDeployment.getSpec().getTemplate().getSpec().getContainers())
+                    .filteredOn(c -> "proxy".equals(c.getName()))
+                    .singleElement()
+                    .extracting(Container::getEnv, InstanceOfAssertFactories.list(EnvVar.class))
+                    .as("External SSA env var should be preserved after operator reconcile")
+                    .anySatisfy(env -> {
+                        assertThat(env.getName()).isEqualTo("TEST_EXTERNAL_TOOL");
+                        assertThat(env.getValue()).isEqualTo("present");
+                    });
+        });
+    }
+
+    private static void addEnvVarToDeployment(String namespace, KubeClient kubeClient) {
+        kubeClient.getClient()
+                .resource(new DeploymentBuilder()
+                        .withNewMetadata().withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).withNamespace(namespace).endMetadata()
+                        .withNewSpec()
+                        .withNewTemplate()
+                        .withNewSpec()
+                        .addNewContainer()
+                        .withName("proxy")
+                        .addNewEnv()
+                        .withName("TEST_EXTERNAL_TOOL")
+                        .withValue("present")
+                        .endEnv()
+                        .endContainer()
+                        .endSpec()
+                        .endTemplate()
+                        .endSpec()
+                        .build())
+                .fieldManager("test-external-tool")
+                .serverSideApply();
+    }
+
 }
