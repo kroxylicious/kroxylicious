@@ -69,7 +69,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  * A filter for encrypting and decrypting records using envelope encryption
  * @param <K> The type of KEK reference
  */
-public class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFilter, ShareFetchResponseFilter {
+class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFilter, ShareFetchResponseFilter {
     private static final Logger log = getLogger(RecordEncryptionFilter.class);
     private final TopicNameBasedKekSelector<K> kekSelector;
     private final EncryptionManager<K> encryptionManager;
