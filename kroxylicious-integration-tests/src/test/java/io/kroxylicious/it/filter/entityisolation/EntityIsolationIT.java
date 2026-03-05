@@ -23,12 +23,15 @@ import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.admin.ListConfigResourcesOptions;
+import org.apache.kafka.clients.admin.ListShareGroupOffsetsSpec;
 import org.apache.kafka.clients.admin.ShareGroupDescription;
+import org.apache.kafka.clients.admin.SharePartitionOffsetInfo;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.internals.ShareAcknowledgementMode;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.GroupState;
 import org.apache.kafka.common.TopicPartition;
@@ -66,12 +69,12 @@ import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests for Entity Isolation Filter.
- * TODO: transactional id tests, share groups
+ * TODO: transactional id tests
  */
 @ExtendWith(KafkaClusterExtension.class)
 class EntityIsolationIT {
 
-    public static final String CONSUMER_GROUP_NAME = "mygroup";
+    private static final String CONSUMER_GROUP_NAME = "mygroup";
 
     @SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"), @SaslMechanism.Principal(user = "bob", password = "pwd") })
     KafkaCluster cluster;
@@ -126,8 +129,8 @@ class EntityIsolationIT {
                 prepareClusterForShareGroups(aliceAdmin, aliceGroup);
                 prepareClusterForShareGroups(bobAdmin, bobGroup);
 
-                runShareConsumerInOrderToCreateGroup(tester, aliceGroup, topic, aliceConfig);
-                runShareConsumerInOrderToCreateGroup(tester, bobGroup, topic, bobConfig);
+                runShareConsumerInOrderToCreateGroup(tester, aliceGroup, topic, aliceConfig, 1);
+                runShareConsumerInOrderToCreateGroup(tester, bobGroup, topic, bobConfig, 1);
 
                 verifyShareConsumerGroupsWithDescribe(aliceAdmin, Set.of(aliceGroup), Set.of(bobGroup, "idontexist"));
                 verifyShareConsumerGroupsWithDescribe(bobAdmin, Set.of(bobGroup), Set.of(aliceGroup, "idontexist"));
@@ -320,6 +323,99 @@ class EntityIsolationIT {
     }
 
     /**
+     * Share group isolation - list offsets.
+     * <br/>
+     * Ensure the offsets acknowledge to a share group are visible through the {@link Admin#listConsumerGroupOffsets(String)} API.
+     *
+     * @param topic topic
+     */
+    @Test
+    void listShareConsumerGroupOffsets(Topic topic) {
+
+        var configBuilder = buildProxyConfig(cluster);
+        var aliceConfig = buildClientConfig("alice", "pwd",
+                Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
+                        ConsumerConfig.SHARE_ACKNOWLEDGEMENT_MODE_CONFIG, ShareAcknowledgementMode.EXPLICIT.name()));
+
+        try (var tester = kroxyliciousTester(configBuilder);
+                var aliceAdmin = tester.admin(aliceConfig)) {
+
+            prepareClusterForShareGroups(aliceAdmin, CONSUMER_GROUP_NAME);
+
+            try (var producer = tester.producer(aliceConfig)) {
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k2", "v2")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
+
+            try (var aliceConsumer = tester.shareConsumer(aliceConfig)) {
+                aliceConsumer.subscribe(List.of(topic.name()));
+                var aliceRecs = aliceConsumer.poll(Duration.ofSeconds(10));
+
+                assertThat(aliceRecs).hasSize(2);
+
+                var first = aliceRecs.records(topic.name()).iterator().next();
+                // commit the first record leaving the second one to consume later
+                aliceConsumer.acknowledge(first);
+            }
+
+            var spec = new ListShareGroupOffsetsSpec().topicPartitions(List.of(new TopicPartition(topic.name(), 0)));
+            var actual = assertThat(aliceAdmin.listShareGroupOffsets(Map.of(CONSUMER_GROUP_NAME, spec)).all())
+                    .succeedsWithin(Duration.ofSeconds(30))
+                    .actual();
+
+            assertThat(actual)
+                    .extractingByKey(CONSUMER_GROUP_NAME, as(map(TopicPartition.class, SharePartitionOffsetInfo.class)))
+                    .extractingByKey(new TopicPartition(topic.name(), 0))
+                    .satisfies(spoi -> assertThat(spoi.startOffset()).isEqualTo(1));
+
+
+            assertThat(aliceAdmin.deleteShareGroups(Set.of(CONSUMER_GROUP_NAME)).all()).succeedsWithin(Duration.ofSeconds(5));
+        }
+    }
+
+    /**
+     * Group isolation - delete share group
+     * <br/>
+     * Verifies that an isolated share group can be deleted.
+     *
+     * @param topic topic
+     */
+    @Test
+    void deleteShareConsumerGroups(Topic topic) {
+        var configBuilder = buildProxyConfig(cluster);
+
+        var aliceConfig = buildClientConfig("alice", "pwd");
+        try (var tester = kroxyliciousTester(configBuilder);
+                var aliceAdmin = tester.admin(aliceConfig)) {
+
+            try (var producer = tester.producer(aliceConfig)) {
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "k1", "v1")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
+
+            var aliceGroup1 = "AliceGroup1";
+            var aliceGroup2 = "AliceGroup2";
+            prepareClusterForShareGroups(aliceAdmin, aliceGroup1);
+            prepareClusterForShareGroups(aliceAdmin, aliceGroup2);
+
+            runShareConsumerInOrderToCreateGroup(tester, aliceGroup1, topic, aliceConfig, 1);
+            runShareConsumerInOrderToCreateGroup(tester, aliceGroup2, topic, aliceConfig, 1);
+
+            verifyShareConsumerGroupsWithDescribe(aliceAdmin, Set.of(aliceGroup1, aliceGroup2), Set.of());
+
+            assertThat(aliceAdmin.deleteShareGroups(List.of(aliceGroup1)).all())
+                    .succeedsWithin(Duration.ofSeconds(10));
+
+            verifyShareConsumerGroupsWithDescribe(aliceAdmin, Set.of(aliceGroup2), Set.of(aliceGroup1));
+
+            assertThat(aliceAdmin.deleteShareGroups(List.of(aliceGroup2)).all())
+                    .succeedsWithin(Duration.ofSeconds(10));
+        }
+    }
+
+    /**
      * Group isolation - config
      * <br/>
      * Verifies that a group config is properly isolated.
@@ -356,7 +452,6 @@ class EntityIsolationIT {
                         .containsExactly(configResource);
             }
         }
-
     }
 
     private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster) {
@@ -472,7 +567,8 @@ class EntityIsolationIT {
     private void runShareConsumerInOrderToCreateGroup(KroxyliciousTester tester,
                                                       String groupId,
                                                       Topic topic,
-                                                      Map<String, Object> saslConfig) {
+                                                      Map<String, Object> saslConfig,
+                                                      int numberOfRecords) {
         var consumerConfig = new HashMap<>(saslConfig);
         consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         consumerConfig.putAll(tester.clientConfiguration());
@@ -480,7 +576,7 @@ class EntityIsolationIT {
         try (var shareConsumer = tester.shareConsumer(consumerConfig)) {
             shareConsumer.subscribe(List.of(topic.name()));
             var recs = shareConsumer.poll(Duration.ofSeconds(10));
-            assertThat(recs).hasSize(1);
+            assertThat(recs).hasSize(numberOfRecords);
         }
     }
 
