@@ -1,0 +1,30 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_GROUPS"
+  apiVersion: 0
+  scenario: "all groups in request denied, do not forward, respond with error"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: [] # alice not allowed to describe group
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 15
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    groups:
+      - "my-group"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedErrorResponse: "GROUP_AUTHORIZATION_FAILED"

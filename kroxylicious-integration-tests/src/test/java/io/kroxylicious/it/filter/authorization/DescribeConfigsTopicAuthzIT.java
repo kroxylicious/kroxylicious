@@ -19,8 +19,12 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.message.AlterConfigsRequestData;
-import org.apache.kafka.common.message.AlterConfigsResponseData;
+import org.apache.kafka.common.config.ConfigResource;
+import org.apache.kafka.common.message.DescribeConfigsRequestData;
+import org.apache.kafka.common.message.DescribeConfigsRequestData.DescribeConfigsResource;
+import org.apache.kafka.common.message.DescribeConfigsResponseData;
+import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
+import org.apache.kafka.common.message.DescribeTopicPartitionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
@@ -39,7 +43,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static java.util.stream.Stream.concat;
 
-class AlterConfigsAuthzIT extends AuthzIT {
+class DescribeConfigsTopicAuthzIT extends AuthzIT {
 
     private static final String ALICE_TOPIC_NAME = "alice-topic";
     private static final String BOB_TOPIC_NAME = "bob-topic";
@@ -66,7 +70,7 @@ class AlterConfigsAuthzIT extends AuthzIT {
         Files.writeString(rulesFile, """
                 from io.kroxylicious.filter.authorization import TopicResource as Topic;
                 allow User with name = "alice" to * Topic with name = "%s";
-                allow User with name = "bob" to ALTER_CONFIGS Topic with name = "%s";
+                allow User with name = "bob" to DESCRIBE_CONFIGS Topic with name = "%s";
                 otherwise deny;
                 """.formatted(ALICE_TOPIC_NAME, BOB_TOPIC_NAME));
         /*
@@ -82,7 +86,7 @@ class AlterConfigsAuthzIT extends AuthzIT {
                 new AclBinding(
                         new ResourcePattern(ResourceType.TOPIC, BOB_TOPIC_NAME, PatternType.LITERAL),
                         new AccessControlEntry("User:" + BOB, "*",
-                                AclOperation.ALTER_CONFIGS, AclPermissionType.ALLOW)));
+                                AclOperation.DESCRIBE_CONFIGS, AclPermissionType.ALLOW)));
     }
 
     @BeforeEach
@@ -97,18 +101,18 @@ class AlterConfigsAuthzIT extends AuthzIT {
         ClusterPrepUtils.deleteTopicsAndAcls(kafkaClusterNoAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, List.of());
     }
 
-    class AlterConfigsEquivalence extends Equivalence<AlterConfigsRequestData, AlterConfigsResponseData> {
+    class DescribeConfigsEquivalence extends Equivalence<DescribeConfigsRequestData, DescribeConfigsResponseData> {
 
-        private final AlterConfigsRequestData requestData;
+        private final DescribeConfigsRequestData requestData;
 
-        AlterConfigsEquivalence(short apiVersion, AlterConfigsRequestData requestData) {
+        DescribeConfigsEquivalence(short apiVersion, DescribeConfigsRequestData requestData) {
             super(apiVersion);
             this.requestData = requestData;
         }
 
         @Override
         public ApiKeys apiKey() {
-            return ApiKeys.ALTER_CONFIGS;
+            return ApiKeys.DESCRIBE_CONFIGS;
         }
 
         @Override
@@ -117,51 +121,46 @@ class AlterConfigsAuthzIT extends AuthzIT {
         }
 
         @Override
-        public AlterConfigsRequestData requestData(String user, BaseClusterFixture clusterFixture) {
+        public DescribeConfigsRequestData requestData(String user, BaseClusterFixture clusterFixture) {
             return requestData;
         }
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonNodes) {
-            sortArray(jsonNodes, "responses", "resourceName");
             return prettyJsonString(jsonNodes);
         }
 
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {
-        AlterConfigsRequestData specificTopics = new AlterConfigsRequestData();
+        DescribeConfigsRequestData specificTopics = new DescribeConfigsRequestData();
         ALL_TOPIC_NAMES_IN_TEST.forEach(topicName -> {
             specificTopics.resources().add(topicResource(topicName));
         });
-        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.ALTER_CONFIGS),
-                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.ALTER_CONFIGS))
+        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.DESCRIBE_CONFIGS),
+                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.DESCRIBE_CONFIGS))
                 .boxed().flatMap(apiVersion -> Stream.of(
                         Arguments.argumentSet("api version " + apiVersion + " specific topics request",
-                                new AlterConfigsEquivalence((short) (int) apiVersion, specificTopics))));
+                                new DescribeConfigsEquivalence((short) (int) apiVersion, specificTopics))));
         Stream<Arguments> unsupportedVersions = IntStream
-                .rangeClosed(ApiKeys.ALTER_CONFIGS.oldestVersion(), ApiKeys.ALTER_CONFIGS.latestVersion(true))
-                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.ALTER_CONFIGS, (short) version))
+                .rangeClosed(ApiKeys.DESCRIBE_CONFIGS.oldestVersion(), ApiKeys.DESCRIBE_CONFIGS.latestVersion(true))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.DESCRIBE_CONFIGS, (short) version))
                 .mapToObj(
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
-                                new UnsupportedApiVersion<>(ApiKeys.ALTER_CONFIGS, (short) apiVersion)));
+                                new UnsupportedApiVersion<>(ApiKeys.DESCRIBE_CONFIGS, (short) apiVersion)));
         return concat(supportedVersions, unsupportedVersions).toList();
     }
 
-    private static AlterConfigsRequestData.AlterConfigsResource topicResource(String topicName) {
-        var resource = new AlterConfigsRequestData.AlterConfigsResource();
+    private static DescribeConfigsResource topicResource(String topicName) {
+        var resource = new DescribeConfigsResource();
         resource.setResourceName(topicName);
-        resource.setResourceType(ResourceType.TOPIC.code());
-        AlterConfigsRequestData.AlterableConfig alterable = new AlterConfigsRequestData.AlterableConfig();
-        alterable.setName("retention.bytes");
-        alterable.setValue("20000");
-        resource.configs().add(alterable);
+        resource.setResourceType(ConfigResource.Type.TOPIC.id());
         return resource;
     }
 
     @ParameterizedTest
     @MethodSource
-    void shouldEnforceAccessToTopics(VersionSpecificVerification<AlterConfigsRequestData, AlterConfigsResponseData> test) {
+    void shouldEnforceAccessToTopics(VersionSpecificVerification<DescribeTopicPartitionsRequestData, DescribeTopicPartitionsResponseData> test) {
         try (var referenceCluster = new ReferenceCluster(kafkaClusterWithAuthz, this.topicIdsInUnproxiedCluster);
                 var proxiedCluster = new ProxiedCluster(kafkaClusterNoAuthz, this.topicIdsInProxiedCluster, rulesFile)) {
             test.verifyBehaviour(referenceCluster, proxiedCluster);

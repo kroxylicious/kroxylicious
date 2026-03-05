@@ -56,8 +56,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Checks that actors must have write permissions for the tranactionalId that they reference
- * in TxnOffsetCommit RPCs. Note that the actor also needs permissions to read each
- * topic in the request, which is covered in a separate test.
+ * in TxnOffsetCommit RPCs. Note that the actor also needs permissions to write
+ *  * to the transaction id, and read the group, which are covered separate tests.
  * <p>
  * Note that to init the transactional producer id the user needs WRITE permissions for the TransactionalId.
  * So to test that TxnOffsetCommit fails if the user 'eve' is not permitted, we use a permitted user
