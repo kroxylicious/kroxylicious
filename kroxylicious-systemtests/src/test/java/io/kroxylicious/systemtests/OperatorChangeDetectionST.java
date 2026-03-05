@@ -393,7 +393,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
 
         await().atMost(ASERTION_DURATION)
                 .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious")
-                                .stream().filter(p -> p.getMetadata().getLabels().get("app.kubernetes.io/component").equalsIgnoreCase("proxy")).toList(),
+                        .stream().filter(p -> p.getMetadata().getLabels().get("app.kubernetes.io/component").equalsIgnoreCase("proxy")).toList(),
                         proxyPods -> {
                             assertThat(proxyPods)
                                     .singleElement()
