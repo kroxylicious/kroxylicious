@@ -17,6 +17,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -48,6 +51,8 @@ public record Configuration(
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
                             @Nullable NetworkDefinition network) {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
     /**
      * Creates an instance of configuration.
@@ -144,9 +149,14 @@ public record Configuration(
 
     private static void addGateways(List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
         gateways.forEach(gateway -> {
-            var nodeIdentificationStrategy = gateway.buildNodeIdentificationStrategy(virtualClusterModel.getClusterName());
-            var tls = gateway.tls();
-            virtualClusterModel.addGateway(gateway.name(), nodeIdentificationStrategy, tls);
+            try {
+                var nodeIdentificationStrategy = gateway.buildNodeIdentificationStrategy(virtualClusterModel.getClusterName());
+                var tls = gateway.tls();
+                virtualClusterModel.addGateway(gateway.name(), nodeIdentificationStrategy, tls);
+            }
+            catch (SniHostIdentifiesNodeIdentificationStrategy.UnresolvedHostException e) {
+                LOGGER.warn("Not adding gateway {} because of unresolved host (associated OpenShift Route may not be ready yet).", gateway.name());
+            }
         });
     }
 
