@@ -152,6 +152,12 @@ public class SniHostIdentifiesNodeIdentificationStrategy
                 "advertisedBrokerAddressPattern=" + advertisedBrokerAddressPattern + ']';
     }
 
+    public static class UnresolvedHostException extends RuntimeException {
+        public UnresolvedHostException(String m) {
+            super(m);
+        }
+    }
+
     @Override
     public NodeIdentificationStrategy buildStrategy(String clusterName) {
         return new Strategy(clusterName);
@@ -173,6 +179,11 @@ public class SniHostIdentifiesNodeIdentificationStrategy
             this.bootstrapAddress = new HostPort(
                     BrokerAddressPatternUtils.replaceVirtualClusterName(parsedBootstrapAddressPattern, clusterName),
                     getBootstrapPort());
+
+            if (bootstrapAddress.host().contains(LITERAL_HOST)) {
+                throw new UnresolvedHostException("Parsed bootstrap address host '" + parsedBootstrapAddressPattern + "' contains placeholder host token.");
+            }
+
             try {
                 URI.create(bootstrapAddress.toString());
             }
