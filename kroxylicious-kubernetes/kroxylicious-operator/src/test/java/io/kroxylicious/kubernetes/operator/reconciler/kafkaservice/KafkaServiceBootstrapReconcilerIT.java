@@ -54,7 +54,7 @@ class KafkaServiceBootstrapReconcilerIT {
     @RegisterExtension
     static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
             .withReconciler(new KafkaServiceReconciler(Clock.systemUTC(), sharedInformerManager))
-            .withClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
+            .replaceClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
             .build();
 
     @Test

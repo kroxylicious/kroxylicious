@@ -81,7 +81,7 @@ class VirtualKafkaClusterReconcilerIT {
     static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
             .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create(), sharedInformerManager))
             .withReconciler(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
-            .withClusterRoleGlobs("*.ClusterRole*.yaml")
+            .replaceClusterRoleGlobs("*.ClusterRole*.yaml")
             .build();
 
     @Test

@@ -57,7 +57,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @RegisterExtension
     static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
             .withReconciler(new KafkaServiceReconciler(Clock.systemUTC(), sharedInformerManager))
-            .withClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
+            .replaceClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
             .withSetupAction(() -> {
                 try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
                     client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
