@@ -25,17 +25,21 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class FindCoordinatorEntityIsolationProcessor
+/**
+ * Entity isolation processor for FIND_COORDINATOR.
+ * This implementation is handwritten as at v2, filtering the response requires information
+ * from the request.
+ */
+class FindCoordinatorEntityIsolationProcessor
         implements EntityIsolationProcessor<FindCoordinatorRequestData, FindCoordinatorResponseData, ResourceType> {
     private static final Logger LOGGER = LoggerFactory.getLogger(FindCoordinatorEntityIsolationProcessor.class);
 
     private final Set<ResourceType> resourceTypes;
     private final EntityNameMapper mapper;
 
-    public FindCoordinatorEntityIsolationProcessor(Set<ResourceType> resourceTypes, EntityNameMapper mapper) {
+    FindCoordinatorEntityIsolationProcessor(Set<ResourceType> resourceTypes, EntityNameMapper mapper) {
         this.resourceTypes = resourceTypes;
         this.mapper = mapper;
     }
@@ -73,14 +77,15 @@ public class FindCoordinatorEntityIsolationProcessor
     }
 
     @Override
+    @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     public CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
                                                             short apiVersion,
-                                                            @NonNull ResourceType requestedResourceType,
+                                                            @Nullable ResourceType requestedResourceType,
                                                             FindCoordinatorResponseData response,
                                                             FilterContext filterContext,
                                                             MapperContext mapperContext) {
         log(filterContext, "response", ApiKeys.FIND_COORDINATOR, response);
-        Optional.of(requestedResourceType)
+        Optional.ofNullable(requestedResourceType)
                 .filter(resourceTypes::contains)
                 .ifPresent(resourceType -> response.coordinators()
                         .forEach(coordinator -> coordinator.setKey(unmap(mapperContext, requestedResourceType, coordinator.key()))));
@@ -102,16 +107,6 @@ public class FindCoordinatorEntityIsolationProcessor
             return mappedName;
         }
         return mapper.unmap(context, resourceType, mappedName);
-    }
-
-    private boolean inNamespace(MapperContext context, ResourceType resourceType, String mappedName) {
-        return mapper.isInNamespace(context, resourceType, mappedName);
-    }
-
-    private static MapperContext buildMapperContext(FilterContext context) {
-        return new MapperContext(context.authenticatedSubject(),
-                context.clientTlsContext().orElse(null),
-                context.clientSaslContext().orElse(null));
     }
 
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {

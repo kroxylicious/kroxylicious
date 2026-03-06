@@ -97,9 +97,14 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         return Optional.ofNullable(processorMap.get(apiKey))
                 .map(eip -> {
                     var mapperContext = buildMapperContext(filterContext);
-                    Optional.ofNullable(eip.createCorrelatedRequestContext(request))
-                            .ifPresent(crc -> correlatedRequestContext.put(header.correlationId(), crc));
-                    return eip.onRequest(header, apiVersion, request, filterContext, mapperContext);
+                    var crc = eip.createCorrelatedRequestContext(request);
+                    return ((CompletionStage<RequestFilterResult>) eip.onRequest(header, apiVersion, request, filterContext, mapperContext))
+                            .thenApply(rfr -> {
+                                if (!(crc == null || rfr.shortCircuitResponse() || rfr.drop() || rfr.closeConnection())) {
+                                    correlatedRequestContext.put(header.correlationId(), crc);
+                                }
+                                return rfr;
+                            });
                 })
                 .orElse(filterContext.forwardRequest(header, request));
 

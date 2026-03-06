@@ -16,7 +16,6 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.UnknownNullness;
 
 interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C> {
@@ -47,7 +46,7 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C
         return filterContext.forwardResponse(header, response);
     }
 
-    @Nullable
+    @UnknownNullness
     default C createCorrelatedRequestContext(Q request) {
         return null;
     }
