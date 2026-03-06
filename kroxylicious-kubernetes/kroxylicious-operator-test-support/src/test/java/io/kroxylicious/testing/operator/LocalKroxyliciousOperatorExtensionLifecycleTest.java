@@ -31,7 +31,9 @@ class LocalKroxyliciousOperatorExtensionLifecycleTest {
             LocalKroxyliciousOperatorExtension.builder()
                     .withReconciler((KafkaProxy resource, Context<KafkaProxy> ctx) -> UpdateControl.noUpdate()),
             () -> rbacHandler,
-            handler -> locallyRunOperatorExtension);
+            handler -> locallyRunOperatorExtension,
+            () -> {
+            });
 
     @Test
     void beforeAllSetsUpRbacThenStartsOperator() throws Exception {
