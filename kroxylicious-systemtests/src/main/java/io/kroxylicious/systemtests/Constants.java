@@ -120,7 +120,7 @@ public final class Constants {
      * Test clients image url
      */
     public static final String KCAT_CLIENT_IMAGE = "quay.io/kroxylicious/kcat:1.7.1@sha256:8f16a5fed099931ce1122420b7473efe467ff9841d53680b99db25dd1723d711";
-    public static final String PYTHON_CLIENT_IMAGE = "quay.io/kroxylicious/python-kafka-test-client:0.1.2-2.12.1@sha256:e1333acecfa8a101fec8dc6790341d7910a88784509909ff9eb1836058f62f8a";
+    public static final String PYTHON_CLIENT_IMAGE = "quay.io/kroxylicious/python-kafka-test-client:0.1.2-2.13.0@sha256:e4edd5551d6dc9b57a71de17e9af53786fb6506375434e8d72940aabd221c267";
     public static final String KAF_CLIENT_IMAGE = "quay.io/kroxylicious/kaf:v0.2.13@sha256:bc77247fc6d04087943388d631a2f5d82e41eccbf3a6608bd330c688aafcde7d";
 
     /**
