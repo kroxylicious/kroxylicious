@@ -93,7 +93,7 @@ class MultiTenantFilterTest {
         return resources;
     }
 
-    private final MultiTenantFilter filter = new MultiTenantFilter(new MultiTenantConfig(null));
+    private final MultiTenantFilter filter = new MultiTenantFilter(new MultiTenantConfig(null, null));
 
     private final FilterInvoker invoker = getOnlyElement(FilterAndInvoker.build(((Filter) filter).getClass().getSimpleName(), filter)).invoker();
 
@@ -176,7 +176,7 @@ class MultiTenantFilterTest {
 
     @Test
     void shouldReWriteTopic() {
-        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(null));
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(null, null));
         // Given
         when(filterContext.getVirtualClusterName()).thenReturn(VIRTUAL_CLUSTER_NAME);
         var request = createProduceRequest(TEST_TOPIC);
@@ -199,7 +199,7 @@ class MultiTenantFilterTest {
     @NullSource
     void produceWithCustomSeparator(String separator) {
         var expectedServerTopicName = "%s%s%s".formatted(VIRTUAL_CLUSTER_NAME, Objects.requireNonNullElse(separator, MultiTenantConfig.DEFAULT_SEPARATOR), TEST_TOPIC);
-        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(separator));
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(separator, null));
         // Given
         when(filterContext.getVirtualClusterName()).thenReturn(VIRTUAL_CLUSTER_NAME);
         var request = createProduceRequest(TEST_TOPIC);
@@ -221,7 +221,7 @@ class MultiTenantFilterTest {
     @NullSource
     void fetchWithCustomSeparator(String separator) {
         var serverTopic = "%s%s%s".formatted(VIRTUAL_CLUSTER_NAME, Objects.requireNonNullElse(separator, MultiTenantConfig.DEFAULT_SEPARATOR), TEST_TOPIC);
-        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(separator));
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(separator, null));
         // Given
         when(filterContext.getVirtualClusterName()).thenReturn(VIRTUAL_CLUSTER_NAME);
         var response = createFetchResponseData(serverTopic);
@@ -240,7 +240,7 @@ class MultiTenantFilterTest {
 
     @Test
     void illegalKafkaResourceCharsInVirtualClusterNameDetected() {
-        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(MultiTenantConfig.DEFAULT_SEPARATOR));
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(MultiTenantConfig.DEFAULT_SEPARATOR, null));
         // Given
         when(filterContext.getVirtualClusterName()).thenReturn("$badvcn$");
         var request = createProduceRequest(TEST_TOPIC);
@@ -254,8 +254,104 @@ class MultiTenantFilterTest {
 
     @Test
     void illegalKafkaResourceCharsInSeparatorDetected() {
-        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig("$bad$"));
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig("$bad$", null));
         // Given
+        when(filterContext.getVirtualClusterName()).thenReturn(VIRTUAL_CLUSTER_NAME);
+        var request = createProduceRequest(TEST_TOPIC);
+        var header = new RequestHeaderData();
+        // When
+        assertThatThrownBy(() -> {
+            multiTenantTransformationFilter.onProduceRequest(
+                    ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, request, filterContext);
+        }).isInstanceOf(IllegalStateException.class);
+    }
+    @ParameterizedTest
+    @ValueSource(strings = { "customprefix", "tenant-a", "myprefix" })
+    void produceWithCustomPrefixName(String customPrefix) {
+        var expectedServerTopicName = "%s%s%s".formatted(customPrefix, MultiTenantConfig.DEFAULT_SEPARATOR, TEST_TOPIC);
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(null, customPrefix));
+        // Given
+        when(filterContext.getVirtualClusterName()).thenReturn(VIRTUAL_CLUSTER_NAME);
+        var request = createProduceRequest(TEST_TOPIC);
+        // When
+        multiTenantTransformationFilter.onProduceRequest(
+                ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), request, filterContext);
+
+        // Then
+        verify(filterContext).forwardRequest(any(RequestHeaderData.class), assertArg(
+                apiMessage -> assertThat(apiMessage)
+                        .is(forApiKey(ApiKeys.PRODUCE))
+                        .is(produceRequestMatching(produceRequestData -> produceRequestData.topicData()
+                                .stream()
+                                .allMatch(topicProduceData -> topicProduceData.name().equals(expectedServerTopicName))))));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "customprefix", "tenant-a", "myprefix" })
+    void fetchWithCustomPrefixName(String customPrefix) {
+        var serverTopic = "%s%s%s".formatted(customPrefix, MultiTenantConfig.DEFAULT_SEPARATOR, TEST_TOPIC);
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(null, customPrefix));
+        // Given
+        when(filterContext.getVirtualClusterName()).thenReturn(VIRTUAL_CLUSTER_NAME);
+        var response = createFetchResponseData(serverTopic);
+        // When
+        multiTenantTransformationFilter.onFetchResponse(
+                FetchResponseData.HIGHEST_SUPPORTED_VERSION, new ResponseHeaderData(), response, filterContext);
+
+        // Then
+        verify(filterContext).forwardResponse(any(ResponseHeaderData.class), assertArg(
+                apiMessage -> assertThat(apiMessage)
+                        .is(forApiKey(ApiKeys.FETCH))
+                        .is(FetchResponseDataCondition.fetchResponseMatching(fetchResponseData -> fetchResponseData.responses()
+                                .stream()
+                                .allMatch(topicFetchData -> topicFetchData.topic().equals(TEST_TOPIC))))));
+    }
+
+    @Test
+    void customPrefixNameOverridesVirtualClusterName() {
+        var customPrefix = "customprefix";
+        var expectedServerTopicName = "%s%s%s".formatted(customPrefix, MultiTenantConfig.DEFAULT_SEPARATOR, TEST_TOPIC);
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(null, customPrefix));
+        // Given
+        when(filterContext.getVirtualClusterName()).thenReturn(VIRTUAL_CLUSTER_NAME);
+        var request = createProduceRequest(TEST_TOPIC);
+        // When
+        multiTenantTransformationFilter.onProduceRequest(
+                ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), request, filterContext);
+
+        // Then - verify it uses customPrefix, not VIRTUAL_CLUSTER_NAME
+        verify(filterContext).forwardRequest(any(RequestHeaderData.class), assertArg(
+                apiMessage -> assertThat(apiMessage)
+                        .is(forApiKey(ApiKeys.PRODUCE))
+                        .is(produceRequestMatching(produceRequestData -> produceRequestData.topicData()
+                                .stream()
+                                .allMatch(topicProduceData -> topicProduceData.name().equals(expectedServerTopicName))))));
+    }
+
+    @Test
+    void nullCustomPrefixNameFallsBackToVirtualCluster() {
+        var expectedServerTopicName = "%s%s%s".formatted(VIRTUAL_CLUSTER_NAME, MultiTenantConfig.DEFAULT_SEPARATOR, TEST_TOPIC);
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(null, null));
+        // Given
+        when(filterContext.getVirtualClusterName()).thenReturn(VIRTUAL_CLUSTER_NAME);
+        var request = createProduceRequest(TEST_TOPIC);
+        // When
+        multiTenantTransformationFilter.onProduceRequest(
+                ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), request, filterContext);
+
+        // Then - verify it falls back to using VIRTUAL_CLUSTER_NAME
+        verify(filterContext).forwardRequest(any(RequestHeaderData.class), assertArg(
+                apiMessage -> assertThat(apiMessage)
+                        .is(forApiKey(ApiKeys.PRODUCE))
+                        .is(produceRequestMatching(produceRequestData -> produceRequestData.topicData()
+                                .stream()
+                                .allMatch(topicProduceData -> topicProduceData.name().equals(expectedServerTopicName))))));
+    }
+
+    @Test
+    void illegalKafkaResourceCharsInCustomPrefixDetected() {
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig(MultiTenantConfig.DEFAULT_SEPARATOR, "$bad$"));
+        // Given - virtual cluster name is not needed when custom prefix is set
         when(filterContext.getVirtualClusterName()).thenReturn(VIRTUAL_CLUSTER_NAME);
         var request = createProduceRequest(TEST_TOPIC);
         var header = new RequestHeaderData();
