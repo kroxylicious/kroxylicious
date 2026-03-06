@@ -12,18 +12,12 @@ import java.util.List;
 
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Updatable;
-import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
@@ -35,10 +29,9 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
-import io.kroxylicious.kubernetes.operator.LocallyRunningOperatorRbacHandler;
+import io.kroxylicious.kubernetes.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.kubernetes.operator.OperatorTestUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-import io.kroxylicious.kubernetes.operator.TestFiles;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
@@ -48,60 +41,36 @@ import static org.awaitility.Awaitility.await;
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class KafkaServiceStrimziKafkaRefReconcilerIT {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceStrimziKafkaRefReconcilerIT.class);
     public static final String FOO_BOOTSTRAP_9090 = "foo.bootstrap:9090";
     public static final String SERVICE_A = "service-a";
     public static final String KAFKA_RESOURCE_NAME = "my-cluster";
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
+    // The Strimzi Kafka CRD must be installed before the operator starts so that KafkaServiceReconciler
+    // can set up its Strimzi Kafka informer during prepareEventSources. Setup/teardown actions run at
+    // the right point in the extension lifecycle to guarantee this ordering.
     @RegisterExtension
-    static LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler(TestFiles.INSTALL_MANIFESTS_DIR,
-            "*.ClusterRole.kroxylicious-operator-watched.yaml");
-
-    @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect so we can use it as an instance field.
-    @RegisterExtension
-    LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
+    static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
             .withReconciler(new KafkaServiceReconciler(Clock.systemUTC()))
-            .withKubernetesClient(rbacHandler.operatorClient())
-            .waitForNamespaceDeletion(false)
-            .withConfigurationService(x -> x.withCloseClientOnStop(false))
+            .replaceClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
+            .withSetupAction(() -> {
+                try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
+                    client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
+                }
+            })
+            .withTeardownAction(() -> {
+                try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
+                    client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
+                }
+            })
+            .withAdditionalCleanupTypes(Kafka.class)
             .build();
-
-    @BeforeAll
-    static void beforeAll() {
-        // note that we could not find a nice way to do this via the LocallyRunOperatorExtension. I tried serializing the CRD to
-        // a temp file and using `withAdditionalCRD(path)` but it didn't load those CRDs before initializing the reconciler.
-        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-            client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @AfterAll
-    static void afterAll() {
-        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-            client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
-
-    @AfterEach
-    void stopOperator() {
-        extension.getOperator().stop();
-        LOGGER.atInfo().log("Test finished");
-    }
 
     @Test
     void shouldResolveStrimziKafka() {
         // Given
-        var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        var kafka = operator.create(kafkaResource(KAFKA_RESOURCE_NAME));
         String listenerHost = "foo.bootstrap";
         int listenerPort = 9090;
         Kafka withStatus = new KafkaBuilder(kafka)
@@ -116,10 +85,10 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                                 .build())
                 .endStatus()
                 .build();
-        testActor.patchStatus(withStatus);
+        operator.patchStatus(withStatus);
 
         // When
-        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService service = operator.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
 
         // Then
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
@@ -154,10 +123,10 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                 .endStatus()
                 .build();
 
-        testActor.create(withTlsListener);
+        operator.create(withTlsListener);
 
         // When
-        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "tls", KAFKA_RESOURCE_NAME));
+        KafkaService service = operator.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "tls", KAFKA_RESOURCE_NAME));
 
         // Then
         assertResolvedRefsFalse(service, Condition.REASON_INVALID_REFERENCED_RESOURCE, "Referenced resource should have listener as `plain`");
@@ -166,17 +135,17 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoListeners() {
         // Given
-        var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        var kafka = operator.create(kafkaResource(KAFKA_RESOURCE_NAME));
 
         Kafka withNoListener = new KafkaBuilder(kafka)
                 .withNewStatus()
                 .endStatus()
                 .build();
 
-        testActor.patchStatus(withNoListener);
+        operator.patchStatus(withNoListener);
 
         // When
-        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService service = operator.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
 
         // Then
         assertResolvedRefsFalse(service, Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED, "Referenced resource has not yet reconciled listener name: plain");
@@ -185,11 +154,11 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoStatus() {
         // Given
-        testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        operator.create(kafkaResource(KAFKA_RESOURCE_NAME));
 
         // When
 
-        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService service = operator.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
 
         // Then
         assertResolvedRefsFalse(service, Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED, "Referenced resource has not yet reconciled listener name: plain");
@@ -198,7 +167,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldUpdateStatusOnceStrimziKafkaResourceDeleted() {
         // Given
-        var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        var kafka = operator.create(kafkaResource(KAFKA_RESOURCE_NAME));
         String listenerHost = "foo.bootstrap";
         int listenerPort = 9090;
         Kafka withListeners = new KafkaBuilder(kafka)
@@ -213,14 +182,14 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                                 .build())
                 .endStatus()
                 .build();
-        testActor.patchStatus(withListeners);
+        operator.patchStatus(withListeners);
 
         // When
-        KafkaService updated = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService updated = operator.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
         assertResolvedRefsTrue(updated, FOO_BOOTSTRAP_9090, true);
 
         // When
-        testActor.delete(kafka);
+        operator.delete(kafka);
 
         // Then
         assertResolvedRefsFalse(updated, Condition.REASON_REFS_NOT_FOUND, "spec.strimziKafkaRef: referenced Kafka resource not found");
@@ -264,7 +233,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
 
     private void assertResolvedRefsTrue(KafkaService cr, String expectedBootstrap, boolean hasReferents) {
         AWAIT.untilAsserted(() -> {
-            final KafkaService kafkaService = testActor.get(KafkaService.class, ResourcesUtil.name(cr));
+            final KafkaService kafkaService = operator.get(KafkaService.class, ResourcesUtil.name(cr));
             Assertions.assertThat(kafkaService).isNotNull();
             Assertions.assertThat(kafkaService.getStatus().getBootstrapServers()).isEqualTo(expectedBootstrap);
             assertThat(kafkaService.getStatus())
@@ -291,7 +260,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                                          String reason,
                                          String message) {
         AWAIT.alias("KafkaServiceStatusResolvedRefs").untilAsserted(() -> {
-            var kafkaService = testActor.resources(KafkaService.class)
+            var kafkaService = operator.resources(KafkaService.class)
                     .withName(ResourcesUtil.name(cr)).get();
             Assertions.assertThat(kafkaService.getStatus()).isNotNull();
             OperatorAssertions
