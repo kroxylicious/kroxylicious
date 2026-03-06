@@ -78,6 +78,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     private final List<Executable> setupActions;
     private final List<Executable> teardownActions;
     private final List<Class<? extends HasMetadata>> additionalCleanupTypes;
+    private final Runnable imagePreloader;
 
     // mutable per-class state
     private LocallyRunningOperatorRbacHandler rbacHandler;
@@ -87,12 +88,14 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     private LocalKroxyliciousOperatorExtension(Builder builder) {
         this(builder,
                 () -> new LocallyRunningOperatorRbacHandler(builder.installManifestsDir, builder.clusterRoleGlobs.toArray(String[]::new)),
-                handler -> buildExtension(List.copyOf(builder.reconcilers), List.copyOf(builder.additionalCRDs), handler));
+                handler -> buildExtension(List.copyOf(builder.reconcilers), List.copyOf(builder.additionalCRDs), handler),
+                LocalKroxyliciousOperatorExtension::preloadOperandImage);
     }
 
     LocalKroxyliciousOperatorExtension(Builder builder,
                                        Supplier<LocallyRunningOperatorRbacHandler> rbacHandlerFactory,
-                                       Function<LocallyRunningOperatorRbacHandler, LocallyRunOperatorExtension> extensionFactory) {
+                                       Function<LocallyRunningOperatorRbacHandler, LocallyRunOperatorExtension> extensionFactory,
+                                       Runnable imagePreloader) {
         if (builder.reconcilers.isEmpty()) {
             throw new IllegalStateException("at least one reconciler must be set");
         }
@@ -101,6 +104,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         this.setupActions = List.copyOf(builder.setupActions);
         this.teardownActions = List.copyOf(builder.teardownActions);
         this.additionalCleanupTypes = List.copyOf(builder.additionalCleanupTypes);
+        this.imagePreloader = imagePreloader;
     }
 
     @Override
@@ -108,7 +112,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         rbacHandler = rbacHandlerFactory.get();
         rbacHandler.beforeEach(context);
 
-        preloadOperandImage();
+        imagePreloader.run();
 
         for (var action : setupActions) {
             try {
