@@ -7,9 +7,12 @@
 package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
@@ -18,10 +21,9 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 
 class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, OffsetCommitResponseData> {
-
-    public static final int LAST_VERSION_WITH_TOPIC_NAMES = 9;
 
     @Override
     short minSupportedVersion() {
@@ -30,7 +32,7 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
 
     @Override
     short maxSupportedVersion() {
-        return LAST_VERSION_WITH_TOPIC_NAMES; // doesn't currently support topicids
+        return 10;
     }
 
     @Override
@@ -38,14 +40,28 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
                                                    OffsetCommitRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
+        List<Uuid> topicIds = request.topics().stream().map(OffsetCommitRequestTopic::topicId)
+                .filter(uuid -> !Uuid.ZERO_UUID.equals(uuid)).toList();
+        return context.topicNames(topicIds).thenCompose(topicNameMapping -> onRequest(header, request, context, authorizationFilter, topicNameMapping));
+    }
+
+    private CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                           OffsetCommitRequestData request,
+                                                           FilterContext context,
+                                                           AuthorizationFilter authorizationFilter,
+                                                           TopicNameMapping topicNameMapping) {
+        if (topicNameMapping.anyFailures()) {
+            return context.requestFilterResultBuilder().errorResponse(header, request, Errors.UNKNOWN_TOPIC_ID.exception()).completed();
+        }
+
         var actions = request.topics().stream()
-                .map(ocrd -> new Action(TopicResource.READ, ocrd.name()))
+                .map(ocrd -> new Action(TopicResource.READ, mustGetTopicName(topicNameMapping, ocrd)))
                 .toList();
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
                     var decisions = authorization.partition(request.topics(),
                             TopicResource.READ,
-                            OffsetCommitRequestData.OffsetCommitRequestTopic::name);
+                            requestTopic -> mustGetTopicName(topicNameMapping, requestTopic));
                     if (decisions.get(Decision.ALLOW).isEmpty()) {
                         // Shortcircuit if there are no allowed topics
                         var creatableTopics = decisions.get(Decision.DENY).stream()
@@ -59,7 +75,7 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
                         return context.forwardRequest(header, request);
                     }
                     else {
-                        var topicCollection = new ArrayList<OffsetCommitRequestData.OffsetCommitRequestTopic>();
+                        var topicCollection = new ArrayList<OffsetCommitRequestTopic>();
                         for (var topic : decisions.get(Decision.ALLOW)) {
                             topicCollection.add(topic.duplicate());
                         }
@@ -76,10 +92,34 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
                 });
     }
 
-    private OffsetCommitResponseData.OffsetCommitResponseTopic topicAuthzFailed(OffsetCommitRequestData.OffsetCommitRequestTopic offsetCommitRequestTopic) {
+    /**
+     * get the name of the topic, mapping from topicId to name if required, throwing an exception if it is unknown
+     * @param topicNameMapping mapping
+     * @param requestTopic topic
+     * @return the topic name
+     * @throws IllegalStateException if the topic name is not available
+     */
+    private static String mustGetTopicName(TopicNameMapping topicNameMapping, OffsetCommitRequestTopic requestTopic) {
+        if (requestTopic.name() != null && !requestTopic.name().isEmpty()) {
+            return requestTopic.name();
+        }
+        else {
+            String topicName = topicNameMapping.topicNames().get(requestTopic.topicId());
+            if (topicName == null) {
+                throw new IllegalStateException("no name discovered for OffsetCommitRequestTopic with name: " + requestTopic.name() + " and topicId: "
+                        + requestTopic.topicId());
+            }
+            else {
+                return topicName;
+            }
+        }
+    }
+
+    private OffsetCommitResponseData.OffsetCommitResponseTopic topicAuthzFailed(OffsetCommitRequestTopic requestTopic) {
         return new OffsetCommitResponseData.OffsetCommitResponseTopic()
-                .setName(offsetCommitRequestTopic.name())
-                .setPartitions(offsetCommitRequestTopic.partitions().stream()
+                .setName(requestTopic.name())
+                .setTopicId(requestTopic.topicId())
+                .setPartitions(requestTopic.partitions().stream()
                         .map(p -> new OffsetCommitResponseData.OffsetCommitResponsePartition()
                                 .setPartitionIndex(p.partitionIndex())
                                 .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
