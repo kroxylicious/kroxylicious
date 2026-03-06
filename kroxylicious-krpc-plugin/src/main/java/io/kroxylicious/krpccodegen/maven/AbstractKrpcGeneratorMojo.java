@@ -52,6 +52,9 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     @Parameter(defaultValue = "compile")
     private String addToProjectSourceRoots;
 
+    @Parameter(defaultValue = "${project.build.sourceDirectory}")
+    private File sourceDirectory;
+
     @Parameter(defaultValue = "${project.build.directory}${file.separator}generated-sources${file.separator}/krpc")
     private File outputDirectory;
 
@@ -60,6 +63,9 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
 
     @Parameter(required = false)
     private boolean pairRequestResponseMode;
+
+    @Parameter(required = false)
+    private boolean skipOutputIfSourceExists;
 
     @Component
     private BuildContext buildContext;
@@ -82,9 +88,11 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
                     .withTemplateDir(templateDirectory)
                     .withTemplateNames(templates)
                     .withOutputPackage(outputPackage)
+                    .withSourceDir(sourceDirectory)
                     .withOutputDir(outputDirectory)
                     .withOutputFilePattern(outputFilePattern)
                     .withPairRequestResponseMode(pairRequestResponseMode)
+                    .withSkipOutputIfSourceExists(skipOutputIfSourceExists)
                     .build();
 
             try {

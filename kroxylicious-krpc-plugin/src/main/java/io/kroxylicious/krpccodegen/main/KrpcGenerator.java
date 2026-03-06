@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.function.Function;
@@ -55,6 +56,7 @@ import io.kroxylicious.krpccodegen.schema.StructRegistry;
 import io.kroxylicious.krpccodegen.schema.Versions;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
@@ -82,9 +84,11 @@ public class KrpcGenerator {
 
         private String outputPackage;
         private File outputDir;
+        private File sourceDir;
         private String outputFilePattern;
         private String streamProcessingFunction;
         private boolean pairRequestResponseMode;
+        private boolean skipOutputIfSourceExists;
 
         private Builder(GeneratorMode mode) {
             this.mode = mode;
@@ -165,6 +169,20 @@ public class KrpcGenerator {
         }
 
         /**
+         * The location of the project's source files (usually <code>src/main/java</code>.
+         * When in skipOutputIfSourceExists mode, before generating an output file to
+         * the output directory, it checks whether the equivalent file already exist
+         * in sourceDir. If so, output is skipped.
+         *
+         * @param sourceDir source directory
+         * @return this
+         */
+        public Builder withSourceDir(File sourceDir) {
+            this.sourceDir = sourceDir;
+            return this;
+        }
+
+        /**
          * configures the pattern used to form the output file name.
          * This understands two pattern {@code ${messageSpecName}} and {@code ${templateName}}
          * which if present will be replaced by the message specification name the template
@@ -178,13 +196,39 @@ public class KrpcGenerator {
             return this;
         }
 
+        /**
+         * javascript filtering function applied to the specifications before filters.
+         * this allows the source generation to be selective, generating sources for a
+         * sub-set of message specifications.
+         *
+         * @param streamProcessingFunction function defined in javascript, usually as a lambda function.
+         * @return this
+         */
         public Builder streamProcessingFunction(String streamProcessingFunction) {
             this.streamProcessingFunction = streamProcessingFunction;
             return this;
         }
 
+        /**
+         * In pairRequestResponseMode, the processor will consider request and response specifications
+         * that will be paired up.  The template will see {@link MessageSpecPair} objects.
+         *
+         * @param pairRequestResponseMode true for pair mode
+         * @return this
+         */
         public Builder withPairRequestResponseMode(boolean pairRequestResponseMode) {
             this.pairRequestResponseMode = pairRequestResponseMode;
+            return this;
+        }
+
+        /**
+         * If true, the processor will skip the generation of a source if a source file of the same
+         * name already exists in the project's source directory.
+         * @param skipOutputIfSourceExists true for skip mode.
+         * @return this
+         */
+        public Builder withSkipOutputIfSourceExists(boolean skipOutputIfSourceExists) {
+            this.skipOutputIfSourceExists = skipOutputIfSourceExists;
             return this;
         }
 
@@ -195,8 +239,9 @@ public class KrpcGenerator {
          */
         public KrpcGenerator build() {
             return new KrpcGenerator(logger, mode, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern,
-                    streamProcessingFunction, pairRequestResponseMode);
+                    sourceDir, streamProcessingFunction, pairRequestResponseMode, skipOutputIfSourceExists);
         }
+
     }
 
     enum GeneratorMode {
@@ -214,7 +259,9 @@ public class KrpcGenerator {
     private final List<String> templateNames;
 
     private final String outputPackage;
+    private final File sourceDir;
     private final boolean pairRequestResponseMode;
+    private final boolean skipOutputIfSourceExists;
     private final File outputDir;
     private final String outputFilePattern;
     private final String streamProcessingFunction;
@@ -229,8 +276,13 @@ public class KrpcGenerator {
                           String outputPackage,
                           File outputDir,
                           String outputFilePattern,
+                          File sourceDir,
                           String streamProcessingFunction,
-                          boolean pairRequestResponseMode) {
+                          boolean pairRequestResponseMode,
+                          boolean skipOutputIfSourceExists) {
+        if (skipOutputIfSourceExists && sourceDir == null) {
+            throw new IllegalArgumentException("When in skipOutputIfSourceExists mode, sourceDir must be provided");
+        }
         this.logger = logger != null ? logger : System.getLogger(KrpcGenerator.class.getName());
         this.mode = mode;
         this.messageSpecDir = messageSpecDir != null ? messageSpecDir : new File(".");
@@ -239,13 +291,20 @@ public class KrpcGenerator {
         this.templateNames = templateNames;
         this.outputPackage = outputPackage;
         this.pairRequestResponseMode = pairRequestResponseMode;
-        this.outputDir = outputDir.toPath().resolve(outputPackage.replace(".", File.separator)).toFile();
+        this.skipOutputIfSourceExists = skipOutputIfSourceExists;
+        this.outputDir = addPackageDirs(outputDir, outputPackage);
+        this.sourceDir = addPackageDirs(sourceDir, outputPackage);
         this.outputFilePattern = outputFilePattern;
         this.streamProcessingFunction = streamProcessingFunction;
-
         if (!this.outputDir.exists()) {
             this.outputDir.mkdirs();
         }
+    }
+
+    @Nullable
+    private static File addPackageDirs(File sourceDir, String outputPackage) {
+        var dirize = outputPackage.replace(".", File.separator);
+        return Optional.ofNullable(sourceDir).map(File::toPath).map(sd -> sd.resolve(dirize)).map(Path::toFile).orElse(null);
     }
 
     /**
@@ -356,7 +415,11 @@ public class KrpcGenerator {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
-                return KrpcGenerator.this.writeIfChanged(outputDir, KrpcGenerator.this.outputFile(outputFilePattern, target.name(), templateName),
+                var finalFileName = outputFile(outputFilePattern, target.name(), templateName);
+                if (shouldSkip(finalFileName)) {
+                    return 0;
+                }
+                return writeIfChanged(outputDir, finalFileName,
                         new ThrowingWriteAction() {
                             @SuppressFBWarnings("TEMPLATE_INJECTION_FREEMARKER") // we trust the user to supply a template
                             @Override
@@ -436,7 +499,6 @@ public class KrpcGenerator {
     /**
      * @return the number of files generated
      */
-
     private long renderMulti(Configuration cfg, final Map<String, Object> dataModel) {
         logger.log(Level.DEBUG, "Processing message specs");
 
@@ -444,8 +506,11 @@ public class KrpcGenerator {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
-                // TODO support output to stdout via `-`
-                return KrpcGenerator.this.writeIfChanged(outputDir, KrpcGenerator.this.outputFile(outputFilePattern, null, templateName), new ThrowingWriteAction() {
+                var finalFileName = outputFile(outputFilePattern, null, templateName);
+                if (shouldSkip(finalFileName)) {
+                    return 0;
+                }
+                return writeIfChanged(outputDir, finalFileName, new ThrowingWriteAction() {
                     @SuppressFBWarnings("TEMPLATE_INJECTION_FREEMARKER") // we trust the user to supply a template
                     @Override
                     public void accept(Writer writer, File finalFile) throws TemplateException, IOException {
@@ -578,6 +643,17 @@ public class KrpcGenerator {
         var structRegistry = new StructRegistry();
         structRegistry.register(messageSpec);
         return structRegistry;
+    }
+
+    private boolean shouldSkip(String finalFileName) {
+        if (skipOutputIfSourceExists) {
+            var sourceFile = Objects.requireNonNull(sourceDir).toPath().resolve(finalFileName);
+            if (sourceFile.toFile().exists()) {
+                logger.log(Level.DEBUG, "Skipping generation of {0} as (ungenerated) source already exists in the project source tree.", finalFileName);
+                return true;
+            }
+        }
+        return false;
     }
 
 }

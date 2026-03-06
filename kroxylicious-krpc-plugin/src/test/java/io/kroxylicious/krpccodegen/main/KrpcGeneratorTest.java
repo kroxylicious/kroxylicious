@@ -232,6 +232,71 @@ class KrpcGeneratorTest {
         assertThat(lastModifiedAfterGen).isEqualTo(lastModified);
     }
 
+    @Test
+    void shouldDetectSkipOutputIfSourceExistsWithSourceDir() {
+        KrpcGenerator.Builder builder = KrpcGenerator.single().withSkipOutputIfSourceExists(true).withSourceDir(null);
+        assertThatThrownBy(builder::build).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void singleShouldSkipOutputIfSourceExists(@TempDir File outputDir, @TempDir File sourceDir) throws Exception {
+        // Given
+        var gen = KrpcGenerator.single()
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter("{Fetch,Produce}Request.json")
+                .withTemplateDir(getTemplateDir())
+                .withTemplateNames(List.of("Kproxy/Filter.ftl"))
+                .withOutputPackage("com.foo")
+                .withSkipOutputIfSourceExists(true)
+                .withSourceDir(sourceDir)
+                .withOutputDir(outputDir)
+                .withOutputFilePattern("${messageSpecName}Filter.java")
+                .withSkipOutputIfSourceExists(true)
+                .build();
+
+        var existingSourceFile = join(sourceDir, "com", "foo", "FetchRequestFilter.java");
+        var generatedFile = join(outputDir, "com", "foo", "ProduceRequestFilter.java");
+        var skippedOutputFile = join(outputDir, "com", "foo", "FetchRequestFilter.java");
+
+        touch(existingSourceFile.toPath());
+
+        // When
+        gen.generate();
+
+        // Then
+        assertThat(generatedFile).exists();
+        assertThat(skippedOutputFile).doesNotExist();
+    }
+
+    @Test
+    void multiShouldSkipOutputIfSourceExists(@TempDir File outputDir, @TempDir File sourceDir) throws Exception {
+        // Given
+        var gen = KrpcGenerator.multi()
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter("{Fetch,Produce}Request.json")
+                .withTemplateDir(getTemplateDir())
+                .withTemplateNames(List.of("Kproxy/Filter.ftl"))
+                .withOutputPackage("com.foo")
+                .withSkipOutputIfSourceExists(true)
+                .withSourceDir(sourceDir)
+                .withOutputDir(outputDir)
+                .withOutputFilePattern("MyFilter.java")
+                .withSkipOutputIfSourceExists(true)
+                .build();
+
+        var existingSourceFile = join(sourceDir, "com", "foo", "MyFilter.java");
+        var skippedOutputFile = join(outputDir, "com", "foo", "MyFilter.java");
+
+        touch(existingSourceFile.toPath());
+
+        // When
+        gen.generate();
+
+        // Then
+        assertThat(skippedOutputFile).doesNotExist();
+
+    }
+
     @ParameterizedTest
     @CsvSource({ "AddPartitionsToTxnRequest.json,yes,no", "FetchRequest.json,no,no" })
     void testLatestVersionUnstable(String messageSpec, String expectField, String expectValue, @TempDir File tempDir) throws Exception {
@@ -298,9 +363,10 @@ class KrpcGeneratorTest {
                 }, IllegalArgumentException.class, "exists but is not a regular file"));
     }
 
-    private static void touch(Path fileB) {
+    private static void touch(Path file) {
         try {
-            java.nio.file.Files.createFile(fileB);
+            file.getParent().toFile().mkdirs();
+            java.nio.file.Files.createFile(file);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
