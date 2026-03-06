@@ -39,7 +39,7 @@ class KafkaProxyIngressReconcilerIT {
     @RegisterExtension
     static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
             .withReconciler(new KafkaProxyIngressReconciler(Clock.systemUTC()))
-            .withClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
+            .replaceClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
             .build();
 
     @Test
