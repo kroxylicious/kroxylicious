@@ -39,13 +39,24 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.GroupState;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.acl.AccessControlEntry;
+import org.apache.kafka.common.acl.AccessControlEntryFilter;
+import org.apache.kafka.common.acl.AclBinding;
+import org.apache.kafka.common.acl.AclBindingFilter;
+import org.apache.kafka.common.acl.AclOperation;
+import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.GroupIdNotFoundException;
+import org.apache.kafka.common.resource.PatternType;
+import org.apache.kafka.common.resource.ResourcePattern;
+import org.apache.kafka.common.resource.ResourcePatternFilter;
+import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.apache.kafka.coordinator.group.GroupConfig;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -60,8 +71,10 @@ import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Name;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -630,6 +643,51 @@ class EntityIsolationIT {
                                     .extracting(TransactionListing::transactionalId)
                                     .containsExactlyInAnyOrderElementsOf(List.of(cat, bat));
                         });
+            }
+        }
+    }
+
+    /**
+     * Verifies that ACL bindings are properly isolated.
+     * Alice and Bob both create an ACL binding.  The test ensure that neither Alice nor Bob
+     * can see each other's bindings.
+     *
+     * @param authzCluster cluster with authorization
+     */
+    @Test
+    @Disabled
+    void aclRuleWithGroupPredicateIsolation(@SaslMechanism(principals = {
+            @SaslMechanism.Principal(user = "alice", password = "pwd"),
+            @SaslMechanism.Principal(user = "bob", password = "pwd") })
+                                            @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer")
+                                            @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:alice;User:bob")
+                                            @Name("authz")
+                                            KafkaCluster authzCluster) {
+        var configBuilder = buildProxyConfig(authzCluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
+
+        var aliceConfig = buildClientConfig("alice", "pwd");
+        var bobConfig = buildClientConfig("bob", "pwd");
+
+        try (var tester = kroxyliciousTester(configBuilder)) {
+            try (var aliceAdmin = tester.admin(aliceConfig)) {
+                var aclBinding = new AclBinding(new ResourcePattern(ResourceType.GROUP, "AliceGroup", PatternType.LITERAL),
+                        new AccessControlEntry("User:foo", "*", AclOperation.ALL, AclPermissionType.ALLOW));
+                assertThat(aliceAdmin.createAcls(List.of(aclBinding)).all())
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
+            try (var bobAdmin = tester.admin(bobConfig)) {
+                var aclBinding = new AclBinding(new ResourcePattern(ResourceType.GROUP, "BobGroup", PatternType.LITERAL),
+                        new AccessControlEntry("User:bar", "*", AclOperation.ALL, AclPermissionType.ALLOW));
+                assertThat(bobAdmin.createAcls(List.of(aclBinding)).all())
+                        .succeedsWithin(Duration.ofSeconds(5));
+
+                assertThat(bobAdmin.describeAcls(new AclBindingFilter(new ResourcePatternFilter(ResourceType.ANY, null, PatternType.ANY),
+                        AccessControlEntryFilter.ANY)).values())
+                        .succeedsWithin(Duration.ofSeconds(5))
+                        .asInstanceOf(collection(AclBinding.class))
+                        .extracting(AclBinding::pattern)
+                        .extracting(ResourcePattern::name)
+                        .containsExactlyInAnyOrderElementsOf(List.of("BobGroup"));
             }
         }
     }
