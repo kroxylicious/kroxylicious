@@ -44,7 +44,6 @@ import io.javaoperatorsdk.operator.junit.AbstractOperatorExtension;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -140,14 +139,14 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             // The test framework itself needs these roles.
             clusterRoles.forEach(r -> {
                 LOGGER.atTrace()
-                        .addKeyValue("resourceName", name(r))
+                        .addKeyValue("resourceName", r.getMetadata().getName())
                         .log("Creating/patching");
                 adminClient.resource(r).createOr(EditReplacePatchable::patch);
             });
 
             roleBindings.forEach(roleBinding -> {
                 LOGGER.atTrace()
-                        .addKeyValue("resourceName", name(roleBinding))
+                        .addKeyValue("resourceName", roleBinding.getMetadata().getName())
                         .log("Creating role binding");
                 adminClient.resource(roleBinding).createOr(EditReplacePatchable::patch);
             });
@@ -159,9 +158,9 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     }
 
     private ClusterRoleBinding bindingForRole(ClusterRole clusterRole) {
-        return new ClusterRoleBindingBuilder().withNewMetadata().withName(name(clusterRole) + "-" + impersonatedUser + "-binding").endMetadata()
+        return new ClusterRoleBindingBuilder().withNewMetadata().withName(clusterRole.getMetadata().getName() + "-" + impersonatedUser + "-binding").endMetadata()
                 .addNewSubject().withKind("User").withName(impersonatedUser).withApiGroup("rbac.authorization.k8s.io").endSubject()
-                .withNewRoleRef().withKind("ClusterRole").withName(name(clusterRole)).withApiGroup("rbac.authorization.k8s.io").endRoleRef().build();
+                .withNewRoleRef().withKind("ClusterRole").withName(clusterRole.getMetadata().getName()).withApiGroup("rbac.authorization.k8s.io").endRoleRef().build();
     }
 
     private @NonNull Stream<ClusterRole> loadClusterRoles(Stream<Path> files, KubernetesClient adminClient, List<PathMatcher> clusterRolePathMatchers) {
@@ -182,12 +181,12 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     public void afterEach(ExtensionContext context) {
         try (var adminClient = OperatorTestUtils.kubeClient()) {
             this.roleBindings.forEach(roleBinding -> {
-                LOGGER.trace("Deleting ClusterRoleBinding: {}", name(roleBinding));
+                LOGGER.trace("Deleting ClusterRoleBinding: {}", roleBinding.getMetadata().getName());
                 adminClient.resource(roleBinding).delete();
             });
 
             this.clusterRoles.forEach(clusterRole -> {
-                LOGGER.trace("Deleting ClusterRole: {}", name(clusterRole));
+                LOGGER.trace("Deleting ClusterRole: {}", clusterRole.getMetadata().getName());
                 adminClient.resource(clusterRole).delete();
             });
         }
