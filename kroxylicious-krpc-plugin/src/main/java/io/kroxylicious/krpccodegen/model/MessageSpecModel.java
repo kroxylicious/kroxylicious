@@ -73,6 +73,7 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
         return spec.intersectedVersions(f -> set.contains(f.entityType()));
     }
 
+    @SuppressWarnings("java:S3740") // The Freemaker API is in terms of raw Lists
     private List<Short> handleintersectedVersionsForResourceList(List args) {
         return spec.intersectedVersions(MessageSpec.isResourceList());
     }
