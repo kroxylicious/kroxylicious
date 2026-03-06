@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
@@ -77,7 +79,20 @@ class OperatorSsaUpgradeIT {
 
     @BeforeAll
     static void preloadOperandImage() {
-        OperatorTestUtils.preloadOperandImage();
+        String image = ProxyDeploymentDependentResource.getOperandImage();
+        try (var client = OperatorTestUtils.kubeClient()) {
+            var pod = client.run().withName("preload-operand-image")
+                    .withNewRunConfig()
+                    .withImage(image)
+                    .withRestartPolicy("Never")
+                    .withCommand("ls").done();
+            try {
+                client.resource(pod).waitUntilCondition(Readiness::isPodSucceeded, 2, TimeUnit.MINUTES);
+            }
+            finally {
+                client.resource(pod).delete();
+            }
+        }
     }
 
     @RegisterExtension
