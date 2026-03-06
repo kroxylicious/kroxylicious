@@ -51,7 +51,7 @@ class FortanixDsmKmsServiceTest {
         var validButUnusualCipherSuite = "TLS_EMPTY_RENEGOTIATION_INFO_SCSV"; // Valid suite, but not a true cipher
         fortanixDsmKmsService.initialize(
                 new Config(URI.create("https://unused"), new ApiKeySessionProviderConfig(new InlinePassword("apiKey"), 0.0), new Tls(null, null, new AllowDeny<>(
-                        List.of(validButUnusualCipherSuite), null), null)));
+                        List.of(validButUnusualCipherSuite), null), null, null)));
         var kms = fortanixDsmKmsService.buildKms();
         var client = kms.getHttpClient();
         assertThat(client)
