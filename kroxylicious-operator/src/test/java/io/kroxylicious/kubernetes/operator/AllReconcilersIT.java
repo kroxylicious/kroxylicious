@@ -19,22 +19,20 @@ import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
-import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Updatable;
+import io.strimzi.api.kafka.Crds;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
@@ -56,7 +54,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuil
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
-import io.kroxylicious.kubernetes.operator.LocallyRunningOperatorRbacHandler.TestActor;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaprotocolfilter.KafkaProtocolFilterReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconcilerIT;
@@ -79,7 +76,6 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
  */
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class AllReconcilersIT {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AllReconcilersIT.class);
     private static final String PROXY_A = "proxy-a";
     private static final String CLUSTER_FOO = "foo";
     private static final String CLUSTER_FOO_CLUSTER_IP_INGRESS = "foo-cluster-ip";
@@ -88,33 +84,27 @@ class AllReconcilersIT {
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     // the initial operator image pull can take a long time and interfere with the tests
-    @BeforeAll
-    static void preloadOperandImage() {
-        OperatorTestUtils.preloadOperandImage();
-    }
-
+    // KafkaServiceReconciler conditionally creates a Strimzi Kafka informer when it detects the
+    // Strimzi API group. The CRD must be installed before the operator starts — setup/teardown
+    // actions run at the right point in the extension lifecycle to guarantee this ordering.
     @RegisterExtension
-    static LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler(TestFiles.INSTALL_MANIFESTS_DIR, "*.ClusterRole.*.yaml");
-
-    @RegisterExtension
-    @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect, so we can use it as an instance field.
-    LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
+    static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
             .withReconciler(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
             .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create()))
             .withReconciler(new KafkaProxyIngressReconciler(Clock.systemUTC()))
             .withReconciler(new KafkaServiceReconciler(Clock.systemUTC()))
             .withReconciler(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
-            .withKubernetesClient(rbacHandler.operatorClient())
-            .waitForNamespaceDeletion(false)
-            .withConfigurationService(x -> x.withCloseClientOnStop(false))
+            .withSetupAction(() -> {
+                try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
+                    client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
+                }
+            })
+            .withTeardownAction(() -> {
+                try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
+                    client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
+                }
+            })
             .build();
-    private final TestActor testActor = rbacHandler.testActor(extension);
-
-    @AfterEach
-    void stopOperator() {
-        extension.getOperator().stop();
-        LOGGER.atInfo().log("Test finished");
-    }
 
     @Test
     void emptyProxyIsAllowed() {
@@ -131,13 +121,13 @@ class AllReconcilersIT {
 
     static Stream<Arguments> filterScenarios() {
         return Stream.of(
-                argumentSet("no filters", (Function<TestActor, KafkaProtocolFilter>) (builder -> null)),
-                argumentSet("filter with simple config", (Function<TestActor, KafkaProtocolFilter>) (actor -> {
+                argumentSet("no filters", (Function<LocalKroxyliciousOperatorExtension, KafkaProtocolFilter>) (builder -> null)),
+                argumentSet("filter with simple config", (Function<LocalKroxyliciousOperatorExtension, KafkaProtocolFilter>) (actor -> {
                     var filter = editableFilter(CLUSTER_FOO_FILTER).build();
                     actor.create(filter);
                     return filter;
                 })),
-                argumentSet("filter with config that refs a configmap", (Function<TestActor, KafkaProtocolFilter>) (actor -> {
+                argumentSet("filter with config that refs a configmap", (Function<LocalKroxyliciousOperatorExtension, KafkaProtocolFilter>) (actor -> {
                 // @formatter:off
                     var filterConfigMap = new ConfigMapBuilder()
                             .withNewMetadata()
@@ -159,7 +149,7 @@ class AllReconcilersIT {
 
     @ParameterizedTest
     @MethodSource("filterScenarios")
-    void singleVirtualCluster(Function<TestActor, KafkaProtocolFilter> filterFunc) {
+    void singleVirtualCluster(Function<LocalKroxyliciousOperatorExtension, KafkaProtocolFilter> filterFunc) {
         // Given
         var myProxy = editableProxy(PROXY_A).build();
         // @formatter:off
@@ -173,7 +163,7 @@ class AllReconcilersIT {
         // @formatter:on
         var myService = editableService(CLUSTER_FOO_SERVICE).build();
 
-        var myFilter = filterFunc.apply(testActor);
+        var myFilter = filterFunc.apply(operator);
 
         var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), Optional.ofNullable(myFilter).stream().toList()).build();
 
@@ -204,8 +194,8 @@ class AllReconcilersIT {
 
     static Stream<Arguments> upstreamTlsScenarios() {
         return Stream.of(
-                argumentSet("tls", (Function<TestActor, Tls>) (builder -> new Tls())),
-                argumentSet("tls with trust from secret", (Function<TestActor, Tls>) (actor -> {
+                argumentSet("tls", (Function<LocalKroxyliciousOperatorExtension, Tls>) (builder -> new Tls())),
+                argumentSet("tls with trust from secret", (Function<LocalKroxyliciousOperatorExtension, Tls>) (actor -> {
                 // @formatter:off
                     var trust = new SecretBuilder()
                             .withNewMetadata()
@@ -226,7 +216,7 @@ class AllReconcilersIT {
                     actor.create(trust);
                     return ref;
                 })),
-                argumentSet("tls with trust from secret with store type", (Function<TestActor, Tls>) (actor -> {
+                argumentSet("tls with trust from secret with store type", (Function<LocalKroxyliciousOperatorExtension, Tls>) (actor -> {
                 // @formatter:off
                     var trust = new SecretBuilder()
                             .withNewMetadata()
@@ -252,9 +242,9 @@ class AllReconcilersIT {
 
     @ParameterizedTest
     @MethodSource("upstreamTlsScenarios")
-    void upstreamTls(Function<TestActor, io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls> tlsFunc) {
+    void upstreamTls(Function<LocalKroxyliciousOperatorExtension, io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls> tlsFunc) {
         // Given
-        var tlsScenario = tlsFunc.apply(testActor);
+        var tlsScenario = tlsFunc.apply(operator);
 
         var myProxy = editableProxy(PROXY_A).build();
         // @formatter:off
@@ -301,12 +291,13 @@ class AllReconcilersIT {
         // @formatter:on
 
         return Stream.of(
-                argumentSet("tls with platform trust", (Function<TestActor, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
-                    actor.create(downstreamCert);
-                    return new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder(downstreamTls).build();
-                })),
+                argumentSet("tls with platform trust",
+                        (Function<LocalKroxyliciousOperatorExtension, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
+                            actor.create(downstreamCert);
+                            return new io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder(downstreamTls).build();
+                        })),
                 argumentSet("tls with trust from configmap",
-                        (Function<TestActor, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
+                        (Function<LocalKroxyliciousOperatorExtension, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
 
                         // @formatter:off
                     var downstreamTrust = new ConfigMapBuilder()
@@ -329,7 +320,7 @@ class AllReconcilersIT {
                             return tls;
                         })),
                 argumentSet("tls with trust from secret",
-                        (Function<TestActor, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
+                        (Function<LocalKroxyliciousOperatorExtension, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
 
                         // @formatter:off
                     var downstreamTrust = new SecretBuilder()
@@ -353,7 +344,7 @@ class AllReconcilersIT {
                             return tls;
                         })),
                 argumentSet("tls with trust from configmap with new key of supported store type",
-                        (Function<TestActor, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
+                        (Function<LocalKroxyliciousOperatorExtension, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls>) (actor -> {
 
                         // @formatter:off
                     var downstreamTrust = new ConfigMapBuilder()
@@ -380,9 +371,9 @@ class AllReconcilersIT {
 
     @ParameterizedTest
     @MethodSource("downstreamTlsScenarios")
-    void downstreamTls(Function<TestActor, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls> tlsFunc) {
+    void downstreamTls(Function<LocalKroxyliciousOperatorExtension, io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls> tlsFunc) {
         // Given
-        var tlsScenario = tlsFunc.apply(testActor);
+        var tlsScenario = tlsFunc.apply(operator);
 
         var myProxy = editableProxy(PROXY_A).build();
         // @formatter:off
@@ -414,7 +405,7 @@ class AllReconcilersIT {
     }
 
     private void createAll(HasMetadata... resources) {
-        Arrays.stream(resources).sequential().forEach(testActor::create);
+        Arrays.stream(resources).sequential().forEach(operator::create);
     }
 
     private static KafkaProxyBuilder editableProxy(String name) {
@@ -437,7 +428,7 @@ class AllReconcilersIT {
         var name = name(resource);
         var clazz = resource.getClass();
         AWAIT.alias("resource %s (%s) meets predicate".formatted(name, clazz.getSimpleName()))
-                .untilAsserted(() -> testActor.get(clazz, name),
+                .untilAsserted(() -> operator.get(clazz, name),
                         actual -> {
                             assertThat(actual)
                                     .isNotNull()
