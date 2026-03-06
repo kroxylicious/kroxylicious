@@ -352,10 +352,10 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         }
 
         /**
-         * Overrides the default cluster role glob(s) used to load RBAC rules.
-         * The default is {@value DEFAULT_CLUSTER_ROLE_GLOB}.
+         * Replaces all cluster role glob(s) used to load RBAC rules with the given values.
+         * If not called, the default is {@value DEFAULT_CLUSTER_ROLE_GLOB}.
          */
-        public Builder withClusterRoleGlobs(@NonNull String... globs) {
+        public Builder replaceClusterRoleGlobs(@NonNull String... globs) {
             this.clusterRoleGlobs.clear();
             this.clusterRoleGlobs.addAll(Arrays.asList(globs));
             return this;

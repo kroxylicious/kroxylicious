@@ -48,7 +48,7 @@ class KafkaProtocolFilterReconcilerIT {
     @RegisterExtension
     static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
             .withReconciler(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
-            .withClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
+            .replaceClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
             .build();
 
     @Test
