@@ -120,6 +120,13 @@ spec:
                           description: The API group of the resource containing the TLS client certificate.
                           type: string
                           default: ""
+                        storeType:
+                          description: The format of the key store containing the trusted CA certificates.
+                          type: string
+                          enum:
+                            - PEM
+                            - JKS
+                            - PKCS12
                         name:
                           description: The name of the resource containing the TLS client certificate.
                           type: string

@@ -6,8 +6,12 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#3383](https://github.com/kroxylicious/kroxylicious/pull/3383): fix(operator): the operator now uses Server-Side Apply for all dependent resources. This is a no-op change for users: existing deployments are unaffected and externally-applied SSA patches (e.g. annotations or env vars added by observability tooling) will now survive operator reconciles. Users upgrading from a prior release may observe one additional reconcile cycle as Kubernetes transfers field ownership to the SSA manager.
+
 ## 0.19.0
 
+* [#3250](https://github.com/kroxylicious/kroxylicious/pull/3250): Added `storeType` field to the `trustAnchorRef` property of the KafkaService and VirtualKafkaCluster CRs.
 * [#3331](https://github.com/kroxylicious/kroxylicious/pull/3331): fix(crd): make the spec object required across all the CRDs except KafkaProxy.
 * [#3246](https://github.com/kroxylicious/kroxylicious/pull/3246): deps(kafka): upgrade to Kafka 4.2
 * [#3334](https://github.com/kroxylicious/kroxylicious/pull/3334): build(deps): bump com.fasterxml.jackson:jackson-bom from 2.21.0 to 2.21.1

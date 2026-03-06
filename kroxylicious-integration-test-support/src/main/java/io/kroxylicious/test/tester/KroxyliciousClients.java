@@ -19,6 +19,8 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.KafkaShareConsumer;
+import org.apache.kafka.clients.consumer.ShareConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -31,6 +33,7 @@ import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
 import io.kroxylicious.testing.kafka.clients.CloseableProducer;
+import io.kroxylicious.testing.kafka.clients.CloseableShareConsumer;
 
 class KroxyliciousClients implements Closeable {
     private final Map<String, Object> defaultClientConfiguration;
@@ -38,6 +41,7 @@ class KroxyliciousClients implements Closeable {
     private final List<Admin> admins;
     private final List<Producer<?, ?>> producers;
     private final List<Consumer<?, ?>> consumers;
+    private final List<ShareConsumer<?, ?>> shareConsumers;
     private final ClientFactory clientFactory;
 
     KroxyliciousClients(Map<String, Object> defaultClientConfiguration) {
@@ -50,6 +54,7 @@ class KroxyliciousClients implements Closeable {
         this.admins = new ArrayList<>();
         this.producers = new ArrayList<>();
         this.consumers = new ArrayList<>();
+        this.shareConsumers = new ArrayList<>();
         this.clientFactory = clientFactory;
     }
 
@@ -94,6 +99,21 @@ class KroxyliciousClients implements Closeable {
         return consumer;
     }
 
+    public <U, V> ShareConsumer<U, V> shareConsumer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
+        Map<String, Object> config = createClientConfig(additionalConfig);
+        ShareConsumer<U, V> shareConsumer = clientFactory.newShareConsumer(config, keySerde.deserializer(), valueSerde.deserializer());
+        shareConsumers.add(shareConsumer);
+        return shareConsumer;
+    }
+
+    public ShareConsumer<String, String> shareConsumer(Map<String, Object> additionalConfig) {
+        return shareConsumer(Serdes.String(), Serdes.String(), additionalConfig);
+    }
+
+    public ShareConsumer<String, String> shareConsumer() {
+        return shareConsumer(Map.of(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+    }
+
     public KafkaClient simpleTestClient() {
         var bootstrap = defaultClientConfiguration.get(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG).toString();
         var securityProtocol = SecurityProtocol
@@ -114,6 +134,7 @@ class KroxyliciousClients implements Closeable {
             exceptions.addAll(batchClose(admins));
             exceptions.addAll(batchClose(producers));
             exceptions.addAll(batchClose(consumers));
+            exceptions.addAll(batchClose(shareConsumers));
             if (!exceptions.isEmpty()) {
                 // if we encountered any exceptions while closing, throw whichever one came first.
                 throw exceptions.get(0);
@@ -150,6 +171,10 @@ class KroxyliciousClients implements Closeable {
 
         default <K, V> Consumer<K, V> newConsumer(Map<String, Object> clientConfiguration, Deserializer<K> keyDeserializer, Deserializer<V> valueDeserializer) {
             return CloseableConsumer.wrap(new KafkaConsumer<>(clientConfiguration, keyDeserializer, valueDeserializer));
+        }
+
+        default <V, U> ShareConsumer<U, V> newShareConsumer(Map<String, Object> clientConfiguration, Deserializer<U> keyDeserializer, Deserializer<V> valueDeserializer) {
+            return new CloseableShareConsumer<>(new KafkaShareConsumer<>(clientConfiguration, keyDeserializer, valueDeserializer));
         }
 
         default <K, V> Producer<K, V> newProducer(Map<String, Object> clientConfiguration, Serializer<K> keySerializer, Serializer<V> valueSerializer) {

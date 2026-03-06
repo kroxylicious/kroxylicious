@@ -52,6 +52,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 
@@ -547,10 +548,12 @@ public class ResourcesUtil {
                         Condition.REASON_INVALID,
                         path + " must specify 'key'"), List.of());
             }
-            if (isSupportedFileType(key)) {
+            if (isUnsupportedKeyExtension(key) && trustAnchorRef.getStoreType() == null) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_INVALID,
-                        path + ".key should end with .pem, .p12 or .jks"), List.of());
+                        path + ".key should end with .pem, .p12 or .jks or"
+                                + " use the `storeType` field to specify the format of the key store explicitly"),
+                        List.of());
             }
             else {
                 var dataBearingResource = dataBearing.get();
@@ -666,10 +669,47 @@ public class ResourcesUtil {
                         .equals(strimziKafkaRef.getListenerName()));
     }
 
-    private static boolean isSupportedFileType(String key) {
+    private static boolean isUnsupportedKeyExtension(String key) {
         return !key.endsWith(".pem")
                 && !key.endsWith(".p12")
                 && !key.endsWith(".jks");
+    }
+
+    /**
+     * If `storeType` is null in the KafkaService CR then derive it from the key
+     */
+    public static String deriveStoreTypeFromKeySuffix(TrustAnchorRef trustAnchorRef) {
+        String ext = getKeyExtension(trustAnchorRef.getKey());
+        if (ext != null) {
+            return switch (ext) {
+                case "p12" -> "PKCS12";
+                case "jks" -> "JKS";
+                case "pem" -> "PEM";
+                default -> throw new IllegalArgumentException("Cannot derive trust store type from the file extension of the data key '"
+                        + trustAnchorRef.getKey() + "' (extension '" + ext + "')");
+            };
+        }
+        else {
+            throw new IllegalArgumentException("Cannot derive trust store type from the data key: " + trustAnchorRef.getKey()
+                    + " as the data key does not include a file extension. Use the `storeType` field to specify the format of the key store.");
+        }
+    }
+
+    /**
+     * Determines the store type by extracting the extension from a ConfigMap or Secret key.
+     * Assumes the key follows a filename-like format where the trailing extension
+     * represents the store format (e.g., "key.pem" returns "pem").
+     */
+    @Nullable
+    static String getKeyExtension(String key) {
+
+        int lastIndex = key.lastIndexOf('.');
+
+        if (lastIndex != -1 && lastIndex < key.length() - 1) {
+            return key.substring(lastIndex + 1);
+        }
+
+        return null;
     }
 
     public static boolean isSecret(TrustAnchorRef trustAnchorRef) {

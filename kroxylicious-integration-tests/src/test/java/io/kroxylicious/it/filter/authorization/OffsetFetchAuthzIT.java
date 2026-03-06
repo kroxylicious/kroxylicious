@@ -22,6 +22,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
@@ -45,6 +46,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -236,7 +238,15 @@ class OffsetFetchAuthzIT extends AuthzIT {
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonResponse) {
             ArrayNode groups = (ArrayNode) jsonResponse.path("groups");
             for (var group : groups) {
-                sortArray((ObjectNode) group, "topics", "name");
+                JsonNode topics = group.get("topics");
+                if (topics.isArray()) {
+                    for (JsonNode topic : topics) {
+                        if (topic instanceof ObjectNode objectNode) {
+                            replaceTopicIdWithName(cluster, objectNode, "topicId");
+                        }
+                    }
+                }
+                sortArray((ObjectNode) group, "topics", "name", TEST_MAPPED_TOPIC_NAME_PROPERTY);
             }
             return prettyJsonString(jsonResponse);
         }
@@ -254,9 +264,9 @@ class OffsetFetchAuthzIT extends AuthzIT {
         @Override
         public OffsetFetchRequestData requestData(String user, BaseClusterFixture clusterFixture) {
             OffsetFetchRequestData fetchRequestData = new OffsetFetchRequestData();
-            OffsetFetchRequestTopics topicA = createOffsetFetchTopics(ALICE_TO_DESCRIBE_TOPIC_NAME, 0, 20);
-            OffsetFetchRequestTopics topicB = createOffsetFetchTopics(BOB_TO_DESCRIBE_TOPIC_NAME, 0, 20);
-            OffsetFetchRequestTopics topicC = createOffsetFetchTopics(EXISTING_TOPIC_NAME, 0, 20);
+            OffsetFetchRequestTopics topicA = createOffsetFetchTopics(ALICE_TO_DESCRIBE_TOPIC_NAME, apiVersion(), clusterFixture, 0, 20);
+            OffsetFetchRequestTopics topicB = createOffsetFetchTopics(BOB_TO_DESCRIBE_TOPIC_NAME, apiVersion(), clusterFixture, 0, 20);
+            OffsetFetchRequestTopics topicC = createOffsetFetchTopics(EXISTING_TOPIC_NAME, apiVersion(), clusterFixture, 0, 20);
             OffsetFetchRequestData.OffsetFetchRequestGroup group = new OffsetFetchRequestData.OffsetFetchRequestGroup();
             group.setGroupId(GROUP_ID);
             if (allTopics) {
@@ -277,9 +287,18 @@ class OffsetFetchAuthzIT extends AuthzIT {
         return fetchTopic;
     }
 
-    private static OffsetFetchRequestTopics createOffsetFetchTopics(String topicName, int... partitions) {
+    private static OffsetFetchRequestTopics createOffsetFetchTopics(String topicName, short apiVersion, BaseClusterFixture clusterFixture, int... partitions) {
         OffsetFetchRequestTopics fetchTopic = new OffsetFetchRequestTopics();
-        fetchTopic.setName(topicName);
+        if (apiVersion < 10) {
+            fetchTopic.setName(topicName);
+        }
+        else {
+            Uuid topicId = clusterFixture.topicIds().get(topicName);
+            if (topicId == null) {
+                throw new IllegalStateException("no topicId available for " + topicName);
+            }
+            fetchTopic.setTopicId(topicId);
+        }
         fetchTopic.setPartitionIndexes(Arrays.stream(partitions).boxed().toList());
         return fetchTopic;
     }

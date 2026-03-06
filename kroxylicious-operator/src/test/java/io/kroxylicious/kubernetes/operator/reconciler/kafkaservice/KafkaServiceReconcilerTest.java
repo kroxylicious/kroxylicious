@@ -122,6 +122,15 @@ class KafkaServiceReconcilerTest {
             .addToData("ca-bundle.pem", "value")
             .build();
 
+    public static final ConfigMap CRT_CONFIG_MAP = new ConfigMapBuilder()
+            .withNewMetadata()
+                .withName("my-configmap")
+                .withUid("uid")
+                .withResourceVersion("7782")
+            .endMetadata()
+            .addToData("ca-bundle.crt", "value")
+            .build();
+
     public static final Kafka KAFKA = new KafkaBuilder()
             .withNewMetadata()
             .withName("my-cluster")
@@ -407,7 +416,7 @@ class KafkaServiceReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_INVALID,
-                                    "spec.tls.trustAnchorRef.key should end with .pem, .p12 or .jks")));
+                                    "spec.tls.trustAnchorRef.key should end with .pem, .p12 or .jks or use the `storeType` field to specify the format of the key store explicitly")));
         }
 
         // no client cert, pem trust bundle
@@ -459,6 +468,33 @@ class KafkaServiceReconcilerTest {
                             .isResolvedRefsTrue()));
         }
 
+        // no client cert, crt trust bundle
+        {
+            Context<KafkaService> context = mock();
+            mockGetSecret(context, Optional.empty());
+            mockGetKafka(context, Optional.empty());
+            mockGetConfigMap(context, Optional.of(CRT_CONFIG_MAP));
+            // @formatter:off
+            result.add(Arguments.argumentSet("crt trust bundle of pem store type",
+                    new KafkaServiceBuilder(SERVICE)
+                            .withNewSpec()
+                                .withNewTls()
+                                    .withNewTrustAnchorRef()
+                                        .withNewRef()
+                                            .withName("my-configmap")
+                                        .endRef()
+                                        .withKey("ca-bundle.crt")
+                                        .withStoreType("PEM")
+                                    .endTrustAnchorRef()
+                                .endTls()
+                            .endSpec()
+                            .build(),
+                    // @formatter:on
+                    context,
+                    (Consumer<ConditionListAssert>) conditionList -> conditionList
+                            .singleElement()
+                            .isResolvedRefsTrue()));
+        }
         //
         // client certificate cases....
 
