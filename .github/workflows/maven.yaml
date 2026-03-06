@@ -107,7 +107,7 @@ jobs:
         run: |
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
-            --projects ''!:kroxylicious-operator'' \
+            --projects '!:kroxylicious-kubernetes-api,!:kroxylicious-operator,!:kroxylicious-operator-dist,!:kroxylicious-operator-test-support' \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} \
