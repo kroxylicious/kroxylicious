@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.FileSystems;
@@ -44,7 +43,6 @@ import io.javaoperatorsdk.operator.junit.AbstractOperatorExtension;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -139,12 +137,12 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
         try (var adminClient = OperatorTestUtils.kubeClient()) {
             // The test framework itself needs these roles.
             clusterRoles.forEach(r -> {
-                LOGGER.trace("Creating/patching: {}", name(r));
+                LOGGER.trace("Creating/patching: {}", r.getMetadata().getName());
                 adminClient.resource(r).createOr(EditReplacePatchable::patch);
             });
 
             roleBindings.forEach(roleBinding -> {
-                LOGGER.trace("Creating role binding: {}", name(roleBinding));
+                LOGGER.trace("Creating role binding: {}", roleBinding.getMetadata().getName());
                 adminClient.resource(roleBinding).createOr(EditReplacePatchable::patch);
             });
 
@@ -153,15 +151,15 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     }
 
     private ClusterRoleBinding bindingForRole(ClusterRole clusterRole) {
-        return new ClusterRoleBindingBuilder().withNewMetadata().withName(name(clusterRole) + "-" + impersonatedUser + "-binding").endMetadata()
+        return new ClusterRoleBindingBuilder().withNewMetadata().withName(clusterRole.getMetadata().getName() + "-" + impersonatedUser + "-binding").endMetadata()
                 .addNewSubject().withKind("User").withName(impersonatedUser).withApiGroup("rbac.authorization.k8s.io").endSubject()
-                .withNewRoleRef().withKind("ClusterRole").withName(name(clusterRole)).withApiGroup("rbac.authorization.k8s.io").endRoleRef().build();
+                .withNewRoleRef().withKind("ClusterRole").withName(clusterRole.getMetadata().getName()).withApiGroup("rbac.authorization.k8s.io").endRoleRef().build();
     }
 
     private @NonNull Stream<ClusterRole> loadClusterRoles(Stream<Path> files, KubernetesClient adminClient, List<PathMatcher> clusterRolePathMatchers) {
         return files.filter(Files::isRegularFile).filter(path -> clusterRolePathMatchers.stream().anyMatch(matcher -> matcher.matches(path))).sorted()
                 .flatMap(resourceFile -> {
-                    try (var resourceInputStream = new FileInputStream(resourceFile.toString())) {
+                    try (var resourceInputStream = Files.newInputStream(resourceFile)) {
                         var resources = adminClient.load(resourceInputStream).items();
                         List<ClusterRole> roles = resources.stream().filter(ClusterRole.class::isInstance).map(ClusterRole.class::cast).toList();
                         return roles.stream();
@@ -176,12 +174,12 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     public void afterEach(ExtensionContext context) {
         try (var adminClient = OperatorTestUtils.kubeClient()) {
             this.roleBindings.forEach(roleBinding -> {
-                LOGGER.trace("Deleting ClusterRoleBinding: {}", name(roleBinding));
+                LOGGER.trace("Deleting ClusterRoleBinding: {}", roleBinding.getMetadata().getName());
                 adminClient.resource(roleBinding).delete();
             });
 
             this.clusterRoles.forEach(clusterRole -> {
-                LOGGER.trace("Deleting ClusterRole: {}", name(clusterRole));
+                LOGGER.trace("Deleting ClusterRole: {}", clusterRole.getMetadata().getName());
                 adminClient.resource(clusterRole).delete();
             });
         }
@@ -190,8 +188,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     @NonNull
     public KubernetesClient operatorClient() {
-        return OperatorTestUtils.kubeClient(
-                new KubernetesClientBuilder().editOrNewConfig().withImpersonateUsername(impersonatedUser).endConfig());
+        return new KubernetesClientBuilder().editOrNewConfig().withImpersonateUsername(impersonatedUser).endConfig().build();
     }
 
     @NonNull
