@@ -27,6 +27,7 @@ import org.apache.kafka.clients.admin.ListShareGroupOffsetsSpec;
 import org.apache.kafka.clients.admin.ListTransactionsOptions;
 import org.apache.kafka.clients.admin.ShareGroupDescription;
 import org.apache.kafka.clients.admin.SharePartitionOffsetInfo;
+import org.apache.kafka.clients.admin.TransactionListing;
 import org.apache.kafka.clients.admin.TransactionState;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -76,8 +77,6 @@ import static org.awaitility.Awaitility.await;
  * These tests use the Kafka Client API. They aim to show that entity isolation
  * is functioning correctly. Owing to the nature of the API, these tests exercise
  * several RPCs at once.
- * <br/>
- * TODO: transactional id tests
  */
 @ExtendWith(KafkaClusterExtension.class)
 class EntityIsolationIT {
@@ -486,7 +485,10 @@ class EntityIsolationIT {
     }
 
     /**
-     * Verifies that a transaction used on the produce side with offset committing is functional when isolated.
+     * Verifies that a transaction used on the produce and consumer with offset committing is functional when isolated.
+     * <br/>
+     * Note: KIP-932 (Share Groups) didn't include support for enlisting share group acknowledgement into transactions
+     * so we don't need to test transactions with share groups.
      *
      * @param input topic
      * @param output topic
@@ -511,10 +513,10 @@ class EntityIsolationIT {
 
             // now consume and from input and produce to output, using a transaction.
             try (var producer = tester.producer(aliceConfigForTxnProduce);
-                 var consumer = tester.consumer(aliceConfigForConsumer)) {
+                    var consumer = tester.consumer(aliceConfigForConsumer)) {
                 producer.initTransactions();
 
-                consumer.assign(List.of(new TopicPartition(input.name(), 0)));
+                consumer.subscribe(List.of(input.name()));
 
                 int processed = 0;
                 do {
@@ -534,7 +536,7 @@ class EntityIsolationIT {
                     }
                 } while (processed < 2);
 
-                consumer.assign(List.of(new TopicPartition(output.name(), 0)));
+                consumer.subscribe(List.of(output.name()));
                 var records = consumer.poll(Duration.ofSeconds(30));
                 assertThat(records.iterator())
                         .toIterable()
@@ -546,13 +548,13 @@ class EntityIsolationIT {
     }
 
     /**
-     * Verifies that produce transactions are isolated from each other when
+     * Verifies that transactions are isolated from each other when
      * Alice and Bob use the same transactionalId.
      *
      * @param topic topic
      */
     @Test
-    void produceTransactionIsolation(Topic topic) {
+    void transactionIsolation(Topic topic) {
         var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID));
 
         var transactionalId = "mytxn";
@@ -590,6 +592,43 @@ class EntityIsolationIT {
                                         assertThat(t.transactionalId()).isEqualTo(transactionalId);
                                         assertThat(t.state()).isEqualTo(TransactionState.COMPLETE_ABORT);
                                     });
+                        });
+            }
+        }
+    }
+
+    /**
+     * Verifies that transactions are filtered correctly (KIP-1152) when transaction isolation is used.
+     * Alice uses three transactions 'cat', 'bat', 'dog' and lists them using the RE '^.at', expecting 'cat' and 'bat'
+     * as the response.
+     *
+     * @param topic topic
+     */
+    @Test
+    void transactionFiltering(Topic topic) {
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID));
+
+        var cat = "cat";
+        var bat = "bat";
+        var dog = "dog";
+        Function<Map<String, Object>, Map<String, Object>> configGenerator = addConfig -> buildClientConfig("alice", "pwd",
+                addConfig);
+
+        try (var tester = kroxyliciousTester(configBuilder)) {
+            produceInTransaction(topic, tester, configGenerator.apply(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, cat)), true);
+            produceInTransaction(topic, tester, configGenerator.apply(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, bat)), true);
+            produceInTransaction(topic, tester, configGenerator.apply(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, dog)), true);
+
+            try (var aliceAdmin = tester.admin(configGenerator.apply(Map.of()))) {
+                var options = new ListTransactionsOptions().filterOnTransactionalIdPattern("^.at");
+
+                assertThat(aliceAdmin.listTransactions(options).all())
+                        .succeedsWithin(Duration.ofSeconds(5))
+                        .satisfies(tl -> {
+                            assertThat(tl.iterator())
+                                    .toIterable()
+                                    .extracting(TransactionListing::transactionalId)
+                                    .containsExactlyInAnyOrderElementsOf(List.of(cat, bat));
                         });
             }
         }
@@ -635,15 +674,6 @@ class EntityIsolationIT {
                 .addToDefaultFilters(saslInspection.name(), entityIsolation.name());
         return configBuilder;
     }
-
-    /*
-     *
-     * ConfigResource configResource = new ConfigResource(ConfigResource.Type.GROUP, ENCRYPTION_SHARE_CONSUMER);
-     * ConfigEntry autoOffsetReset = new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest");
-     * List<AlterConfigOp> alterConfig = List.of(new AlterConfigOp(autoOffsetReset, AlterConfigOp.OpType.SET));
-     * admin.incrementalAlterConfigs(Map.of(configResource, alterConfig)).all().get();
-     *
-     */
 
     private void verifyConsumerGroupsWithDescribe(Admin admin, Set<String> expectedPresent, Set<String> expectedAbsent) {
         assertThat(admin.describeConsumerGroups(expectedPresent).all())
