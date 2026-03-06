@@ -63,9 +63,9 @@ then:
     errorCode: 0
     unknownStateFilters: []
     transactionStates:
-      - transactionalId: alice-cat
+      - transactionalId: cat
         producerId: 0
         transactionState: Unknown
-      - transactionalId: alice-bat
+      - transactionalId: bat
         producerId: 1
         transactionState: CompleteCommit

@@ -248,12 +248,6 @@ class ${messageSpecPair.name}EntityIsolationProcessor implements EntityIsolation
         return mapper.isInNamespace(context, resourceType, mappedName);
     }
 
-    private static MapperContext buildMapperContext(FilterContext context) {
-        return new MapperContext(context.authenticatedSubject(),
-                context.clientTlsContext().orElse(null),
-                context.clientSaslContext().orElse(null));
-    }
-
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
         LOGGER.atDebug()
                 .addArgument(() -> context.sessionId())

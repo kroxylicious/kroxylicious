@@ -28,12 +28,23 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- project dependencies - test -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-filter-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- third party dependencies -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
-        <!-- project dependencies - test -->
+        <dependency>
+            <groupId>com.google.re2j</groupId>
+            <artifactId>re2j</artifactId>
+        </dependency>
 
         <!-- third party dependencies - provided by proxy -->
         <dependency>
@@ -46,15 +57,11 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-filter-test-support</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <scope>provided</scope>
         </dependency>
+
 
         <!-- third party dependencies - test -->
         <dependency>
@@ -178,6 +185,7 @@
                             <outputFilePattern>${messageSpecName}EntityIsolationProcessor.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.filter.entityisolation</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                            <skipOutputIfSourceExists>true</skipOutputIfSourceExists>
                         </configuration>
                     </execution>
                     <execution>
@@ -201,6 +209,7 @@
                             <outputFilePattern>${messageSpecName}EntityIsolationProcessor.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.filter.entityisolation</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                            <skipOutputIfSourceExists>true</skipOutputIfSourceExists>
                         </configuration>
                     </execution>
                 </executions>
