@@ -15,6 +15,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
@@ -66,6 +68,10 @@ class KafkaProxyIngressReconcilerTest {
     @BeforeEach
     void setUp() {
         context = mock(Context.class);
+
+        var kubernetesClient = mock(KubernetesClient.class);
+        when(context.getClient()).thenReturn(kubernetesClient);
+        when(kubernetesClient.supports(Route.class)).thenReturn(true);
     }
 
     @Test
