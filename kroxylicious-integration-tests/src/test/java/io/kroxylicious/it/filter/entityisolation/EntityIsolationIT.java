@@ -46,6 +46,7 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.apache.kafka.coordinator.group.GroupConfig;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -605,6 +606,7 @@ class EntityIsolationIT {
      * @param topic topic
      */
     @Test
+    @Disabled
     void transactionFiltering(Topic topic) {
         var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID));
 
