@@ -1,0 +1,71 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "LIST_TRANSACTIONS"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_TRANSACTIONS"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 66
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        stateFilters: []
+        producerIdFilters: []
+        durationFilter: -1
+        transactionalIdPattern: null
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        unknownStateFilters: []
+        transactionStates:
+          - transactionalId: alice-cat
+            producerId: 0
+            transactionState: Unknown
+          - transactionalId: alice-bat
+            producerId: 1
+            transactionState: CompleteCommit
+          - transactionalId: alice-dog
+            producerId: 2
+            transactionState: CompleteAbort
+          - transactionalId: bob-mytxn
+            producerId: 3
+            transactionState: Ongoing
+  resourceTypes: ["TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 66
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    stateFilters: []
+    producerIdFilters: []
+    durationFilter: -1
+    transactionalIdPattern: ^.at
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    unknownStateFilters: []
+    transactionStates:
+      - transactionalId: alice-cat
+        producerId: 0
+        transactionState: Unknown
+      - transactionalId: alice-bat
+        producerId: 1
+        transactionState: CompleteCommit
