@@ -157,7 +157,7 @@
       ],
       "matchStrings": [
         "(?<depName>quay.io/kroxylicious/kcat):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
-        "(?<depName>quay.io/kroxylicious/kaf):.*(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\""
+        "(?<depName>quay.io/kroxylicious/kaf):(?<currentValue>v\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\""
       ],
       "datasourceTemplate": "docker"
     },
