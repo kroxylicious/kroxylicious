@@ -1,0 +1,50 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "FIND_COORDINATOR"
+  apiVersion: 0
+  scenario: "group mapping"
+  # version 0 supported only group coordination
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FIND_COORDINATOR"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 10
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        key: alice-mygroup
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 0
+        nodeId: 0
+        host: "random-string-822"
+        port: 919
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 10
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    key: mygroup
+    coordinatorKeys: []
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    errorCode: 0
+    nodeId: 0
+    host: "random-string-822"
+    port: 919
