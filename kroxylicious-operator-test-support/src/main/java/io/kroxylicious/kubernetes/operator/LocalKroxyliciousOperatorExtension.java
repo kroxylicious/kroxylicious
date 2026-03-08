@@ -39,6 +39,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -92,6 +93,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
                 LocalKroxyliciousOperatorExtension::preloadOperandImage);
     }
 
+    @VisibleForTesting
     LocalKroxyliciousOperatorExtension(Builder builder,
                                        Supplier<LocallyRunningOperatorRbacHandler> rbacHandlerFactory,
                                        Function<LocallyRunningOperatorRbacHandler, LocallyRunOperatorExtension> extensionFactory,
