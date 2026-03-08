@@ -134,7 +134,7 @@ ifndef::DocRoot[:DocRoot: ..]
 :DeveloperGuideText: Kroxylicious Developer guide
 :DeveloperGuide: link:{DeveloperGuideUrl}[{DeveloperGuideText}]
 
-:DeveloperQuickstartUrl: {DocRoot}/developer-quick-start/
+:DeveloperQuickstartUrl: {DocRoot}/developer-quickstart/
 :DeveloperQuickstartText: Kroxylicious Developer Quickstart
 :DeveloperQuickstart: link:{DeveloperQuickstartUrl}[{DeveloperQuickstartText}]
 
