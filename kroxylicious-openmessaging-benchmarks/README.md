@@ -140,7 +140,7 @@ kroxylicious-openmessaging-benchmarks/
 - `mvn` — used to generate JBang source filters before comparing results
 - Sufficient resources: 8 CPU cores, 16GB RAM recommended (4 CPU, 8GB RAM with smoke profile)
 
-## Quick Start
+## Quickstart
 
 See [QUICKSTART.md](QUICKSTART.md) for the full walkthrough. The short version:
 
