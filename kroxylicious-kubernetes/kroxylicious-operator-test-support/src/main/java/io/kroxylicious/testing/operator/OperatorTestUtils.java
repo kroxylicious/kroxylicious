@@ -16,6 +16,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class OperatorTestUtils {
 
+    private OperatorTestUtils() {
+        // Static utils only
+    }
+
     /**
      * The timeouts etc of this client build are tuned to handle the case where Kubernetes isn't present.
      * As might be the case on a developer's machine where minikube isn't running.

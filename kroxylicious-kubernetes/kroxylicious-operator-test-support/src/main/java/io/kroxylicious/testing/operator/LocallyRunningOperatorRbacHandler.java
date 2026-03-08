@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -85,25 +86,31 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     private final String impersonatedUser = UUID.randomUUID().toString();
 
     private final KubernetesClient testActorClient = OperatorTestUtils.kubeClient();
+    private final Supplier<KubernetesClient> adminClientFactory;
 
     private final List<ClusterRole> clusterRoles;
     private final List<ClusterRoleBinding> roleBindings;
 
     public LocallyRunningOperatorRbacHandler(String resourceDirectory, String... clusterRoleFileGlobs) {
-        this(Path.of(resourceDirectory), clusterRoleFileGlobs);
+        this(Path.of(resourceDirectory), OperatorTestUtils::kubeClient, clusterRoleFileGlobs);
     }
 
-    private LocallyRunningOperatorRbacHandler(Path resourceDirectory, String... clusterRoleFileGlobs) {
+    LocallyRunningOperatorRbacHandler(String resourceDirectory, Supplier<KubernetesClient> adminClientFactory, String... clusterRoleFileGlobs) {
+        this(Path.of(resourceDirectory), adminClientFactory, clusterRoleFileGlobs);
+    }
+
+    private LocallyRunningOperatorRbacHandler(Path resourceDirectory, Supplier<KubernetesClient> adminClientFactory, String... clusterRoleFileGlobs) {
         requireNonNull(resourceDirectory);
         verifyClusterGlobs(clusterRoleFileGlobs);
         verifyDirectoryExists(resourceDirectory);
+        this.adminClientFactory = adminClientFactory;
         clusterRoles = loadClusterRoles(resourceDirectory, clusterRoleFileGlobs);
         roleBindings = this.clusterRoles.stream().map(this::bindingForRole).toList();
     }
 
     private List<ClusterRole> loadClusterRoles(Path resourceDirectory, String[] clusterRoleFileGlobs) {
         var clusterRolePathMatchers = Arrays.stream(clusterRoleFileGlobs).map(g -> FileSystems.getDefault().getPathMatcher("glob:**/" + g)).toList();
-        try (var adminClient = OperatorTestUtils.kubeClient();
+        try (var adminClient = adminClientFactory.get();
                 var files = Files.list(resourceDirectory)) {
             // The test framework itself needs these roles.
             Stream<ClusterRole> frameworkClusterRoles = Stream.of(FRAMEWORK_CLUSTER_ROLE);
@@ -135,7 +142,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     @Override
     public void beforeEach(ExtensionContext context) {
-        try (var adminClient = OperatorTestUtils.kubeClient()) {
+        try (var adminClient = adminClientFactory.get()) {
             // The test framework itself needs these roles.
             clusterRoles.forEach(r -> {
                 LOGGER.atTrace()
@@ -179,7 +186,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     @Override
     public void afterEach(ExtensionContext context) {
-        try (var adminClient = OperatorTestUtils.kubeClient()) {
+        try (var adminClient = adminClientFactory.get()) {
             this.roleBindings.forEach(roleBinding -> {
                 LOGGER.trace("Deleting ClusterRoleBinding: {}", roleBinding.getMetadata().getName());
                 adminClient.resource(roleBinding).delete();
