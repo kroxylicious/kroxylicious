@@ -41,6 +41,8 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.junit.AbstractOperatorExtension;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -94,6 +96,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
         this(Path.of(resourceDirectory), OperatorTestUtils::kubeClient, clusterRoleFileGlobs);
     }
 
+    @VisibleForTesting
     LocallyRunningOperatorRbacHandler(String resourceDirectory, Supplier<KubernetesClient> adminClientFactory, String... clusterRoleFileGlobs) {
         this(Path.of(resourceDirectory), adminClientFactory, clusterRoleFileGlobs);
     }
