@@ -49,8 +49,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class HeartbeatAuthzIT extends AuthzIT {
 
-    private final String ALICE_GROUP_PREFIX = "alice-group";
-    private final String BOB_GROUP_PREFIX = "bob-group";
+    private static final String ALICE_GROUP_PREFIX = "alice-group";
+    private static final String BOB_GROUP_PREFIX = "bob-group";
     public static final List<String> ALL_TOPIC_NAMES_IN_TEST = List.of();
 
     private Path rulesFile;

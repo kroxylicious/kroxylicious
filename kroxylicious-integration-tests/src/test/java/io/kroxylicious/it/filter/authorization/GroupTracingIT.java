@@ -290,7 +290,7 @@ class GroupTracingIT extends AbstractTracingIT {
                     Outcome<Config> configOutcome = admin.describeConfigs(ConfigResource.Type.GROUP, group);
                     assertThat(configOutcome.isSuccess()).isFalse();
                     Outcome<Collection<GroupListing>> groupListings = admin.listGroups();
-                    assertThat(groupListings.isSuccess());
+                    assertThat(groupListings.isSuccess()).isTrue();
                     assertThat(groupListings.value()).isEmpty();
                     Outcome<Void> deleteOutcome = admin.deleteGroups(List.of(group));
                     assertThat(deleteOutcome.isSuccess()).isFalse();

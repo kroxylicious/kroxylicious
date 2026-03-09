@@ -55,10 +55,8 @@ public class DescribeGroupsEnforcement extends ApiEnforcement<DescribeGroupsRequ
                 request.groups().removeAll(deniedGroups);
                 authorizationFilter.pushInflightState(header, (DescribeGroupsResponseData responseData) -> {
                     if (isIncludeAuthorizedOps) {
-                        responseData.groups().forEach(describedGroup -> {
-                            describedGroup.setAuthorizedOperations(
-                                    AuthorizedOps.groupAuthorizedOps(authorizeResult, describedGroup.authorizedOperations(), describedGroup.groupId()));
-                        });
+                        responseData.groups().forEach(describedGroup -> describedGroup.setAuthorizedOperations(
+                                AuthorizedOps.groupAuthorizedOps(authorizeResult, describedGroup.authorizedOperations(), describedGroup.groupId())));
                     }
                     for (String deniedGroup : deniedGroups) {
                         responseData.groups().add(groupAuthzFailureResult(deniedGroup));

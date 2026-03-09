@@ -143,9 +143,7 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
         OffsetFetchResponseData offsetFetchResponseData = new OffsetFetchResponseData();
         short apiVersion = header.requestApiVersion();
         if (apiVersion >= FIRST_VERSION_USING_GROUP_BATCHING) {
-            request.groups().forEach(group -> {
-                offsetFetchResponseData.groups().add(unauthorizedResponseGroup(group));
-            });
+            request.groups().forEach(group -> offsetFetchResponseData.groups().add(unauthorizedResponseGroup(group)));
         }
         else {
             // note that v1 does not write this, but it also does not break anything to set it
@@ -153,14 +151,12 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
             if (apiVersion < TOP_LEVEL_ERROR_AND_NULL_TOPICS_MIN_VERSION) {
                 request.topics().forEach(requestTopic -> {
                     OffsetFetchResponseTopic responseTopic = new OffsetFetchResponseTopic().setName(requestTopic.name());
-                    requestTopic.partitionIndexes().forEach(partition -> {
-                        responseTopic.partitions().add(new OffsetFetchResponsePartition()
-                                .setPartitionIndex(partition)
-                                .setErrorCode(Errors.GROUP_AUTHORIZATION_FAILED.code())
-                                .setCommittedOffset(INVALID_OFFSET)
-                                .setMetadata(NO_METADATA)
-                                .setCommittedLeaderEpoch(NO_PARTITION_LEADER_EPOCH));
-                    });
+                    requestTopic.partitionIndexes().forEach(partition -> responseTopic.partitions().add(new OffsetFetchResponsePartition()
+                            .setPartitionIndex(partition)
+                            .setErrorCode(Errors.GROUP_AUTHORIZATION_FAILED.code())
+                            .setCommittedOffset(INVALID_OFFSET)
+                            .setMetadata(NO_METADATA)
+                            .setCommittedLeaderEpoch(NO_PARTITION_LEADER_EPOCH)));
                     offsetFetchResponseData.topics().add(responseTopic);
                 });
             }

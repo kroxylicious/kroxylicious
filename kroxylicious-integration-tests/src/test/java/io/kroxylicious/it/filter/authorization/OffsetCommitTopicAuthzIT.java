@@ -110,9 +110,6 @@ class OffsetCommitTopicAuthzIT extends AuthzIT {
                         new ResourcePattern(ResourceType.TOPIC, BOB_TOPIC_NAME, PatternType.LITERAL),
                         new AccessControlEntry("User:" + BOB, "*",
                                 AclOperation.CREATE, AclPermissionType.ALLOW)));
-
-        // ensureInternalTopicsExist(kafkaClusterWithAuthz, "tmpvsdvsv");
-        // ensureInternalTopicsExist(kafkaClusterNoAuthz, "tmp");
     }
 
     @BeforeEach
@@ -290,7 +287,7 @@ class OffsetCommitTopicAuthzIT extends AuthzIT {
         }
     }
 
-    class GroupContext {
+    static class GroupContext {
 
         private final String groupId;
         private final String groupInstanceId;
