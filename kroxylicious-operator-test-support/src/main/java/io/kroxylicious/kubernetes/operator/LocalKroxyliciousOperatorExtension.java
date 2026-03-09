@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -195,18 +196,25 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         }
     }
 
-    private static String sanitiseImageRef(String image) {
+    @VisibleForTesting
+    static String sanitiseImageRef(String image) {
         return image.replaceAll("[\r\n]", "");
     }
 
     private static String resolveOperandImage() {
-        var envImage = System.getenv(KROXYLICIOUS_IMAGE_ENV_VAR);
+        return resolveOperandImage(
+                System.getenv(KROXYLICIOUS_IMAGE_ENV_VAR),
+                () -> LocalKroxyliciousOperatorExtension.class.getResourceAsStream(KROXYLICIOUS_IMAGE_PROPERTIES));
+    }
+
+    @VisibleForTesting
+    static String resolveOperandImage(String envImage, Supplier<InputStream> propertiesSupplier) {
         if (envImage != null && !envImage.isBlank()) {
             envImage = sanitiseImageRef(envImage);
             LOGGER.info("Using Kroxylicious operand image ({}) from environment variable {}", envImage, KROXYLICIOUS_IMAGE_ENV_VAR);
             return envImage;
         }
-        try (var is = LocalKroxyliciousOperatorExtension.class.getResourceAsStream(KROXYLICIOUS_IMAGE_PROPERTIES)) {
+        try (var is = propertiesSupplier.get()) {
             if (is == null) {
                 throw new IllegalStateException(
                         "No %s env var set and %s not found on classpath".formatted(KROXYLICIOUS_IMAGE_ENV_VAR, KROXYLICIOUS_IMAGE_PROPERTIES));
