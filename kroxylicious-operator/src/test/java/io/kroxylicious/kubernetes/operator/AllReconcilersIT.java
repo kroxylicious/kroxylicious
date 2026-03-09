@@ -186,16 +186,19 @@ class AllReconcilersIT {
 
         assertResourceAttainsCondition(AllReconcilersIT::resourceReady, myProxy);
 
-        var acceptedCluster = assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
-        assertThat(acceptedCluster)
-                .extracting(VirtualKafkaCluster::getStatus)
-                .satisfies(vcs -> {
-                    assertThat(vcs)
-                            .extracting(VirtualKafkaClusterStatus::getIngresses, as(InstanceOfAssertFactories.list(Ingresses.class)))
-                            .singleElement()
-                            .extracting(Ingresses::getBootstrapServer, as(InstanceOfAssertFactories.STRING))
-                            .isNotEmpty();
-                });
+        assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
+        // The accepted condition and ingresses may be set in separate reconciliation cycles,
+        // so we wait explicitly for the ingresses to be populated rather than checking the
+        // snapshot returned when the accepted condition first became true.
+        AWAIT.alias("cluster %s has ingresses with bootstrap servers".formatted(CLUSTER_FOO))
+                .untilAsserted(() -> assertThat(testActor.get(VirtualKafkaCluster.class, CLUSTER_FOO))
+                        .isNotNull()
+                        .extracting(VirtualKafkaCluster::getStatus)
+                        .satisfies(vcs -> assertThat(vcs)
+                                .extracting(VirtualKafkaClusterStatus::getIngresses, as(InstanceOfAssertFactories.list(Ingresses.class)))
+                                .singleElement()
+                                .extracting(Ingresses::getBootstrapServer, as(InstanceOfAssertFactories.STRING))
+                                .isNotEmpty()));
 
     }
 
