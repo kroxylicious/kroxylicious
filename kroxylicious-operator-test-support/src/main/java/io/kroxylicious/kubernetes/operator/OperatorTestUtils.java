@@ -6,13 +6,14 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.Objects;
+
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
-import io.fabric8.kubernetes.client.KubernetesClientException;
+
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class OperatorTestUtils {
 
@@ -35,19 +36,25 @@ public class OperatorTestUtils {
     }
 
     public static @NonNull KubernetesClient kubeClient(KubernetesClientBuilder kubernetesClientBuilder) {
-        KubernetesClient kubernetesClient = kubernetesClientBuilder.build();
-        assertThat(kubernetesClient).isNotNull();
-        return kubernetesClient;
+        return Objects.requireNonNull(kubernetesClientBuilder.build(), "KubernetesClientBuilder.build() returned null");
     }
 
     public static boolean isKubeClientAvailable() {
-        var client = PRESENCE_PROBING_KUBE_CLIENT_BUILD.build();
+        return isKubeClientAvailable(PRESENCE_PROBING_KUBE_CLIENT_BUILD);
+    }
+
+    @VisibleForTesting
+    static boolean isKubeClientAvailable(KubernetesClientBuilder builder) {
+        KubernetesClient client = null;
         try {
+            client = builder.build();
             client.namespaces().list();
             return true;
         }
-        catch (KubernetesClientException e) {
-            client.close();
+        catch (RuntimeException e) {
+            if (client != null) {
+                client.close();
+            }
             return false;
         }
     }
