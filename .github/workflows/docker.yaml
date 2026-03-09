@@ -75,7 +75,7 @@ jobs:
           password: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Build and maybe push Proxy image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294
         with:
           context: .
           platforms: ${{ steps.build_configuration.outputs.platforms }}
@@ -87,7 +87,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd
 
       - name: Build and maybe push Operator image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294
         with:
           context: .
           file: ./Dockerfile.operator
