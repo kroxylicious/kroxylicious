@@ -46,8 +46,7 @@ public class DescribeTransactionsEnforcement extends ApiEnforcement<DescribeTran
                                                    DescribeTransactionsRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        Stream<Action> transactionalIds = request.transactionalIds().stream().map(transactionalId -> new Action(TransactionalIdResource.DESCRIBE, transactionalId));
-        return authorizationFilter.authorization(context, transactionalIds.toList()).thenCompose(authorizeResult -> {
+        return authorizationFilter.authorization(context, transactionalIdActions(request).toList()).thenCompose(authorizeResult -> {
             List<TransactionState> unauthorizedResponseTransactions = new ArrayList<>();
             List<String> deniedTransactionIds = authorizeResult.denied(TransactionalIdResource.DESCRIBE);
             for (String transactionalId : deniedTransactionIds) {
@@ -72,6 +71,10 @@ public class DescribeTransactionsEnforcement extends ApiEnforcement<DescribeTran
                 return context.forwardRequest(header, request);
             }
         });
+    }
+
+    private static Stream<Action> transactionalIdActions(DescribeTransactionsRequestData request) {
+        return request.transactionalIds().stream().map(transactionalId -> new Action(TransactionalIdResource.DESCRIBE, transactionalId));
     }
 
     @Override

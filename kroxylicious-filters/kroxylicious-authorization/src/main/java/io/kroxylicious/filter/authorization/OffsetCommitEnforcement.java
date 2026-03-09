@@ -56,9 +56,7 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
         }
 
         Action readGroup = new Action(GroupResource.READ, request.groupId());
-        List<Action> topicActions = request.topics().stream()
-                .map(ocrd -> new Action(TopicResource.READ, mustGetTopicName(topicNameMapping, ocrd))).toList();
-        var actions = Stream.concat(Stream.of(readGroup), topicActions.stream()).toList();
+        var actions = Stream.concat(Stream.of(readGroup), topicActions(request, topicNameMapping)).toList();
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
                     if (authorization.denied().contains(readGroup)) {
@@ -95,6 +93,11 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
                         return context.forwardRequest(header, request);
                     }
                 });
+    }
+
+    private static Stream<Action> topicActions(OffsetCommitRequestData request, TopicNameMapping topicNameMapping) {
+        return request.topics().stream()
+                .map(ocrd -> new Action(TopicResource.READ, mustGetTopicName(topicNameMapping, ocrd)));
     }
 
     /**

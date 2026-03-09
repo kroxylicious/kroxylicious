@@ -21,6 +21,7 @@ import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
@@ -49,11 +50,8 @@ class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestDa
             return context.forwardRequest(header, request);
         }
         else {
-            Stream<Action> topicActions = topicRequests.stream()
-                    .map(resource -> new Action(TopicResource.DESCRIBE_CONFIGS, resource.resourceName()));
-            Stream<Action> groupActions = groupRequests.stream()
-                    .map(resource -> new Action(GroupResource.DESCRIBE_CONFIGS, resource.resourceName()));
-            List<Action> actions = Stream.concat(groupActions, topicActions).toList();
+            List<Action> actions = Stream.concat(toActions(groupRequests, GroupResource.DESCRIBE_CONFIGS), toActions(topicRequests, TopicResource.DESCRIBE_CONFIGS))
+                    .toList();
             return authorizationFilter.authorization(context, actions).thenCompose(result -> {
                 Map<Decision, List<DescribeConfigsResource>> partitionedTopics = result.partition(topicRequests, TopicResource.DESCRIBE_CONFIGS,
                         DescribeConfigsResource::resourceName);
@@ -76,6 +74,11 @@ class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestDa
                 }
             });
         }
+    }
+
+    private static Stream<Action> toActions(List<DescribeConfigsResource> describeConfigsResources, ResourceType<?> type) {
+        return describeConfigsResources.stream()
+                .map(resource -> new Action(type, resource.resourceName()));
     }
 
     private static void addResourceDescribeFailure(DescribeConfigsResponseData describeConfigsResponseData, DescribeConfigsResource describeConfigsResource,

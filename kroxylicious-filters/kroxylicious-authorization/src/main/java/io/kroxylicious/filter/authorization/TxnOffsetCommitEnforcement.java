@@ -39,10 +39,7 @@ class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestDa
                                                    TxnOffsetCommitRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        Stream<Action> topicActions = request.topics().stream().map(TxnOffsetCommitRequestTopic::name).map(s -> new Action(TopicResource.READ, s));
-        Stream<Action> transactionAndGroupActions = Stream.of(new Action(TransactionalIdResource.WRITE, request.transactionalId()),
-                new Action(GroupResource.READ, request.groupId()));
-        List<Action> actions = Stream.concat(topicActions, transactionAndGroupActions).toList();
+        List<Action> actions = Stream.concat(topicReadActions(request), transactionAndGroupActions(request)).toList();
         CompletionStage<AuthorizeResult> authorization = authorizationFilter.authorization(context, actions);
         return authorization.thenCompose(result -> {
             Decision transactionalResult = result.decision(TransactionalIdResource.WRITE, request.transactionalId());
@@ -79,6 +76,15 @@ class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestDa
                 }
             }
         });
+    }
+
+    private static Stream<Action> transactionAndGroupActions(TxnOffsetCommitRequestData request) {
+        return Stream.of(new Action(TransactionalIdResource.WRITE, request.transactionalId()),
+                new Action(GroupResource.READ, request.groupId()));
+    }
+
+    private static Stream<Action> topicReadActions(TxnOffsetCommitRequestData request) {
+        return request.topics().stream().map(TxnOffsetCommitRequestTopic::name).map(s -> new Action(TopicResource.READ, s));
     }
 
     private static TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic errorResponseTopic(TxnOffsetCommitRequestTopic requestTopic, Errors error) {
