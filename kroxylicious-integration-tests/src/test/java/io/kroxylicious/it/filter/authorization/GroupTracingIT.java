@@ -153,6 +153,15 @@ class GroupTracingIT extends AbstractTracingIT {
         ClusterPrepUtils.deleteAllConsumerGroups(kafkaClusterWithAuthzAdmin);
     }
 
+    /**
+     * Covers the happy-path Consumer using an authorized Group. This Persona is able to subscribe
+     * to a topic using a groupId and happily consume messages and commit offsets. They are authorized to:
+     * <ul>
+     *     <li>Find the group coordinator</li>
+     *     <li>Join the group</li>
+     *     <li>Commit offsets</li>
+     * </ul>
+     */
     record GroupConsumerProg(String group, String consumerUser) implements Prog {
 
         @Override
@@ -185,6 +194,17 @@ class GroupTracingIT extends AbstractTracingIT {
         }
     }
 
+    /**
+     * This covers the Persona of a Group Admin who is permitted to describe, configure and delete groups. They
+     * are allowed to:
+     * <ul>
+     *     <li>Describe the group</li>
+     *     <li>Describe the group configs</li>
+     *     <li>Alter the group configs</li>
+     *     <li>See the group when listing groups</li>
+     *     <li>Delete the group</li>
+     * </ul>
+     */
     record GroupAdminProg(String group, String adminUser) implements Prog {
 
         @Override
@@ -231,6 +251,16 @@ class GroupTracingIT extends AbstractTracingIT {
 
     }
 
+    /**
+     * Covers an unauthorized user attempting denied Admin operations. They are not authorized to:
+     * <ul>
+     *     <li>Describe the group</li>
+     *     <li>Describe the group configs</li>
+     *     <li>Alter the group configs</li>
+     *     <li>See the group when listing groups</li>
+     *     <li>Delete the group</li>
+     * </ul>
+     */
     record DeniedGroupAdminProg(String group, String adminUser) implements Prog {
 
         @Override
@@ -275,6 +305,14 @@ class GroupTracingIT extends AbstractTracingIT {
                 ConsumerConfig.GROUP_ID_CONFIG, group, ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1, ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 2000);
     }
 
+    /**
+     * Covers an unauthorized user attempting denied Consumer operations. They are not authorized to:
+     * <ul>
+     *     <li>Find the group coordinator</li>
+     *     <li>Join the group</li>
+     *     <li>Commit offsets</li>
+     * </ul>
+     */
     record DeniedGroupConsumerProg(String group, String consumerUser) implements Prog {
 
         @Override
@@ -303,7 +341,15 @@ class GroupTracingIT extends AbstractTracingIT {
     }
 
     /**
-     * Check that permitted producer can sendOffsetsToTransaction
+     * Covers a more advanced Consumer Person using an authorized Group. This Persona is able to subscribe
+     * to a topic using a groupId and happily consume messages and commit offsets. They are also able to
+     * send offsets to a transaction, to participate in exactly-once semantics.
+     * They are authorized to:
+     * <ul>
+     *     <li>Find the group coordinator</li>
+     *     <li>Join the group</li>
+     *     <li>Send offsets to a transaction</li>
+     * </ul>
      */
     static class TransactionalProg implements Prog {
 
