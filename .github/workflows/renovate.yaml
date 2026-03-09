@@ -56,9 +56,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Setup node
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
       - name: Renovate
-        uses: renovatebot/github-action@7b4b65bf31e07d4e3e51708d07700fb41bc03166
+        uses: renovatebot/github-action@0b17c4eb901eca44d018fb25744a50a74b2042df
         with:
           configurationFile: .github/renovate.json
           token: ${{ env.EFFECTIVE_TOKEN }}
