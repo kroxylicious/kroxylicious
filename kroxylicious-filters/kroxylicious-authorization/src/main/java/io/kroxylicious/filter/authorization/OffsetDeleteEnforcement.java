@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
@@ -39,10 +38,7 @@ class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, Of
                                                    AuthorizationFilter authorizationFilter) {
 
         Action groupDeleteAction = new Action(GroupResource.DELETE, request.groupId());
-        List<Action> topicReadActions = request.topics().stream()
-                .map(odrd -> new Action(TopicResource.READ, odrd.name())).toList();
-        var actions = Stream.concat(Stream.of(groupDeleteAction), topicReadActions.stream())
-                .toList();
+        var actions = Stream.concat(Stream.of(groupDeleteAction), topicReadActions(request)).toList();
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
                     if (authorization.denied().contains(groupDeleteAction)) {
@@ -83,6 +79,11 @@ class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, Of
                         return context.forwardRequest(header, request);
                     }
                 });
+    }
+
+    private static Stream<Action> topicReadActions(OffsetDeleteRequestData request) {
+        return request.topics().stream()
+                .map(odrd -> new Action(TopicResource.READ, odrd.name()));
     }
 
     private OffsetDeleteResponseData.OffsetDeleteResponseTopic topicAuthzFailed(OffsetDeleteRequestData.OffsetDeleteRequestTopic requestTopic) {

@@ -19,6 +19,7 @@ import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
@@ -47,11 +48,8 @@ class IncrementalAlterConfigsEnforcement extends ApiEnforcement<IncrementalAlter
             return context.forwardRequest(header, request);
         }
         else {
-            Stream<Action> topicActions = topicRequests.stream()
-                    .map(re -> new Action(TopicResource.ALTER_CONFIGS, re.resourceName()));
-            Stream<Action> groupActions = groupRequests.stream()
-                    .map(re -> new Action(GroupResource.ALTER_CONFIGS, re.resourceName()));
-            List<Action> actions = Stream.concat(groupActions, topicActions).toList();
+            List<Action> actions = Stream.concat(toActions(groupRequests, GroupResource.ALTER_CONFIGS),
+                    toActions(topicRequests, TopicResource.ALTER_CONFIGS)).toList();
             return authorizationFilter.authorization(context, actions).thenCompose(result -> {
                 Map<Decision, List<AlterConfigsResource>> partitionedTopicResources = result.partition(topicRequests, TopicResource.ALTER_CONFIGS,
                         AlterConfigsResource::resourceName);
@@ -78,6 +76,11 @@ class IncrementalAlterConfigsEnforcement extends ApiEnforcement<IncrementalAlter
                 }
             });
         }
+    }
+
+    private static Stream<Action> toActions(List<AlterConfigsResource> alterConfigsResources, ResourceType<?> type) {
+        return alterConfigsResources.stream()
+                .map(re -> new Action(type, re.resourceName()));
     }
 
     private static void addResourceFailure(IncrementalAlterConfigsResponseData response, AlterConfigsResource describeConfigsResource, Errors error) {

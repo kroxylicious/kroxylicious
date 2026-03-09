@@ -169,12 +169,14 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
     }
 
     private List<Action> extractGroupsToAuthorize(OffsetFetchRequestData request) {
-        Stream<String> unbatched = Stream.ofNullable(request.groupId());
-        Stream<String> batched = Stream.ofNullable(request.groups()).flatMap(Collection::stream).map(OffsetFetchRequestGroup::groupId);
-        return Stream.concat(unbatched, batched)
+        return Stream.concat(Stream.ofNullable(request.groupId()), maybeBatchedGroupIds(request))
                 .filter(groupId -> !groupId.isEmpty())
                 .map(groupId -> new Action(GroupResource.DESCRIBE, groupId))
                 .toList();
+    }
+
+    private static Stream<String> maybeBatchedGroupIds(OffsetFetchRequestData request) {
+        return Stream.ofNullable(request.groups()).flatMap(Collection::stream).map(OffsetFetchRequestGroup::groupId);
     }
 
     @Override
