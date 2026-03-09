@@ -43,7 +43,9 @@ public class ListGroupsEnforcement extends ApiEnforcement<ListGroupsRequestData,
     }
 
     @Override
-    CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header, ListGroupsResponseData response, FilterContext context,
+    CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
+                                                     ListGroupsResponseData response,
+                                                     FilterContext context,
                                                      AuthorizationFilter authorizationFilter) {
         List<Action> actions = response.groups().stream()
                 .map(ListedGroup::groupId)
