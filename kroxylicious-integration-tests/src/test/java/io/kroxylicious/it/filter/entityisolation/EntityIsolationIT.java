@@ -15,6 +15,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
@@ -56,11 +57,12 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.apache.kafka.coordinator.group.GroupConfig;
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation;
 import io.kroxylicious.filter.entityisolation.PrincipalEntityNameMapperService;
@@ -647,6 +649,23 @@ class EntityIsolationIT {
         }
     }
 
+    static Stream<Arguments> aclBindings() {
+        return Stream.of(
+                Arguments.argumentSet("group - literal",
+                                        new ResourcePattern(ResourceType.GROUP, "AliceGroup", PatternType.LITERAL),
+                                        new ResourcePattern(ResourceType.GROUP, "BobGroup", PatternType.LITERAL),
+                                        List.of(EntityIsolation.ResourceType.GROUP_ID)),
+                Arguments.argumentSet("group - prefixed",
+                                        new ResourcePattern(ResourceType.GROUP, "AliceGroup", PatternType.PREFIXED),
+                                        new ResourcePattern(ResourceType.GROUP, "BobGroup", PatternType.PREFIXED),
+                                        List.of(EntityIsolation.ResourceType.GROUP_ID)),
+                Arguments.argumentSet("transactionalId - literal",
+                                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "AliceTxn", PatternType.LITERAL),
+                                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "BobTxn", PatternType.PREFIXED),
+                                        List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID))
+                );
+    }
+
     /**
      * Verifies that ACL bindings are properly isolated.
      * Alice and Bob both create an ACL binding.  The test ensure that neither Alice nor Bob
@@ -654,28 +673,31 @@ class EntityIsolationIT {
      *
      * @param authzCluster cluster with authorization
      */
-    @Test
-    void aclRuleWithGroupPredicateIsolation(@SaslMechanism(principals = {
-            @SaslMechanism.Principal(user = "alice", password = "pwd"),
-            @SaslMechanism.Principal(user = "bob", password = "pwd") })
-                                            @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer")
-                                            @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:alice;User:bob")
-                                            @Name("authz")
-                                            KafkaCluster authzCluster) {
-        var configBuilder = buildProxyConfig(authzCluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
+    @ParameterizedTest
+    @MethodSource("aclBindings")
+    void aclRuleWithResourceTypeIsolation(ResourcePattern aliceResourcePattern,
+                                          ResourcePattern bobResourcePattern,
+                                          List<EntityIsolation.ResourceType> mappedResourceTypes,
+                                          @SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
+                                                                          @SaslMechanism.Principal(user = "bob", password = "pwd") })
+                                          @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer")
+                                          @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:alice;User:bob")
+                                          @Name("authz")
+                                          KafkaCluster authzCluster) {
+        var configBuilder = buildProxyConfig(authzCluster, mappedResourceTypes);
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         var bobConfig = buildClientConfig("bob", "pwd");
 
         try (var tester = kroxyliciousTester(configBuilder)) {
             try (var aliceAdmin = tester.admin(aliceConfig)) {
-                var aclBinding = new AclBinding(new ResourcePattern(ResourceType.GROUP, "AliceGroup", PatternType.LITERAL),
+                var aclBinding = new AclBinding(aliceResourcePattern,
                         new AccessControlEntry("User:foo", "*", AclOperation.ALL, AclPermissionType.ALLOW));
                 assertThat(aliceAdmin.createAcls(List.of(aclBinding)).all())
                         .succeedsWithin(Duration.ofSeconds(5));
             }
             try (var bobAdmin = tester.admin(bobConfig)) {
-                var aclBinding = new AclBinding(new ResourcePattern(ResourceType.GROUP, "BobGroup", PatternType.LITERAL),
+                var aclBinding = new AclBinding(bobResourcePattern,
                         new AccessControlEntry("User:bar", "*", AclOperation.ALL, AclPermissionType.ALLOW));
                 assertThat(bobAdmin.createAcls(List.of(aclBinding)).all())
                         .succeedsWithin(Duration.ofSeconds(5));
@@ -686,7 +708,7 @@ class EntityIsolationIT {
                         .asInstanceOf(collection(AclBinding.class))
                         .extracting(AclBinding::pattern)
                         .extracting(ResourcePattern::name)
-                        .containsExactlyInAnyOrderElementsOf(List.of("BobGroup"));
+                        .containsExactlyInAnyOrderElementsOf(List.of(bobResourcePattern.name()));
             }
         }
     }

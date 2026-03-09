@@ -32,7 +32,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Entity isolation processor for FIND_COORDINATOR.
+ * Entity isolation processor for LIST_TRANSACTIONS.
  * This implementation is handwritten as at v2, filtering the response requires information
  * from the request.
  */
@@ -80,8 +80,8 @@ class ListTransactionsEntityIsolationProcessor
                     return filterContext.requestFilterResultBuilder().errorResponse(header, request, Errors.INVALID_REGULAR_EXPRESSION.exception()).completed();
                 }
                 // Idea: n.b. there's a half-way house where we pass the isolation prefix as
-                // our own RE and apply the user's at the response stage, reducing the
-                // need size of the response that the server needs to send to the proxy.
+                // our own RE (based on the entity prefix) and apply the user's at the response stage.
+                // This would reduce size of the response that the server needs to send to the proxy.
                 request.setTransactionalIdPattern(null);
             }
         }
