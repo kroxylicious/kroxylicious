@@ -142,7 +142,7 @@ class LocalKroxyliciousOperatorExtensionImageResolutionTest {
     // ---- helpers ----
 
     private static Supplier<InputStream> propertiesSupplier(String image) {
-        String content = "kroxylicious-image=%s\n".formatted(image);
+        String content = "kroxylicious-image=%s%n".formatted(image);
         return () -> new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
     }
 }
