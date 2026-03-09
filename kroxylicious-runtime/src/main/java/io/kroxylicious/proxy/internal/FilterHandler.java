@@ -31,6 +31,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.proxy.audit.AuditLogger;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
@@ -612,6 +613,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public Subject authenticatedSubject() {
             return proxyChannelStateMachine.authenticatedSubject();
+        }
+
+        @Override
+        public AuditLogger auditLogger() {
+            return new NoopAuditLogger();
         }
 
         InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {

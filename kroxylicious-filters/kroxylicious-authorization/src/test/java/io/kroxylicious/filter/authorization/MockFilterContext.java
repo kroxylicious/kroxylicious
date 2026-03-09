@@ -23,6 +23,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
+import io.kroxylicious.proxy.audit.AuditLogger;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -163,6 +164,11 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
     @Override
     public Subject authenticatedSubject() {
         return subject;
+    }
+
+    @Override
+    public AuditLogger auditLogger() {
+        return null;
     }
 
     record MockRequestFilterResult(boolean shortCircuitResponse,
