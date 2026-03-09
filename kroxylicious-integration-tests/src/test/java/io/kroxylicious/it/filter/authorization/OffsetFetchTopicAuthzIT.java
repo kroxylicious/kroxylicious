@@ -58,7 +58,12 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static io.kroxylicious.filter.authorization.OffsetFetchEnforcement.FIRST_VERSION_USING_GROUP_BATCHING;
 
-class OffsetFetchAuthzIT extends AuthzIT {
+/**
+ * OffsetFetch requests DESCRIBE permissions for the topics in the request/response (in an all-topics
+ * request we must filter the response topics). This test isolates the Topic authorization, allowing
+ * all operations on groups for all users.
+ */
+class OffsetFetchTopicAuthzIT extends AuthzIT {
 
     public static final short FIRST_VERSION_SUPPORTING_ALL_TOPICS = 2;
 

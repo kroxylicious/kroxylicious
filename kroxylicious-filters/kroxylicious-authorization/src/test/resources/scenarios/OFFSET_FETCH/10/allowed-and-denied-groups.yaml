@@ -8,11 +8,7 @@
 metadata:
   apiKeys: "OFFSET_FETCH"
   apiVersion: 10
-  scenario: |
-    request contains some allowed topics and some denied
-    allowed topics are forwarded upstream
-    denied topics are not forwarded upstream
-    denied topic errors are augmented into response to client
+  scenario: "baseline"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "OFFSET_FETCH"
@@ -31,9 +27,6 @@ given:
               - topicId: "6wZQe3j9QSO02xct4Ph0gA" # maps to topic named 'my-topic'
                 partitionIndexes:
                   - 639
-              - topicId: "2VJlngPmSGi69WMsWRVrOw"
-                partitionIndexes:
-                  - 639
         requireStable: false
       upstreamResponseHeader:
         correlationId: 1
@@ -49,13 +42,6 @@ given:
                     committedLeaderEpoch: 240
                     metadata: "random-string-576"
                     errorCode: 1010
-              - topicId: "2VJlngPmSGi69WMsWRVrOw" # maps to topic named 'unauthorized'
-                partitions:
-                  - partitionIndex: 639
-                    committedOffset: 846
-                    committedLeaderEpoch: 241
-                    metadata: "random-string-577"
-                    errorCode: 1010
             errorCode: 162
   authorizerRules:
     allowed:
@@ -69,7 +55,6 @@ given:
         resourceType: "DESCRIBE"
   topicNames:
     "6wZQe3j9QSO02xct4Ph0gA": "my-topic"
-    "2VJlngPmSGi69WMsWRVrOw": "unauthorized"
 when:
   subject: "alice"
   requestHeader:
@@ -86,7 +71,11 @@ when:
           - topicId: "6wZQe3j9QSO02xct4Ph0gA" # maps to topic named 'my-topic'
             partitionIndexes:
               - 639
-          - topicId: "2VJlngPmSGi69WMsWRVrOw" # maps to topic named 'unauthorized'
+      - groupId: "denied-group"
+        memberId: "random-string-642"
+        memberEpoch: 991
+        topics:
+          - topicId: "6wZQe3j9QSO02xct4Ph0gA" # maps to topic named 'my-topic'
             partitionIndexes:
               - 639
     requireStable: false
@@ -105,11 +94,7 @@ then:
                 committedLeaderEpoch: 240
                 metadata: "random-string-576"
                 errorCode: 1010
-          - topicId: "2VJlngPmSGi69WMsWRVrOw" # maps to topic named 'unauthorized'
-            partitions:
-              - partitionIndex: 639
-                committedOffset: -1
-                committedLeaderEpoch: -1
-                metadata: ""
-                errorCode: 29
         errorCode: 162
+      - groupId: "denied-group"
+        topics: []
+        errorCode: 30 # group authorization failed

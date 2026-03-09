@@ -20,7 +20,7 @@ given:
         clientId: "clientId"
       expectedRequest:
         groups:
-          - groupId: "random-string-540"
+          - groupId: "my-group"
             topics:
               - name: "my-topic"
                 partitionIndexes:
@@ -31,7 +31,7 @@ given:
       upstreamResponse:
         throttleTimeMs: 220
         groups:
-          - groupId: "random-string-107"
+          - groupId: "my-group"
             topics:
               - name: "my-topic"
                 partitions:
@@ -47,6 +47,10 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
   topicNames: null
 when:
   subject: "alice"
@@ -57,7 +61,7 @@ when:
     clientId: "clientId"
   request:
     groups:
-      - groupId: "random-string-540"
+      - groupId: "my-group"
         topics:
           - name: "my-topic"
             partitionIndexes:
@@ -69,7 +73,7 @@ then:
   expectedResponse:
     throttleTimeMs: 220
     groups:
-      - groupId: "random-string-107"
+      - groupId: "my-group"
         topics:
           - name: "my-topic"
             partitions:
