@@ -48,8 +48,15 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test driver for low-level but complex sequential gestures, for example executing FindCoordinator requests
- * until a coordinator is available.
+ * Test driver for low-level but complex sequential gestures to drive Kafka to a desired state.
+ * This class handles the finer details of constructing the messages required to accomplish gestures like:
+ * <ul>
+ *     <li>Find Coordinator - where polling may be required</li>
+ *     <li>Create or Delete a Group</li>
+ *     <li>Drive a Transactional Produce to the point where the transaction can be committed</li>
+ * </ul>
+ * This is useful for testing RPCs which the high-level Kafka client cannot easily pinpoint. We
+ * want to put the broker in a state where the RPC under test can succeed (if authorized).
  */
 class KafkaDriver {
     public static final String JOIN_GROUP_PROTOCOL_NAME = "proto";
