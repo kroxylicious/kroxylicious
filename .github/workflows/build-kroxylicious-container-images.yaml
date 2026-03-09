@@ -47,5 +47,3 @@ jobs:
         with:
           name: kroxylicious-operator
           path: kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
-      - name: 'Clean Kroxylicious Maven packages'
-        uses: ./.github/actions/common/clean-kroxylicious-maven-packages
