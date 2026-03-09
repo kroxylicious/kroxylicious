@@ -87,11 +87,13 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     private final String impersonatedUser = UUID.randomUUID().toString();
 
-    private final KubernetesClient testActorClient = OperatorTestUtils.kubeClient();
     private final Supplier<KubernetesClient> adminClientFactory;
 
     private final List<ClusterRole> clusterRoles;
     private final List<ClusterRoleBinding> roleBindings;
+
+    // Lazily set when testActor() is called; closed in afterAll.
+    private KubernetesClient testActorClient;
 
     public LocallyRunningOperatorRbacHandler(String resourceDirectory, String... clusterRoleFileGlobs) {
         this(Path.of(resourceDirectory), OperatorTestUtils::kubeClient, clusterRoleFileGlobs);
@@ -211,18 +213,20 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     @NonNull
     public TestActor testActor(@NonNull AbstractOperatorExtension operatorExtension) {
+        testActorClient = adminClientFactory.get();
+        var client = testActorClient;
         return new TestActor() {
 
             @NonNull
             @Override
             public <T extends HasMetadata> T create(@NonNull T resource) {
-                return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).create();
+                return client.resource(resource).inNamespace(operatorExtension.getNamespace()).create();
             }
 
             @Nullable
             @Override
             public <T extends HasMetadata> T get(@NonNull Class<T> type, @NonNull String name) {
-                return testActorClient.resources(type).inNamespace(operatorExtension.getNamespace()).withName(name).get();
+                return client.resources(type).inNamespace(operatorExtension.getNamespace()).withName(name).get();
             }
 
             @NonNull
@@ -232,25 +236,25 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
             @NonNull
             public <T extends HasMetadata> T replace(@NonNull T resource) {
-                return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).update();
+                return client.resource(resource).inNamespace(operatorExtension.getNamespace()).update();
             }
 
             @NonNull
             public <T extends HasMetadata> T patchStatus(@NonNull T resource) {
-                return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).patchStatus();
+                return client.resource(resource).inNamespace(operatorExtension.getNamespace()).patchStatus();
             }
 
             @Override
             public <T extends HasMetadata> boolean delete(@NonNull T resource) {
-                var res = testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).delete();
+                var res = client.resource(resource).inNamespace(operatorExtension.getNamespace()).delete();
                 return res.size() == 1 && res.get(0).getCauses().isEmpty();
             }
 
             @NonNull
             @Override
             public <T extends HasMetadata> NonNamespaceOperation<T, KubernetesResourceList<T>, Resource<T>> resources(
-                    @NonNull Class<T> type) {
-                return testActorClient.resources(type).inNamespace(operatorExtension.getNamespace());
+                                                                                                                      @NonNull Class<T> type) {
+                return client.resources(type).inNamespace(operatorExtension.getNamespace());
             }
 
             public <T extends KubernetesResource> boolean supports(Class<T> type) {
@@ -262,7 +266,9 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     @Override
     public void afterAll(ExtensionContext context) {
-        testActorClient.close();
+        if (testActorClient != null) {
+            testActorClient.close();
+        }
     }
 
     public interface TestActor {
