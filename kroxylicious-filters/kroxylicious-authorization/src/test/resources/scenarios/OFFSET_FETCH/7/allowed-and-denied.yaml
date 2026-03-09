@@ -23,7 +23,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        groupId: "random-string-487"
+        groupId: "my-group"
         topics:
           - name: "my-topic"
             partitionIndexes:
@@ -58,6 +58,10 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
   topicNames: null
 when:
   subject: "alice"
@@ -67,7 +71,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    groupId: "random-string-487"
+    groupId: "my-group"
     topics:
       - name: "my-topic"
         partitionIndexes:

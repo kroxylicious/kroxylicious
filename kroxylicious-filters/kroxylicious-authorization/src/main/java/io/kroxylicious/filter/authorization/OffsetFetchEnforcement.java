@@ -41,6 +41,8 @@ import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static org.apache.kafka.common.record.RecordBatch.NO_PARTITION_LEADER_EPOCH;
+
 public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestData, OffsetFetchResponseData> {
     /*
      * At api version 8 the OffsetFetch API was evolved significantly,
@@ -48,6 +50,9 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
      * offsets for multiple groups can be retrieved with a single RPC.
      */
     public static final short FIRST_VERSION_USING_GROUP_BATCHING = 8;
+    public static final short TOP_LEVEL_ERROR_AND_NULL_TOPICS_MIN_VERSION = 2;
+    private static final long INVALID_OFFSET = -1L;
+    private static final String NO_METADATA = "";
 
     // lowest version supported by proxy
     @Override
@@ -68,11 +73,14 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
      * On the response path we used the capture kind to determine whether the topics in the response
      * should be filtered out (for the "all topics" case), or
      * returned with partition-level TOPIC_AUTHZ_FAILED errors (for the specific topics kind of request).</p>
+     *
      * @param topLevelAllTopics
      * @param groupsWithAllTopics
+     * @param groupDenials groups that were denied in the request, to be augmented into the response
      */
     record RequestKind(boolean topLevelAllTopics,
-                       Set<String> groupsWithAllTopics)
+                       Set<String> groupsWithAllTopics,
+                       List<OffsetFetchResponseGroup> groupDenials)
             implements InflightState<OffsetFetchResponseData> {
 
         public boolean isGroupWithAllTopics(OffsetFetchResponseGroup group) {
@@ -90,22 +98,83 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                                                    OffsetFetchRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
+        List<Action> groupsToAuthorize = extractGroupsToAuthorize(request);
+        return authorizationFilter.authorization(context, groupsToAuthorize).thenCompose(authorizeResult -> {
+            if (authorizeResult.allowed().isEmpty()) {
+                return allGroupsUnauthorizedShortCircuit(header, request, context);
+            }
+            else {
+                RequestKind requestKind;
+                boolean batched = header.requestApiVersion() >= FIRST_VERSION_USING_GROUP_BATCHING;
+                if (batched) {
+                    Map<Decision, List<OffsetFetchRequestGroup>> partitioned = authorizeResult.partition(request.groups(), GroupResource.DESCRIBE,
+                            OffsetFetchRequestGroup::groupId);
+                    List<OffsetFetchRequestGroup> denied = partitioned.get(Decision.DENY);
+                    List<OffsetFetchResponseGroup> groupDenials = denied.stream().map(OffsetFetchEnforcement::unauthorizedResponseGroup).toList();
+                    request.groups().removeAll(denied);
+                    requestKind = new RequestKind(false,
+                            request.groups().stream()
+                                    .filter(ofrq -> ofrq.topics() == null)
+                                    .map(OffsetFetchRequestGroup::groupId)
+                                    .collect(Collectors.toSet()),
+                            groupDenials);
+                }
+                else {
+                    // implicitly if we have some authorized groups, and we are not at a batching version
+                    // then the single group was authorized
+                    requestKind = new RequestKind(request.topics() == null,
+                            Set.of(), List.of());
+                }
+                authorizationFilter.pushInflightState(header, requestKind);
+                return context.forwardRequest(header, request);
+            }
+        });
+    }
 
-        RequestKind requestKind;
-        boolean batched = header.requestApiVersion() >= FIRST_VERSION_USING_GROUP_BATCHING;
-        if (batched) {
-            requestKind = new RequestKind(false,
-                    request.groups().stream()
-                            .filter(ofrq -> ofrq.topics() == null)
-                            .map(OffsetFetchRequestGroup::groupId)
-                            .collect(Collectors.toSet()));
+    private static OffsetFetchResponseGroup unauthorizedResponseGroup(OffsetFetchRequestGroup group) {
+        OffsetFetchResponseGroup groupResponse = new OffsetFetchResponseGroup();
+        groupResponse.setErrorCode(Errors.GROUP_AUTHORIZATION_FAILED.code());
+        groupResponse.setGroupId(group.groupId());
+        return groupResponse;
+    }
+
+    private static CompletionStage<RequestFilterResult> allGroupsUnauthorizedShortCircuit(RequestHeaderData header, OffsetFetchRequestData request,
+                                                                                          FilterContext context) {
+        OffsetFetchResponseData offsetFetchResponseData = new OffsetFetchResponseData();
+        short apiVersion = header.requestApiVersion();
+        if (apiVersion >= FIRST_VERSION_USING_GROUP_BATCHING) {
+            request.groups().forEach(group -> {
+                offsetFetchResponseData.groups().add(unauthorizedResponseGroup(group));
+            });
         }
         else {
-            requestKind = new RequestKind(request.topics() == null,
-                    Set.of());
+            // note that v1 does not write this, but it also does not break anything to set it
+            offsetFetchResponseData.setErrorCode(Errors.GROUP_AUTHORIZATION_FAILED.code());
+            if (apiVersion < TOP_LEVEL_ERROR_AND_NULL_TOPICS_MIN_VERSION) {
+                request.topics().forEach(requestTopic -> {
+                    OffsetFetchResponseTopic responseTopic = new OffsetFetchResponseTopic().setName(requestTopic.name());
+                    requestTopic.partitionIndexes().forEach(partition -> {
+                        responseTopic.partitions().add(new OffsetFetchResponsePartition()
+                                .setPartitionIndex(partition)
+                                .setErrorCode(Errors.GROUP_AUTHORIZATION_FAILED.code())
+                                .setCommittedOffset(INVALID_OFFSET)
+                                .setMetadata(NO_METADATA)
+                                .setCommittedLeaderEpoch(NO_PARTITION_LEADER_EPOCH));
+                    });
+                    offsetFetchResponseData.topics().add(responseTopic);
+                });
+            }
         }
-        authorizationFilter.pushInflightState(header, requestKind);
-        return context.forwardRequest(header, request);
+        return context.requestFilterResultBuilder().shortCircuitResponse(offsetFetchResponseData).completed();
+    }
+
+    private List<Action> extractGroupsToAuthorize(OffsetFetchRequestData request) {
+        Stream<String> unbatched = Stream.ofNullable(request.groupId());
+        Stream<String> batched = Stream.ofNullable(request.groups()).flatMap(Collection::stream).map(OffsetFetchRequestGroup::groupId);
+        return Stream.concat(unbatched, batched)
+                .filter(groupId -> !groupId.isEmpty())
+                .map(groupId -> new Action(GroupResource.DESCRIBE, groupId))
+                .toList();
     }
 
     @Override
@@ -114,6 +183,11 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
                                                      FilterContext context,
                                                      AuthorizationFilter authorizationFilter) {
         var state = Objects.requireNonNull(authorizationFilter.popInflightState(header, RequestKind.class));
+        if (!state.groupDenials.isEmpty()) {
+            // groupDenials can only be non-empty in the batched case where some groupIds were allowed, otherwise we would have short-circuited
+            // so it is safe to assume that this response is a batched version.
+            response.groups().addAll(state.groupDenials);
+        }
         if (!state.topLevelAllTopics() && state.groupsWithAllTopics().isEmpty()) {
             context.forwardResponse(header, response);
         }
