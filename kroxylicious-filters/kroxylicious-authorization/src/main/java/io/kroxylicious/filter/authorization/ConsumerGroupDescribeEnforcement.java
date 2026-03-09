@@ -45,14 +45,18 @@ class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescr
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, ConsumerGroupDescribeRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   ConsumerGroupDescribeRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         // request only contains groupIds, we want to filter the response which may reference topics this Subject is not allowed to DESCRIBE
         return context.forwardRequest(header, request);
     }
 
     @Override
-    CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header, ConsumerGroupDescribeResponseData response, FilterContext context,
+    CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
+                                                     ConsumerGroupDescribeResponseData response,
+                                                     FilterContext context,
                                                      AuthorizationFilter authorizationFilter) {
         List<Action> actions = response.groups().stream()
                 .flatMap(maybeNullOrEmpty(DescribedGroup::members))

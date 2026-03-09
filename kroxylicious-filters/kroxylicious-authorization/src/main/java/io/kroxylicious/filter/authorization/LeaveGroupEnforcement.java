@@ -30,7 +30,9 @@ public class LeaveGroupEnforcement extends ApiEnforcement<LeaveGroupRequestData,
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, LeaveGroupRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   LeaveGroupRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         Action readGroup = new Action(GroupResource.READ, request.groupId());
         return authorizationFilter.authorization(context, List.of(readGroup)).thenCompose(authorizeResult -> {

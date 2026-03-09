@@ -35,11 +35,12 @@ public class DescribeGroupsEnforcement extends ApiEnforcement<DescribeGroupsRequ
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, DescribeGroupsRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   DescribeGroupsRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         boolean isIncludeAuthorizedOps = request.includeAuthorizedOperations();
-        List<GroupResource> actionsToAuthorize = actionsToAuthorize(isIncludeAuthorizedOps);
-        List<Action> actions = request.groups().stream().flatMap(group -> actionsToAuthorize.stream().map(groupResource -> new Action(groupResource, group))).toList();
+        List<Action> actions = actionsToAuthorize(request, isIncludeAuthorizedOps);
         return authorizationFilter.authorization(context, actions).thenCompose(authorizeResult -> {
             if (authorizeResult.allowed().isEmpty()) {
                 return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
@@ -69,7 +70,15 @@ public class DescribeGroupsEnforcement extends ApiEnforcement<DescribeGroupsRequ
         });
     }
 
-    private static List<GroupResource> actionsToAuthorize(boolean isIncludeAuthorizedOps) {
+    private static List<Action> actionsToAuthorize(DescribeGroupsRequestData request, boolean isIncludeAuthorizedOps) {
+        List<GroupResource> operationsToAuthorize = operationsToAuthorize(isIncludeAuthorizedOps);
+        return request.groups().stream()
+                .flatMap(group -> operationsToAuthorize.stream()
+                        .map(groupResource -> new Action(groupResource, group)))
+                .toList();
+    }
+
+    private static List<GroupResource> operationsToAuthorize(boolean isIncludeAuthorizedOps) {
         if (isIncludeAuthorizedOps) {
             // we need to know which operations are authorized to include them in the authorized ops
             return List.of(GroupResource.values());

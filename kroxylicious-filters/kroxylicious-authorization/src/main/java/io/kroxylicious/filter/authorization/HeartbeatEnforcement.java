@@ -30,7 +30,9 @@ public class HeartbeatEnforcement extends ApiEnforcement<HeartbeatRequestData, H
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, HeartbeatRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   HeartbeatRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         Action readGroup = new Action(GroupResource.READ, request.groupId());
         return authorizationFilter.authorization(context, List.of(readGroup)).thenCompose(authorizeResult -> {

@@ -35,7 +35,9 @@ class DescribeProducersEnforcement extends ApiEnforcement<DescribeProducersReque
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, DescribeProducersRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   DescribeProducersRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         if (request.topics() == null || request.topics().isEmpty()) {
             return context.forwardRequest(header, request);

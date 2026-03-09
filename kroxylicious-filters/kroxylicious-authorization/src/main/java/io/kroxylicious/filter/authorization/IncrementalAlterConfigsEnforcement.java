@@ -37,7 +37,9 @@ class IncrementalAlterConfigsEnforcement extends ApiEnforcement<IncrementalAlter
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, IncrementalAlterConfigsRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   IncrementalAlterConfigsRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         List<AlterConfigsResource> topicRequests = ConfigResources.filter(request.resources().stream(), AlterConfigsResource::resourceType, TOPIC).toList();
         List<AlterConfigsResource> groupRequests = ConfigResources.filter(request.resources().stream(), AlterConfigsResource::resourceType, GROUP).toList();

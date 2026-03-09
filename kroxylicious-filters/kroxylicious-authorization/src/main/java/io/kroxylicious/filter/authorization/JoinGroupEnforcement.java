@@ -30,7 +30,9 @@ public class JoinGroupEnforcement extends ApiEnforcement<JoinGroupRequestData, J
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, JoinGroupRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   JoinGroupRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         Action readGroup = new Action(GroupResource.READ, request.groupId());
         return authorizationFilter.authorization(context, List.of(readGroup)).thenCompose(authorizeResult -> {

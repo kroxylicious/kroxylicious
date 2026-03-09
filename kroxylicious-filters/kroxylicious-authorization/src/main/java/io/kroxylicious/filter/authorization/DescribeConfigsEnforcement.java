@@ -39,7 +39,9 @@ class DescribeConfigsEnforcement extends ApiEnforcement<DescribeConfigsRequestDa
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, DescribeConfigsRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   DescribeConfigsRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         List<DescribeConfigsResource> topicRequests = ConfigResources.filter(request.resources().stream(), DescribeConfigsResource::resourceType, TOPIC).toList();
         List<DescribeConfigsResource> groupRequests = ConfigResources.filter(request.resources().stream(), DescribeConfigsResource::resourceType, GROUP).toList();

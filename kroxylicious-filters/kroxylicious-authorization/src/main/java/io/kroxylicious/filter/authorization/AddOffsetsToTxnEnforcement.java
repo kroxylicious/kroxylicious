@@ -32,7 +32,9 @@ public class AddOffsetsToTxnEnforcement extends ApiEnforcement<AddOffsetsToTxnRe
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, AddOffsetsToTxnRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   AddOffsetsToTxnRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         Action writeTxnAction = new Action(TransactionalIdResource.WRITE, request.transactionalId());
         Action groupReadAction = new Action(GroupResource.READ, request.groupId());

@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
@@ -38,9 +39,9 @@ class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, Of
                                                    AuthorizationFilter authorizationFilter) {
 
         Action groupDeleteAction = new Action(GroupResource.DELETE, request.groupId());
-        Stream<Action> topicReadActions = request.topics().stream()
-                .map(odrd -> new Action(TopicResource.READ, odrd.name()));
-        var actions = Stream.concat(Stream.of(groupDeleteAction), topicReadActions)
+        List<Action> topicReadActions = request.topics().stream()
+                .map(odrd -> new Action(TopicResource.READ, odrd.name())).toList();
+        var actions = Stream.concat(Stream.of(groupDeleteAction), topicReadActions.stream())
                 .toList();
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {

@@ -38,7 +38,9 @@ class AlterConfigsEnforcement extends ApiEnforcement<AlterConfigsRequestData, Al
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, AlterConfigsRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   AlterConfigsRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         List<AlterConfigsResource> topicResources = ConfigResources.filter(request.resources().stream(), AlterConfigsResource::resourceType, TOPIC).toList();
         List<AlterConfigsResource> groupResources = ConfigResources.filter(request.resources().stream(), AlterConfigsResource::resourceType, GROUP).toList();
