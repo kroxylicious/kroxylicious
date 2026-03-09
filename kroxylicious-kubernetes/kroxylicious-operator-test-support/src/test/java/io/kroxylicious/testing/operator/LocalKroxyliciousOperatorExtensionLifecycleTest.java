@@ -12,6 +12,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.function.Executable;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
@@ -156,6 +157,53 @@ class LocalKroxyliciousOperatorExtensionLifecycleTest {
 
         // Then
         verify(setup.actor()).resources(Namespace.class);
+    }
+
+    @Test
+    void beforeAllRunsSetupActionsAfterRbacAndBeforeOperator() throws Throwable {
+        // Given
+        var localRbac = mock(LocallyRunningOperatorRbacHandler.class);
+        var localOp = mock(LocallyRunOperatorExtension.class);
+        Executable setupAction = mock(Executable.class);
+        var ext = new LocalKroxyliciousOperatorExtension(
+                defaultBuilder().withSetupAction(setupAction),
+                () -> localRbac,
+                handler -> localOp,
+                () -> {
+                });
+
+        // When
+        ext.beforeAll(context);
+
+        // Then
+        InOrder order = inOrder(localRbac, setupAction, localOp);
+        order.verify(localRbac).beforeEach(context);
+        order.verify(setupAction).execute();
+        order.verify(localOp).beforeAll(context);
+    }
+
+    @Test
+    void afterAllRunsTeardownActionsAfterOperatorAndBeforeRbac() throws Throwable {
+        // Given
+        var localRbac = mock(LocallyRunningOperatorRbacHandler.class);
+        var localOp = mock(LocallyRunOperatorExtension.class);
+        Executable teardownAction = mock(Executable.class);
+        var ext = new LocalKroxyliciousOperatorExtension(
+                defaultBuilder().withTeardownAction(teardownAction),
+                () -> localRbac,
+                handler -> localOp,
+                () -> {
+                });
+        ext.beforeAll(context);
+
+        // When
+        ext.afterAll(context);
+
+        // Then
+        InOrder order = inOrder(localOp, teardownAction, localRbac);
+        order.verify(localOp).afterAll(context);
+        order.verify(teardownAction).execute();
+        order.verify(localRbac).afterEach(context);
     }
 
     // ---- helpers ----
