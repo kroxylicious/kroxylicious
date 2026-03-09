@@ -63,5 +63,3 @@ jobs:
         with:
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The lint workflow failed on branch ${{ github.ref_name }}.'
-      - name: 'Clean Kroxylicious Maven packages'
-        uses: ./.github/actions/common/clean-kroxylicious-maven-packages
