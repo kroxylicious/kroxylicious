@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.message.AlterConfigsRequestData;
 import org.apache.kafka.common.message.AlterConfigsRequestData.AlterConfigsResource;
 import org.apache.kafka.common.message.AlterConfigsResponseData;
@@ -67,12 +66,10 @@ class AlterConfigsEnforcement extends ApiEnforcement<AlterConfigsRequestData, Al
                 request.resources().removeAll(deniedTopics);
                 request.resources().removeAll(deniedGroups);
                 authorizationFilter.pushInflightState(header, (AlterConfigsResponseData alterConfigsResponseData) -> {
-                    deniedTopics.forEach(describeConfigsResource -> {
-                        alterConfigsResponseData.responses().add(failureResponse(Errors.TOPIC_AUTHORIZATION_FAILED, describeConfigsResource));
-                    });
-                    deniedGroups.forEach(describeConfigsResource -> {
-                        alterConfigsResponseData.responses().add(failureResponse(Errors.GROUP_AUTHORIZATION_FAILED, describeConfigsResource));
-                    });
+                    deniedTopics.forEach(describeConfigsResource -> alterConfigsResponseData.responses()
+                            .add(failureResponse(Errors.TOPIC_AUTHORIZATION_FAILED, describeConfigsResource)));
+                    deniedGroups.forEach(describeConfigsResource -> alterConfigsResponseData.responses()
+                            .add(failureResponse(Errors.GROUP_AUTHORIZATION_FAILED, describeConfigsResource)));
                     return alterConfigsResponseData;
                 });
                 return context.forwardRequest(header, request);
@@ -90,7 +87,4 @@ class AlterConfigsEnforcement extends ApiEnforcement<AlterConfigsRequestData, Al
         return configResult;
     }
 
-    private static ConfigResource.Type resourceType(AlterConfigsResource resource) {
-        return ConfigResource.Type.forId(resource.resourceType());
-    }
 }
