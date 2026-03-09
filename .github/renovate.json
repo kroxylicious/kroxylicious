@@ -84,7 +84,7 @@
       ],
       "matchStrings": [
         "(?<depName>nagyesta/lowkey-vault):(?<currentValue>\\d+\\.\\d+\\.\\d+)",
-        "digest =.*(?<currentDigest>.*)\""
+        "digest = \"(?<currentDigest>.*)\""
       ],
       "datasourceTemplate": "docker"
     },
@@ -115,12 +115,23 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/it/BaseOauthBearerIT.java/",
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/OauthServerContainer.java/",
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/MockOauthServer.java/"
       ],
       "matchStrings": [
         "\"(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)@(?<currentDigest>.*)\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "matchStringsStrategy": "combination",
+      "managerFilePatterns": [
+        "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/it/BaseOauthBearerIT.java/",
+        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/OauthServerContainer.java/"
+      ],
+      "matchStrings": [
+        "(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+.\\d+)",
+        "DIGEST = \"(?<currentDigest>.*)\""
       ],
       "datasourceTemplate": "docker"
     },
