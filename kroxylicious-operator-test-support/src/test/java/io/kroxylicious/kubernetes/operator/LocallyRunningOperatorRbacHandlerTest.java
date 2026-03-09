@@ -36,19 +36,19 @@ class LocallyRunningOperatorRbacHandlerTest {
 
     @Test
     void shouldThrowWhenGlobsIsEmpty() {
-        assertThatThrownBy(() -> new LocallyRunningOperatorRbacHandler(tempDir.toString()))
+        assertThatThrownBy(() -> new LocallyRunningOperatorRbacHandler(tempDir))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void shouldThrowWhenGlobContainsNull() {
-        assertThatThrownBy(() -> new LocallyRunningOperatorRbacHandler(tempDir.toString(), (String) null))
+        assertThatThrownBy(() -> new LocallyRunningOperatorRbacHandler(tempDir, (String) null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void shouldThrowWhenGlobContainsEmptyString() {
-        assertThatThrownBy(() -> new LocallyRunningOperatorRbacHandler(tempDir.toString(), ""))
+        assertThatThrownBy(() -> new LocallyRunningOperatorRbacHandler(tempDir, ""))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -61,7 +61,7 @@ class LocallyRunningOperatorRbacHandlerTest {
     @Test
     void shouldThrowWhenPathIsNotDirectory() throws IOException {
         Path file = Files.createFile(tempDir.resolve("notadir.txt"));
-        assertThatThrownBy(() -> new LocallyRunningOperatorRbacHandler(file.toString(), "*.yaml"))
+        assertThatThrownBy(() -> new LocallyRunningOperatorRbacHandler(file, "*.yaml"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -71,7 +71,7 @@ class LocallyRunningOperatorRbacHandlerTest {
     void shouldCreateRolesAndBindingsForMatchingFiles() throws Exception {
         Files.writeString(tempDir.resolve("test.ClusterRole.yaml"), clusterRoleYaml("test-role"));
 
-        var handler = new LocallyRunningOperatorRbacHandler(tempDir.toString(), this::freshClient, "*.ClusterRole.yaml");
+        var handler = new LocallyRunningOperatorRbacHandler(tempDir, this::freshClient, "*.ClusterRole.yaml");
         handler.beforeEach(mock(ExtensionContext.class));
 
         var roleNames = kubeClient.rbac().clusterRoles().list().getItems().stream()
@@ -88,7 +88,7 @@ class LocallyRunningOperatorRbacHandlerTest {
         Files.writeString(tempDir.resolve("test.ClusterRole.yaml"), clusterRoleYaml("matched-role"));
         Files.writeString(tempDir.resolve("other.yaml"), clusterRoleYaml("unmatched-role"));
 
-        var handler = new LocallyRunningOperatorRbacHandler(tempDir.toString(), this::freshClient, "*.ClusterRole.yaml");
+        var handler = new LocallyRunningOperatorRbacHandler(tempDir, this::freshClient, "*.ClusterRole.yaml");
         handler.beforeEach(mock(ExtensionContext.class));
 
         var roleNames = kubeClient.rbac().clusterRoles().list().getItems().stream()
@@ -100,15 +100,15 @@ class LocallyRunningOperatorRbacHandlerTest {
     void shouldIgnoreNonClusterRoleResourcesInMatchedFiles() throws Exception {
         // A file matching the glob that contains both a ClusterRole and a ClusterRoleBinding
         Files.writeString(tempDir.resolve("test.ClusterRole.yaml"),
-                clusterRoleYaml("my-role") + "\n---\n" + clusterRoleBindingYaml("my-binding", "my-role"));
+                clusterRoleYaml("my-role") + "\n---\n" + clusterRoleBindingYaml());
 
-        var handler = new LocallyRunningOperatorRbacHandler(tempDir.toString(), this::freshClient, "*.ClusterRole.yaml");
+        var handler = new LocallyRunningOperatorRbacHandler(tempDir, this::freshClient, "*.ClusterRole.yaml");
         handler.beforeEach(mock(ExtensionContext.class));
 
         // The ClusterRoleBinding from the file should NOT have been created (only handler-generated bindings)
         var bindingNames = kubeClient.rbac().clusterRoleBindings().list().getItems().stream()
                 .map(b -> b.getMetadata().getName()).toList();
-        assertThat(bindingNames).doesNotContain("my-binding");
+        assertThat(bindingNames).isNotEmpty().doesNotContain("my-binding");
     }
 
     // ---- afterEach cleanup ----
@@ -117,7 +117,7 @@ class LocallyRunningOperatorRbacHandlerTest {
     void afterEachShouldDeleteCreatedRolesAndBindings() throws Exception {
         Files.writeString(tempDir.resolve("test.ClusterRole.yaml"), clusterRoleYaml("cleanup-role"));
 
-        var handler = new LocallyRunningOperatorRbacHandler(tempDir.toString(), this::freshClient, "*.ClusterRole.yaml");
+        var handler = new LocallyRunningOperatorRbacHandler(tempDir, this::freshClient, "*.ClusterRole.yaml");
         var context = mock(ExtensionContext.class);
         handler.beforeEach(context);
 
@@ -148,17 +148,17 @@ class LocallyRunningOperatorRbacHandlerTest {
                 """.formatted(name);
     }
 
-    private static String clusterRoleBindingYaml(String bindingName, String roleName) {
+    private static String clusterRoleBindingYaml() {
         return """
                 apiVersion: rbac.authorization.k8s.io/v1
                 kind: ClusterRoleBinding
                 metadata:
-                  name: %s
+                  name: my-binding
                 roleRef:
                   apiGroup: rbac.authorization.k8s.io
                   kind: ClusterRole
-                  name: %s
+                  name: my-role
                 subjects: []
-                """.formatted(bindingName, roleName);
+                """;
     }
 }
