@@ -35,7 +35,9 @@ public class ListGroupsEnforcement extends ApiEnforcement<ListGroupsRequestData,
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, ListGroupsRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   ListGroupsRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         return context.forwardRequest(header, request);
     }

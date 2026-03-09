@@ -36,7 +36,9 @@ class DeleteRecordsEnforcement extends ApiEnforcement<DeleteRecordsRequestData, 
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, DeleteRecordsRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   DeleteRecordsRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         if (request.topics() == null || request.topics().isEmpty()) {
             return context.forwardRequest(header, request);

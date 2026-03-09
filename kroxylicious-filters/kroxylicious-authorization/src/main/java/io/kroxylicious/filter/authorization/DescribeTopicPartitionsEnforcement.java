@@ -40,7 +40,9 @@ class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPar
     private static final AllTopicsInflightState ALL_TOPIC_INFLIGHT_STATE = new AllTopicsInflightState();
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, DescribeTopicPartitionsRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   DescribeTopicPartitionsRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         if (request.topics().isEmpty()) {
             authorizationFilter.pushInflightState(header, ALL_TOPIC_INFLIGHT_STATE);

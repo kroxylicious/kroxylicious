@@ -42,7 +42,9 @@ public class DescribeTransactionsEnforcement extends ApiEnforcement<DescribeTran
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, DescribeTransactionsRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   DescribeTransactionsRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         Stream<Action> transactionalIds = request.transactionalIds().stream().map(transactionalId -> new Action(TransactionalIdResource.DESCRIBE, transactionalId));
         return authorizationFilter.authorization(context, transactionalIds.toList()).thenCompose(authorizeResult -> {
