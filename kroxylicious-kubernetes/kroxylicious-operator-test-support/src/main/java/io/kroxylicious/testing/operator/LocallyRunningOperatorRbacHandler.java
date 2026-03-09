@@ -79,7 +79,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             .endRule()
             .addNewRule()
             .addToApiGroups("apiextensions.k8s.io")
-            .addToVerbs("get", "list", "watch", "create", "delete", "patch", "delete")
+            .addToVerbs("get", "list", "watch", "create", "delete", "patch")
             .addToResources("customresourcedefinitions")
             .endRule()
             .build();
@@ -97,12 +97,12 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
         this(Path.of(resourceDirectory), OperatorTestUtils::kubeClient, clusterRoleFileGlobs);
     }
 
-    @VisibleForTesting
-    LocallyRunningOperatorRbacHandler(String resourceDirectory, Supplier<KubernetesClient> adminClientFactory, String... clusterRoleFileGlobs) {
-        this(Path.of(resourceDirectory), adminClientFactory, clusterRoleFileGlobs);
+    public LocallyRunningOperatorRbacHandler(Path resourceDirectory, String... clusterRoleFileGlobs) {
+        this(resourceDirectory, OperatorTestUtils::kubeClient, clusterRoleFileGlobs);
     }
 
-    private LocallyRunningOperatorRbacHandler(Path resourceDirectory, Supplier<KubernetesClient> adminClientFactory, String... clusterRoleFileGlobs) {
+    @VisibleForTesting
+    LocallyRunningOperatorRbacHandler(Path resourceDirectory, Supplier<KubernetesClient> adminClientFactory, String... clusterRoleFileGlobs) {
         requireNonNull(resourceDirectory);
         verifyClusterGlobs(clusterRoleFileGlobs);
         verifyDirectoryExists(resourceDirectory);
@@ -249,7 +249,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             @NonNull
             @Override
             public <T extends HasMetadata> NonNamespaceOperation<T, KubernetesResourceList<T>, Resource<T>> resources(
-                                                                                                                      Class<T> type) {
+                    @NonNull Class<T> type) {
                 return testActorClient.resources(type).inNamespace(operatorExtension.getNamespace());
             }
 
