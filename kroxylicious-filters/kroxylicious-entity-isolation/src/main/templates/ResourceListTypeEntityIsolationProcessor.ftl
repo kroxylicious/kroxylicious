@@ -23,7 +23,7 @@ indent      java identation
         ${pad}// process the resource list
         ${pad}${fieldVar}.${getter}().stream()
         ${pad}            .collect(Collectors.toMap(Function.identity(),
-        ${pad}                  r -> EntityIsolation.fromConfigResourceTypeCode(r.resourceType())))
+        ${pad}                  r -> EntityIsolation.fromResourceTypeCode(ApiKeys.${messageSpecPair.apiKey}, r.resourceType())))
         ${pad}            .entrySet()
         ${pad}            .stream()
         ${pad}            .filter(e -> e.getValue().isPresent())
@@ -68,10 +68,7 @@ ${pad}if (<@inVersionRange "apiVersion", messageSpec.validVersions.intersect(fie
 ${pad}    var ${collectionIteratorVar} = ${fieldVar}.${getter}().iterator();
 ${pad}    while (${collectionIteratorVar}.hasNext()) {
 ${pad}        var ${elementVar} = ${collectionIteratorVar}.next();
-${pad}        // TODO: this is only good for resource lists from use org.apache.kafka.common.config.ConfigResource.Type
-${pad}        // the Kafka ACL system uses different type codes org.apache.kafka.common.resource.ResourceType
-${pad}        // not sure that there is good way to map the RPC name to the type system it uses.             
-${pad}        EntityIsolation.fromConfigResourceTypeCode(${elementVar}.resourceType())
+${pad}        EntityIsolation.fromResourceTypeCode(ApiKeys.${messageSpecPair.apiKey}, ${elementVar}.resourceType())
 ${pad}              .filter(entityType -> shouldMap(entityType))
 ${pad}              .ifPresent(entityType -> {
 ${pad}            if (inNamespace(mapperContext, entityType, ${elementVar}.resourceName())) {

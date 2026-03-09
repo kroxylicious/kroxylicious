@@ -66,6 +66,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         this.mapper = Objects.requireNonNull(mapper);
         var map =  new HashMap<ApiKeys, EntityIsolationProcessor>();
         map.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEntityIsolationProcessor(resourceTypes, mapper));
+        map.put(ApiKeys.DELETE_ACLS, new DeleteAclsEntityIsolationProcessor(resourceTypes, mapper));
         <#list messageSpecPairs>
             <#items as pair>
         map.put(ApiKeys.${pair.apiKey}, new ${pair.name}EntityIsolationProcessor(resourceTypes, mapper));

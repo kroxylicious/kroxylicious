@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.apache.kafka.common.config.ConfigResource;
+import org.apache.kafka.common.protocol.ApiKeys;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -72,31 +73,39 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
         }
     }
 
-    static Optional<EntityIsolation.ResourceType> fromKafkaResourceTypeCode(byte resourceType) {
-        return Optional.of(resourceType)
-                .map(org.apache.kafka.common.resource.ResourceType::fromCode)
-                .flatMap(EntityIsolation::fromKafkaResourceType);
-    }
-
-    static Optional<ResourceType> fromKafkaResourceType(org.apache.kafka.common.resource.ResourceType resourceType) {
-        return switch (resourceType) {
-            case TOPIC -> Optional.of(ResourceType.TOPIC_NAME);
-            case GROUP -> Optional.of(ResourceType.GROUP_ID);
-            case TRANSACTIONAL_ID -> Optional.of(ResourceType.TRANSACTIONAL_ID);
-            default -> Optional.empty();
+    static Optional<EntityIsolation.ResourceType> fromResourceTypeCode(ApiKeys apiKey, byte resourceType) {
+        return switch (apiKey) {
+            case INCREMENTAL_ALTER_CONFIGS, ALTER_CONFIGS, DESCRIBE_CONFIGS, LIST_CONFIG_RESOURCES -> fromConfigResourceType(resourceType);
+            case CREATE_ACLS, DELETE_ACLS, DESCRIBE_ACLS -> fromAclResourceType(resourceType);
+            default -> throw new IllegalArgumentException("Unable to decode resourceType (%d) for %s".formatted(resourceType, apiKey));
         };
     }
 
-    static Optional<EntityIsolation.ResourceType> fromConfigResourceTypeCode(byte resourceType) {
+    private static Optional<ResourceType> fromConfigResourceType(byte resourceType) {
         return Optional.of(resourceType)
                 .map(ConfigResource.Type::forId)
                 .flatMap(EntityIsolation::fromConfigResourceType);
     }
 
-    static Optional<ResourceType> fromConfigResourceType(ConfigResource.Type resourceType) {
+    private static Optional<ResourceType> fromAclResourceType(byte resourceType) {
+        return Optional.of(resourceType)
+                .map(org.apache.kafka.common.resource.ResourceType::fromCode)
+                .flatMap(EntityIsolation::fromAclResourceType);
+    }
+
+    private static Optional<ResourceType> fromConfigResourceType(ConfigResource.Type resourceType) {
         return switch (resourceType) {
             case TOPIC -> Optional.of(ResourceType.TOPIC_NAME);
             case GROUP -> Optional.of(ResourceType.GROUP_ID);
+            default -> Optional.empty();
+        };
+    }
+
+    private static Optional<ResourceType> fromAclResourceType(org.apache.kafka.common.resource.ResourceType resourceType) {
+        return switch (resourceType) {
+            case TOPIC -> Optional.of(ResourceType.TOPIC_NAME);
+            case GROUP -> Optional.of(ResourceType.GROUP_ID);
+            case TRANSACTIONAL_ID -> Optional.of(ResourceType.TRANSACTIONAL_ID);
             default -> Optional.empty();
         };
     }

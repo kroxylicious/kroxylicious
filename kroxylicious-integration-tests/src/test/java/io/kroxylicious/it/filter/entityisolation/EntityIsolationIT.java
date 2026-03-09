@@ -655,7 +655,6 @@ class EntityIsolationIT {
      * @param authzCluster cluster with authorization
      */
     @Test
-    @Disabled
     void aclRuleWithGroupPredicateIsolation(@SaslMechanism(principals = {
             @SaslMechanism.Principal(user = "alice", password = "pwd"),
             @SaslMechanism.Principal(user = "bob", password = "pwd") })
