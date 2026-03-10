@@ -56,10 +56,8 @@ public abstract class BaseOauthBearerIT extends BaseIT {
     protected static final String CLIENT_ID = "clientId-" + UUID.randomUUID();
     protected static final String CLIENT_SECRET = "clientSecret";
 
-    private static final String IMAGE = "navikt/mock-oauth2-server:3.0.1";
-    private static final String DIGEST = "sha256:45019f39785d94858ec23c1cf88639651bc108c201d45984b2441f0cc139b3b3";
-    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/" + IMAGE + "@" + DIGEST)
-            .asCompatibleSubstituteFor(DockerImageName.parse(IMAGE));
+    private static final String IMAGE = "ghcr.io/navikt/mock-oauth2-server:3.0.1@sha256:45019f39785d94858ec23c1cf88639651bc108c201d45984b2441f0cc139b3b3";
+    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse(IMAGE).asCompatibleSubstituteFor(DockerImageName.parse("mock-oauth2-server"));
     private static OauthServerContainer oauthServer;
 
     @BeforeAll

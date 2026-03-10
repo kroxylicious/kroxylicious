@@ -78,23 +78,12 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
+        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/AzureKeyVaultKmsTestKmsFacade.java/",
+        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms/src/test/java/io/kroxylicious/kms/provider/azure/keyvault/KeyVaultClientIT.java/",
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/LowkeyVault.java/"
       ],
       "matchStrings": [
         "(?<depName>nagyesta/lowkey-vault):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\""
-      ],
-      "datasourceTemplate": "docker"
-    },
-    {
-      "customType": "regex",
-      "matchStringsStrategy": "combination",
-      "managerFilePatterns": [
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/AzureKeyVaultKmsTestKmsFacade.java/",
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms/src/test/java/io/kroxylicious/kms/provider/azure/keyvault/KeyVaultClientIT.java/"
-      ],
-      "matchStrings": [
-        "(?<depName>nagyesta/lowkey-vault):(?<currentValue>\\d+\\.\\d+\\.\\d+)",
-        "digest = \"(?<currentDigest>.*)\""
       ],
       "datasourceTemplate": "docker"
     },
@@ -112,9 +101,11 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
+        "/kroxylicious-kms-providers/kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java/",
         "/kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml/"
       ],
       "matchStrings": [
+        "(?<depName>localstack/localstack):(?<currentValue>\\d+\\.\\d+.\\d+)@(?<currentDigest>.*)\"",
         "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)@(?<currentDigest>.*)"
       ],
       "depNameTemplate": "localstack/localstack",
@@ -122,36 +113,13 @@
     },
     {
       "customType": "regex",
-      "matchStringsStrategy": "combination",
       "managerFilePatterns": [
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java/"
-      ],
-      "matchStrings": [
-        "(?<depName>localstack/localstack):(?<currentValue>\\d+\\.\\d+.\\d+)",
-        "DIGEST = \"(?<currentDigest>.*)\""
-      ],
-      "datasourceTemplate": "docker"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
+        "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/it/BaseOauthBearerIT.java/",
+        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/OauthServerContainer.java/",
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/MockOauthServer.java/"
       ],
       "matchStrings": [
         "(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+.\\d+)@(?<currentDigest>.*)\""
-      ],
-      "datasourceTemplate": "docker"
-    },
-    {
-      "customType": "regex",
-      "matchStringsStrategy": "combination",
-      "managerFilePatterns": [
-        "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/it/BaseOauthBearerIT.java/",
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/OauthServerContainer.java/"
-      ],
-      "matchStrings": [
-        "(?<depName>navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+.\\d+)",
-        "DIGEST = \"(?<currentDigest>.*)\""
       ],
       "datasourceTemplate": "docker"
     },
