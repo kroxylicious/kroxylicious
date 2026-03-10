@@ -1,0 +1,173 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.proxy.internal;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.function.Supplier;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.proxy.audit.Actor;
+import io.kroxylicious.proxy.audit.AuditEmitter;
+import io.kroxylicious.proxy.audit.AuditLogger;
+import io.kroxylicious.proxy.audit.AuditableAction;
+import io.kroxylicious.proxy.audit.AuditableActionBuilder;
+import io.kroxylicious.proxy.audit.Correlation;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.CheckReturnValue;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+public class AuditLoggerImpl implements AuditLogger, AutoCloseable {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuditLoggerImpl.class);
+
+    private final Supplier<Instant> instantSupplier;
+    private final Supplier<Actor> actorSupplier;
+    private List<AuditEmitter> emitters;
+    private final NoopAuditableActionBuilder noopBuilder;
+
+    public AuditLoggerImpl(List<AuditEmitter> auditEmitters) {
+        this(auditEmitters, () -> new ProxyActorImpl(""), Instant::now);
+    }
+
+    @VisibleForTesting
+    AuditLoggerImpl(
+                    List<AuditEmitter> auditEmitters,
+                    Supplier<Actor> actorSupplier,
+                    Supplier<Instant> instantSupplier) {
+        // TODO need config about whether ip addresses should be resolved to hostnames?
+        this.emitters = Objects.requireNonNull(auditEmitters);
+        this.actorSupplier = actorSupplier;
+        this.instantSupplier = instantSupplier;
+        this.noopBuilder = NoopAuditableActionBuilder.INSTANCE;
+    }
+
+    public AuditLoggerImpl derive(Supplier<Actor> actorSupplier) {
+        // TODO also one with correlation supplier ?and context?
+        return new AuditLoggerImpl(emitters, actorSupplier, instantSupplier);
+    }
+
+    @Override
+    @CheckReturnValue(explanation = "log() must be called on the result of this method")
+    public AuditableActionBuilder action(String action) {
+        return action(Objects.requireNonNull(action), null, null);
+    }
+
+    @Override
+    @CheckReturnValue(explanation = "log() must be called on the result of this method")
+    public AuditableActionBuilder actionWithOutcome(String action, String status, String reason) {
+        return action(Objects.requireNonNull(action), Objects.requireNonNull(status), reason);
+    }
+
+    private AuditableActionBuilder action(String action, @Nullable String status, @Nullable String reason) {
+        if (anyEmitterHasInterest(action, status)) {
+            return new AuditableActionBuilderImpl(action, status, reason);
+        }
+        return noopBuilder;
+    }
+
+    private boolean anyEmitterHasInterest(String action, @Nullable String status) {
+        if (emitters != null && !emitters.isEmpty()) {
+            for (AuditEmitter emitter : emitters) {
+                try {
+                    if (emitter.isInterested(action, status)) {
+                        return true;
+                    }
+                }
+                catch (Exception e) {
+                    LOGGER.error("Emitter threw exception ", e);
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void close() throws Exception {
+        for (var emitter : emitters) {
+            try {
+                emitter.close();
+            }
+            catch (Exception e) {
+                LOGGER.error("Ignoring exception thrown from {}.close()", emitter.getClass().getName(), e);
+            }
+        }
+    }
+
+    class AuditableActionBuilderImpl implements AuditableActionBuilder {
+
+        private final String action;
+        private final @Nullable String status;
+        private final @Nullable String reason;
+        private @Nullable SortedMap<String, String> objectRef = null;
+        private @Nullable SortedMap<String, String> context = null;
+
+        AuditableActionBuilderImpl(String action, @Nullable String status, @Nullable String reason) {
+            this.action = action;
+            this.status = status;
+            this.reason = reason;
+        }
+
+        @Override
+        public AuditableActionBuilder withObjectRef(Map<String, String> objectRef) {
+            this.objectRef = new TreeMap<>(Objects.requireNonNull(objectRef));
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder withContext(Map<String, String> context) {
+            this.context = new TreeMap<>(Objects.requireNonNull(context));
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, String value) {
+            if (this.context == null) {
+                this.context = new TreeMap<>();
+            }
+            this.context.put(Objects.requireNonNull(key), Objects.requireNonNull(value));
+            return this;
+        }
+
+        @Override
+        public void log() {
+            Objects.requireNonNull(objectRef, "objectRef is null");
+            doLog(new AuditableActionImpl(instantSupplier.get(),
+                    action,
+                    status,
+                    reason,
+                    actorSupplier.get(), // TODO can throw
+                    objectRef,
+                    new Correlation(null, null), // TODO get this from somewhere
+                    context));
+        }
+    }
+
+    private void doLog(AuditableAction action) {
+        for (var emitter : emitters) {
+            try {
+                if (emitter.isInterested(action.action(), action.status())) {
+                    emitter.emitAction(action, new AuditEmitterContextImpl());
+                }
+            }
+            catch (Exception e) {
+                LOGGER.atError()
+                        .setMessage("Emitter threw exception")
+                        .addKeyValue("emitter", emitter)
+                        .setCause(e)
+                        .log();
+            }
+        }
+    }
+}
