@@ -20,8 +20,9 @@ import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 @SuppressWarnings("java:S2160") // equals on superclass is not intended for use
 class OauthServerContainer extends GenericContainer<OauthServerContainer> {
 
-    private static final String IMAGE = "ghcr.io/navikt/mock-oauth2-server:3.0.1@sha256:45019f39785d94858ec23c1cf88639651bc108c201d45984b2441f0cc139b3b3";
-    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse(IMAGE).asCompatibleSubstituteFor(DockerImageName.parse("mock-oauth2-server"));
+    // mock-oauth2-server is not uploaded to docker hub, so setting the digest doesn't work when looking for the image on docker hub.
+    // When this issue https://github.com/testcontainers/testcontainers-java/issues/10527 is fixed, we can use the digest here.
+    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:3.0.1");
     private static final String LOCALHOST = "localhost";
     private static final String CERT_FILE_MOUNT_PATH = "/etc/custom-certs";
     private final KeytoolCertificateGenerator certs;
