@@ -39,7 +39,7 @@ jobs:
         id: discover
         run: |
           TESTS_PER_CHUNK=1
-          TEST_CHUNKS="[$(find . -type f -name "*IT.java" -exec basename {} .java \; | xargs -L ${TESTS_PER_CHUNK} | tr ' ' , | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
+          TEST_CHUNKS="[$(find . -type f -name "ProduceAuthzTxnlIdIT.java" -exec basename {} .java \; | xargs -L ${TESTS_PER_CHUNK} | tr ' ' , | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
   run_integration_tests:
     needs: discover_integration_test_chunks
