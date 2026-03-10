@@ -202,7 +202,7 @@ class ProduceAuthzTxnlIdIT extends AuthzIT {
             consumerConfig.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 100);
             consumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, IsolationLevel.READ_UNCOMMITTED.toString());
             try {
-                Thread.sleep(1000);
+                Thread.sleep(2000);
             }
             catch (InterruptedException e) {
                 throw new RuntimeException(e);
