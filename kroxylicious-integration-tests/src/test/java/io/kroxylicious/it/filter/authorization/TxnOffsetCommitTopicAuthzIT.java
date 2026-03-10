@@ -55,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Checks that actors must have read permissions for topics that they reference
  * in TxnOffsetCommit RPCs. Note that the actor also needs permissions to write
- * to the transaction id, which is covered in a separate test.
+ * to the transaction id, and read the group, which are covered separate tests.
  */
 class TxnOffsetCommitTopicAuthzIT extends AuthzIT {
 

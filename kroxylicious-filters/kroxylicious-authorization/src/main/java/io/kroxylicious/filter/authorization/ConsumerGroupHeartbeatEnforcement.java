@@ -35,7 +35,9 @@ class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHear
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, ConsumerGroupHeartbeatRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   ConsumerGroupHeartbeatRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         if (request.subscribedTopicNames() == null || request.subscribedTopicNames().isEmpty()) {
             return context.forwardRequest(header, request);

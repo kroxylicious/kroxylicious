@@ -39,19 +39,16 @@ class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestDa
                                                    TxnOffsetCommitRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        Stream<Action> topicActions = request.topics().stream().map(TxnOffsetCommitRequestTopic::name).map(s -> new Action(TopicResource.READ, s));
-        Stream<Action> transactionAction = Stream.of(new Action(TransactionalIdResource.WRITE, request.transactionalId()));
-        List<Action> actions = Stream.concat(topicActions, transactionAction).toList();
+        List<Action> actions = Stream.concat(topicReadActions(request), transactionAndGroupActions(request)).toList();
         CompletionStage<AuthorizeResult> authorization = authorizationFilter.authorization(context, actions);
         return authorization.thenCompose(result -> {
             Decision transactionalResult = result.decision(TransactionalIdResource.WRITE, request.transactionalId());
             if (transactionalResult == Decision.DENY) {
-                // short circuit, transactional id write denied
-                TxnOffsetCommitResponseData message = new TxnOffsetCommitResponseData();
-                for (TxnOffsetCommitRequestTopic topic : request.topics()) {
-                    message.topics().add(errorResponseTopic(topic, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED));
-                }
-                return context.requestFilterResultBuilder().shortCircuitResponse(message).completed();
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception()).completed();
+            }
+            Decision groupResult = result.decision(GroupResource.READ, request.groupId());
+            if (groupResult == Decision.DENY) {
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
             }
             Map<Decision, List<TxnOffsetCommitRequestTopic>> partitioned = result.partition(request.topics(), TopicResource.READ,
                     TxnOffsetCommitRequestTopic::name);
@@ -79,6 +76,15 @@ class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestDa
                 }
             }
         });
+    }
+
+    private static Stream<Action> transactionAndGroupActions(TxnOffsetCommitRequestData request) {
+        return Stream.of(new Action(TransactionalIdResource.WRITE, request.transactionalId()),
+                new Action(GroupResource.READ, request.groupId()));
+    }
+
+    private static Stream<Action> topicReadActions(TxnOffsetCommitRequestData request) {
+        return request.topics().stream().map(TxnOffsetCommitRequestTopic::name).map(s -> new Action(TopicResource.READ, s));
     }
 
     private static TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic errorResponseTopic(TxnOffsetCommitRequestTopic requestTopic, Errors error) {

@@ -1,0 +1,73 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_GROUPS"
+  apiVersion: 6
+  scenario: |
+    include authorized ops is set to true on request
+    upstream authorized ops are READ+WRITE+DESCRIBE
+    proxy allows DESCRIBE only
+    response authorized ops is DESCRIBE only
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_GROUPS"
+      expectedRequestVersion: 6
+      expectedRequestHeader:
+        requestApiKey: 15
+        requestApiVersion: 6
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        groups:
+          - "my-group"
+        includeAuthorizedOperations: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 55
+        groups:
+          - errorCode: 0
+            errorMessage: ""
+            groupId: "my-group"
+            groupState: "created"
+            protocolType: "consumer"
+            protocolData: "consumer"
+            members: []
+            authorizedOperations: 280 # READ(8)+WRITE(16)+DESCRIBE(256)
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 15
+    requestApiVersion: 6
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    groups:
+      - "my-group"
+    includeAuthorizedOperations: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 55
+    groups:
+      - errorCode: 0
+        errorMessage: ""
+        groupId: "my-group"
+        groupState: "created"
+        protocolType: "consumer"
+        protocolData: "consumer"
+        members: [ ]
+        authorizedOperations: 256 # only DESCRIBE(256) allowed

@@ -1,0 +1,56 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "TXN_OFFSET_COMMIT"
+  apiVersion: 5
+  scenario: |
+    if the actor does not have read permissions for the group:
+    - short circuit error respond with GROUP_AUTHORIZATION_FAILED for all partitions
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+      - subject: "alice"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "WRITE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE" # read is required
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 28
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "my-transactional-id"
+    groupId: "my-group"
+    producerId: 0
+    producerEpoch: 104
+    generationId: 988
+    memberId: "random-string-854"
+    groupInstanceId: "random-string-46"
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 537
+            committedOffset: 954
+            committedLeaderEpoch: 409
+            committedMetadata: "random-string-353"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedErrorResponse: "GROUP_AUTHORIZATION_FAILED"

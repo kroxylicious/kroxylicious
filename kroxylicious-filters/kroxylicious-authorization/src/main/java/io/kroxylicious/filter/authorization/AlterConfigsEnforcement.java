@@ -9,6 +9,7 @@ package io.kroxylicious.filter.authorization;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.AlterConfigsRequestData;
 import org.apache.kafka.common.message.AlterConfigsRequestData.AlterConfigsResource;
@@ -21,6 +22,7 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
+import static org.apache.kafka.common.config.ConfigResource.Type.GROUP;
 import static org.apache.kafka.common.config.ConfigResource.Type.TOPIC;
 
 class AlterConfigsEnforcement extends ApiEnforcement<AlterConfigsRequestData, AlterConfigsResponseData> {
@@ -35,38 +37,54 @@ class AlterConfigsEnforcement extends ApiEnforcement<AlterConfigsRequestData, Al
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, AlterConfigsRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   AlterConfigsRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        List<AlterConfigsResource> topicRequests = ConfigResources.filter(request.resources().stream(), AlterConfigsResource::resourceType, TOPIC).toList();
-        if (topicRequests.isEmpty()) {
+        List<AlterConfigsResource> topicResources = ConfigResources.filter(request.resources().stream(), AlterConfigsResource::resourceType, TOPIC).toList();
+        List<AlterConfigsResource> groupResources = ConfigResources.filter(request.resources().stream(), AlterConfigsResource::resourceType, GROUP).toList();
+        if (topicResources.isEmpty() && groupResources.isEmpty()) {
             return context.forwardRequest(header, request);
         }
         else {
-            List<Action> actions = topicRequests.stream()
-                    .map(re -> new Action(TopicResource.ALTER_CONFIGS, re.resourceName())).toList();
+            Stream<Action> topicActions = topicResources.stream()
+                    .map(re -> new Action(TopicResource.ALTER_CONFIGS, re.resourceName()));
+            Stream<Action> groupActions = groupResources.stream()
+                    .map(re -> new Action(GroupResource.ALTER_CONFIGS, re.resourceName()));
+            List<Action> actions = Stream.concat(topicActions, groupActions).toList();
             return authorizationFilter.authorization(context, actions).thenCompose(result -> {
-                Map<Decision, List<AlterConfigsResource>> partitioned = result.partition(topicRequests, TopicResource.ALTER_CONFIGS,
+                if (result.denied().isEmpty()) {
+                    return context.forwardRequest(header, request);
+                }
+                Map<Decision, List<AlterConfigsResource>> partitionedTopicResources = result.partition(topicResources, TopicResource.ALTER_CONFIGS,
                         AlterConfigsResource::resourceName);
-                List<AlterConfigsResource> denied = partitioned.get(Decision.DENY);
-                if (denied.isEmpty()) {
-                    return context.forwardRequest(header, request);
-                }
-                else {
-                    request.resources().removeAll(denied);
-                    authorizationFilter.pushInflightState(header, (AlterConfigsResponseData alterConfigsResponseData) -> {
-                        denied.forEach(describeConfigsResource -> {
-                            AlterConfigsResponseData.AlterConfigsResourceResponse configResult = new AlterConfigsResponseData.AlterConfigsResourceResponse();
-                            configResult.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
-                            configResult.setErrorMessage(Errors.TOPIC_AUTHORIZATION_FAILED.message());
-                            configResult.setResourceName(describeConfigsResource.resourceName());
-                            configResult.setResourceType(describeConfigsResource.resourceType());
-                            alterConfigsResponseData.responses().add(configResult);
-                        });
-                        return alterConfigsResponseData;
-                    });
-                    return context.forwardRequest(header, request);
-                }
+                Map<Decision, List<AlterConfigsResource>> partitionedGroupResources = result.partition(groupResources, GroupResource.ALTER_CONFIGS,
+                        AlterConfigsResource::resourceName);
+                List<AlterConfigsResource> deniedTopics = partitionedTopicResources.get(Decision.DENY);
+                List<AlterConfigsResource> deniedGroups = partitionedGroupResources.get(Decision.DENY);
+
+                request.resources().removeAll(deniedTopics);
+                request.resources().removeAll(deniedGroups);
+                authorizationFilter.pushInflightState(header, (AlterConfigsResponseData alterConfigsResponseData) -> {
+                    deniedTopics.forEach(describeConfigsResource -> alterConfigsResponseData.responses()
+                            .add(failureResponse(Errors.TOPIC_AUTHORIZATION_FAILED, describeConfigsResource)));
+                    deniedGroups.forEach(describeConfigsResource -> alterConfigsResponseData.responses()
+                            .add(failureResponse(Errors.GROUP_AUTHORIZATION_FAILED, describeConfigsResource)));
+                    return alterConfigsResponseData;
+                });
+                return context.forwardRequest(header, request);
             });
         }
     }
+
+    private static AlterConfigsResponseData.AlterConfigsResourceResponse failureResponse(Errors error,
+                                                                                         AlterConfigsResource requestResource) {
+        AlterConfigsResponseData.AlterConfigsResourceResponse configResult = new AlterConfigsResponseData.AlterConfigsResourceResponse();
+        configResult.setErrorCode(error.code());
+        configResult.setErrorMessage(error.message());
+        configResult.setResourceName(requestResource.resourceName());
+        configResult.setResourceType(requestResource.resourceType());
+        return configResult;
+    }
+
 }

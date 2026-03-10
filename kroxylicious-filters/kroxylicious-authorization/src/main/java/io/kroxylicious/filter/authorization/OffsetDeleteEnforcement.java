@@ -8,6 +8,7 @@ package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.OffsetDeleteRequestData;
 import org.apache.kafka.common.message.OffsetDeleteResponseData;
@@ -36,11 +37,13 @@ class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, Of
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
 
-        var actions = request.topics().stream()
-                .map(odrd -> new Action(TopicResource.READ, odrd.name()))
-                .toList();
+        Action groupDeleteAction = new Action(GroupResource.DELETE, request.groupId());
+        var actions = Stream.concat(Stream.of(groupDeleteAction), topicReadActions(request)).toList();
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
+                    if (authorization.denied().contains(groupDeleteAction)) {
+                        return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                    }
                     var decisions = authorization.partition(request.topics(),
                             TopicResource.READ,
                             OffsetDeleteRequestData.OffsetDeleteRequestTopic::name);
@@ -76,6 +79,11 @@ class OffsetDeleteEnforcement extends ApiEnforcement<OffsetDeleteRequestData, Of
                         return context.forwardRequest(header, request);
                     }
                 });
+    }
+
+    private static Stream<Action> topicReadActions(OffsetDeleteRequestData request) {
+        return request.topics().stream()
+                .map(odrd -> new Action(TopicResource.READ, odrd.name()));
     }
 
     private OffsetDeleteResponseData.OffsetDeleteResponseTopic topicAuthzFailed(OffsetDeleteRequestData.OffsetDeleteRequestTopic requestTopic) {

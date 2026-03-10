@@ -32,13 +32,17 @@ class ListTransactionsEnforcement extends ApiEnforcement<ListTransactionsRequest
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, ListTransactionsRequestData request, FilterContext context,
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   ListTransactionsRequestData request,
+                                                   FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         return context.forwardRequest(header, request);
     }
 
     @Override
-    CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header, ListTransactionsResponseData response, FilterContext context,
+    CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
+                                                     ListTransactionsResponseData response,
+                                                     FilterContext context,
                                                      AuthorizationFilter authorizationFilter) {
         List<Action> actions = Objects.requireNonNull(response.transactionStates()).stream().map(TransactionState::transactionalId)
                 .map(txnlId -> new Action(TransactionalIdResource.DESCRIBE, txnlId))

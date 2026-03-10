@@ -31,7 +31,10 @@ public class EndTxnEnforcement extends ApiEnforcement<EndTxnRequestData, EndTxnR
     }
 
     @Override
-    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, EndTxnRequestData request, FilterContext context, AuthorizationFilter authorizationFilter) {
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   EndTxnRequestData request,
+                                                   FilterContext context,
+                                                   AuthorizationFilter authorizationFilter) {
         String transactionalId = Objects.requireNonNull(request.transactionalId(), "transactionId was null");
         Action writeTransaction = new Action(TransactionalIdResource.WRITE, transactionalId);
         return authorizationFilter.authorization(context, List.of(writeTransaction)).thenCompose(authorizeResult -> {

@@ -22,8 +22,6 @@ import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 class SimpleAuthorizer implements Authorizer {
 
     private final Set<AllowedOperation> allowedOperations;
@@ -35,9 +33,8 @@ class SimpleAuthorizer implements Authorizer {
         }).collect(Collectors.toSet());
     }
 
-    @NonNull
     @Override
-    public CompletionStage<AuthorizeResult> authorize(Subject subject, @NonNull List<io.kroxylicious.authorizer.service.Action> actions) {
+    public CompletionStage<AuthorizeResult> authorize(Subject subject, List<io.kroxylicious.authorizer.service.Action> actions) {
         Set<Principal> principals = subject.principals();
         if (principals.size() != 1) {
             throw new IllegalStateException("Subject must have exactly one principal");
@@ -50,10 +47,9 @@ class SimpleAuthorizer implements Authorizer {
         return CompletableFuture.completedFuture(new AuthorizeResult(subject, collect.get(true), collect.get(false)));
     }
 
-    @NonNull
     @Override
     public Optional<Set<Class<? extends ResourceType<?>>>> supportedResourceTypes() {
-        return Optional.of(Set.of(TopicResource.class, TransactionalIdResource.class, ClusterResource.class));
+        return Optional.of(Set.of(TopicResource.class, TransactionalIdResource.class, GroupResource.class, ClusterResource.class));
     }
 
     record Config(List<AllowedActionDef> allowed) {
@@ -63,7 +59,8 @@ class SimpleAuthorizer implements Authorizer {
     enum TargetResourceType {
         TOPIC(TopicResource::valueOf),
         TRANSACTIONAL_ID(TransactionalIdResource::valueOf),
-        CLUSTER(ClusterResource::valueOf);
+        CLUSTER(ClusterResource::valueOf),
+        GROUP(GroupResource::valueOf);
 
         private final Function<String, ResourceType<?>> resourceTypeFunction;
 

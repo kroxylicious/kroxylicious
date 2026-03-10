@@ -9,6 +9,7 @@ package io.kroxylicious.filter.authorization;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
@@ -54,11 +55,13 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
             return context.requestFilterResultBuilder().errorResponse(header, request, Errors.UNKNOWN_TOPIC_ID.exception()).completed();
         }
 
-        var actions = request.topics().stream()
-                .map(ocrd -> new Action(TopicResource.READ, mustGetTopicName(topicNameMapping, ocrd)))
-                .toList();
+        Action readGroup = new Action(GroupResource.READ, request.groupId());
+        var actions = Stream.concat(Stream.of(readGroup), topicActions(request, topicNameMapping)).toList();
         return authorizationFilter.authorization(context, actions)
                 .thenCompose(authorization -> {
+                    if (authorization.denied().contains(readGroup)) {
+                        return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+                    }
                     var decisions = authorization.partition(request.topics(),
                             TopicResource.READ,
                             requestTopic -> mustGetTopicName(topicNameMapping, requestTopic));
@@ -90,6 +93,11 @@ class OffsetCommitEnforcement extends ApiEnforcement<OffsetCommitRequestData, Of
                         return context.forwardRequest(header, request);
                     }
                 });
+    }
+
+    private static Stream<Action> topicActions(OffsetCommitRequestData request, TopicNameMapping topicNameMapping) {
+        return request.topics().stream()
+                .map(ocrd -> new Action(TopicResource.READ, mustGetTopicName(topicNameMapping, ocrd)));
     }
 
     /**

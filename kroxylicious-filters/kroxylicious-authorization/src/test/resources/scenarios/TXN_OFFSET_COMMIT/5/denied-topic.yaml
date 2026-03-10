@@ -21,6 +21,10 @@ given:
         resourceName: "my-transactional-id"
         resourceClass: "TRANSACTIONAL_ID"
         resourceType: "WRITE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
   topicNames: null
 when:
   subject: "alice"
@@ -31,7 +35,7 @@ when:
     clientId: "clientId"
   request:
     transactionalId: "my-transactional-id"
-    groupId: "random-string-717"
+    groupId: "my-group"
     producerId: 0
     producerEpoch: 104
     generationId: 988
