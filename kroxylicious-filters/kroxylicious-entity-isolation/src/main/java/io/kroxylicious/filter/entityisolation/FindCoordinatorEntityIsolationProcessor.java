@@ -14,11 +14,7 @@ import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -34,7 +30,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 class FindCoordinatorEntityIsolationProcessor
         implements EntityIsolationProcessor<FindCoordinatorRequestData, FindCoordinatorResponseData, ResourceType> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(FindCoordinatorEntityIsolationProcessor.class);
 
     private final Set<ResourceType> resourceTypes;
     private final EntityNameMapper mapper;
@@ -55,7 +50,6 @@ class FindCoordinatorEntityIsolationProcessor
                                                           FindCoordinatorRequestData request,
                                                           FilterContext filterContext,
                                                           MapperContext mapperContext) {
-        log(filterContext, "request", ApiKeys.FIND_COORDINATOR, request);
         var resourceType = getResourceType(request.keyType());
         resourceType.filter(resourceTypes::contains)
                 .ifPresent(rt -> {
@@ -67,7 +61,6 @@ class FindCoordinatorEntityIsolationProcessor
                     }
                 });
 
-        log(filterContext, "request result", ApiKeys.FIND_COORDINATOR, request);
         return filterContext.forwardRequest(header, request);
     }
 
@@ -84,25 +77,12 @@ class FindCoordinatorEntityIsolationProcessor
                                                             FindCoordinatorResponseData response,
                                                             FilterContext filterContext,
                                                             MapperContext mapperContext) {
-        log(filterContext, "response", ApiKeys.FIND_COORDINATOR, response);
         Optional.ofNullable(requestedResourceType)
                 .filter(resourceTypes::contains)
                 .ifPresent(resourceType -> response.coordinators()
                         .forEach(coordinator -> coordinator.setKey(mapper.unmap(mapperContext, requestedResourceType, coordinator.key()))));
 
-        log(filterContext, "response result", ApiKeys.FIND_COORDINATOR, response);
-
         return filterContext.forwardResponse(header, response);
-    }
-
-    private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
-        LOGGER.atDebug()
-                .addArgument(() -> context.sessionId())
-                .addArgument(() -> context.authenticatedSubject())
-                .addArgument(description)
-                .addArgument(key)
-                .addArgument(message)
-                .log("{} for {}: {} {}: {}");
     }
 
     @Nullable

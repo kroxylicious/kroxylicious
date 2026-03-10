@@ -652,18 +652,17 @@ class EntityIsolationIT {
     static Stream<Arguments> aclBindings() {
         return Stream.of(
                 Arguments.argumentSet("group - literal",
-                                        new ResourcePattern(ResourceType.GROUP, "AliceGroup", PatternType.LITERAL),
-                                        new ResourcePattern(ResourceType.GROUP, "BobGroup", PatternType.LITERAL),
-                                        List.of(EntityIsolation.ResourceType.GROUP_ID)),
+                        new ResourcePattern(ResourceType.GROUP, "AliceGroup", PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.GROUP, "BobGroup", PatternType.LITERAL),
+                        List.of(EntityIsolation.ResourceType.GROUP_ID)),
                 Arguments.argumentSet("group - prefixed",
-                                        new ResourcePattern(ResourceType.GROUP, "AliceGroup", PatternType.PREFIXED),
-                                        new ResourcePattern(ResourceType.GROUP, "BobGroup", PatternType.PREFIXED),
-                                        List.of(EntityIsolation.ResourceType.GROUP_ID)),
+                        new ResourcePattern(ResourceType.GROUP, "AliceGroup", PatternType.PREFIXED),
+                        new ResourcePattern(ResourceType.GROUP, "BobGroup", PatternType.PREFIXED),
+                        List.of(EntityIsolation.ResourceType.GROUP_ID)),
                 Arguments.argumentSet("transactionalId - literal",
-                                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "AliceTxn", PatternType.LITERAL),
-                                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "BobTxn", PatternType.PREFIXED),
-                                        List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID))
-                );
+                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "AliceTxn", PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "BobTxn", PatternType.PREFIXED),
+                        List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID)));
     }
 
     /**
@@ -679,11 +678,7 @@ class EntityIsolationIT {
                                           ResourcePattern bobResourcePattern,
                                           List<EntityIsolation.ResourceType> mappedResourceTypes,
                                           @SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
-                                                                          @SaslMechanism.Principal(user = "bob", password = "pwd") })
-                                          @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer")
-                                          @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:alice;User:bob")
-                                          @Name("authz")
-                                          KafkaCluster authzCluster) {
+                                                  @SaslMechanism.Principal(user = "bob", password = "pwd") }) @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer") @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:alice;User:bob") @Name("authz") KafkaCluster authzCluster) {
         var configBuilder = buildProxyConfig(authzCluster, mappedResourceTypes);
 
         var aliceConfig = buildClientConfig("alice", "pwd");

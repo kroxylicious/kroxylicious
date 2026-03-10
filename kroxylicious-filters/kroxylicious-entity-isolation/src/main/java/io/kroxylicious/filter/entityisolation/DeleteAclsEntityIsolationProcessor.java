@@ -16,9 +16,6 @@ import org.apache.kafka.common.message.DeleteAclsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -29,8 +26,6 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
  * This implementation is handwritten as the fields of the RPC doesn't follow a common naming convention.
  */
 class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<DeleteAclsRequestData, DeleteAclsResponseData, Void> {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(DeleteAclsEntityIsolationProcessor.class);
 
     private final Set<EntityIsolation.ResourceType> resourceTypes;
     private final EntityNameMapper mapper;
@@ -56,7 +51,6 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                                                           DeleteAclsRequestData request,
                                                           FilterContext filterContext,
                                                           MapperContext mapperContext) {
-        log(filterContext, "request", ApiKeys.DELETE_ACLS, request);
         request.filters().stream()
                 .collect(Collectors.toMap(Function.identity(),
                         r -> EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, r.resourceTypeFilter())))
@@ -66,7 +60,6 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                 .filter(e -> shouldMap(e.getValue().get())).forEach(e -> {
                     e.getKey().setResourceNameFilter(mapper.map(mapperContext, e.getValue().get(), e.getKey().resourceNameFilter()));
                 });
-        log(filterContext, "request result", ApiKeys.DELETE_ACLS, request);
         return filterContext.forwardRequest(header, request);
     }
 
@@ -77,7 +70,6 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                                                             DeleteAclsResponseData response,
                                                             FilterContext filterContext,
                                                             MapperContext mapperContext) {
-        log(filterContext, "response", ApiKeys.DELETE_ACLS, response);
         response.filterResults().stream().forEach(fr -> {
             var matchingAclIterator = fr.matchingAcls().iterator();
             while (matchingAclIterator.hasNext()) {
@@ -94,7 +86,6 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                         });
             }
         });
-        log(filterContext, "response result", ApiKeys.DELETE_ACLS, response);
         return filterContext.forwardResponse(header, response);
     }
 
@@ -102,13 +93,4 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
         return resourceTypes.contains(entityType);
     }
 
-    private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
-        LOGGER.atDebug()
-                .addArgument(() -> context.sessionId())
-                .addArgument(() -> context.authenticatedSubject())
-                .addArgument(description)
-                .addArgument(key)
-                .addArgument(message)
-                .log("{} for {}: {} {}: {}");
-    }
 }

@@ -12,10 +12,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.message.DescribeConfigsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -31,6 +34,8 @@ import static io.kroxylicious.filter.entityisolation.EntityIsolationProcessorMap
 * Entity isolation filter.
 */
 class EntityIsolationFilter implements RequestFilter, ResponseFilter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(EntityIsolationFilter.class);
 
     private final Map<ApiKeys, ? extends EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> processorMap;
     private final Map<Integer, Object> correlatedRequestContext = new HashMap<>();
@@ -75,6 +80,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         return Optional.ofNullable(processorMap.get(apiKey))
                 .map(EntityIsolationProcessor.class::cast)
                 .map(eip -> {
+                    log(filterContext, "request", apiKey, request);
                     var mapperContext = buildMapperContext(filterContext);
                     var crc = eip.createCorrelatedRequestContext(request);
                     return ((CompletionStage<RequestFilterResult>) eip.onRequest(header, apiVersion, request, filterContext, mapperContext))
@@ -82,6 +88,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                                 if (!(crc == null || rfr.shortCircuitResponse() || rfr.drop() || rfr.closeConnection())) {
                                     correlatedRequestContext.put(header.correlationId(), crc);
                                 }
+                                log(filterContext, "request result", apiKey, request);
                                 return rfr;
                             });
                 })
@@ -99,9 +106,14 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         return Optional.ofNullable(processorMap.get(apiKey))
                 .map(EntityIsolationProcessor.class::cast)
                 .map(eip -> {
+                    log(filterContext, "response", apiKey, response);
                     var mapperContext = buildMapperContext(filterContext);
                     var crc = correlatedRequestContext.remove(header.correlationId());
-                    return eip.onResponse(header, apiVersion, crc, response, filterContext, mapperContext);
+                    return eip.onResponse(header, apiVersion, crc, response, filterContext, mapperContext)
+                            .thenApply(rfr -> {
+                                log(filterContext, "response result", apiKey, response);
+                                return rfr;
+                            });
                 })
                 .orElse(filterContext.forwardResponse(header, response));
     }
@@ -150,4 +162,17 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
             return mapper.isInNamespace(mapperContext, resourceType, mappedName);
         }
     }
+
+    public static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
+        boolean mayContainSecret = message instanceof DescribeConfigsResponseData;
+        LOGGER.atDebug()
+                .addArgument(context::sessionId)
+                .addArgument(context::authenticatedSubject)
+                .addArgument(description)
+                .addArgument(key)
+                .addArgument(mayContainSecret ? "<redacted>" : message)
+                .setMessage("{} for {}: {} {}: {}")
+                .log();
+    }
+
 }

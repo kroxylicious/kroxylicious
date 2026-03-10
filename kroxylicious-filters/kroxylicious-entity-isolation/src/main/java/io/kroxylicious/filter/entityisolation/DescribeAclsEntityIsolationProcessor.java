@@ -15,9 +15,6 @@ import org.apache.kafka.common.message.DescribeAclsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -28,8 +25,6 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
  * This implementation is handwritten as the fields of the RPC doesn't follow a common naming convention.
 */
 class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<DescribeAclsRequestData, DescribeAclsResponseData, Void> {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(DescribeAclsEntityIsolationProcessor.class);
 
     private final Set<EntityIsolation.ResourceType> resourceTypes;
     private final EntityNameMapper mapper;
@@ -47,13 +42,11 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
     @Override
     public CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, short apiVersion, DescribeAclsRequestData request, FilterContext filterContext,
                                                           MapperContext mapperContext) {
-        log(filterContext, "request", ApiKeys.DESCRIBE_ACLS, request);
         EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, request.resourceTypeFilter())
                 .filter(entityType -> shouldMap(entityType))
                 .ifPresent(rt -> {
                     request.setResourceNameFilter(mapper.map(mapperContext, rt, request.resourceNameFilter()));
                 });
-        log(filterContext, "request result", ApiKeys.DESCRIBE_ACLS, request);
 
         return filterContext.forwardRequest(header, request);
     }
@@ -70,7 +63,6 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
                                                             DescribeAclsResponseData response,
                                                             FilterContext filterContext,
                                                             MapperContext mapperContext) {
-        log(filterContext, "response", ApiKeys.DESCRIBE_ACLS, response);
         // process entity fields defined at this level
         // process the resource list
         if ((short) 1 <= apiVersion && apiVersion <= (short) 3 && response.resources() != null) {
@@ -89,7 +81,6 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
                         });
             }
         }
-        log(filterContext, "response result", ApiKeys.DESCRIBE_ACLS, response);
         return filterContext.forwardResponse(header, response);
     }
 
@@ -97,13 +88,4 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
         return resourceTypes.contains(entityType);
     }
 
-    private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
-        LOGGER.atDebug()
-                .addArgument(() -> context.sessionId())
-                .addArgument(() -> context.authenticatedSubject())
-                .addArgument(description)
-                .addArgument(key)
-                .addArgument(message)
-                .log("{} for {}: {} {}: {}");
-    }
 }

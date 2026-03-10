@@ -15,11 +15,7 @@ import org.apache.kafka.common.message.ListTransactionsRequestData;
 import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
@@ -40,7 +36,6 @@ class ListTransactionsEntityIsolationProcessor
         implements EntityIsolationProcessor<ListTransactionsRequestData, ListTransactionsResponseData, ListTransactionsEntityIsolationProcessor.RequestContext> {
 
     private static final Pattern ALL = Pattern.compile(".*");
-    private static final Logger LOGGER = LoggerFactory.getLogger(ListTransactionsEntityIsolationProcessor.class);
 
     private final Set<EntityIsolation.ResourceType> resourceTypes;
     private final EntityNameMapper mapper;
@@ -97,7 +92,6 @@ class ListTransactionsEntityIsolationProcessor
                                                             ListTransactionsResponseData response,
                                                             FilterContext filterContext,
                                                             MapperContext mapperContext) {
-        log(filterContext, "response", ApiKeys.LIST_TRANSACTIONS, response);
 
         Pattern pat = Optional.of(requestContext).map(RequestContext::transactionalIdPattern).map(Pattern::compile).orElse(ALL);
         var transactionStatesIterator = response.transactionStates().iterator();
@@ -116,22 +110,11 @@ class ListTransactionsEntityIsolationProcessor
                 transactionStatesIterator.remove();
             }
         }
-        log(filterContext, "response result", ApiKeys.LIST_TRANSACTIONS, response);
         return filterContext.forwardResponse(header, response);
     }
 
     private boolean shouldMap(EntityIsolation.ResourceType entityType) {
         return resourceTypes.contains(entityType);
-    }
-
-    private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
-        LOGGER.atDebug()
-                .addArgument(() -> context.sessionId())
-                .addArgument(() -> context.authenticatedSubject())
-                .addArgument(description)
-                .addArgument(key)
-                .addArgument(message)
-                .log("{} for {}: {} {}: {}");
     }
 
     @NonNull
