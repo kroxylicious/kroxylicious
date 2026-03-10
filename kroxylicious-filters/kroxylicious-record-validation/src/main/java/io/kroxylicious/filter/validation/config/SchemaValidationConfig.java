@@ -13,8 +13,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is valid using the schema in Apicurio Registry.
- * @param apicurioGlobalId globalId
  * @param apicurioRegistryUrl apicurio registry url
+ * @param apicurioId schema identifier - interpreted as contentId for V3 (default) or globalId for V2
+ * @param wireFormatVersion wire format version (defaults to V3 if null)
  */
 public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioId, WireFormatVersion wireFormatVersion) {
 
