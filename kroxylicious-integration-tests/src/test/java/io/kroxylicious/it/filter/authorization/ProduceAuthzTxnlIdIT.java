@@ -215,6 +215,12 @@ class ProduceAuthzTxnlIdIT extends AuthzIT {
             consumerConfig.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 0);
             consumerConfig.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 100);
             consumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, IsolationLevel.READ_UNCOMMITTED.toString());
+            try {
+                Thread.sleep(1000);
+            }
+            catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             try (var consumer = new KafkaConsumer<>(consumerConfig,
                     new StringDeserializer(), new StringDeserializer())) {
                 var tp = new TopicPartition(getTopicName(), 0);
