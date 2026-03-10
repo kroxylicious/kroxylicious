@@ -63,5 +63,5 @@ then:
         maxVersion: 13
       - apiKey: 0 # PRODUCE
         minVersion: 0 # unmodified despite filter not supporting v0-v2
-        maxVersion: 12 # max version supported by filter
+        maxVersion: 13 # max version supported by filter
     throttleTimeMs: 880
