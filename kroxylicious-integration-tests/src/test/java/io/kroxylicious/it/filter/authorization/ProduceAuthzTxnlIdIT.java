@@ -47,6 +47,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.test.Request;
@@ -160,7 +161,12 @@ class ProduceAuthzTxnlIdIT extends AuthzIT {
             var topicCollection = new ProduceRequestData.TopicProduceDataCollection();
             var t = new ProduceRequestData.TopicProduceData()
                     .setPartitionData(partitionData(user, PASSWORDS.get(user), Objects.requireNonNull(producerIdAndEpoch)));
-            t.setName(getTopicName());
+            if (apiVersion() >= 13) {
+                t.setTopicId(clusterFixture.topicIds().get(topicName));
+            }
+            else {
+                t.setName(getTopicName());
+            }
             topicCollection.mustAdd(t);
             data.setTopicData(topicCollection);
             return data;
@@ -176,6 +182,14 @@ class ProduceAuthzTxnlIdIT extends AuthzIT {
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonNodes) {
+            JsonNode topics = jsonNodes.get("responses");
+            if (topics.isArray()) {
+                for (JsonNode topic : topics) {
+                    if (topic instanceof ObjectNode objectNode) {
+                        replaceTopicIdWithName(cluster, objectNode, "topicId");
+                    }
+                }
+            }
             return prettyJsonString(jsonNodes);
         }
 
@@ -263,10 +277,6 @@ class ProduceAuthzTxnlIdIT extends AuthzIT {
         // Compute the n-fold Cartesian product of the tuples (except for pruning)
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : apiVersions) {
-            if (apiVersion >= 13) {
-                result.add(Arguments.argumentSet("unsupported version " + apiVersion, new UnsupportedApiVersion<>(ApiKeys.PRODUCE, apiVersion)));
-                continue;
-            }
             for (String transactionalIdPrefix : ALL_TRANSACTIONAL_ID_PREFIXES) {
                 String transactionalId = transactionalIdPrefix + "-" + UUID.randomUUID();
                 result.add(

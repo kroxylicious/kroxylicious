@@ -41,6 +41,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.test.Request;
@@ -148,6 +149,14 @@ class ProduceAuthzIT extends AuthzIT {
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonNodes) {
+            JsonNode topics = jsonNodes.get("responses");
+            if (topics.isArray()) {
+                for (JsonNode topic : topics) {
+                    if (topic instanceof ObjectNode objectNode) {
+                        replaceTopicIdWithName(cluster, objectNode, "topicId");
+                    }
+                }
+            }
             return prettyJsonString(jsonNodes);
         }
 
@@ -220,10 +229,6 @@ class ProduceAuthzIT extends AuthzIT {
         // Compute the n-fold Cartesian product of the tuples (except for pruning)
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : apiVersions) {
-            if (apiVersion >= 13) {
-                result.add(Arguments.of(new UnsupportedApiVersion<>(ApiKeys.PRODUCE, apiVersion)));
-                continue;
-            }
             for (String transactionalId : transactionalIds) {
                 result.add(
                         Arguments.of(new ProduceEquivalence(apiVersion,
@@ -235,6 +240,12 @@ class ProduceAuthzIT extends AuthzIT {
                                     var topicCollection = new ProduceRequestData.TopicProduceDataCollection();
                                     var t = new ProduceRequestData.TopicProduceData()
                                             .setPartitionData(partitionData(user, PASSWORDS.get(user)));
+                                    if (apiVersion >= 13) {
+                                        t.setTopicId(topicIds.topicIds().get(topicName));
+                                    }
+                                    else {
+                                        t.setName(topicName);
+                                    }
                                     t.setName(topicName);
                                     topicCollection.mustAdd(t);
                                     data.setTopicData(topicCollection);
