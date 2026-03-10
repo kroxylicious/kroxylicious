@@ -233,24 +233,50 @@ run_probe() {
 
 trap teardown_scenario EXIT
 
-echo "=== Measuring proxy overhead ==="
-echo "Scenario:   ${SCENARIOS}"
-echo "Output dir: ${OUTPUT_DIR}"
-echo "Rates:      ${MIN_RATE}–${MAX_RATE} msg/sec (${STEP_PERCENT}% steps)"
-echo ""
-
-SCENARIO_OUTPUT="${OUTPUT_DIR}/${SCENARIOS}"
-
-if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
-    echo "Warning: Helm release '${HELM_RELEASE}' already exists, tearing down first."
-    teardown_scenario
+# If --baseline-from is provided, exclude baseline from the run list —
+# the pre-existing results will be used for comparison instead.
+SCENARIO_LIST="${SCENARIOS}"
+if [[ -n "${BASELINE_FROM}" ]]; then
+    SCENARIO_LIST=$(echo "${SCENARIO_LIST}" | tr ',' '\n' | grep -v '^baseline$' | tr '\n' ',' | sed 's/,$//')
+    if [[ -z "${SCENARIO_LIST}" ]]; then
+        echo "Error: --baseline-from excludes baseline but no other scenarios remain in --scenarios" >&2
+        exit 1
+    fi
 fi
 
-deploy_scenario "${SCENARIOS}"
+mkdir -p "${OUTPUT_DIR}"
+IFS=',' read -ra SCENARIO_ARRAY <<< "${SCENARIO_LIST}"
 
-MIN_RATE_VALUE=$(rate_sequence | head -1)
-run_probe "${MIN_RATE_VALUE}" "${SCENARIO_OUTPUT}/rate-${MIN_RATE_VALUE}"
-
+echo "=== Measuring proxy overhead ==="
+echo "Scenarios:  ${SCENARIO_LIST}"
+echo "Output dir: ${OUTPUT_DIR}"
+echo "Rates:      ${MIN_RATE}–${MAX_RATE} msg/sec (${STEP_PERCENT}% steps)"
+[[ -n "${BASELINE_FROM}" ]] && echo "Baseline:   ${BASELINE_FROM}"
 echo ""
-echo "=== Single-probe complete — full sweep not yet implemented ==="
+
+for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
+    SCENARIO_OUTPUT="${OUTPUT_DIR}/${SCENARIO}"
+
+    echo "=== Scenario: ${SCENARIO} ==="
+
+    if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
+        echo "Warning: Helm release '${HELM_RELEASE}' already exists, tearing down first."
+        teardown_scenario
+    fi
+
+    deploy_scenario "${SCENARIO}"
+
+    while IFS= read -r RATE; do
+        PROBE_OUTPUT="${SCENARIO_OUTPUT}/rate-${RATE}"
+        if ! run_probe "${RATE}" "${PROBE_OUTPUT}"; then
+            echo "  Probe failed at ${RATE} msg/sec — stopping sweep for ${SCENARIO}" >&2
+            break
+        fi
+    done < <(rate_sequence)
+
+    teardown_scenario
+    echo ""
+done
+
+echo "=== Sweep complete ==="
 echo "Results written to: ${OUTPUT_DIR}"
