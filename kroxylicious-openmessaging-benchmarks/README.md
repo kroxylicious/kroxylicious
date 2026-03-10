@@ -246,6 +246,26 @@ helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious
   -n kafka
 ```
 
+### Custom Proxy Image
+
+By default the Kroxylicious operator deploys the image that shipped with the installed operator version.
+To benchmark an unreleased build — for example, a branch with JFR/flamegraph support — override the image after running `setup-cluster.sh`:
+
+```bash
+kubectl set env deployment/kroxylicious-operator -n kroxylicious-operator \
+  KROXYLICIOUS_IMAGE=quay.io/<your-user>/kroxylicious-proxy:<tag>
+```
+
+The operator will use this image for all subsequent proxy deployments until the env var is cleared:
+
+```bash
+kubectl set env deployment/kroxylicious-operator -n kroxylicious-operator KROXYLICIOUS_IMAGE-
+```
+
+> **Note:** JFR and async-profiler flamegraph collection (see [Profiling](#profiling)) requires a proxy image
+> built from a branch that exports `ASYNC_PROFILER_LIB` from `kroxylicious-start.sh`. The stock release
+> images do not include this export.
+
 ## Testing
 
 The project includes test coverage to ensure the Helm chart works correctly and stays working as changes are made.
