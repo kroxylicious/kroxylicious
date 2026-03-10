@@ -6,6 +6,13 @@
 
 package io.kroxylicious.krpccodegen.schema;
 
+/**
+ * A named entity.
+ */
 public interface Named {
+    /**
+     * The name of the entity.
+     * @return name.
+     */
     String name();
 }

@@ -137,32 +137,6 @@
                 <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-krpc-plugin</artifactId>
                 <executions>
-<!--                    <execution>-->
-<!--                        <id>generate-entity-isolation-filter</id>-->
-<!--                        <goals>-->
-<!--                            <goal>generate-multi</goal>-->
-<!--                        </goals>-->
-<!--                        <phase>generate-sources</phase>-->
-
-<!--                        <configuration>-->
-<!--                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>-->
-<!--                            <streamProcessingFunction>-->
-<!--                                pairStream => pairStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER))-->
-<!--                                .filter(pair => pair.request().hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)) ||-->
-<!--                                                pair.request().hasResourceList() ||-->
-<!--                                                pair.response().hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)) ||-->
-<!--                                                pair.response().hasResourceList())-->
-<!--                            </streamProcessingFunction>-->
-<!--                            <pairRequestResponseMode>true</pairRequestResponseMode>-->
-<!--                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>-->
-<!--                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>-->
-<!--                            <templateNames>EntityIsolationFilter.ftl</templateNames>-->
-<!--                            &lt;!&ndash;suppress UnresolvedMavenProperty &ndash;&gt;-->
-<!--                            <outputFilePattern>${templateName}.java</outputFilePattern>-->
-<!--                            <outputPackage>io.kroxylicious.filter.entityisolation</outputPackage>-->
-<!--                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
                     <execution>
                         <id>generate-entity-isolation-processor-map-factory</id>
                         <goals>
@@ -174,10 +148,8 @@
                             <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
                             <streamProcessingFunction>
                                 pairStream => pairStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER))
-                                .filter(pair => pair.request().hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)) ||
-                                pair.request().hasResourceList() ||
-                                pair.response().hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)) ||
-                                pair.response().hasResourceList())
+                                .filter(pair => pair.hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)) ||
+                                pair.hasResourceList())
                             </streamProcessingFunction>
                             <pairRequestResponseMode>true</pairRequestResponseMode>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
@@ -201,8 +173,7 @@
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <streamProcessingFunction>
                                 pairStream => pairStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER))
-                                .filter(pair => pair.request().hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)) ||
-                                pair.response().hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)))
+                                .filter(pair => pair.hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)))
                              </streamProcessingFunction>
                             <pairRequestResponseMode>true</pairRequestResponseMode>
                             <templateDirectory>${project.basedir}/src/main/templates/entitytype</templateDirectory>
@@ -226,7 +197,7 @@
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <streamProcessingFunction>
                                 pairStream => pairStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER))
-                                .filter(pair => pair.request().hasResourceList() || pair.response().hasResourceList())
+                                .filter(pair => pair.hasResourceList())
                              </streamProcessingFunction>
                             <pairRequestResponseMode>true</pairRequestResponseMode>
                             <templateDirectory>${project.basedir}/src/main/templates/resourcelist</templateDirectory>

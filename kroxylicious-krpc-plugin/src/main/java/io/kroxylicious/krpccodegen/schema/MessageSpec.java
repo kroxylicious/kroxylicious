@@ -155,11 +155,11 @@ public final class MessageSpec implements Named {
     /**
      * Returns true if this message spec has at least one field of one of the given entity field types.
      *
-     * @param entityFieldTypeNames entity field types
+     * @param entityTypes entity field types
      * @return true if present, false otherwise
      */
-    public boolean hasAtLeastOneEntityField(Set<EntityType> entityFieldTypeNames) {
-        return hasAtLeastOneEntityField(fields(), entityFieldTypeNames);
+    public boolean hasAtLeastOneEntityField(Set<EntityType> entityTypes) {
+        return hasAtLeastOneEntityField(fields(), entityTypes);
     }
 
     private boolean hasAtLeastOneEntityField(List<FieldSpec> fields, Set<EntityType> entityFieldTypeNames) {

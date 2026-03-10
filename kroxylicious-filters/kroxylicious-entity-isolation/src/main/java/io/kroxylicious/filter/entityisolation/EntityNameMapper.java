@@ -9,7 +9,8 @@ package io.kroxylicious.filter.entityisolation;
 import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
 
 /**
- * Maps a unmapped java resource name into a mapper one, or vice versa.
+ * Maps an unmapped kafka resource name into a mapped one, or vice versa.
+ * <br/>
  * The {@link #unmap(MapperContext, ResourceType, String)} function must be the reciprocal of
  * the {@link #map(MapperContext, ResourceType, String)}.
  */
@@ -22,7 +23,8 @@ public interface EntityNameMapper {
      * @param unmappedResourceName unmapped resource name.
      * @return mapped resource name.
      */
-    String map(MapperContext mapperContext, ResourceType resourceType,
+    String map(MapperContext mapperContext,
+               ResourceType resourceType,
                String unmappedResourceName);
 
     /**
@@ -33,7 +35,8 @@ public interface EntityNameMapper {
      * @param mappedResourceName mapped resource name.
      * @return unmapped resource name
      */
-    String unmap(MapperContext mapperContext, ResourceType resourceType,
+    String unmap(MapperContext mapperContext,
+                 ResourceType resourceType,
                  String mappedResourceName);
 
     /**
@@ -44,6 +47,8 @@ public interface EntityNameMapper {
      * @param mappedResourceName mapped resource name.
      * @return true if the mapped resource name belongs in this namespace, false otherwise.
      */
-    boolean isInNamespace(MapperContext mapperContext, ResourceType resourceType, String mappedResourceName);
+    boolean isInNamespace(MapperContext mapperContext,
+                          ResourceType resourceType,
+                          String mappedResourceName);
 
 }
