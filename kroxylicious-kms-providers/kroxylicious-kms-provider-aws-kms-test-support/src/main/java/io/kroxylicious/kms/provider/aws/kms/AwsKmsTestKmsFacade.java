@@ -18,9 +18,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private static final Logger LOG = LoggerFactory.getLogger(AwsKmsTestKmsFacade.class);
-    private static final String IMAGE = "localstack/localstack:4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a";
-    private static final DockerImageName LOCALSTACK_IMAGE = DockerImageName.parse(IMAGE)
-            .asCompatibleSubstituteFor(DockerImageName.parse(IMAGE.substring(0, IMAGE.indexOf("@"))));
     private @Nullable LocalStackContainer localStackContainer;
 
     @Override
@@ -31,7 +28,10 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     @Override
     @SuppressWarnings("resource")
     public void startKms() {
-        localStackContainer = new LocalStackContainer(LOCALSTACK_IMAGE) {
+        String image = "localstack/localstack:4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a";
+        DockerImageName localstackImage = DockerImageName.parse(image)
+                .asCompatibleSubstituteFor(DockerImageName.parse(image.substring(0, image.indexOf("@"))));
+        localStackContainer = new LocalStackContainer(localstackImage) {
             @Override
             @SuppressWarnings("java:S1874")
             public LocalStackContainer withFileSystemBind(String hostPath, String containerPath) {
