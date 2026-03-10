@@ -129,7 +129,8 @@ jobs:
           name: systemtest-logs-${{ matrix.tests }}-${{ inputs.kafkaClient }}
           path: kroxylicious-systemtests/target/logs
 
-      - uses: dorny/test-reporter@v2
+      - name: Test Reporter
+        uses: dorny/test-reporter@3d76b34a4535afbd0600d347b09a6ee5deb3ed7f
         if: ${{ !cancelled() }}
         with:
           artifact: junit-results-${{ matrix.tests }}-${{ inputs.kafkaClient }}
