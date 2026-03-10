@@ -8,6 +8,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MODULE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+HELM_CHART="${MODULE_DIR}/helm/kroxylicious-benchmark"
+HELM_RELEASE="benchmark"
+
+# Workload to use for all probes. Controls topic count and message size.
+# Rate is overridden per-probe; all other workload settings come from this template.
+WORKLOAD="1topic-1kb"
 
 NAMESPACE="${NAMESPACE:-kafka}"
 KAFKA_READY_TIMEOUT="${KAFKA_READY_TIMEOUT:-600s}"
@@ -143,5 +150,107 @@ if [[ "${DRY_RUN}" == "true" ]]; then
     exit 0
 fi
 
-echo "Not yet implemented — use --dry-run to preview the rate sequence" >&2
-exit 1
+# --- Infrastructure lifecycle ---
+
+deploy_scenario() {
+    local scenario="$1"
+    local scenario_values="${HELM_CHART}/scenarios/${scenario}-values.yaml"
+
+    if [[ ! -f "${scenario_values}" ]]; then
+        echo "Error: scenario values not found: ${scenario_values}" >&2
+        exit 1
+    fi
+
+    echo "--- Deploying ${scenario} ---"
+    local helm_args=(-n "${NAMESPACE}" -f "${scenario_values}" --set omb.workload="${WORKLOAD}")
+    # ${array[@]+"${array[@]}"} is the bash 3.2-safe idiom for empty array expansion (see run-all-scenarios.sh)
+    [[ -n "${PROFILE_VALUES}" ]] && helm_args+=(-f "${PROFILE_VALUES}")
+    helm install "${HELM_RELEASE}" "${HELM_CHART}" "${helm_args[@]}"
+
+    echo "Waiting for Kafka (timeout: ${KAFKA_READY_TIMEOUT})..."
+    kubectl wait kafka/kafka --for=condition=Ready --timeout="${KAFKA_READY_TIMEOUT}" -n "${NAMESPACE}"
+
+    echo "Waiting for OMB workers..."
+    kubectl rollout status statefulset/omb-worker -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
+
+    echo "Waiting for OMB benchmark pod..."
+    kubectl wait --for=condition=ready pod -l app=omb-benchmark -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
+
+    echo "Infrastructure ready."
+}
+
+teardown_scenario() {
+    echo "--- Tearing down ---"
+    if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
+        helm uninstall "${HELM_RELEASE}" -n "${NAMESPACE}"
+    fi
+    kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found
+}
+
+# --- Probe execution ---
+
+run_probe() {
+    local rate="$1"
+    local probe_output_dir="$2"
+
+    mkdir -p "${probe_output_dir}"
+    echo "  Probe at ${rate} msg/sec..."
+
+    # Clear previous OMB result files from the pod so we can unambiguously
+    # identify the result from this probe afterwards.
+    kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
+        sh -c 'rm -f /var/lib/omb/results/*.json' 2>/dev/null || true
+
+    # Run OMB with the target producer rate. The workload ConfigMap is read-only,
+    # so we use sed to write a modified copy into /tmp and run from there.
+    kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
+        sh -c "sed 's/^producerRate:.*/producerRate: ${rate}/' /etc/omb/workloads/workload.yaml > /tmp/workload.yaml && \
+               cd /var/lib/omb/results && \
+               /opt/benchmark/bin/benchmark \
+                 --drivers /etc/omb/driver/driver-kafka.yaml \
+                 --workers \"\${WORKERS}\" \
+                 /tmp/workload.yaml"
+
+    # Collect the result JSON produced by this probe.
+    local benchmark_pod
+    benchmark_pod=$(kubectl get pod -n "${NAMESPACE}" -l app=omb-benchmark \
+        -o jsonpath='{.items[0].metadata.name}')
+
+    local result_file
+    result_file=$(kubectl exec -n "${NAMESPACE}" "${benchmark_pod}" -- \
+        sh -c 'ls -t /var/lib/omb/results/*.json 2>/dev/null | head -1') || true
+
+    if [[ -z "${result_file}" ]]; then
+        echo "  Warning: no result file found for rate ${rate} msg/sec" >&2
+        return 1
+    fi
+
+    kubectl cp "${NAMESPACE}/${benchmark_pod}:${result_file}" "${probe_output_dir}/result.json"
+    echo "  Result collected: ${probe_output_dir}/result.json"
+}
+
+# --- Main ---
+
+trap teardown_scenario EXIT
+
+echo "=== Measuring proxy overhead ==="
+echo "Scenario:   ${SCENARIOS}"
+echo "Output dir: ${OUTPUT_DIR}"
+echo "Rates:      ${MIN_RATE}–${MAX_RATE} msg/sec (${STEP_PERCENT}% steps)"
+echo ""
+
+SCENARIO_OUTPUT="${OUTPUT_DIR}/${SCENARIOS}"
+
+if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
+    echo "Warning: Helm release '${HELM_RELEASE}' already exists, tearing down first."
+    teardown_scenario
+fi
+
+deploy_scenario "${SCENARIOS}"
+
+MIN_RATE_VALUE=$(rate_sequence | head -1)
+run_probe "${MIN_RATE_VALUE}" "${SCENARIO_OUTPUT}/rate-${MIN_RATE_VALUE}"
+
+echo ""
+echo "=== Single-probe complete — full sweep not yet implemented ==="
+echo "Results written to: ${OUTPUT_DIR}"
