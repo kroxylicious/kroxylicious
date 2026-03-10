@@ -129,6 +129,14 @@ jobs:
           name: systemtest-logs-${{ matrix.tests }}-${{ inputs.kafkaClient }}
           path: kroxylicious-systemtests/target/logs
 
+      - uses: dorny/test-reporter@v2
+        if: ${{ !cancelled() }}
+        with:
+          artifact: junit-results-${{ matrix.tests }}-${{ inputs.kafkaClient }}
+          name: SystemTests-${{ matrix.tests }}-${{ inputs.kafkaClient }}
+          path: '*.xml'
+          reporter: java-junit
+
   system_tests_proxy:
     runs-on: ubuntu-latest
     needs: run_system_tests
