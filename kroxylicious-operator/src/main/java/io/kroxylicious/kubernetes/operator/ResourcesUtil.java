@@ -50,6 +50,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.KafkaServiceStatusFactory;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -627,13 +628,6 @@ public class ResourcesUtil {
                     List.of());
         }
 
-        if (!isSpecifiedListenerPlain(strimziKafkaRef, kafka)) {
-            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                    "Referenced resource should have listener as `plain`"),
-                    List.of());
-        }
-
         if (!isListenerPresentInStatus(strimziKafkaRef, kafka)) {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED,
@@ -723,5 +717,25 @@ public class ResourcesUtil {
      */
     public static String crossNamespaceServiceAddress(String serviceName, HasMetadata namespacedResource) {
         return serviceName + "." + namespace(namespacedResource) + ".svc.cluster.local";
+    }
+
+    public static ResourceCheckResult<KafkaService> checkStrimziCertificate(KafkaService resource, Context<KafkaService> context,
+                                                                            StrimziKafkaRef strimziKafkaRef, KafkaServiceStatusFactory statusFactory) {
+
+        var clusterCaSecret = context.getClient().secrets().inNamespace(resource.getMetadata().getNamespace())
+                .withName(strimziKafkaRef.getRef().getName() + "-cluster-ca-cert").get();
+        if (clusterCaSecret == null) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REFS_NOT_FOUND,
+                    "%s: referenced %s not found".formatted("status.trustAnchorRef.name", strimziKafkaRef.getRef().getName() + "-cluster-ca-cert")), List.of());
+        }
+
+        if (!clusterCaSecret.getData().containsKey("ca.crt")) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                    strimziKafkaRef.getRef().getName() + "-cluster-ca-cert" + ": referenced resource does not contain key " + "ca.crt"), List.of());
+        }
+
+        return new ResourceCheckResult<>(null, List.of(clusterCaSecret));
     }
 }
