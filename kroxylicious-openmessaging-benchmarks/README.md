@@ -266,6 +266,62 @@ kubectl set env deployment/kroxylicious-operator -n kroxylicious-operator KROXYL
 > built from a branch that exports `ASYNC_PROFILER_LIB` from `kroxylicious-start.sh`. The stock release
 > images do not include this export.
 
+## Profiling
+
+When a proxy pod is present, `run-benchmark.sh` automatically captures profiling data alongside the
+benchmark results. Two complementary tools are used:
+
+**JFR (Java Flight Recorder)** is a low-overhead JVM profiler built into the JDK. It captures JVM-level
+events — GC pauses, lock contention, thread states, and allocation pressure — giving insight into whether
+bottlenecks are inside the JVM itself.
+
+**async-profiler** complements JFR by sampling CPU activity at the native level, including stack frames
+from native code such as Netty's epoll event loops. These frames are invisible to JFR, which only sees
+the JVM boundary. The output is an interactive flamegraph showing where CPU time is actually spent.
+
+Together they answer different questions: JFR tells you _what the JVM is doing_, async-profiler tells you
+_where the CPU is spending time_, including code the JVM doesn't own.
+
+Results are written to the output directory alongside the benchmark JSON:
+
+- `<scenario>-<workload>-benchmark.jfr` — JVM Flight Recording
+- `<scenario>-<workload>-flamegraph.html` — CPU flamegraph
+
+### How JFR and async-profiler are started and stopped
+
+**JFR** is started via `JAVA_TOOL_OPTIONS` injected into the proxy container at startup:
+```
+-XX:StartFlightRecording=name=benchmark,disk=true,dumponexit=true,maxsize=64m
+```
+`disk=true` streams chunks continuously to `/tmp/benchmark.jfr` on the PVC-backed `/tmp` mount.
+After the benchmark, the proxy deployment is scaled to zero — this triggers `dumponexit`, finalising
+the recording cleanly before the pod terminates.
+
+**async-profiler** is loaded as a JVMTI agent at JVM startup via the `-agentpath` flag in
+`ASYNC_PROFILER_FLAGS`, configured to write a CPU flamegraph to `/tmp/flamegraph.html`. After the
+benchmark, `run-benchmark.sh` stops the profiler using `jcmd JVMTI.agent_load` with a stop command,
+re-attaching the already-loaded agent to flush the output.
+
+Both recordings are copied off the PVC by `collect-results.sh` using a short-lived debug pod.
+
+### Why both tools are started at JVM startup rather than mid-run
+
+Starting either tool via `jcmd` after the JVM is already running was attempted but caused the proxy pod
+to be OOM-killed. Starting JFR via `jcmd JFR.start` allocates its recording buffers (global + per-thread)
+as a sudden mid-run spike; on a memory-limited pod this pushes the process over its cgroup limit.
+async-profiler has the same risk when started mid-run. Initialising both tools at JVM startup allows the
+JVM to account for the memory from the beginning, avoiding the spike entirely.
+
+Stopping both tools via `jcmd` is safe because no new buffers are allocated — the stop command simply
+flushes and closes an already-running recording.
+
+### Known limitation: warmup data is included
+
+Both tools currently record from JVM startup, meaning the warmup phase (JIT compilation, class loading,
+connection establishment) is included in the output. This can obscure steady-state hotspots in the
+flamegraph and skew JFR allocation/lock data. Ideally both tools would only record the execution phase.
+See the tracking issue for planned improvements.
+
 ## Testing
 
 The project includes test coverage to ensure the Helm chart works correctly and stays working as changes are made.
