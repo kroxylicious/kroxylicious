@@ -304,6 +304,7 @@ class AuthorizationFilterTest {
                 ApiKeys.SASL_HANDSHAKE,
                 ApiKeys.SASL_AUTHENTICATE,
                 ApiKeys.METADATA,
+                ApiKeys.FETCH,
                 ApiKeys.FIND_COORDINATOR,
                 ApiKeys.ADD_OFFSETS_TO_TXN,
                 ApiKeys.END_TXN,
@@ -333,8 +334,7 @@ class AuthorizationFilterTest {
                 ApiKeys.DESCRIBE_TRANSACTIONS,
                 ApiKeys.HEARTBEAT,
                 ApiKeys.LIST_TRANSACTIONS);
-        EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.FETCH,
-                ApiKeys.ADD_PARTITIONS_TO_TXN,
+        EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.ADD_PARTITIONS_TO_TXN,
                 ApiKeys.INIT_PRODUCER_ID);
         EnumSet<ApiKeys> noVersionsSupported = complementOf(unionOf(allVersionsSupported, someVersionsSupported));
         for (ApiKeys apiKey : allVersionsSupported) {
