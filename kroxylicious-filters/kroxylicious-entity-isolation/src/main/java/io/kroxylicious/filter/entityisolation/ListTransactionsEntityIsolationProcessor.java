@@ -106,8 +106,8 @@ class ListTransactionsEntityIsolationProcessor
             // process entity fields defined at this level
             if (shouldMap(EntityIsolation.ResourceType.TRANSACTIONAL_ID) && (short) 0 <= apiVersion && apiVersion <= (short) 2
                     && transactionState.transactionalId() != null) {
-                if (inNamespace(mapperContext, EntityIsolation.ResourceType.TRANSACTIONAL_ID, transactionState.transactionalId())) {
-                    var txnId = unmap(mapperContext, EntityIsolation.ResourceType.TRANSACTIONAL_ID, transactionState.transactionalId());
+                if (mapper.isInNamespace(mapperContext, EntityIsolation.ResourceType.TRANSACTIONAL_ID, transactionState.transactionalId())) {
+                    var txnId = mapper.unmap(mapperContext, EntityIsolation.ResourceType.TRANSACTIONAL_ID, transactionState.transactionalId());
                     if (pat.matcher(txnId).find()) {
                         transactionState.setTransactionalId(txnId);
                         continue;
@@ -122,24 +122,6 @@ class ListTransactionsEntityIsolationProcessor
 
     private boolean shouldMap(EntityIsolation.ResourceType entityType) {
         return resourceTypes.contains(entityType);
-    }
-
-    private String map(MapperContext context, EntityIsolation.ResourceType resourceType, String originalName) {
-        if (originalName == null || originalName.isEmpty()) {
-            return originalName;
-        }
-        return mapper.map(context, resourceType, originalName);
-    }
-
-    private String unmap(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
-        if (mappedName.isEmpty()) {
-            return mappedName;
-        }
-        return mapper.unmap(context, resourceType, mappedName);
-    }
-
-    private boolean inNamespace(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
-        return mapper.isInNamespace(context, resourceType, mappedName);
     }
 
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {

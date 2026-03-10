@@ -28,7 +28,7 @@ indent      java identation
         ${pad}            .stream()
         ${pad}            .filter(e -> e.getValue().isPresent())
         ${pad}            .filter(e -> shouldMap(e.getValue().get())).forEach(e -> {
-        ${pad}                e.getKey().setResourceName(map(mapperContext, e.getValue().get(), e.getKey().resourceName()));
+        ${pad}                e.getKey().setResourceName(mapper.map(mapperContext, e.getValue().get(), e.getKey().resourceName()));
         ${pad}    });
             </#if>
         </#items>
@@ -71,8 +71,8 @@ ${pad}        var ${elementVar} = ${collectionIteratorVar}.next();
 ${pad}        EntityIsolation.fromResourceTypeCode(ApiKeys.${messageSpecPair.apiKey}, ${elementVar}.resourceType())
 ${pad}              .filter(entityType -> shouldMap(entityType))
 ${pad}              .ifPresent(entityType -> {
-${pad}            if (inNamespace(mapperContext, entityType, ${elementVar}.resourceName())) {
-${pad}                ${elementVar}.setResourceName(unmap(mapperContext, entityType, ${elementVar}.resourceName()));
+${pad}            if (mapper.isInNamespace(mapperContext, entityType, ${elementVar}.resourceName())) {
+${pad}                ${elementVar}.setResourceName(mapper.unmap(mapperContext, entityType, ${elementVar}.resourceName()));
 ${pad}            }
 ${pad}            else {
 ${pad}                ${collectionIteratorVar}.remove();
@@ -227,24 +227,6 @@ class ${messageSpecPair.name}EntityIsolationProcessor implements EntityIsolation
 
     private boolean shouldMap(EntityIsolation.ResourceType entityType) {
         return resourceTypes.contains(entityType);
-    }
-
-    private String map(MapperContext context, EntityIsolation.ResourceType resourceType, String originalName) {
-        if (originalName == null || originalName.isEmpty()) {
-            return originalName;
-        }
-        return mapper.map(context, resourceType, originalName);
-    }
-
-    private String unmap(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
-        if (mappedName.isEmpty()) {
-            return mappedName;
-        }
-        return mapper.unmap(context, resourceType, mappedName);
-    }
-
-    private boolean inNamespace(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
-        return mapper.isInNamespace(context, resourceType, mappedName);
     }
 
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {

@@ -51,7 +51,7 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
         EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, request.resourceTypeFilter())
                 .filter(entityType -> shouldMap(entityType))
                 .ifPresent(rt -> {
-                    request.setResourceNameFilter(map(mapperContext, rt, request.resourceNameFilter()));
+                    request.setResourceNameFilter(mapper.map(mapperContext, rt, request.resourceNameFilter()));
                 });
         log(filterContext, "request result", ApiKeys.DESCRIBE_ACLS, request);
 
@@ -80,8 +80,8 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
                 EntityIsolation.fromResourceTypeCode(ApiKeys.DESCRIBE_ACLS, describeAclsResource.resourceType())
                         .filter(entityType -> shouldMap(entityType))
                         .ifPresent(entityType -> {
-                            if (inNamespace(mapperContext, entityType, describeAclsResource.resourceName())) {
-                                describeAclsResource.setResourceName(unmap(mapperContext, entityType, describeAclsResource.resourceName()));
+                            if (mapper.isInNamespace(mapperContext, entityType, describeAclsResource.resourceName())) {
+                                describeAclsResource.setResourceName(mapper.unmap(mapperContext, entityType, describeAclsResource.resourceName()));
                             }
                             else {
                                 resourcesIterator.remove();
@@ -95,24 +95,6 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
 
     private boolean shouldMap(EntityIsolation.ResourceType entityType) {
         return resourceTypes.contains(entityType);
-    }
-
-    private String map(MapperContext context, EntityIsolation.ResourceType resourceType, String originalName) {
-        if (originalName == null || originalName.isEmpty()) {
-            return originalName;
-        }
-        return mapper.map(context, resourceType, originalName);
-    }
-
-    private String unmap(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
-        if (mappedName.isEmpty()) {
-            return mappedName;
-        }
-        return mapper.unmap(context, resourceType, mappedName);
-    }
-
-    private boolean inNamespace(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
-        return mapper.isInNamespace(context, resourceType, mappedName);
     }
 
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {

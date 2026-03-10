@@ -18,7 +18,7 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
 
     private static final String SEPARATOR = "-";
 
-    private Class<? extends Principal> uniquePrincipalType;
+    private final Class<? extends Principal> uniquePrincipalType;
 
     PrincipalEntityNameMapper(Class<? extends Principal> uniquePrincipalType) {
         this.uniquePrincipalType = Objects.requireNonNull(uniquePrincipalType);
@@ -29,7 +29,6 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
 
     @Override
     public String map(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String unmappedResourceName) {
-        uniquePrincipalType = User.class;
         var user = getAuthenticatedPrincipal(mapperContext.authenticatedSubject(), uniquePrincipalType);
         return user.map(authId -> doMap(authId, unmappedResourceName))
                 .orElse(unmappedResourceName);

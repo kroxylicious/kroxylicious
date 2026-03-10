@@ -7,6 +7,7 @@ package io.kroxylicious.filter.entityisolation;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
@@ -16,6 +17,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -27,23 +29,25 @@ import static io.kroxylicious.filter.entityisolation.EntityIsolationProcessorMap
 
 /**
 * Entity isolation filter.
-* <p>Note: this class is automatically generated from a template</p>
 */
 class EntityIsolationFilter implements RequestFilter, ResponseFilter {
 
     private final Map<ApiKeys, ? extends EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> processorMap;
     private final Map<Integer, Object> correlatedRequestContext = new HashMap<>();
 
-    EntityIsolationFilter(Set<EntityIsolation.ResourceType> resourceTypes, EntityNameMapper mapper) {
+    EntityIsolationFilter(Set<ResourceType> resourceTypes, EntityNameMapper mapper) {
+        Objects.requireNonNull(resourceTypes);
+        Objects.requireNonNull(mapper);
+        var wrappedMapper = new EmptyResourceNameHandlingMapper(Objects.requireNonNull(mapper));
 
         Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> pm = new HashMap<>();
         // The following processors require special code and are handwritten.
-        pm.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEntityIsolationProcessor(resourceTypes, mapper));
-        pm.put(ApiKeys.DELETE_ACLS, new DeleteAclsEntityIsolationProcessor(resourceTypes, mapper));
-        pm.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEntityIsolationProcessor(resourceTypes, mapper));
-        pm.put(ApiKeys.DESCRIBE_ACLS, new DescribeAclsEntityIsolationProcessor(resourceTypes, mapper));
+        pm.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEntityIsolationProcessor(resourceTypes, wrappedMapper));
+        pm.put(ApiKeys.DELETE_ACLS, new DeleteAclsEntityIsolationProcessor(resourceTypes, wrappedMapper));
+        pm.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEntityIsolationProcessor(resourceTypes, wrappedMapper));
+        pm.put(ApiKeys.DESCRIBE_ACLS, new DescribeAclsEntityIsolationProcessor(resourceTypes, wrappedMapper));
         // Add the generated processors.
-        pm.putAll(createProcessorMap(resourceTypes, mapper));
+        pm.putAll(createProcessorMap(resourceTypes, wrappedMapper));
         this.processorMap = Map.copyOf(pm);
     }
 
@@ -113,4 +117,37 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 context.clientSaslContext().orElse(null));
     }
 
+    private static class EmptyResourceNameHandlingMapper implements EntityNameMapper {
+
+        private final EntityNameMapper mapper;
+
+        EmptyResourceNameHandlingMapper(EntityNameMapper entityNameMapper) {
+            this.mapper = Objects.requireNonNull(entityNameMapper);
+        }
+
+        @Override
+        public String map(MapperContext mapperContext, ResourceType resourceType, String originalName) {
+            if (originalName == null || originalName.isEmpty()) {
+                return originalName;
+            }
+            return mapper.map(mapperContext, resourceType, originalName);
+        }
+
+        @Override
+        public String unmap(MapperContext mapperContext, ResourceType resourceType, String mappedName) {
+            if (mappedName == null || mappedName.isEmpty()) {
+                return mappedName;
+            }
+            return mapper.unmap(mapperContext, resourceType, mappedName);
+        }
+
+        @Override
+        public boolean isInNamespace(MapperContext mapperContext, ResourceType resourceType, String mappedName) {
+            if (mappedName == null || mappedName.isEmpty()) {
+                return false;
+            }
+
+            return mapper.isInNamespace(mapperContext, resourceType, mappedName);
+        }
+    }
 }

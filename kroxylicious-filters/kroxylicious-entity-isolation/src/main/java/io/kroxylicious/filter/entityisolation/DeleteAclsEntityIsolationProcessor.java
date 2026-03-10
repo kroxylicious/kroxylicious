@@ -3,7 +3,6 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-
 package io.kroxylicious.filter.entityisolation;
 
 import java.util.Objects;
@@ -65,7 +64,7 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                 .stream()
                 .filter(e -> e.getValue().isPresent())
                 .filter(e -> shouldMap(e.getValue().get())).forEach(e -> {
-                    e.getKey().setResourceNameFilter(map(mapperContext, e.getValue().get(), e.getKey().resourceNameFilter()));
+                    e.getKey().setResourceNameFilter(mapper.map(mapperContext, e.getValue().get(), e.getKey().resourceNameFilter()));
                 });
         log(filterContext, "request result", ApiKeys.DELETE_ACLS, request);
         return filterContext.forwardRequest(header, request);
@@ -86,8 +85,8 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                 EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, configResource.resourceType())
                         .filter(entityType -> shouldMap(entityType))
                         .ifPresent(entityType -> {
-                            if (inNamespace(mapperContext, entityType, configResource.resourceName())) {
-                                configResource.setResourceName(unmap(mapperContext, entityType, configResource.resourceName()));
+                            if (mapper.isInNamespace(mapperContext, entityType, configResource.resourceName())) {
+                                configResource.setResourceName(mapper.unmap(mapperContext, entityType, configResource.resourceName()));
                             }
                             else {
                                 matchingAclIterator.remove();
@@ -101,24 +100,6 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
 
     private boolean shouldMap(EntityIsolation.ResourceType entityType) {
         return resourceTypes.contains(entityType);
-    }
-
-    private String map(MapperContext context, EntityIsolation.ResourceType resourceType, String originalName) {
-        if (originalName == null || originalName.isEmpty()) {
-            return originalName;
-        }
-        return mapper.map(context, resourceType, originalName);
-    }
-
-    private String unmap(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
-        if (mappedName.isEmpty()) {
-            return mappedName;
-        }
-        return mapper.unmap(context, resourceType, mappedName);
-    }
-
-    private boolean inNamespace(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
-        return mapper.isInNamespace(context, resourceType, mappedName);
     }
 
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {

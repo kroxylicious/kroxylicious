@@ -22,9 +22,9 @@ indent      java identation
             <#if filteredEntityTypes?seq_contains(field.entityType)>
         ${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/>) {
                 <#if field.type == 'string'>
-            ${pad}    ${fieldVar}.${setter}(map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
+            ${pad}    ${fieldVar}.${setter}(mapper.map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
                 <#elseif field.type == '[]string'>
-            ${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream().map(orig -> map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
+            ${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream().map(orig -> mapper.map(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
                 <#else>
                     <#stop "unexpected field type">
                 </#if>
@@ -62,8 +62,8 @@ ${pad}// process entity fields defined at this level
             <#if filteredEntityTypes?seq_contains(field.entityType)>
 ${pad}if (shouldMap(EntityIsolation.ResourceType.${field.entityType}) && <@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
                 <#if field.type == 'string'>
-${pad}    if (inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}())) {
-${pad}        ${fieldVar}.${setter}(unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
+${pad}    if (mapper.isInNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}())) {
+${pad}        ${fieldVar}.${setter}(mapper.unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, ${fieldVar}.${getter}()));
 ${pad}    }
                     <#if collectionIterator?has_content>
 ${pad}    else {
@@ -72,8 +72,8 @@ ${pad}    }
                     </#if>
                 <#elseif field.type == '[]string'>
 ${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream()
-${pad}                        .filter(orig -> inNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig))
-${pad}                        .map(orig -> unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
+${pad}                        .filter(orig -> mapper.isInNamespace(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig))
+${pad}                        .map(orig -> mapper.unmap(mapperContext, EntityIsolation.ResourceType.${field.entityType}, orig)).toList());
                     <#if collectionIterator?has_content>
 ${pad}    if (!${fieldVar}.${getter}().isEmpty()) {
 ${pad}        ${collectionIterator}.remove();
@@ -227,24 +227,6 @@ class ${messageSpecPair.name}EntityIsolationProcessor implements EntityIsolation
 
     private boolean shouldMap(EntityIsolation.ResourceType entityType) {
         return resourceTypes.contains(entityType);
-    }
-
-    private String map(MapperContext context, EntityIsolation.ResourceType resourceType, String originalName) {
-        if (originalName == null || originalName.isEmpty()) {
-            return originalName;
-        }
-        return mapper.map(context, resourceType, originalName);
-    }
-
-    private String unmap(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
-        if (mappedName.isEmpty()) {
-            return mappedName;
-        }
-        return mapper.unmap(context, resourceType, mappedName);
-    }
-
-    private boolean inNamespace(MapperContext context, EntityIsolation.ResourceType resourceType, String mappedName) {
-        return mapper.isInNamespace(context, resourceType, mappedName);
     }
 
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {

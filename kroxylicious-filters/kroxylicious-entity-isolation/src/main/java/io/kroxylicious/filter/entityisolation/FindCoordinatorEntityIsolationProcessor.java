@@ -60,10 +60,10 @@ class FindCoordinatorEntityIsolationProcessor
         resourceType.filter(resourceTypes::contains)
                 .ifPresent(rt -> {
                     if ((short) 0 <= header.requestApiVersion() && header.requestApiVersion() <= (short) 3) {
-                        request.setKey(map(mapperContext, rt, request.key()));
+                        request.setKey(mapper.map(mapperContext, rt, request.key()));
                     }
                     else {
-                        request.setCoordinatorKeys(request.coordinatorKeys().stream().map(k -> map(mapperContext, rt, k)).toList());
+                        request.setCoordinatorKeys(request.coordinatorKeys().stream().map(k -> mapper.map(mapperContext, rt, k)).toList());
                     }
                 });
 
@@ -88,25 +88,11 @@ class FindCoordinatorEntityIsolationProcessor
         Optional.ofNullable(requestedResourceType)
                 .filter(resourceTypes::contains)
                 .ifPresent(resourceType -> response.coordinators()
-                        .forEach(coordinator -> coordinator.setKey(unmap(mapperContext, requestedResourceType, coordinator.key()))));
+                        .forEach(coordinator -> coordinator.setKey(mapper.unmap(mapperContext, requestedResourceType, coordinator.key()))));
 
         log(filterContext, "response result", ApiKeys.FIND_COORDINATOR, response);
 
         return filterContext.forwardResponse(header, response);
-    }
-
-    private String map(MapperContext context, ResourceType resourceType, String originalName) {
-        if (originalName == null || originalName.isEmpty()) {
-            return originalName;
-        }
-        return mapper.map(context, resourceType, originalName);
-    }
-
-    private String unmap(MapperContext context, ResourceType resourceType, String mappedName) {
-        if (mappedName.isEmpty()) {
-            return mappedName;
-        }
-        return mapper.unmap(context, resourceType, mappedName);
     }
 
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
