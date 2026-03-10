@@ -29,7 +29,6 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C
                                                            Q request,
                                                            FilterContext filterContext,
                                                            MapperContext mapperContext) {
-
         return filterContext.forwardRequest(header, request);
     }
 
