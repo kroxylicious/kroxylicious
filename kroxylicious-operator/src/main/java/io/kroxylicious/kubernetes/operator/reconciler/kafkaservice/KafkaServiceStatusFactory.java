@@ -50,6 +50,16 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                     .withBootstrapServers(bootstrapServers)
                 .endStatus();
 
+        if (observedIngress.getSpec().getStrimziKafkaRef() != null && observedIngress.getSpec().getStrimziKafkaRef().getTrustStrimziCaCertificate()) {
+            service.editStatus()
+                    .withNewStrimziTrustAnchorRef()
+                    .withName(observedIngress.getSpec().getStrimziKafkaRef().getRef().getName() + "-cluster-ca-cert")
+                    .withStoreType("PEM")
+                    .withKey("ca.crt")
+                    .endStrimziTrustAnchorRef()
+                    .endStatus();
+        }
+
         return service.build();
         // @formatter:on
     }
