@@ -564,7 +564,9 @@ public class ProxyChannelStateMachine {
         return clientSubjectManager.clientSaslContext();
     }
 
-    public void clientSaslAuthenticationFailure() {
+    public void clientSaslAuthenticationFailure(@Nullable String mechanism,
+                                                @Nullable String authorizedId,
+                                                Exception exception) {
         clientSubjectManager.clientSaslAuthenticationFailure();
     }
 

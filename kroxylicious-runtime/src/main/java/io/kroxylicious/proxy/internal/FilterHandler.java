@@ -693,7 +693,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(authorizedId)
                     .addArgument(exception.toString())
                     .log();
-            proxyChannelStateMachine.clientSaslAuthenticationFailure();
+            proxyChannelStateMachine.clientSaslAuthenticationFailure(mechanism, authorizedId, exception);
         }
 
         @Override
