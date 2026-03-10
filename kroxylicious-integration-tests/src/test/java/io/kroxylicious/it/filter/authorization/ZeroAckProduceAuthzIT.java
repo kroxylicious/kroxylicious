@@ -12,11 +12,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
@@ -48,10 +52,12 @@ import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.it.filter.authorization.AuthzIT.getRequest;
+import static io.kroxylicious.proxy.internal.TopicNameRetriever.METADATA_API_VER_WITH_TOPIC_ID_SUPPORT;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.MockServerKroxyliciousTester.zeroAckProduceRequestMatcher;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toSet;
+import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
 import static org.apache.kafka.common.protocol.ApiKeys.SASL_AUTHENTICATE;
 import static org.apache.kafka.common.protocol.ApiKeys.SASL_HANDSHAKE;
@@ -59,7 +65,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ZeroAckProduceAuthzIT {
     private static final String TOPIC_NAME_A = "topica";
+    private static final Uuid TOPIC_ID_A = Uuid.randomUuid();
     private static final String TOPIC_NAME_B = "topicb";
+    private static final Uuid TOPIC_ID_B = Uuid.randomUuid();
+    public static final Map<Uuid, String> TOPIC_ID_TO_NAME = Map.of(TOPIC_ID_A, TOPIC_NAME_A, TOPIC_ID_B, TOPIC_NAME_B);
+    public static final Map<String, Uuid> TOPIC_NAME_TO_ID = TOPIC_ID_TO_NAME.entrySet().stream().collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
     public static final String ALICE = "alice";
     public static final String BOB = "bob";
     public static final String EVE = "eve";
@@ -109,9 +119,9 @@ class ZeroAckProduceAuthzIT {
         try (MockServerKroxyliciousTester mockServerKroxyliciousTester = KroxyliciousTesters.mockKafkaKroxyliciousTester(
                 bootstrap -> proxyConfig(bootstrap, PASSWORDS, rulesFile));
                 KafkaClient kafkaClient = mockServerKroxyliciousTester.simpleTestClient()) {
-            givenMockSaslServer(mockServerKroxyliciousTester);
+            givenMockSaslServer(mockServerKroxyliciousTester, TOPIC_ID_TO_NAME);
             AuthzIT.authenticate(kafkaClient, expectation.user, PASSWORDS.get(expectation.user));
-            ProduceRequestData produceRequestData = getProduceRequestData(expectation.topicsInProduce());
+            ProduceRequestData produceRequestData = getProduceRequestData(expectation.topicsInProduce(), apiVersion);
             mockServerKroxyliciousTester.dropWhen(zeroAckProduceRequestMatcher());
             kafkaClient.get(new Request(PRODUCE, apiVersion, "client", produceRequestData)).get(5, SECONDS);
             // send another arbitrary message as a way of ensuring the produce has completed its fire and forget send on the same channel
@@ -124,12 +134,19 @@ class ZeroAckProduceAuthzIT {
                     assertThat(mockServerKroxyliciousTester.getRequestsForApiKey(PRODUCE)).hasSize(1)
                             .singleElement().satisfies(request -> {
                                 ProduceRequestData message = (ProduceRequestData) request.message();
-                                Set<String> forwardedTopics = message.topicData().stream().map(ProduceRequestData.TopicProduceData::name).collect(toSet());
+                                Set<String> forwardedTopics = message.topicData().stream().map(ZeroAckProduceAuthzIT::getName).collect(toSet());
                                 assertThat(forwardedTopics).containsExactlyInAnyOrderElementsOf(expectation.topicsForwarded());
                             });
                 });
             }
         }
+    }
+
+    private static String getName(ProduceRequestData.TopicProduceData topicProduceData) {
+        return Optional.ofNullable(topicProduceData.name())
+                .filter(s -> !s.isEmpty())
+                .or(() -> Optional.ofNullable(TOPIC_ID_TO_NAME.get(topicProduceData.topicId())))
+                .orElseThrow();
     }
 
     private static void sendArbitraryMessageExpectedResponse(KafkaClient kafkaClient) {
@@ -139,7 +156,7 @@ class ZeroAckProduceAuthzIT {
         assertThat(Errors.forCode(handshakeResponse.errorCode())).isEqualTo(Errors.NONE);
     }
 
-    private static void givenMockSaslServer(MockServerKroxyliciousTester mockServerKroxyliciousTester) {
+    private static void givenMockSaslServer(MockServerKroxyliciousTester mockServerKroxyliciousTester, Map<Uuid, String> topicNames) {
         SaslHandshakeResponseData handshakeResponse = new SaslHandshakeResponseData();
         handshakeResponse.setMechanisms(List.of(PlainSaslServer.PLAIN_MECHANISM));
         ResponsePayload handshakePayload = new ResponsePayload(SASL_HANDSHAKE, SASL_HANDSHAKE.latestVersion(), handshakeResponse);
@@ -149,6 +166,13 @@ class ZeroAckProduceAuthzIT {
         authResponse.setErrorCode(Errors.NONE.code());
         ResponsePayload authPayload = new ResponsePayload(SASL_AUTHENTICATE, SASL_AUTHENTICATE.latestVersion(), handshakeResponse);
         mockServerKroxyliciousTester.addMockResponseForApiKey(authPayload);
+        MetadataResponseData metadataResponseData = new MetadataResponseData();
+        topicNames.forEach((key, value) -> {
+            MetadataResponseData.MetadataResponseTopic topic = new MetadataResponseData.MetadataResponseTopic();
+            topic.setName(value).setTopicId(key);
+            metadataResponseData.topics().add(topic);
+        });
+        mockServerKroxyliciousTester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA_API_VER_WITH_TOPIC_ID_SUPPORT, metadataResponseData));
     }
 
     record Expectation(String user, List<String> topicsInProduce, List<String> topicsForwarded) {
@@ -189,14 +213,21 @@ class ZeroAckProduceAuthzIT {
                         .map(expectation -> Arguments.argumentSet("api version " + apiVersion + " " + expectation, (short) (int) apiVersion, expectation)));
     }
 
-    private static ProduceRequestData getProduceRequestData(List<String> topicsToSendDataTo) {
+    private static ProduceRequestData getProduceRequestData(List<String> topicsToSendDataTo, short apiVersion) {
         ProduceRequestData data = new ProduceRequestData()
                 .setTimeoutMs(10_000)
                 .setAcks((short) 0);
         var topicCollection = new ProduceRequestData.TopicProduceDataCollection();
         for (String topic : topicsToSendDataTo) {
-            var t = new ProduceRequestData.TopicProduceData()
-                    .setPartitionData(partitionData()).setName(topic);
+            ProduceRequestData.TopicProduceData topicProduceData = new ProduceRequestData.TopicProduceData()
+                    .setPartitionData(partitionData());
+            ProduceRequestData.TopicProduceData t;
+            if (apiVersion >= 13) {
+                t = topicProduceData.setTopicId(TOPIC_NAME_TO_ID.get(topic));
+            }
+            else {
+                t = topicProduceData.setName(topic);
+            }
             topicCollection.mustAdd(t);
         }
         data.setTopicData(topicCollection);
