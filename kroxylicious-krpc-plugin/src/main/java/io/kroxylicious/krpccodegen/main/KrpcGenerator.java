@@ -42,10 +42,8 @@ import org.graalvm.polyglot.TypeLiteral;
 
 import io.kroxylicious.krpccodegen.model.EntityTypeSetFactory;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
-import io.kroxylicious.krpccodegen.model.MessageSpecFilters;
 import io.kroxylicious.krpccodegen.model.MessageSpecParser;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
-import io.kroxylicious.krpccodegen.model.RetrieveApiListeners;
 import io.kroxylicious.krpccodegen.schema.EntityType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 import io.kroxylicious.krpccodegen.schema.MessageSpecPair;
@@ -371,7 +369,6 @@ public class KrpcGenerator {
             }
             else {
                 dm.put("messageSpecs", target);
-                dm.put("retrieveApiListener", new RetrieveApiListeners((Set<MessageSpec>) target));
             }
             generatedFiles = renderMulti(cfg, dm);
         }
@@ -388,8 +385,8 @@ public class KrpcGenerator {
             try (Context context = Context.newBuilder("js")
                     .allowAllAccess(true)
                     .build()) {
+                // These bindings allow Javascript expressions to be written in terms of the Java classes, without referring to the fully qualified Java name.
                 var bindings = context.getBindings("js");
-                bindings.putMember("MessageSpecFilters", MessageSpecFilters.class);
                 bindings.putMember("RequestListenerType", RequestListenerType.class);
                 bindings.putMember("EntityType", EntityType.class);
                 bindings.putMember("Set", Set.class);

@@ -14,7 +14,7 @@ import io.kroxylicious.krpccodegen.schema.EntityType;
 import freemarker.template.TemplateMethodModelEx;
 
 /**
- * A custom FreeMarker function which obtains the API key (as an enum name) from a message spec, e.g. "CREATE_TOPICS".
+ * A custom FreeMarker function which converts a list of entity type names into set of {@link EntityType}s.
  */
 public class EntityTypeSetFactory implements TemplateMethodModelEx {
 
@@ -26,6 +26,7 @@ public class EntityTypeSetFactory implements TemplateMethodModelEx {
     }
 
     @Override
+    @SuppressWarnings("unchecked") // Freemarker uses raw lists for its arguments
     public Object exec(List arguments) {
         var entityTypes = new LinkedHashSet<>(arguments.size());
         arguments.forEach(argument -> Optional.of(argument)
