@@ -51,6 +51,8 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
+        "/kroxylicious-kms-providers/kroxylicious-kms-provider-hashicorp-vault-test-support/src/main/java/io/kroxylicious/kms/provider/hashicorp/vault/VaultTestKmsFacade.java/",
+        "/kroxylicious-kms-providers/kroxylicious-kms-provider-hashicorp-vault/src/test/java/io/kroxylicious/kms/provider/hashicorp/vault/TestVault.java/",
         "/kroxylicious-systemtests/src/main/resources/helm_vault_overrides.yaml/",
         "/performance-tests/perf-tests.sh/",
         "/kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/values.yaml/"
@@ -60,19 +62,6 @@
         "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)@(?<currentDigest>.*)"
       ],
       "depNameTemplate": "hashicorp/vault",
-      "datasourceTemplate": "docker"
-    },
-    {
-      "customType": "regex",
-      "matchStringsStrategy": "combination",
-      "managerFilePatterns": [
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-hashicorp-vault-test-support/src/main/java/io/kroxylicious/kms/provider/hashicorp/vault/VaultTestKmsFacade.java/",
-        "/kroxylicious-kms-providers/kroxylicious-kms-provider-hashicorp-vault/src/test/java/io/kroxylicious/kms/provider/hashicorp/vault/TestVault.java/"
-      ],
-      "matchStrings": [
-        "(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)",
-        "DIGEST = \"(?<currentDigest>.*)\""
-      ],
       "datasourceTemplate": "docker"
     },
     {
