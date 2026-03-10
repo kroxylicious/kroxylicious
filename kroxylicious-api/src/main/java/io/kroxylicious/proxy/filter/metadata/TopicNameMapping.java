@@ -21,6 +21,13 @@ public interface TopicNameMapping {
     boolean anyFailures();
 
     /**
+     * @return true if all name mappings failed
+     */
+    default boolean allFailures() {
+        return anyFailures() && topicNames().isEmpty();
+    }
+
+    /**
      * @return immutable map from topic id to successfully mapped topic name
      */
     Map<Uuid, String> topicNames();

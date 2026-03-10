@@ -34,15 +34,18 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import io.kroxylicious.filter.authorization.AuthorizationFilter;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
+
+import static java.util.stream.Stream.concat;
 
 class FetchAuthzIT extends AuthzIT {
 
     public static final String EXISTING_TOPIC_NAME = "other-topic";
-    public static final IntStream API_VERSIONS_WITHOUT_TOPIC_IDS = IntStream.rangeClosed(4, 12);
-    public static final IntStream API_VERSIONS_WITH_TOPIC_IDS = IntStream.rangeClosed(13, ApiKeys.FETCH.latestVersion(true));
+    private static final short MIN_VERSION_WITH_TOPIC_ID = 13;
     private Path rulesFile;
 
     private static final String ALICE_TO_READ_TOPIC_NAME = "alice-new-topic";
@@ -89,12 +92,16 @@ class FetchAuthzIT extends AuthzIT {
     }
 
     List<Arguments> shouldEnforceAccessToTopics() {
-        Stream<Arguments> supportedVersions = API_VERSIONS_WITHOUT_TOPIC_IDS.mapToObj(
-                apiVersion -> Arguments.argumentSet("fetch version " + apiVersion, new FetchEquivalence((short) apiVersion)));
-        Stream<Arguments> unsupportedVersions = API_VERSIONS_WITH_TOPIC_IDS
-                .mapToObj(apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion, new UnsupportedApiVersion<>(ApiKeys.FETCH, (short) apiVersion)));
-        return Stream.concat(supportedVersions, unsupportedVersions)
-                .toList();
+        Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.FETCH),
+                AuthorizationFilter.maxSupportedApiVersion(ApiKeys.FETCH))
+                .boxed().map(apiVersion -> Arguments.argumentSet("fetch version " + apiVersion, new FetchEquivalence((short) (int) apiVersion)));
+        Stream<Arguments> unsupportedVersions = IntStream
+                .rangeClosed(ApiKeys.FETCH.oldestVersion(), ApiKeys.FETCH.latestVersion(true))
+                .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.FETCH, (short) version))
+                .mapToObj(
+                        apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
+                                new UnsupportedApiVersion<>(ApiKeys.FETCH, (short) apiVersion)));
+        return concat(supportedVersions, unsupportedVersions).toList();
     }
 
     @ParameterizedTest
@@ -114,6 +121,14 @@ class FetchAuthzIT extends AuthzIT {
 
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonResponse) {
+            JsonNode responses = jsonResponse.get("responses");
+            if (responses.isArray()) {
+                for (JsonNode topic : responses) {
+                    if (topic instanceof ObjectNode objectNode) {
+                        replaceTopicIdWithName(cluster, objectNode, "topicId");
+                    }
+                }
+            }
             return prettyJsonString(jsonResponse);
         }
 
@@ -130,9 +145,9 @@ class FetchAuthzIT extends AuthzIT {
         @Override
         public FetchRequestData requestData(String user, BaseClusterFixture clusterFixture) {
             FetchRequestData fetchRequestData = new FetchRequestData();
-            FetchRequestData.FetchTopic topicA = createFetchTopic(ALICE_TO_READ_TOPIC_NAME, 0);
-            FetchRequestData.FetchTopic topicB = createFetchTopic(BOB_TO_READ_TOPIC_NAME, 0);
-            FetchRequestData.FetchTopic topicC = createFetchTopic(EXISTING_TOPIC_NAME, 0);
+            FetchRequestData.FetchTopic topicA = createFetchTopic(ALICE_TO_READ_TOPIC_NAME, clusterFixture, 0);
+            FetchRequestData.FetchTopic topicB = createFetchTopic(BOB_TO_READ_TOPIC_NAME, clusterFixture, 0);
+            FetchRequestData.FetchTopic topicC = createFetchTopic(EXISTING_TOPIC_NAME, clusterFixture, 0);
             fetchRequestData.setTopics(List.of(topicA, topicB, topicC));
             return fetchRequestData;
         }
@@ -143,17 +158,22 @@ class FetchAuthzIT extends AuthzIT {
                     .flatMap(topicData -> topicData.partitions().stream())
                     .anyMatch(partitionData -> partitionData.errorCode() == Errors.NOT_LEADER_OR_FOLLOWER.code());
         }
-    }
 
-    private static FetchRequestData.FetchTopic createFetchTopic(String topicName, int... partitions) {
-        FetchRequestData.FetchTopic fetchTopic = new FetchRequestData.FetchTopic();
-        fetchTopic.setTopic(topicName);
-        List<FetchRequestData.FetchPartition> fetchPartitions = Arrays.stream(partitions).mapToObj(partition -> {
-            FetchRequestData.FetchPartition fetchPartition = new FetchRequestData.FetchPartition();
-            fetchPartition.setPartition(partition);
-            return fetchPartition;
-        }).toList();
-        fetchTopic.setPartitions(fetchPartitions);
-        return fetchTopic;
+        private FetchRequestData.FetchTopic createFetchTopic(String topicName, BaseClusterFixture cluster, int... partitions) {
+            FetchRequestData.FetchTopic fetchTopic = new FetchRequestData.FetchTopic();
+            if (apiVersion() >= MIN_VERSION_WITH_TOPIC_ID) {
+                fetchTopic.setTopicId(cluster.topicIds().get(topicName));
+            }
+            else {
+                fetchTopic.setTopic(topicName);
+            }
+            List<FetchRequestData.FetchPartition> fetchPartitions = Arrays.stream(partitions).mapToObj(partition -> {
+                FetchRequestData.FetchPartition fetchPartition = new FetchRequestData.FetchPartition();
+                fetchPartition.setPartition(partition);
+                return fetchPartition;
+            }).toList();
+            fetchTopic.setPartitions(fetchPartitions);
+            return fetchTopic;
+        }
     }
 }
