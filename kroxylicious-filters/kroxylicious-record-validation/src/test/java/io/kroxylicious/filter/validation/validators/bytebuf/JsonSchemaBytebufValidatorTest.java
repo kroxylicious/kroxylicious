@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 
-import io.apicurio.registry.resolver.config.SchemaResolverConfig;
 import io.apicurio.registry.serde.BaseSerde;
 import io.apicurio.registry.serde.kafka.headers.KafkaSerdeHeaders;
 
@@ -92,8 +91,7 @@ class JsonSchemaBytebufValidatorTest {
                                 .withBody("[]")));
 
         apicurioConfig = Map.of(
-                "apicurio.registry.url", registryServer.baseUrl() + "/apis/registry/v3",
-                SchemaResolverConfig.HTTP_ADAPTER, "JDK");
+                "apicurio.registry.url", registryServer.baseUrl() + "/apis/registry/v3");
     }
 
     @AfterAll

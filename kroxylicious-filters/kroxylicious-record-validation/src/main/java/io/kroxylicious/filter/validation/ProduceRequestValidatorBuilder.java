@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.validation;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
 
 import io.apicurio.registry.resolver.config.SchemaResolverConfig;
@@ -28,8 +27,6 @@ import io.kroxylicious.filter.validation.validators.topic.TopicValidators;
  * Builds from configuration objects to a ProduceRequestValidator
  */
 class ProduceRequestValidatorBuilder {
-
-    private static final boolean JDK_ADAPTER_AVAILABLE = isClassAvailable(io.kiota.http.jdk.JDKRequestAdapter.class.getName());
 
     private ProduceRequestValidatorBuilder() {
 
@@ -77,22 +74,6 @@ class ProduceRequestValidatorBuilder {
     }
 
     private static Map<String, Object> buildSchemaResolverConfig(SchemaValidationConfig config) {
-        Map<String, Object> resolverConfig = new HashMap<>();
-        resolverConfig.put(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString());
-        if (JDK_ADAPTER_AVAILABLE) {
-            resolverConfig.put(SchemaResolverConfig.HTTP_ADAPTER, "JDK");
-        }
-
-        return resolverConfig;
-    }
-
-    private static boolean isClassAvailable(String className) {
-        try {
-            Class.forName(className, false, ProduceRequestValidatorBuilder.class.getClassLoader());
-            return true;
-        }
-        catch (ClassNotFoundException e) {
-            return false;
-        }
+        return Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString());
     }
 }
