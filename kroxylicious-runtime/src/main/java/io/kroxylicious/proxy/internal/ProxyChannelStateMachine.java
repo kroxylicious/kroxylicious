@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.net.SocketAddress;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -528,6 +529,10 @@ public class ProxyChannelStateMachine {
      */
     public String sessionId() {
         return kafkaSession.sessionId();
+    }
+
+    SocketAddress clientAddress() {
+        return frontendHandler.remoteAddress();
     }
 
     /**

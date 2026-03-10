@@ -605,6 +605,10 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    SocketAddress remoteAddress() {
+        return clientCtx().channel().remoteAddress();
+    }
+
     protected String remoteHost() {
         SocketAddress socketAddress = clientCtx().channel().remoteAddress();
         if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
