@@ -7,7 +7,7 @@
 -->
 <#assign filteredEntityTypes = createEntityTypeSet("GROUP_ID", "TRANSACTIONAL_ID", "TOPIC_NAME")>
 
-<#-- mapRequestFields - recursive macro that generates mapping code for a request object.
+<#-- mapRequestFields - macro that generates mapping code for a request object using a resource list.
 
 messageSpec message spec model object
 fieldVar    name of the java variable refering to the current field
@@ -33,20 +33,9 @@ indent      java identation
             </#if>
         </#items>
     </#list>
-    <#list children?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
-${pad}// recursively process sub-fields
-        <#items as childField>
-            <#local getter="${childField.name?uncap_first}" elementVar=childField.type?remove_beginning("[]")?uncap_first />
-${pad}if (<@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(childField.versions)/> && ${fieldVar}.${getter}() != null) {
-${pad}    ${fieldVar}.${getter}().forEach(${elementVar} -> {
-                <@mapRequestFields messageSpec elementVar childField.fields indent + 2 />
-        ${pad}    });
-        ${pad}}
-        </#items>
-    </#list>
 </#macro>
 
-<#-- mapAndFilterResponseFields - recursive macro that generates filtering and mapping code for a response object.
+<#-- mapAndFilterResponseFields - macro that generates filtering and mapping code for a response object using a resource list.
 
 messageSpec        message spec model object
 collectionIterator collection iteration used to remove filtered items
@@ -57,7 +46,7 @@ indent             java identation
 <#macro mapAndFilterResponseFields messageSpec collectionIterator fieldVar children indent>
     <#local pad = ""?left_pad(4*indent)/>
     <#list children>
-${pad}// process entity fields defined at this level
+${pad}// process the resource list
         <#items as field>
             <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
             <#if field.isResourceList>
@@ -81,21 +70,6 @@ ${pad}        });
 ${pad}    }
 ${pad}}
             </#if>
-        </#items>
-    </#list>
-    <#list children?filter(field -> field.type.isArray && field.fields?size != 0 && field.hasAtLeastOneEntityField(filteredEntityTypes)) >
-${pad}// recursively process sub-fields
-        <#items as field>
-            <#local getter="${field.name?uncap_first}"
-                    collectionIteratorVar=field.name?uncap_first + "Iterator"
-                    elementVar=field.type?remove_beginning("[]")?uncap_first />
-${pad}if (<@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
-${pad}    var ${collectionIteratorVar} = ${fieldVar}.${getter}().iterator();
-${pad}    while (${collectionIteratorVar}.hasNext()) {
-${pad}       var ${elementVar} = ${collectionIteratorVar}.next();
-            <@mapAndFilterResponseFields messageSpec collectionIteratorVar elementVar field.fields indent + 2 />
-${pad}    }
-${pad}}
         </#items>
     </#list>
 </#macro>
