@@ -75,11 +75,6 @@
             <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-runtime</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
