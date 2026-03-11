@@ -58,8 +58,8 @@
         "/kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/values.yaml/"
       ],
       "matchStrings": [
-        "(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)@(?<currentDigest>.*)\"",
-        "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)@(?<currentDigest>.*)"
+        "(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
+        "tag:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)"
       ],
       "depNameTemplate": "hashicorp/vault",
       "datasourceTemplate": "docker"
@@ -82,7 +82,7 @@
         "/kroxylicious-systemtests/src/main/resources/helm_cert_manager_overrides.yaml/"
       ],
       "matchStrings": [
-        "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
+        "tag:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "cert-manager/cert-manager",
       "datasourceTemplate": "github-releases"
@@ -94,8 +94,8 @@
         "/kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml/"
       ],
       "matchStrings": [
-        "(?<depName>localstack/localstack):(?<currentValue>\\d+\\.\\d+.\\d+)@(?<currentDigest>.*)\"",
-        "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)@(?<currentDigest>.*)"
+        "(?<depName>localstack/localstack):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
+        "tag:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)"
       ],
       "depNameTemplate": "localstack/localstack",
       "datasourceTemplate": "docker"
@@ -108,8 +108,8 @@
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/MockOauthServer.java/"
       ],
       "matchStrings": [
-        "(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+.\\d+)@(?<currentDigest>.*)\"",
-        "(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+.\\d+)"
+        "(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
+        "(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "datasourceTemplate": "docker"
     },
@@ -207,7 +207,7 @@
         "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
       ],
       "matchStrings": [
-        ":vault-chart-version:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
+        ":vault-chart-version:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "hashicorp/vault-helm",
       "datasourceTemplate": "github-releases"
@@ -218,7 +218,7 @@
         "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
       ],
       "matchStrings": [
-        ":localstack-chart-version:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
+        ":localstack-chart-version:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "localstack/helm-charts",
       "extractVersionTemplate": "^localstack-(?<version>.*)$",
@@ -230,7 +230,7 @@
         "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
       ],
       "matchStrings": [
-        ":localstack-chart-version:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
+        ":localstack-chart-version:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "localstack/helm-charts",
       "extractVersionTemplate": "^localstack-(?<version>.*)$",
@@ -242,7 +242,7 @@
         "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
       ],
       "matchStrings": [
-        ":strimzi-version:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
+        ":strimzi-version:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "strimzi/strimzi-kafka-operator",
       "datasourceTemplate": "github-releases"
