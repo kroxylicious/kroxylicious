@@ -303,6 +303,20 @@ class ConfigParserTest {
                           - name: mygateway
                             portIdentifiesNode:
                               bootstrapAddress: "localhost:9082"
+                        """),
+                argumentSet("Network proxy idle timeouts", """
+                        network:
+                          proxy:
+                            authenticatedIdleTimeout: 30s
+                            unauthenticatedIdleTimeout: 10s
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
                         """));
     }
 
@@ -348,6 +362,32 @@ class ConfigParserTest {
                                         .satisfies(strategy -> assertThat(strategy.getBootstrapAddress()).isEqualTo(HostPort.parse("localhost:9192")));
                             });
                 });
+    }
+
+    @Test
+    void shouldDeserializeNettySettingsIdleTimeoutsAsDurations() {
+        var configuration = configParser.parseConfiguration("""
+                network:
+                  proxy:
+                    authenticatedIdleTimeout: 30s
+                    unauthenticatedIdleTimeout: 10m
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """);
+        assertThat(configuration.network())
+                .isNotNull()
+                .satisfies(network -> assertThat(network.proxy())
+                        .isNotNull()
+                        .satisfies(proxy -> {
+                            assertThat(proxy.authenticatedIdleTimeout()).contains(Duration.ofSeconds(30));
+                            assertThat(proxy.unauthenticatedIdleTimeout()).contains(Duration.ofMinutes(10));
+                        }));
     }
 
     @Test
