@@ -8,19 +8,15 @@
 metadata:
   apiKeys: "CONSUMER_GROUP_HEARTBEAT"
   apiVersion: 1
-  scenario: "any topic denied causes the whole request to fail with authorization error"
+  scenario: "allowed topic is forwarded"
 given:
   mockedUpstreamResponses: []
   authorizerRules:
-    allowed:
+    allowed: # not allowed to READ GROUP my-group
       - subject: "alice"
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "DESCRIBE"
-      - subject: "alice"
-        resourceName: "my-group"
-        resourceClass: "GROUP"
-        resourceType: "READ"
   topicNames: {}
 when:
   subject: "alice"
@@ -38,7 +34,6 @@ when:
     rebalanceTimeoutMs: 707
     subscribedTopicNames:
       - "my-topic"
-      - "my-unauthorized-topic"
     subscribedTopicRegex: null
     serverAssignor: "random-string-543"
     topicPartitions:
@@ -48,11 +43,4 @@ when:
 then:
   expectedResponseHeader:
     correlationId: 1
-  expectedResponse:
-    throttleTimeMs: 0
-    errorCode: 29
-    errorMessage: null
-    memberId: null
-    memberEpoch: 0
-    heartbeatIntervalMs: 0
-    assignment: null
+  expectedErrorResponse: GROUP_AUTHORIZATION_FAILED

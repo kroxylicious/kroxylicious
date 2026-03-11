@@ -19,7 +19,7 @@ given:
         correlationId: 1
         clientId: "client-id"
       expectedRequest:
-        groupId: "random-string-864"
+        groupId: "my-group"
         memberId: "random-string-376"
         memberEpoch: 826
         instanceId: "random-string-490"
@@ -53,6 +53,10 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
   topicNames: {}
 when:
   subject: "alice"
@@ -62,7 +66,7 @@ when:
     correlationId: 1
     clientId: "client-id"
   request:
-    groupId: "random-string-864"
+    groupId: "my-group"
     memberId: "random-string-376"
     memberEpoch: 826
     instanceId: "random-string-490"
@@ -70,7 +74,7 @@ when:
     rebalanceTimeoutMs: 707
     subscribedTopicNames:
       - "my-topic"
-    subscribedTopicRegex: "random-string-512"
+    subscribedTopicRegex: null
     serverAssignor: "random-string-543"
     topicPartitions:
       - topicId: "uaPs8J6nTBWuEmm8fLgGiA"

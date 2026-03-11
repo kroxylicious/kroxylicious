@@ -6,10 +6,12 @@
 
 package io.kroxylicious.filter.authorization;
 
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
@@ -39,14 +41,17 @@ class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHear
                                                    ConsumerGroupHeartbeatRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        if (request.subscribedTopicNames() == null || request.subscribedTopicNames().isEmpty()) {
-            return context.forwardRequest(header, request);
-        }
-        else {
-            var subscribedTopicSet = new HashSet<>(request.subscribedTopicNames());
-            List<Action> actions = subscribedTopicSet.stream().map(topic -> new Action(TopicResource.DESCRIBE, topic)).toList();
-            return authorizationFilter.authorization(context, actions).thenCompose(result -> {
-                Map<Decision, List<String>> partitioned = result.partition(subscribedTopicSet, TopicResource.DESCRIBE, identity());
+        Action groupReadAction = new Action(GroupResource.READ, request.groupId());
+        List<Action> actions = Stream.concat(Stream.of(groupReadAction), topicDescribeActions(request)).toList();
+        return authorizationFilter.authorization(context, actions).thenCompose(result -> {
+            if (result.denied().contains(groupReadAction)) {
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+            }
+            else if (request.subscribedTopicNames() == null || request.subscribedTopicNames().isEmpty()) {
+                return context.forwardRequest(header, request);
+            }
+            else {
+                Map<Decision, List<String>> partitioned = result.partition(request.subscribedTopicNames(), TopicResource.DESCRIBE, identity());
                 List<String> denied = partitioned.get(Decision.DENY);
                 if (!denied.isEmpty()) {
                     ConsumerGroupHeartbeatResponseData message = new ConsumerGroupHeartbeatResponseData();
@@ -55,7 +60,13 @@ class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHear
                     return context.requestFilterResultBuilder().shortCircuitResponse(message).completed();
                 }
                 return context.forwardRequest(header, request);
-            });
-        }
+            }
+        });
+    }
+
+    private static Stream<Action> topicDescribeActions(ConsumerGroupHeartbeatRequestData request) {
+        return Optional.ofNullable(request.subscribedTopicNames()).stream()
+                .flatMap(Collection::stream)
+                .map(topic -> new Action(TopicResource.DESCRIBE, topic));
     }
 }
