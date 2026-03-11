@@ -51,7 +51,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Name;
 import static java.util.stream.Stream.concat;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
+public class ConsumerGroupDescribeTopicAuthzIT extends AuthzIT {
 
     private static final String ALICE_TOPIC_NAME = "alice-topic";
     private static final String BOB_TOPIC_NAME = "bob-topic";
