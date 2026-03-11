@@ -194,7 +194,7 @@ run_probe() {
     local probe_output_dir="$2"
 
     mkdir -p "${probe_output_dir}"
-    echo "  Probe at ${rate} msg/sec..."
+    printf "  Probe at %'d msg/sec..." "${rate}"
 
     # Clear previous OMB result files from the pod so we can unambiguously
     # identify the result from this probe afterwards.
@@ -203,13 +203,23 @@ run_probe() {
 
     # Run OMB with the target producer rate. The workload ConfigMap is read-only,
     # so we use sed to write a modified copy into /tmp and run from there.
+    # Capture the exit code without triggering set -e so we can diagnose failures.
+    local exec_rc=0
     kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
         sh -c "sed 's/^producerRate:.*/producerRate: ${rate}/' /etc/omb/workloads/workload.yaml > /tmp/workload.yaml && \
                cd /var/lib/omb/results && \
                /opt/benchmark/bin/benchmark \
                  --drivers /etc/omb/driver/driver-kafka.yaml \
                  --workers \"\${WORKERS}\" \
-                 /tmp/workload.yaml"
+                 /tmp/workload.yaml" || exec_rc=$?
+
+    if [[ "${exec_rc}" -ne 0 ]]; then
+        echo " FAILED (exit ${exec_rc})" >&2
+        diagnose_pod_failure "app=omb-benchmark" "${rate}"
+        return 1
+    fi
+
+    echo ""
 
     # Collect the result JSON produced by this probe.
     local benchmark_pod
@@ -221,12 +231,44 @@ run_probe() {
         sh -c 'ls -t /var/lib/omb/results/*.json 2>/dev/null | head -1') || true
 
     if [[ -z "${result_file}" ]]; then
-        echo "  Warning: no result file found for rate ${rate} msg/sec" >&2
+        echo "  No result file found — OMB may not have written output" >&2
+        diagnose_pod_failure "app=omb-benchmark" "${rate}"
         return 1
     fi
 
     kubectl cp "${NAMESPACE}/${benchmark_pod}:${result_file}" "${probe_output_dir}/result.json"
     echo "  Result collected: ${probe_output_dir}/result.json"
+}
+
+# Queries pod status after a failure and emits a human-readable diagnosis.
+# Distinguishes OOMKill / eviction (infrastructure limit) from OMB process errors.
+diagnose_pod_failure() {
+    local label="$1"
+    local rate="$2"
+
+    local phase reason restart_count
+    phase=$(kubectl get pod -n "${NAMESPACE}" -l "${label}" \
+        -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Unknown")
+    reason=$(kubectl get pod -n "${NAMESPACE}" -l "${label}" \
+        -o jsonpath='{.items[0].status.containerStatuses[0].lastState.terminated.reason}' \
+        2>/dev/null || echo "")
+    restart_count=$(kubectl get pod -n "${NAMESPACE}" -l "${label}" \
+        -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}' \
+        2>/dev/null || echo "0")
+
+    if [[ "${reason}" == "OOMKilled" ]]; then
+        echo "  ✗ OOMKilled at ${rate} msg/sec — pod exceeded its memory limit" >&2
+        echo "    Increase memory limits or reduce the target rate" >&2
+    elif [[ "${phase}" != "Running" ]]; then
+        echo "  ✗ Pod is not Running (phase=${phase} reason=${reason} restarts=${restart_count})" >&2
+        echo "    kubectl describe pod -l ${label} -n ${NAMESPACE}" >&2
+    elif [[ "${restart_count}" -gt 0 ]]; then
+        echo "  ✗ Pod restarted during probe (restarts=${restart_count} last reason=${reason})" >&2
+        echo "    kubectl logs -l ${label} -n ${NAMESPACE} --previous" >&2
+    else
+        echo "  ✗ OMB process exited non-zero — benchmark may have failed" >&2
+        echo "    kubectl logs -l ${label} -n ${NAMESPACE} | tail -50" >&2
+    fi
 }
 
 # --- Summary table ---
