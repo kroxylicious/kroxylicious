@@ -6,9 +6,11 @@
 
 package io.kroxylicious.filter.authorization;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -30,6 +32,8 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
+import static io.kroxylicious.filter.authorization.AuthorizedOps.groupAuthorizedOps;
+
 class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescribeRequestData, ConsumerGroupDescribeResponseData> {
 
     public static final List<Function<Member, Assignment>> ALL_ASSIGNMENTS = List.of(Member::assignment, Member::targetAssignment);
@@ -45,11 +49,12 @@ class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescr
         return 1;
     }
 
-    record DeniedGroups(List<String> deniedGroups) implements InflightState<ConsumerGroupDescribeResponseData> {
+    record GroupDescribeState(List<String> deniedGroups, boolean includeAuthorizedOperations, AuthorizeResult groupAuthorizeResult)
+            implements InflightState<ConsumerGroupDescribeResponseData> {
 
         @Override
         public ConsumerGroupDescribeResponseData merge(ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData) {
-            return null;
+            throw new IllegalStateException("merge not supported");
         }
     }
 
@@ -58,22 +63,36 @@ class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescr
                                                    ConsumerGroupDescribeRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        List<Action> describeGroupActions = request.groupIds().stream().map(groupId -> new Action(GroupResource.DESCRIBE, groupId)).toList();
+        boolean includeAuthorizedOperations = request.includeAuthorizedOperations();
+        List<Action> describeGroupActions = getActions(request, includeAuthorizedOperations);
         return authorizationFilter.authorization(context, describeGroupActions).thenCompose(authorizeResult -> {
-            if (authorizeResult.allowed().isEmpty()) {
+            if (authorizeResult.allowed(GroupResource.DESCRIBE).isEmpty()) {
                 return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
             }
             else if (!authorizeResult.denied().isEmpty()) {
                 Map<Decision, List<String>> groupsByDecision = authorizeResult.partition(request.groupIds(), GroupResource.DESCRIBE, Function.identity());
                 List<String> deniedGroups = groupsByDecision.get(Decision.DENY);
                 request.groupIds().removeAll(deniedGroups);
-                authorizationFilter.pushInflightState(header, new DeniedGroups(deniedGroups));
+                authorizationFilter.pushInflightState(header, new GroupDescribeState(deniedGroups, includeAuthorizedOperations, authorizeResult));
                 return context.forwardRequest(header, request);
             }
             else {
+                authorizationFilter.pushInflightState(header, new GroupDescribeState(List.of(), includeAuthorizedOperations, authorizeResult));
                 return context.forwardRequest(header, request);
             }
         });
+    }
+
+    private static List<Action> getActions(ConsumerGroupDescribeRequestData request, boolean includeAuthorizedOperations) {
+        List<GroupResource> resources;
+        if (includeAuthorizedOperations) {
+            resources = Arrays.stream(GroupResource.values()).toList();
+        }
+        else {
+            resources = List.of(GroupResource.DESCRIBE);
+        }
+        return request.groupIds().stream().flatMap(groupId -> resources.stream().map(groupResource -> new Action(groupResource, groupId)))
+                .toList();
     }
 
     @Override
@@ -81,14 +100,19 @@ class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescr
                                                      ConsumerGroupDescribeResponseData response,
                                                      FilterContext context,
                                                      AuthorizationFilter authorizationFilter) {
-        DeniedGroups deniedGroups = authorizationFilter.popInflightState(header, DeniedGroups.class);
-        if (deniedGroups != null) {
-            for (String deniedGroup : deniedGroups.deniedGroups()) {
-                DescribedGroup responseGroup = new DescribedGroup();
-                responseGroup.setGroupId(deniedGroup);
-                responseGroup.setErrorCode(Errors.GROUP_AUTHORIZATION_FAILED.code());
-                response.groups().add(responseGroup);
+        // should always be non-null as we only forward after pushing the state
+        GroupDescribeState groupDescribeState = Objects.requireNonNull(authorizationFilter.popInflightState(header, GroupDescribeState.class));
+        if (groupDescribeState.includeAuthorizedOperations) {
+            for (DescribedGroup group : response.groups()) {
+                int updatedOps = groupAuthorizedOps(groupDescribeState.groupAuthorizeResult, group.authorizedOperations(), group.groupId());
+                group.setAuthorizedOperations(updatedOps);
             }
+        }
+        for (String deniedGroup : groupDescribeState.deniedGroups()) {
+            DescribedGroup responseGroup = new DescribedGroup();
+            responseGroup.setGroupId(deniedGroup);
+            responseGroup.setErrorCode(Errors.GROUP_AUTHORIZATION_FAILED.code());
+            response.groups().add(responseGroup);
         }
         List<Action> actions = response.groups().stream()
                 .flatMap(maybeNullOrEmpty(DescribedGroup::members))
