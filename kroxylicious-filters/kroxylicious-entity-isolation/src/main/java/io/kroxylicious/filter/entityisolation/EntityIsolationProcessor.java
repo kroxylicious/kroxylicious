@@ -18,12 +18,52 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 import edu.umd.cs.findbugs.annotations.UnknownNullness;
 
+/**
+ * An entity isolation processor for a request/response pair.
+ *
+ * @param <Q> request
+ * @param <S> response
+ * @param <C> request context or void
+ */
 interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C> {
 
+    /**
+     * Returns true if the processor should isolate this request version.
+     * @param apiVersion @apiNote version
+     * @return  true if the processor should isolate this request version.
+     */
     default boolean shouldHandleRequest(short apiVersion) {
         return false;
     }
 
+    /**
+     * Creates correlation object for the given request, if required. Processors
+     * that do not require correlation must return null.
+     * <br/>
+     * Implementations are guaranteed that this method will be called before onRequest is
+     * invoked.
+     * <br/>
+     * If an implementation wishes to use the request itself as the correlation, it is its responsibility
+     * to perform a deep copy and return copy.
+     *
+     * @param request request
+     * @return correlation object or null.
+     */
+    @UnknownNullness
+    default C createCorrelatedRequestContext(Q request) {
+        return null;
+    }
+
+    /**
+     * Performs isolation on the given request object.
+     *
+     * @param header header
+     * @param apiVersion version
+     * @param request request
+     * @param filterContext filter context
+     * @param mapperContext mapping context
+     * @return stage containing request filter result.
+     */
     default CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
                                                            short apiVersion,
                                                            Q request,
@@ -32,10 +72,25 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C
         return filterContext.forwardRequest(header, request);
     }
 
+    /**
+     * Returns true if the processor should isolate this response version.
+     * @param apiVersion @apiNote version
+     * @return  true if the processor should isolate this request version.
+     */
     default boolean shouldHandleResponse(short apiVersion) {
         return false;
     }
 
+    /**
+     * Performs isolation on the given response object.
+     * @param header header
+     * @param apiVersion api version
+     * @param correlatedRequestContext correlated request object, or null.
+     * @param response response
+     * @param filterContext filter context
+     * @param mapperContext mapping context
+     * @return stage containing response filter result.
+     */
     default CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
                                                              short apiVersion,
                                                              @UnknownNullness C correlatedRequestContext,
@@ -43,10 +98,5 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C
                                                              FilterContext filterContext,
                                                              MapperContext mapperContext) {
         return filterContext.forwardResponse(header, response);
-    }
-
-    @UnknownNullness
-    default C createCorrelatedRequestContext(Q request) {
-        return null;
     }
 }

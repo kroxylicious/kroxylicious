@@ -38,10 +38,10 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public record MockFilterContext(ApiMessage header, ApiMessage message, Subject subject, Map<Uuid, String> topicNames, MockUpstream mockUpstream)
+record MockFilterContext(ApiMessage header, ApiMessage message, Subject subject, Map<Uuid, String> topicNames, MockUpstream mockUpstream)
         implements FilterContext {
 
-    public MockFilterContext {
+    MockFilterContext {
         Objects.requireNonNull(subject, "Subject cannot be null");
     }
 
@@ -138,7 +138,11 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
         return Optional.empty();
     }
 
+    /**
+     * @deprecated for removal
+     */
     @Override
+    @Deprecated(forRemoval = true, since = "0.18")
     public void clientSaslAuthenticationSuccess(@NonNull String mechanism, @NonNull String authorizedId) {
         throw new UnsupportedOperationException();
     }

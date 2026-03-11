@@ -28,14 +28,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class MockUpstream {
+class MockUpstream {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
     private final List<ScenarioDefinition.MockResponse> mockResponses;
 
-    public MockUpstream(List<ScenarioDefinition.MockResponse> mockResponses) {
+    MockUpstream(List<ScenarioDefinition.MockResponse> mockResponses) {
         this.mockResponses = mockResponses;
     }
 
+    @SuppressWarnings("unchecked")
     public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header, ApiMessage request) {
         if (mockResponses.isEmpty()) {
             throw new IllegalStateException("No mock responses remaining!");

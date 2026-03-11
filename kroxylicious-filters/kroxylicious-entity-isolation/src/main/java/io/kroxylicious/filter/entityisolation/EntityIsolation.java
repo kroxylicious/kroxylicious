@@ -33,9 +33,16 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
     @Nullable
     private EntityNameMapper mapper;
 
+    /**
+     * Create the entity isolation factory.
+     */
+    public EntityIsolation() {
+        // empty
+    }
+
     @NonNull
     @Override
-    @SuppressWarnings("java:S2638") // Tightening Unknown Nullness
+    @SuppressWarnings({ "java:S2638", "unchecked" }) // Tightening Unknown Nullness
     public Config initialize(FilterFactoryContext context, @NonNull Config config) {
         var configuration = Plugins.requireConfig(this, config);
         EntityNameMapperService<Object> mapperService = context.pluginInstance(EntityNameMapperService.class, configuration.mapper());
@@ -55,29 +62,56 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
         return new EntityIsolationFilter(configuration.resourceTypes, mapper);
     }
 
+    /**
+     * The kafka entity types that can be isolated.
+     */
     public enum ResourceType {
+        /**
+         * Topic name
+         */
         TOPIC_NAME,
+        /**
+         * Group name
+         */
         GROUP_ID,
+        /**
+         * Transactional id
+         */
         TRANSACTIONAL_ID
     }
 
+    /**
+     * Configuration for the {@link EntityIsolation}.
+     *
+     * @param resourceTypes set of resource types to isolated.
+     * @param mapper mapper name
+     * @param mapperConfig mapper config
+     */
     public record Config(@JsonProperty(required = true) Set<ResourceType> resourceTypes,
                          @JsonProperty(required = true) @PluginImplName(EntityNameMapperService.class) String mapper,
                          @PluginImplConfig(implNameProperty = "mapper") Object mapperConfig) {
 
         public Config {
             Objects.requireNonNull(resourceTypes);
+            Objects.requireNonNull(mapper);
             if (resourceTypes.contains(ResourceType.TOPIC_NAME)) {
                 throw new IllegalArgumentException("Resource type TOPIC_NAME not yet supported by this filter");
             }
         }
     }
 
-    static Optional<EntityIsolation.ResourceType> fromResourceTypeCode(ApiKeys apiKey, byte resourceType) {
+    /**
+     * Decodes type codes used by various Kafka RPCs
+     *
+     * @param apiKey api key
+     * @param resourceTypeCode resource type code
+     * @return resource type
+     */
+    static Optional<EntityIsolation.ResourceType> fromResourceTypeCode(ApiKeys apiKey, byte resourceTypeCode) {
         return switch (apiKey) {
-            case INCREMENTAL_ALTER_CONFIGS, ALTER_CONFIGS, DESCRIBE_CONFIGS, LIST_CONFIG_RESOURCES -> fromConfigResourceType(resourceType);
-            case CREATE_ACLS, DELETE_ACLS, DESCRIBE_ACLS -> fromAclResourceType(resourceType);
-            default -> throw new IllegalArgumentException("Unable to decode resourceType (%d) for %s".formatted(resourceType, apiKey));
+            case INCREMENTAL_ALTER_CONFIGS, ALTER_CONFIGS, DESCRIBE_CONFIGS, LIST_CONFIG_RESOURCES -> fromConfigResourceType(resourceTypeCode);
+            case CREATE_ACLS, DELETE_ACLS, DESCRIBE_ACLS -> fromAclResourceType(resourceTypeCode);
+            default -> throw new IllegalArgumentException("Unable to decode resourceType (%d) for %s".formatted(resourceTypeCode, apiKey));
         };
     }
 
@@ -109,5 +143,4 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
             default -> Optional.empty();
         };
     }
-
 }
