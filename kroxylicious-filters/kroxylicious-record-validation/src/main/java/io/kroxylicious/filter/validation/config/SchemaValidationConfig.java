@@ -11,6 +11,8 @@ import java.net.URL;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is valid using the schema in Apicurio Registry.
  * @param apicurioRegistryUrl apicurio registry url
@@ -31,7 +33,7 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioId, W
          * Apicurio Registry v2 wire format using 8-byte global IDs.
          * @deprecated Use {@link #V3} instead for Confluent compatibility. This option will be removed in a future release.
          */
-        @Deprecated(since = "0.12.0", forRemoval = true)
+        @Deprecated(since = "0.19.0", forRemoval = true)
         V2,
 
         /**
@@ -50,7 +52,7 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioId, W
     @JsonCreator
     public SchemaValidationConfig(@JsonProperty(value = "apicurioRegistryUrl", required = true) URL apicurioRegistryUrl,
                                   @JsonProperty(value = "apicurioId", required = true) long apicurioId,
-                                  @JsonProperty(value = "wireFormatVersion", required = false) WireFormatVersion wireFormatVersion) {
+                                  @Nullable @JsonProperty(value = "wireFormatVersion", required = false) WireFormatVersion wireFormatVersion) {
         this.apicurioId = apicurioId;
         this.apicurioRegistryUrl = apicurioRegistryUrl;
         this.wireFormatVersion = wireFormatVersion != null ? wireFormatVersion : WireFormatVersion.V3;
