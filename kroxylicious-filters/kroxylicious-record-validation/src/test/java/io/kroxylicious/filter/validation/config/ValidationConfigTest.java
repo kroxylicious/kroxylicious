@@ -32,7 +32,7 @@ class ValidationConfigTest {
 
     private static ValidationConfig expectedApicurioConfig() throws MalformedURLException {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L),
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null),
                         new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null), false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
@@ -118,7 +118,7 @@ class ValidationConfigTest {
                                 trustedJsonWebKeySet: >
                                     %s
                             schemaValidationConfig:
-                                apicurioGlobalId: 1
+                                apicurioId: 1
                                 apicurioRegistryUrl: http://localhost:8080
                             allowNulls: false
                             allowEmpty: true

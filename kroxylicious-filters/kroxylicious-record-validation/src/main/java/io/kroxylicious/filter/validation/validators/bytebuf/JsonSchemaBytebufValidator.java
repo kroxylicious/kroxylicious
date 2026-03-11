@@ -16,42 +16,46 @@ import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.record.Record;
 
 import io.apicurio.registry.resolver.strategy.ArtifactReference;
-import io.apicurio.registry.serde.AbstractKafkaSerDe;
-import io.apicurio.registry.serde.DefaultIdHandler;
+import io.apicurio.registry.serde.BaseSerde;
+import io.apicurio.registry.serde.Default4ByteIdHandler;
 import io.apicurio.registry.serde.IdHandler;
-import io.apicurio.registry.serde.headers.DefaultHeadersHandler;
-import io.apicurio.registry.serde.headers.HeadersHandler;
+import io.apicurio.registry.serde.Legacy8ByteIdHandler;
+import io.apicurio.registry.serde.kafka.headers.DefaultHeadersHandler;
+import io.apicurio.registry.serde.kafka.headers.HeadersHandler;
 import io.apicurio.schema.validation.json.JsonValidationResult;
 import io.apicurio.schema.validation.json.JsonValidator;
 
+import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
 
 public class JsonSchemaBytebufValidator implements BytebufValidator {
     private final JsonValidator jsonValidator;
-    private final Long globalId;
+    private final Long schemaId;
+    private final WireFormatVersion wireFormatVersion;
     private final HeadersHandler keyHeaderHandler;
     private final HeadersHandler valueHeaderHandler;
     private final IdHandler keyIdHandler;
     private final IdHandler valueIdHandler;
 
-    public JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long globalId) {
-        this.globalId = globalId;
-        this.jsonValidator = new JsonValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromGlobalId(globalId)));
+    public JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
+        this.schemaId = schemaId;
+        this.wireFormatVersion = wireFormatVersion;
+        this.jsonValidator = new JsonValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromContentId(schemaId)));
         this.keyHeaderHandler = buildHeaderHandler(true);
-        this.keyIdHandler = buildIdHandler(true);
+        this.keyIdHandler = buildIdHandler(true, wireFormatVersion);
 
         this.valueHeaderHandler = buildHeaderHandler(false);
-        this.valueIdHandler = buildIdHandler(false);
+        this.valueIdHandler = buildIdHandler(false, wireFormatVersion);
     }
 
     @Override
     public CompletionStage<Result> validate(ByteBuffer buffer, Record record, boolean isKey) {
         try {
-            // If the record includes a schema id, validate that it is consistent with the expected globalId.
-            Optional<Long> extractedGlobalId = extractGlobalIdFromRecord(buffer, record, isKey);
-            if (extractedGlobalId.filter(e -> !e.equals(globalId)).isPresent()) {
+            // If the record includes a schema id, validate that it is consistent with the expected schemaId.
+            Optional<Long> extractedSchemaId = extractSchemaIdFromRecord(buffer, record, isKey);
+            if (extractedSchemaId.filter(e -> !e.equals(schemaId)).isPresent()) {
                 return CompletableFuture
-                        .completedStage(new Result(false, "Unexpected schema id in record (%d), expecting %d".formatted(extractedGlobalId.get(), globalId)));
+                        .completedStage(new Result(false, "Unexpected schema id in record (%d), expecting %d".formatted(extractedSchemaId.get(), schemaId)));
             }
 
             JsonValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer);
@@ -63,22 +67,34 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
         }
     }
 
-    private Optional<Long> extractGlobalIdFromRecord(ByteBuffer buffer, Record kafkaRecord, boolean isKey) {
+    @SuppressWarnings("removal")
+    private Optional<Long> extractSchemaIdFromRecord(ByteBuffer buffer, Record kafkaRecord, boolean isKey) {
         if (kafkaRecord.headers().length > 0) {
             var recordHeaders = new RecordHeaders(kafkaRecord.headers());
             var headerHandler = isKey ? keyHeaderHandler : valueHeaderHandler;
             var ref = headerHandler.readHeaders(recordHeaders);
 
-            if (ref.getGlobalId() != null) {
-                return Optional.of(ref.getGlobalId());
+            // V2 uses globalId in headers, V3 uses contentId
+            Long id = switch (wireFormatVersion) {
+                case V2 -> ref.getGlobalId();
+                case V3 -> ref.getContentId();
+            };
+            if (id != null) {
+                return Optional.of(id);
             }
         }
 
         var idHandler = isKey ? keyIdHandler : valueIdHandler;
         var minBytes = 1 + idHandler.idSize();
-        if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == AbstractKafkaSerDe.MAGIC_BYTE) {
+        if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == BaseSerde.MAGIC_BYTE) {
             buffer.get(); // ignore magic
-            return Optional.of(idHandler.readId(buffer).getGlobalId());
+            // V2 uses globalId in wire format, V3 uses contentId
+            var ref = idHandler.readId(buffer);
+            Long id = switch (wireFormatVersion) {
+                case V2 -> ref.getGlobalId();
+                case V3 -> ref.getContentId();
+            };
+            return Optional.ofNullable(id);
         }
         return Optional.empty();
     }
@@ -89,8 +105,12 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
         return handler;
     }
 
-    private static DefaultIdHandler buildIdHandler(boolean isKey) {
-        var handler = new DefaultIdHandler();
+    @SuppressWarnings("removal")
+    private static IdHandler buildIdHandler(boolean isKey, WireFormatVersion wireFormatVersion) {
+        IdHandler handler = switch (wireFormatVersion) {
+            case V2 -> new Legacy8ByteIdHandler();
+            case V3 -> new Default4ByteIdHandler();
+        };
         handler.configure(Map.of(), isKey);
         return handler;
     }

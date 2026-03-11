@@ -7,7 +7,20 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2890](https://github.com/kroxylicious/kroxylicious/pull/2890) Update record-validation to Apicurio v3.
 * [#3383](https://github.com/kroxylicious/kroxylicious/pull/3383): fix(operator): the operator now uses Server-Side Apply for all dependent resources. This is a no-op change for users: existing deployments are unaffected and externally-applied SSA patches (e.g. annotations or env vars added by observability tooling) will now survive operator reconciles. Users upgrading from a prior release may observe one additional reconcile cycle as Kubernetes transfers field ownership to the SSA manager.
+
+### Changes, deprecations and removals
+
+* Apicurio v3 has changed the default way schemas are identified. They are now referred to using `contentId` rather than `globalId`.
+  The reason for this change was to allow interop with Confluent based kafka clients.
+  Unfortunately, this causes breaking changes for users of the `schemaValidationConfig` record-validation feature.
+  * The config field `apicurioContentId` is removed. It is replaced with a new config field `apicurioId`.
+  * This field `apicurioId` refers to the `contentId` of the schema.
+  * You must also ensure that any Kafka client embedding schema identifiers into records (using headers or magic bytes) are updated to send the `contentId` rather than the `globalId`.
+    Refer to the [Apicurio upgrade documentation](https://www.apicur.io/registry/docs/apicurio-registry/3.1.x/getting-started/assembly-migrating-registry-v2-v3.html) for details.
+  * Alternatively, the old behaviour can be restored by  setting the config option `wireFormatVersion` to `V2`. In this mode, the `apicurioId` refers to the `globalId` and clients must send `globalId`.
+    `V2` mode is deprecated and will be removed in a future release.
 
 ## 0.19.0
 
