@@ -48,6 +48,8 @@ import io.kroxylicious.filter.authorization.AuthorizationFilter;
 import io.kroxylicious.testing.kafka.common.ClientConfig;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static java.util.stream.Stream.concat;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -225,24 +227,9 @@ public class ConsumerGroupDescribeGroupAuthzIT extends AuthzIT {
     }
 
     List<Arguments> shouldEnforceAccessToGroups() {
-        ConsumerGroupDescribeRequestData aliceGroupRequest = new ConsumerGroupDescribeRequestData();
-        aliceGroupRequest.setGroupIds(List.of(ALICE_GROUP));
-        aliceGroupRequest.setIncludeAuthorizedOperations(false);
-        ConsumerGroupDescribeRequestData bobGroupRequest = new ConsumerGroupDescribeRequestData();
-        bobGroupRequest.setGroupIds(List.of(BOB_GROUP));
-        bobGroupRequest.setIncludeAuthorizedOperations(false);
-        ConsumerGroupDescribeRequestData bothGroups = new ConsumerGroupDescribeRequestData();
-        bothGroups.setGroupIds(List.of(ALICE_GROUP, BOB_GROUP));
-        bothGroups.setIncludeAuthorizedOperations(false);
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.CONSUMER_GROUP_DESCRIBE),
                 AuthorizationFilter.maxSupportedApiVersion(ApiKeys.CONSUMER_GROUP_DESCRIBE))
-                .boxed().flatMap(apiVersion -> Stream.of(
-                        Arguments.argumentSet("api version " + apiVersion + " " + ALICE_GROUP + " request",
-                                new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, aliceGroupRequest)),
-                        Arguments.argumentSet("api version " + apiVersion + " " + BOB_GROUP + " request",
-                                new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, bobGroupRequest)),
-                        Arguments.argumentSet("api version " + apiVersion + " " + ALICE_GROUP + "," + BOB_GROUP + " request",
-                                new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, bothGroups))));
+                .boxed().flatMap(apiVersion -> Stream.concat(testCases(apiVersion, false), testCases(apiVersion, true)));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.CONSUMER_GROUP_DESCRIBE.oldestVersion(), ApiKeys.CONSUMER_GROUP_DESCRIBE.latestVersion(true))
                 .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.CONSUMER_GROUP_DESCRIBE, (short) version))
@@ -250,6 +237,25 @@ public class ConsumerGroupDescribeGroupAuthzIT extends AuthzIT {
                         apiVersion -> Arguments.argumentSet("unsupported version " + apiVersion,
                                 new UnsupportedApiVersion<>(ApiKeys.CONSUMER_GROUP_DESCRIBE, (short) apiVersion)));
         return concat(supportedVersions, unsupportedVersions).toList();
+    }
+
+    private Stream<Arguments.ArgumentSet> testCases(Integer apiVersion, boolean includeAuthorizedOperations) {
+        String includeAuthorizedOps = includeAuthorizedOperations ? "including authorized ops" : "not including authorized ops";
+        return Stream.of(
+                Arguments.argumentSet("api version " + apiVersion + " " + ALICE_GROUP + " request " + includeAuthorizedOps,
+                        new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, groupRequest(List.of(ALICE_GROUP), includeAuthorizedOperations))),
+                Arguments.argumentSet("api version " + apiVersion + " " + BOB_GROUP + " request" + includeAuthorizedOps,
+                        new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, groupRequest(List.of(BOB_GROUP), includeAuthorizedOperations))),
+                Arguments.argumentSet("api version " + apiVersion + " " + ALICE_GROUP + "," + BOB_GROUP + " request" + includeAuthorizedOps,
+                        new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, groupRequest(List.of(ALICE_GROUP, BOB_GROUP), includeAuthorizedOperations))));
+    }
+
+    @NonNull
+    private static ConsumerGroupDescribeRequestData groupRequest(List<String> groups, boolean includeAuthorizedOperations) {
+        ConsumerGroupDescribeRequestData aliceGroupRequest = new ConsumerGroupDescribeRequestData();
+        aliceGroupRequest.setGroupIds(groups);
+        aliceGroupRequest.setIncludeAuthorizedOperations(includeAuthorizedOperations);
+        return aliceGroupRequest;
     }
 
     @ParameterizedTest

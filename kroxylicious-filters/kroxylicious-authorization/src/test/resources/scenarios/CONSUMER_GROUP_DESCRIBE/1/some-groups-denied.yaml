@@ -24,7 +24,7 @@ given:
       expectedRequest:
         groupIds:
           - "my-group"
-        includeAuthorizedOperations: true
+        includeAuthorizedOperations: false
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
@@ -83,7 +83,7 @@ when:
     groupIds:
       - "my-group"
       - "unauthorized"
-    includeAuthorizedOperations: true
+    includeAuthorizedOperations: false
 then:
   expectedResponseHeader:
     correlationId: 1
