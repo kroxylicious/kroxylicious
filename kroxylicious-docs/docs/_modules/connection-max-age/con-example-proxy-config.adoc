@@ -1,0 +1,29 @@
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-connection-max-age-filter.adoc
+
+[id='con-example-proxy-config-{context}']
+= Example proxy configuration file
+
+[role="_abstract"]
+If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
+
+Here's a complete example of a `filterDefinitions` entry configured for Connection Max Age:
+
+[source, yaml]
+----
+filterDefinitions:
+  - name: my-connection-max-age-filter
+    type: ConnectionMaxAge
+    config:
+      maxAgeSeconds: 3600
+      jitterSeconds: 300
+----
+where:
+
+* `maxAgeSeconds` (required) is the maximum age of a connection in seconds before it will be closed. Must be a positive value.
+* `jitterSeconds` (optional) is the jitter in seconds to apply to the max age, randomizing the effective deadline within `[maxAge - jitter, maxAge + jitter]` per connection. Must be non-negative and not greater than `maxAgeSeconds`. If omitted, no jitter is applied.
+
+Refer to the {ProxyGuide} for more information about configuring the proxy.
