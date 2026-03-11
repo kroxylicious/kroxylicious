@@ -52,20 +52,26 @@ Example schema validation rule:
 [source,yaml]
 ----
 schemaValidationConfig:
-  apicurioGlobalId: 1001
+  apicurioId: 1001
   apicurioRegistryUrl: http://registry.local:8080
+  wireFormatVersion: V3
 allowNulls: true
 allowEmpty: true
 ----
 
-* `schemaValidationConfig.apicurioGlobalId` specifies the Apicurio Registry global ID of the schema to enforce.
+* `apicurioId` identifies schema that the filter will enforce. By default, this ID refers to the Apicurio Registry's `contentId`.
   If the record key or value does not conform to the schema identified by this ID, the record is rejected.
-  If a Kafka producer embeds a global ID in the record, the filter validates it against this value and rejects the record if the IDs do not match.
-* `schemaValidationConfig.apicurioRegistryUrl` specifies the endpoint URL of the Apicurio Registry.
+  If a Kafka producer embeds a schema ID in the record (either as a header or _magic_ bytes at the start of the record's key or value), the filter validates it against this value and rejects the record if the IDs do not match.
+* `apicurioRegistryUrl` specifies the endpoint URL of the Apicurio Registry.
+* `wireFormatVersion` controls whether the Apicurio client operates in `V3` (default) or `V2` (deprecated).
+   In `V3` mode, the `apicurioId` field identifies schema by content ID and the client, if embedding schema ids, is assumed to use content IDs.
+   In `V2` mode, the `apicurioId` field identifies schema by global ID and the client, if embedding schema ids, is assumed to use global IDs.
+   `V2` mode exists for compatibility with older Apicurio configurations and is deprecated. For new applications, use `V3`.
 * `allowNulls` specifies whether the validator allows record keys or values to be `null`. The default is `false`.
 * `allowEmpty` specifies whether the validator allows record keys or values to be empty. The default is `false`.
-* The filter can extract the global ID from either the Apicurio `globalId` record header or from the initial bytes of the serialized content. 
-For more information about embedding the global ID in a record, see the
+
+
+For more information about embedding the ID in a record, see the
   {apicurio-docs}/getting-started/assembly-using-kafka-client-serdes.html#_consumer_schema_configuration[Apicurio documentation^].
 --
 +
