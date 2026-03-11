@@ -115,21 +115,24 @@ fi
 
 # --- Rate progression ---
 
-# Computes the geometric rate sequence from MIN_RATE to MAX_RATE.
-# Each step multiplies the previous rate by (1 + STEP_PERCENT/100).
+# Computes a linear rate sequence from MIN_RATE to MAX_RATE.
+# The fixed increment is (MAX_RATE - MIN_RATE) * STEP_PERCENT / 100, so
+# step=10% always produces 10 evenly-spaced probes regardless of the range.
+# MAX_RATE is always included as the final probe.
 # Prints one integer rate per line.
 rate_sequence() {
     awk -v min="${MIN_RATE}" -v max="${MAX_RATE}" -v step="${STEP_PERCENT}" 'BEGIN {
-        rate = min
-        while (rate <= max) {
-            printf "%d\n", rate
-            next_rate = rate * (1 + step / 100)
-            if (next_rate <= rate) {
-                print "Error: step percent too small, rate not advancing" > "/dev/stderr"
-                exit 1
-            }
-            rate = next_rate
+        increment = (max - min) * step / 100
+        if (increment <= 0) {
+            print "Error: step percent too small or range too narrow" > "/dev/stderr"
+            exit 1
         }
+        rate = min
+        while (rate < max) {
+            printf "%d\n", rate
+            rate += increment
+        }
+        printf "%d\n", max
     }'
 }
 
@@ -142,7 +145,8 @@ if [[ "${DRY_RUN}" == "true" ]]; then
     [[ -n "${BASELINE_FROM}" ]] && echo "Baseline from: ${BASELINE_FROM}"
     [[ -n "${PROFILE_VALUES}" ]] && echo "Profile:       ${PROFILE_VALUES}"
     echo ""
-    echo "Rate sequence (min=${MIN_RATE}, max=${MAX_RATE}, step=${STEP_PERCENT}%):"
+    STEP_INCREMENT=$(awk "BEGIN { printf \"%'d\", (${MAX_RATE} - ${MIN_RATE}) * ${STEP_PERCENT} / 100 }")
+    echo "Rate sequence (min=$(printf "%'d" "${MIN_RATE}"), max=$(printf "%'d" "${MAX_RATE}"), step=${STEP_PERCENT}% (+${STEP_INCREMENT} msg/sec fixed increment)):"
     rate_sequence | awk '{ printf "  %'"'"'d msg/sec\n", $1 }'
     echo ""
     RATE_COUNT=$(rate_sequence | wc -l | tr -d ' ')
