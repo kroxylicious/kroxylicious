@@ -229,6 +229,122 @@ run_probe() {
     echo "  Result collected: ${probe_output_dir}/result.json"
 }
 
+# --- Summary table ---
+
+# Prints a rate-by-rate comparison table across all scenarios.
+# For each rate step shows: achieved msg/s (to detect saturation) and
+# mean end-to-end p99 latency. If baseline results are present an
+# overhead column is appended for each non-baseline scenario.
+print_summary() {
+    if ! command -v jq &>/dev/null; then
+        echo "Warning: jq not found — skipping summary table" >&2
+        return
+    fi
+
+    # Resolve baseline results directory (from --baseline-from or this run)
+    local baseline_dir=""
+    if [[ -n "${BASELINE_FROM}" ]]; then
+        baseline_dir="${BASELINE_FROM}"
+    elif [[ -d "${OUTPUT_DIR}/baseline" ]]; then
+        baseline_dir="${OUTPUT_DIR}/baseline"
+    fi
+
+    # Collect probe rates from the reference directory, sorted numerically
+    local ref_dir="${baseline_dir:-${OUTPUT_DIR}/${SCENARIO_ARRAY[0]}}"
+    local rates=()
+    while IFS= read -r rate; do
+        rates+=("${rate}")
+    done < <(find "${ref_dir}" -maxdepth 1 -name 'rate-*' -type d 2>/dev/null \
+        | sed 's|.*rate-||' | sort -n)
+
+    if [[ ${#rates[@]} -eq 0 ]]; then
+        echo "No results found in ${ref_dir} — cannot produce summary" >&2
+        return
+    fi
+
+    # Non-baseline scenarios to compare against baseline
+    local other_scenarios=()
+    for s in "${SCENARIO_ARRAY[@]}"; do
+        [[ "${s}" != "baseline" ]] && other_scenarios+=("${s}")
+    done
+
+    echo "=== Summary ==="
+    echo "(achieved = mean publish rate; p99 = mean end-to-end latency p99; ✗ = saturated)"
+    echo ""
+
+    # Header
+    printf "%-14s" "Target (msg/s)"
+    if [[ -n "${baseline_dir}" ]]; then
+        printf "  %-20s  %-14s" "Baseline achieved" "Baseline p99"
+    fi
+    for s in "${other_scenarios[@]}"; do
+        printf "  %-20s  %-14s" "${s} achieved" "${s} p99"
+        [[ -n "${baseline_dir}" ]] && printf "  %-14s" "Overhead"
+    done
+    printf "\n"
+    printf '%s\n' "$(printf '%*s' 100 '' | tr ' ' '-')"
+
+    # One row per rate
+    for rate in "${rates[@]}"; do
+        printf "%-14s" "$(printf '%'"'"'d' "${rate}")"
+
+        # Baseline columns
+        local baseline_p99=""
+        if [[ -n "${baseline_dir}" ]]; then
+            local bf="${baseline_dir}/rate-${rate}/result.json"
+            if [[ -f "${bf}" ]]; then
+                local b_achieved b_sat b_p99
+                b_achieved=$(jq '[.publishRate[]] | add / length' "${bf}")
+                b_sat=$(awk "BEGIN { print (${b_achieved} < ${rate} * 0.95) ? 1 : 0 }")
+                if [[ "${b_sat}" == "1" ]]; then
+                    printf "  %-20s  %-14s" "✗ saturated" "—"
+                else
+                    b_p99=$(jq '[.endToEndLatency99pct[]] | add / length' "${bf}")
+                    baseline_p99="${b_p99}"
+                    printf "  %-20s  %-14s" \
+                        "$(printf '%.0f' "${b_achieved}")" \
+                        "$(printf '%.2f ms' "${b_p99}")"
+                fi
+            else
+                printf "  %-20s  %-14s" "—" "—"
+            fi
+        fi
+
+        # Non-baseline scenario columns
+        for s in "${other_scenarios[@]}"; do
+            local sf="${OUTPUT_DIR}/${s}/rate-${rate}/result.json"
+            if [[ ! -f "${sf}" ]]; then
+                printf "  %-18s  %-12s" "—" "—"
+                [[ -n "${baseline_dir}" ]] && printf "  %-12s" "—"
+                continue
+            fi
+            local s_achieved s_sat s_p99
+            s_achieved=$(jq '[.publishRate[]] | add / length' "${sf}")
+            s_sat=$(awk "BEGIN { print (${s_achieved} < ${rate} * 0.95) ? 1 : 0 }")
+            if [[ "${s_sat}" == "1" ]]; then
+                printf "  %-20s  %-14s" "✗ saturated" "—"
+                [[ -n "${baseline_dir}" ]] && printf "  %-14s" "—"
+            else
+                s_p99=$(jq '[.endToEndLatency99pct[]] | add / length' "${sf}")
+                printf "  %-20s  %-14s" \
+                    "$(printf '%.0f' "${s_achieved}")" \
+                    "$(printf '%.2f ms' "${s_p99}")"
+                if [[ -n "${baseline_dir}" ]]; then
+                    if [[ -n "${baseline_p99}" ]]; then
+                        local overhead
+                        overhead=$(awk "BEGIN { printf \"+%.2f ms\", ${s_p99} - ${baseline_p99} }")
+                        printf "  %-14s" "${overhead}"
+                    else
+                        printf "  %-14s" "—"
+                    fi
+                fi
+            fi
+        done
+        printf "\n"
+    done
+    echo ""
+}
+
 # --- Main ---
 
 trap teardown_scenario EXIT
@@ -280,3 +396,5 @@ done
 
 echo "=== Sweep complete ==="
 echo "Results written to: ${OUTPUT_DIR}"
+echo ""
+print_summary
