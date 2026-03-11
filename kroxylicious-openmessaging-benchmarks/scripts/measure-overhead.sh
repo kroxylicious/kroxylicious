@@ -21,8 +21,6 @@ KAFKA_READY_TIMEOUT="${KAFKA_READY_TIMEOUT:-600s}"
 POD_READY_TIMEOUT="${POD_READY_TIMEOUT:-300s}"
 
 DEFAULT_SCENARIOS="baseline,proxy-no-filters"
-DEFAULT_MIN_RATE=10000
-DEFAULT_MAX_RATE=100000
 DEFAULT_STEP_PERCENT=10
 
 usage() {
@@ -43,10 +41,12 @@ Options:
                             (default: ${DEFAULT_SCENARIOS})
   --baseline-from <dir>     Read pre-existing baseline results from here;
                             implies baseline is excluded from --scenarios
-  --min-rate <n>            Minimum producer rate in msg/sec (default: ${DEFAULT_MIN_RATE})
-  --max-rate <n>            Maximum producer rate in msg/sec (default: ${DEFAULT_MAX_RATE})
-  --step-percent <n>        Rate increase per step as a percentage (default: ${DEFAULT_STEP_PERCENT})
-                            Each step: next_rate = current_rate * (1 + step_percent/100)
+  --min-rate <n>            Minimum producer rate in msg/sec (required)
+                            Suggested: ~10% of the cluster's expected maximum throughput
+  --max-rate <n>            Maximum producer rate in msg/sec (required)
+                            Suggested: ~120% of expected maximum to ensure saturation is reached
+  --step-percent <n>        Step size as a percentage of the range (default: ${DEFAULT_STEP_PERCENT})
+                            Fixed increment: (max - min) * step% — e.g. step=25% gives 4 probes
   --profile <values-file>   Additional Helm values layered on top of each scenario
   --dry-run                 Print rate sequence and planned steps without deploying anything
   -h, --help                Show this help
@@ -57,11 +57,11 @@ Environment:
   POD_READY_TIMEOUT      Timeout waiting for pods (default: 300s)
 
 Examples:
-  # Full run — baseline then proxy, 10% steps from 10k to 100k msg/sec
-  $(basename "$0") --output-dir ./results/run-1/
+  # Full run — baseline then proxy, 10% steps from 10k to 110k msg/sec
+  $(basename "$0") --min-rate 10000 --max-rate 110000 --output-dir ./results/run-1/
 
   # Preview rate sequence without deploying anything
-  $(basename "$0") --dry-run --min-rate 10000 --max-rate 100000 --step-percent 50
+  $(basename "$0") --dry-run --min-rate 10000 --max-rate 110000 --step-percent 25
 
   # Reuse existing baseline, sweep a new proxy configuration
   $(basename "$0") --scenarios proxy-no-filters \\
@@ -76,8 +76,8 @@ EOF
 OUTPUT_DIR=""
 SCENARIOS="${DEFAULT_SCENARIOS}"
 BASELINE_FROM=""
-MIN_RATE="${DEFAULT_MIN_RATE}"
-MAX_RATE="${DEFAULT_MAX_RATE}"
+MIN_RATE=""
+MAX_RATE=""
 STEP_PERCENT="${DEFAULT_STEP_PERCENT}"
 PROFILE_VALUES=""
 DRY_RUN=false
@@ -101,6 +101,21 @@ done
 if [[ -z "${OUTPUT_DIR}" && "${DRY_RUN}" == "false" ]]; then
     echo "Error: --output-dir is required" >&2
     usage
+fi
+
+if [[ -z "${MIN_RATE}" ]]; then
+    echo "Error: --min-rate is required" >&2
+    usage
+fi
+
+if [[ -z "${MAX_RATE}" ]]; then
+    echo "Error: --max-rate is required" >&2
+    usage
+fi
+
+if [[ "${MAX_RATE}" -le "${MIN_RATE}" ]]; then
+    echo "Error: --max-rate (${MAX_RATE}) must be greater than --min-rate (${MIN_RATE})" >&2
+    exit 1
 fi
 
 if [[ -n "${BASELINE_FROM}" && ! -d "${BASELINE_FROM}" ]]; then
