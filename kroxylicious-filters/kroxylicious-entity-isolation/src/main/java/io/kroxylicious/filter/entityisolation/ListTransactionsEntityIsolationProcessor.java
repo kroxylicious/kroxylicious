@@ -8,8 +8,8 @@ package io.kroxylicious.filter.entityisolation;
 
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
 import org.apache.kafka.common.message.ListTransactionsRequestData;
 import org.apache.kafka.common.message.ListTransactionsResponseData;
@@ -37,11 +37,11 @@ class ListTransactionsEntityIsolationProcessor
 
     private static final Pattern ALL = Pattern.compile(".*");
 
-    private final Set<EntityIsolation.ResourceType> resourceTypes;
+    private final Function<EntityIsolation.ResourceType, Boolean> shouldMap;
     private final EntityNameMapper mapper;
 
-    ListTransactionsEntityIsolationProcessor(Set<EntityIsolation.ResourceType> resourceTypes, EntityNameMapper mapper) {
-        this.resourceTypes = Objects.requireNonNull(resourceTypes);
+    ListTransactionsEntityIsolationProcessor(Function<EntityIsolation.ResourceType, Boolean> shouldMap, EntityNameMapper mapper) {
+        this.shouldMap = Objects.requireNonNull(shouldMap);
         this.mapper = Objects.requireNonNull(mapper);
     }
 
@@ -61,7 +61,7 @@ class ListTransactionsEntityIsolationProcessor
                                                           ListTransactionsRequestData request,
                                                           FilterContext filterContext,
                                                           MapperContext mapperContext) {
-        if (shouldMap(EntityIsolation.ResourceType.TRANSACTIONAL_ID)) {
+        if (shouldMap.apply(EntityIsolation.ResourceType.TRANSACTIONAL_ID)) {
             // Request Spec: all transactions are returned; Otherwise then only the transactions matching the given regular expression will be returned.
             // We don't want to rewrite the user's regular expression to accommodate
             // the isolation yet, instead we cache the RE into the context and apply that
@@ -98,7 +98,7 @@ class ListTransactionsEntityIsolationProcessor
         while (transactionStatesIterator.hasNext()) {
             var transactionState = transactionStatesIterator.next();
             // process entity fields defined at this level
-            if (shouldMap(EntityIsolation.ResourceType.TRANSACTIONAL_ID) && (short) 0 <= apiVersion && apiVersion <= (short) 2
+            if (shouldMap.apply(EntityIsolation.ResourceType.TRANSACTIONAL_ID) && (short) 0 <= apiVersion && apiVersion <= (short) 2
                     && transactionState.transactionalId() != null) {
                 if (mapper.isInNamespace(mapperContext, EntityIsolation.ResourceType.TRANSACTIONAL_ID, transactionState.transactionalId())) {
                     var txnId = mapper.unmap(mapperContext, EntityIsolation.ResourceType.TRANSACTIONAL_ID, transactionState.transactionalId());
@@ -111,10 +111,6 @@ class ListTransactionsEntityIsolationProcessor
             }
         }
         return filterContext.forwardResponse(header, response);
-    }
-
-    private boolean shouldMap(EntityIsolation.ResourceType entityType) {
-        return resourceTypes.contains(entityType);
     }
 
     @NonNull

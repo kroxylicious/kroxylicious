@@ -47,12 +47,12 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
 
         Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> pm = new HashMap<>();
         // The following processors require special code and are handwritten.
-        pm.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEntityIsolationProcessor(resourceTypes, wrappedMapper));
-        pm.put(ApiKeys.DELETE_ACLS, new DeleteAclsEntityIsolationProcessor(resourceTypes, wrappedMapper));
-        pm.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEntityIsolationProcessor(resourceTypes, wrappedMapper));
-        pm.put(ApiKeys.DESCRIBE_ACLS, new DescribeAclsEntityIsolationProcessor(resourceTypes, wrappedMapper));
+        pm.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
+        pm.put(ApiKeys.DELETE_ACLS, new DeleteAclsEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
+        pm.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
+        pm.put(ApiKeys.DESCRIBE_ACLS, new DescribeAclsEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
         // Add the generated processors.
-        pm.putAll(createProcessorMap(resourceTypes, wrappedMapper));
+        pm.putAll(createProcessorMap(resourceTypes::contains, wrappedMapper));
         this.processorMap = Map.copyOf(pm);
     }
 

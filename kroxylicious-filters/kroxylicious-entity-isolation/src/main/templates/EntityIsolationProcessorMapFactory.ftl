@@ -25,7 +25,7 @@ package ${outputPackage};
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
+import java.util.function.Function;
 
 import javax.annotation.processing.Generated;
 
@@ -42,12 +42,12 @@ final class EntityIsolationProcessorMapFactory  {
         // ignored
     }
 
-    static Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> createProcessorMap(Set<EntityIsolation.ResourceType> resourceTypes, EntityNameMapper entityNameMapper) {
+    static Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> createProcessorMap(Function<EntityIsolation.ResourceType, Boolean> shouldMap, EntityNameMapper entityNameMapper) {
         var map = new HashMap<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>>();
 
 <#list messageSpecPairs>
     <#items as pair>
-        map.put(ApiKeys.${pair.apiKey}, new ${pair.name}EntityIsolationProcessor(resourceTypes, entityNameMapper));
+        map.put(ApiKeys.${pair.apiKey}, new ${pair.name}EntityIsolationProcessor(shouldMap, entityNameMapper));
     </#items>
 </#list>
         return map;

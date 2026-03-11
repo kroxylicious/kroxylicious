@@ -7,8 +7,8 @@
 package io.kroxylicious.filter.entityisolation;
 
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
@@ -31,11 +31,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 class FindCoordinatorEntityIsolationProcessor
         implements EntityIsolationProcessor<FindCoordinatorRequestData, FindCoordinatorResponseData, ResourceType> {
 
-    private final Set<ResourceType> resourceTypes;
+    private final Function<ResourceType, Boolean> shouldMap;
     private final EntityNameMapper mapper;
 
-    FindCoordinatorEntityIsolationProcessor(Set<ResourceType> resourceTypes, EntityNameMapper mapper) {
-        this.resourceTypes = resourceTypes;
+    FindCoordinatorEntityIsolationProcessor(Function<ResourceType, Boolean> shouldMap, EntityNameMapper mapper) {
+        this.shouldMap = shouldMap;
         this.mapper = mapper;
     }
 
@@ -51,7 +51,7 @@ class FindCoordinatorEntityIsolationProcessor
                                                           FilterContext filterContext,
                                                           MapperContext mapperContext) {
         var resourceType = getResourceType(request.keyType());
-        resourceType.filter(resourceTypes::contains)
+        resourceType.filter(shouldMap::apply)
                 .ifPresent(rt -> {
                     if ((short) 0 <= header.requestApiVersion() && header.requestApiVersion() <= (short) 3) {
                         request.setKey(mapper.map(mapperContext, rt, request.key()));
@@ -78,7 +78,7 @@ class FindCoordinatorEntityIsolationProcessor
                                                             FilterContext filterContext,
                                                             MapperContext mapperContext) {
         Optional.ofNullable(requestedResourceType)
-                .filter(resourceTypes::contains)
+                .filter(shouldMap::apply)
                 .ifPresent(resourceType -> response.coordinators()
                         .forEach(coordinator -> coordinator.setKey(mapper.unmap(mapperContext, requestedResourceType, coordinator.key()))));
 

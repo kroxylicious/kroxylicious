@@ -6,7 +6,6 @@
 package io.kroxylicious.filter.entityisolation;
 
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -27,11 +26,11 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
  */
 class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<DeleteAclsRequestData, DeleteAclsResponseData, Void> {
 
-    private final Set<EntityIsolation.ResourceType> resourceTypes;
+    private final Function<EntityIsolation.ResourceType, Boolean> shouldMap;
     private final EntityNameMapper mapper;
 
-    DeleteAclsEntityIsolationProcessor(Set<EntityIsolation.ResourceType> resourceTypes, EntityNameMapper mapper) {
-        this.resourceTypes = Objects.requireNonNull(resourceTypes);
+    DeleteAclsEntityIsolationProcessor(Function<EntityIsolation.ResourceType, Boolean> shouldMap, EntityNameMapper mapper) {
+        this.shouldMap = Objects.requireNonNull(shouldMap);
         this.mapper = Objects.requireNonNull(mapper);
     }
 
@@ -57,7 +56,7 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                 .entrySet()
                 .stream()
                 .filter(e -> e.getValue().isPresent())
-                .filter(e -> shouldMap(e.getValue().get())).forEach(e -> {
+                .filter(e -> shouldMap.apply(e.getValue().get())).forEach(e -> {
                     e.getKey().setResourceNameFilter(mapper.map(mapperContext, e.getValue().get(), e.getKey().resourceNameFilter()));
                 });
         return filterContext.forwardRequest(header, request);
@@ -75,7 +74,7 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
             while (matchingAclIterator.hasNext()) {
                 var configResource = matchingAclIterator.next();
                 EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, configResource.resourceType())
-                        .filter(entityType -> shouldMap(entityType))
+                        .filter(shouldMap::apply)
                         .ifPresent(entityType -> {
                             if (mapper.isInNamespace(mapperContext, entityType, configResource.resourceName())) {
                                 configResource.setResourceName(mapper.unmap(mapperContext, entityType, configResource.resourceName()));
@@ -87,10 +86,6 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
             }
         });
         return filterContext.forwardResponse(header, response);
-    }
-
-    private boolean shouldMap(EntityIsolation.ResourceType entityType) {
-        return resourceTypes.contains(entityType);
     }
 
 }
