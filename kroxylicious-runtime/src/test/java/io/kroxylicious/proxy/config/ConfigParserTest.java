@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.config;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -896,6 +897,22 @@ class ConfigParserTest {
                 .extracting(virtualClusters -> virtualClusters.get(0))
                 .extracting(VirtualCluster::targetCluster)
                 .satisfies(targetCluster -> assertThat(targetCluster.selectionStrategy()).isInstanceOf(Class.forName(expectedClass)));
+    }
+
+    private record UnannotatedDurationRecord(Duration timeout) {}
+
+    @Test
+    void baseObjectMapperDeserializesDurationWithoutFieldAnnotations() throws IOException {
+        var mapper = ConfigParser.createBaseObjectMapper();
+        var result = mapper.readValue("{\"timeout\": \"30s\"}", UnannotatedDurationRecord.class);
+        assertThat(result.timeout()).isEqualTo(Duration.ofSeconds(30));
+    }
+
+    @Test
+    void baseObjectMapperSerializesDurationWithoutFieldAnnotations() throws IOException {
+        var mapper = ConfigParser.createBaseObjectMapper();
+        var result = mapper.writeValueAsString(new UnannotatedDurationRecord(Duration.ofMinutes(5)));
+        assertThat(result).contains("5m");
     }
 
     private record NonSerializableConfig(String id) {
