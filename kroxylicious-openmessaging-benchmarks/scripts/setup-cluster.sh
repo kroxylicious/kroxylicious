@@ -83,6 +83,15 @@ else
     kubectl create namespace "${NAMESPACE}"
 fi
 
+# Label the namespace privileged so that async-profiler can set seccompProfile:Unconfined
+# on the proxy container, which is required for perf_event_open(2) to succeed.
+# This is a dedicated benchmark namespace — the relaxed policy is intentional.
+echo "Labelling namespace '${NAMESPACE}' with pod-security.kubernetes.io/enforce=privileged..."
+kubectl label namespace "${NAMESPACE}" \
+    pod-security.kubernetes.io/enforce=privileged \
+    pod-security.kubernetes.io/enforce-version=latest \
+    --overwrite
+
 # --- Strimzi operator ---
 
 echo ""
