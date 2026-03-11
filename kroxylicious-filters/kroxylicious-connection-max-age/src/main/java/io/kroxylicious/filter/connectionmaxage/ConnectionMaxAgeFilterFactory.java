@@ -16,6 +16,9 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * A {@link FilterFactory} for {@link ConnectionMaxAgeFilter}.
  * <p>
@@ -52,11 +55,12 @@ public class ConnectionMaxAgeFilterFactory
 
     @Override
     public Filter createFilter(FilterFactoryContext context,
-                               ConnectionMaxAgeFilterConfig configuration) {
+                               @NonNull ConnectionMaxAgeFilterConfig configuration) {
         Duration effectiveMaxAge = computeEffectiveMaxAge(configuration);
         return new ConnectionMaxAgeFilter(effectiveMaxAge, clock);
     }
 
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating jitter; not security relevant
     private Duration computeEffectiveMaxAge(ConnectionMaxAgeFilterConfig config) {
         Duration maxAge = config.maxAgeDuration();
         Duration jitter = config.jitterDuration();
