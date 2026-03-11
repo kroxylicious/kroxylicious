@@ -19,6 +19,10 @@ WORKLOAD="1topic-1kb"
 NAMESPACE="${NAMESPACE:-kafka}"
 KAFKA_READY_TIMEOUT="${KAFKA_READY_TIMEOUT:-600s}"
 POD_READY_TIMEOUT="${POD_READY_TIMEOUT:-300s}"
+# Maximum time to wait for a single OMB probe to complete (seconds).
+# Should exceed testDurationMinutes + warmupDurationMinutes + setup overhead.
+# Default: 30 minutes, suitable for smoke runs. Increase for production runs.
+PROBE_TIMEOUT="${PROBE_TIMEOUT:-1800}"
 
 DEFAULT_SCENARIOS="baseline,proxy-no-filters"
 DEFAULT_STEP_PERCENT=10
@@ -55,6 +59,8 @@ Environment:
   NAMESPACE              Kubernetes namespace (default: kafka)
   KAFKA_READY_TIMEOUT    Timeout waiting for Kafka cluster (default: 600s)
   POD_READY_TIMEOUT      Timeout waiting for pods (default: 300s)
+  PROBE_TIMEOUT          Max seconds to wait for a single probe to complete (default: 1800)
+                         Increase for production runs (testDuration + warmupDuration + overhead)
 
 Examples:
   # Full run — baseline then proxy, 10% steps from 10k to 110k msg/sec
@@ -208,12 +214,35 @@ teardown_scenario() {
 
 # --- Probe execution ---
 
+# Verifies that all OMB worker pods are ready before starting a probe.
+# A bounced worker pod causes the OMB JVM to hang in shutdown (UnknownHostException
+# in stopAll()), which would cause kubectl exec to hang indefinitely.
+check_workers_healthy() {
+    local desired ready
+    desired=$(kubectl get statefulset omb-worker -n "${NAMESPACE}" \
+        -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+    ready=$(kubectl get statefulset omb-worker -n "${NAMESPACE}" \
+        -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+    if [[ "${ready}" != "${desired}" || "${desired}" == "0" ]]; then
+        echo "  ✗ OMB workers not healthy: ${ready}/${desired} ready" >&2
+        echo "    kubectl get pods -l app=omb-worker -n ${NAMESPACE}" >&2
+        return 1
+    fi
+}
+
 run_probe() {
     local rate="$1"
     local probe_output_dir="$2"
 
     mkdir -p "${probe_output_dir}"
     local omb_log="${probe_output_dir}/omb.log"
+
+    # Verify workers are healthy before starting — a bounced worker pod causes the
+    # OMB JVM to hang in stopAll() with UnknownHostException, which would cause
+    # kubectl exec to block indefinitely.
+    if ! check_workers_healthy; then
+        return 1
+    fi
 
     # Clear previous OMB result files from the pod so we can unambiguously
     # identify the result from this probe afterwards.
@@ -222,11 +251,13 @@ run_probe() {
 
     # Run OMB with the target producer rate. The workload ConfigMap is read-only,
     # so we use sed to write a modified copy into /tmp and run from there.
-    # OMB output is redirected to a log file to keep the terminal readable;
-    # capture the exit code without triggering set -e so we can diagnose failures.
+    # OMB output is redirected to a log file to keep the terminal readable.
+    # timeout guards against the OMB JVM hanging in shutdown (e.g. after a worker
+    # pod is bounced mid-run); exit code 124 means the timeout was hit.
     echo "  OMB log: ${omb_log}"
     local exec_rc=0
-    kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
+    timeout "${PROBE_TIMEOUT}" \
+        kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
         sh -c "sed 's/^producerRate:.*/producerRate: ${rate}/' /etc/omb/workloads/workload.yaml > /tmp/workload.yaml && \
                cd /var/lib/omb/results && \
                /opt/benchmark/bin/benchmark \
@@ -234,7 +265,13 @@ run_probe() {
                  --workers \"\${WORKERS}\" \
                  /tmp/workload.yaml" > "${omb_log}" 2>&1 || exec_rc=$?
 
-    if [[ "${exec_rc}" -ne 0 ]]; then
+    if [[ "${exec_rc}" -eq 124 ]]; then
+        echo "  TIMED OUT after ${PROBE_TIMEOUT}s — OMB JVM may be stuck in shutdown" >&2
+        echo "  Last lines of OMB log:" >&2
+        tail -10 "${omb_log}" >&2 || true
+        echo "  Consider increasing PROBE_TIMEOUT (current: ${PROBE_TIMEOUT}s)" >&2
+        return 1
+    elif [[ "${exec_rc}" -ne 0 ]]; then
         echo "  FAILED (exit ${exec_rc})" >&2
         echo "  Last lines of OMB log:" >&2
         tail -5 "${omb_log}" >&2 || true
