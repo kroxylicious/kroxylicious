@@ -9,9 +9,6 @@ package io.kroxylicious.proxy.config;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -21,8 +18,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param expireAfterAccess cache entries should be automatically removed from the cache once this duration has elapsed after the entry's creation, creation, the most recent replacement of its value, or its last access. The default is 1 hour.
  */
 public record CacheConfiguration(@Nullable Integer maxSize,
-                                 @JsonSerialize(using = DurationSerde.Serializer.class) @JsonDeserialize(using = DurationSerde.Deserializer.class) @Nullable Duration expireAfterWrite,
-                                 @JsonSerialize(using = DurationSerde.Serializer.class) @JsonDeserialize(using = DurationSerde.Deserializer.class) @Nullable Duration expireAfterAccess) {
+                                 @Nullable Duration expireAfterWrite,
+                                 @Nullable Duration expireAfterAccess) {
 
     public static final CacheConfiguration DEFAULT = new CacheConfiguration(null, null, null);
 
