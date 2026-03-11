@@ -499,11 +499,11 @@ for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
     deploy_scenario "${SCENARIO}"
 
     # Pre-collect rates so we can show N/M progress
-    local RATES=()
+    RATES=()
     while IFS= read -r r; do RATES+=("$r"); done < <(rate_sequence)
-    local TOTAL_PROBES=${#RATES[@]}
+    TOTAL_PROBES=${#RATES[@]}
 
-    local FAILED=false
+    FAILED=false
     for i in "${!RATES[@]}"; do
         RATE="${RATES[$i]}"
         PROBE_NUM=$((i + 1))
