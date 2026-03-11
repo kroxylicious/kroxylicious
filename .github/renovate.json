@@ -119,11 +119,9 @@
         "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/validation/JsonSchemaRecordValidationIT.java/"
       ],
       "matchStrings": [
-        "(?<depName>quay.io/apicurio/apicurio-registry-mem):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.\\w+)"
+        "(?<depName>quay.io/apicurio/apicurio-registry):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\""
       ],
-      "datasourceTemplate": "docker",
-      "extractVersionTemplate": "^(?<version>.*)?(\\.(?<build>.*))?$",
-      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)?(\\.(?<build>.*))?$"
+      "datasourceTemplate": "docker"
     },
     {
       "customType": "regex",
