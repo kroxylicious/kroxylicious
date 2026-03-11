@@ -8,9 +8,10 @@
 metadata:
   apiKeys: "CONSUMER_GROUP_DESCRIBE"
   apiVersion: 1
-  scenario: >
-    if upstream response contains assignment topic partitions for topics we are not allowed to DESCRIBE,
-    then we replace the group with an error response
+  scenario: |
+    when some groups in the request do not have DESCRIBE authorized
+    then we forward on the authorized groups
+    then we augment errors into the response for denied groups
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "CONSUMER_GROUP_DESCRIBE"
@@ -49,7 +50,7 @@ given:
                 assignment:
                   topicPartitions:
                     - topicId: "hu65vSlOS1G1ZqWhPPXQaQ"
-                      topicName: "unauthorized"
+                      topicName: "my-topic"
                       partitions:
                         - 42
                 targetAssignment:
@@ -81,6 +82,7 @@ when:
   request:
     groupIds:
       - "my-group"
+      - "unauthorized"
     includeAuthorizedOperations: true
 then:
   expectedResponseHeader:
@@ -88,12 +90,43 @@ then:
   expectedResponse:
     throttleTimeMs: 1017
     groups:
-      - errorCode: 29
-        errorMessage: "The group has described topic(s) that the client is not authorized to describe."
+      - errorCode: 350
+        errorMessage: "random-string-288"
         groupId: "my-group"
+        groupState: "random-string-366"
+        groupEpoch: 818
+        assignmentEpoch: 755
+        assignorName: "random-string-628"
+        members:
+          - memberId: "random-string-943"
+            instanceId: "random-string-273"
+            rackId: "random-string-872"
+            memberEpoch: 237
+            clientId: "random-string-975"
+            clientHost: "random-string-689"
+            subscribedTopicNames:
+              - "my-topic"
+            subscribedTopicRegex: "random-string-71"
+            assignment:
+              topicPartitions:
+                - topicId: "hu65vSlOS1G1ZqWhPPXQaQ"
+                  topicName: "my-topic"
+                  partitions:
+                    - 42
+            targetAssignment:
+              topicPartitions:
+                - topicId: "hu65vSlOS1G1ZqWhPPXQaQ"
+                  topicName: "my-topic"
+                  partitions:
+                    - 42
+            memberType: 20
+        authorizedOperations: 246
+      - errorCode: 30
+        errorMessage: null
+        groupId: "unauthorized"
         groupState: ""
         groupEpoch: 0
         assignmentEpoch: 0
         assignorName: ""
-        members: [ ]
+        members: []
         authorizedOperations: -2147483648

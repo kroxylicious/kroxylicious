@@ -8,6 +8,7 @@ package io.kroxylicious.filter.authorization;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -44,13 +45,35 @@ class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescr
         return 1;
     }
 
+    record DeniedGroups(List<String> deniedGroups) implements InflightState<ConsumerGroupDescribeResponseData> {
+
+        @Override
+        public ConsumerGroupDescribeResponseData merge(ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData) {
+            return null;
+        }
+    }
+
     @Override
     CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
                                                    ConsumerGroupDescribeRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
-        // request only contains groupIds, we want to filter the response which may reference topics this Subject is not allowed to DESCRIBE
-        return context.forwardRequest(header, request);
+        List<Action> describeGroupActions = request.groupIds().stream().map(groupId -> new Action(GroupResource.DESCRIBE, groupId)).toList();
+        return authorizationFilter.authorization(context, describeGroupActions).thenCompose(authorizeResult -> {
+            if (authorizeResult.allowed().isEmpty()) {
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+            }
+            else if (!authorizeResult.denied().isEmpty()) {
+                Map<Decision, List<String>> groupsByDecision = authorizeResult.partition(request.groupIds(), GroupResource.DESCRIBE, Function.identity());
+                List<String> deniedGroups = groupsByDecision.get(Decision.DENY);
+                request.groupIds().removeAll(deniedGroups);
+                authorizationFilter.pushInflightState(header, new DeniedGroups(deniedGroups));
+                return context.forwardRequest(header, request);
+            }
+            else {
+                return context.forwardRequest(header, request);
+            }
+        });
     }
 
     @Override
@@ -58,6 +81,15 @@ class ConsumerGroupDescribeEnforcement extends ApiEnforcement<ConsumerGroupDescr
                                                      ConsumerGroupDescribeResponseData response,
                                                      FilterContext context,
                                                      AuthorizationFilter authorizationFilter) {
+        DeniedGroups deniedGroups = authorizationFilter.popInflightState(header, DeniedGroups.class);
+        if (deniedGroups != null) {
+            for (String deniedGroup : deniedGroups.deniedGroups()) {
+                DescribedGroup responseGroup = new DescribedGroup();
+                responseGroup.setGroupId(deniedGroup);
+                responseGroup.setErrorCode(Errors.GROUP_AUTHORIZATION_FAILED.code());
+                response.groups().add(responseGroup);
+            }
+        }
         List<Action> actions = response.groups().stream()
                 .flatMap(maybeNullOrEmpty(DescribedGroup::members))
                 .flatMap(maybeNull(ALL_ASSIGNMENTS))
