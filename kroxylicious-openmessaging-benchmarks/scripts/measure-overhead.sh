@@ -194,7 +194,7 @@ run_probe() {
     local probe_output_dir="$2"
 
     mkdir -p "${probe_output_dir}"
-    printf "  Probe at %'d msg/sec..." "${rate}"
+    local omb_log="${probe_output_dir}/omb.log"
 
     # Clear previous OMB result files from the pod so we can unambiguously
     # identify the result from this probe afterwards.
@@ -203,7 +203,9 @@ run_probe() {
 
     # Run OMB with the target producer rate. The workload ConfigMap is read-only,
     # so we use sed to write a modified copy into /tmp and run from there.
-    # Capture the exit code without triggering set -e so we can diagnose failures.
+    # OMB output is redirected to a log file to keep the terminal readable;
+    # capture the exit code without triggering set -e so we can diagnose failures.
+    echo "  OMB log: ${omb_log}"
     local exec_rc=0
     kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
         sh -c "sed 's/^producerRate:.*/producerRate: ${rate}/' /etc/omb/workloads/workload.yaml > /tmp/workload.yaml && \
@@ -211,15 +213,15 @@ run_probe() {
                /opt/benchmark/bin/benchmark \
                  --drivers /etc/omb/driver/driver-kafka.yaml \
                  --workers \"\${WORKERS}\" \
-                 /tmp/workload.yaml" || exec_rc=$?
+                 /tmp/workload.yaml" > "${omb_log}" 2>&1 || exec_rc=$?
 
     if [[ "${exec_rc}" -ne 0 ]]; then
-        echo " FAILED (exit ${exec_rc})" >&2
+        echo "  FAILED (exit ${exec_rc})" >&2
+        echo "  Last lines of OMB log:" >&2
+        tail -5 "${omb_log}" >&2 || true
         diagnose_pod_failure "app=omb-benchmark" "${rate}"
         return 1
     fi
-
-    echo ""
 
     # Collect the result JSON produced by this probe.
     local benchmark_pod
@@ -424,13 +426,23 @@ for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
 
     deploy_scenario "${SCENARIO}"
 
-    while IFS= read -r RATE; do
+    # Pre-collect rates so we can show N/M progress
+    local RATES=()
+    while IFS= read -r r; do RATES+=("$r"); done < <(rate_sequence)
+    local TOTAL_PROBES=${#RATES[@]}
+
+    local FAILED=false
+    for i in "${!RATES[@]}"; do
+        RATE="${RATES[$i]}"
+        PROBE_NUM=$((i + 1))
         PROBE_OUTPUT="${SCENARIO_OUTPUT}/rate-${RATE}"
+        echo "--- Probe ${PROBE_NUM}/${TOTAL_PROBES}: $(printf '%'"'"'d' "${RATE}") msg/sec ---"
         if ! run_probe "${RATE}" "${PROBE_OUTPUT}"; then
-            echo "  Probe failed at ${RATE} msg/sec — stopping sweep for ${SCENARIO}" >&2
+            FAILED=true
             break
         fi
-    done < <(rate_sequence)
+    done
+    [[ "${FAILED}" == "true" ]] && echo "  Sweep stopped early for ${SCENARIO}" >&2
 
     teardown_scenario
     echo ""
