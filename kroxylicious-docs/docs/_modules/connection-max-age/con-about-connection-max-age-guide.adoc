@@ -1,0 +1,13 @@
+:_mod-docs-content-type: CONCEPT
+
+
+[discrete]
+[id='con-about-connection-max-age-guide-{context}']
+= About this guide
+
+[role="_abstract"]
+This guide covers using the *Kroxylicious Connection Max Age Filter*.
+This filter closes client connections after a configurable maximum age, helping to rebalance
+connections across proxy instances in dynamic environments such as Kubernetes.
+
+Refer to other Kroxylicious guides for information on running the proxy or for advanced topics such as plugin development.

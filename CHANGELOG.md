@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3449](https://github.com/kroxylicious/kroxylicious/pull/3449): Add Connection Max Age filter that closes client connections after a configurable maximum age, helping to rebalance connections across proxy instances in dynamic environments like Kubernetes.
 * [#3383](https://github.com/kroxylicious/kroxylicious/pull/3383): fix(operator): the operator now uses Server-Side Apply for all dependent resources. This is a no-op change for users: existing deployments are unaffected and externally-applied SSA patches (e.g. annotations or env vars added by observability tooling) will now survive operator reconciles. Users upgrading from a prior release may observe one additional reconcile cycle as Kubernetes transfers field ownership to the SSA manager.
 
 ## 0.19.0

@@ -39,3 +39,10 @@ For information on using the filter, see the {OauthBearerValidationGuide}.
 
 The Kroxylicious SASL Inspection filter extracts the authenticated principal from a successful SASL exchange between Kafka Client
 and Kafka Broker and makes it available to the other filters in the chain.
+For information on using the filter, see the {SASLInspectionGuide}.
+
+== Connection Max Age filter
+
+The Kroxylicious Connection Max Age filter closes client connections after a configurable maximum age.
+This is useful in dynamic environments like Kubernetes where proxy instances scale up and down, helping to rebalance connections across proxy instances.
+For information on using the filter, see the {ConnectionMaxAgeGuide}.

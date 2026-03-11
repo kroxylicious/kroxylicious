@@ -166,3 +166,7 @@ ifndef::DocRoot[:DocRoot: ..]
 :SASLInspectionGuideUrl: {DocRoot}/sasl-inspection-guide/
 :SASLInspectionGuideText: SASL Inspection guide
 :SASLInspectionGuide: link:{SASLInspectionGuideUrl}[{SASLInspectionGuideText}]
+
+:ConnectionMaxAgeGuideUrl: {DocRoot}/connection-max-age-guide/
+:ConnectionMaxAgeGuideText: Connection Max Age guide
+:ConnectionMaxAgeGuide: link:{ConnectionMaxAgeGuideUrl}[{ConnectionMaxAgeGuideText}]
