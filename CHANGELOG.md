@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3449](https://github.com/kroxylicious/kroxylicious/pull/3449): Add Connection Max Age filter that closes client connections after a configurable maximum age, helping to rebalance connections across proxy instances in dynamic environments like Kubernetes.
 * [#2697](https://github.com/kroxylicious/kroxylicious/issues/2697) EntityIsolationFilter (restricted to groupId and transactionalId entity type only)
 * [#3007](https://github.com/kroxylicious/kroxylicious/issues/3007) Allow schema validation to use a schema registry protected by an internally signed certificate.
 * [#2890](https://github.com/kroxylicious/kroxylicious/pull/2890) Update record-validation to Apicurio v3.
