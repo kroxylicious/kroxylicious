@@ -214,17 +214,33 @@ teardown_scenario() {
 
 # --- Probe execution ---
 
-# Verifies that all OMB worker pods are ready before starting a probe.
+# Waits for all OMB worker pods to be ready before starting a probe.
 # A bounced worker pod causes the OMB JVM to hang in shutdown (UnknownHostException
 # in stopAll()), which would cause kubectl exec to hang indefinitely.
+# Grants a grace period of POD_READY_TIMEOUT for workers to recover after a bounce
+# rather than immediately failing the probe.
 check_workers_healthy() {
-    local desired ready
+    local desired
     desired=$(kubectl get statefulset omb-worker -n "${NAMESPACE}" \
         -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+    if [[ "${desired}" == "0" ]]; then
+        echo "  ✗ OMB worker StatefulSet not found or has 0 replicas" >&2
+        return 1
+    fi
+
+    local ready
     ready=$(kubectl get statefulset omb-worker -n "${NAMESPACE}" \
         -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-    if [[ "${ready}" != "${desired}" || "${desired}" == "0" ]]; then
-        echo "  ✗ OMB workers not healthy: ${ready}/${desired} ready" >&2
+    if [[ "${ready}" == "${desired}" ]]; then
+        return 0
+    fi
+
+    echo "  OMB workers not fully ready (${ready}/${desired}) — waiting up to ${POD_READY_TIMEOUT}..."
+    if kubectl rollout status statefulset/omb-worker \
+            -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}" 2>/dev/null; then
+        echo "  OMB workers ready."
+    else
+        echo "  ✗ OMB workers did not recover within ${POD_READY_TIMEOUT}" >&2
         echo "    kubectl get pods -l app=omb-worker -n ${NAMESPACE}" >&2
         return 1
     fi
