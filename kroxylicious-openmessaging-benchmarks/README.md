@@ -246,7 +246,7 @@ helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious
   -n kafka
 ```
 
-### Custom Proxy Image
+### Using a customer proxy image with the operator
 
 By default the Kroxylicious operator deploys the image that shipped with the installed operator version.
 To benchmark an unreleased build — for example, a branch with JFR/flamegraph support — override the image after running `setup-cluster.sh`:
