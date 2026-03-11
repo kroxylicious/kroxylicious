@@ -11,6 +11,8 @@ import java.time.Duration;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for the {@link ConnectionMaxAgeFilter}.
  *
@@ -21,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ConnectionMaxAgeFilterConfig(
                                            @JsonProperty(required = true) long maxAgeSeconds,
-                                           @JsonProperty Long jitterSeconds) {
+                                           @JsonProperty @Nullable Long jitterSeconds) {
 
     public ConnectionMaxAgeFilterConfig {
         if (maxAgeSeconds <= 0) {
