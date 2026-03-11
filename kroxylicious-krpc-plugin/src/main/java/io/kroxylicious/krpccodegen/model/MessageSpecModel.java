@@ -8,6 +8,7 @@ package io.kroxylicious.krpccodegen.model;
 import java.util.List;
 
 import io.kroxylicious.krpccodegen.schema.EntityType;
+import io.kroxylicious.krpccodegen.schema.FieldSpec;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 
 import freemarker.template.AdapterTemplateModel;
@@ -44,7 +45,7 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
             case "hasResourceList" -> wrapper.wrap(spec.hasResourceList());
             case "hasAtLeastOneEntityField" -> wrapper.wrap((TemplateMethodModelEx) this::handleHasAtLeastOneEntityField);
             case "intersectedVersionsForEntityFields" -> wrapper.wrap((TemplateMethodModelEx) this::handleIntersectedVersionsForEntityFields);
-            case "intersectedVersionsForResourceList" -> wrapper.wrap((TemplateMethodModelEx) this::handleintersectedVersionsForResourceList);
+            case "intersectedVersionsForResourceList" -> wrapper.wrap((TemplateMethodModelEx) this::handleIntersectedVersionsForResourceList);
             default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property '" + key + "'");
         };
     }
@@ -74,8 +75,8 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
     }
 
     @SuppressWarnings("java:S3740") // The Freemaker API is in terms of raw Lists
-    private List<Short> handleintersectedVersionsForResourceList(List args) {
-        return spec.intersectedVersions(MessageSpec.isResourceList());
+    private List<Short> handleIntersectedVersionsForResourceList(List unused) {
+        return spec.intersectedVersions(FieldSpec.definesResourceListPredicate());
     }
 
 }

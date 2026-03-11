@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.krpccodegen.model;
+package io.kroxylicious.krpccodegen.main;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -20,7 +20,7 @@ import io.kroxylicious.krpccodegen.schema.MessageSpec;
 /**
  * The Kafka message spec parser.
  */
-public class MessageSpecParser {
+class MessageSpecParser {
 
     private static final ObjectMapper JSON_SERDE = new ObjectMapper();
 
@@ -39,7 +39,7 @@ public class MessageSpecParser {
      * @return message specification
      * @throws IOException i/o exception processing the file
      */
-    public MessageSpec getMessageSpec(Path messageSpec) throws IOException {
+    MessageSpec getMessageSpec(Path messageSpec) throws IOException {
         return JSON_SERDE.readValue(messageSpec.toFile(), MessageSpec.class);
     }
 }

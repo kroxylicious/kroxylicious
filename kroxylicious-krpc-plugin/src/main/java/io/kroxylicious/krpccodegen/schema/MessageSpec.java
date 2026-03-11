@@ -18,9 +18,6 @@ import java.util.stream.IntStream;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.krpccodegen.schema.FieldType.Int8FieldType;
-import io.kroxylicious.krpccodegen.schema.FieldType.StringFieldType;
-
 public final class MessageSpec implements Named {
     private final StructSpec struct;
 
@@ -209,20 +206,7 @@ public final class MessageSpec implements Named {
      * @return true if present, false otherwise
      */
     public boolean hasResourceList() {
-        return fields().stream().anyMatch(isResourceList());
-    }
-
-    public static Predicate<FieldSpec> isResourceList() {
-        return f -> f.type().isStructArray() &&
-                hasMatchingChild("ResourceType", Int8FieldType.class, f) &&
-                hasMatchingChild("ResourceName", StringFieldType.class, f) &&
-                f.fields().stream().anyMatch(sf -> sf.name().equals("ResourceName") && sf.type() instanceof StringFieldType);
-    }
-
-    private static boolean hasMatchingChild(String fieldName, Class<? extends FieldType> fieldType, FieldSpec parent) {
-        return parent.fields().stream().anyMatch(sf -> !sf.versions().intersect(parent.versions()).empty() &&
-                sf.name().equals(fieldName) &&
-                fieldType.isAssignableFrom(sf.type().getClass()));
+        return fields().stream().anyMatch(FieldSpec::isResourceList);
     }
 
     @Override

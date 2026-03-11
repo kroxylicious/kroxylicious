@@ -42,7 +42,6 @@ import org.graalvm.polyglot.TypeLiteral;
 
 import io.kroxylicious.krpccodegen.model.EntityTypeSetFactory;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
-import io.kroxylicious.krpccodegen.model.MessageSpecParser;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
 import io.kroxylicious.krpccodegen.schema.EntityType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
@@ -383,6 +382,7 @@ public class KrpcGenerator {
     private Set<? extends Named> applyFilter(Set<? extends Named> set) {
         if (this.streamProcessingFunction != null) {
             try (Context context = Context.newBuilder("js")
+                    .option("engine.WarnInterpreterOnly", "false")
                     .allowAllAccess(true)
                     .build()) {
                 // These bindings allow Javascript expressions to be written in terms of the Java classes, without referring to the fully qualified Java name.

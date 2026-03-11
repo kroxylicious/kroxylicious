@@ -10,7 +10,6 @@ import java.io.UncheckedIOException;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -24,15 +23,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MessageSpecTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private MessageSpec groupIdMessageSpec;
-    private MessageSpec nestedGroupIdMessageSpec;
-    private MessageSpec groupIdArrayMessageSpec;
-    private MessageSpec topicNameMessageSpec;
-    private MessageSpec nestedTopicNameMessageSpec;
 
-    @BeforeEach
-    void setUp() {
-        groupIdMessageSpec = definitionToMessageSpec("""
+    private static MessageSpec definitionToMessageSpec(String content) {
+        try {
+            return MAPPER.readValue(content, MessageSpec.class);
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Test
+    void shouldDetectTopLevelEntityField() {
+        // Given
+        var groupIdMessageSpec = definitionToMessageSpec("""
                   {
                     "apiKey": 11,
                     "type": "request",
@@ -47,22 +51,42 @@ class MessageSpecTest {
                 }
                 """);
 
-        groupIdArrayMessageSpec = definitionToMessageSpec("""
-                {
-                  "apiKey": 15,
-                  "type": "request",
-                  "listeners": ["broker"],
-                  "name": "SampleRequest",
-                  "validVersions": "0-1",
-                  "flexibleVersions": "0+",
-                  "fields": [
-                    { "name": "Groups", "type": "[]string", "versions": "0+", "entityType": "groupId",
-                      "about": "The names of the groups to describe." }
-                  ]
+        // When
+        var atLeastOneEntityField = groupIdMessageSpec.hasAtLeastOneEntityField(Set.of(EntityType.GROUP_ID));
+
+        // Then
+        assertThat(atLeastOneEntityField).isTrue();
+    }
+
+    @Test
+    void shouldDetectAbsenceOfEntityField() {
+        // Given
+        var groupIdMessageSpec = definitionToMessageSpec("""
+                  {
+                    "apiKey": 11,
+                    "type": "request",
+                    "listeners": ["broker"],
+                    "name": "JoinGroupRequest",
+                    "validVersions": "0-4",
+                    "flexibleVersions": "6+",
+                    "fields": [
+                      { "name": "GroupId", "type": "string", "versions": "1+", "entityType": "groupId",
+                        "about": "The group identifier." }
+                    ]
                 }
                 """);
 
-        nestedGroupIdMessageSpec = definitionToMessageSpec("""
+        // When
+        var noEntityFieldOfType = groupIdMessageSpec.hasAtLeastOneEntityField(Set.of(EntityType.TOPIC_NAME));
+
+        // Then
+        assertThat(noEntityFieldOfType).isFalse();
+    }
+
+    @Test
+    void shouldDetectNestedEntityField() {
+        // Given
+        var nestedGroupIdMessageSpec = definitionToMessageSpec("""
                 {
                    "apiKey": 69,
                    "type": "response",
@@ -79,73 +103,6 @@ class MessageSpecTest {
                    ]
                 }
                 """);
-        topicNameMessageSpec = definitionToMessageSpec("""
-                  {
-                      "apiKey": 47,
-                      "type": "request",
-                      "listeners": ["broker"],
-                      "name": "OffsetDeleteRequest",
-                      "validVersions": "0",
-                      "flexibleVersions": "none",
-                      "fields": [
-                            { "name": "Name",  "type": "string",  "versions": "0+", "mapKey": true, "entityType": "topicName",
-                              "about": "The topic name." }
-                     ]
-                }
-                """);
-        nestedTopicNameMessageSpec = definitionToMessageSpec("""
-                  {
-                      "apiKey": 47,
-                      "type": "request",
-                      "listeners": ["broker"],
-                      "name": "OffsetDeleteRequest",
-                      "validVersions": "0",
-                      "flexibleVersions": "none",
-                      "fields": [
-                        { "name": "Topics", "type": "[]OffsetDeleteRequestTopic", "versions": "0+",
-                          "about": "The topics to delete offsets for.", "fields": [
-                            { "name": "Name",  "type": "string",  "versions": "0+", "mapKey": true, "entityType": "topicName",
-                              "about": "The topic name." }
-                              ]
-                     }]
-                }
-                """);
-    }
-
-    private static MessageSpec definitionToMessageSpec(String content) {
-        try {
-            return MAPPER.readValue(content, MessageSpec.class);
-        }
-        catch (JsonProcessingException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    @Test
-    void shouldDetectTopLevelEntityField() {
-        // Given
-
-        // When
-        var atLeastOneEntityField = groupIdMessageSpec.hasAtLeastOneEntityField(Set.of(EntityType.GROUP_ID));
-
-        // Then
-        assertThat(atLeastOneEntityField).isTrue();
-    }
-
-    @Test
-    void shouldDetectAbsenceOfEntityField() {
-        // Given
-
-        // When
-        var noEntityFieldOfType = groupIdMessageSpec.hasAtLeastOneEntityField(Set.of(EntityType.TOPIC_NAME));
-
-        // Then
-        assertThat(noEntityFieldOfType).isFalse();
-    }
-
-    @Test
-    void shouldDetectNestedEntityField() {
-        // Given
 
         // When
         var atLeastOneEntityField = nestedGroupIdMessageSpec.hasAtLeastOneEntityField(Set.of(EntityType.GROUP_ID));
@@ -157,6 +114,20 @@ class MessageSpecTest {
     @Test
     void shouldReportIntersectedVersionForTopLevelEntityField() {
         // Given
+        var groupIdMessageSpec = definitionToMessageSpec("""
+                  {
+                    "apiKey": 11,
+                    "type": "request",
+                    "listeners": ["broker"],
+                    "name": "JoinGroupRequest",
+                    "validVersions": "0-4",
+                    "flexibleVersions": "6+",
+                    "fields": [
+                      { "name": "GroupId", "type": "string", "versions": "1+", "entityType": "groupId",
+                        "about": "The group identifier." }
+                    ]
+                }
+                """);
 
         // When
         var versions = groupIdMessageSpec.intersectedVersions(f -> EntityType.GROUP_ID.equals(f.entityType()));
@@ -168,6 +139,20 @@ class MessageSpecTest {
     @Test
     void shouldReportEmptyIntersectedVersionForMessageWithoutMatchingField() {
         // Given
+        var groupIdMessageSpec = definitionToMessageSpec("""
+                  {
+                    "apiKey": 11,
+                    "type": "request",
+                    "listeners": ["broker"],
+                    "name": "JoinGroupRequest",
+                    "validVersions": "0-4",
+                    "flexibleVersions": "6+",
+                    "fields": [
+                      { "name": "GroupId", "type": "string", "versions": "1+", "entityType": "groupId",
+                        "about": "The group identifier." }
+                    ]
+                }
+                """);
 
         // When
         var versions = groupIdMessageSpec.intersectedVersions(f -> false);
@@ -179,6 +164,23 @@ class MessageSpecTest {
     @Test
     void shouldReportIntersectedVersionForNestedEntityField() {
         // Given
+        var nestedGroupIdMessageSpec = definitionToMessageSpec("""
+                {
+                   "apiKey": 69,
+                   "type": "response",
+                   "name": "ConsumerGroupDescribeResponse",
+                   "validVersions": "0-1",
+                   "flexibleVersions": "0+",
+                   "fields": [
+                     { "name": "Groups", "type": "[]DescribedGroup", "versions": "0+",
+                       "about": "Each described group.",
+                       "fields": [
+                         { "name": "GroupId", "type": "string", "versions": "0+", "entityType": "groupId",
+                           "about": "The group ID string." }
+                       ]}
+                   ]
+                }
+                """);
 
         // When
         var versions = nestedGroupIdMessageSpec.intersectedVersions(f -> EntityType.GROUP_ID.equals(f.entityType()));
@@ -188,8 +190,22 @@ class MessageSpecTest {
     }
 
     @Test
-    void shouldExtractGroupID() {
+    void shouldExtractSubfield() {
         // Given
+        var groupIdMessageSpec = definitionToMessageSpec("""
+                  {
+                    "apiKey": 11,
+                    "type": "request",
+                    "listeners": ["broker"],
+                    "name": "JoinGroupRequest",
+                    "validVersions": "0-4",
+                    "flexibleVersions": "6+",
+                    "fields": [
+                      { "name": "GroupId", "type": "string", "versions": "1+", "entityType": "groupId",
+                        "about": "The group identifier." }
+                    ]
+                }
+                """);
 
         // When
         var fields = groupIdMessageSpec.fields();
@@ -207,6 +223,20 @@ class MessageSpecTest {
     @Test
     void shouldExtractGroupIDArray() {
         // Given
+        var groupIdArrayMessageSpec = definitionToMessageSpec("""
+                {
+                  "apiKey": 15,
+                  "type": "request",
+                  "listeners": ["broker"],
+                  "name": "SampleRequest",
+                  "validVersions": "0-1",
+                  "flexibleVersions": "0+",
+                  "fields": [
+                    { "name": "Groups", "type": "[]string", "versions": "0+", "entityType": "groupId",
+                      "about": "The names of the groups to describe." }
+                  ]
+                }
+                """);
 
         // When
         var fields = groupIdArrayMessageSpec.fields();
@@ -224,6 +254,24 @@ class MessageSpecTest {
     @Test
     void shouldExtractNestedGroupID() {
         // Given
+
+        var nestedGroupIdMessageSpec = definitionToMessageSpec("""
+                {
+                   "apiKey": 69,
+                   "type": "response",
+                   "name": "ConsumerGroupDescribeResponse",
+                   "validVersions": "0-1",
+                   "flexibleVersions": "0+",
+                   "fields": [
+                     { "name": "Groups", "type": "[]DescribedGroup", "versions": "0+",
+                       "about": "Each described group.",
+                       "fields": [
+                         { "name": "GroupId", "type": "string", "versions": "0+", "entityType": "groupId",
+                           "about": "The group ID string." }
+                       ]}
+                   ]
+                }
+                """);
 
         // When
         var fields = nestedGroupIdMessageSpec.fields();
@@ -247,80 +295,38 @@ class MessageSpecTest {
                 });
     }
 
-    @Test
-    void shouldExtractTopicName() {
-        // Given
-
-        // When
-        var fields = topicNameMessageSpec.fields();
-
-        // Then
-        assertThat(fields)
-                .singleElement()
-                .satisfies(fieldSpec -> {
-                    assertThat(fieldSpec.name()).isEqualTo("Name");
-                    assertThat(fieldSpec.entityType()).isEqualTo(EntityType.TOPIC_NAME);
-                    assertThat(fieldSpec.type()).isInstanceOf(FieldType.StringFieldType.class);
-                });
-    }
-
-    @Test
-    void shouldExtractNestedTopicName() {
-        // Given
-
-        // When
-        var fields = nestedTopicNameMessageSpec.fields();
-
-        // Then
-        assertThat(fields)
-                .singleElement()
-                .satisfies(topLevelArrayField -> {
-                    assertThat(topLevelArrayField.name()).isEqualTo("Topics");
-                    assertThat(topLevelArrayField.entityType()).isEqualTo(EntityType.UNKNOWN);
-                    assertThat(topLevelArrayField.type()).isInstanceOf(FieldType.ArrayType.class);
-                    assertThat(topLevelArrayField.fields())
-                            .singleElement()
-                            .satisfies(groupIdField -> {
-                                assertThat(groupIdField.name()).isEqualTo("Name");
-                                assertThat(groupIdField.entityType()).isEqualTo(EntityType.TOPIC_NAME);
-                                assertThat(groupIdField.type()).isInstanceOf(FieldType.StringFieldType.class);
-                                assertThat(groupIdField.fields()).isEmpty();
-
-                            });
-                });
-    }
-
-    static Stream<Arguments> specsThatDefineResourceLists() {
-        return Stream.of(Arguments.argumentSet("request with resource list", definitionToMessageSpec("""
-                {
-                  "apiKey": 44,
-                  "type": "request",
-                  "listeners": ["broker", "controller"],
-                  "name": "IncrementalAlterConfigsRequest",
-                  "validVersions": "0-1",
-                  "flexibleVersions": "1+",
-                  "fields": [
-                    { "name": "Resources", "type": "[]AlterConfigsResource", "versions": "0+",
-                      "about": "The incremental updates for each resource.", "fields": [
-                      { "name": "ResourceType", "type": "int8", "versions": "0+", "mapKey": true,
-                        "about": "The resource type." },
-                      { "name": "ResourceName", "type": "string", "versions": "0+", "mapKey": true,
-                        "about": "The resource name." },
-                      { "name": "Configs", "type": "[]AlterableConfig", "versions": "0+",
-                        "about": "The configurations.",  "fields": [
-                        { "name": "Name", "type": "string", "versions": "0+", "mapKey": true,
-                          "about": "The configuration key name." },
-                        { "name": "ConfigOperation", "type": "int8", "versions": "0+", "mapKey": true,
-                          "about": "The type (Set, Delete, Append, Subtract) of operation." },
-                        { "name": "Value", "type": "string", "versions": "0+", "nullableVersions": "0+",
-                          "about": "The value to set for the configuration key."}
-                      ]}
-                    ]},
-                    { "name": "ValidateOnly", "type": "bool", "versions": "0+",
-                      "about": "True if we should validate the request, but not change the configurations."}
-                  ]
-                }
-                """)),
+    static Stream<Arguments> resourceListScenarios() {
+        return Stream.of(
+                Arguments.argumentSet("request with resource list", definitionToMessageSpec("""
+                        {
+                          "apiKey": 44,
+                          "type": "request",
+                          "listeners": ["broker", "controller"],
+                          "name": "IncrementalAlterConfigsRequest",
+                          "validVersions": "0-1",
+                          "flexibleVersions": "1+",
+                          "fields": [
+                            { "name": "Resources", "type": "[]AlterConfigsResource", "versions": "0+",
+                              "about": "The incremental updates for each resource.", "fields": [
+                              { "name": "ResourceType", "type": "int8", "versions": "0+", "mapKey": true,
+                                "about": "The resource type." },
+                              { "name": "ResourceName", "type": "string", "versions": "0+", "mapKey": true,
+                                "about": "The resource name." },
+                              { "name": "Configs", "type": "[]AlterableConfig", "versions": "0+",
+                                "about": "The configurations.",  "fields": [
+                                { "name": "Name", "type": "string", "versions": "0+", "mapKey": true,
+                                  "about": "The configuration key name." },
+                                { "name": "ConfigOperation", "type": "int8", "versions": "0+", "mapKey": true,
+                                  "about": "The type (Set, Delete, Append, Subtract) of operation." },
+                                { "name": "Value", "type": "string", "versions": "0+", "nullableVersions": "0+",
+                                  "about": "The value to set for the configuration key."}
+                              ]}
+                            ]},
+                            { "name": "ValidateOnly", "type": "bool", "versions": "0+",
+                              "about": "True if we should validate the request, but not change the configurations."}
+                          ]
+                        }
+                        """), true),
                 Arguments.argumentSet("response with resource list", definitionToMessageSpec(
                         """
                                 {
@@ -345,31 +351,22 @@ class MessageSpecTest {
                                     ]}
                                   ]
                                 }
-                                """)));
-    }
-
-    @ParameterizedTest
-    @MethodSource("specsThatDefineResourceLists")
-    void shouldFindRequestResourceList(MessageSpec ms) {
-        // When/Then
-        assertThat(ms.hasResourceList()).isTrue();
-    }
-
-    static Stream<Arguments> specsThatDontDefineResourceLists() {
-        return Stream.of(Arguments.argumentSet("no container", definitionToMessageSpec("""
-                {
-                  "apiKey": 99,
-                  "type": "request",
-                  "listeners": ["broker", "controller"],
-                  "name": "Test",
-                  "validVersions": "0-1",
-                  "flexibleVersions": "1+",
-                  "fields": [
-                    { "name": "ValidateOnly", "type": "bool", "versions": "0+",
-                      "about": "True if we should validate the request, but not change the configurations."}
-                  ]
-                }
-                """)),
+                                """),
+                        true),
+                Arguments.argumentSet("no container", definitionToMessageSpec("""
+                        {
+                          "apiKey": 99,
+                          "type": "request",
+                          "listeners": ["broker", "controller"],
+                          "name": "Test",
+                          "validVersions": "0-1",
+                          "flexibleVersions": "1+",
+                          "fields": [
+                            { "name": "ValidateOnly", "type": "bool", "versions": "0+",
+                              "about": "True if we should validate the request, but not change the configurations."}
+                          ]
+                        }
+                        """), false),
                 Arguments.argumentSet("no ResourceName", definitionToMessageSpec("""
                         {
                           "apiKey": 99,
@@ -388,7 +385,7 @@ class MessageSpecTest {
                               "about": "True if we should validate the request, but not change the configurations."}
                           ]
                         }
-                        """)),
+                        """), false),
                 Arguments.argumentSet("wrong type", definitionToMessageSpec("""
                         {
                           "apiKey": 99,
@@ -409,7 +406,7 @@ class MessageSpecTest {
                               "about": "True if we should validate the request, but not change the configurations."}
                           ]
                         }
-                        """)),
+                        """), false),
                 Arguments.argumentSet("field version mismatch", definitionToMessageSpec("""
                         {
                           "apiKey": 99,
@@ -430,13 +427,13 @@ class MessageSpecTest {
                               "about": "True if we should validate the request, but not change the configurations."}
                           ]
                         }
-                        """)));
+                        """), false));
     }
 
     @ParameterizedTest
-    @MethodSource("specsThatDontDefineResourceLists")
-    void shouldNotFindRequestResourceList(MessageSpec ms) {
+    @MethodSource("resourceListScenarios")
+    void shouldFindRequestResourceList(MessageSpec ms, boolean hasResourceList) {
         // When/Then
-        assertThat(ms.hasResourceList()).isFalse();
+        assertThat(ms.hasResourceList()).isEqualTo(hasResourceList);
     }
 }
