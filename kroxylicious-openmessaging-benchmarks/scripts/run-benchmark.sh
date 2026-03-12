@@ -50,6 +50,9 @@ Options:
   --profile <values-file>   Additional Helm values file layered on top of the scenario
                             (e.g. helm/kroxylicious-benchmark/scenarios/single-node-values.yaml)
   --set <key=value>         Pass a Helm --set override (may be repeated)
+  --no-teardown             Leave infrastructure running after the benchmark (or on failure).
+                            Useful for post-failure debugging (e.g. jcmd, kubectl exec).
+                            The script will print the teardown commands to run manually.
   -h, --help                Show this help
 
 Environment:
@@ -72,6 +75,7 @@ EOF
 
 PROFILE_VALUES=""
 HELM_SET_ARGS=()
+SKIP_TEARDOWN=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -82,6 +86,10 @@ while [[ $# -gt 0 ]]; do
         --set)
             HELM_SET_ARGS+=("$2")
             shift 2
+            ;;
+        --no-teardown)
+            SKIP_TEARDOWN=true
+            shift
             ;;
         -h|--help)
             usage
@@ -188,8 +196,11 @@ for set_arg in "${HELM_SET_ARGS[@]}"; do HELM_ARGS+=(--set "${set_arg}"); done
 
 helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}"
 
-# Register teardown to run on exit (success or failure) so we always clean up
-trap teardown EXIT
+# Register teardown to run on exit (success or failure) so we always clean up.
+# Skipped when --no-teardown is set, leaving infrastructure up for debugging.
+if [[ "${SKIP_TEARDOWN}" == "false" ]]; then
+    trap teardown EXIT
+fi
 
 # --- Wait for Kafka ---
 
@@ -374,5 +385,12 @@ echo ""
 echo "=== Benchmark complete: ${SCENARIO} / ${WORKLOAD} ==="
 echo "Results written to: ${OUTPUT_DIR}"
 
-# teardown runs via trap on EXIT
+if [[ "${SKIP_TEARDOWN}" == "true" ]]; then
+    echo ""
+    echo "Infrastructure left running (--no-teardown). To tear down manually:"
+    echo "  helm uninstall ${HELM_RELEASE} -n ${NAMESPACE}"
+    echo "  kubectl delete pvc -l strimzi.io/cluster=kafka -n ${NAMESPACE} --ignore-not-found"
+    echo "  kubectl delete pvc ${JFR_PVC_NAME} -n ${NAMESPACE} --ignore-not-found"
+fi
+# teardown runs via trap on EXIT (unless --no-teardown was set)
 exit "${BENCHMARK_EXIT:-0}"
