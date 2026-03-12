@@ -1,0 +1,67 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "SHARE_GROUP_HEARTBEAT"
+  apiVersion: 1
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "SHARE_GROUP_HEARTBEAT"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 76
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: alice-mygroup
+        memberId: mymember
+        memberEpoch: 0
+        rackId: us-east1
+        subscribedTopicNames: [foo]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        errorMessage: ""
+        memberId: mymemberid
+        memberEpoch: 0
+        heartbeatIntervalMs: 0
+        assignment:
+          topicPartitions:
+            - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+              partitions: [0]
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 76
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: mygroup
+    memberId: mymember
+    memberEpoch: 0
+    rackId: us-east1
+    subscribedTopicNames: [foo]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    errorMessage: ""
+    memberId: mymemberid
+    memberEpoch: 0
+    heartbeatIntervalMs: 0
+    assignment:
+      topicPartitions:
+        - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+          partitions: [0]

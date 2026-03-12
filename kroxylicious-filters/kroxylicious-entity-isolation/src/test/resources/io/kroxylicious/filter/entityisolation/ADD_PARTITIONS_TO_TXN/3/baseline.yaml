@@ -1,0 +1,57 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "ADD_PARTITIONS_TO_TXN"
+  apiVersion: 3
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "ADD_PARTITIONS_TO_TXN"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 24
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        v3AndBelowTransactionalId: "alice-12345"
+        v3AndBelowProducerId: 0
+        v3AndBelowProducerEpoch: 0
+        v3AndBelowTopics:
+          - name: foo
+            partitions: [0]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1016
+        resultsByTopicV3AndBelow:
+          - name: foo
+            resultsByPartition: []
+  resourceTypes: ["TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 24
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    v3AndBelowTransactionalId: "12345"
+    v3AndBelowProducerId: 0
+    v3AndBelowProducerEpoch: 0
+    v3AndBelowTopics:
+      - name: foo
+        partitions: [0]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1016
+    resultsByTopicV3AndBelow:
+        - name: foo
+          resultsByPartition: []
