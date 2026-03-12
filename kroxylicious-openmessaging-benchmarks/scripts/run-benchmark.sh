@@ -19,6 +19,13 @@ METRICS_INTERVAL="${METRICS_INTERVAL:-30}"
 
 PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
 
+# JFR configuration
+JFR_MAX_SIZE_MB="${JFR_MAX_SIZE_MB:-64}"
+JFR_MAX_SIZE="${JFR_MAX_SIZE_MB}m"
+JFR_PVC_SIZE_MI=$(( JFR_MAX_SIZE_MB * 110 / 100 ))
+JFR_PVC_SIZE="${JFR_PVC_SIZE_MI}Mi"
+JFR_PVC_NAME="${HELM_RELEASE}-jfr"
+
 usage() {
     cat >&2 <<EOF
 Usage: $(basename "$0") [--profile <values-file>] <scenario> <workload> <output-dir>
@@ -27,8 +34,11 @@ Runs a single benchmark scenario end-to-end:
   1. Deploy benchmark infrastructure via Helm
   2. Wait for Kafka and OMB pods to be ready
   3. Execute the OMB benchmark
-  4. Collect results and metadata
+  4. Collect results, JFR recording, and CPU flamegraph
   5. Tear down infrastructure (Helm uninstall + PVC cleanup)
+
+When a proxy pod is present, JFR and async-profiler CPU profiling are enabled automatically.
+Results include benchmark.jfr and flamegraph.html written to output-dir.
 
 Arguments:
   scenario    Scenario name matching a file in helm/scenarios/<scenario>-values.yaml
@@ -46,6 +56,7 @@ Environment:
   KAFKA_READY_TIMEOUT    Timeout waiting for Kafka to be ready (default: 600s)
   POD_READY_TIMEOUT      Timeout waiting for pods to be ready (default: 300s)
   METRICS_INTERVAL       Proxy metrics polling interval in seconds (default: 30)
+  JFR_MAX_SIZE_MB        Maximum size of the JFR recording in megabytes (default: 64)
 
 Examples:
   $(basename "$0") baseline 1topic-1kb ./results/baseline/
@@ -112,6 +123,8 @@ teardown() {
     fi
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found
+    # Delete JFR PVC if one was created
+    kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found
     echo "Teardown complete."
 }
 
@@ -186,6 +199,59 @@ kubectl wait --for=condition=ready pod \
     --timeout="${POD_READY_TIMEOUT}"
 echo "OMB pods are ready."
 
+# --- Start JFR and async-profiler recording on proxy pod (if present) ---
+
+PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
+PROXY_DEPLOYMENT=""
+PROXY_POD=""
+
+PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
+if [[ -n "${PROXY_POD}" ]]; then
+    PROXY_DEPLOYMENT=$(kubectl get deployment -n "${NAMESPACE}" \
+        -l "${PROXY_POD_LABEL}" \
+        -o jsonpath='{.items[0].metadata.name}')
+
+    echo "Creating JFR PVC ${JFR_PVC_NAME} (${JFR_PVC_SIZE})..."
+    JFR_PVC_NAME="${JFR_PVC_NAME}" NAMESPACE="${NAMESPACE}" JFR_PVC_SIZE="${JFR_PVC_SIZE}" \
+        envsubst '${JFR_PVC_NAME} ${NAMESPACE} ${JFR_PVC_SIZE}' \
+        < "${HELM_CHART}/patches/proxy-jfr-pvc.yaml" \
+        | kubectl apply -f -
+
+    echo "Patching proxy deployment ${PROXY_DEPLOYMENT} to mount JFR PVC at /tmp and enable JFR + async-profiler..."
+    PROXY_DEPLOYMENT="${PROXY_DEPLOYMENT}" NAMESPACE="${NAMESPACE}" \
+        JFR_PVC_NAME="${JFR_PVC_NAME}" JFR_MAX_SIZE="${JFR_MAX_SIZE}" \
+        envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE} ${JFR_PVC_NAME} ${JFR_MAX_SIZE}' \
+        < "${HELM_CHART}/patches/proxy-jfr-tmp.yaml" \
+        | kubectl apply --server-side --field-manager=benchmark-jfr -f -
+
+    PROXY_DEPLOYMENT="${PROXY_DEPLOYMENT}" NAMESPACE="${NAMESPACE}" \
+        envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE}' \
+        < "${HELM_CHART}/patches/proxy-async-profiler.yaml" \
+        | kubectl apply --server-side --field-manager=benchmark-async-profiler -f -
+
+    echo "Waiting for proxy deployment rollout after patch..."
+    kubectl rollout status deployment/"${PROXY_DEPLOYMENT}" \
+        -n "${NAMESPACE}" \
+        --timeout="${POD_READY_TIMEOUT}"
+
+    # Re-fetch pod name — it changed after the rollout
+    PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
+        -o jsonpath='{.items[0].metadata.name}')
+    echo "JFR recording active on proxy pod ${PROXY_POD} (maxsize=${JFR_MAX_SIZE})"
+
+    # Give the JVM a moment to initialise then check if async-profiler got perf events.
+    # If it fell back to itimer mode, native stack frames will be absent from the flamegraph.
+    sleep 3
+    if kubectl logs "${PROXY_POD}" -n "${NAMESPACE}" --tail=100 2>/dev/null \
+            | grep -qi "itimer\|perf_event_open\|perf.*not\|could not open\|Permission denied"; then
+        echo "Warning: async-profiler may be running in itimer mode — perf_event_open was denied." >&2
+        echo "         Native stack frames will not appear in the flamegraph." >&2
+        echo "         Check: kubectl logs ${PROXY_POD} -n ${NAMESPACE} | grep -i profil" >&2
+    else
+        echo "async-profiler CPU profiling active."
+    fi
+fi
+
 # --- Run benchmark ---
 
 start_metrics_poller
@@ -195,6 +261,44 @@ echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
 kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
     sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
 
+# --- Dump JFR recording and flamegraph ---
+
+if [[ -n "${PROXY_DEPLOYMENT}" ]]; then
+    echo ""
+    echo "--- Dumping JFR recording and flamegraph ---"
+    # Re-fetch pod name — the operator may have rolled out a new pod during the benchmark
+    PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
+        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
+    if [[ -z "${PROXY_POD}" ]]; then
+        echo "Warning: proxy pod not found — skipping JFR and flamegraph dump" >&2
+    fi
+    JVM_PID=$(kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+        sh -c 'JAVA_TOOL_OPTIONS="" jcmd 2>/dev/null | awk "/^[0-9]+[[:space:]]/ && !/jdk\.jcmd/{print \$1; exit}"')
+    if [[ -z "${JVM_PID}" ]]; then
+        echo "Warning: could not find JVM PID — skipping JFR and flamegraph dump" >&2
+    else
+        kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+            sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.stop name=benchmark filename=/tmp/benchmark.jfr"
+
+        # Stop async-profiler and write the flamegraph to /tmp/flamegraph.html.
+        # kroxylicious-start.sh exports ASYNC_PROFILER_LIB so the agent path is cleanly
+        # readable from /proc/<pid>/environ.  We re-attach via jcmd JVMTI.agent_load with
+        # a stop command — no asprof binary required.
+        AGENT_LIB=$(kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+            sh -c "tr '\0' '\n' < /proc/${JVM_PID}/environ | grep '^ASYNC_PROFILER_LIB=' | cut -d= -f2-")
+        if [[ -z "${AGENT_LIB}" ]]; then
+            echo "Warning: ASYNC_PROFILER_LIB not set in JVM environment — skipping flamegraph" >&2
+        elif kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
+                       'stop,file=/tmp/flamegraph.html,output=flamegraph,title=${SCENARIO}/${WORKLOAD} $(date -u +%Y-%m-%dT%H:%M:%SZ)'"; then
+            echo "Flamegraph written to /tmp/flamegraph.html"
+        else
+            echo "Warning: async-profiler stop failed — flamegraph may be incomplete or absent" >&2
+        fi
+    fi
+    echo "Dump complete."
+fi
+
 stop_metrics_poller
 
 # --- Collect results ---
@@ -202,7 +306,11 @@ stop_metrics_poller
 echo ""
 echo "--- Collecting results ---"
 mkdir -p "${OUTPUT_DIR}"
-"${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
+JFR_PVC_NAME="${JFR_PVC_NAME}" "${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
+
+# Rename JFR and flamegraph files to include scenario and workload for clarity
+[[ -f "${OUTPUT_DIR}/benchmark.jfr" ]] && mv "${OUTPUT_DIR}/benchmark.jfr" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
+[[ -f "${OUTPUT_DIR}/flamegraph.html" ]] && mv "${OUTPUT_DIR}/flamegraph.html" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-flamegraph.html"
 
 echo ""
 echo "=== Benchmark complete: ${SCENARIO} / ${WORKLOAD} ==="

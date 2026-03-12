@@ -1,0 +1,23 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# PVC for the proxy JFR recording. Using a PVC rather than an emptyDir means
+# the recording survives pod termination, so the JFR dump written by dumponexit
+# can be collected after the proxy deployment has been scaled to zero.
+#
+# The JFR_PVC_NAME, NAMESPACE, and JFR_PVC_SIZE placeholders are substituted
+# by the script using envsubst before applying.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${JFR_PVC_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: ${JFR_PVC_SIZE}
