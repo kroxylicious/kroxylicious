@@ -6,6 +6,7 @@
 package io.kroxylicious.filter.entityisolation;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -49,7 +50,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         Objects.requireNonNull(mapper);
         var wrappedMapper = new EmptyResourceNameHandlingMapper(Objects.requireNonNull(mapper));
 
-        Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> pm = new HashMap<>();
+        Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> pm = new EnumMap<>(ApiKeys.class);
 
         // Handles version negotiation
         pm.put(ApiKeys.API_VERSIONS, new ApiVersionsHandler());

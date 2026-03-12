@@ -66,9 +66,8 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                 .entrySet()
                 .stream()
                 .filter(e -> e.getValue().isPresent())
-                .filter(e -> shouldMap.apply(e.getValue().get())).forEach(e -> {
-                    e.getKey().setResourceNameFilter(mapper.map(mapperContext, e.getValue().get(), e.getKey().resourceNameFilter()));
-                });
+                .filter(e -> shouldMap.apply(e.getValue().get()))
+                .forEach(e -> e.getKey().setResourceNameFilter(mapper.map(mapperContext, e.getValue().get(), e.getKey().resourceNameFilter())));
         return filterContext.forwardRequest(header, request);
     }
 
@@ -79,7 +78,7 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                                                             DeleteAclsResponseData response,
                                                             FilterContext filterContext,
                                                             MapperContext mapperContext) {
-        response.filterResults().stream().forEach(fr -> {
+        response.filterResults().forEach(fr -> {
             var matchingAclIterator = fr.matchingAcls().iterator();
             while (matchingAclIterator.hasNext()) {
                 var configResource = matchingAclIterator.next();

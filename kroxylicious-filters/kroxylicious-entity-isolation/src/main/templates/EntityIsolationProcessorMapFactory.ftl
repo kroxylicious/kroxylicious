@@ -24,7 +24,7 @@
  */
 package ${outputPackage};
 
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -53,7 +53,7 @@ final class EntityIsolationProcessorMapFactory  {
     }
 
     static Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> createProcessorMap(Function<EntityIsolation.ResourceType, Boolean> shouldMap, EntityNameMapper entityNameMapper) {
-        var map = new HashMap<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>>();
+        var map = new EnumMap<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>>(ApiKeys.class);
 
 <#list messageSpecPairs>
     <#items as pair>

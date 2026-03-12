@@ -54,9 +54,7 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
                                                           MapperContext mapperContext) {
         EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, request.resourceTypeFilter())
                 .filter(shouldMap::apply)
-                .ifPresent(rt -> {
-                    request.setResourceNameFilter(mapper.map(mapperContext, rt, request.resourceNameFilter()));
-                });
+                .ifPresent(rt -> request.setResourceNameFilter(mapper.map(mapperContext, rt, request.resourceNameFilter())));
 
         return filterContext.forwardRequest(header, request);
     }
