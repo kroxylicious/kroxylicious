@@ -408,6 +408,7 @@ print_summary() {
         local baseline_p99=""
         if [[ -n "${baseline_dir}" ]]; then
             local bf="${baseline_dir}/rate-${rate}/result.json"
+            local bd="${baseline_dir}/rate-${rate}"
             if [[ -f "${bf}" ]]; then
                 local b_achieved b_sat b_p99
                 b_achieved=$(jq '[.publishRate[]] | add / length' "${bf}")
@@ -421,16 +422,23 @@ print_summary() {
                         "$(printf '%.0f' "${b_achieved}")" \
                         "$(printf '%.2f ms' "${b_p99}")"
                 fi
+            elif [[ -d "${bd}" ]]; then
+                printf "  %-20s  %-14s" "✗ errored" "—"
             else
-                printf "  %-20s  %-14s" "—" "—"
+                printf "  %-20s  %-14s" "(not run)" "—"
             fi
         fi
 
         # Non-baseline scenario columns
         for s in "${other_scenarios[@]}"; do
             local sf="${OUTPUT_DIR}/${s}/rate-${rate}/result.json"
+            local sd="${OUTPUT_DIR}/${s}/rate-${rate}"
             if [[ ! -f "${sf}" ]]; then
-                printf "  %-18s  %-12s" "—" "—"
+                if [[ -d "${sd}" ]]; then
+                    printf "  %-18s  %-12s" "✗ errored" "—"
+                else
+                    printf "  %-18s  %-12s" "(not run)" "—"
+                fi
                 [[ -n "${baseline_dir}" ]] && printf "  %-12s" "—"
                 continue
             fi
