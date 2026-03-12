@@ -177,8 +177,8 @@
         "(?<depName>quay.io/strimzi-test-clients/test-clients):(?<currentValue>\\d+\\.\\d+\\.\\d+)-kafka"
       ],
       "datasourceTemplate": "docker",
-      "extractVersionTemplate": "^(?<version>.*)?(-kafka.*)?$",
-      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)?(-kafka.*)?$"
+      "extractVersionTemplate": "^(?<version>.*)?(-kafka)?$",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)?(-kafka)?$"
     },
     {
       "customType": "regex",
