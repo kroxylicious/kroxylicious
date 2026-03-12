@@ -7,7 +7,7 @@
 ---
 metadata:
   apiKeys: "DELETE_SHARE_GROUP_OFFSETS"
-  apiVersion: 4
+  apiVersion: 0
   scenario: "baseline"
 given:
   mockedUpstreamResponses:

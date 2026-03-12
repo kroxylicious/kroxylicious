@@ -7,7 +7,7 @@
 metadata:
   apiKeys: "LIST_TRANSACTIONS"
   apiVersion: 2
-  scenario: "baseline"
+  scenario: "rejects invalid regexp"
 given:
   mockedUpstreamResponses: []
   resourceTypes: ["TRANSACTIONAL_ID"]

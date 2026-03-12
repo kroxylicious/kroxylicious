@@ -38,6 +38,15 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C
     short maxSupportedVersion();
 
     /**
+     * tests whether the apiVersion is beyond the range described by
+     * minSupportedVersion...maxSupportedVersion.
+     * @return true if out of range
+     */
+    default boolean versionIsOutOfRange(short apiVersion) {
+        return apiVersion < minSupportedVersion() || apiVersion > maxSupportedVersion();
+    }
+
+    /**
      * Returns true if the processor should isolate this request version.
      * @param apiVersion @apiNote version
      * @return  true if the processor should isolate this request version.

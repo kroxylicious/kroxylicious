@@ -20,6 +20,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +67,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
     @Override
     public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
         return Optional.ofNullable(processorMap.get(apiKey))
-                .map(eip -> eip.shouldHandleRequest(apiVersion))
+                .map(eip -> eip.shouldHandleRequest(apiVersion) || eip.versionIsOutOfRange(apiVersion))
                 .orElse(false);
     }
 
@@ -87,6 +88,14 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         return Optional.ofNullable(processorMap.get(apiKey))
                 .map(EntityIsolationProcessor.class::cast)
                 .map(eip -> {
+                    if (eip.versionIsOutOfRange(apiVersion)) {
+                        // fail closed
+                        logFailClosed(filterContext, apiKey, apiVersion, eip.minSupportedVersion(),  eip.maxSupportedVersion());
+                        return filterContext.requestFilterResultBuilder()
+                                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
+                                .withCloseConnection()
+                                .completed();
+                    }
                     log(filterContext, "request", apiKey, request);
                     var mapperContext = buildMapperContext(filterContext);
                     var crc = eip.createCorrelatedRequestContext(request);
@@ -170,7 +179,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         }
     }
 
-    public static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
+    private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
         boolean mayContainSecret = message instanceof DescribeConfigsResponseData;
         LOGGER.atDebug()
                 .addArgument(context::sessionId)
@@ -181,8 +190,19 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 .setMessage("{} for {}: {} {}: {}")
                 .log();
     }
-
+    private static void logFailClosed(FilterContext context, ApiKeys key, short version, short minVersion, short maxVersion) {
+        LOGGER.atWarn()
+                .addArgument(context::sessionId)
+                .addArgument(context::authenticatedSubject)
+                .addArgument(key)
+                .addArgument(version)
+                .addArgument(minVersion)
+                .addArgument(maxVersion)
+                .setMessage("{} for {}: {} (version {}) falls outside range {}...{} known to this filter. closing connection.")
+                .log();
+    }
     private class ApiVersionsHandler implements EntityIsolationProcessor<ApiVersionsRequestData, ApiVersionsResponseData, Void> {
+
 
         @Override
         public short minSupportedVersion() {

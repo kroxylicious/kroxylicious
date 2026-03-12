@@ -41,7 +41,7 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
 
     @Override
     public short maxSupportedVersion() {
-        return 2;
+        return 3;
     }
 
     @Override

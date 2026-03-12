@@ -6,7 +6,7 @@
 
 metadata:
   apiKeys: "CREATE_TOPICS"
-  apiVersion: 19
+  apiVersion: 7
   scenario: "baseline"
 given:
   mockedUpstreamResponses:
