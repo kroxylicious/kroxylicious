@@ -102,7 +102,10 @@ for SCENARIO in "${SCENARIOS[@]}"; do
     for WORKLOAD in "${WORKLOADS[@]}"; do
         SCENARIO_OUTPUT="${OUTPUT_DIR}/${SCENARIO}/${WORKLOAD}"
         echo ">>> ${SCENARIO} / ${WORKLOAD}"
-        "${SCRIPT_DIR}/run-benchmark.sh" "${RUN_BENCHMARK_ARGS[@]}" "${SCENARIO}" "${WORKLOAD}" "${SCENARIO_OUTPUT}"
+        # ${array[@]+"${array[@]}"} is the bash 3.2-safe idiom for expanding an array that may be
+        # empty: the + operator expands to nothing when the array is unset or empty, avoiding the
+        # "unbound variable" error that set -u raises for empty array expansions in bash 3.2.
+        "${SCRIPT_DIR}/run-benchmark.sh" ${RUN_BENCHMARK_ARGS[@]+"${RUN_BENCHMARK_ARGS[@]}"} "${SCENARIO}" "${WORKLOAD}" "${SCENARIO_OUTPUT}"
         echo ""
     done
 done
