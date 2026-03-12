@@ -56,7 +56,9 @@ public abstract class BaseOauthBearerIT extends BaseIT {
     protected static final String CLIENT_ID = "clientId-" + UUID.randomUUID();
     protected static final String CLIENT_SECRET = "clientSecret";
 
-    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:3.0.0");
+    // mock-oauth2-server is not uploaded to docker hub, so setting the digest doesn't work when looking for the image on docker hub.
+    // When this issue https://github.com/testcontainers/testcontainers-java/issues/10527 is fixed, we can use the digest here.
+    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:3.0.1");
     private static OauthServerContainer oauthServer;
 
     @BeforeAll

@@ -140,7 +140,9 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     @BeforeAll
     static void init() {
         // An Apicurio Registry instance is required for this test to work, so we start one using a Generic Container
-        DockerImageName dockerImageName = DockerImageName.parse("quay.io/apicurio/apicurio-registry:3.0.6");
+        String image = "quay.io/apicurio/apicurio-registry:3.1.6@sha256:d0625211cebb1f58a2982df29cb0945249d8f88f37ccce9e162c0c12c2aea89e";
+        DockerImageName dockerImageName = DockerImageName.parse(image)
+                .asCompatibleSubstituteFor(DockerImageName.parse(image.substring(0, image.indexOf("@"))));
 
         Consumer<CreateContainerCmd> cmd = e -> e.withHostConfig(new HostConfig().withPortBindings(
                 new PortBinding(Ports.Binding.bindPort(APICURIO_REGISTRY_PORT), new ExposedPort(APICURIO_REGISTRY_PORT))));
