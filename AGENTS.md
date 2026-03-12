@@ -139,6 +139,8 @@ LOGGER.atWarn()
 - Validate configuration in `FilterFactory.initialize()`, not constructors.
 - Keep filter instances as stateless as possible.
 - Register filters via SPI (`META-INF/services/io.kroxylicious.proxy.filter.FilterFactory`).
+- Prefer immutability: use `final` fields wherever possible.
+- Avoid JavaBean-style `get`-prefixed accessors. Name accessor methods after the value they return, following the same convention Java uses for `record` components (e.g. `name()` not `getName()`). The exception is when integrating with a library that requires JavaBean conventions (e.g. Jackson bean serialisation).
 
 ## Preferred Development Workflow
 
