@@ -148,6 +148,16 @@ class ${messageSpecPair.name}EntityIsolationProcessor implements EntityIsolation
         this.mapper = Objects.requireNonNull(mapper);
     }
 
+    @Override
+    public short minSupportedVersion() {
+        return ${messageSpecPair.request.validVersions.lowest};
+    }
+
+    @Override
+    public short maxSupportedVersion() {
+        return ${messageSpecPair.request.validVersions.highest};
+    }
+
 <#if messageSpecPair.request.hasResourceList>
     <#assign key="${messageSpecPair.apiKey}" dataClass="${messageSpecPair.request.dataClassName}"/>
     @Override

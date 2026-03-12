@@ -40,6 +40,16 @@ class FindCoordinatorEntityIsolationProcessor
     }
 
     @Override
+    public short minSupportedVersion() {
+        return 0;
+    }
+
+    @Override
+    public short maxSupportedVersion() {
+        return 6;
+    }
+
+    @Override
     public boolean shouldHandleRequest(short apiVersion) {
         return true;
     }

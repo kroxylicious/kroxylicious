@@ -35,6 +35,16 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
     }
 
     @Override
+    public short minSupportedVersion() {
+        return 1;
+    }
+
+    @Override
+    public short maxSupportedVersion() {
+        return 2;
+    }
+
+    @Override
     public boolean shouldHandleRequest(short apiVersion) {
         return (short) 1 <= apiVersion && apiVersion <= (short) 3;
     }

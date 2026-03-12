@@ -28,6 +28,16 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
 interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C> {
 
     /**
+     * @return The inclusive minimum version of the range of versions supported
+     */
+    short minSupportedVersion();
+
+    /**
+     * @return The inclusive maximum version of the range of versions supported
+     */
+    short maxSupportedVersion();
+
+    /**
      * Returns true if the processor should isolate this request version.
      * @param apiVersion @apiNote version
      * @return  true if the processor should isolate this request version.

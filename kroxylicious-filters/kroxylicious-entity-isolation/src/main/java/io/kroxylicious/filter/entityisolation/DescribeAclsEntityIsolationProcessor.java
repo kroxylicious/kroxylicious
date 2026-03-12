@@ -35,6 +35,16 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
     }
 
     @Override
+    public short minSupportedVersion() {
+        return 1;
+    }
+
+    @Override
+    public short maxSupportedVersion() {
+        return 3;
+    }
+
+    @Override
     public boolean shouldHandleRequest(short apiVersion) {
         return (short) 1 <= apiVersion && apiVersion <= (short) 3;
     }
