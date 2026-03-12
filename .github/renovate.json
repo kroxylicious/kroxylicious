@@ -260,6 +260,16 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
+        "/kroxylicious-openmessaging-benchmarks/scripts/collect-results.sh/"
+      ],
+      "matchStrings": [
+        "image: (?<depName>busybox):(?<currentValue>[\\d.]+)@(?<currentDigest>sha256:[a-f0-9]+)"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
         "/kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/values.yaml/"
       ],
       "matchStrings": [

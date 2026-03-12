@@ -1,0 +1,34 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Patches the proxy Deployment to enable async-profiler CPU flamegraph recording.
+#
+# - Sets ASYNC_PROFILER_FLAGS so that kroxylicious-start.sh loads libasyncProfiler.so
+#   at JVM startup and begins CPU profiling immediately.  The flamegraph is written
+#   to /tmp/flamegraph.html when run-benchmark.sh calls jcmd Async.execute stop.
+# - Sets seccompProfile: Unconfined on the proxy container so that async-profiler can
+#   call perf_event_open(2), which is blocked by most default container seccomp profiles.
+#   If the kernel still denies access (perf_event_paranoid too high) the profiler falls
+#   back to itimer mode; run-benchmark.sh checks the pod logs and warns accordingly.
+#
+# The PROXY_DEPLOYMENT and NAMESPACE placeholders are substituted by the script using
+# envsubst before applying.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${PROXY_DEPLOYMENT}
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      containers:
+      - name: proxy
+        env:
+        - name: ASYNC_PROFILER_FLAGS
+          value: "start,event=cpu,file=/tmp/flamegraph.html,output=flamegraph"
+        securityContext:
+          seccompProfile:
+            type: Unconfined

@@ -67,6 +67,7 @@ ZSTD_NATIVE_LIB=$(native_library_path zstd-jni)
 ZSTD_FULLY_QUALIFIED=$(ls "${ZSTD_NATIVE_LIB}"/libzstd-jni-*)
 
 ASYNC_PROFILER_FULLY_QUALIFIED="$(native_library_path async-profiler)/libasyncProfiler.so"
+export ASYNC_PROFILER_LIB="${ASYNC_PROFILER_FULLY_QUALIFIED}"
 echo "Async profiler available at: ${ASYNC_PROFILER_FULLY_QUALIFIED} use the ASYNC_PROFILER_FLAGS to control its settings"
 
 if [ -n "${ASYNC_PROFILER_ENABLED:-}" ] || [ -n "${ASYNC_PROFILER_FLAGS:-}" ]; then

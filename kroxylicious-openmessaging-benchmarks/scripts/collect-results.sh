@@ -30,6 +30,7 @@ Options:
 
 Environment:
   NAMESPACE                 Kubernetes namespace (default: kafka)
+  JFR_PVC_NAME              Name of the PVC holding the JFR recording (set by run-benchmark.sh)
 
 Prerequisites:
   - kubectl configured with access to the cluster
@@ -93,6 +94,53 @@ while IFS= read -r file; do
     echo "  $file"
     kubectl cp "$NAMESPACE/$POD:$BENCHMARK_RESULTS_DIR/$file" "$OUTPUT_DIR/$file"
 done <<< "$RESULT_FILES"
+
+# Copy JFR recording from PVC if one was created by run-benchmark.sh
+JFR_PVC_NAME="${JFR_PVC_NAME:-}"
+JFR_FILE="/tmp/benchmark.jfr"
+
+if [[ -n "${JFR_PVC_NAME}" ]] && kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
+    echo "Copying JFR recording from PVC ${JFR_PVC_NAME}..."
+    DEBUG_POD="jfr-collect-$$"
+    kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${DEBUG_POD}
+  namespace: ${NAMESPACE}
+spec:
+  restartPolicy: Never
+  volumes:
+  - name: jfr
+    persistentVolumeClaim:
+      claimName: ${JFR_PVC_NAME}
+  containers:
+  - name: debug
+    image: busybox:1.37.0@sha256:b3255e7dfbcd10cb367af0d409747d511aeb66dfac98cf30e97e87e4207dd76f
+    command: ["sleep", "infinity"]
+    volumeMounts:
+    - name: jfr
+      mountPath: /tmp
+EOF
+    kubectl wait pod "${DEBUG_POD}" -n "${NAMESPACE}" --for=condition=ready --timeout=60s
+    kubectl cp "${NAMESPACE}/${DEBUG_POD}:${JFR_FILE}" "${OUTPUT_DIR}/benchmark.jfr"
+    if [[ ! -s "${OUTPUT_DIR}/benchmark.jfr" ]]; then
+        echo "Warning: benchmark.jfr is empty — JFR dump may not have completed before pod terminated" >&2
+    else
+        echo "  benchmark.jfr ($(du -h "${OUTPUT_DIR}/benchmark.jfr" | cut -f1))"
+    fi
+
+    # Copy flamegraph if async-profiler produced one
+    FLAMEGRAPH_FILE="/tmp/flamegraph.html"
+    if kubectl exec -n "${NAMESPACE}" "${DEBUG_POD}" -- test -s "${FLAMEGRAPH_FILE}" 2>/dev/null; then
+        kubectl cp "${NAMESPACE}/${DEBUG_POD}:${FLAMEGRAPH_FILE}" "${OUTPUT_DIR}/flamegraph.html"
+        echo "  flamegraph.html ($(du -h "${OUTPUT_DIR}/flamegraph.html" | cut -f1))"
+    else
+        echo "Warning: flamegraph.html is absent or empty — async-profiler may not have run or perf events were unavailable" >&2
+    fi
+
+    kubectl delete pod "${DEBUG_POD}" -n "${NAMESPACE}" --ignore-not-found
+fi
 
 # Generate run metadata
 echo "Generating run metadata..."
