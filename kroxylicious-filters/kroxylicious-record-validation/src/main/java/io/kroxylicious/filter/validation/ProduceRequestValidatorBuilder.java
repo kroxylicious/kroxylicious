@@ -9,10 +9,11 @@ package io.kroxylicious.filter.validation;
 import java.util.ArrayList;
 import java.util.Map;
 
-import io.apicurio.registry.resolver.SchemaResolverConfig;
+import io.apicurio.registry.resolver.config.SchemaResolverConfig;
 
 import io.kroxylicious.filter.validation.config.BytebufValidation;
 import io.kroxylicious.filter.validation.config.RecordValidationRule;
+import io.kroxylicious.filter.validation.config.SchemaValidationConfig;
 import io.kroxylicious.filter.validation.config.ValidationConfig;
 import io.kroxylicious.filter.validation.validators.bytebuf.BytebufValidator;
 import io.kroxylicious.filter.validation.validators.bytebuf.BytebufValidators;
@@ -60,8 +61,10 @@ class ProduceRequestValidatorBuilder {
         var validators = new ArrayList<BytebufValidator>();
         valueRule.getSyntacticallyCorrectJsonConfig().ifPresent(config -> validators.add(BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique())));
         valueRule.getSchemaValidationConfig().ifPresent(
-                config -> validators.add(BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
-                        config.apicurioGlobalId())));
+                config -> validators.add(BytebufValidators.jsonSchemaValidator(
+                        buildSchemaResolverConfig(config),
+                        config.apicurioId(),
+                        config.wireFormatVersion())));
         valueRule.getJwsSignatureValidationConfig().ifPresent(
                 config -> validators
                         .add(BytebufValidators.jwsSignatureValidator(config.getJsonWebKeySet(), config.getAlgorithms(), config.getHeaderOptions(),
@@ -70,4 +73,7 @@ class ProduceRequestValidatorBuilder {
         return BytebufValidators.chainOf(validators);
     }
 
+    private static Map<String, Object> buildSchemaResolverConfig(SchemaValidationConfig config) {
+        return Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString());
+    }
 }

@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Parameter;
+import java.time.Duration;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -102,7 +103,10 @@ public class ConfigParser implements PluginFactoryRegistry {
         return new ObjectMapper(yamlFactory)
                 .registerModule(new ParameterNamesModule())
                 .registerModule(new Jdk8Module())
-                .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))
+                .registerModule(new SimpleModule()
+                        .addSerializer(HostPort.class, new ToStringSerializer())
+                        .addSerializer(Duration.class, new DurationSerde.Serializer())
+                        .addDeserializer(Duration.class, new DurationSerde.Deserializer()))
                 .setVisibility(PropertyAccessor.ALL, Visibility.NONE)
                 .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
                 .setVisibility(PropertyAccessor.CREATOR, Visibility.ANY)

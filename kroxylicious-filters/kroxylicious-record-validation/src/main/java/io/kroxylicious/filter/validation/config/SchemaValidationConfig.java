@@ -11,22 +11,51 @@ import java.net.URL;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is valid using the schema in Apicurio Registry.
- * @param apicurioGlobalId globalId
  * @param apicurioRegistryUrl apicurio registry url
+ * @param apicurioId schema identifier - interpreted as contentId for V3 (default) or globalId for V2
+ * @param wireFormatVersion wire format version (defaults to V3 if null)
  */
-public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioGlobalId) {
+public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioId, WireFormatVersion wireFormatVersion) {
+
     /**
-     * Construct SchemaValidationConfig
-     * @param apicurioGlobalId apicurio registry version global identifier to be used for schema validation
+     * Wire format versions for Apicurio Registry schema identifiers.
+     * <p>
+     * V3 uses 4-byte content IDs (Confluent-compatible format) and is the default.
+     * V2 uses 8-byte global IDs and is deprecated.
+     * </p>
+     */
+    public enum WireFormatVersion {
+        /**
+         * Apicurio Registry v2 wire format using 8-byte global IDs.
+         * @deprecated Use {@link #V3} instead for Confluent compatibility. This option will be removed in a future release.
+         */
+        @Deprecated(since = "0.19.0", forRemoval = true)
+        V2,
+
+        /**
+         * Apicurio Registry v3 wire format using 4-byte content IDs (Confluent-compatible).
+         * This is the recommended and default format.
+         */
+        V3
+    }
+
+    /**
+     * Construct SchemaValidationConfig with explicit wire format version
      * @param apicurioRegistryUrl Apicurio Registry instance url
+     * @param apicurioId schema identifier - interpreted as contentId for V3 (default) or globalId for V2
+     * @param wireFormatVersion wire format version (defaults to V3 if null)
      */
     @JsonCreator
     public SchemaValidationConfig(@JsonProperty(value = "apicurioRegistryUrl", required = true) URL apicurioRegistryUrl,
-                                  @JsonProperty(value = "apicurioGlobalId", required = true) long apicurioGlobalId) {
-        this.apicurioGlobalId = apicurioGlobalId;
+                                  @JsonProperty(value = "apicurioId", required = true) long apicurioId,
+                                  @Nullable @JsonProperty(value = "wireFormatVersion", required = false) WireFormatVersion wireFormatVersion) {
+        this.apicurioId = apicurioId;
         this.apicurioRegistryUrl = apicurioRegistryUrl;
+        this.wireFormatVersion = wireFormatVersion != null ? wireFormatVersion : WireFormatVersion.V3;
     }
 
 }
