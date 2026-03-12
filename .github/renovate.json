@@ -170,8 +170,8 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
-        "kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java"
+      "managerFilePatterns": [
+        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java/"
       ],
       "matchStrings": [
         "(?<depName>quay.io/strimzi-test-clients/test-clients):(?<currentValue>\\d+\\.\\d+\\.\\d+)-kafka"
