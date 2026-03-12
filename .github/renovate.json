@@ -170,7 +170,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
+      "managerFilePatterns": [
         "kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java"
       ],
       "matchStrings": [
