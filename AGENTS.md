@@ -59,12 +59,11 @@ TEST_CLUSTER_EXECUTION_MODE=CONTAINER mvn verify
 
 ## Architecture Overview
 
-Kroxylicious is a Kafka protocol proxy built with Netty. Requests and responses flow through a configurable filter chain:
+Kroxylicious is a Kafka protocol proxy built with Netty. Filters may intercept, modify, drop, or short-circuit requests and responses. A filter chain is defined once per virtual cluster; each client connection to that cluster gets its own instance of the chain, with dedicated filter instances. Requests flow through the chain in order, responses flow back in reverse.
 
 ```
-Client → Network Handler → Filter Chain → Broker
-         (Request)         F1 → F2 → F3
-         (Response)           ← ← ←
+Client ──request──▶ [ Filter 1 → Filter 2 → Filter N ] ──request──▶ Broker
+       ◀─response── [ Filter 1 ← Filter 2 ← Filter N ] ◀─response──
 ```
 
 ### Key Interfaces
