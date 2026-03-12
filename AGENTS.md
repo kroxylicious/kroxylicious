@@ -76,6 +76,12 @@ The following are considered public API — changes require a design proposal be
 
 Other modules may also contain public API surface; when in doubt, raise it for discussion before making breaking changes.
 
+### Plugin Architecture
+
+Filters are discovered via `java.util.ServiceLoader`. To register a filter, add its `FilterFactory` implementation's fully-qualified class name to `META-INF/services/io.kroxylicious.proxy.filter.FilterFactory`.
+
+At runtime, `PluginFactoryRegistry` resolves a plugin interface type (e.g. `FilterFactory`) to a `PluginFactory` for that type. `PluginFactory` serves two purposes: it resolves a filter name to the factory instance (`pluginInstance(name)`), and it resolves the correct Jackson config type for that filter (`configType(name)`). This is how the proxy knows which Java type to deserialise the filter's YAML configuration into — the config type is not fixed in the schema but resolved dynamically per filter implementation.
+
 ### Key Interfaces
 
 - **`FilterFactory<C, I>`** — filter lifecycle: `initialize(context, config)` validates config and returns init state; `createFilter(context, initData)` creates per-connection instances (must be thread-safe).
