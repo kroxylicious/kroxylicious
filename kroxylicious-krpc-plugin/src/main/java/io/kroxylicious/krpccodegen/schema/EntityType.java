@@ -41,7 +41,7 @@ public enum EntityType {
         }
         else {
             if (!type.toString().equals(baseType.toString())) {
-                throw new RuntimeException("Field " + fieldName + " has entity type " +
+                throw new RuntimeException("Field " + fieldName + " has field type " +
                         name() + ", but field type " + type.toString() + ", which does " +
                         "not match.");
             }
