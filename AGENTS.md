@@ -66,11 +66,29 @@ Client ──request──▶ [ Filter 1 → Filter 2 → Filter N ] ──reque
        ◀─response── [ Filter 1 ← Filter 2 ← Filter N ] ◀─response──
 ```
 
+### Public API
+
+The following are considered public API — changes require a design proposal before implementation:
+- `kroxylicious-api` module
+- `kroxylicious-kubernetes-api` module
+- YAML configuration structure (the Java types backing the config are *not* public API — use Jackson annotations such as `@JsonAlias` to preserve old names while refactoring internal types)
+- Shell scripts included in distribution tarballs
+
+Other modules may also contain public API surface; when in doubt, raise it for discussion before making breaking changes.
+
 ### Key Interfaces
 
 - **`FilterFactory<C, I>`** — filter lifecycle: `initialize(context, config)` validates config and returns init state; `createFilter(context, initData)` creates per-connection instances (must be thread-safe).
 - **`RequestFilter` / `ResponseFilter`** — intercept Kafka RPCs; return a `FilterResult` (forward, drop, or close connection).
 - **`FilterContext`** — runtime context: channel access, SASL callbacks, config injection.
+
+### Key Netty Handlers
+
+- **`KafkaProxyInitializer`** — `ChannelInitializer` that bootstraps the downstream pipeline for each new connection. Resolves the endpoint binding to identify the target virtual cluster, creates a `ProxyChannelStateMachine` per connection, and assembles the full handler pipeline.
+- **`KafkaProxyFrontendHandler`** — manages the downstream (client-facing) side. Drives the filter chain and initiates the upstream broker connection.
+- **`KafkaProxyBackendHandler`** — manages the upstream (broker-facing) side. Propagates backpressure from the broker to the client via `ProxyChannelStateMachine`.
+- **`ProxyChannelStateMachine`** — coordinates state across both channel sides.
+- **`ResponseOrderer`** — Kafka requires responses to be delivered in request order. Because filters can short-circuit responses (replying directly without forwarding to the broker), responses can arrive out of order. `ResponseOrderer` tracks in-flight correlation IDs and queues responses until their predecessors have been delivered.
 
 ### Threading Model
 
