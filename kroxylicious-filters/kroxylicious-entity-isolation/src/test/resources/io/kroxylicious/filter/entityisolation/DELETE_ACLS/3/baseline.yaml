@@ -1,0 +1,119 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "DELETE_ACLS"
+  apiVersion: 3
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DELETE_ACLS"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 31
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        filters:
+          - resourceTypeFilter: 3
+            resourceNameFilter: alice-mygroup
+            patternTypeFilter: 3
+            principalFilter: mystring
+            hostFilter: null
+            operation: 5
+            permissionType: 3
+          - resourceTypeFilter: 2
+            resourceNameFilter: mytopic
+            patternTypeFilter: 3
+            principalFilter: mystring
+            hostFilter: "*"
+            operation: 5
+            permissionType: 3
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        filterResults:
+          - errorCode: 0
+            errorMessage:
+            matchingAcls:
+              - errorCode: 0
+                errorMessage:
+                resourceType: 3
+                resourceName: alice-mygroup
+                patternType: 3
+                principal: mystring
+                host: "*"
+                operation: 5
+                permissionType: 3
+          - errorCode: 0
+            errorMessage:
+            matchingAcls:
+              - errorCode: 0
+                errorMessage:
+                resourceType: 2
+                resourceName: mytopic
+                patternType: 3
+                principal: mystring
+                host: "*"
+                operation: 5
+                permissionType: 3
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 31
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    filters:
+      - resourceTypeFilter: 3
+        resourceNameFilter: mygroup
+        patternTypeFilter: 3
+        principalFilter: mystring
+        hostFilter: null
+        operation: 5
+        permissionType: 3
+      - resourceTypeFilter: 2
+        resourceNameFilter: mytopic
+        patternTypeFilter: 3
+        principalFilter: mystring
+        hostFilter: "*"
+        operation: 5
+        permissionType: 3
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    filterResults:
+      - errorCode: 0
+        errorMessage:
+        matchingAcls:
+          - errorCode: 0
+            errorMessage:
+            resourceType: 3
+            resourceName: mygroup
+            patternType: 3
+            principal: mystring
+            host: "*"
+            operation: 5
+            permissionType: 3
+      - errorCode: 0
+        errorMessage:
+        matchingAcls:
+          - errorCode: 0
+            errorMessage:
+            resourceType: 2
+            resourceName: mytopic
+            patternType: 3
+            principal: mystring
+            host: "*"
+            operation: 5
+            permissionType: 3

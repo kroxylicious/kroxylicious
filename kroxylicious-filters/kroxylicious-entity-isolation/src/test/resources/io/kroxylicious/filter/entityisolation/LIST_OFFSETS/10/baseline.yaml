@@ -1,0 +1,73 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "LIST_OFFSETS"
+  apiVersion: 10
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_OFFSETS"
+      expectedRequestVersion: 10
+      expectedRequestHeader:
+        requestApiKey: 2
+        requestApiVersion: 10
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 1
+        isolationLevel: 0
+        topics:
+          - name: foo
+            partitions:
+              - partitionIndex: 0
+                currentLeaderEpoch: 0
+                timestamp: 0
+        timeoutMs: 0
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        topics:
+          - name: foo
+            partitions:
+              - partitionIndex: 0
+                errorCode: 0
+                timestamp: 0
+                offset: 0
+                leaderEpoch: 0
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 2
+    requestApiVersion: 10
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    replicaId: 1
+    isolationLevel: 0
+    topics:
+      - name: foo
+        partitions:
+          - partitionIndex: 0
+            currentLeaderEpoch: 0
+            timestamp: 0
+    timeoutMs: 0
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    topics:
+      - name: foo
+        partitions:
+          - partitionIndex: 0
+            errorCode: 0
+            timestamp: 0
+            offset: 0
+            leaderEpoch: 0

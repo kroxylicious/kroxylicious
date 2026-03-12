@@ -1,0 +1,79 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "CREATE_ACLS"
+  apiVersion: 3
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CREATE_ACLS"
+      expectedRequestVersion: 3
+      expectedRequestHeader:
+        requestApiKey: 30
+        requestApiVersion: 3
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        creations:
+          - resourceType: 3
+            resourceName: alice-mygroup
+            resourcePatternType: 3
+            principal: mystring
+            host: "*"
+            operation: 5
+            permissionType: 3
+          - resourceType: 2
+            resourceName: mytopic
+            resourcePatternType: 3
+            principal: mystring
+            host: "*"
+            operation: 5
+            permissionType: 3
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        results:
+          - errorCode: 0
+            errorMessage:
+          - errorCode: 0
+            errorMessage:
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 30
+    requestApiVersion: 3
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    creations:
+      - resourceType: 3
+        resourceName: mygroup
+        resourcePatternType: 3
+        principal: mystring
+        host: "*"
+        operation: 5
+        permissionType: 3
+      - resourceType: 2
+        resourceName: mytopic
+        resourcePatternType: 3
+        principal: mystring
+        host: "*"
+        operation: 5
+        permissionType: 3
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    results:
+      - errorCode: 0
+        errorMessage:
+      - errorCode: 0
+        errorMessage:
