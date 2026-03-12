@@ -8,6 +8,7 @@ package io.kroxylicious.filter.entityisolation;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.DeleteAclsRequestData;
@@ -16,6 +17,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 
+import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -26,10 +28,10 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
  */
 class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<DeleteAclsRequestData, DeleteAclsResponseData, Void> {
 
-    private final Function<EntityIsolation.ResourceType, Boolean> shouldMap;
+    private final Predicate<ResourceType> shouldMap;
     private final EntityNameMapper mapper;
 
-    DeleteAclsEntityIsolationProcessor(Function<EntityIsolation.ResourceType, Boolean> shouldMap, EntityNameMapper mapper) {
+    DeleteAclsEntityIsolationProcessor(Predicate<ResourceType> shouldMap, EntityNameMapper mapper) {
         this.shouldMap = Objects.requireNonNull(shouldMap);
         this.mapper = Objects.requireNonNull(mapper);
     }
@@ -66,7 +68,7 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                 .entrySet()
                 .stream()
                 .filter(e -> e.getValue().isPresent())
-                .filter(e -> shouldMap.apply(e.getValue().get()))
+                .filter(e -> shouldMap.test(e.getValue().get()))
                 .forEach(e -> e.getKey().setResourceNameFilter(mapper.map(mapperContext, e.getValue().get(), e.getKey().resourceNameFilter())));
         return filterContext.forwardRequest(header, request);
     }
@@ -83,7 +85,7 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
             while (matchingAclIterator.hasNext()) {
                 var configResource = matchingAclIterator.next();
                 EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, configResource.resourceType())
-                        .filter(shouldMap::apply)
+                        .filter(shouldMap)
                         .ifPresent(entityType -> {
                             if (mapper.isInNamespace(mapperContext, entityType, configResource.resourceName())) {
                                 configResource.setResourceName(mapper.unmap(mapperContext, entityType, configResource.resourceName()));

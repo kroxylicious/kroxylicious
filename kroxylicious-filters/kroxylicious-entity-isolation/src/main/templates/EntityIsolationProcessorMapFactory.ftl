@@ -26,9 +26,11 @@ package ${outputPackage};
 
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.annotation.processing.Generated;
+
+import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
 
 <#list messageSpecPairs>
     <#items as pair>
@@ -52,7 +54,7 @@ final class EntityIsolationProcessorMapFactory  {
         // ignored
     }
 
-    static Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> createProcessorMap(Function<EntityIsolation.ResourceType, Boolean> shouldMap, EntityNameMapper entityNameMapper) {
+    static Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> createProcessorMap(Predicate<ResourceType> shouldMap, EntityNameMapper entityNameMapper) {
         var map = new EnumMap<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>>(ApiKeys.class);
 
 <#list messageSpecPairs>

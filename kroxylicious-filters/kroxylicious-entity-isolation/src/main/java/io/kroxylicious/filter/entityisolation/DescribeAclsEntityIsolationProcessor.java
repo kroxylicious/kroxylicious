@@ -8,7 +8,7 @@ package io.kroxylicious.filter.entityisolation;
 
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
+import java.util.function.Predicate;
 
 import org.apache.kafka.common.message.DescribeAclsRequestData;
 import org.apache.kafka.common.message.DescribeAclsResponseData;
@@ -16,6 +16,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 
+import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -26,10 +27,10 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 */
 class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<DescribeAclsRequestData, DescribeAclsResponseData, Void> {
 
-    private final Function<EntityIsolation.ResourceType, Boolean> shouldMap;
+    private final Predicate<ResourceType> shouldMap;
     private final EntityNameMapper mapper;
 
-    DescribeAclsEntityIsolationProcessor(Function<EntityIsolation.ResourceType, Boolean> shouldMap, EntityNameMapper mapper) {
+    DescribeAclsEntityIsolationProcessor(Predicate<ResourceType> shouldMap, EntityNameMapper mapper) {
         this.shouldMap = Objects.requireNonNull(shouldMap);
         this.mapper = Objects.requireNonNull(mapper);
     }
@@ -53,7 +54,7 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
     public CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header, short apiVersion, DescribeAclsRequestData request, FilterContext filterContext,
                                                           MapperContext mapperContext) {
         EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, request.resourceTypeFilter())
-                .filter(shouldMap::apply)
+                .filter(shouldMap)
                 .ifPresent(rt -> request.setResourceNameFilter(mapper.map(mapperContext, rt, request.resourceNameFilter())));
 
         return filterContext.forwardRequest(header, request);
@@ -78,7 +79,7 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
             while (resourcesIterator.hasNext()) {
                 var describeAclsResource = resourcesIterator.next();
                 EntityIsolation.fromResourceTypeCode(ApiKeys.DESCRIBE_ACLS, describeAclsResource.resourceType())
-                        .filter(shouldMap::apply)
+                        .filter(shouldMap)
                         .ifPresent(entityType -> {
                             if (mapper.isInNamespace(mapperContext, entityType, describeAclsResource.resourceName())) {
                                 describeAclsResource.setResourceName(mapper.unmap(mapperContext, entityType, describeAclsResource.resourceName()));

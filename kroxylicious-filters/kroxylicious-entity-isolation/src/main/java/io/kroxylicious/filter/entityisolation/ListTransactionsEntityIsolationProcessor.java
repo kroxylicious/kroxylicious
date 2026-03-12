@@ -9,7 +9,7 @@ package io.kroxylicious.filter.entityisolation;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
+import java.util.function.Predicate;
 
 import org.apache.kafka.common.message.ListTransactionsRequestData;
 import org.apache.kafka.common.message.ListTransactionsResponseData;
@@ -20,6 +20,7 @@ import org.apache.kafka.common.protocol.Errors;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
 
+import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -37,10 +38,10 @@ class ListTransactionsEntityIsolationProcessor
 
     private static final Pattern ALL = Pattern.compile(".*");
 
-    private final Function<EntityIsolation.ResourceType, Boolean> shouldMap;
+    private final Predicate<ResourceType> shouldMap;
     private final EntityNameMapper mapper;
 
-    ListTransactionsEntityIsolationProcessor(Function<EntityIsolation.ResourceType, Boolean> shouldMap, EntityNameMapper mapper) {
+    ListTransactionsEntityIsolationProcessor(Predicate<ResourceType> shouldMap, EntityNameMapper mapper) {
         this.shouldMap = Objects.requireNonNull(shouldMap);
         this.mapper = Objects.requireNonNull(mapper);
     }
@@ -71,7 +72,7 @@ class ListTransactionsEntityIsolationProcessor
                                                           ListTransactionsRequestData request,
                                                           FilterContext filterContext,
                                                           MapperContext mapperContext) {
-        if (shouldMap.apply(EntityIsolation.ResourceType.TRANSACTIONAL_ID)) {
+        if (shouldMap.test(ResourceType.TRANSACTIONAL_ID)) {
             // Request Spec: all transactions are returned; Otherwise then only the transactions matching the given regular expression will be returned.
             // We don't want to rewrite the user's regular expression to accommodate
             // the isolation yet, instead we cache the RE into the context and apply that
@@ -108,10 +109,10 @@ class ListTransactionsEntityIsolationProcessor
         while (transactionStatesIterator.hasNext()) {
             var transactionState = transactionStatesIterator.next();
             // process entity fields defined at this level
-            if (shouldMap.apply(EntityIsolation.ResourceType.TRANSACTIONAL_ID) && (short) 0 <= apiVersion && apiVersion <= (short) 2
+            if (shouldMap.test(ResourceType.TRANSACTIONAL_ID) && (short) 0 <= apiVersion && apiVersion <= (short) 2
                     && transactionState.transactionalId() != null) {
-                if (mapper.isInNamespace(mapperContext, EntityIsolation.ResourceType.TRANSACTIONAL_ID, transactionState.transactionalId())) {
-                    var txnId = mapper.unmap(mapperContext, EntityIsolation.ResourceType.TRANSACTIONAL_ID, transactionState.transactionalId());
+                if (mapper.isInNamespace(mapperContext, ResourceType.TRANSACTIONAL_ID, transactionState.transactionalId())) {
+                    var txnId = mapper.unmap(mapperContext, ResourceType.TRANSACTIONAL_ID, transactionState.transactionalId());
                     if (pat.matcher(txnId).find()) {
                         transactionState.setTransactionalId(txnId);
                         continue;
