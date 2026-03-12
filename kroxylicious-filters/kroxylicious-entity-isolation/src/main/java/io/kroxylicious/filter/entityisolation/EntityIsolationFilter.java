@@ -90,7 +90,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 .map(eip -> {
                     if (eip.versionIsOutOfRange(apiVersion)) {
                         // fail closed
-                        logFailClosed(filterContext, apiKey, apiVersion, eip.minSupportedVersion(),  eip.maxSupportedVersion());
+                        logFailClosed(filterContext, apiKey, apiVersion, eip.minSupportedVersion(), eip.maxSupportedVersion());
                         return filterContext.requestFilterResultBuilder()
                                 .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
                                 .withCloseConnection()
@@ -190,6 +190,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 .setMessage("{} for {}: {} {}: {}")
                 .log();
     }
+
     private static void logFailClosed(FilterContext context, ApiKeys key, short version, short minVersion, short maxVersion) {
         LOGGER.atWarn()
                 .addArgument(context::sessionId)
@@ -201,8 +202,8 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 .setMessage("{} for {}: {} (version {}) falls outside range {}...{} known to this filter. closing connection.")
                 .log();
     }
-    private class ApiVersionsHandler implements EntityIsolationProcessor<ApiVersionsRequestData, ApiVersionsResponseData, Void> {
 
+    private class ApiVersionsHandler implements EntityIsolationProcessor<ApiVersionsRequestData, ApiVersionsResponseData, Void> {
 
         @Override
         public short minSupportedVersion() {

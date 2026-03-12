@@ -12,41 +12,42 @@ import java.util.Optional;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.Unique;
-import io.kroxylicious.proxy.authentication.User;
 
 class PrincipalEntityNameMapper implements EntityNameMapper {
-
-    private static final String SEPARATOR = "-";
-
     private final Class<? extends Principal> uniquePrincipalType;
+    private final String separator;
 
-    PrincipalEntityNameMapper(Class<? extends Principal> uniquePrincipalType) {
+    PrincipalEntityNameMapper(Class<? extends Principal> uniquePrincipalType, String separator) {
         this.uniquePrincipalType = Objects.requireNonNull(uniquePrincipalType);
+        this.separator = Objects.requireNonNull(separator);
         if (!uniquePrincipalType.isAnnotationPresent(Unique.class)) {
-            throw new IllegalArgumentException(uniquePrincipalType.getName() + " is not a unique principal type");
+            throw new IllegalArgumentException(uniquePrincipalType.getName() + " is not a unique principal type.");
+        }
+        if (separator.isEmpty()) {
+            throw new IllegalArgumentException(separator + " is an unacceptable separator.");
         }
     }
 
     @Override
     public String map(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String unmappedResourceName) {
-        var user = getAuthenticatedPrincipal(mapperContext.authenticatedSubject(), uniquePrincipalType);
+        var user = getValidatedName(mapperContext.authenticatedSubject());
         return user.map(authId -> doMap(authId, unmappedResourceName))
                 .orElse(unmappedResourceName);
     }
 
-    private static String doMap(String authId, String unmappedResourceName) {
-        return authId + SEPARATOR + unmappedResourceName;
+    private String doMap(String authId, String unmappedResourceName) {
+        return authId + separator + unmappedResourceName;
     }
 
     @Override
     public String unmap(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String mappedResourceName) {
-        var user = getAuthenticatedPrincipal(mapperContext.authenticatedSubject(), User.class);
+        var user = getValidatedName(mapperContext.authenticatedSubject());
         return user.map(authId -> doUnmap(authId, mappedResourceName))
                 .orElse(mappedResourceName);
     }
 
     private String doUnmap(String authId, String mappedResourceName) {
-        var prefix = authId + SEPARATOR;
+        var prefix = authId + separator;
         if (mappedResourceName.startsWith(prefix)) {
             return mappedResourceName.substring(prefix.length());
         }
@@ -57,15 +58,20 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
 
     @Override
     public boolean isInNamespace(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String mappedResourceName) {
-        var user = getAuthenticatedPrincipal(mapperContext.authenticatedSubject(), User.class);
-        return user.map(authId -> mappedResourceName.startsWith(authId + SEPARATOR))
+        var user = getValidatedName(mapperContext.authenticatedSubject());
+        return user.map(authId -> mappedResourceName.startsWith(authId + separator))
                 .orElse(false);
     }
 
-    private static Optional<String> getAuthenticatedPrincipal(Subject authenticateSubject, Class<? extends Principal> uniquePrincipalType) {
+    private Optional<String> getValidatedName(Subject authenticateSubject) {
         var authenticatedSubject = Objects.requireNonNull(authenticateSubject);
-        return authenticatedSubject.uniquePrincipalOfType(uniquePrincipalType)
-                .map(Principal::name);
+        var name = authenticatedSubject.uniquePrincipalOfType(uniquePrincipalType).map(Principal::name);
+        name.ifPresent(n -> {
+            if (n.contains(separator)) {
+                throw new UnacceptableEntityNameException("Principal name '%s' may not contain the separator '%s'".formatted(n, separator));
+            }
+        });
+        return name;
     }
 
 }

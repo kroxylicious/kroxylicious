@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.filter.entityisolation.EntityNameMapper.UnacceptableEntityNameException;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
@@ -40,7 +41,7 @@ class PrincipalEntityNameMapperTest {
     void beforeEach() {
         when(user.name()).thenReturn(PRINCIPAL_NAME);
         when(subject.uniquePrincipalOfType(User.class)).thenReturn(Optional.of(user));
-        mapper = new PrincipalEntityNameMapper(User.class);
+        mapper = new PrincipalEntityNameMapper(User.class, "-");
     }
 
     @Test
@@ -55,6 +56,15 @@ class PrincipalEntityNameMapperTest {
         var mapperContext = buildMapperContext(subject);
         assertThat(mapper.unmap(mapperContext, EntityIsolation.ResourceType.TOPIC_NAME, "bob-foo"))
                 .isEqualTo("foo");
+    }
+
+    @Test
+    void shouldRejectPrincipalContainingSeparator() {
+        when(user.name()).thenReturn("dash-boy");
+        var mapperContext = buildMapperContext(subject);
+        assertThatThrownBy(() -> mapper.map(mapperContext, EntityIsolation.ResourceType.TOPIC_NAME, "foo"))
+                .isInstanceOf(UnacceptableEntityNameException.class)
+                .hasMessageContaining("Principal name 'dash-boy' may not contain the separator '-'");
     }
 
     @Test
@@ -80,7 +90,13 @@ class PrincipalEntityNameMapperTest {
     @Test
     void shouldRejectNonUniquePrincipal() {
         var notAUniquePrincipal = mock(Principal.class).getClass();
-        assertThatThrownBy(() -> new PrincipalEntityNameMapper(notAUniquePrincipal))
+        assertThatThrownBy(() -> new PrincipalEntityNameMapper(notAUniquePrincipal, "-"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldRejectEmptySeparator() {
+        assertThatThrownBy(() -> new PrincipalEntityNameMapper(User.class, ""))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.entityisolation;
 
 import java.util.Objects;
-import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -20,22 +19,27 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 @Plugin(configType = PrincipalEntityNameMapperService.Config.class)
 public class PrincipalEntityNameMapperService implements EntityNameMapperService<PrincipalEntityNameMapperService.Config> {
-    private static final Config DEFAULT_CONFIG = new Config(User.class);
+    private static final Config DEFAULT_CONFIG = new Config(User.class, "-");
 
     @Nullable
     private Config config;
 
     @Override
-    public void initialize(@Nullable Config config) {
-        this.config = Optional.ofNullable(config)
-                .filter(c -> c.principalType() != null)
-                .orElse(DEFAULT_CONFIG);
+    public void initialize(@Nullable Config c) {
+        if (c == null || DEFAULT_CONFIG.equals(c)) {
+            config = DEFAULT_CONFIG;
+        }
+        else {
+            config = new Config(c.principalType() == null ? DEFAULT_CONFIG.principalType() : c.principalType(),
+                    c.separator() == null ? DEFAULT_CONFIG.separator() : c.separator());
+        }
     }
 
     @Override
     public EntityNameMapper build() {
         Objects.requireNonNull(config, "config is required");
-        return new PrincipalEntityNameMapper(Objects.requireNonNull(config.principalType()));
+        return new PrincipalEntityNameMapper(Objects.requireNonNull(config.principalType()),
+                Objects.requireNonNull(config.separator()));
     }
 
     @Nullable
@@ -44,5 +48,12 @@ public class PrincipalEntityNameMapperService implements EntityNameMapperService
         return config;
     }
 
-    record Config(@Nullable @JsonProperty() Class<? extends Principal> principalType) {}
+    /**
+     * Configuration for the {@link PrincipalEntityNameMapperService}
+     *
+     * @param principalType the type of principal that will be prepended to the resource name to isolate the entity.
+     * @param separator the separator character
+     */
+    record Config(@Nullable @JsonProperty() Class<? extends Principal> principalType,
+                  @Nullable @JsonProperty String separator) {}
 }

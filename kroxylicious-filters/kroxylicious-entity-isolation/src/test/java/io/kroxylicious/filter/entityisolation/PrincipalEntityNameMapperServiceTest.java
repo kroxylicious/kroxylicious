@@ -17,19 +17,22 @@ import io.kroxylicious.filter.entityisolation.PrincipalEntityNameMapperService.C
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.User;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PrincipalEntityNameMapperServiceTest {
 
     private static Stream<Arguments> configs() {
-        return Stream.of(Arguments.argumentSet("null config", null, User.class),
-                Arguments.argumentSet("null principal type", new Config(null), User.class),
-                Arguments.argumentSet("explicit principal type", new Config(CustomPrincipal.class), CustomPrincipal.class));
+        return Stream.of(Arguments.argumentSet("null config", null, new Config(User.class, "-")),
+                Arguments.argumentSet("null principal type", new Config(null, null), new Config(User.class, "-")),
+                Arguments.argumentSet("explicit principal type", new Config(CustomPrincipal.class, "-"), new Config(CustomPrincipal.class, "-")),
+                Arguments.argumentSet("explicit separator", new Config(User.class, "+"), new Config(User.class, "+")));
     }
 
     @ParameterizedTest
     @MethodSource(value = "configs")
-    void acceptsConfig(Config config, Class<? extends Principal> expectedPrincipalType) {
+    void acceptsConfig(@Nullable Config config, Config expectedEffectiveConfig) {
         // Given
         var service = new PrincipalEntityNameMapperService();
 
@@ -39,8 +42,7 @@ class PrincipalEntityNameMapperServiceTest {
         // Then
         assertThat(service.getEffectiveConfig())
                 .isNotNull()
-                .extracting(Config::principalType)
-                .isEqualTo(expectedPrincipalType);
+                .isEqualTo(expectedEffectiveConfig);
     }
 
     @Test
