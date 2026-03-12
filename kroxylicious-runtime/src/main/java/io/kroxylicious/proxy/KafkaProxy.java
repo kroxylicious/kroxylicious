@@ -45,19 +45,25 @@ import io.netty.channel.uring.IoUringIoHandler;
 import io.netty.channel.uring.IoUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 
+import io.kroxylicious.proxy.audit.AuditEmitter;
+import io.kroxylicious.proxy.audit.AuditEmitterFactory;
 import io.kroxylicious.proxy.audit.AuditLogger;
+import io.kroxylicious.proxy.audit.AuditableActionBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.AuditEmitterConfig;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.NetworkDefinition;
+import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 import io.kroxylicious.proxy.internal.AuditLoggerImpl;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
+import io.kroxylicious.proxy.internal.NoopAuditLogger;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.ProxyActorImpl;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
@@ -81,6 +87,7 @@ public final class KafkaProxy implements AutoCloseable {
 
     private static final int JRE_FEATURE_VERSION = Runtime.version().feature();
     private static final TreeSet<Integer> TESTED_JRE_VERSIONS = new TreeSet<>(Set.of(21, 25));
+    private final AuditLogger auditLogger;
 
     @VisibleForTesting
     record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
@@ -141,6 +148,7 @@ public final class KafkaProxy implements AutoCloseable {
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
+    private final String executionId = UUID.randomUUID().toString();
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
@@ -152,6 +160,27 @@ public final class KafkaProxy implements AutoCloseable {
         this.virtualClusterModels = config.virtualClusterModel();
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
+
+        var auditEmitters = Stream.ofNullable(config.audit())
+                .flatMap(auditConfig -> auditConfig.emitters().stream())
+                .map(emitterConfig -> newAuditEmitter(pfr, emitterConfig))
+                .toList();
+        if (auditEmitters.isEmpty()) {
+            this.auditLogger = new NoopAuditLogger();
+        }
+        else {
+            this.auditLogger = new AuditLoggerImpl(auditEmitters)
+                    .derive(() -> new ProxyActorImpl(executionId));
+        }
+
+    }
+
+    private static AuditEmitter newAuditEmitter(PluginFactoryRegistry pfr, AuditEmitterConfig emitterConfig) {
+        String emitterFactoryClass = emitterConfig.type();
+        PluginFactory<AuditEmitterFactory> auditEmitterPluginFactory = pfr.pluginFactory(AuditEmitterFactory.class);
+        AuditEmitterFactory auditEmitterFactory = auditEmitterPluginFactory.pluginInstance(emitterFactoryClass);
+        var emitterConfigClass = auditEmitterPluginFactory.configType(emitterFactoryClass);
+        return auditEmitterFactory.create(emitterConfigClass.cast(emitterConfig.config()));
     }
 
     @VisibleForTesting
@@ -203,14 +232,6 @@ public final class KafkaProxy implements AutoCloseable {
 
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is starting");
 
-            String executionId = UUID.randomUUID().toString();
-            AuditLogger auditLogger = new AuditLoggerImpl(List.of())
-                    .derive(() -> new ProxyActorImpl(executionId));
-            auditLogger.action("ProxyStart")
-                    .withObjectRef(Map.of("executionId", "executionId"))
-                    .withContext(Map.of("version", VersionInfo.VERSION_INFO.version()))
-                    .log();
-
             meterRegistries = new MeterRegistries(pfr, micrometerConfig);
             initVersionInfoMetric();
 
@@ -247,14 +268,25 @@ public final class KafkaProxy implements AutoCloseable {
                             .toArray(CompletableFuture[]::new))
                     .join();
 
+            logProxyStart(auditLogger.action("ProxyStart"));
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is started");
             return this;
         }
         catch (RuntimeException e) {
+            logProxyStart(auditLogger.actionWithOutcome("ProxyStart", e.getClass().getName(), e.getMessage()));
             STARTUP_SHUTDOWN_LOGGER.error("Exception during startup, shutting down", e);
             shutdown();
             throw new LifecycleException("Startup completed exceptionally", e);
         }
+    }
+
+    private void logProxyStart(AuditableActionBuilder builder) {
+        builder.withObjectRef(Map.of("executionId", executionId))
+                .addToContext("version", VersionInfo.VERSION_INFO.version())
+                .addToContext("commitId", VersionInfo.VERSION_INFO.commitId())
+                .addToContext("pid", String.valueOf(ProcessHandle.current().pid()))
+                .addToContext("cmd", ProcessHandle.current().info().commandLine().orElse(""))
+                .log();
     }
 
     private static Optional<NettySettings> getNettySettings(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
