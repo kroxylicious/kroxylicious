@@ -141,17 +141,6 @@
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Constants.java/"
       ],
       "matchStrings": [
-        "(?<depName>quay.io/kroxylicious/python-kafka-test-client):(?<verCompatibility>\\d+\\.\\d+\\.\\d+)-(?<currentValue>\\d+\\.\\d+\\.\\d+)"
-      ],
-      "datasourceTemplate": "docker",
-      "extractVersionTemplate": "^{{verCompatibility}}-(?<version>.*)?$"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Constants.java/"
-      ],
-      "matchStrings": [
         "(?<depName>quay.io/kroxylicious/kcat):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
         "(?<depName>quay.io/kroxylicious/kaf):(?<currentValue>v\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\""
       ],
@@ -174,11 +163,10 @@
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java/"
       ],
       "matchStrings": [
-        "(?<depName>quay.io/strimzi-test-clients/test-clients):(?<currentValue>\\d+\\.\\d+\\.\\d+)-kafka"
+        "quay.io/strimzi-test-clients/test-clients:(?<currentValue>\\d+\\.\\d+\\.\\d+)-kafka"
       ],
-      "datasourceTemplate": "docker",
-      "extractVersionTemplate": "^(?<version>.*)?(-kafka.*)?$",
-      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)?(-kafka)?$"
+      "depNameTemplate": "strimzi/test-clients",
+      "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
