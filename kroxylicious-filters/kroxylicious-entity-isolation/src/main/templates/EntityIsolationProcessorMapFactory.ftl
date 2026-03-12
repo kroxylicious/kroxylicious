@@ -5,6 +5,7 @@
     Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 
 -->
+<#assign filteredEntityTypes = createEntityTypeSet("GROUP_ID", "TRANSACTIONAL_ID")>
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements. See the NOTICE file distributed with
@@ -29,6 +30,15 @@ import java.util.function.Function;
 
 import javax.annotation.processing.Generated;
 
+<#list messageSpecPairs>
+    <#items as pair>
+        <#if !pair.hasAtLeastOneEntityField(filteredEntityTypes) && !pair.hasResourceList>
+import org.apache.kafka.common.message.${pair.response.dataClassName};
+import org.apache.kafka.common.message.${pair.request.dataClassName};
+        </#if>
+    </#items>
+</#list>
+
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
@@ -47,7 +57,11 @@ final class EntityIsolationProcessorMapFactory  {
 
 <#list messageSpecPairs>
     <#items as pair>
+        <#if pair.hasAtLeastOneEntityField(filteredEntityTypes) || pair.hasResourceList>
         map.put(ApiKeys.${pair.apiKey}, new ${pair.name}EntityIsolationProcessor(shouldMap, entityNameMapper));
+        <#else>
+        map.put(ApiKeys.${pair.apiKey}, new PassthroughEntityIsolationProcessor<${pair.request.dataClassName}, ${pair.response.dataClassName}>((short) ${pair.request.validVersions.lowest}, (short) ${pair.request.validVersions.highest}));
+        </#if>
     </#items>
 </#list>
         return map;

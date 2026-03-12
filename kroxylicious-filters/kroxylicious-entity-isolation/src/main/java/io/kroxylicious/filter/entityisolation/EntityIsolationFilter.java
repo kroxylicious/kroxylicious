@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.filter.entityisolation;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -12,6 +13,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.DescribeConfigsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -46,13 +49,17 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         var wrappedMapper = new EmptyResourceNameHandlingMapper(Objects.requireNonNull(mapper));
 
         Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> pm = new HashMap<>();
+
+        // Handles version negotiation
+        pm.put(ApiKeys.API_VERSIONS, new ApiVersionsHandler());
         // The following processors require special code and are handwritten.
         pm.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
         pm.put(ApiKeys.DELETE_ACLS, new DeleteAclsEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
         pm.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
         pm.put(ApiKeys.DESCRIBE_ACLS, new DescribeAclsEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
-        // Add the generated processors.
-        pm.putAll(createProcessorMap(resourceTypes::contains, wrappedMapper));
+
+        // Add the generated processors, excluding the special cases.
+        createProcessorMap(resourceTypes::contains, wrappedMapper).forEach(pm::putIfAbsent);
         this.processorMap = Map.copyOf(pm);
     }
 
@@ -175,4 +182,55 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 .log();
     }
 
+    private class ApiVersionsHandler implements EntityIsolationProcessor<ApiVersionsRequestData, ApiVersionsResponseData, Void> {
+
+        @Override
+        public short minSupportedVersion() {
+            return ApiKeys.API_VERSIONS.oldestVersion();
+        }
+
+        @Override
+        public short maxSupportedVersion() {
+            return ApiKeys.API_VERSIONS.latestVersion();
+        }
+
+        @Override
+        public CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
+                                                                short apiVersion,
+                                                                Void correlatedRequestContext,
+                                                                ApiVersionsResponseData response,
+                                                                FilterContext filterContext,
+                                                                MapperContext mapperContext) {
+            adjustResponse(response);
+            return filterContext.forwardResponse(header, response);
+        }
+
+        private void adjustResponse(ApiVersionsResponseData response) {
+            var toRemove = new ArrayList<ApiVersionsResponseData.ApiVersion>();
+            ApiVersionsResponseData.ApiVersionCollection apiVersions = response.apiKeys();
+            for (var version : apiVersions) {
+                var processor = processorMap.get(ApiKeys.forId(version.apiKey()));
+                if (processor != null) {
+                    version.setMinVersion(asShort(Math.max(processor.minSupportedVersion(), version.minVersion())));
+                    version.setMaxVersion(asShort(Math.min(processor.maxSupportedVersion(), version.maxVersion())));
+                }
+                else {
+                    toRemove.add(version);
+                }
+            }
+            apiVersions.removeAll(toRemove);
+        }
+
+        static short asShort(int version) {
+            if (version < 0) {
+                throw new IllegalArgumentException("version cannot be negative");
+            }
+            short shortVersion = (short) version;
+            if (shortVersion != version) {
+                throw new IllegalArgumentException("version cannot be represented as a short");
+            }
+            return shortVersion;
+        }
+
+    }
 }

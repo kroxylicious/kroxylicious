@@ -148,8 +148,6 @@
                             <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
                             <streamProcessingFunction>
                                 pairStream => pairStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER))
-                                .filter(pair => pair.hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)) ||
-                                pair.hasResourceList())
                             </streamProcessingFunction>
                             <pairRequestResponseMode>true</pairRequestResponseMode>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
