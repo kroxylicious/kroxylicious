@@ -246,14 +246,17 @@ helm install benchmark ./kroxylicious-openmessaging-benchmarks/helm/kroxylicious
   -n kafka
 ```
 
-### Using a customer proxy image with the operator
+### Using a custom proxy image with the operator
 
 By default the Kroxylicious operator deploys the image that shipped with the installed operator version.
-To benchmark an unreleased build — for example, a branch with JFR/flamegraph support — override the image after running `setup-cluster.sh`:
+To benchmark an unreleased build — for example, a branch with performance-sensitive changes — override the image after running `setup-cluster.sh`:
 
 ```bash
+# Set to your Quay.io organisation and image tag
+QUAY_ORG=your-quay-org
+IMAGE_TAG=your-image-tag
 kubectl set env deployment/kroxylicious-operator -n kroxylicious-operator \
-  KROXYLICIOUS_IMAGE=quay.io/<your-user>/kroxylicious-proxy:<tag>
+  KROXYLICIOUS_IMAGE=quay.io/${QUAY_ORG}/kroxylicious-proxy:${IMAGE_TAG}
 ```
 
 The operator will use this image for all subsequent proxy deployments until the env var is cleared:
@@ -262,13 +265,9 @@ The operator will use this image for all subsequent proxy deployments until the 
 kubectl set env deployment/kroxylicious-operator -n kroxylicious-operator KROXYLICIOUS_IMAGE-
 ```
 
-> **Note:** JFR and async-profiler flamegraph collection (see [Profiling](#profiling)) requires a proxy image
-> built from a branch that exports `ASYNC_PROFILER_LIB` from `kroxylicious-start.sh`. The stock release
-> images do not include this export.
+## Profiling rationale and limitations
 
-## Profiling
-
-When a proxy pod is present, `run-benchmark.sh` automatically captures profiling data alongside the
+When a proxy pod is present in the benchmark namespace (default: `kafka`), `run-benchmark.sh` automatically captures profiling data alongside the
 benchmark results. Two complementary tools are used:
 
 **JFR (Java Flight Recorder)** is a low-overhead JVM profiler built into the JDK. It captures JVM-level
@@ -320,7 +319,7 @@ flushes and closes an already-running recording.
 Both tools currently record from JVM startup, meaning the warmup phase (JIT compilation, class loading,
 connection establishment) is included in the output. This can obscure steady-state hotspots in the
 flamegraph and skew JFR allocation/lock data. Ideally both tools would only record the execution phase.
-See the tracking issue for planned improvements.
+See [#3445](https://github.com/kroxylicious/kroxylicious/issues/3445) for planned improvements.
 
 ## Testing
 
