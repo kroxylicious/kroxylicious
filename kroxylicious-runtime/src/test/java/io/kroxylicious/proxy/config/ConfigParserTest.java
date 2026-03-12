@@ -789,14 +789,8 @@ class ConfigParserTest {
         var targetCluster = new TargetCluster("mycluster:9082", Optional.empty());
         var gateway = new VirtualClusterGateway("gw", new PortIdentifiesNodeIdentificationStrategy(HostPort.parse("localhost:9082"), null, null, null), null,
                 Optional.empty());
-        var config = new Configuration(null,
-                List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))),
-                List.of("foo"),
-                List.of(new VirtualCluster("demo", targetCluster, List.of(gateway), false, false, List.of())),
-                null,
-                false,
-                Optional.empty(),
-                null);
+        var config = new Configuration(null, null, List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))), List.of("foo"),
+                List.of(new VirtualCluster("demo", targetCluster, List.of(gateway), false, false, List.of())), null, false, Optional.empty(), null);
 
         ConfigParser cp = new ConfigParser();
         assertThatThrownBy(() -> {

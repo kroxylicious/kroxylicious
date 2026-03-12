@@ -91,22 +91,15 @@ class OperatorAssertionsTest {
     @Test
     void shouldReturnConfigurationAssert() {
         // Given
-        var configurations = new Configuration(null,
-                List.of(),
-                List.of(),
-                List.of(new VirtualCluster("Bob",
-                        new TargetCluster("", Optional.empty()),
-                        List.of(new VirtualClusterGateway("gateway",
-                                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9090), null, null, List.of()),
-                                null,
-                                Optional.empty())),
-                        false,
-                        false,
-                        List.of())),
-                List.of(),
+        var configurations = new Configuration(null, null, List.of(), List.of(), List.of(new VirtualCluster("Bob",
+                new TargetCluster("", Optional.empty()),
+                List.of(new VirtualClusterGateway("gateway",
+                        new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9090), null, null, List.of()),
+                        null,
+                        Optional.empty())),
                 false,
-                Optional.empty(),
-                null);
+                false,
+                List.of())), List.of(), false, Optional.empty(), null);
 
         // When
         Assert<?, ?> actualAssertion = OperatorAssertions.assertThat(configurations);
