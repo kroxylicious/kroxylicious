@@ -285,7 +285,11 @@ public final class KafkaProxy implements AutoCloseable {
                 .addToContext("version", VersionInfo.VERSION_INFO.version())
                 .addToContext("commitId", VersionInfo.VERSION_INFO.commitId())
                 .addToContext("pid", String.valueOf(ProcessHandle.current().pid()))
-                .addToContext("cmd", ProcessHandle.current().info().commandLine().orElse(""))
+                .log();
+    }
+
+    private void logProxyStop(AuditableActionBuilder builder) {
+        builder.withObjectRef(Map.of("executionId", executionId))
                 .log();
     }
 
@@ -398,8 +402,15 @@ public final class KafkaProxy implements AutoCloseable {
                 }
                 return null;
             }).toCompletableFuture().join();
+            logProxyStop(auditLogger.action("ProxyStop"));
             if (meterRegistries != null) {
                 meterRegistries.close();
+            }
+            try {
+                ((AutoCloseable) auditLogger).close();
+            }
+            catch (Exception e) {
+
             }
         }
         finally {
