@@ -163,6 +163,7 @@
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java/"
       ],
       "matchStrings": [
+        // For strimzi test clients we cannot add the digest because it depends on kafka version and it is calculated on runtime
         "quay.io/strimzi-test-clients/test-clients:(?<currentValue>\\d+\\.\\d+\\.\\d+)-kafka"
       ],
       "depNameTemplate": "strimzi/test-clients",
