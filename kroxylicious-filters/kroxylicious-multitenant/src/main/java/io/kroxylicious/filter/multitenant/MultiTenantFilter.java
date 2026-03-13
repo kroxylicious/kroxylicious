@@ -150,6 +150,7 @@ class MultiTenantFilter
         AddOffsetsToTxnRequestFilter,
         TxnOffsetCommitRequestFilter, TxnOffsetCommitResponseFilter {
     private final String prefixResourceNameSeparator;
+    private final @Nullable String prefixResourceName;
     private @Nullable String kafkaResourcePrefix;
 
     // https://github.com/kroxylicious/kroxylicious/issues/1364 (KIP-966)
@@ -534,16 +535,28 @@ class MultiTenantFilter
 
     private String createKafkaResourcePrefixIfNecessary(FilterContext context) {
         if (kafkaResourcePrefix == null) {
-            // TODO naive - POC implementation uses virtual cluster name as a tenant prefix
-            var virtualClusterName = context.getVirtualClusterName();
-            if (virtualClusterName == null) {
-                throw new IllegalStateException("This filter requires that the virtual cluster has a name");
+            String prefixBase;
+            String validationDescription;
+            
+            if (prefixResourceName != null) {
+                // Use custom prefix if specified
+                prefixBase = prefixResourceName;
+                validationDescription = "Kafka resource prefix (custom) '%s'".formatted(prefixResourceName);
+            } else {
+                // Fall back to virtual cluster name (default behavior)
+                var virtualClusterName = context.getVirtualClusterName();
+                if (virtualClusterName == null) {
+                    throw new IllegalStateException("This filter requires that the virtual cluster has a name");
+                }
+                prefixBase = virtualClusterName;
+                validationDescription = "Kafka resource prefix for virtual cluster '%s'".formatted(virtualClusterName);
             }
-            kafkaResourcePrefix = virtualClusterName + prefixResourceNameSeparator;
+            
+            kafkaResourcePrefix = prefixBase + prefixResourceNameSeparator;
 
             // note: Kafka validates consumer group names using this method too
             Topic.validate(kafkaResourcePrefix,
-                    "Kafka resource prefix for virtual cluster '%s'".formatted(virtualClusterName),
+                    validationDescription,
                     message -> {
                         throw new IllegalStateException(message);
                     });
@@ -554,6 +567,7 @@ class MultiTenantFilter
     MultiTenantFilter(MultiTenantConfig configuration) {
         Objects.requireNonNull(configuration);
         this.prefixResourceNameSeparator = configuration.prefixResourceNameSeparator();
+        this.prefixResourceName = configuration.prefixResourceName();
     }
 
 }
