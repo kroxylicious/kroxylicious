@@ -300,6 +300,7 @@ class AuthorizationFilterTest {
     @Test
     void shouldSupportApis() {
         EnumSet<ApiKeys> allVersionsSupported = of(ApiKeys.API_VERSIONS,
+                ApiKeys.PRODUCE,
                 ApiKeys.SASL_HANDSHAKE,
                 ApiKeys.SASL_AUTHENTICATE,
                 ApiKeys.METADATA,
@@ -332,8 +333,7 @@ class AuthorizationFilterTest {
                 ApiKeys.DESCRIBE_TRANSACTIONS,
                 ApiKeys.HEARTBEAT,
                 ApiKeys.LIST_TRANSACTIONS);
-        EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.PRODUCE,
-                ApiKeys.FETCH,
+        EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.FETCH,
                 ApiKeys.ADD_PARTITIONS_TO_TXN,
                 ApiKeys.INIT_PRODUCER_ID);
         EnumSet<ApiKeys> noVersionsSupported = complementOf(unionOf(allVersionsSupported, someVersionsSupported));
