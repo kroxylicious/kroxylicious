@@ -21,6 +21,8 @@ import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 
+import static io.kroxylicious.kubernetes.operator.model.RouteHostDetails.fetchRouteHostDetailsList;
+
 /**
  * Takes a KafkaProxy, resolves all its dependencies, and then computes a ProxyModel
  * which is intended to be a logical abstraction of the resources that should be manifested
@@ -41,9 +43,12 @@ public class ProxyModelBuilder {
             String resources = resolutionResult.allReferentsWithStaleStatus().map(it -> ResourcesUtil.namespacedSlug(it, primary)).collect(Collectors.joining(","));
             throw new StaleReferentStatusException("Some referent resources have not been reconciled yet: [" + resources + "]. This should be a transient state.");
         }
+
+        List<RouteHostDetails> routeHostDetails = fetchRouteHostDetailsList(context);
+
         // to try and produce the most stable allocation of ports we can, we attempt to consider all clusters in the ingress allocation, even those
         // that we know are unacceptable due to unresolved dependencies.
-        ProxyNetworkingModel ingressModel = NetworkingPlanner.planNetworking(primary, resolutionResult);
+        ProxyNetworkingModel ingressModel = NetworkingPlanner.planNetworking(primary, resolutionResult, routeHostDetails);
         List<ClusterResolutionResult> clustersWithValidIngresses = resolutionResult.allResolutionResultsInClusterNameOrder()
                 .filter(clusterResolutionResult -> clusterResolutionResult.allReferentsFullyResolved() && !ResourcesUtil.hasFreshResolvedRefsFalseCondition(
                         clusterResolutionResult.cluster()))
