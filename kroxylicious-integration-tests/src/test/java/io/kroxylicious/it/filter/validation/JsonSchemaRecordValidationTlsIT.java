@@ -28,10 +28,9 @@ import io.apicurio.registry.client.common.RegistryClientOptions;
 import io.apicurio.registry.rest.client.models.CreateArtifact;
 import io.apicurio.registry.rest.client.models.CreateVersion;
 import io.apicurio.registry.rest.client.models.VersionContent;
-
-import io.kroxylicious.filter.validation.RecordValidation;
 import io.apicurio.registry.rest.client.models.VersionMetaData;
 
+import io.kroxylicious.filter.validation.RecordValidation;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
