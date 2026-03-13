@@ -154,6 +154,11 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     public AuthorizationFilter(Authorizer authorizer) {
         this.authorizer = authorizer;
         this.inflightState = new HashMap<>(10);
+        if (apiEnforcement.get(ApiKeys.PRODUCE).minSupportedVersion() != 3) {
+            // sanity check, see https://issues.apache.org/jira/browse/KAFKA-18659
+            // if we want to raise the minimum version, we must consciously decide to break older librdkafka clients
+            throw new IllegalStateException("To behave like an upstream Kafka 4+ cluster, we must support v3 despite presenting v0 as min supported version");
+        }
     }
 
     CompletionStage<AuthorizeResult> authorization(FilterContext context, List<Action> actions) {
@@ -342,9 +347,15 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         var toRemove = new ArrayList<ApiVersionsResponseData.ApiVersion>();
         ApiVersionsResponseData.ApiVersionCollection apiVersions = response.apiKeys();
         for (var version : apiVersions) {
-            var enforcement = apiEnforcement.get(ApiKeys.forId(version.apiKey()));
+            ApiKeys key = ApiKeys.forId(version.apiKey());
+            var enforcement = apiEnforcement.get(key);
             if (enforcement != null) {
-                version.setMinVersion(Passthrough.asShort(Math.max(enforcement.minSupportedVersion(), version.minVersion())));
+                // Kafka 4.0 presents itself as supporting v0-v2 of Produce despite it not really supporting
+                // those versions. This is to maintain support for older librdkafka versions.
+                // see https://issues.apache.org/jira/browse/KAFKA-18659
+                if (key != ApiKeys.PRODUCE) {
+                    version.setMinVersion(Passthrough.asShort(Math.max(enforcement.minSupportedVersion(), version.minVersion())));
+                }
                 version.setMaxVersion(Passthrough.asShort(Math.min(enforcement.maxSupportedVersion(), version.maxVersion())));
             }
             else {
