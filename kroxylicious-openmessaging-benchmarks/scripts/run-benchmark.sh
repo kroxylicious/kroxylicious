@@ -148,6 +148,7 @@ stop_metrics_poller() {
     if [[ -n "${METRICS_PID}" ]]; then
         echo "Stopping metrics poller (PID ${METRICS_PID})..."
         kill "${METRICS_PID}" 2>/dev/null || true
+        wait "${METRICS_PID}" 2>/dev/null || true
         METRICS_PID=""
     fi
 }
@@ -224,10 +225,21 @@ if [[ -n "${PROXY_POD}" ]]; then
         < "${HELM_CHART}/patches/proxy-jfr-tmp.yaml" \
         | kubectl apply --server-side --field-manager=benchmark-jfr -f -
 
-    PROXY_DEPLOYMENT="${PROXY_DEPLOYMENT}" NAMESPACE="${NAMESPACE}" \
+    # Dry-run the async-profiler patch first — it sets seccompProfile: Unconfined which is
+    # forbidden on clusters with restricted SCCs (e.g. OpenShift). If the dry-run reports
+    # a PodSecurity violation, skip the patch and fall back to JFR-only recording.
+    async_profiler_patch=$(PROXY_DEPLOYMENT="${PROXY_DEPLOYMENT}" NAMESPACE="${NAMESPACE}" \
         envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE}' \
-        < "${HELM_CHART}/patches/proxy-async-profiler.yaml" \
-        | kubectl apply --server-side --field-manager=benchmark-async-profiler -f -
+        < "${HELM_CHART}/patches/proxy-async-profiler.yaml")
+    dry_run_output=$(echo "${async_profiler_patch}" \
+        | kubectl apply --server-side --field-manager=benchmark-async-profiler --dry-run=server -f - 2>&1) || true
+    if echo "${dry_run_output}" | grep -q "would violate PodSecurity"; then
+        echo "Warning: cluster security policy forbids Unconfined seccomp — skipping async-profiler flamegraph." >&2
+        echo "         JFR recording will still be collected." >&2
+    else
+        echo "${async_profiler_patch}" \
+            | kubectl apply --server-side --field-manager=benchmark-async-profiler -f -
+    fi
 
     echo "Waiting for proxy deployment rollout after patch..."
     kubectl rollout status deployment/"${PROXY_DEPLOYMENT}" \
