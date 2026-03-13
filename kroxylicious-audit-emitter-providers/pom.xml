@@ -23,6 +23,7 @@
 
     <modules>
         <module>kroxylicious-audit-emitter-slf4j</module>
+        <module>kroxylicious-audit-emitter-metrics</module>
     </modules>
 
 </project>
