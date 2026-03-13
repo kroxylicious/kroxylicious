@@ -1,0 +1,97 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "DESCRIBE_QUORUM"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_QUORUM"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 55
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - topicName: foo
+            partitions:
+              - partitionIndex: 0
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        errorCode: 0
+        errorMessage:
+        topics:
+          - topicName: foo
+            partitions:
+              - partitionIndex: 0
+                errorCode: 0
+                errorMessage:
+                leaderId: 0
+                leaderEpoch: 0
+                highWatermark: 0
+                currentVoters:
+                  - replicaId: 0
+                    replicaDirectoryId: AAAAAAAAAAAAAAAAAAAAAA
+                    logEndOffset: 0
+                    lastFetchTimestamp: 0
+                    lastCaughtUpTimestamp: 0
+                observers:
+                  - replicaId: 0
+                    replicaDirectoryId: AAAAAAAAAAAAAAAAAAAAAA
+                    logEndOffset: 0
+                    lastFetchTimestamp: 0
+                    lastCaughtUpTimestamp: 0
+        nodes:
+          - nodeId: 0
+            listeners: []
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 55
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - topicName: foo
+        partitions:
+          - partitionIndex: 0
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    errorCode: 0
+    errorMessage:
+    topics:
+      - topicName: foo
+        partitions:
+          - partitionIndex: 0
+            errorCode: 0
+            errorMessage:
+            leaderId: 0
+            leaderEpoch: 0
+            highWatermark: 0
+            currentVoters:
+              - replicaId: 0
+                replicaDirectoryId: AAAAAAAAAAAAAAAAAAAAAA
+                logEndOffset: 0
+                lastFetchTimestamp: 0
+                lastCaughtUpTimestamp: 0
+            observers:
+              - replicaId: 0
+                replicaDirectoryId: AAAAAAAAAAAAAAAAAAAAAA
+                logEndOffset: 0
+                lastFetchTimestamp: 0
+                lastCaughtUpTimestamp: 0
+    nodes:
+      - nodeId: 0
+        listeners: []
