@@ -65,7 +65,7 @@ jobs:
           echo "test_clients=$TEST_CLIENTS" >> $GITHUB_OUTPUT
       - uses: snnaplab/get-labels-action@v1
         with:
-          number: ${{ github.event.pull_request.number || 280 }}
+          number: ${{ github.event.pull_request.number }}
       - name: 'Set kafka client'
         id: kafkaClient
         run: |
