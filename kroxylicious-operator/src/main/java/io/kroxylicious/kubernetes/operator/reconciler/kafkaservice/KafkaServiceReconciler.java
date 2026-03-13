@@ -125,10 +125,22 @@ public final class KafkaServiceReconciler implements
 
         KafkaService updatedService = null;
         List<HasMetadata> referents = new ArrayList<>();
+        var strimziKafkaRefOpt = Optional.ofNullable(service.getSpec())
+                .map(KafkaServiceSpec::getStrimziKafkaRef);
         var trustAnchorRefOpt = Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getTls)
                 .map(Tls::getTrustAnchorRef);
-        if (trustAnchorRefOpt.isPresent()) {
+
+        if (strimziKafkaRefOpt.isPresent()) {
+            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(service, context, STRIMZI_KAFKA_EVENT_SOURCE_NAME, strimziKafkaRefOpt.get(),
+                    SPEC_REF,
+                    statusFactory);
+            updatedService = result.resource();
+            referents.addAll(result.referents());
+        }
+
+        if (trustAnchorRefOpt.isPresent() &&
+                (strimziKafkaRefOpt.isEmpty() || Boolean.FALSE.equals(strimziKafkaRefOpt.get().getTrustStrimziCaCertificate()))) {
             String eventSourceName = trustAnchorRefOpt.get().getRef().getKind() != null &&
                     Objects.equals(trustAnchorRefOpt.get().getRef().getKind(), "Secret") ? SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME
                             : CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME;
@@ -138,13 +150,8 @@ public final class KafkaServiceReconciler implements
             updatedService = result.resource();
             referents.addAll(result.referents());
         }
-
-        var strimziKafkaRefOpt = Optional.ofNullable(service.getSpec())
-                .map(KafkaServiceSpec::getStrimziKafkaRef);
-
-        if (strimziKafkaRefOpt.isPresent()) {
-            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(service, context, STRIMZI_KAFKA_EVENT_SOURCE_NAME, strimziKafkaRefOpt.get(),
-                    SPEC_REF,
+        else if (strimziKafkaRefOpt.isPresent() && strimziKafkaRefOpt.get().getTrustStrimziCaCertificate()) {
+            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziCertificate(service, context, strimziKafkaRefOpt.get(),
                     statusFactory);
             updatedService = result.resource();
             referents.addAll(result.referents());
