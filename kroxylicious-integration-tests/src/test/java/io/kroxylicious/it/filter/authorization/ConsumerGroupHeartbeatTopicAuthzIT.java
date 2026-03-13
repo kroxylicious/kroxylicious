@@ -41,7 +41,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static java.util.stream.Stream.concat;
 
-public class ConsumerGroupHeartbeatAuthzIT extends AuthzIT {
+public class ConsumerGroupHeartbeatTopicAuthzIT extends AuthzIT {
 
     private static final String ALICE_TOPIC_NAME = "alice-topic";
     private static final String BOB_TOPIC_NAME = "bob-topic";
