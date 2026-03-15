@@ -12,6 +12,7 @@ import java.util.Objects;
 
 import org.jose4j.jwk.JsonWebKeySet;
 
+import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 
 /**
@@ -56,10 +57,13 @@ public class BytebufValidators {
 
     /**
      * get validator that validates if a non-null/non-empty buffer contains data that matches a JSONSchema registered in the Schema Registry
+     * @param schemaResolverConfig schema resolver configuration
+     * @param contentId content ID to validate against
+     * @param wireFormatVersion wire format version (V2 or V3)
      * @return validator
      */
-    public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long globalId) {
-        return new JsonSchemaBytebufValidator(schemaResolverConfig, globalId);
+    public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId, WireFormatVersion wireFormatVersion) {
+        return new JsonSchemaBytebufValidator(schemaResolverConfig, contentId, wireFormatVersion);
     }
 
     /**
