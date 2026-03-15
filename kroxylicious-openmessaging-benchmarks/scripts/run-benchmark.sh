@@ -47,8 +47,8 @@ Arguments:
   output-dir  Directory to write result JSON and run metadata into
 
 Options:
-  --profile <values-file>   Additional Helm values file layered on top of the scenario
-                            (e.g. helm/kroxylicious-benchmark/scenarios/single-node-values.yaml)
+  --profile <values-file>   Additional Helm values file layered on top of the scenario.
+                            May be specified multiple times; files are applied in order.
   --set <key=value>         Pass a Helm --set override (may be repeated)
   -h, --help                Show this help
 
@@ -65,18 +65,21 @@ Examples:
     baseline 1topic-1kb ./results/baseline/
   $(basename "$0") --set benchmark.testDurationMinutes=1 --set benchmark.warmupDurationMinutes=0 \
     baseline 1topic-1kb ./results/baseline/
+  $(basename "$0") --profile ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
+    --profile ./helm/kroxylicious-benchmark/scenarios/aws-kms-values.yaml \
+    encryption 1topic-1kb ./results/encryption-aws/
   NAMESPACE=benchmarks $(basename "$0") baseline 1topic-1kb ./results/
 EOF
     exit 1
 }
 
-PROFILE_VALUES=""
+PROFILE_VALUES=()
 HELM_SET_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --profile)
-            PROFILE_VALUES="$2"
+            PROFILE_VALUES+=("$2")
             shift 2
             ;;
         --set)
@@ -115,10 +118,13 @@ if [[ ! -f "${SCENARIO_VALUES}" ]]; then
     exit 1
 fi
 
-if [[ -n "${PROFILE_VALUES}" && ! -f "${PROFILE_VALUES}" ]]; then
-    echo "Error: profile values file not found: ${PROFILE_VALUES}" >&2
-    exit 1
-fi
+# Validate each profile file exists
+for profile_file in "${PROFILE_VALUES[@]}"; do
+    if [[ ! -f "${profile_file}" ]]; then
+        echo "Error: profile values file not found: ${profile_file}" >&2
+        exit 1
+    fi
+done
 
 METRICS_PID=""
 
@@ -164,8 +170,8 @@ stop_metrics_poller() {
 echo "=== Benchmark run: ${SCENARIO} / ${WORKLOAD} ==="
 echo "Namespace:  ${NAMESPACE}"
 echo "Output dir: ${OUTPUT_DIR}"
-if [[ -n "${PROFILE_VALUES}" ]]; then
-    echo "Profile:    ${PROFILE_VALUES}"
+if [[ ${#PROFILE_VALUES[@]} -gt 0 ]]; then
+    echo "Profiles:   ${PROFILE_VALUES[*]}"
 fi
 if [[ ${#HELM_SET_ARGS[@]} -gt 0 ]]; then
     echo "Overrides:  ${HELM_SET_ARGS[*]}"
@@ -182,7 +188,7 @@ fi
 
 echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
 HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
-[[ -n "${PROFILE_VALUES}" ]] && HELM_ARGS+=(-f "${PROFILE_VALUES}")
+for profile_file in "${PROFILE_VALUES[@]}"; do HELM_ARGS+=(-f "${profile_file}"); done
 HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
 for set_arg in "${HELM_SET_ARGS[@]}"; do HELM_ARGS+=(--set "${set_arg}"); done
 
