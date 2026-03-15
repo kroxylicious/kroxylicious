@@ -16,6 +16,7 @@ HELM_RELEASE="benchmark"
 KAFKA_READY_TIMEOUT="${KAFKA_READY_TIMEOUT:-600s}"
 POD_READY_TIMEOUT="${POD_READY_TIMEOUT:-300s}"
 METRICS_INTERVAL="${METRICS_INTERVAL:-30}"
+MEMORY_TRACKING_INTERVAL="${MEMORY_TRACKING_INTERVAL:-10}"
 
 PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
 
@@ -60,6 +61,7 @@ Environment:
   KAFKA_READY_TIMEOUT    Timeout waiting for Kafka to be ready (default: 600s)
   POD_READY_TIMEOUT      Timeout waiting for pods to be ready (default: 300s)
   METRICS_INTERVAL       Proxy metrics polling interval in seconds (default: 30)
+  MEMORY_TRACKING_INTERVAL  OMB coordinator native memory polling interval in seconds (default: 10)
   JFR_MAX_SIZE_MB        Maximum size of the JFR recording in megabytes (default: 64)
 
 Examples:
@@ -129,10 +131,13 @@ if [[ -n "${PROFILE_VALUES}" && ! -f "${PROFILE_VALUES}" ]]; then
 fi
 
 METRICS_PID=""
+#NMT = Native Memory Tracing
+NMT_PID=""
 
 teardown() {
     echo ""
     echo "--- Tearing down benchmark infrastructure ---"
+    stop_nmt_poller
     stop_metrics_poller
     if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
         helm uninstall "${HELM_RELEASE}" -n "${NAMESPACE}"
@@ -166,6 +171,24 @@ stop_metrics_poller() {
         kill "${METRICS_PID}" 2>/dev/null || true
         wait "${METRICS_PID}" 2>/dev/null || true
         METRICS_PID=""
+    fi
+}
+
+start_nmt_poller() {
+    echo "Starting OMB coordinator NMT polling (every ${MEMORY_TRACKING_INTERVAL}s)..."
+    mkdir -p "${OUTPUT_DIR}"
+    "${SCRIPT_DIR}/poll-nmt.sh" \
+        "omb-benchmark" "${NAMESPACE}" "${OUTPUT_DIR}" "${MEMORY_TRACKING_INTERVAL}" &
+    NMT_PID=$!
+    echo "NMT poller running (PID ${NMT_PID})"
+}
+
+stop_nmt_poller() {
+    if [[ -n "${NMT_PID}" ]]; then
+        echo "Stopping NMT poller (PID ${NMT_PID})..."
+        kill "${NMT_PID}" 2>/dev/null || true
+        wait "${NMT_PID}" 2>/dev/null || true
+        NMT_PID=""
     fi
 }
 
@@ -293,6 +316,7 @@ fi
 # --- Run benchmark ---
 
 start_metrics_poller
+start_nmt_poller
 
 echo ""
 echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
@@ -329,6 +353,8 @@ BENCHMARK_EXIT=$(kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
 if [[ "${BENCHMARK_EXIT}" != "0" ]]; then
     echo "Benchmark failed with exit code ${BENCHMARK_EXIT}" >&2
 fi
+
+stop_nmt_poller
 
 # --- Dump JFR recording and flamegraph ---
 
