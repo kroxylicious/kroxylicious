@@ -50,7 +50,7 @@ jobs:
       fortanix: ${{ steps.fortanixKMS.outputs.fortanix }}
     steps:
       - name: 'Check out repository'
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
       - name: 'Discover test clients'
@@ -63,7 +63,7 @@ jobs:
             | paste -sd ',')
           TEST_CLIENTS="[$(echo "$client_types" | sed 's/[^,]*/"&"/g')]"
           echo "test_clients=$TEST_CLIENTS" >> $GITHUB_OUTPUT
-      - uses: snnaplab/get-labels-action@v1
+      - uses: snnaplab/get-labels-action@f426df40304808ace3b5282d4f036515f7609576
         with:
           number: ${{ github.event.pull_request.number }}
       - name: 'Set kafka client'
@@ -71,7 +71,8 @@ jobs:
         run: |
           KAFKA_CLIENTS=${{ steps.discover.outputs.test_clients }}
           PR_LABELS=${{ env.LABELS }}
-          KAFKA_CLIENT=$(echo "${PR_LABELS[@]},${KAFKA_CLIENTS[@]}" | sed 's/,/\n/g; s/\[//g; s/\]//g; s/test\/system-test\///g' | sort | uniq -d || echo 'strimzi_test_client')
+          KAFKA_CLIENT=$(echo "${PR_LABELS[@]},${KAFKA_CLIENTS[@]}" | sed 's/,/\n/g; s/\[//g; s/\]//g; s/test\/system-test\///g' | sort | uniq -d)
+          KAFKA_CLIENT=$([[ -z $KAFKA_CLIENT ]] && echo 'strimzi_test_client' || echo $KAFKA_CLIENT)
           echo "kafka_client=$KAFKA_CLIENT" >> "$GITHUB_OUTPUT"
           echo "$KAFKA_CLIENT"
       - name: 'Set Fortanix KMS'
