@@ -62,7 +62,7 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     private String inputSpecFilter;
 
     @Parameter(required = false)
-    private boolean pairRequestResponseMode;
+    private boolean apiSpecMode;
 
     @Parameter(required = false)
     private boolean skipOutputIfSourceExists;
@@ -91,7 +91,7 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
                     .withSourceDir(sourceDirectory)
                     .withOutputDir(outputDirectory)
                     .withOutputFilePattern(outputFilePattern)
-                    .withPairRequestResponseMode(pairRequestResponseMode)
+                    .withApiSpecMode(apiSpecMode)
                     .withSkipOutputIfSourceExists(skipOutputIfSourceExists)
                     .build();
 
