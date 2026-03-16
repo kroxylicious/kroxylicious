@@ -48,7 +48,7 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C
 
     /**
      * Returns true if the processor should isolate this request version.
-     * @param apiVersion @apiNote version
+     * @param apiVersion version
      * @return  true if the processor should isolate this request version.
      */
     default boolean shouldHandleRequest(short apiVersion) {
@@ -93,7 +93,7 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C
 
     /**
      * Returns true if the processor should isolate this response version.
-     * @param apiVersion @apiNote version
+     * @param apiVersion version
      * @return  true if the processor should isolate this request version.
      */
     default boolean shouldHandleResponse(short apiVersion) {
