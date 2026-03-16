@@ -24,6 +24,8 @@ import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -97,13 +99,12 @@ class ProduceRequestValidatorBuilderTlsTest {
     }
 
     @Test
-    void buildSchemaResolverConfigWithPemTrustStoreThrows() {
+    void buildSchemaResolverConfigWithPemTrustStore() {
         var trustStore = new TrustStore("/path/to/certs.pem", null, "PEM");
         var tls = new Tls(null, trustStore, null, null);
         var config = schemaConfig(tls);
-        assertThatThrownBy(() -> buildValidatorConfig(config))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("PEM trust store type is not supported");
+        var validator = buildValidatorConfig(config);
+        assertThat(validator).isNotNull();
     }
 
     @Test
@@ -144,7 +145,7 @@ class ProduceRequestValidatorBuilderTlsTest {
                 .hasMessageContaining("Unsupported TrustProvider type");
     }
 
-    private SchemaValidationConfig schemaConfig(Tls tls) {
+    private SchemaValidationConfig schemaConfig(@Nullable Tls tls) {
         return new SchemaValidationConfig(registryUrl, 1L, null, tls);
     }
 

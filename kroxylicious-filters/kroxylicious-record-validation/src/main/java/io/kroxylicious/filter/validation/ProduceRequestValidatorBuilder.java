@@ -110,9 +110,6 @@ class ProduceRequestValidatorBuilder {
         }
 
         if (trustProvider instanceof TrustStore trustStore) {
-            if (trustStore.isPemType()) {
-                throw new IllegalArgumentException("PEM trust store type is not supported by the schema registry client");
-            }
             resolverConfig.put(SchemaResolverConfig.TLS_TRUSTSTORE_LOCATION, trustStore.storeFile());
             if (trustStore.storePasswordProvider() != null) {
                 resolverConfig.put(SchemaResolverConfig.TLS_TRUSTSTORE_PASSWORD, trustStore.storePasswordProvider().getProvidedPassword());

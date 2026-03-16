@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -17,6 +18,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -85,9 +89,10 @@ class JsonSchemaRecordValidationTlsIT extends RecordValidationBaseIT {
     private static String trustStorePath;
     private static String trustStorePassword;
     private static String trustStoreType;
+    private static String trustPem;
 
     @BeforeAll
-    static void init() throws Exception {
+    static void init() {
         // Generate certificates and keystores using CertificateGenerator
         CertificateGenerator.Keys keys = CertificateGenerator.generate();
 
@@ -99,6 +104,7 @@ class JsonSchemaRecordValidationTlsIT extends RecordValidationBaseIT {
         trustStorePath = pkcs12Truststore.path().toString();
         trustStorePassword = pkcs12Truststore.password();
         trustStoreType = pkcs12Truststore.type();
+        trustPem = keys.selfSignedCertificatePem().toString();
 
         // Start Apicurio Registry with TLS enabled
         String image = "quay.io/apicurio/apicurio-registry:3.1.6@sha256:d0625211cebb1f58a2982df29cb0945249d8f88f37ccce9e162c0c12c2aea89e";
@@ -141,15 +147,29 @@ class JsonSchemaRecordValidationTlsIT extends RecordValidationBaseIT {
         contentId = artifact.getContentId().intValue();
     }
 
-    @Test
-    void shouldValidateRecordsWhenRegistryIsTlsProtectedWithTrustStore(KafkaCluster cluster, Topic topic) throws Exception {
+    static Stream<Arguments> tlsScenarios() {
+        return Stream.of(
+                Arguments.argumentSet("pkcs12 trust", Map.of(
+                        "storeFile", trustStorePath,
+                        "storeType", trustStoreType,
+                        "storePassword", Map.of("password", trustStorePassword))),
+                Arguments.argumentSet("pem trust", Map.of(
+                        "storeFile", trustPem,
+                        "storeType", "PEM")),
+                Arguments.argumentSet("insecure", Map.of(
+                        "insecure", true)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("tlsScenarios")
+    void shouldValidateRecordsWhenRegistryIsTlsProtected(Map<String, Object> tlsTrustConfig, KafkaCluster cluster, Topic topic) {
         // Configure schema validation with TLS trust store
-        var config = createTlsSchemaValidationConfig(cluster, topic, contentId, trustStorePath, trustStorePassword, trustStoreType);
+        var config = createTlsSchemaValidationConfig(cluster, topic, contentId, tlsTrustConfig);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             // Should successfully validate and produce
-            producer.send(new org.apache.kafka.clients.producer.ProducerRecord<>(topic.name(), "my-key", VALID_JSON_MESSAGE)).get();
+            assertThatFutureSucceeds(producer.send(new org.apache.kafka.clients.producer.ProducerRecord<>(topic.name(), "my-key", VALID_JSON_MESSAGE)));
 
             var records = consumeAll(tester, topic);
             assertSingleRecordInTopicHasValue(records, topic, VALID_JSON_MESSAGE);
@@ -169,72 +189,22 @@ class JsonSchemaRecordValidationTlsIT extends RecordValidationBaseIT {
         }
     }
 
-    @Test
-    void shouldSucceedWithInsecureTlsConfiguration(KafkaCluster cluster, Topic topic) throws Exception {
-        // Configure schema validation with insecure TLS (trust all)
-        var config = createInsecureTlsSchemaValidationConfig(cluster, topic, contentId);
-
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer()) {
-            // Should successfully validate and produce because insecure=true trusts all certificates
-            producer.send(new org.apache.kafka.clients.producer.ProducerRecord<>(topic.name(), "my-key", VALID_JSON_MESSAGE)).get();
-
-            var records = consumeAll(tester, topic);
-            assertSingleRecordInTopicHasValue(records, topic, VALID_JSON_MESSAGE);
-        }
-    }
-
     private static ConfigurationBuilder createTlsSchemaValidationConfig(KafkaCluster cluster, Topic topic, int contentId,
-                                                                        String trustStorePath, String trustStorePassword, String trustStoreType) {
-        String className = RecordValidation.class.getName();
-        Map<String, Object> tlsConfig = Map.of(
-                "trust", Map.of(
-                        "storeFile", trustStorePath,
-                        "storePassword", Map.of("password", trustStorePassword),
-                        "storeType", trustStoreType));
-
-        Map<String, Object> schemaValidationConfig = Map.of(
+                                                                        Map<String, Object> trustConfig) {
+        return createSchemaValidationConfigWithoutTls(cluster, topic, Map.of(
                 "apicurioRegistryUrl", apicurioRegistryUrl,
                 "apicurioId", contentId,
-                "tls", tlsConfig);
-
-        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className)
-                .withConfig("rules", List.of(Map.of(
-                        "topicNames", List.of(topic.name()),
-                        "valueRule", Map.of("schemaValidationConfig", schemaValidationConfig))))
-                .build();
-
-        return proxy(cluster)
-                .addToFilterDefinitions(namedFilterDefinition)
-                .addToDefaultFilters(namedFilterDefinition.name());
+                "tls", Map.<String, Object> of("trust", trustConfig)));
     }
 
     private static ConfigurationBuilder createSchemaValidationConfigWithoutTls(KafkaCluster cluster, Topic topic, int contentId) {
-        String className = RecordValidation.class.getName();
-        Map<String, Object> schemaValidationConfig = Map.of(
+        return createSchemaValidationConfigWithoutTls(cluster, topic, Map.of(
                 "apicurioRegistryUrl", apicurioRegistryUrl,
-                "apicurioId", contentId);
-
-        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className)
-                .withConfig("rules", List.of(Map.of(
-                        "topicNames", List.of(topic.name()),
-                        "valueRule", Map.of("schemaValidationConfig", schemaValidationConfig))))
-                .build();
-
-        return proxy(cluster)
-                .addToFilterDefinitions(namedFilterDefinition)
-                .addToDefaultFilters(namedFilterDefinition.name());
+                "apicurioId", contentId));
     }
 
-    private static ConfigurationBuilder createInsecureTlsSchemaValidationConfig(KafkaCluster cluster, Topic topic, int contentId) {
+    private static ConfigurationBuilder createSchemaValidationConfigWithoutTls(KafkaCluster cluster, Topic topic, Map<String, Object> schemaValidationConfig) {
         String className = RecordValidation.class.getName();
-        Map<String, Object> tlsConfig = Map.of(
-                "trust", Map.of("insecure", true));
-
-        Map<String, Object> schemaValidationConfig = Map.of(
-                "apicurioRegistryUrl", apicurioRegistryUrl,
-                "apicurioId", contentId,
-                "tls", tlsConfig);
 
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className)
                 .withConfig("rules", List.of(Map.of(
