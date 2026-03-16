@@ -73,6 +73,10 @@ The following are considered public API — changes require a design proposal be
 - `kroxylicious-kubernetes-api` module
 - YAML configuration structure (the Java types backing the config are *not* public API — use Jackson annotations such as `@JsonAlias` to preserve old names while refactoring internal types)
 - Shell scripts included in distribution tarballs
+- Metric names and labels (exposed via Micrometer/Prometheus)
+- Management endpoint paths and response structure (e.g. `/metrics`, `/health`)
+
+The general principle is that **any externally visible surface of the proxy at runtime is public API**. If a user or operator can observe or interact with it without modifying the proxy binary, renaming or restructuring it is a breaking change.
 
 Other modules may also contain public API surface; when in doubt, raise it for discussion before making breaking changes.
 
