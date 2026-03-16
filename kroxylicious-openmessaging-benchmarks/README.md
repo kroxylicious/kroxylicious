@@ -88,46 +88,13 @@ OpenMessaging Benchmark (Kafka driver)
 
 ```
 kroxylicious-openmessaging-benchmarks/
-├── README.md (this file)
-├── QUICKSTART.md
-├── Containerfile
-├── .dockerignore
-├── scripts/
-│   ├── setup-cluster.sh          # Install Strimzi + Kroxylicious operators (one-time)
-│   ├── run-benchmark.sh          # Run one scenario end-to-end (deploy → benchmark → teardown)
-│   ├── run-all-scenarios.sh      # Run baseline + proxy-no-filters and compare
-│   ├── compare-results.sh        # Compare two OMB result files (JBang wrapper)
-│   ├── collect-results.sh        # Collect results and generate metadata (JBang wrapper)
-│   └── poll-proxy-metrics.sh     # Poll proxy /metrics during a run (started by run-benchmark.sh)
-├── src/main/java/.../results/
-│   ├── OmbResult.java             # Jackson model for OMB result JSON
-│   ├── ResultComparator.java      # Comparison logic: two OmbResults → formatted table
-│   ├── CompareResults.java        # Picocli CLI entry point (JBang shebang)
-│   ├── RunMetadata.java           # Generates run-metadata.json
-│   └── CollectResults.java        # Picocli CLI entry point (JBang shebang)
+├── scripts/          # Automation scripts (setup-cluster, run-benchmark, etc.)
+├── src/              # JBang-based result comparison and collection tools
 ├── helm/
 │   └── kroxylicious-benchmark/
-│       ├── Chart.yaml
-│       ├── values.yaml
-│       ├── templates/
-│       │   ├── _helpers.tpl
-│       │   ├── kafka-strimzi.yaml
-│       │   ├── kafka-nodepool.yaml
-│       │   ├── kroxylicious-proxy.yaml
-│       │   ├── kroxylicious-ingress.yaml
-│       │   ├── kroxylicious-service.yaml
-│       │   ├── kroxylicious-cluster.yaml
-│       │   ├── omb-workers-statefulset.yaml
-│       │   ├── omb-benchmark-job.yaml
-│       │   └── configmaps/
-│       │       ├── omb-driver-baseline.yaml
-│       │       ├── workload-1topic-1kb.yaml
-│       │       ├── workload-10topics-1kb.yaml
-│       │       └── workload-100topics-1kb.yaml
-│       └── scenarios/
-│           ├── baseline-values.yaml
-│           ├── smoke-values.yaml
-│           └── proxy-no-filters-values.yaml
+│       ├── values.yaml       # Default values (production-quality durations)
+│       ├── templates/        # Kafka, OMB, Kroxylicious, Vault, and encryption templates
+│       └── scenarios/        # Per-scenario value overrides (baseline, proxy-no-filters, encryption, smoke)
 ```
 
 ## Prerequisites
@@ -296,6 +263,102 @@ variables and a PVC volume mount into the proxy deployment. This support was add
 0.19.0 release and will be available in 0.20.0. Until then, follow the [Custom Proxy Image](#custom-proxy-image)
 instructions to build and deploy a custom operator image from `main` alongside the custom proxy image.
 
+## Record Encryption Scenario
+
+The `encryption` scenario adds the Kroxylicious RecordEncryption filter to the proxy, encrypting all records end-to-end using a KEK stored in a KMS.
+
+### Auto-provisioned HashiCorp Vault (default)
+
+By default the scenario provisions a HashiCorp Vault instance in dev mode alongside the benchmark infrastructure. An init job enables the transit engine and creates the KEK (`benchmark-kek`). The Vault instance is torn down with the rest of the infrastructure at the end of the run.
+
+```bash
+./scripts/run-benchmark.sh encryption 1topic-1kb ./results/encryption/
+```
+
+For a quick smoke test:
+
+```bash
+./scripts/run-benchmark.sh \
+  --profile ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
+  encryption 1topic-1kb ./results/encryption-smoke/
+```
+
+### Using an external Vault
+
+To use your own Vault instance, create a profile that disables auto-provisioning and points the KMS config at your instance. The KEK named `benchmark-kek` must already exist in the transit engine:
+
+```bash
+vault write -f transit/keys/benchmark-kek
+```
+
+```yaml
+# external-vault-profile.yaml
+vault:
+  provision: false
+encryption:
+  kms:
+    config:
+      vaultTransitEngineUrl: https://my-vault.example.com:8200/v1/transit
+      vaultToken:
+        password: my-vault-token
+```
+
+```bash
+./scripts/run-benchmark.sh \
+  --profile ./external-vault-profile.yaml \
+  encryption 1topic-1kb ./results/encryption/
+```
+
+### Using AWS KMS
+
+Create a profile that disables Vault and switches the KMS type. The key alias `benchmark-kek` must already exist in AWS KMS.
+
+```yaml
+# aws-kms-profile.yaml
+vault:
+  provision: false
+encryption:
+  kms:
+    type: io.kroxylicious.kms.provider.aws.kms.AwsKmsService
+    config:
+      endpointUrl: https://kms.us-east-1.amazonaws.com
+      region: us-east-1
+      longTermCredentials:
+        accessKeyId:
+          password: AKIAIOSFODNN7EXAMPLE
+        secretAccessKey:
+          password: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+```
+
+> **Note:** `InlinePassword` stores credentials in plain text. Suitable for benchmarking only.
+
+```bash
+./scripts/run-benchmark.sh \
+  --profile ./aws-kms-profile.yaml \
+  encryption 1topic-1kb ./results/encryption/
+```
+
+
+## Combining profiles
+
+Profiles are applied in order with later values winning, so they can be freely combined. For example, layering the smoke profile with a custom KMS:
+
+```bash
+./scripts/run-benchmark.sh \
+  --profile ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
+  --profile ./aws-kms-profile.yaml \
+  encryption 1topic-1kb ./results/encryption-smoke/
+```
+
+Or combining smoke with single-node settings for any scenario:
+
+```bash
+./scripts/run-benchmark.sh \
+  --profile ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
+  --profile ./helm/kroxylicious-benchmark/scenarios/single-node-values.yaml \
+  baseline 1topic-1kb ./results/baseline-smoke/
+```
+
 ## Profiling rationale and limitations
 
 When a proxy pod is present in the benchmark namespace (default: `kafka`), `run-benchmark.sh` automatically captures profiling data alongside the
@@ -435,7 +498,6 @@ Finds the benchmark pod, copies result JSON files from `/var/lib/omb/results`, a
 
 ## Planned
 
-- Encryption scenario (RecordEncryption filter + Vault)
 - Encryption+Auth scenario (RecordEncryption + Authorization filters)
 
 ## Troubleshooting
