@@ -4,22 +4,20 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: omb-benchmark
   labels:
     app: omb-benchmark
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: omb-benchmark
+  backoffLimit: 0
   template:
     metadata:
       labels:
         app: omb-benchmark
     spec:
+      restartPolicy: Never
       containers:
       - name: benchmark
         image: {{ .Values.omb.image }}
@@ -28,7 +26,7 @@ spec:
         env:
         - name: WORKERS
           value: {{ include "kroxylicious-benchmark.workerList" . | quote }}
-        - name: JAVA_OPTS
+        - name: JAVA_TOOL_OPTIONS
           value: "-XX:MaxRAMPercentage=50 -XX:NativeMemoryTracking=summary -Dorg.slf4j.simpleLogger.defaultLogLevel={{ .Values.omb.logLevel }}"
         command:
         - /bin/bash
@@ -39,7 +37,6 @@ spec:
           ln -sf /opt/benchmark/payload /var/lib/omb/results/payload
 
           # Wait for workers to be ready
-          echo "Waiting for OMB workers to be ready..."
           for i in $(seq 0 $(({{ .Values.omb.workerReplicas }} - 1))); do
             while ! curl -s http://omb-worker-${i}.omb-worker:8080 > /dev/null 2>&1; do
               echo "Waiting for omb-worker-${i}..."
@@ -49,21 +46,25 @@ spec:
           echo "All workers ready"
 
           # Wait for Kafka to be ready (TCP port check)
-          echo "Waiting for Kafka to be ready..."
           KAFKA_HOST=$(echo "{{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}" | cut -d: -f1)
           KAFKA_PORT=$(echo "{{ include "kroxylicious-benchmark.kafkaBootstrapServers" . }}" | cut -d: -f2)
-          echo "Target: $KAFKA_HOST:$KAFKA_PORT"
-
           while ! timeout 1 bash -c "echo > /dev/tcp/$KAFKA_HOST/$KAFKA_PORT" 2>/dev/null; do
-            echo "Waiting for Kafka on $KAFKA_HOST:$KAFKA_PORT... (connection failed)"
+            echo "Waiting for Kafka on $KAFKA_HOST:$KAFKA_PORT..."
             sleep 5
           done
           echo "Kafka is ready"
 
-          # Keep pod running for manual benchmark execution
-          echo "Ready to run benchmarks. Sleeping indefinitely..."
-          echo "To run a benchmark, exec into this pod and run:"
-          echo '  /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
+          # Run benchmark as main process so cgroup memory limits apply correctly
+          /opt/benchmark/bin/benchmark \
+            --drivers /etc/omb/driver/driver-kafka.yaml \
+            --workers "$WORKERS" \
+            /etc/omb/workloads/workload.yaml
+          BENCHMARK_EXIT=$?
+
+          # Write exit code to marker file so run-benchmark.sh knows we're done
+          echo "${BENCHMARK_EXIT}" > /var/lib/omb/results/.done
+
+          # Hold pod open for result collection — terminated by helm uninstall
           sleep infinity
         volumeMounts:
         - name: driver-config
