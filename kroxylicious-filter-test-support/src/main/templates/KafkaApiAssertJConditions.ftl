@@ -5,17 +5,15 @@
     Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 
 -->
-<#-- @ftlvariable name="outputPackage" type="java.lang.String" -->
-<#-- @ftlvariable name="messageSpec" type="io.kroxylicious.krpccodegen.schema.MessageSpec" -->
 <#assign
-dataClass="${messageSpec.dataClassName}"
+dataClass="${inputSpec.dataClassName}"
 conditionClassName="${dataClass?cap_first}Condition"
 />
 <#-- there is a mismatch in pluralisation between OffsetsForLeader message spec name and the actual Request type -->
-<#if messageSpec.name?starts_with("OffsetForLeader")>
-    <#assign requestName = messageSpec.name?replace("Offset", "Offsets") />
+<#if inputSpec.name?starts_with("OffsetForLeader")>
+    <#assign requestName = inputSpec.name?replace("Offset", "Offsets") />
 <#else>
-    <#assign requestName = "${messageSpec.name}" />
+    <#assign requestName = "${inputSpec.name}" />
 </#if>
 <#assign apiMessageVarName="${requestName?uncap_first}" />
 /*

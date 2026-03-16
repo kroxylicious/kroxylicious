@@ -6,7 +6,7 @@
 
 -->
 <#assign
-  dataClass = "${messageSpec.name}Data"
+  dataClass = "${inputSpec.name}Data"
 />
 <#macro fieldName field>${field.name?uncap_first}</#macro>
 <#macro fieldType field>
@@ -132,7 +132,7 @@ import static org.apache.kafka.common.protocol.types.Field.TaggedFieldsSection;
 public class ${dataClass} implements ApiMessage {
 
 <#-- field declarations -->
-<#list messageSpec.struct.fields as f>
+<#list inputSpec.struct.fields as f>
     <@fieldType field=f/> <@fieldName field=f/>;
 </#list>
     private List<RawTaggedField> _unknownTaggedFields;
@@ -147,13 +147,13 @@ public class ${dataClass} implements ApiMessage {
 
 
     public static final Schema[] SCHEMAS = new Schema[] {
-<#list messageSpec.validVersions as v>
+<#list inputSpec.validVersions as v>
         SCHEMA_${v}<#sep>,</#sep>
 </#list>
     };
 
-    public static final short LOWEST_SUPPORTED_VERSION = ${messageSpec.validVersions.lowest};
-    public static final short HIGHEST_SUPPORTED_VERSION = ${messageSpec.validVersions.highest};
+    public static final short LOWEST_SUPPORTED_VERSION = ${inputSpec.validVersions.lowest};
+    public static final short HIGHEST_SUPPORTED_VERSION = ${inputSpec.validVersions.highest};
 
 <#-- constructors -->
     public ${dataClass}(Readable _readable, short _version) {
@@ -161,7 +161,7 @@ public class ${dataClass} implements ApiMessage {
     }
 
     public ${dataClass}() {
-<#list messageSpec.struct.fields as f>
+<#list inputSpec.struct.fields as f>
         this.<@fieldName field=f/> = <@fieldDefault field=f/>;
 </#list>
     }
@@ -169,19 +169,19 @@ public class ${dataClass} implements ApiMessage {
     /** The API key */
     @Override
     public short apiKey() {
-        return ${messageSpec.apiKey.orElse(-1)};
+        return ${inputSpec.apiKey.orElse(-1)};
     }
 
     /** @return the lowest valid version for this RPC. */
     @Override
     public short lowestSupportedVersion() {
-        return ${messageSpec.validVersions.lowest};
+        return ${inputSpec.validVersions.lowest};
     }
 
     /** @return the highest valid version for this message. */
     @Override
     public short highestSupportedVersion() {
-        return ${messageSpec.validVersions.highest};
+        return ${inputSpec.validVersions.highest};
     }
 
     @Override
@@ -203,7 +203,7 @@ public class ${dataClass} implements ApiMessage {
     public boolean equals(Object obj) {
         if (!(obj instanceof ${dataClass})) return false;
         ${dataClass} other = (${dataClass}) obj;
-<#list messageSpec.struct.fields as f>
+<#list inputSpec.struct.fields as f>
 <#if f.type.canBeNullable>
         if (this.<@fieldName field=f/> == null) {
             if (other.<@fieldName field=f/> != null) return false;
@@ -220,7 +220,7 @@ public class ${dataClass} implements ApiMessage {
     @Override
     public int hashCode() {
         int hashCode = 0;
-<#list messageSpec.struct.fields as f>
+<#list inputSpec.struct.fields as f>
         hashCode = 31 * hashCode + <#compress>
 <#if f.type.canBeNullable>
         (<@fieldName field=f/> == null ? 0 : <@fieldName field=f/>.hashCode())
@@ -243,7 +243,7 @@ public class ${dataClass} implements ApiMessage {
     @Override
     public ${dataClass} duplicate() {
         ${dataClass} _duplicate = new ${dataClass}();
-<#list messageSpec.struct.fields as f>
+<#list inputSpec.struct.fields as f>
 <#if f.type.isArray>
         ${f.type.elementType}Collection new${f.name?cap_first} = new ${f.type.elementType}Collection(<@fieldName field=f/>.size());
         for (${f.type.elementType} _element : <@fieldName field=f/>) {
@@ -265,7 +265,7 @@ public class ${dataClass} implements ApiMessage {
     }
 
 <#-- getters -->
-<#list messageSpec.struct.fields as f>
+<#list inputSpec.struct.fields as f>
     /** 
      * Gets the ${f.name}. 
      * ${f.about}
@@ -285,13 +285,13 @@ public class ${dataClass} implements ApiMessage {
     }
 
 <#-- setters -->
-<#list messageSpec.struct.fields as f>
+<#list inputSpec.struct.fields as f>
     /** 
      * Sets the ${f.name}. 
      * ${f.about}
      * @param ${f.name} the ${f.name}.
      */
-    public ${messageSpec.struct.name}Data set${f.name?cap_first}(<@fieldType field=f/> <@fieldName field=f/>) {
+    public ${inputSpec.struct.name}Data set${f.name?cap_first}(<@fieldType field=f/> <@fieldName field=f/>) {
         this.<@fieldName field=f/> = <@fieldName field=f/>;
         return this;
     }

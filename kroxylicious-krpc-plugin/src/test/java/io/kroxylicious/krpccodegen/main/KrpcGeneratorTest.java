@@ -149,11 +149,11 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    void messageSpecsFilteredWithStreamProcessor(@TempDir File tempDir) throws Exception {
+    void messageSpecsFilteredWithInputSpecFilter(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.multi()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*{Request,Response}.json")
-                .streamProcessingFunction("specStream => specStream.filter(spec => spec.name().startsWith('Alter'))")
+                .inputSpecFilter("inputStream => inputStream.filter(spec => spec.name().startsWith('Alter'))")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("Kproxy/MessageSpecFiltering.ftl"))
                 .withOutputPackage("com.foo")
@@ -187,12 +187,12 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    void messageSpecPairsFilteredWithStreamProcessor(@TempDir File tempDir) throws Exception {
+    void messageSpecPairsFilteredWithInputSpecFilter(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.multi()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*{Request,Response}.json")
-                .streamProcessingFunction(
-                        "pairStream => pairStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER)).filter(pair => pair.name().startsWith('Alter'))")
+                .inputSpecFilter(
+                        "inputStream => inputStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER)).filter(pair => pair.name().startsWith('Alter'))")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("Kproxy/MessageSpecPairs.ftl"))
                 .withOutputPackage("com.foo")
@@ -206,8 +206,6 @@ class KrpcGeneratorTest {
         File file = join(tempDir, "com", "foo", "MessageSpecPairs.txt");
         assertFileHasExpectedContents(file, "Kproxy/MessageSpecPairsFiltered-expected.txt");
     }
-
-    // KWTODO - test cases for mismatched requests/responses
 
     @SuppressWarnings("java:S2925") // sleep justified for testing logic that depends on filesystem modtimes
     @Test
@@ -300,8 +298,8 @@ class KrpcGeneratorTest {
     @ParameterizedTest
     @CsvSource({ "AddPartitionsToTxnRequest.json,yes,no", "FetchRequest.json,no,no" })
     void testLatestVersionUnstable(String messageSpec, String expectField, String expectValue, @TempDir File tempDir) throws Exception {
-        testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}", expectField);
-        testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.orElse(false)?string('yes', 'no')}", expectValue);
+        testSingleGeneration(tempDir, messageSpec, "${inputSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}", expectField);
+        testSingleGeneration(tempDir, messageSpec, "${inputSpec.latestVersionUnstable.orElse(false)?string('yes', 'no')}", expectValue);
     }
 
     @CsvSource(nullValues = "null", value = { "a,b,false", "a,a,true", "aa,a,false", "a,aa,false", "a,null,false" })
