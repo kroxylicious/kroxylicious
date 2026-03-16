@@ -52,7 +52,7 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
             return mappedResourceName.substring(prefix.length());
         }
         else {
-            throw new IllegalArgumentException("Resource name ''%s' does not belong to the namespace belonging to '%s'".formatted(mappedResourceName, authId));
+            throw new IllegalArgumentException("Resource name '%s' does not belong to the namespace belonging to '%s'".formatted(mappedResourceName, authId));
         }
     }
 
