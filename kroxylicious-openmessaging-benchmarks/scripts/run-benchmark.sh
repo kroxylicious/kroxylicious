@@ -135,7 +135,7 @@ teardown() {
     echo "--- Tearing down benchmark infrastructure ---"
     stop_metrics_poller
     if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
-        helm uninstall "${HELM_RELEASE}" -n "${NAMESPACE}"
+        helm uninstall "${HELM_RELEASE}" -n "${NAMESPACE}" --timeout 120s
     fi
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found --timeout=60s
@@ -194,7 +194,7 @@ HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
 HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
 for set_arg in "${HELM_SET_ARGS[@]}"; do HELM_ARGS+=(--set "${set_arg}"); done
 
-helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}"
+helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" --timeout 300s
 
 # Register teardown to run on exit (success or failure) so we always clean up.
 # Skipped when --no-teardown is set, leaving infrastructure up for debugging.
