@@ -13,7 +13,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -61,6 +63,7 @@ class TopicTracingIT extends AbstractTracingIT {
 
     public static final String TOPIC_A = "topicA";
     public static final String TOPIC_B = "topicB";
+    public static final String TOPIC_C = "topicC";
     public static final String TXN_ID_P = "txnIdP";
     public static final String GROUP_1 = "group1";
     public static final String GROUP_2 = "group2";
@@ -83,8 +86,9 @@ class TopicTracingIT extends AbstractTracingIT {
                 from io.kroxylicious.filter.authorization import TopicResource as Topic;
                 allow User with name = "alice" to * Topic with name in {"%s", "%s"};
                 allow User with name = "bob" to CREATE Topic with name = "%s";
+                allow User with name = "bob" to * Topic with name = "%s";
                 otherwise deny;
-                """.formatted(TOPIC_A, TOPIC_B, TOPIC_A));
+                """.formatted(TOPIC_A, TOPIC_B, TOPIC_A, TOPIC_C));
         /*
          * The correctness of this test is predicated on the equivalence of the Proxy ACLs (above) and the Kafka ACLs (below)
          * If you add a rule to one you'll need to add an equivalent rule to the other
@@ -113,7 +117,11 @@ class TopicTracingIT extends AbstractTracingIT {
                 new AclBinding(
                         new ResourcePattern(ResourceType.TOPIC, TOPIC_A, PatternType.LITERAL),
                         new AccessControlEntry("User:" + BOB, "*",
-                                AclOperation.CREATE, AclPermissionType.ALLOW)));
+                                AclOperation.CREATE, AclPermissionType.ALLOW)),
+                new AclBinding(
+                        new ResourcePattern(ResourceType.TOPIC, TOPIC_C, PatternType.LITERAL),
+                        new AccessControlEntry("User:" + BOB, "*",
+                                AclOperation.ALL, AclPermissionType.ALLOW)));
     }
 
     @BeforeEach
@@ -188,6 +196,57 @@ class TopicTracingIT extends AbstractTracingIT {
                 }
 
                 setup.deleteTopic(topicA);
+            }
+        }
+    }
+
+    /**
+     * We want to ensure that Consumers using Pattern subscription only consume from topics
+     * they are authorized to consumer from. In this test we create (and produce to) multiple
+     * topics that match the .* pattern, but Alice is only allowed to read from TOPIC_A.
+     */
+    record RegexConsumerProg(String groupProtocol) implements Prog {
+
+        @Override
+        public void run(ClientFactory clientFactory) {
+            String topicA = TOPIC_A;
+            String topicC = TOPIC_C;
+            TopicPartition topicAPartition0 = new TopicPartition(topicA, 0);
+
+            String setupUser = ALICE;
+            String setupUserB = BOB;
+            String producerUser = ALICE;
+            String producerUserB = BOB;
+            String consumerUser = ALICE;
+            try (var setupA = clientFactory.newAdmin(setupUser, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "setup"));
+                    var setupB = clientFactory.newAdmin(setupUserB, Map.of(AdminClientConfig.CLIENT_ID_CONFIG, "setup-bob"))) {
+                setupA.createTopic(topicA);
+                setupB.createTopic(topicC);
+                try (var nonTransactionalProducer = clientFactory.newProducer(producerUser, INTEGER_SERIALIZER, Map.of(
+                        ProducerConfig.CLIENT_ID_CONFIG, "nonTransactionalProducerAlice",
+                        ProducerConfig.PARTITIONER_CLASS_CONFIG, AlwaysPartition0Partitioner.class.getName()))) {
+                    nonTransactionalProducer.send(topicA, 1);
+                }
+                try (var nonTransactionalProducer = clientFactory.newProducer(producerUserB, INTEGER_SERIALIZER, Map.of(
+                        ProducerConfig.CLIENT_ID_CONFIG, "nonTransactionalProducerBob",
+                        ProducerConfig.PARTITIONER_CLASS_CONFIG, AlwaysPartition0Partitioner.class.getName()))) {
+                    nonTransactionalProducer.send(topicC, 2);
+                }
+                try (var groupedConsumer = clientFactory.newConsumer(consumerUser, INTEGER_DESERIALIZER, Map.of(
+                        ProducerConfig.CLIENT_ID_CONFIG, "nonGroupedConsumer",
+                        ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false,
+                        ConsumerConfig.GROUP_ID_CONFIG, GROUP_1,
+                        ConsumerConfig.GROUP_PROTOCOL_CONFIG, groupProtocol,
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                        ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1))) {
+                    groupedConsumer.subscribe(Pattern.compile(".*"));
+                    Outcome<ConsumerRecords<String, Integer>> poll = groupedConsumer.poll();
+                    Set<TopicPartition> partitions = poll.value().partitions();
+                    assertThat(partitions).containsExactly(topicAPartition0);
+                    assertThat(poll.value()).singleElement().satisfies(record -> {
+                        assertThat(record.value()).isEqualTo(1);
+                    });
+                }
             }
         }
     }
@@ -289,15 +348,13 @@ class TopicTracingIT extends AbstractTracingIT {
 
     List<Arguments> shouldEnforceAccessToTopics() {
         var alice = new Actor(ALICE, "Alice", Map.of(), Map.of(), Map.of());
+        var bob = new Actor(BOB, "Bob", Map.of(), Map.of(), Map.of());
         var eve = new Actor(EVE, "Eve", Map.of(), Map.of(), Map.of());
-        // TODO support new consumer protocol
-        // Arguments newConsumerProtocol = Arguments.of(new TransactionalProg(), List.of(alice.withConsumerConfigOverrides(Map.of(
-        // ConsumerConfig.GROUP_PROTOCOL_CONFIG, GroupProtocol.CONSUMER.name().toLowerCase(Locale.ROOT))),
-        // eve.withConsumerConfigOverrides(Map.of(
-        // ConsumerConfig.GROUP_PROTOCOL_CONFIG, GroupProtocol.CONSUMER.name().toLowerCase(Locale.ROOT)))));
         return List.of(
                 Arguments.of(new AdminProg(), List.of(alice, eve)),
                 Arguments.of(new SimpleProg(1), List.of(alice, eve)),
+                Arguments.of(new RegexConsumerProg("classic"), List.of(alice, bob)),
+                Arguments.of(new RegexConsumerProg("consumer"), List.of(alice, bob)),
                 Arguments.of(new SimpleProg(1), List.of(
                         alice.withProducerConfigOverrides(ProducerConfig.ACKS_CONFIG, "0"),
                         eve.withProducerConfigOverrides(ProducerConfig.ACKS_CONFIG, "0"))),
@@ -314,7 +371,12 @@ class TopicTracingIT extends AbstractTracingIT {
                                 ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 10_000)),
                         eve.withConsumerConfigOverrides(Map.of(
                                 ConsumerConfig.GROUP_PROTOCOL_CONFIG, GroupProtocol.CLASSIC.name().toLowerCase(Locale.ROOT),
-                                ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 10_000)))));
+                                ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 10_000)))),
+                Arguments.of(new TransactionalProg(), List.of(
+                        alice.withConsumerConfigOverrides(Map.of(
+                                ConsumerConfig.GROUP_PROTOCOL_CONFIG, GroupProtocol.CONSUMER.name().toLowerCase(Locale.ROOT))),
+                        eve.withConsumerConfigOverrides(Map.of(
+                                ConsumerConfig.GROUP_PROTOCOL_CONFIG, GroupProtocol.CONSUMER.name().toLowerCase(Locale.ROOT))))));
     }
 
     @ParameterizedTest

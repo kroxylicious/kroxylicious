@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.admin.Admin;
@@ -42,6 +43,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.GroupType;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicCollection;
@@ -478,7 +480,7 @@ public abstract class AbstractTracingIT extends AuthzIT {
             return new ConsumerGroupDescription(
                     groupDescription.groupId(),
                     groupDescription.isSimpleConsumerGroup(),
-                    groupDescription.members().stream().map(AdminContext::cleanGroupMember).toList(),
+                    groupDescription.members().stream().map(memberDescription -> cleanGroupMember(memberDescription, groupDescription.type())).toList(),
                     groupDescription.partitionAssignor(),
                     groupDescription.type(),
                     groupDescription.groupState(),
@@ -488,10 +490,10 @@ public abstract class AbstractTracingIT extends AuthzIT {
                     groupDescription.targetAssignmentEpoch());
         }
 
-        private static MemberDescription cleanGroupMember(MemberDescription memberDescription) {
+        private static MemberDescription cleanGroupMember(MemberDescription memberDescription, GroupType type) {
             return new MemberDescription(
-                    memberDescription.consumerId().substring(0,
-                            memberDescription.consumerId().length() - UUID_STRING_LENGTH),
+                    type == GroupType.CLASSIC ? memberDescription.consumerId().substring(0,
+                            memberDescription.consumerId().length() - UUID_STRING_LENGTH) : "replaced",
                     memberDescription.groupInstanceId(),
                     memberDescription.clientId(),
                     memberDescription.host(),
@@ -657,6 +659,18 @@ public abstract class AbstractTracingIT extends AuthzIT {
             try {
                 // send to topicA
                 consumer.subscribe(List.of(topic));
+                outcome = new Success<>(null);
+            }
+            catch (KafkaException e) {
+                outcome = Fail.of(e);
+            }
+            return trace("subscribe", outcome);
+        }
+
+        public Outcome<Void> subscribe(Pattern pattern) {
+            Outcome<Void> outcome;
+            try {
+                consumer.subscribe(pattern);
                 outcome = new Success<>(null);
             }
             catch (KafkaException e) {
