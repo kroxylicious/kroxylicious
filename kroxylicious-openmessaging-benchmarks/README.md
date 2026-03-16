@@ -265,6 +265,37 @@ The operator will use this image for all subsequent proxy deployments until the 
 kubectl set env deployment/kroxylicious-operator -n kroxylicious-operator KROXYLICIOUS_IMAGE-
 ```
 
+## Running on OpenShift
+
+The benchmark scripts work on OpenShift clusters (tested with cluster-bot on AWS) with the
+following additional considerations.
+
+### Namespace security policy and SCCs
+
+`setup-cluster.sh` automatically:
+
+1. Labels the `kafka` namespace with `pod-security.kubernetes.io/enforce=privileged` — required
+   because the JFR and async-profiler patches set `seccompProfile: Unconfined` on the proxy
+   container, which the default `restricted` policy blocks.
+
+2. Detects OpenShift (by checking for the `security.openshift.io` API group) and grants the
+   `privileged` SCC to the `default` service account in the `kafka` namespace. OpenShift enforces
+   SCCs independently of PodSecurity admission, and `seccompProfile: Unconfined` requires the
+   `privileged` SCC.
+
+If the SCC grant fails, `setup-cluster.sh` will print a warning with the manual command to run:
+
+```bash
+oc adm policy add-scc-to-user privileged -z default -n kafka
+```
+
+### Operator version requirement
+
+JFR recording and flamegraph collection require the Kroxylicious operator to inject environment
+variables and a PVC volume mount into the proxy deployment. This support was added after the
+0.19.0 release and will be available in 0.20.0. Until then, follow the [Custom Proxy Image](#custom-proxy-image)
+instructions to build and deploy a custom operator image from `main` alongside the custom proxy image.
+
 ## Profiling rationale and limitations
 
 When a proxy pod is present in the benchmark namespace (default: `kafka`), `run-benchmark.sh` automatically captures profiling data alongside the

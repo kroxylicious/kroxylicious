@@ -83,6 +83,29 @@ else
     kubectl create namespace "${NAMESPACE}"
 fi
 
+# Label the namespace privileged so that async-profiler can set seccompProfile:Unconfined
+# on the proxy container, which is required for perf_event_open(2) to succeed.
+# This is a dedicated benchmark namespace — the relaxed policy is intentional.
+echo "Labelling namespace '${NAMESPACE}' with pod-security.kubernetes.io/enforce=privileged..."
+kubectl label namespace "${NAMESPACE}" \
+    pod-security.kubernetes.io/enforce=privileged \
+    pod-security.kubernetes.io/enforce-version=latest \
+    --overwrite
+
+# On OpenShift, SCCs are enforced in addition to PodSecurity admission.
+# Grant the privileged SCC to the proxy's service account so that the
+# seccompProfile:Unconfined patch can take effect.
+if kubectl api-resources --api-group=security.openshift.io 2>/dev/null | grep -q SecurityContextConstraints; then
+    echo "OpenShift detected: granting privileged SCC to default service account in '${NAMESPACE}'..."
+    if ! oc adm policy add-scc-to-user privileged -z default -n "${NAMESPACE}"; then
+        echo "" >&2
+        echo "Warning: failed to grant privileged SCC automatically." >&2
+        echo "         If profiling fails, run this manually:" >&2
+        echo "           oc adm policy add-scc-to-user privileged -z default -n ${NAMESPACE}" >&2
+        echo "" >&2
+    fi
+fi
+
 # --- Strimzi operator ---
 
 echo ""
