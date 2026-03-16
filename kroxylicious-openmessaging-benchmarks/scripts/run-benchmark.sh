@@ -197,6 +197,16 @@ helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}"
 # Register teardown to run on exit (success or failure) so we always clean up
 trap teardown EXIT
 
+# --- Wait for Vault init job (if provisioned) ---
+
+if kubectl get job/vault-init -n "${NAMESPACE}" &>/dev/null; then
+    echo "Waiting for Vault init job to complete (timeout: ${POD_READY_TIMEOUT})..."
+    kubectl wait --for=condition=complete job/vault-init \
+        -n "${NAMESPACE}" \
+        --timeout="${POD_READY_TIMEOUT}"
+    echo "Vault initialisation complete."
+fi
+
 # --- Wait for Kafka ---
 
 echo "Waiting for Kafka cluster to be ready (timeout: ${KAFKA_READY_TIMEOUT})..."
