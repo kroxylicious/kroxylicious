@@ -16,7 +16,7 @@ Format `<github issue/pr number>: <short description>`.
 
 * Apicurio v3 has changed the default way schemas are identified. They are now referred to using `contentId` rather than `globalId`.
   The reason for this change was to allow interop with Confluent based kafka clients.
-  Unfortunately, this causes breaking changes for users of the `schemaValidationConfig` record-validation feature.
+  Unfortunately, this causes breaking changes for users of `schemaValidation` rules of the record-validation feature.
   * The config field `apicurioContentId` is removed. It is replaced with a new config field `apicurioId`.
   * This field `apicurioId` refers to the `contentId` of the schema.
   * You must also ensure that any Kafka client embedding schema identifiers into records (using headers or magic bytes) are updated to send the `contentId` rather than the `globalId`.
