@@ -138,9 +138,9 @@ teardown() {
         helm uninstall "${HELM_RELEASE}" -n "${NAMESPACE}"
     fi
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
-    kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found
+    kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     # Delete JFR PVC if one was created
-    kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found
+    kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     echo "Teardown complete."
 }
 
