@@ -6,6 +6,7 @@
 package io.kroxylicious.filter.entityisolation;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
@@ -62,7 +63,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
 
         // Add the generated processors, excluding the special cases.
         createProcessorMap(resourceTypes::contains, wrappedMapper).forEach(pm::putIfAbsent);
-        this.processorMap = Map.copyOf(pm);
+        this.processorMap = Collections.unmodifiableMap(pm);
     }
 
     @Override

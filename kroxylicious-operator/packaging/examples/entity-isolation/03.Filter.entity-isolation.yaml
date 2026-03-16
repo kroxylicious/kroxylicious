@@ -11,9 +11,9 @@ metadata:
   name: entity-isolation
   namespace: my-proxy
 spec:
-  type: ResourceIsolation
+  type: EntityIsolation
   configTemplate:
     resourceTypes:
       - GROUP_ID
       - TRANSACTIONAL_ID
-    mapper: PrincipalResourceNameMapperService
+    mapper: PrincipalEntityNameMapperService
