@@ -200,6 +200,9 @@ kubectl wait --for=condition=ready pod \
     --timeout="${POD_READY_TIMEOUT}"
 echo "OMB pods are ready."
 
+# Note: the benchmark starts automatically inside the Job pod (no kubectl exec needed).
+# run-benchmark.sh waits for the .done marker file written when the benchmark exits.
+
 # --- Start JFR and async-profiler recording on proxy pod (if present) ---
 
 PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
@@ -270,8 +273,29 @@ start_metrics_poller
 
 echo ""
 echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
-kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
-    sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
+
+# The benchmark runs as the Job pod's main process. Poll for the .done marker
+# file that the pod writes when the benchmark exits, then read the exit code.
+BENCHMARK_POD=$(kubectl get pod -n "${NAMESPACE}" -l app=omb-benchmark \
+    -o jsonpath='{.items[0].metadata.name}')
+echo "Benchmark pod: ${BENCHMARK_POD}"
+echo "Streaming benchmark output..."
+kubectl logs -f "${BENCHMARK_POD}" -n "${NAMESPACE}" &
+LOGS_PID=$!
+
+DONE_FILE="/var/lib/omb/results/.done"
+until kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
+        test -f "${DONE_FILE}" 2>/dev/null; do
+    sleep 5
+done
+kill "${LOGS_PID}" 2>/dev/null || true
+wait "${LOGS_PID}" 2>/dev/null || true
+
+BENCHMARK_EXIT=$(kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
+    cat "${DONE_FILE}" 2>/dev/null || echo "1")
+if [[ "${BENCHMARK_EXIT}" != "0" ]]; then
+    echo "Benchmark failed with exit code ${BENCHMARK_EXIT}" >&2
+fi
 
 # --- Dump JFR recording and flamegraph ---
 
@@ -329,3 +353,4 @@ echo "=== Benchmark complete: ${SCENARIO} / ${WORKLOAD} ==="
 echo "Results written to: ${OUTPUT_DIR}"
 
 # teardown runs via trap on EXIT
+exit "${BENCHMARK_EXIT:-0}"
