@@ -11,6 +11,8 @@ import java.net.URL;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.config.tls.Tls;
+
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -18,8 +20,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param apicurioRegistryUrl apicurio registry url
  * @param apicurioId schema identifier - interpreted as contentId for V3 (default) or globalId for V2
  * @param wireFormatVersion wire format version (defaults to V3 if null)
+ * @param tls optional TLS configuration for connecting to a schema registry protected by TLS
  */
-public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioId, WireFormatVersion wireFormatVersion) {
+public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioId, WireFormatVersion wireFormatVersion, @Nullable Tls tls) {
 
     /**
      * Wire format versions for Apicurio Registry schema identifiers.
@@ -44,18 +47,21 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioId, W
     }
 
     /**
-     * Construct SchemaValidationConfig with explicit wire format version
+     * Construct SchemaValidationConfig with explicit wire format version and TLS configuration
      * @param apicurioRegistryUrl Apicurio Registry instance url
      * @param apicurioId schema identifier - interpreted as contentId for V3 (default) or globalId for V2
      * @param wireFormatVersion wire format version (defaults to V3 if null)
+     * @param tls optional TLS configuration for connecting to a schema registry protected by TLS with a custom trust store
      */
     @JsonCreator
     public SchemaValidationConfig(@JsonProperty(value = "apicurioRegistryUrl", required = true) URL apicurioRegistryUrl,
                                   @JsonProperty(value = "apicurioId", required = true) long apicurioId,
-                                  @Nullable @JsonProperty(value = "wireFormatVersion", required = false) WireFormatVersion wireFormatVersion) {
+                                  @Nullable @JsonProperty(value = "wireFormatVersion", required = false) WireFormatVersion wireFormatVersion,
+                                  @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
         this.apicurioId = apicurioId;
         this.apicurioRegistryUrl = apicurioRegistryUrl;
         this.wireFormatVersion = wireFormatVersion != null ? wireFormatVersion : WireFormatVersion.V3;
+        this.tls = tls;
     }
 
 }

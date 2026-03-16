@@ -22,7 +22,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.kroxylicious.filter.validation.validators.bytebuf.JwsSignatureBytebufValidator;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustStore;
 
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
 import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
@@ -30,9 +34,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ValidationConfigTest {
 
+    private static ValidationConfig expectedApicurioTlsTrustStoreConfig() throws MalformedURLException {
+        var tls = new Tls(null, new TrustStore("/path/to/truststore.jks", new InlinePassword("changeit"), "JKS"), null, null);
+        TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
+                new BytebufValidation(null, new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, tls),
+                        null, false, true));
+        return new ValidationConfig(List.of(ruleOne), null);
+    }
+
+    private static ValidationConfig expectedApicurioTlsInsecureConfig() throws MalformedURLException {
+        var tls = new Tls(null, new InsecureTls(true), null, null);
+        TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
+                new BytebufValidation(null, new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, tls),
+                        null, false, true));
+        return new ValidationConfig(List.of(ruleOne), null);
+    }
+
     private static ValidationConfig expectedApicurioConfig() throws MalformedURLException {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null),
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, null),
                         new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null), false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
@@ -158,7 +178,38 @@ class ValidationConfigTest {
                           keyRule:
                             allowNulls: false
                             allowEmpty: true
-                        """.formatted(RSA_AND_ECDSA_VERIFY_JWKS.toJson()), expectedJwsSignatureConfig()));
+                        """.formatted(RSA_AND_ECDSA_VERIFY_JWKS.toJson()), expectedJwsSignatureConfig()),
+                Arguments.argumentSet("apicurio with tls truststore", """
+                        rules:
+                        - topicNames:
+                          - one
+                          valueRule:
+                            schemaValidationConfig:
+                                apicurioId: 1
+                                apicurioRegistryUrl: http://localhost:8080
+                                tls:
+                                    trust:
+                                        storeFile: /path/to/truststore.jks
+                                        storePassword:
+                                            password: changeit
+                                        storeType: JKS
+                            allowNulls: false
+                            allowEmpty: true
+                        """, expectedApicurioTlsTrustStoreConfig()),
+                Arguments.argumentSet("apicurio with insecure tls", """
+                        rules:
+                        - topicNames:
+                          - one
+                          valueRule:
+                            schemaValidationConfig:
+                                apicurioId: 1
+                                apicurioRegistryUrl: http://localhost:8080
+                                tls:
+                                    trust:
+                                        insecure: true
+                            allowNulls: false
+                            allowEmpty: true
+                        """, expectedApicurioTlsInsecureConfig()));
     }
 
     @MethodSource
