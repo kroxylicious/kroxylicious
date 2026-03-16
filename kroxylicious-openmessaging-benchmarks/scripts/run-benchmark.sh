@@ -286,6 +286,16 @@ LOGS_PID=$!
 DONE_FILE="/var/lib/omb/results/.done"
 until kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
         test -f "${DONE_FILE}" 2>/dev/null; do
+    # Check whether the pod has failed (e.g. OOM-killed) — if so it will never
+    # write .done and the loop would otherwise hang indefinitely.
+    pod_phase=$(kubectl get pod "${BENCHMARK_POD}" -n "${NAMESPACE}" \
+        -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+    if [[ "${pod_phase}" == "Failed" ]]; then
+        kill "${LOGS_PID}" 2>/dev/null || true
+        wait "${LOGS_PID}" 2>/dev/null || true
+        echo "Benchmark pod failed (phase: ${pod_phase}) before writing results — likely OOM-killed" >&2
+        exit 1
+    fi
     sleep 5
 done
 kill "${LOGS_PID}" 2>/dev/null || true
