@@ -64,12 +64,11 @@ allowEmpty: true
   If a Kafka producer embeds a schema ID in the record (either in a header or _magic_ bytes at the start of the record's key or value), the filter validates it against this value. The record is rejected if the IDs do not match.
 * `apicurioRegistryUrl` specifies the endpoint URL for the Apicurio Registry.
 * `wireFormatVersion` controls whether the Apicurio client operates in `V3` (default) or `V2` (deprecated).
-   In `V3` mode, the `apicurioId` property identifies schema by content ID and the client, if embedding schema IDs, is assumed to use content IDs.
-   In `V2` mode, the `apicurioId` property identifies schema by global ID and the client, if embedding schema IDs, is assumed to use global IDs.
+   In `V3` mode, the `apicurioId` property identifies schema by content ID. In this mode, the filter expects the Kafka producer to identify schemas by content ID.
+   In `V2` mode, the `apicurioId` property identifies schema by global ID. In this mode, the filter expects the Kafka producer to identify schemas by global ID.
    `V2` mode exists only for compatibility with older Apicurio configurations and is deprecated. For new applications, use `V3`.
 * `allowNulls` specifies whether the validator allows record keys or values to be `null`. The default is `false`.
 * `allowEmpty` specifies whether the validator allows record keys or values to be empty. The default is `false`.
-
 
 For more information about embedding the ID in a record, see the
   {apicurio-docs}/getting-started/assembly-using-kafka-client-serdes.html#_consumer_schema_configuration[Apicurio documentation^].
