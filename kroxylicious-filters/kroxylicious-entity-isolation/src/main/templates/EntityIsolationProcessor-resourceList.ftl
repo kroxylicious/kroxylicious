@@ -46,7 +46,6 @@ indent             java identation
 <#macro mapAndFilterResponseFields messageSpec collectionIterator fieldVar children indent>
     <#local pad = ""?left_pad(4*indent)/>
     <#list children>
-${pad}// process the resource list
         <#items as field>
             <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
             <#if field.isResourceList>
