@@ -23,8 +23,8 @@
  */
 package ${outputPackage};
 
-<#list messageSpecs as messageSpec>
-import org.apache.kafka.common.message.${messageSpec.name}Data;
+<#list inputSpecs as inputSpec>
+import org.apache.kafka.common.message.${inputSpec.name}Data;
 </#list>
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -51,10 +51,10 @@ public class BodyDecoder {
     */
     static ApiMessage decodeRequest(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
         return switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(messageSpec)} ->
-                    new ${messageSpec.name}Data(accessor, apiVersion);
+<#list inputSpecs as inputSpec>
+    <#if inputSpec.type?lower_case == 'request'>
+            case ${retrieveApiKey(inputSpec)} ->
+                    new ${inputSpec.name}Data(accessor, apiVersion);
     </#if>
 </#list>
             default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);
@@ -71,9 +71,9 @@ public class BodyDecoder {
     */
     static ApiMessage decodeResponse(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
         return switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'response'>
-        case ${retrieveApiKey(messageSpec)} -> new ${messageSpec.name}Data(accessor, apiVersion);
+<#list inputSpecs as inputSpec>
+    <#if inputSpec.type?lower_case == 'response'>
+        case ${retrieveApiKey(inputSpec)} -> new ${inputSpec.name}Data(accessor, apiVersion);
     </#if>
 </#list>
             default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);

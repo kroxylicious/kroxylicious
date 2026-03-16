@@ -6,11 +6,11 @@
 
 -->
 <#assign
-  dataClass="${messageSpec.name}Data"
-  filterClass="${messageSpec.name}Filter"
-  filterResultClass="${messageSpec.type?lower_case?cap_first}FilterResult"
-  headerClass="${messageSpec.type?lower_case?cap_first}HeaderData"
-  msgType=messageSpec.type?lower_case
+  dataClass="${inputSpec.name}Data"
+  filterClass="${inputSpec.name}Filter"
+  filterResultClass="${inputSpec.type?lower_case?cap_first}FilterResult"
+  headerClass="${inputSpec.type?lower_case?cap_first}HeaderData"
+  msgType=inputSpec.type?lower_case
 />
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -36,19 +36,19 @@ import org.apache.kafka.common.message.${dataClass};
 import org.apache.kafka.common.message.${headerClass};
 
 /**
- * A stateless filter for ${messageSpec.name}s.
+ * A stateless filter for ${inputSpec.name}s.
  */
 public interface ${filterClass} extends Filter {
 
     /**
-     * Determine if a ${msgType} message of type ${messageSpec.name} should be handled by
+     * Determine if a ${msgType} message of type ${inputSpec.name} should be handled by
      * this filter implementation.
-     * returns true then {@code on${messageSpec.name}} is eligible to be invoked with
+     * returns true then {@code on${inputSpec.name}} is eligible to be invoked with
      * deserialized data, if the message reaches this filter in the chain.
      * @param apiVersion the apiVersion of the message
      * @return true if it should be handled
      */
-    default boolean shouldHandle${messageSpec.name}(short apiVersion) {
+    default boolean shouldHandle${inputSpec.name}(short apiVersion) {
         return true;
     }
 
@@ -68,6 +68,6 @@ public interface ${filterClass} extends Filter {
      * @see io.kroxylicious.proxy.filter Creating Filter Result objects
      * @see io.kroxylicious.proxy.filter  Thread Safety
      */
-     CompletionStage<${filterResultClass}> on${messageSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, FilterContext context);
+     CompletionStage<${filterResultClass}> on${inputSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, FilterContext context);
 
 }

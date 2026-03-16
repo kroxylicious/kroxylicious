@@ -13,8 +13,8 @@
 
 package ${outputPackage};
 
-<#list messageSpecs as messageSpec>
-import org.apache.kafka.common.message.${messageSpec.name}Data;
+<#list inputSpecs as inputSpec>
+import org.apache.kafka.common.message.${inputSpec.name}Data;
 </#list>
 import org.apache.kafka.common.protocol.ApiKeys;
 
@@ -65,9 +65,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                                          KrpcFilterContext filterContext) {
         KrpcFilterState state;
         switch (decodedFrame.apiKey()) {
-<#list messageSpecs as messageSpec>
-            case ${retrieveApiKey(messageSpec)}:
-                state = ((${messageSpec.name}Filter) this).on${messageSpec.name}((${messageSpec.name}Data) decodedFrame.body(), filterContext);
+<#list inputSpecs as inputSpec>
+            case ${retrieveApiKey(inputSpec)}:
+                state = ((${inputSpec.name}Filter) this).on${inputSpec.name}((${inputSpec.name}Data) decodedFrame.body(), filterContext);
                 break;
 </#list>
             default:
@@ -94,9 +94,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
      */
     default boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
         switch (apiKey) {
-<#list messageSpecs as messageSpec>
-            case ${retrieveApiKey(messageSpec)}:
-                return this instanceof ${messageSpec.name}Filter;
+<#list inputSpecs as inputSpec>
+            case ${retrieveApiKey(inputSpec)}:
+                return this instanceof ${inputSpec.name}Filter;
 </#list>
             default:
                 throw new IllegalStateException("Unsupported API key " + apiKey);

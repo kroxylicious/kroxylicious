@@ -83,7 +83,7 @@ public class KrpcGenerator {
         private File outputDir;
         private File sourceDir;
         private String outputFilePattern;
-        private String streamProcessingFunction;
+        private String inputSpecFilter;
         private boolean pairRequestResponseMode;
         private boolean skipOutputIfSourceExists;
 
@@ -194,15 +194,15 @@ public class KrpcGenerator {
         }
 
         /**
-         * javascript filtering function applied to the specifications before filters.
-         * this allows the source generation to be selective, generating sources for a
+         * javascript filtering function applied to the specifications before they are sent to the template.
+         * This allows the source generation to be selective, generating sources for a
          * sub-set of message specifications.
          *
-         * @param streamProcessingFunction function defined in javascript, usually as a lambda function.
+         * @param inputSpecFilter function defined in javascript, usually as a lambda function.
          * @return this
          */
-        public Builder streamProcessingFunction(String streamProcessingFunction) {
-            this.streamProcessingFunction = streamProcessingFunction;
+        public Builder inputSpecFilter(String inputSpecFilter) {
+            this.inputSpecFilter = inputSpecFilter;
             return this;
         }
 
@@ -236,7 +236,7 @@ public class KrpcGenerator {
          */
         public KrpcGenerator build() {
             return new KrpcGenerator(logger, mode, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern,
-                    sourceDir, streamProcessingFunction, pairRequestResponseMode, skipOutputIfSourceExists);
+                    sourceDir, inputSpecFilter, pairRequestResponseMode, skipOutputIfSourceExists);
         }
 
     }
@@ -261,7 +261,7 @@ public class KrpcGenerator {
     private final boolean skipOutputIfSourceExists;
     private final File outputDir;
     private final String outputFilePattern;
-    private final String streamProcessingFunction;
+    private final String inputSpecFilter;
 
     @SuppressWarnings("java:S107") // Methods should not have too many parameters - ignored as use-case with builder seems reasonable.
     private KrpcGenerator(Logger logger,
@@ -274,7 +274,7 @@ public class KrpcGenerator {
                           File outputDir,
                           String outputFilePattern,
                           File sourceDir,
-                          String streamProcessingFunction,
+                          String inputSpecFilter,
                           boolean pairRequestResponseMode,
                           boolean skipOutputIfSourceExists) {
         if (skipOutputIfSourceExists && sourceDir == null) {
@@ -292,7 +292,7 @@ public class KrpcGenerator {
         this.outputDir = addPackageDirs(outputDir, outputPackage);
         this.sourceDir = addPackageDirs(sourceDir, outputPackage);
         this.outputFilePattern = outputFilePattern;
-        this.streamProcessingFunction = streamProcessingFunction;
+        this.inputSpecFilter = inputSpecFilter;
         if (!this.outputDir.exists()) {
             this.outputDir.mkdirs();
         }
@@ -329,33 +329,20 @@ public class KrpcGenerator {
      */
     public void generate() throws Exception {
         var cfg = buildFmConfiguration();
-        var messageSpecs = messageSpecs();
-
-        Set<? extends Named> target;
-        if (pairRequestResponseMode) {
-            target = pairUp(messageSpecs);
-        }
-        else {
-            target = messageSpecs;
-        }
-
-        target = applyFilter(target);
+        Set<? extends Named> inputSpecs = inputSpecs();
 
         var dataModel = Map.<String, Object> of(
                 "createEntityTypeSet", new EntityTypeSetFactory());
 
         long generatedFiles;
         if (mode == GeneratorMode.SINGLE) {
-            generatedFiles = target.stream().mapToLong(t -> {
+            generatedFiles = inputSpecs.stream().mapToLong(inputSpec -> {
                 Map<String, Object> dm = new HashMap<>(dataModel);
-                if (t instanceof MessageSpec messageSpec) {
+                dm.put("inputSpec", inputSpec);
+                if (inputSpec instanceof MessageSpec messageSpec) {
                     dm.put("structRegistry", buildStructRegistry(messageSpec));
-                    dm.put("messageSpec", messageSpec);
                 }
-                else {
-                    dm.put("messageSpecPair", t);
-                }
-                return renderSingle(cfg, t, dm);
+                return renderSingle(cfg, inputSpec, dm);
             }).sum();
         }
         else {
@@ -363,12 +350,7 @@ public class KrpcGenerator {
             dm.put("outputPackage", outputPackage);
             dm.put("retrieveApiKey", new RetrieveApiKey());
             dm.put("createEntityTypeSet", new EntityTypeSetFactory());
-            if (pairRequestResponseMode) {
-                dm.put("messageSpecPairs", target);
-            }
-            else {
-                dm.put("messageSpecs", target);
-            }
+            dm.put("inputSpecs", inputSpecs);
             generatedFiles = renderMulti(cfg, dm);
         }
         if (generatedFiles > 0) {
@@ -376,30 +358,6 @@ public class KrpcGenerator {
         }
         else {
             logger.log(Level.INFO, "Nothing to generate - all sources up to date");
-        }
-    }
-
-    private Set<? extends Named> applyFilter(Set<? extends Named> set) {
-        if (this.streamProcessingFunction != null) {
-            try (Context context = Context.newBuilder("js")
-                    .option("engine.WarnInterpreterOnly", "false")
-                    .allowAllAccess(true)
-                    .build()) {
-                // These bindings allow Javascript expressions to be written in terms of the Java classes, without referring to the fully qualified Java name.
-                var bindings = context.getBindings("js");
-                bindings.putMember("RequestListenerType", RequestListenerType.class);
-                bindings.putMember("EntityType", EntityType.class);
-                bindings.putMember("Set", Set.class);
-
-                var predicate = context.eval("js", streamProcessingFunction);
-                return predicate.execute(set.stream()).as(new TypeLiteral<Stream<Named>>() {
-                })
-                        .sorted(Comparator.comparing(Named::name))
-                        .collect(Collectors.toCollection(LinkedHashSet::new));
-            }
-        }
-        else {
-            return set;
         }
     }
 
@@ -522,6 +480,45 @@ public class KrpcGenerator {
                 throw new RuntimeException(e);
             }
         }).sum();
+    }
+
+    private Set<? extends Named> inputSpecs() {
+        var messageSpecs = messageSpecs();
+
+        Set<? extends Named> inputSpecs;
+        if (pairRequestResponseMode) {
+            inputSpecs = pairUp(messageSpecs);
+        }
+        else {
+            inputSpecs = messageSpecs;
+        }
+
+        inputSpecs = applyFilter(inputSpecs);
+        return inputSpecs;
+    }
+
+    private Set<? extends Named> applyFilter(Set<? extends Named> set) {
+        if (this.inputSpecFilter != null) {
+            try (Context context = Context.newBuilder("js")
+                    .option("engine.WarnInterpreterOnly", "false")
+                    .allowAllAccess(true)
+                    .build()) {
+                // These bindings allow Javascript expressions to be written in terms of the Java classes, without referring to the fully qualified Java name.
+                var bindings = context.getBindings("js");
+                bindings.putMember("RequestListenerType", RequestListenerType.class);
+                bindings.putMember("EntityType", EntityType.class);
+                bindings.putMember("Set", Set.class);
+
+                var predicate = context.eval("js", inputSpecFilter);
+                return predicate.execute(set.stream()).as(new TypeLiteral<Stream<Named>>() {
+                })
+                        .sorted(Comparator.comparing(Named::name))
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+            }
+        }
+        else {
+            return set;
+        }
     }
 
     private Set<MessageSpec> messageSpecs() {
