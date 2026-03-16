@@ -24,6 +24,8 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import static java.util.function.Function.identity;
 
 class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHeartbeatRequestData, ConsumerGroupHeartbeatResponseData> {
+    public static final int VERSION_INTRODUCING_SUBSCRIBED_TOPIC_REGEX = 1;
+
     @Override
     short minSupportedVersion() {
         return 0;
@@ -31,7 +33,7 @@ class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHear
 
     @Override
     short maxSupportedVersion() {
-        return 1;
+        return VERSION_INTRODUCING_SUBSCRIBED_TOPIC_REGEX - 1;
     }
 
     @Override
@@ -39,6 +41,11 @@ class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHear
                                                    ConsumerGroupHeartbeatRequestData request,
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
+        if (request.subscribedTopicRegex() != null && !request.subscribedTopicRegex().isEmpty()) {
+            // we do not accept v1 requests (where subscribedTopicRegex was introduced) so this code should be unreachable, but we leave it here
+            // as a sanity check, we do not yet have a plan for how to combine broker-regex subscriptions with the authorization filter
+            throw new IllegalStateException("subscribedTopicRegex not supported");
+        }
         if (request.subscribedTopicNames() == null || request.subscribedTopicNames().isEmpty()) {
             return context.forwardRequest(header, request);
         }
@@ -58,4 +65,5 @@ class ConsumerGroupHeartbeatEnforcement extends ApiEnforcement<ConsumerGroupHear
             });
         }
     }
+
 }
