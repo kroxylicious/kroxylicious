@@ -1,0 +1,20 @@
+{{- if .Values.encryption.enabled }}
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+apiVersion: kroxylicious.io/v1alpha1
+kind: KafkaProtocolFilter
+metadata:
+  name: record-encryption
+spec:
+  type: io.kroxylicious.filter.encryption.RecordEncryption
+  configTemplate:
+    kms: {{ .Values.encryption.kms.type }}
+    kmsConfig:
+      {{- toYaml .Values.encryption.kms.config | nindent 6 }}
+    selector: io.kroxylicious.filter.encryption.TemplateKekSelector
+    selectorConfig:
+      template: {{ .Values.encryption.kekName | quote }}
+{{- end }}
