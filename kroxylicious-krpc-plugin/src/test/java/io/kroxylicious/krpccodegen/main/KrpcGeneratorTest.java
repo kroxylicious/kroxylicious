@@ -168,42 +168,42 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    void messageSpecPairs(@TempDir File tempDir) throws Exception {
+    void apiSpecs(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.multi()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*{Request,Response}.json")
                 .withTemplateDir(getTemplateDir())
-                .withTemplateNames(List.of("Kproxy/MessageSpecPairs.ftl"))
+                .withTemplateNames(List.of("Kproxy/ApiSpecs.ftl"))
                 .withOutputPackage("com.foo")
                 .withOutputDir(tempDir)
                 .withOutputFilePattern("${templateName}.txt")
-                .withPairRequestResponseMode(true)
+                .withApiSpecMode(true)
                 .build();
 
         gen.generate();
 
-        File file = join(tempDir, "com", "foo", "MessageSpecPairs.txt");
+        File file = join(tempDir, "com", "foo", "ApiSpecs.txt");
         assertFileHasExpectedContents(file, "Kproxy/MessageSpecPairs-expected.txt");
     }
 
     @Test
-    void messageSpecPairsFilteredWithInputSpecFilter(@TempDir File tempDir) throws Exception {
+    void apiSpecsFilteredWithStreamProcessor(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.multi()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*{Request,Response}.json")
                 .inputSpecFilter(
                         "inputStream => inputStream.filter(pair => pair.listeners().contains(RequestListenerType.static.BROKER)).filter(pair => pair.name().startsWith('Alter'))")
                 .withTemplateDir(getTemplateDir())
-                .withTemplateNames(List.of("Kproxy/MessageSpecPairs.ftl"))
+                .withTemplateNames(List.of("Kproxy/ApiSpecs.ftl"))
                 .withOutputPackage("com.foo")
                 .withOutputDir(tempDir)
                 .withOutputFilePattern("${templateName}.txt")
-                .withPairRequestResponseMode(true)
+                .withApiSpecMode(true)
                 .build();
 
         gen.generate();
 
-        File file = join(tempDir, "com", "foo", "MessageSpecPairs.txt");
+        File file = join(tempDir, "com", "foo", "ApiSpecs.txt");
         assertFileHasExpectedContents(file, "Kproxy/MessageSpecPairsFiltered-expected.txt");
     }
 
