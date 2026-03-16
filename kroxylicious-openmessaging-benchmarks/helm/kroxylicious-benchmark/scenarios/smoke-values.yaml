@@ -34,6 +34,14 @@ kafka:
 omb:
   workerReplicas: 2
   workerJavaOpts: "-XX:MaxRAMPercentage=50 -XX:NativeMemoryTracking=summary"  # Let JVM size heap to container limit
+  coordinator:
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "250m"
+      limits:
+        memory: "4Gi"
+        cpu: "500m"
   resources:
     requests:
       memory: "1Gi"

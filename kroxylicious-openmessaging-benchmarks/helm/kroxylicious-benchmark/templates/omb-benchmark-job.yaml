@@ -74,7 +74,7 @@ spec:
         - name: results
           mountPath: /var/lib/omb/results
         resources:
-          {{- toYaml .Values.omb.resources | nindent 10 }}
+          {{- toYaml .Values.omb.coordinator.resources | nindent 10 }}
       volumes:
       - name: driver-config
         configMap:
