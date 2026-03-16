@@ -22,6 +22,8 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        fsGroup: 185
       volumes:
       - name: jfr-tmp
         persistentVolumeClaim:

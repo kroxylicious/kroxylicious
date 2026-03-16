@@ -22,7 +22,7 @@ kafka:
       memory: "4Gi"
       cpu: "2000m"
   storage:
-    size: "10Gi"
+    size: "100Gi"
     storageClass: ""  # Use default storage class
 
 # Kroxylicious proxy (enabled for proxy scenarios)
