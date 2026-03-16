@@ -43,9 +43,9 @@ import org.graalvm.polyglot.TypeLiteral;
 import io.kroxylicious.krpccodegen.model.EntityTypeSetFactory;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
+import io.kroxylicious.krpccodegen.schema.ApiSpec;
 import io.kroxylicious.krpccodegen.schema.EntityType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
-import io.kroxylicious.krpccodegen.schema.MessageSpecPair;
 import io.kroxylicious.krpccodegen.schema.MessageSpecType;
 import io.kroxylicious.krpccodegen.schema.Named;
 import io.kroxylicious.krpccodegen.schema.RequestListenerType;
@@ -84,7 +84,7 @@ public class KrpcGenerator {
         private File sourceDir;
         private String outputFilePattern;
         private String inputSpecFilter;
-        private boolean pairRequestResponseMode;
+        private boolean apiSpecMode;
         private boolean skipOutputIfSourceExists;
 
         private Builder(GeneratorMode mode) {
@@ -207,14 +207,14 @@ public class KrpcGenerator {
         }
 
         /**
-         * In pairRequestResponseMode, the processor will consider request and response specifications
-         * that will be paired up.  The template will see {@link MessageSpecPair} objects.
+         * In apiSpecMode, the processor pairs request and response specifications into {@link ApiSpec} objects.
+         * The template will see {@link ApiSpec} objects rather than individual {@link MessageSpec} objects.
          *
-         * @param pairRequestResponseMode true for pair mode
+         * @param apiSpecMode true to enable API spec mode
          * @return this
          */
-        public Builder withPairRequestResponseMode(boolean pairRequestResponseMode) {
-            this.pairRequestResponseMode = pairRequestResponseMode;
+        public Builder withApiSpecMode(boolean apiSpecMode) {
+            this.apiSpecMode = apiSpecMode;
             return this;
         }
 
@@ -236,7 +236,7 @@ public class KrpcGenerator {
          */
         public KrpcGenerator build() {
             return new KrpcGenerator(logger, mode, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern,
-                    sourceDir, inputSpecFilter, pairRequestResponseMode, skipOutputIfSourceExists);
+                    sourceDir, inputSpecFilter, apiSpecMode, skipOutputIfSourceExists);
         }
 
     }
@@ -257,7 +257,7 @@ public class KrpcGenerator {
 
     private final String outputPackage;
     private final File sourceDir;
-    private final boolean pairRequestResponseMode;
+    private final boolean apiSpecMode;
     private final boolean skipOutputIfSourceExists;
     private final File outputDir;
     private final String outputFilePattern;
@@ -275,7 +275,7 @@ public class KrpcGenerator {
                           String outputFilePattern,
                           File sourceDir,
                           String inputSpecFilter,
-                          boolean pairRequestResponseMode,
+                          boolean apiSpecMode,
                           boolean skipOutputIfSourceExists) {
         if (skipOutputIfSourceExists && sourceDir == null) {
             throw new IllegalArgumentException("When in skipOutputIfSourceExists mode, sourceDir must be provided");
@@ -287,7 +287,7 @@ public class KrpcGenerator {
         this.templateDir = templateDir;
         this.templateNames = templateNames;
         this.outputPackage = outputPackage;
-        this.pairRequestResponseMode = pairRequestResponseMode;
+        this.apiSpecMode = apiSpecMode;
         this.skipOutputIfSourceExists = skipOutputIfSourceExists;
         this.outputDir = addPackageDirs(outputDir, outputPackage);
         this.sourceDir = addPackageDirs(sourceDir, outputPackage);
@@ -329,7 +329,7 @@ public class KrpcGenerator {
      */
     public void generate() throws Exception {
         var cfg = buildFmConfiguration();
-        Set<? extends Named> inputSpecs = inputSpecs();
+        var inputSpecs = inputSpecs();
 
         var dataModel = Map.<String, Object> of(
                 "createEntityTypeSet", new EntityTypeSetFactory());
@@ -486,8 +486,8 @@ public class KrpcGenerator {
         var messageSpecs = messageSpecs();
 
         Set<? extends Named> inputSpecs;
-        if (pairRequestResponseMode) {
-            inputSpecs = pairUp(messageSpecs);
+        if (apiSpecMode) {
+            inputSpecs = toApiSpecs(messageSpecs);
         }
         else {
             inputSpecs = messageSpecs;
@@ -602,7 +602,7 @@ public class KrpcGenerator {
         return pattern;
     }
 
-    private Set<MessageSpecPair> pairUp(Set<MessageSpec> messageSpecs) {
+    private Set<ApiSpec> toApiSpecs(Set<MessageSpec> messageSpecs) {
         var allRequests = messageSpecs.stream()
                 .filter(qms -> MessageSpecType.REQUEST.equals(qms.type()))
                 .collect(Collectors.toMap(x -> x.apiKey().orElseThrow(),
@@ -626,7 +626,7 @@ public class KrpcGenerator {
                     var response = allResponses.get(key);
                     var name = request.name().replaceFirst("Request$", "");
                     var listeners = Set.copyOf(new HashSet<>(request.listeners()));
-                    return new MessageSpecPair(name, ApiKeys.forId(key), listeners, request, response);
+                    return new ApiSpec(name, ApiKeys.forId(key), listeners, request, response);
                 })
                 .sorted(Comparator.comparing(Named::name))
                 .collect(Collectors.toCollection(LinkedHashSet::new));

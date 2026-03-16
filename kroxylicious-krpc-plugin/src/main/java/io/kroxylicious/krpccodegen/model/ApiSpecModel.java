@@ -7,8 +7,8 @@ package io.kroxylicious.krpccodegen.model;
 
 import java.util.List;
 
+import io.kroxylicious.krpccodegen.schema.ApiSpec;
 import io.kroxylicious.krpccodegen.schema.EntityType;
-import io.kroxylicious.krpccodegen.schema.MessageSpecPair;
 
 import freemarker.template.AdapterTemplateModel;
 import freemarker.template.TemplateHashModel;
@@ -16,25 +16,25 @@ import freemarker.template.TemplateMethodModelEx;
 import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 
-class MessageSpecPairModel implements TemplateHashModel, AdapterTemplateModel {
-    final MessageSpecPair pair;
+class ApiSpecModel implements TemplateHashModel, AdapterTemplateModel {
+    final ApiSpec spec;
     final KrpcSchemaObjectWrapper wrapper;
 
-    MessageSpecPairModel(KrpcSchemaObjectWrapper wrapper, MessageSpecPair pair) {
+    ApiSpecModel(KrpcSchemaObjectWrapper wrapper, ApiSpec spec) {
         this.wrapper = wrapper;
-        this.pair = pair;
+        this.spec = spec;
     }
 
     @Override
     public TemplateModel get(String key) throws TemplateModelException {
         return switch (key) {
-            case "name" -> wrapper.wrap(pair.name());
-            case "apiKey" -> wrapper.wrap(pair.apiKey());
-            case "request" -> wrapper.wrap(pair.request());
-            case "response" -> wrapper.wrap(pair.response());
-            case "hasResourceList" -> wrapper.wrap(pair.hasResourceList());
+            case "name" -> wrapper.wrap(spec.name());
+            case "apiKey" -> wrapper.wrap(spec.apiKey());
+            case "request" -> wrapper.wrap(spec.request());
+            case "response" -> wrapper.wrap(spec.response());
+            case "hasResourceList" -> wrapper.wrap(spec.hasResourceList());
             case "hasAtLeastOneEntityField" -> wrapper.wrap((TemplateMethodModelEx) this::handleHasAtLeastOneEntityField);
-            default -> throw new TemplateModelException(pair.getClass().getSimpleName() + " doesn't have property '" + key + "'");
+            default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property '" + key + "'");
         };
     }
 
@@ -45,14 +45,14 @@ class MessageSpecPairModel implements TemplateHashModel, AdapterTemplateModel {
 
     @Override
     public Object getAdaptedObject(Class<?> hint) {
-        return pair;
+        return spec;
     }
 
     @SuppressWarnings("java:S3740") // The Freemaker API is in terms of raw Lists
     private boolean handleHasAtLeastOneEntityField(List args) throws TemplateModelException {
         var seq = ModelUtils.modelArgsToSimpleSequence(args, wrapper);
         var set = ModelUtils.asEnumSet(seq, EntityType.class);
-        return pair.hasAtLeastOneEntityField(set);
+        return spec.hasAtLeastOneEntityField(set);
     }
 
 }
