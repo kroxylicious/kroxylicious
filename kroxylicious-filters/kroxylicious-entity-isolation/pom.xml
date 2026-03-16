@@ -177,10 +177,10 @@
                                 .filter(apiSpec => apiSpec.hasAtLeastOneEntityField(Set.static.of(EntityType.static.GROUP_ID, EntityType.static.TRANSACTIONAL_ID)))
                              </inputSpecFilter>
                             <apiSpecMode>true</apiSpecMode>
-                            <templateDirectory>${project.basedir}/src/main/templates/entitytype</templateDirectory>
-                            <templateNames>EntityIsolationProcessor.ftl</templateNames>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>EntityIsolationProcessor-entityType.ftl</templateNames>
                             <!--suppress UnresolvedMavenProperty -->
-                            <outputFilePattern>${messageSpecName}${templateName}.java</outputFilePattern>
+                            <outputFilePattern>${messageSpecName}EntityIsolationProcessor.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.filter.entityisolation</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                             <skipOutputIfSourceExists>true</skipOutputIfSourceExists>
@@ -203,10 +203,10 @@
                                 .filter(apiSpec => apiSpec.hasResourceList())
                              </inputSpecFilter>
                             <apiSpecMode>true</apiSpecMode>
-                            <templateDirectory>${project.basedir}/src/main/templates/resourcelist</templateDirectory>
-                            <templateNames>EntityIsolationProcessor.ftl</templateNames>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>EntityIsolationProcessor-resourceList.ftl</templateNames>
                             <!--suppress UnresolvedMavenProperty -->
-                            <outputFilePattern>${messageSpecName}${templateName}.java</outputFilePattern>
+                            <outputFilePattern>${messageSpecName}EntityIsolationProcessor.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.filter.entityisolation</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                             <skipOutputIfSourceExists>true</skipOutputIfSourceExists>
