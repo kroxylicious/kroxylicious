@@ -80,19 +80,9 @@ The smoke profile uses 1 broker, 2 workers, and a 1-minute test — not suitable
 performance measurement but useful to verify the cluster is working before a full run:
 
 ```bash
-helm install benchmark ./helm/kroxylicious-benchmark \
-  -n kafka \
-  -f ./helm/kroxylicious-benchmark/scenarios/baseline-values.yaml \
-  -f ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml
-
-kubectl wait kafka/kafka --for=condition=Ready --timeout=600s -n kafka
-kubectl wait --for=condition=ready pod -l app=omb-benchmark -n kafka --timeout=300s
-
-kubectl exec -it deploy/omb-benchmark -n kafka -- \
-  sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
-
-helm uninstall benchmark -n kafka
-kubectl delete pvc -l strimzi.io/cluster=kafka -n kafka
+./scripts/run-benchmark.sh \
+  --profile ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
+  baseline 1topic-1kb ./results/smoke/
 ```
 
 ## Interpreting Results
@@ -126,11 +116,11 @@ kubectl logs -l app=omb-worker -n kafka
 
 ```bash
 # Baseline — direct connection
-kubectl exec deploy/omb-benchmark -n kafka -- \
+kubectl exec job/omb-benchmark -n kafka -- \
   kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
 
 # Proxy scenario
-kubectl exec deploy/omb-benchmark -n kafka -- \
+kubectl exec job/omb-benchmark -n kafka -- \
   kafka-topics --bootstrap-server kafka-cluster-ip-bootstrap:9292 --list
 ```
 
