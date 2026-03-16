@@ -32,11 +32,11 @@ import javax.annotation.processing.Generated;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
 
-<#list messageSpecPairs>
-    <#items as pair>
-        <#if !pair.hasAtLeastOneEntityField(filteredEntityTypes) && !pair.hasResourceList>
-import org.apache.kafka.common.message.${pair.response.dataClassName};
-import org.apache.kafka.common.message.${pair.request.dataClassName};
+<#list inputSpecs>
+    <#items as apiSpec>
+        <#if !apiSpec.hasAtLeastOneEntityField(filteredEntityTypes) && !apiSpec.hasResourceList>
+import org.apache.kafka.common.message.${apiSpec.response.dataClassName};
+import org.apache.kafka.common.message.${apiSpec.request.dataClassName};
         </#if>
     </#items>
 </#list>
@@ -57,12 +57,12 @@ final class EntityIsolationProcessorMapFactory  {
     static Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> createProcessorMap(Predicate<ResourceType> shouldMap, EntityNameMapper entityNameMapper) {
         var map = new EnumMap<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>>(ApiKeys.class);
 
-<#list messageSpecPairs>
-    <#items as pair>
-        <#if pair.hasAtLeastOneEntityField(filteredEntityTypes) || pair.hasResourceList>
-        map.put(ApiKeys.${pair.apiKey}, new ${pair.name}EntityIsolationProcessor(shouldMap, entityNameMapper));
+<#list inputSpecs>
+    <#items as apiSpec>
+        <#if apiSpec.hasAtLeastOneEntityField(filteredEntityTypes) || apiSpec.hasResourceList>
+        map.put(ApiKeys.${apiSpec.apiKey}, new ${apiSpec.name}EntityIsolationProcessor(shouldMap, entityNameMapper));
         <#else>
-        map.put(ApiKeys.${pair.apiKey}, new PassthroughEntityIsolationProcessor<${pair.request.dataClassName}, ${pair.response.dataClassName}>((short) ${pair.request.validVersions.lowest}, (short) ${pair.request.validVersions.highest}));
+        map.put(ApiKeys.${apiSpec.apiKey}, new PassthroughEntityIsolationProcessor<${apiSpec.request.dataClassName}, ${apiSpec.response.dataClassName}>((short) ${apiSpec.request.validVersions.lowest}, (short) ${apiSpec.request.validVersions.highest}));
         </#if>
     </#items>
 </#list>
