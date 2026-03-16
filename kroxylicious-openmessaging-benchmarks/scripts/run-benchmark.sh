@@ -28,7 +28,7 @@ JFR_PVC_NAME="${HELM_RELEASE}-jfr"
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") [--profile <values-file>] <scenario> <workload> <output-dir>
+Usage: $(basename "$0") [--profile <values-file>] [--set <key=value> ...] <scenario> <workload> <output-dir>
 
 Runs a single benchmark scenario end-to-end:
   1. Deploy benchmark infrastructure via Helm
@@ -49,6 +49,7 @@ Arguments:
 Options:
   --profile <values-file>   Additional Helm values file layered on top of the scenario
                             (e.g. helm/kroxylicious-benchmark/scenarios/single-node-values.yaml)
+  --set <key=value>         Pass a Helm --set override (may be repeated)
   -h, --help                Show this help
 
 Environment:
@@ -62,17 +63,24 @@ Examples:
   $(basename "$0") baseline 1topic-1kb ./results/baseline/
   $(basename "$0") --profile ./helm/kroxylicious-benchmark/scenarios/single-node-values.yaml \
     baseline 1topic-1kb ./results/baseline/
+  $(basename "$0") --set benchmark.testDurationMinutes=1 --set benchmark.warmupDurationMinutes=0 \
+    baseline 1topic-1kb ./results/baseline/
   NAMESPACE=benchmarks $(basename "$0") baseline 1topic-1kb ./results/
 EOF
     exit 1
 }
 
 PROFILE_VALUES=""
+HELM_SET_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --profile)
             PROFILE_VALUES="$2"
+            shift 2
+            ;;
+        --set)
+            HELM_SET_ARGS+=("$2")
             shift 2
             ;;
         -h|--help)
@@ -159,6 +167,9 @@ echo "Output dir: ${OUTPUT_DIR}"
 if [[ -n "${PROFILE_VALUES}" ]]; then
     echo "Profile:    ${PROFILE_VALUES}"
 fi
+if [[ ${#HELM_SET_ARGS[@]} -gt 0 ]]; then
+    echo "Overrides:  ${HELM_SET_ARGS[*]}"
+fi
 echo ""
 
 # Ensure previous run is cleaned up before starting
@@ -173,6 +184,7 @@ echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
 HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
 [[ -n "${PROFILE_VALUES}" ]] && HELM_ARGS+=(-f "${PROFILE_VALUES}")
 HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
+for set_arg in "${HELM_SET_ARGS[@]}"; do HELM_ARGS+=(--set "${set_arg}"); done
 
 helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}"
 
