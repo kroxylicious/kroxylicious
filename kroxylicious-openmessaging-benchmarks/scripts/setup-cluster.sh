@@ -117,8 +117,7 @@ else
 fi
 
 echo "Waiting for Strimzi operator to be ready..."
-kubectl wait --for=condition=ready pod \
-    -l name=strimzi-cluster-operator \
+kubectl rollout status deployment/strimzi-cluster-operator \
     -n "${NAMESPACE}" \
     --timeout=300s
 
@@ -154,8 +153,7 @@ else
     fi
 
     echo "Waiting for Kroxylicious operator to be ready..."
-    kubectl wait --for=condition=ready pod \
-        -l app=kroxylicious \
+    kubectl rollout status deployment/kroxylicious-operator \
         -n "${KROXYLICIOUS_OPERATOR_NAMESPACE}" \
         --timeout=300s
 
