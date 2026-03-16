@@ -50,9 +50,9 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
     SpecificFilterArrayInvoker(Filter filter) {
         Map<Integer, FilterInvoker> requestInvokers = new HashMap<>();
         Map<Integer, FilterInvoker> responseInvokers = new HashMap<>();
-        <#list messageSpecs as messageSpec>
-        if (filter instanceof ${messageSpec.name}Filter) {
-            ${messageSpec.type?lower_case}Invokers.put(${messageSpec.apiKey.get()}, new ${messageSpec.name}FilterInvoker((${messageSpec.name}Filter) filter));
+        <#list inputSpecs as inputSpec>
+        if (filter instanceof ${inputSpec.name}Filter) {
+            ${inputSpec.type?lower_case}Invokers.put(${inputSpec.apiKey.get()}, new ${inputSpec.name}FilterInvoker((${inputSpec.name}Filter) filter));
         }
         </#list>
         this.requestInvokers = createFrom(requestInvokers);
@@ -77,9 +77,9 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
         // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
         // See the InvokerDispatchBenchmark micro benchmark for a comparison
         return switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(messageSpec)} ->
+<#list inputSpecs as inputSpec>
+    <#if inputSpec.type?lower_case == 'request'>
+            case ${retrieveApiKey(inputSpec)} ->
                 requestInvokers[apiKey.id].onRequest(apiKey, apiVersion, header, body, filterContext);
     </#if>
 </#list>
@@ -106,9 +106,9 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
         // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
         // See the InvokerDispatchBenchmark micro benchmark for a comparison
         return switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'response'>
-            case ${retrieveApiKey(messageSpec)} ->
+<#list inputSpecs as inputSpec>
+    <#if inputSpec.type?lower_case == 'response'>
+            case ${retrieveApiKey(inputSpec)} ->
                     responseInvokers[apiKey.id].onResponse(apiKey, apiVersion, header, body, filterContext);
     </#if>
 </#list>
@@ -139,9 +139,9 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
         // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
         // See the InvokerDispatchBenchmark micro benchmark for a comparison
         return switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(messageSpec)} ->
+<#list inputSpecs as inputSpec>
+    <#if inputSpec.type?lower_case == 'request'>
+            case ${retrieveApiKey(inputSpec)} ->
                     requestInvokers[apiKey.id].shouldHandleRequest(apiKey, apiVersion);
     </#if>
 </#list>
@@ -172,9 +172,9 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
         return switch (apiKey) {
             // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
             // See the InvokerDispatchBenchmark micro benchmark for a comparison
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'response'>
-            case ${retrieveApiKey(messageSpec)} ->
+<#list inputSpecs as inputSpec>
+    <#if inputSpec.type?lower_case == 'response'>
+            case ${retrieveApiKey(inputSpec)} ->
                     responseInvokers[apiKey.id].shouldHandleResponse(apiKey, apiVersion);
     </#if>
 </#list>
@@ -189,9 +189,9 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
     * @return true if the filter implements any Specific Request Filter interfaces
     */
     public static boolean implementsAnySpecificRequestFilterInterface(Filter filter) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-        if (filter instanceof ${messageSpec.name}Filter) {
+<#list inputSpecs as inputSpec>
+    <#if inputSpec.type?lower_case == 'request'>
+        if (filter instanceof ${inputSpec.name}Filter) {
             return true;
         }
     </#if>
@@ -205,9 +205,9 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
     * @return true if the filter implements any Specific Response Filter interfaces
     */
     public static boolean implementsAnySpecificResponseFilterInterface(Filter filter) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'response'>
-        if (filter instanceof ${messageSpec.name}Filter) {
+<#list inputSpecs as inputSpec>
+    <#if inputSpec.type?lower_case == 'response'>
+        if (filter instanceof ${inputSpec.name}Filter) {
             return true;
         }
     </#if>

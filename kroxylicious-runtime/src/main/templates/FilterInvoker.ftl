@@ -6,12 +6,12 @@
 
 -->
 <#assign
-  dataClass="${messageSpec.name}Data"
-  filterClass="${messageSpec.name}Filter"
-  filterResultClass="${messageSpec.type?lower_case?cap_first}FilterResult"
-  headerClass="${messageSpec.type?lower_case?cap_first}HeaderData"
-  filterInvokerClass="${messageSpec.name}FilterInvoker"
-  msgType=messageSpec.type?lower_case
+  dataClass="${inputSpec.name}Data"
+  filterClass="${inputSpec.name}Filter"
+  filterResultClass="${inputSpec.type?lower_case?cap_first}FilterResult"
+  headerClass="${inputSpec.type?lower_case?cap_first}HeaderData"
+  filterInvokerClass="${inputSpec.name}FilterInvoker"
+  msgType=inputSpec.type?lower_case
 />
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -33,9 +33,9 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.${messageSpec.name}Data;
+import org.apache.kafka.common.message.${inputSpec.name}Data;
 
-<#if messageSpec.type?lower_case == 'response'>
+<#if inputSpec.type?lower_case == 'response'>
 import org.apache.kafka.common.message.ResponseHeaderData;
 <#else>
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -57,12 +57,12 @@ class ${filterInvokerClass} implements FilterInvoker {
     }
 
     @Override
-    public boolean shouldHandle<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion) {
-        return filter.shouldHandle${messageSpec.name}(apiVersion);
+    public boolean shouldHandle<#if inputSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion) {
+        return filter.shouldHandle${inputSpec.name}(apiVersion);
     }
 
     @Override
-    public CompletionStage<${filterResultClass}> on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, ${headerClass} header, ApiMessage body, FilterContext filterContext) {
-        return filter.on${messageSpec.name}(apiVersion, header, (${dataClass}) body, filterContext);
+    public CompletionStage<${filterResultClass}> on<#if inputSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, ${headerClass} header, ApiMessage body, FilterContext filterContext) {
+        return filter.on${inputSpec.name}(apiVersion, header, (${dataClass}) body, filterContext);
     }
 }

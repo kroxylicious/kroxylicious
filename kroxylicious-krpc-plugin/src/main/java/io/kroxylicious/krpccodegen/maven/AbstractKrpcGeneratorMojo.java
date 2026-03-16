@@ -59,7 +59,7 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     private File outputDirectory;
 
     @Parameter(required = false)
-    private String streamProcessingFunction;
+    private String inputSpecFilter;
 
     @Parameter(required = false)
     private boolean pairRequestResponseMode;
@@ -84,7 +84,7 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
                     .withLogger(new MavenLogger(KrpcGenerator.class.getName(), getLog()))
                     .withMessageSpecDir(messageSpecDirectory)
                     .withMessageSpecFilter(messageSpecFilter)
-                    .streamProcessingFunction(streamProcessingFunction)
+                    .inputSpecFilter(inputSpecFilter)
                     .withTemplateDir(templateDirectory)
                     .withTemplateNames(templates)
                     .withOutputPackage(outputPackage)

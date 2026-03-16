@@ -13,9 +13,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 
-<#list messageSpecs as messageSpec>
-import org.apache.kafka.common.message.${messageSpec.name}Data;
-import org.apache.kafka.common.message.${messageSpec.name}DataJsonConverter;
+<#list inputSpecs as inputSpec>
+import org.apache.kafka.common.message.${inputSpec.name}Data;
+import org.apache.kafka.common.message.${inputSpec.name}DataJsonConverter;
 </#list>
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -37,16 +37,16 @@ public class KafkaApiMessageConverter {
         var reqc = new HashMap<ApiMessageType, Converter>();
         var resc = new HashMap<ApiMessageType, Converter>();
 
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-        reqc.put(ApiMessageType.${retrieveApiKey(messageSpec)}, new Converter(
-                    ${messageSpec.name}DataJsonConverter::read,
-                (o, ver) -> ${messageSpec.name}DataJsonConverter.write(((${messageSpec.name}Data) o), ver)));
+<#list inputSpecs as inputSpec>
+    <#if inputSpec.type?lower_case == 'request'>
+        reqc.put(ApiMessageType.${retrieveApiKey(inputSpec)}, new Converter(
+                    ${inputSpec.name}DataJsonConverter::read,
+                (o, ver) -> ${inputSpec.name}DataJsonConverter.write(((${inputSpec.name}Data) o), ver)));
     </#if>
-    <#if messageSpec.type?lower_case == 'response'>
-        resc.put(ApiMessageType.${retrieveApiKey(messageSpec)}, new Converter(
-                    ${messageSpec.name}DataJsonConverter::read,
-                (o, ver) -> ${messageSpec.name}DataJsonConverter.write(((${messageSpec.name}Data) o), ver)));
+    <#if inputSpec.type?lower_case == 'response'>
+        resc.put(ApiMessageType.${retrieveApiKey(inputSpec)}, new Converter(
+                    ${inputSpec.name}DataJsonConverter::read,
+                (o, ver) -> ${inputSpec.name}DataJsonConverter.write(((${inputSpec.name}Data) o), ver)));
     </#if>
 </#list>
         requestConverters = Collections.unmodifiableMap(reqc);
