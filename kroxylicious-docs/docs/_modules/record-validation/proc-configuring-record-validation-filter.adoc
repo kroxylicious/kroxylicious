@@ -69,10 +69,10 @@ allowEmpty: true
   If the record key or value does not conform to the schema identified by this ID, the record is rejected.
   If a Kafka producer embeds a schema ID in the record (either in a header or _magic_ bytes at the start of the record's key or value), the filter validates it against this value. The record is rejected if the IDs do not match.
 * `apicurioRegistryUrl` specifies the endpoint URL for the Apicurio Registry.
-* `tls` optional TLS configuration to be used when connecting to the Apicurio Registry using a secure connection
-** `storeFile` provides a set of trust anchors used to validate the connection to the server.
-** `storePassword` the password used to protect the store (optional).
-** `storeType` supported values include `PKCS12`, `JKS` and `PEM`.
+* `tls` specifies the optional TLS configuration used when connecting securely to the Apicurio Registry.
+** `storeFile` path to the truststore file that contains the trust anchors used to validate the server connection.
+** `storePassword` (Optional) password used to protect the truststore.
+** `storeType` truststore type. Supported values include `PKCS12`, `JKS`, and `PEM`.
 * `wireFormatVersion` controls whether the Apicurio client operates in `V3` (default) or `V2` (deprecated).
    In `V3` mode, the `apicurioId` property identifies schema by content ID, and the filter expects the Kafka producer to use content IDs to identify schema.
    In `V2` mode, the `apicurioId` property identifies schema by global ID, and the filter expects the Kafka producer to use global IDs to identify schema.
