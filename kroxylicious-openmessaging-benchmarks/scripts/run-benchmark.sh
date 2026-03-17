@@ -178,7 +178,7 @@ start_nmt_poller() {
     echo "Starting OMB coordinator NMT polling (every ${MEMORY_TRACKING_INTERVAL}s)..."
     mkdir -p "${OUTPUT_DIR}"
     "${SCRIPT_DIR}/poll-nmt.sh" \
-        "omb-benchmark" "${NAMESPACE}" "${OUTPUT_DIR}" "${MEMORY_TRACKING_INTERVAL}" &
+        "job/omb-benchmark" "${NAMESPACE}" "${OUTPUT_DIR}" "${MEMORY_TRACKING_INTERVAL}" &
     NMT_PID=$!
     echo "NMT poller running (PID ${NMT_PID})"
 }
