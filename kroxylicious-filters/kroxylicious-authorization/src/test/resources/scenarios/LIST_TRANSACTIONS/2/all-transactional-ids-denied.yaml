@@ -62,5 +62,8 @@ then:
     unknownStateFilters:
       - "random-string-936"
     transactionStates: []
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: "denied"
