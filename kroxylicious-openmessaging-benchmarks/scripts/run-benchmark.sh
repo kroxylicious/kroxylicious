@@ -155,7 +155,7 @@ start_metrics_poller() {
     echo "Starting proxy metrics polling (every ${METRICS_INTERVAL}s) for pod ${proxy_pod}..."
     mkdir -p "${OUTPUT_DIR}"
     "${SCRIPT_DIR}/poll-proxy-metrics.sh" \
-        "${proxy_pod}" "${NAMESPACE}" "${OUTPUT_DIR}" "${METRICS_INTERVAL}" &
+        "pod/${proxy_pod}" "${NAMESPACE}" "${OUTPUT_DIR}" "${METRICS_INTERVAL}" &
     METRICS_PID=$!
     echo "Metrics poller running (PID ${METRICS_PID})"
 }
