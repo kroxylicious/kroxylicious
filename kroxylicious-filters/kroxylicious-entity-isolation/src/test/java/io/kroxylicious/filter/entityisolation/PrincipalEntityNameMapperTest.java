@@ -64,7 +64,7 @@ class PrincipalEntityNameMapperTest {
         var mapperContext = buildMapperContext(subject);
         assertThatThrownBy(() -> mapper.map(mapperContext, EntityIsolation.EntityType.TOPIC_NAME, "foo"))
                 .isInstanceOf(UnacceptableEntityNameException.class)
-                .hasMessageContaining("Principal name 'dash-boy' may not contain the separator '-'");
+                .hasMessageContaining("Principal name 'dash-boy' is unaccepted as it contains the separator '-'");
     }
 
     @Test
