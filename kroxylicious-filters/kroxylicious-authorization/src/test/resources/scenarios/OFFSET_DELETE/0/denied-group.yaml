@@ -35,3 +35,12 @@ then:
   expectedResponseHeader:
     correlationId: 1
   expectedErrorResponse: "GROUP_AUTHORIZATION_FAILED"
+  expectedAuditActions:
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: Delete
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: "denied"

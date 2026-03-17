@@ -46,9 +46,12 @@ then:
         partitions:
           - partitionIndex: 1
             errorCode: 29
-
   expectedAuditActions:
     - action: "Read"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"
+    - action: Delete
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null
