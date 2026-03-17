@@ -53,3 +53,7 @@ then:
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "unauthorized"
       status: "denied"
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
