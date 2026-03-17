@@ -108,4 +108,8 @@ then:
                 metadata: ""
                 errorCode: 100 # UNKNOWN_TOPIC_ID
         errorCode: 162
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: DESCRIBE
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource" : "my-topic"
+      status: null
