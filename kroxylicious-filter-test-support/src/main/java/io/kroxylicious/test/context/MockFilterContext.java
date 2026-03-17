@@ -413,7 +413,7 @@ public class MockFilterContext implements FilterContext {
         }
 
         @Override
-        public AuditableActionBuilder actionWithOutcome(String action, String status, String reason) {
+        public AuditableActionBuilder actionWithOutcome(String action, String status, @Nullable String reason) {
             return new MockAuditableActionBuilder();
         }
     }
