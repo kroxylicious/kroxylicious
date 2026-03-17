@@ -34,7 +34,7 @@ public interface AuditableAction {
      * What the outcome of the {@link #action()} was.
      * @return {@code null} if-and-only-if the action was successful, otherwise a
      * machine-readable indication of the reason why the action was unsuccessful.
-     * This could be an exception class name or a Kafka error code
+     * This could be an exception class name or a Kafka error code.
      */
     @Nullable
     String status();
