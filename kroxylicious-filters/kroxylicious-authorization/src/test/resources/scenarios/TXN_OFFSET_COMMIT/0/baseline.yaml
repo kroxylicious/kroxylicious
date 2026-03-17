@@ -81,7 +81,6 @@ then:
         partitions:
           - partitionIndex: 464
             errorCode: 558
-
   expectedAuditActions:
     - action: "Read"
       objectRef:
@@ -90,4 +89,8 @@ then:
     - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
       status: null

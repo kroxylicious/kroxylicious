@@ -10,17 +10,19 @@ import java.util.Set;
 
 import io.kroxylicious.authorizer.service.ResourceType;
 
-public enum GroupResource implements ResourceType<GroupResource> {
-    READ(3),
-    DELETE(6),
-    DESCRIBE(8),
-    DESCRIBE_CONFIGS(10),
-    ALTER_CONFIGS(11);
+public enum GroupResource implements ResourceType<GroupResource>, AuditAct {
+    READ(3, "Read"),
+    DELETE(6, "Delete"),
+    DESCRIBE(8, "Describe"),
+    DESCRIBE_CONFIGS(10, "DescribeConfigs"),
+    ALTER_CONFIGS(11, "AlterConfigs");
 
     public final int kafkaOrdinal;
+    private final String auditAction;
 
-    GroupResource(int kafkaOrdinal) {
+    GroupResource(int kafkaOrdinal, String auditAction) {
         this.kafkaOrdinal = kafkaOrdinal;
+        this.auditAction = auditAction;
     }
 
     @Override
@@ -30,5 +32,10 @@ public enum GroupResource implements ResourceType<GroupResource> {
             case ALTER_CONFIGS -> Set.of(DESCRIBE_CONFIGS);
             default -> Set.of();
         };
+    }
+
+    @Override
+    public String auditAction() {
+        return auditAction;
     }
 }
