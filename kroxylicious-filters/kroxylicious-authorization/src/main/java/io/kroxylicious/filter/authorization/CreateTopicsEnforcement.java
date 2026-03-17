@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.authorization;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
@@ -99,10 +100,11 @@ class CreateTopicsEnforcement extends ApiEnforcement<CreateTopicsRequestData, Cr
                                                             FilterContext context,
                                                             AuthorizationFilter filter) {
 
-        List<Action> actions = response.topics().stream()
+        var actions = response.topics().stream()
                 .map(ctr -> new Action(TopicResource.DESCRIBE_CONFIGS, ctr.name()))
                 .toList();
-        return filter.authorization(context, actions)
+        var nonAuditableActions = new HashSet<>(actions);
+        return filter.authorization(context, actions, nonAuditableActions)
                 .thenCompose(authorization -> {
 
                     for (var creatableTopicResult : response.topics()) {

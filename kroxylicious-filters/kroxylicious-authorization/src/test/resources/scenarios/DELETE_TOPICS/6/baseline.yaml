@@ -61,7 +61,6 @@ then:
         topicId: "iIEpdMZBTBua0UIkDIeF7w"
         errorCode: 268
         errorMessage: "my-topic"
-
   expectedAuditActions:
     - action: "DELETE"
       objectRef:

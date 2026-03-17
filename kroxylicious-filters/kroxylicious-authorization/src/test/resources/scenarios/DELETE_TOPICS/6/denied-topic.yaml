@@ -40,7 +40,6 @@ then:
         topicId: "AAAAAAAAAAAAAAAAAAAAAA"
         errorCode: 29
         errorMessage: "Topic authorization failed."
-
   expectedAuditActions:
     - action: "DELETE"
       objectRef:
