@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.extensions;
 import java.lang.reflect.Parameter;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
+import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,8 +31,6 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-
-import static io.kroxylicious.systemtests.utils.TestUtils.isAbortedTest;
 
 /**
  * The type Kroxylicious extension.
@@ -92,9 +92,9 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         String testClassName = extensionContext.getRequiredTestClass().getName();
         String testMethodName = extensionContext.getRequiredTestMethod().getName();
         try {
-            if (extensionContext.getExecutionException().isPresent() && !isAbortedTest(extensionContext)) {
-                logCollector.collectLogs(testClassName, testMethodName);
-            }
+            extensionContext.getExecutionException()
+                    .filter(Predicate.not(TestAbortedException.class::isInstance))
+                    .ifPresent(ee -> logCollector.collectLogs(testClassName, testMethodName));
         }
         finally {
             if (Environment.SYNC_RESOURCES_DELETION) {

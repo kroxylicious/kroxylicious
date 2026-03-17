@@ -15,11 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Optional;
 import java.util.Set;
-
-import org.junit.jupiter.api.extension.ExtensionContext;
-import org.opentest4j.TestAbortedException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -132,15 +128,5 @@ public class TestUtils {
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    /**
-     * Check if the test is aborted
-     * @param extensionContext the extension context
-     * @return false if test has been aborted, true otherwise
-     */
-    public static boolean isAbortedTest(ExtensionContext extensionContext) {
-        Optional<Throwable> exception = extensionContext.getExecutionException();
-        return exception.filter(t -> t instanceof TestAbortedException).isPresent();
     }
 }
