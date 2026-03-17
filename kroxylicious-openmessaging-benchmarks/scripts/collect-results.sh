@@ -102,12 +102,18 @@ JFR_FILE="/tmp/benchmark.jfr"
 if [[ -n "${JFR_PVC_NAME}" ]] && kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
     echo "Copying JFR recording from PVC ${JFR_PVC_NAME}..."
     DEBUG_POD="jfr-collect-$$"
+    delete_debug_pod() {
+        kubectl delete pod "${DEBUG_POD}" -n "${NAMESPACE}" --ignore-not-found --wait=false 2>/dev/null || true
+    }
+    trap delete_debug_pod EXIT
     kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Pod
 metadata:
   name: ${DEBUG_POD}
   namespace: ${NAMESPACE}
+  labels:
+    app: jfr-collect
 spec:
   restartPolicy: Never
   volumes:
@@ -138,8 +144,7 @@ EOF
     else
         echo "Warning: flamegraph.html is absent or empty — async-profiler may not have run or perf events were unavailable" >&2
     fi
-
-    kubectl delete pod "${DEBUG_POD}" -n "${NAMESPACE}" --ignore-not-found
+    # trap handles deletion on exit
 fi
 
 # Generate run metadata
