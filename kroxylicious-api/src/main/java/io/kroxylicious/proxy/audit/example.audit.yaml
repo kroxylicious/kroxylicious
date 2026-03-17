@@ -1,3 +1,15 @@
-$schema: audit-action.yaml
-action: 23e2
-time: 12345
+$schema: ./audit-action.json
+action: org.Foo
+time: 20260101T12:30:00.00000
+status: "42"
+reason: f3egrt trebreb
+actor:
+  srcAddr: 127.0.0.1:9092
+  session: "1bd07921-c2b6-43a3-95f0-1c2244933aee"
+  principals:
+    - User: alice
+objectRef:
+  vc: "my-vc"
+  topicName: "my-topic"
+context:
+  executionId: ""

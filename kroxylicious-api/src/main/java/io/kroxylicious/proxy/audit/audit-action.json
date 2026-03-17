@@ -5,15 +5,16 @@
   "properties": {
     "time": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "pattern": "[\\d]{8}T[\\d]{2}:[\\d]{2}:[\\d]{2}(.[\\d]1)?"
     },
     "action": {
       "type": "string",
-      "pattern": "(([a-z0-9_]+)\.)*[A-Z][a-zA-Z0-9_]*"
+      "pattern": "^([a-z0-9_]+[.])*[A-Z][a-zA-Z0-9_]*$"
     },
     "status": {
       "type": "string",
-      "pattern": "([a-zA-Z0-9_]*)(\.([a-zA-Z0-9_]*))*"
+      "pattern": "^([a-zA-Z0-9_]+[.])*[a-zA-Z0-9_]+$"
     },
     "reason": {
       "type": "string"
@@ -25,7 +26,8 @@
           "type": "string"
         },
         "session": {
-          "type": "string"
+          "type": "string",
+          "format": "uuid"
         },
         "principals": {
           "type": "array",
@@ -48,7 +50,7 @@
       }
     },
     "context": {
-      "type": "string",
+      "type": "object",
       "minProperties": 1,
       "additionalProperties": {
         "type": "string"

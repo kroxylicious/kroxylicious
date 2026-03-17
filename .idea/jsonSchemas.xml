@@ -3,11 +3,12 @@
   <component name="JsonSchemaMappingsProjectConfiguration">
     <state>
       <map>
-        <entry key="JSON Schema Draft 7">
+        <entry key="Audit action">
           <value>
             <SchemaInfo>
-              <option name="name" value="JSON Schema Draft 7" />
+              <option name="name" value="Audit action" />
               <option name="relativePathToSchema" value="https://json-schema.org/draft-07/schema" />
+              <option name="schemaVersion" value="JSON Schema 202,012" />
               <option name="applicationDefined" value="true" />
               <option name="patterns">
                 <list>
