@@ -135,7 +135,7 @@ teardown() {
     echo "--- Tearing down benchmark infrastructure ---"
     stop_metrics_poller
     if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
-        helm uninstall "${HELM_RELEASE}" -n "${NAMESPACE}" --timeout 120s
+        helm uninstall "${HELM_RELEASE}" -n "${NAMESPACE}" --wait --timeout 120s
     fi
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found --timeout=60s
@@ -237,6 +237,14 @@ if [[ -n "${PROXY_POD}" ]]; then
     PROXY_DEPLOYMENT=$(kubectl get deployment -n "${NAMESPACE}" \
         -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
+
+    # Wait for any stale JFR PVC from a previous run to be fully deleted.
+    # A terminating PVC will cause 'kubectl apply' to report "unchanged" and
+    # the new pod will fail to mount it.
+    if kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
+        echo "Waiting for stale JFR PVC ${JFR_PVC_NAME} to be fully deleted..."
+        kubectl wait --for=delete pvc/"${JFR_PVC_NAME}" -n "${NAMESPACE}" --timeout=60s
+    fi
 
     echo "Creating JFR PVC ${JFR_PVC_NAME} (${JFR_PVC_SIZE})..."
     JFR_PVC_NAME="${JFR_PVC_NAME}" NAMESPACE="${NAMESPACE}" JFR_PVC_SIZE="${JFR_PVC_SIZE}" \
