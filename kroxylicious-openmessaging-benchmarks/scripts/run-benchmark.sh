@@ -133,10 +133,12 @@ fi
 METRICS_PID=""
 #NMT = Native Memory Tracing
 NMT_PID=""
+LOGS_PID=""
 
 teardown() {
     echo ""
     echo "--- Tearing down benchmark infrastructure ---"
+    stop_logs_tailer
     stop_nmt_poller
     stop_metrics_poller
     if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
@@ -171,6 +173,14 @@ start_metrics_poller() {
         "pod/${proxy_pod}" "${NAMESPACE}" "${OUTPUT_DIR}" "${METRICS_INTERVAL}" &
     METRICS_PID=$!
     echo "Metrics poller running (PID ${METRICS_PID})"
+}
+
+stop_logs_tailer() {
+    if [[ -n "${LOGS_PID}" ]]; then
+        kill "${LOGS_PID}" 2>/dev/null || true
+        wait "${LOGS_PID}" 2>/dev/null || true
+        LOGS_PID=""
+    fi
 }
 
 stop_metrics_poller() {
@@ -364,15 +374,13 @@ until kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
     pod_phase=$(kubectl get pod "${BENCHMARK_POD}" -n "${NAMESPACE}" \
         -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
     if [[ "${pod_phase}" == "Failed" ]]; then
-        kill "${LOGS_PID}" 2>/dev/null || true
-        wait "${LOGS_PID}" 2>/dev/null || true
+        stop_logs_tailer
         echo "Benchmark pod failed (phase: ${pod_phase}) before writing results — likely OOM-killed" >&2
         exit 1
     fi
     sleep 5
 done
-kill "${LOGS_PID}" 2>/dev/null || true
-wait "${LOGS_PID}" 2>/dev/null || true
+stop_logs_tailer
 
 BENCHMARK_EXIT=$(kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
     cat "${DONE_FILE}" 2>/dev/null || echo "1")
@@ -440,7 +448,8 @@ echo "Results written to: ${OUTPUT_DIR}"
 if [[ "${SKIP_TEARDOWN}" == "true" ]]; then
     echo ""
     echo "Infrastructure left running (--skip-teardown). To tear down manually:"
-    echo "  helm uninstall ${HELM_RELEASE} -n ${NAMESPACE}"
+    echo "  helm uninstall ${HELM_RELEASE} -n ${NAMESPACE} --wait"
+    echo "  kubectl delete pod -l app=jfr-collect -n ${NAMESPACE} --ignore-not-found"
     echo "  kubectl delete pvc -l strimzi.io/cluster=kafka -n ${NAMESPACE} --ignore-not-found"
     echo "  kubectl delete pvc ${JFR_PVC_NAME} -n ${NAMESPACE} --ignore-not-found"
 fi
