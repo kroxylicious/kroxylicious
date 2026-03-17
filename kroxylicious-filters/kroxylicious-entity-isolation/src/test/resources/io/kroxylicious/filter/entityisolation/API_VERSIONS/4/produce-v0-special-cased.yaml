@@ -8,7 +8,7 @@
 metadata:
   apiKeys: "API_VERSIONS"
   apiVersion: 4
-  scenario: "baseline"
+  scenario: "ensures that filters clamps the version for an API key that has an EntityIsolationProcessor"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "API_VERSIONS"
@@ -26,10 +26,7 @@ given:
       upstreamResponse:
         errorCode: 45
         apiKeys:
-          - apiKey: 7 # ControlledShutdown - not a client API to will be removed
-            minVersion: 0
-            maxVersion: 32767
-          - apiKey: 1
+          - apiKey: 0
             minVersion: 0
             maxVersion: 32767
         throttleTimeMs: 880
@@ -51,7 +48,7 @@ then:
   expectedResponse:
     errorCode: 45
     apiKeys:
-      - apiKey: 1
-        minVersion: 4
-        maxVersion: 18
+      - apiKey: 0 # Produce is a special case, we need to allow v0 owing to https://github.com/kroxylicious/kroxylicious/pull/2851 / KAFKA-18659
+        minVersion: 0
+        maxVersion: 13
     throttleTimeMs: 880

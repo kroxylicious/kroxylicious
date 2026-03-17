@@ -8,7 +8,7 @@
 metadata:
   apiKeys: "API_VERSIONS"
   apiVersion: 4
-  scenario: "ensures that filters clamps an API version that is isolated"
+  scenario: "ensures that filters clamps the version for an API key that has an EntityIsolationProcessor"
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "API_VERSIONS"
