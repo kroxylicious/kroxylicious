@@ -107,14 +107,16 @@ FLAMEGRAPH_FILE="/tmp/flamegraph.html"
 
 copy_jfr_files() {
     local src_pod="$1"
-    kubectl cp "${NAMESPACE}/${src_pod}:${JFR_FILE}" "${OUTPUT_DIR}/benchmark.jfr" 2>/dev/null || true
+    # Use 'kubectl exec -- cat' rather than 'kubectl cp' — the proxy container does not
+    # have tar, which kubectl cp requires.  Streaming via cat works for any container.
+    kubectl exec -n "${NAMESPACE}" "${src_pod}" -- cat "${JFR_FILE}" > "${OUTPUT_DIR}/benchmark.jfr" 2>/dev/null || true
     if [[ ! -s "${OUTPUT_DIR}/benchmark.jfr" ]]; then
         echo "Warning: benchmark.jfr is empty — JFR dump may not have completed before pod terminated" >&2
     else
         echo "  benchmark.jfr ($(du -h "${OUTPUT_DIR}/benchmark.jfr" | cut -f1))"
     fi
     if kubectl exec -n "${NAMESPACE}" "${src_pod}" -- test -s "${FLAMEGRAPH_FILE}" 2>/dev/null; then
-        kubectl cp "${NAMESPACE}/${src_pod}:${FLAMEGRAPH_FILE}" "${OUTPUT_DIR}/flamegraph.html" 2>/dev/null || true
+        kubectl exec -n "${NAMESPACE}" "${src_pod}" -- cat "${FLAMEGRAPH_FILE}" > "${OUTPUT_DIR}/flamegraph.html" 2>/dev/null || true
         echo "  flamegraph.html ($(du -h "${OUTPUT_DIR}/flamegraph.html" | cut -f1))"
     else
         echo "Warning: flamegraph.html is absent or empty — async-profiler may not have run or perf events were unavailable" >&2
