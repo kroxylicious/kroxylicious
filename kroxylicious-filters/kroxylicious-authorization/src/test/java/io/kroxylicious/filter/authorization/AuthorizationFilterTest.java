@@ -232,12 +232,7 @@ class AuthorizationFilterTest {
             return;
         }
 
-        // If expectedAuditActions is not defined, skip audit assertions (for backwards compatibility)
-        if (definition.then().expectedAuditActions() == null) {
-            return;
-        }
-
-        List<ScenarioDefinition.ExpectedAuditAction> expectedActions = definition.then().expectedAuditActions();
+        List<ScenarioDefinition.ExpectedAuditAction> expectedActions = Objects.requireNonNull(definition.then().expectedAuditActions());
 
         // Create a simple comparable record for audit events
         record AuditEventComparable(String action, Map<String, String> objectRef, String status) {}
@@ -245,13 +240,13 @@ class AuthorizationFilterTest {
         // Convert actual events to comparable format
         List<AuditEventComparable> actualEvents = auditLogger.getEvents()
                 .stream()
-                .map(event -> new AuditEventComparable(event.action(), event.objectRef(), event.status()))
-                .collect(java.util.stream.Collectors.toList());
+                .map(event -> new AuditEventComparable(event.action(), Objects.requireNonNull(event.objectRef()), event.status()))
+                .toList();
 
         // Convert expected actions to the same format
         List<AuditEventComparable> expectedEvents = expectedActions.stream()
                 .map(expected -> new AuditEventComparable(expected.action(), expected.objectRef(), expected.status()))
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
 
         // Compare expected vs actual using AssertJ
         assertThat(actualEvents)

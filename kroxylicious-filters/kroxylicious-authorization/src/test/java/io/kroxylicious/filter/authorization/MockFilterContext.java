@@ -320,7 +320,7 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
         }
 
         public record AuditEvent(String action, @Nullable String status, @Nullable String reason,
-                                 @Nullable Map<String, String> objectRef, @Nullable Map<String, String> context) {}
+                                 Map<String, String> objectRef, @Nullable Map<String, String> context) {}
     }
 
     public static class MockAuditableActionBuilder implements AuditableActionBuilder {
