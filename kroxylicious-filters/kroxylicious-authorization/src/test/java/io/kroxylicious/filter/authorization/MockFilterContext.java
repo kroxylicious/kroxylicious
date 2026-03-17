@@ -40,11 +40,16 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public record MockFilterContext(ApiMessage header, ApiMessage message, Subject subject, Map<Uuid, String> topicNames, MockUpstream mockUpstream)
+public record MockFilterContext(ApiMessage header, ApiMessage message, Subject subject, Map<Uuid, String> topicNames, MockUpstream mockUpstream,
+                                MockAuditLogger mockAuditLogger)
         implements FilterContext {
 
     public MockFilterContext {
         Objects.requireNonNull(subject, "Subject cannot be null");
+    }
+
+    public MockFilterContext(ApiMessage header, ApiMessage message, Subject subject, Map<Uuid, String> topicNames, MockUpstream mockUpstream) {
+        this(header, message, subject, topicNames, mockUpstream, new MockAuditLogger());
     }
 
     @NonNull
@@ -169,7 +174,7 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
 
     @Override
     public AuditLogger auditLogger() {
-        return new MockAuditLogger();
+        return mockAuditLogger;
     }
 
     record MockRequestFilterResult(boolean shortCircuitResponse,
@@ -298,36 +303,62 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
     }
 
     public static class MockAuditLogger implements AuditLogger {
+        private final List<AuditEvent> events = new java.util.ArrayList<>();
+
+        public List<AuditEvent> getEvents() {
+            return java.util.Collections.unmodifiableList(events);
+        }
+
         @Override
         public AuditableActionBuilder action(String action) {
-            return new MockAuditableActionBuilder();
+            return new MockAuditableActionBuilder(action, null, null, events);
         }
 
         @Override
         public AuditableActionBuilder actionWithOutcome(String action, String status, @Nullable String reason) {
-            return new MockAuditableActionBuilder();
+            return new MockAuditableActionBuilder(action, status, reason, events);
         }
+
+        public record AuditEvent(String action, @Nullable String status, @Nullable String reason,
+                                 @Nullable Map<String, String> objectRef, @Nullable Map<String, String> context) {}
     }
 
     public static class MockAuditableActionBuilder implements AuditableActionBuilder {
+        private final String action;
+        private final String status;
+        private final String reason;
+        private final List<MockAuditLogger.AuditEvent> events;
+        private Map<String, String> objectRef;
+        private Map<String, String> context = new java.util.HashMap<>();
+
+        public MockAuditableActionBuilder(String action, String status, String reason, List<MockAuditLogger.AuditEvent> events) {
+            this.action = action;
+            this.status = status;
+            this.reason = reason;
+            this.events = events;
+        }
+
         @Override
         public AuditableActionBuilder withObjectRef(Map<String, String> objectRef) {
+            this.objectRef = objectRef;
             return this;
         }
 
         @Override
         public AuditableActionBuilder withContext(Map<String, String> context) {
+            this.context = new java.util.HashMap<>(context);
             return this;
         }
 
         @Override
         public AuditableActionBuilder addToContext(String key, String value) {
+            this.context.put(key, value);
             return this;
         }
 
         @Override
         public void log() {
-
+            events.add(new MockAuditLogger.AuditEvent(action, status, reason, objectRef, context));
         }
     }
 }

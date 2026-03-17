@@ -66,6 +66,8 @@ class AuthorizationFilterTest {
 
     private static final LogCaptor logCaptor = LogCaptor.forClass(AuthorizationFilter.class);
 
+    private static final String AUDIT_STATUS_DENIED = "denied";
+
     static Stream<Arguments> authorization() throws Exception {
         List<ClassPath.ResourceInfo> resources = ClassPath.from(AuthorizationFilterTest.class.getClassLoader()).getResources().stream()
                 .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches()).toList();
@@ -170,7 +172,8 @@ class AuthorizationFilterTest {
 
         Map<Uuid, String> topicNames = Optional.ofNullable(definition.given().topicNames()).orElse(Map.of());
         Subject subject = new Subject(new User(definition.when().subject()));
-        FilterContext context = new MockFilterContext(requestHeader, request, subject, topicNames, mockUpstream);
+        MockFilterContext.MockAuditLogger auditLogger = new MockFilterContext.MockAuditLogger();
+        FilterContext context = new MockFilterContext(requestHeader, request, subject, topicNames, mockUpstream, auditLogger);
         CompletionStage<RequestFilterResult> stage = authorizationFilter.onRequest(apiKeys, version, requestHeader, request, context);
         ScenarioDefinition.RequestError expectedRequestError = definition.then().expectedRequestError();
         if (expectedRequestError != null) {
@@ -178,13 +181,14 @@ class AuthorizationFilterTest {
                     .havingCause().isInstanceOf(expectedRequestError.getCauseType()).withMessage(expectedRequestError.withCauseMessage());
         }
         else {
-            handleRequestForward(definition, stage, mockUpstream, subject, topicNames, authorizationFilter, apiKeys, version);
+            handleRequestForward(definition, stage, mockUpstream, subject, topicNames, authorizationFilter, apiKeys, version, auditLogger);
         }
         if (!mockUpstream.isFinished()) {
             throw new IllegalStateException("test has finished, but mock responses are still queued");
         }
 
         assertOutcomeLogged(definition.then().isExpectAuthorizationOutcomeLog());
+        assertAuditLogged(definition, auditLogger);
         // we expect that any inflight state pushed during a request is always popped on the corresponding response
         // if it is non-empty then we may have a memory leak
         assertThat(authorizationFilter.inflightState())
@@ -219,8 +223,42 @@ class AuthorizationFilterTest {
         }
     }
 
+    private static void assertAuditLogged(ScenarioDefinition definition, MockFilterContext.MockAuditLogger auditLogger) {
+        if (!definition.then().isExpectAuthorizationOutcomeLog()) {
+            // When expectAuthorizationOutcomeLog is false, we should not have audit events
+            assertThat(auditLogger.getEvents())
+                    .describedAs("audit events when expectAuthorizationOutcomeLog is false")
+                    .isEmpty();
+            return;
+        }
+
+        // If expectedAuditActions is not defined, skip audit assertions (for backwards compatibility)
+        if (definition.then().expectedAuditActions() == null) {
+            return;
+        }
+
+        List<ScenarioDefinition.ExpectedAuditAction> expectedActions = definition.then().expectedAuditActions();
+
+        // Convert actual events to a comparable format (action, objectRef, status tuples)
+        List<Map.Entry<String, Map.Entry<Map<String, String>, String>>> actualEvents = auditLogger.getEvents()
+                .stream()
+                .map(event -> Map.entry(event.action(), Map.entry(event.objectRef(), event.status())))
+                .collect(java.util.stream.Collectors.toList());
+
+        // Convert expected actions to the same format
+        List<Map.Entry<String, Map.Entry<Map<String, String>, String>>> expectedEvents = expectedActions.stream()
+                .map(expected -> Map.entry(expected.action(), Map.entry(expected.objectRef(), expected.status())))
+                .collect(java.util.stream.Collectors.toList());
+
+        // Compare expected vs actual using AssertJ
+        assertThat(actualEvents)
+                .describedAs("audit events")
+                .containsExactlyInAnyOrderElementsOf(expectedEvents);
+    }
+
     private static void handleRequestForward(ScenarioDefinition definition, CompletionStage<RequestFilterResult> stage, MockUpstream mockUpstream, Subject subject,
-                                             Map<Uuid, String> topicNames, AuthorizationFilter authorizationFilter, ApiKeys apiKeys, short version) {
+                                             Map<Uuid, String> topicNames, AuthorizationFilter authorizationFilter, ApiKeys apiKeys, short version,
+                                             MockFilterContext.MockAuditLogger auditLogger) {
         RequestFilterResult actual = assertThat(stage).succeedsWithin(Duration.ZERO).actual();
         if (actual.drop()) {
             if (!mockUpstream.isFinished()) {
@@ -237,7 +275,7 @@ class AuthorizationFilterTest {
                 ApiMessage forwardedHeader = Objects.requireNonNull(actual.header());
                 MockUpstream.Response response = mockUpstream.respond((RequestHeaderData) forwardedHeader, forwardedMessage);
                 if (definition.then().getHasResponse()) {
-                    MockFilterContext responseContext = new MockFilterContext(response.header(), response.message(), subject, topicNames, mockUpstream);
+                    MockFilterContext responseContext = new MockFilterContext(response.header(), response.message(), subject, topicNames, mockUpstream, auditLogger);
                     CompletionStage<ResponseFilterResult> filterResultCompletionStage = authorizationFilter.onResponse(apiKeys, version, response.header(),
                             response.message(),
                             responseContext);
