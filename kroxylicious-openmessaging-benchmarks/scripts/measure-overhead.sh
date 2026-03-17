@@ -12,9 +12,7 @@ MODULE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 HELM_CHART="${MODULE_DIR}/helm/kroxylicious-benchmark"
 HELM_RELEASE="benchmark"
 
-# Workload to use for all probes. Controls topic count and message size.
-# Rate is overridden per-probe; all other workload settings come from this template.
-WORKLOAD="1topic-1kb"
+DEFAULT_WORKLOAD="1topic-1kb"
 
 NAMESPACE="${NAMESPACE:-kafka}"
 KAFKA_READY_TIMEOUT="${KAFKA_READY_TIMEOUT:-600s}"
@@ -51,6 +49,8 @@ Options:
                             Suggested: ~120% of expected maximum to ensure saturation is reached
   --step-percent <n>        Step size as a percentage of the range (default: ${DEFAULT_STEP_PERCENT})
                             Fixed increment: (max - min) * step% — e.g. step=25% gives 4 probes
+  --workload <name>         OMB workload to use (default: ${DEFAULT_WORKLOAD})
+                            Available: 1topic-1kb, 10topics-1kb, 100topics-1kb
   --profile <values-file>   Additional Helm values layered on top of each scenario
   --dry-run                 Print rate sequence and planned steps without deploying anything
   -h, --help                Show this help
@@ -85,6 +85,7 @@ BASELINE_FROM=""
 MIN_RATE=""
 MAX_RATE=""
 STEP_PERCENT="${DEFAULT_STEP_PERCENT}"
+WORKLOAD="${DEFAULT_WORKLOAD}"
 PROFILE_VALUES=""
 DRY_RUN=false
 
@@ -96,6 +97,7 @@ while [[ $# -gt 0 ]]; do
         --min-rate)      MIN_RATE="$2";       shift 2 ;;
         --max-rate)      MAX_RATE="$2";       shift 2 ;;
         --step-percent)  STEP_PERCENT="$2";   shift 2 ;;
+        --workload)      WORKLOAD="$2";       shift 2 ;;
         --profile)       PROFILE_VALUES="$2"; shift 2 ;;
         --dry-run)       DRY_RUN=true;        shift   ;;
         -h|--help)       usage ;;
@@ -162,6 +164,7 @@ rate_sequence() {
 if [[ "${DRY_RUN}" == "true" ]]; then
     echo "=== Dry run: $(basename "$0") ==="
     echo "Scenarios:    ${SCENARIOS}"
+    echo "Workload:     ${WORKLOAD}"
     echo "Output dir:   ${OUTPUT_DIR}"
     [[ -n "${BASELINE_FROM}" ]] && echo "Baseline from: ${BASELINE_FROM}"
     [[ -n "${PROFILE_VALUES}" ]] && echo "Profile:       ${PROFILE_VALUES}"
@@ -504,6 +507,7 @@ METADATA_EOF
 
 echo "=== Measuring proxy overhead ==="
 echo "Scenarios:  ${SCENARIO_LIST}"
+echo "Workload:   ${WORKLOAD}"
 echo "Output dir: ${OUTPUT_DIR}"
 echo "Rates:      ${MIN_RATE}–${MAX_RATE} msg/sec (${STEP_PERCENT}% steps)"
 [[ -n "${BASELINE_FROM}" ]] && echo "Baseline:   ${BASELINE_FROM}"
