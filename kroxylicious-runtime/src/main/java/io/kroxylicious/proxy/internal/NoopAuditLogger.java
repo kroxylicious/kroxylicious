@@ -9,6 +9,8 @@ package io.kroxylicious.proxy.internal;
 import io.kroxylicious.proxy.audit.AuditLogger;
 import io.kroxylicious.proxy.audit.AuditableActionBuilder;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class NoopAuditLogger implements AuditLogger, AutoCloseable {
     @Override
     public AuditableActionBuilder action(String action) {
@@ -16,7 +18,7 @@ public class NoopAuditLogger implements AuditLogger, AutoCloseable {
     }
 
     @Override
-    public AuditableActionBuilder actionWithOutcome(String action, String status, String reason) {
+    public AuditableActionBuilder actionWithOutcome(String action, String status, @Nullable String reason) {
         return NoopAuditableActionBuilder.INSTANCE;
     }
 
