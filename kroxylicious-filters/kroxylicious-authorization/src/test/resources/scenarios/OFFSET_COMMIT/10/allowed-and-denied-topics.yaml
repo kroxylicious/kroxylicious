@@ -95,6 +95,12 @@ then:
         partitions:
           - partitionIndex: 61
             errorCode: 29 # topic authorization failure
-
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

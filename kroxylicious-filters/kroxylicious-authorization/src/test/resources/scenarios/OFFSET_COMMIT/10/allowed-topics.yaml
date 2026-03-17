@@ -80,5 +80,8 @@ then:
         partitions:
           - partitionIndex: 399
             errorCode: 94
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
