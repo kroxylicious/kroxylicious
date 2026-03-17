@@ -71,3 +71,9 @@ then:
         resultsByPartition:
           - partitionIndex: 920
             partitionErrorCode: 246
+
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null

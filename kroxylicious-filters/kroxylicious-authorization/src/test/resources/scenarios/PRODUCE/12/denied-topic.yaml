@@ -38,3 +38,5 @@ then:
   expectedResponseHeader:
     correlationId: 1
   expectedErrorResponse: "TOPIC_AUTHORIZATION_FAILED"
+
+  expectedAuditActions: []

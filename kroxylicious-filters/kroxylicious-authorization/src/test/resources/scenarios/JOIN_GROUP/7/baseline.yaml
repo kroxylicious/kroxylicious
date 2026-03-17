@@ -85,3 +85,5 @@ then:
         groupInstanceId: "random-string-220"
         metadata: !!binary |-
           zC7IcwI=
+
+  expectedAuditActions: []

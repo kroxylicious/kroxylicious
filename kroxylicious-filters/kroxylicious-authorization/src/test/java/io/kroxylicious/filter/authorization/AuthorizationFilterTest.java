@@ -239,15 +239,18 @@ class AuthorizationFilterTest {
 
         List<ScenarioDefinition.ExpectedAuditAction> expectedActions = definition.then().expectedAuditActions();
 
-        // Convert actual events to a comparable format (action, objectRef, status tuples)
-        List<Map.Entry<String, Map.Entry<Map<String, String>, String>>> actualEvents = auditLogger.getEvents()
+        // Create a simple comparable record for audit events
+        record AuditEventComparable(String action, Map<String, String> objectRef, String status) {}
+
+        // Convert actual events to comparable format
+        List<AuditEventComparable> actualEvents = auditLogger.getEvents()
                 .stream()
-                .map(event -> Map.entry(event.action(), Map.entry(event.objectRef(), event.status())))
+                .map(event -> new AuditEventComparable(event.action(), event.objectRef(), event.status()))
                 .collect(java.util.stream.Collectors.toList());
 
         // Convert expected actions to the same format
-        List<Map.Entry<String, Map.Entry<Map<String, String>, String>>> expectedEvents = expectedActions.stream()
-                .map(expected -> Map.entry(expected.action(), Map.entry(expected.objectRef(), expected.status())))
+        List<AuditEventComparable> expectedEvents = expectedActions.stream()
+                .map(expected -> new AuditEventComparable(expected.action(), expected.objectRef(), expected.status()))
                 .collect(java.util.stream.Collectors.toList());
 
         // Compare expected vs actual using AssertJ

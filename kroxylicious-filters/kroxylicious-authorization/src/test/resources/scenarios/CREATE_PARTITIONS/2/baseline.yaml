@@ -67,3 +67,9 @@ then:
       - name: "my-topic"
         errorCode: 685
         errorMessage: "random-string-491"
+
+  expectedAuditActions:
+    - action: "ALTER"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

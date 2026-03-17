@@ -67,3 +67,4 @@ then:
       - transactionalId: "my-transactional-id"
         producerId: 442
         transactionState: "random-string-556"
+  expectedAuditActions: []

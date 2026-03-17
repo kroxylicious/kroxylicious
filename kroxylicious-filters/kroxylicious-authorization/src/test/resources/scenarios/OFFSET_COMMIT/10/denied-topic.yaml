@@ -52,3 +52,5 @@ then:
         partitions:
           - partitionIndex: 61
             errorCode: 29
+
+  expectedAuditActions: []

@@ -86,3 +86,12 @@ then:
             errorCode: 29
             errorMessage: "Topic authorization failed."
             activeProducers: [ ]
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

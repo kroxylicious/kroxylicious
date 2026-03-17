@@ -101,3 +101,4 @@ then:
     nextCursor:
       topicName: ""
       partitionIndex: -1
+  expectedAuditActions: []

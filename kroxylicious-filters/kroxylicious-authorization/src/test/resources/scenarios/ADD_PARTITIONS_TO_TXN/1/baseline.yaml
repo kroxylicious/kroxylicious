@@ -71,3 +71,9 @@ then:
         resultsByPartition:
           - partitionIndex: 776
             partitionErrorCode: 856
+
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null

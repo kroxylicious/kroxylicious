@@ -80,3 +80,5 @@ then:
         partitions:
           - partitionIndex: 399
             errorCode: 94
+
+  expectedAuditActions: []

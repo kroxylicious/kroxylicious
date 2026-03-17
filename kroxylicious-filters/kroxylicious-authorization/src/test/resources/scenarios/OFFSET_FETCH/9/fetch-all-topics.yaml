@@ -81,3 +81,4 @@ then:
                 metadata: "random-string-576"
                 errorCode: 1010
         errorCode: 162
+  expectedAuditActions: []

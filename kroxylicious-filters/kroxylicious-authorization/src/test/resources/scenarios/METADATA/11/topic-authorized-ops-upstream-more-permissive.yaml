@@ -108,3 +108,5 @@ then:
               - 421
         # DESCRIBE+CREATE bitset
         topicAuthorizedOperations: 288
+
+  expectedAuditActions: []

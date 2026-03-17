@@ -40,3 +40,9 @@ then:
   expectedResponse:
     throttleTimeMs: 0
     errorCode: 53 # TRANSACTIONAL_ID_AUTHORIZATION_FAILED
+
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: "denied"

@@ -96,3 +96,5 @@ then:
           - partitionIndex: 61
             errorCode: 29 # topic authorization failure
 
+
+  expectedAuditActions: []

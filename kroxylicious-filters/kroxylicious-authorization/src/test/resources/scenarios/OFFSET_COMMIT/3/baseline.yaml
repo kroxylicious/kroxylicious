@@ -77,3 +77,9 @@ then:
         partitions:
           - partitionIndex: 743
             errorCode: 373
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

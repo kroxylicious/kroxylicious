@@ -40,3 +40,9 @@ then:
         topicId: "AAAAAAAAAAAAAAAAAAAAAA"
         errorCode: 29
         errorMessage: "Topic authorization failed."
+
+  expectedAuditActions:
+    - action: "DELETE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

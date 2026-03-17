@@ -83,3 +83,5 @@ then:
                 metadata: "random-string-490"
                 errorCode: 23
         errorCode: 642
+
+  expectedAuditActions: []

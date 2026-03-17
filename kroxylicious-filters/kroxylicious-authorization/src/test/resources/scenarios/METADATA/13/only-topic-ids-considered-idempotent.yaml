@@ -107,3 +107,9 @@ then:
               - 421
         topicAuthorizedOperations: 760
     errorCode: 1003
+
+  expectedAuditActions:
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": ""
+      status: "denied"

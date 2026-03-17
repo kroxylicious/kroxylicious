@@ -118,3 +118,4 @@ then:
         topicAuthorizedOperations: 769
     # DESCRIBE only
     clusterAuthorizedOperations: 4
+  expectedAuditActions: []

@@ -112,3 +112,5 @@ then:
         # DESCRIBE+CREATE bitset
         topicAuthorizedOperations: 288
     clusterAuthorizedOperations: 0
+
+  expectedAuditActions: []

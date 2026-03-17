@@ -65,3 +65,5 @@ then:
     errorCode: 868
     assignment: !!binary |-
       nZHKxws=
+
+  expectedAuditActions: []

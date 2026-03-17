@@ -55,3 +55,5 @@ then:
     authBytes: !!binary |-
       /kdhf5Y=
     sessionLifetimeMs: 612
+
+  expectedAuditActions: []

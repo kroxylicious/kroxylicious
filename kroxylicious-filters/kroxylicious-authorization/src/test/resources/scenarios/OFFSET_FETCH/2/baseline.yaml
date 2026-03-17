@@ -71,3 +71,9 @@ then:
             metadata: "random-string-988"
             errorCode: 511
     errorCode: 173
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: "denied"

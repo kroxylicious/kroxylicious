@@ -63,3 +63,5 @@ then:
     errorCode: 319
     assignment: !!binary |-
       H/MOjxo=
+
+  expectedAuditActions: []

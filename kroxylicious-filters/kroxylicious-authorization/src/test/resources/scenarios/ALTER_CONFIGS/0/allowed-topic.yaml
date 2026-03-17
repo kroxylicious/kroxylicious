@@ -67,3 +67,8 @@ then:
         errorMessage: "random-string-499"
         resourceType: 2
         resourceName: "my-topic"
+  expectedAuditActions:
+    - action: "ALTER_CONFIGS"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

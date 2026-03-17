@@ -61,3 +61,5 @@ then:
     errorCode: 812
     assignment: !!binary |-
       oZ+79i8=
+
+  expectedAuditActions: []

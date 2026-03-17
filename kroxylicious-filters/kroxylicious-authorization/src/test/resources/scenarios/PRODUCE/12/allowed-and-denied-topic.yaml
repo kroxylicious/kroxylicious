@@ -100,3 +100,5 @@ then:
             errorMessage: "Topic authorization failed."
     throttleTimeMs: 141
 
+
+  expectedAuditActions: []

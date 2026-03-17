@@ -63,3 +63,5 @@ then:
   expectedRequestError:
     withCauseType: io.kroxylicious.filter.authorization.AuthorizationException
     withCauseMessage: "Internal metadata request failed with UNKNOWN_SERVER_ERROR"
+
+  expectedAuditActions: []

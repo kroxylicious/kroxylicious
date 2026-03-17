@@ -116,3 +116,5 @@ then:
               - 421
         topicAuthorizedOperations: 760
     clusterAuthorizedOperations: 4
+
+  expectedAuditActions: []

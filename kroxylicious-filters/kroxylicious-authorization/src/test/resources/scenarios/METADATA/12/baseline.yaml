@@ -106,3 +106,9 @@ then:
             offlineReplicas:
               - 421
         topicAuthorizedOperations: 760
+
+  expectedAuditActions:
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

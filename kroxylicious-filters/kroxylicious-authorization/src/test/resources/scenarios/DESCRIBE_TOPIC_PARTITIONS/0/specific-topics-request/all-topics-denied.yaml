@@ -42,3 +42,8 @@ then:
         partitions: [ ]
         topicAuthorizedOperations: -2147483648
     nextCursor: null
+  expectedAuditActions:
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

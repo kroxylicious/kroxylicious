@@ -36,3 +36,5 @@ when:
             records: !!binary "AAAAAAAAAAEAAABAAAAAAQJiprm8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEAAAABAAAAARwAAAAGS0VZClZBTFVFAA==" # records containing a transactional batch
 then:
   expectedErrorResponse: "TRANSACTIONAL_ID_AUTHORIZATION_FAILED"
+
+  expectedAuditActions: []

@@ -38,3 +38,4 @@ then:
     nodeId: -1
     host: ""
     port: -1
+  expectedAuditActions: []

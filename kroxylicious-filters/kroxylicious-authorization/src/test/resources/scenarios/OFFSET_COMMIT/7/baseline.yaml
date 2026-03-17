@@ -79,3 +79,9 @@ then:
         partitions:
           - partitionIndex: 372
             errorCode: 46
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

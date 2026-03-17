@@ -54,3 +54,9 @@ then:
   expectedResponse:
     throttleTimeMs: 0
     errorCode: 0
+
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null

@@ -71,3 +71,4 @@ then:
     throttleTimeMs: 343
     topics: []
     nextCursor: null
+  expectedAuditActions: []

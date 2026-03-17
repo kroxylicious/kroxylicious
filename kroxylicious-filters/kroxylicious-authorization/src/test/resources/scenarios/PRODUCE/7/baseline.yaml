@@ -75,3 +75,5 @@ then:
             logAppendTimeMs: 100
             logStartOffset: 145
     throttleTimeMs: 73
+
+  expectedAuditActions: []

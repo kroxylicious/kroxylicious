@@ -97,3 +97,8 @@ then:
             readOnly: false
             configSource: 69
             isSensitive: false
+  expectedAuditActions:
+    - action: "CREATE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

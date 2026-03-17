@@ -49,3 +49,5 @@ then:
     errorCode: 371
     mechanisms:
       - "random-string-578"
+
+  expectedAuditActions: []

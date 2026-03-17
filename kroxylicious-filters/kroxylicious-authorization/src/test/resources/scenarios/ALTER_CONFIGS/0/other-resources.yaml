@@ -68,3 +68,4 @@ then:
         errorMessage: "random-string-499"
         resourceType: 0
         resourceName: "my-group"
+  expectedAuditActions: []

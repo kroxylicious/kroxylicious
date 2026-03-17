@@ -45,3 +45,9 @@ then:
             partition: 806
             leaderEpoch: -1
             endOffset: -1
+
+  expectedAuditActions:
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

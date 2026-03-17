@@ -57,3 +57,5 @@ when:
 then:
   hasResponse: false
   expectRequestDropped: true
+
+  expectedAuditActions: []

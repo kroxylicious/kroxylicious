@@ -64,3 +64,5 @@ then:
         port: 927
         errorCode: 368
         errorMessage: "random-string-1003"
+
+  expectedAuditActions: []

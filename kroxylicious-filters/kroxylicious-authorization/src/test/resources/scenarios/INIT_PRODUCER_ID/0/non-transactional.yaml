@@ -54,3 +54,4 @@ then:
     producerId: 324
     producerEpoch: 123
   expectAuthorizationOutcomeLog: false
+  expectedAuditActions: []

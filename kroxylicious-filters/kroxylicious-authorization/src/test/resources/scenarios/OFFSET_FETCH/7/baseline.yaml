@@ -77,3 +77,9 @@ then:
             metadata: "random-string-122"
             errorCode: 162
     errorCode: 17
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: "denied"

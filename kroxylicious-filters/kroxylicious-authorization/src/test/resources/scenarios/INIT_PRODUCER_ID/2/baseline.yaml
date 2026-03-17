@@ -53,3 +53,9 @@ then:
     errorCode: 414
     producerId: 855
     producerEpoch: 644
+
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null

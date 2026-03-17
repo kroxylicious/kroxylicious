@@ -51,3 +51,4 @@ then:
     memberEpoch: 0
     heartbeatIntervalMs: 0
     assignment: null
+  expectedAuditActions: []

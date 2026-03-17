@@ -57,3 +57,5 @@ then:
       - name: "my-topic"
         errorCode: 86
         errorMessage: "random-string-871"
+
+  expectedAuditActions: []

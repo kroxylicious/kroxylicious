@@ -113,3 +113,9 @@ then:
                 firstOffset: 410
             preferredReadReplica: 408
             records: !!binary ""
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

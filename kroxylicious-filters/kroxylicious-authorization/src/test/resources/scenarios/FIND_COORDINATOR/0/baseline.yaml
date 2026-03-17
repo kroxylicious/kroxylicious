@@ -51,3 +51,5 @@ then:
     nodeId: 223
     host: "random-string-822"
     port: 919
+
+  expectedAuditActions: []

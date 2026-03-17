@@ -46,3 +46,9 @@ then:
         partitions:
           - partitionIndex: 1
             errorCode: 29
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

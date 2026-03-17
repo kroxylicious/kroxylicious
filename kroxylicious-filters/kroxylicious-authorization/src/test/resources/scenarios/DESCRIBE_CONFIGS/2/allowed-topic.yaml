@@ -85,3 +85,8 @@ then:
               - name: "random-string-297"
                 value: "random-string-543"
                 source: 70
+  expectedAuditActions:
+    - action: "DESCRIBE_CONFIGS"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

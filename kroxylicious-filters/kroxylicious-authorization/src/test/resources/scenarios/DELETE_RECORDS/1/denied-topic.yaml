@@ -58,3 +58,8 @@ then:
           - partitionIndex: 169
             lowWatermark: -1
             errorCode: 29
+  expectedAuditActions:
+    - action: "DELETE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

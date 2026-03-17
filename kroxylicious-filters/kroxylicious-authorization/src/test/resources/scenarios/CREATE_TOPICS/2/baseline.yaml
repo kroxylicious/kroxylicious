@@ -77,3 +77,9 @@ then:
       - name: "random-string-569"
         errorCode: 52
         errorMessage: "random-string-921"
+
+  expectedAuditActions:
+    - action: "CREATE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

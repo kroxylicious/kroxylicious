@@ -69,3 +69,9 @@ then:
             committedOffset: 836
             metadata: "random-string-135"
             errorCode: 283
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: "denied"

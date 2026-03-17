@@ -87,3 +87,5 @@ then:
         groupInstanceId: "random-string-625"
         metadata: !!binary |-
           geEGAHI=
+
+  expectedAuditActions: []

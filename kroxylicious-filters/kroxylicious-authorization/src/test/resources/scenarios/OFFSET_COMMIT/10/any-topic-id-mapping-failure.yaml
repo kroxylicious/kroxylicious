@@ -49,3 +49,5 @@ then:
     correlationId: 1
   expectedErrorResponse: "UNKNOWN_TOPIC_ID"
 
+
+  expectedAuditActions: []

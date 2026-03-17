@@ -62,3 +62,5 @@ then:
     unknownStateFilters:
       - "random-string-936"
     transactionStates: []
+
+  expectedAuditActions: []

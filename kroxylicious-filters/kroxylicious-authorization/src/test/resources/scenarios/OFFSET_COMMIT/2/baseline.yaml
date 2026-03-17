@@ -75,3 +75,9 @@ then:
         partitions:
           - partitionIndex: 422
             errorCode: 14
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

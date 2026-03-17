@@ -75,3 +75,5 @@ then:
       - memberId: "random-string-2"
         metadata: !!binary |-
           1Pg4axQ=
+
+  expectedAuditActions: []

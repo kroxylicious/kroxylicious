@@ -67,3 +67,4 @@ then:
         producerId: 1
         producerEpoch: 1
         topics: []
+  expectedAuditActions: []

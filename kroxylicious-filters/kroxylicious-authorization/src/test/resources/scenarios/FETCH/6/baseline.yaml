@@ -91,3 +91,9 @@ then:
               - producerId: 184
                 firstOffset: 256
             records: !!binary ""
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

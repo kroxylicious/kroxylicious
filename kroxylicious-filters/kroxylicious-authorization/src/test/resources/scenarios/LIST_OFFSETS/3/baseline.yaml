@@ -71,3 +71,9 @@ then:
             errorCode: 273
             timestamp: 696
             offset: 721
+
+  expectedAuditActions:
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

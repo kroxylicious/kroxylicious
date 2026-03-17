@@ -60,3 +60,8 @@ then:
           resourceType: 2
           resourceName: "my-topic2"
           configs: [ ]
+  expectedAuditActions:
+    - action: "DESCRIBE_CONFIGS"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic2"
+      status: "denied"

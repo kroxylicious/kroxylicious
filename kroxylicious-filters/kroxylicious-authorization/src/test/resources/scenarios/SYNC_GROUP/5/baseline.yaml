@@ -73,3 +73,5 @@ then:
     protocolName: "random-string-374"
     assignment: !!binary |-
       V3FtJR0=
+
+  expectedAuditActions: []

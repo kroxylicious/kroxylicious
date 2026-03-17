@@ -64,3 +64,5 @@ then:
         port: 432
         errorCode: 220
         errorMessage: "random-string-990"
+
+  expectedAuditActions: []

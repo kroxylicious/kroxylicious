@@ -53,3 +53,9 @@ then:
     errorCode: 273
     producerId: 324
     producerEpoch: 123
+
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null

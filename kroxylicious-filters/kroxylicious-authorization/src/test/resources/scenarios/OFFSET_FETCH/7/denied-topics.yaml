@@ -77,3 +77,9 @@ then:
             metadata: ""
             errorCode: 29
     errorCode: 0
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

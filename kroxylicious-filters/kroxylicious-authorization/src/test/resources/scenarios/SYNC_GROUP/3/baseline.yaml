@@ -65,3 +65,5 @@ then:
     errorCode: 512
     assignment: !!binary |-
       jhQd4Eo=
+
+  expectedAuditActions: []

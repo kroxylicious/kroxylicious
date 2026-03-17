@@ -75,3 +75,4 @@ then:
         topics:
           - topic: my-topic
             partitions: [ ]
+  expectedAuditActions: []

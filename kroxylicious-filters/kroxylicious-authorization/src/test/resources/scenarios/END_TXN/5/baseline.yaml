@@ -58,3 +58,8 @@ then:
     errorCode: 0
     producerId: 1000
     producerEpoch: 1
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null

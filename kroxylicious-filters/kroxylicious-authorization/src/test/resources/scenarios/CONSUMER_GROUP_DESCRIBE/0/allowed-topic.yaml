@@ -111,3 +111,8 @@ then:
                   partitions:
                     - 201
         authorizedOperations: 940
+  expectedAuditActions:
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

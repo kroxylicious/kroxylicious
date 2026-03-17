@@ -109,3 +109,4 @@ then:
         # DESCRIBE bitset
         topicAuthorizedOperations: 256
     errorCode: 1003
+  expectedAuditActions: []

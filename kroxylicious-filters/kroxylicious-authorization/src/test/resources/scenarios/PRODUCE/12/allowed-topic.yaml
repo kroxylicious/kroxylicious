@@ -83,3 +83,5 @@ then:
                 batchIndexErrorMessage: "random-string-410"
             errorMessage: "random-string-667"
     throttleTimeMs: 141
+
+  expectedAuditActions: []

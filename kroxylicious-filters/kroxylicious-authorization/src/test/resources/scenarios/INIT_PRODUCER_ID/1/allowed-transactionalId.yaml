@@ -53,3 +53,9 @@ then:
     errorCode: 81
     producerId: 640
     producerEpoch: 120
+
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null

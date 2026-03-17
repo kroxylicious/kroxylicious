@@ -64,3 +64,5 @@ then:
         port: 519
         errorCode: 824
         errorMessage: "random-string-76"
+
+  expectedAuditActions: []

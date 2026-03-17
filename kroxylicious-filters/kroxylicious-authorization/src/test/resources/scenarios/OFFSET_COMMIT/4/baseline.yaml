@@ -77,3 +77,9 @@ then:
         partitions:
           - partitionIndex: 625
             errorCode: 595
+
+  expectedAuditActions:
+    - action: "READ"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

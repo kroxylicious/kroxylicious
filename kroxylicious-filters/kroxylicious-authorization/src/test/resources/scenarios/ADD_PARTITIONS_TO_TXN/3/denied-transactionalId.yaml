@@ -47,3 +47,9 @@ then:
         resultsByPartition:
           - partitionIndex: 144
             partitionErrorCode: 53
+
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "unauthorized"
+      status: "denied"
