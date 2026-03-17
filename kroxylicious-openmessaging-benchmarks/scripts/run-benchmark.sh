@@ -516,22 +516,12 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
         -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
 
-    # Ensure any stale JFR PVC from a previous run is fully gone before creating a new one.
-    # The pvc-protection finalizer is held while any pod mounts the volume, so if an old
-    # proxy pod from a previous run is still terminating, the PVC cannot be deleted until
-    # that pod fully exits.  We issue the delete and then poll rather than relying on a
-    # fixed --timeout (which exits with an error if the deadline is hit).
+    # Wait for any stale JFR PVC from a previous run to be fully deleted.
+    # A terminating PVC will cause 'kubectl apply' to report "unchanged" and
+    # the new pod will fail to mount it.
     if kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
-        echo "Deleting stale JFR PVC ${JFR_PVC_NAME} (waiting for any terminating proxy pod)..."
-        kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found 2>/dev/null || true
-        PVC_DEADLINE=$((SECONDS + 120))
-        while kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; do
-            if [[ $SECONDS -ge $PVC_DEADLINE ]]; then
-                echo "Warning: stale JFR PVC ${JFR_PVC_NAME} still present after 120s — proceeding anyway" >&2
-                break
-            fi
-            sleep 5
-        done
+        echo "Waiting for stale JFR PVC ${JFR_PVC_NAME} to be fully deleted..."
+        kubectl wait --for=delete pvc/"${JFR_PVC_NAME}" -n "${NAMESPACE}" --timeout=60s
     fi
 
     echo "Creating JFR PVC ${JFR_PVC_NAME} (${JFR_PVC_SIZE})..."
