@@ -189,12 +189,13 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void shouldAcceptValidJsonInProduceRequest(KafkaCluster cluster, Topic topic) throws Exception {
+    void shouldAcceptValidJsonInProduceRequest(KafkaCluster cluster, Topic topic) {
         var config = createContentIdRecordValidationConfig(cluster, topic, "valueRule", firstContentId);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", JSON_MESSAGE)).get();
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", JSON_MESSAGE)))
+                    .succeedsWithin(Duration.ofSeconds(10));
 
             var records = consumeAll(tester, topic);
 
@@ -239,7 +240,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void clientSideUsesValueSchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) throws Exception {
+    void clientSideUsesValueSchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
         var config = createContentIdRecordValidationConfig(cluster, topic, "valueRule", firstContentId);
 
         var keySerde = new Serdes.StringSerde();
@@ -249,7 +250,8 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(keySerde, producerValueSerde, Map.of());
                 var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)).get();
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)))
+                    .succeedsWithin(Duration.ofSeconds(10));
             consumer.subscribe(Set.of(topic.name()));
 
             var records = consumer.poll(Duration.ofSeconds(10));
@@ -262,7 +264,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void clientSideUsesKeySchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) throws Exception {
+    void clientSideUsesKeySchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
         var config = createContentIdRecordValidationConfig(cluster, topic, "keyRule", firstContentId);
 
         boolean isKey = true;
@@ -272,7 +274,8 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(producerKeySerde, new Serdes.StringSerde(), Map.of());
                 var consumer = consumeFromEarliestOffsets(tester, consumerKeySerde, new Serdes.StringSerde())) {
-            producer.send(new ProducerRecord<>(topic.name(), PERSON_BEAN, "my-value")).get();
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), PERSON_BEAN, "my-value")))
+                    .succeedsWithin(Duration.ofSeconds(10));
             consumer.subscribe(Set.of(topic.name()));
 
             var records = consumer.poll(Duration.ofSeconds(10));
@@ -347,7 +350,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void v3WireFormatValidationWorks(KafkaCluster cluster, Topic topic) throws Exception {
+    void v3WireFormatValidationWorks(KafkaCluster cluster, Topic topic) {
         // Explicitly configure V3 wire format (4-byte content IDs, Confluent-compatible)
         var config = createContentIdRecordValidationConfigWithWireFormat(cluster, topic, "valueRule", firstContentId, "V3");
 
@@ -359,7 +362,8 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                 var producer = tester.producer(keySerde, producerValueSerde, Map.of());
                 var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
             // Should accept valid data with V3 wire format
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)).get();
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)))
+                    .succeedsWithin(Duration.ofSeconds(10));
             consumer.subscribe(Set.of(topic.name()));
 
             var records = consumer.poll(Duration.ofSeconds(10));
@@ -368,7 +372,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void v2WireFormatValidationWorks(KafkaCluster cluster, Topic topic) throws Exception {
+    void v2WireFormatValidationWorks(KafkaCluster cluster, Topic topic) {
         // Configure V2 wire format (8-byte global IDs) - deprecated but should still work
         var config = createContentIdRecordValidationConfigWithWireFormat(cluster, topic, "valueRule", firstContentId, "V2");
 
@@ -381,7 +385,8 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                 var producer = tester.producer(keySerde, producerValueSerde, Map.of());
                 var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
             // Should accept valid data with V2 wire format
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)).get();
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)))
+                    .succeedsWithin(Duration.ofSeconds(10));
             consumer.subscribe(Set.of(topic.name()));
 
             var records = consumer.poll(Duration.ofSeconds(10));
@@ -408,7 +413,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void defaultWireFormatIsV3(KafkaCluster cluster, Topic topic) throws Exception {
+    void defaultWireFormatIsV3(KafkaCluster cluster, Topic topic) {
         // When wireFormatVersion is not specified, it should default to V3
         var config = createContentIdRecordValidationConfig(cluster, topic, "valueRule", firstContentId);
 
@@ -420,7 +425,8 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                 var producer = tester.producer(keySerde, producerValueSerde, Map.of());
                 var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
             // Should accept V3 format by default
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)).get();
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)))
+                    .succeedsWithin(Duration.ofSeconds(10));
             consumer.subscribe(Set.of(topic.name()));
 
             var records = consumer.poll(Duration.ofSeconds(10));

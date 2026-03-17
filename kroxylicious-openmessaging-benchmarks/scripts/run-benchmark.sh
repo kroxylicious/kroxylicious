@@ -28,7 +28,7 @@ JFR_PVC_NAME="${HELM_RELEASE}-jfr"
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") [--profile <values-file>] <scenario> <workload> <output-dir>
+Usage: $(basename "$0") [--profile <values-file>] [--set <key=value> ...] <scenario> <workload> <output-dir>
 
 Runs a single benchmark scenario end-to-end:
   1. Deploy benchmark infrastructure via Helm
@@ -49,6 +49,7 @@ Arguments:
 Options:
   --profile <values-file>   Additional Helm values file layered on top of the scenario
                             (e.g. helm/kroxylicious-benchmark/scenarios/single-node-values.yaml)
+  --set <key=value>         Pass a Helm --set override (may be repeated)
   -h, --help                Show this help
 
 Environment:
@@ -62,17 +63,24 @@ Examples:
   $(basename "$0") baseline 1topic-1kb ./results/baseline/
   $(basename "$0") --profile ./helm/kroxylicious-benchmark/scenarios/single-node-values.yaml \
     baseline 1topic-1kb ./results/baseline/
+  $(basename "$0") --set benchmark.testDurationMinutes=1 --set benchmark.warmupDurationMinutes=0 \
+    baseline 1topic-1kb ./results/baseline/
   NAMESPACE=benchmarks $(basename "$0") baseline 1topic-1kb ./results/
 EOF
     exit 1
 }
 
 PROFILE_VALUES=""
+HELM_SET_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --profile)
             PROFILE_VALUES="$2"
+            shift 2
+            ;;
+        --set)
+            HELM_SET_ARGS+=("$2")
             shift 2
             ;;
         -h|--help)
@@ -159,6 +167,9 @@ echo "Output dir: ${OUTPUT_DIR}"
 if [[ -n "${PROFILE_VALUES}" ]]; then
     echo "Profile:    ${PROFILE_VALUES}"
 fi
+if [[ ${#HELM_SET_ARGS[@]} -gt 0 ]]; then
+    echo "Overrides:  ${HELM_SET_ARGS[*]}"
+fi
 echo ""
 
 # Ensure previous run is cleaned up before starting
@@ -173,6 +184,7 @@ echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
 HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
 [[ -n "${PROFILE_VALUES}" ]] && HELM_ARGS+=(-f "${PROFILE_VALUES}")
 HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
+for set_arg in "${HELM_SET_ARGS[@]}"; do HELM_ARGS+=(--set "${set_arg}"); done
 
 helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}"
 
@@ -199,6 +211,9 @@ kubectl wait --for=condition=ready pod \
     -n "${NAMESPACE}" \
     --timeout="${POD_READY_TIMEOUT}"
 echo "OMB pods are ready."
+
+# Note: the benchmark starts automatically inside the Job pod (no kubectl exec needed).
+# run-benchmark.sh waits for the .done marker file written when the benchmark exits.
 
 # --- Start JFR and async-profiler recording on proxy pod (if present) ---
 
@@ -270,8 +285,39 @@ start_metrics_poller
 
 echo ""
 echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
-kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
-    sh -c 'cd /var/lib/omb/results && /opt/benchmark/bin/benchmark --drivers /etc/omb/driver/driver-kafka.yaml --workers "$WORKERS" /etc/omb/workloads/workload.yaml'
+
+# The benchmark runs as the Job pod's main process. Poll for the .done marker
+# file that the pod writes when the benchmark exits, then read the exit code.
+BENCHMARK_POD=$(kubectl get pod -n "${NAMESPACE}" -l app=omb-benchmark \
+    -o jsonpath='{.items[0].metadata.name}')
+echo "Benchmark pod: ${BENCHMARK_POD}"
+echo "Streaming benchmark output..."
+kubectl logs -f "${BENCHMARK_POD}" -n "${NAMESPACE}" &
+LOGS_PID=$!
+
+DONE_FILE="/var/lib/omb/results/.done"
+until kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
+        test -f "${DONE_FILE}" 2>/dev/null; do
+    # Check whether the pod has failed (e.g. OOM-killed) — if so it will never
+    # write .done and the loop would otherwise hang indefinitely.
+    pod_phase=$(kubectl get pod "${BENCHMARK_POD}" -n "${NAMESPACE}" \
+        -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+    if [[ "${pod_phase}" == "Failed" ]]; then
+        kill "${LOGS_PID}" 2>/dev/null || true
+        wait "${LOGS_PID}" 2>/dev/null || true
+        echo "Benchmark pod failed (phase: ${pod_phase}) before writing results — likely OOM-killed" >&2
+        exit 1
+    fi
+    sleep 5
+done
+kill "${LOGS_PID}" 2>/dev/null || true
+wait "${LOGS_PID}" 2>/dev/null || true
+
+BENCHMARK_EXIT=$(kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
+    cat "${DONE_FILE}" 2>/dev/null || echo "1")
+if [[ "${BENCHMARK_EXIT}" != "0" ]]; then
+    echo "Benchmark failed with exit code ${BENCHMARK_EXIT}" >&2
+fi
 
 # --- Dump JFR recording and flamegraph ---
 
@@ -329,3 +375,4 @@ echo "=== Benchmark complete: ${SCENARIO} / ${WORKLOAD} ==="
 echo "Results written to: ${OUTPUT_DIR}"
 
 # teardown runs via trap on EXIT
+exit "${BENCHMARK_EXIT:-0}"

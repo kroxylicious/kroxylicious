@@ -268,10 +268,10 @@ public class HelmUtils {
 
     /**
      * Gets the value of an environment variable from a Pod's first container.
-     * Works with both Pod and Deployment resources (extracts pod template from Deployment).
+     * Works with Pod, Deployment, and Job resources (extracts pod template from Deployment/Job).
      * Uses assertions to validate structure for clear test failure messages.
      *
-     * @param resource Pod or Deployment resource
+     * @param resource Pod, Deployment, or Job resource
      * @param envVarName Name of the environment variable
      * @return Environment variable value
      */
@@ -280,8 +280,8 @@ public class HelmUtils {
         assertThat(resource).as("Resource should not be null").isNotNull();
 
         Map<String, Object> spec;
-        if ("Deployment".equals(resource.getKind())) {
-            spec = getPodTemplateSpec(resource);
+        if ("Deployment".equals(resource.getKind()) || "Job".equals(resource.getKind())) {
+            spec = getNestedMap(resource.get("spec"), "template", "spec");
         }
         else if ("Pod".equals(resource.getKind())) {
             spec = resource.get("spec");
@@ -290,7 +290,7 @@ public class HelmUtils {
                     .isNotNull();
         }
         else {
-            fail("Resource '%s' must be a Pod or Deployment, but was %s", resource.getMetadata().getName(), resource.getKind());
+            fail("Resource '%s' must be a Pod, Deployment, or Job, but was %s", resource.getMetadata().getName(), resource.getKind());
             return null; // unreachable
         }
 

@@ -16,8 +16,8 @@ import java.util.HashMap;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-<#list messageSpecs as messageSpec>
-import org.apache.kafka.common.message.${messageSpec.name}Data;
+<#list inputSpecs as inputSpec>
+import org.apache.kafka.common.message.${inputSpec.name}Data;
 </#list>
 
 
@@ -40,12 +40,12 @@ public class DataClasses {
         requestClasses = new HashMap<ApiKeys, Class<? extends ApiMessage>>();
         responseClasses = new HashMap<ApiKeys, Class<? extends ApiMessage>>();
 
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-        requestClasses.put(ApiKeys.${retrieveApiKey(messageSpec)}, ${messageSpec.name}Data.class);
+<#list inputSpecs as inputSpec>
+    <#if inputSpec.type?lower_case == 'request'>
+        requestClasses.put(ApiKeys.${retrieveApiKey(inputSpec)}, ${inputSpec.name}Data.class);
     </#if>
-    <#if messageSpec.type?lower_case == 'response'>
-        responseClasses.put(ApiKeys.${retrieveApiKey(messageSpec)}, ${messageSpec.name}Data.class);
+    <#if inputSpec.type?lower_case == 'response'>
+        responseClasses.put(ApiKeys.${retrieveApiKey(inputSpec)}, ${inputSpec.name}Data.class);
     </#if>
 </#list>
     }

@@ -11,37 +11,46 @@
     Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 ====
 
-name: ${messageSpec.name}
-type: ${messageSpec.type}
-apiKey: ${messageSpec.apiKey}
+name: ${inputSpec.name}
+type: ${inputSpec.type}
+apiKey: ${inputSpec.apiKey}
 struct:
-  name: ${messageSpec.struct.name}
-  hasKeys: ${messageSpec.struct.hasKeys?string('yes', 'no')}
-  versions: ${messageSpec.struct.versions}
+  name: ${inputSpec.struct.name}
+  hasKeys: ${inputSpec.struct.hasKeys?string('yes', 'no')}
+  versions: ${inputSpec.struct.versions}
 fields:
-<#list messageSpec.struct.fields as f>
+<#list inputSpec.struct.fields as f>
     ${f.name}
 </#list>
-validVersions: ${messageSpec.validVersions}
-validVersionsString: ${messageSpec.validVersionsString}
-flexibleVersions: ${messageSpec.flexibleVersions}
-flexibleVersionsString: ${messageSpec.flexibleVersionsString}
-dataClassName: ${messageSpec.dataClassName}
-latestVersionUnstable: ${messageSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}
+validVersions: ${inputSpec.validVersions}
+validVersionsString: ${inputSpec.validVersionsString}
+flexibleVersions: ${inputSpec.flexibleVersions}
+flexibleVersionsString: ${inputSpec.flexibleVersionsString}
+dataClassName: ${inputSpec.dataClassName}
+latestVersionUnstable: ${inputSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}
+<#assign entityTypes = createEntityTypeSet("GROUP_ID", "TRANSACTIONAL_ID", "TOPIC_NAME")>
+entityFields:
+<#list entityTypes as et>
+  ${et}: ${inputSpec.hasAtLeastOneEntityField(et)?string('yes', 'no')}
+</#list>
+intersectedVersionsForEntityFields:
+<#list entityTypes as et>
+  ${et}:<#list inputSpec.intersectedVersionsForEntityFields(et)> <#items as v>${v}<#sep>,</#items></#list>
+</#list>
 fields:
-<#list messageSpec.fields as field>
+<#list inputSpec.fields as field>
   name: ${field.name}
   versions: ${field.versions}
   type: ${field.type}
   ignorable: ${field.ignorable?string('yes', 'no')}
 </#list>
 commonStructs:
-<#list messageSpec.commonStructs as commonStruct>
+<#list inputSpec.commonStructs as commonStruct>
   name: ${commonStruct.name}
 </#list>
 listeners:
-<#if messageSpec.listeners??>
-<#list messageSpec.listeners as listener>
+<#if inputSpec.listeners??>
+<#list inputSpec.listeners as listener>
   name: ${listener.name()}
 </#list>
 </#if>

@@ -52,8 +52,20 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     @Parameter(defaultValue = "compile")
     private String addToProjectSourceRoots;
 
+    @Parameter(defaultValue = "${project.build.sourceDirectory}")
+    private File sourceDirectory;
+
     @Parameter(defaultValue = "${project.build.directory}${file.separator}generated-sources${file.separator}/krpc")
     private File outputDirectory;
+
+    @Parameter(required = false)
+    private String inputSpecFilter;
+
+    @Parameter(required = false)
+    private boolean apiSpecMode;
+
+    @Parameter(required = false)
+    private boolean skipOutputIfSourceExists;
 
     @Component
     private BuildContext buildContext;
@@ -72,11 +84,15 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
                     .withLogger(new MavenLogger(KrpcGenerator.class.getName(), getLog()))
                     .withMessageSpecDir(messageSpecDirectory)
                     .withMessageSpecFilter(messageSpecFilter)
+                    .inputSpecFilter(inputSpecFilter)
                     .withTemplateDir(templateDirectory)
                     .withTemplateNames(templates)
                     .withOutputPackage(outputPackage)
+                    .withSourceDir(sourceDirectory)
                     .withOutputDir(outputDirectory)
                     .withOutputFilePattern(outputFilePattern)
+                    .withApiSpecMode(apiSpecMode)
+                    .withSkipOutputIfSourceExists(skipOutputIfSourceExists)
                     .build();
 
             try {

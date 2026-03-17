@@ -10,6 +10,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -245,4 +247,58 @@ public final class FieldSpec {
         return zeroCopy;
     }
 
+    /**
+     * Returns true if this field, or any subfields (recursive), is of one of the  given entity field types.
+     *
+     * @param entityFieldTypeNames entity field types
+     * @return true if present, false otherwise
+     */
+    public boolean hasAtLeastOneEntityField(Set<EntityType> entityFieldTypeNames) {
+        var found = entityFieldTypeNames.contains(entityType);
+        if (found) {
+            return true;
+        }
+        return fields().stream().anyMatch(f -> f.hasAtLeastOneEntityField(entityFieldTypeNames));
+    }
+
+    /**
+     * Returns true if this field and its immediate children define a resource list.
+     *
+     * @return true if this is a resource list.
+     */
+    public boolean isResourceList() {
+        return definesResourceListPredicate().test(this);
+    }
+
+    @Override
+    public String toString() {
+        return "FieldSpec{" +
+                "name='" + name + '\'' +
+                ", versions=" + versions +
+                ", fields=" + fields +
+                ", type=" + type +
+                ", mapKey=" + mapKey +
+                ", nullableVersions=" + nullableVersions +
+                ", fieldDefault='" + fieldDefault + '\'' +
+                ", ignorable=" + ignorable +
+                ", entityType=" + entityType +
+                ", about='" + about + '\'' +
+                ", taggedVersions=" + taggedVersions +
+                ", flexibleVersions=" + flexibleVersions +
+                ", tag=" + tag +
+                ", zeroCopy=" + zeroCopy +
+                '}';
+    }
+
+    public static Predicate<FieldSpec> definesResourceListPredicate() {
+        return f -> f.type().isStructArray() &&
+                hasMatchingChild("ResourceType", FieldType.Int8FieldType.class, f) &&
+                hasMatchingChild("ResourceName", FieldType.StringFieldType.class, f);
+    }
+
+    private static boolean hasMatchingChild(String fieldName, Class<? extends FieldType> fieldType, FieldSpec parent) {
+        return parent.fields().stream().anyMatch(sf -> !sf.versions().intersect(parent.versions()).empty() &&
+                sf.name().equals(fieldName) &&
+                fieldType.isAssignableFrom(sf.type().getClass()));
+    }
 }
