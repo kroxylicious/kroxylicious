@@ -87,19 +87,21 @@ MAX_RATE=""
 STEP_PERCENT="${DEFAULT_STEP_PERCENT}"
 WORKLOAD="${DEFAULT_WORKLOAD}"
 PROFILE_VALUES=""
+HELM_SET_ARGS=()
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --output-dir)    OUTPUT_DIR="$2";     shift 2 ;;
-        --scenarios)     SCENARIOS="$2";      shift 2 ;;
-        --baseline-from) BASELINE_FROM="$2";  shift 2 ;;
-        --min-rate)      MIN_RATE="$2";       shift 2 ;;
-        --max-rate)      MAX_RATE="$2";       shift 2 ;;
-        --step-percent)  STEP_PERCENT="$2";   shift 2 ;;
-        --workload)      WORKLOAD="$2";       shift 2 ;;
-        --profile)       PROFILE_VALUES="$2"; shift 2 ;;
-        --dry-run)       DRY_RUN=true;        shift   ;;
+        --output-dir)    OUTPUT_DIR="$2";           shift 2 ;;
+        --scenarios)     SCENARIOS="$2";            shift 2 ;;
+        --baseline-from) BASELINE_FROM="$2";        shift 2 ;;
+        --min-rate)      MIN_RATE="$2";             shift 2 ;;
+        --max-rate)      MAX_RATE="$2";             shift 2 ;;
+        --step-percent)  STEP_PERCENT="$2";         shift 2 ;;
+        --workload)      WORKLOAD="$2";             shift 2 ;;
+        --profile)       PROFILE_VALUES="$2";       shift 2 ;;
+        --set)           HELM_SET_ARGS+=("$2");     shift 2 ;;
+        --dry-run)       DRY_RUN=true;              shift   ;;
         -h|--help)       usage ;;
         -*)              echo "Error: unknown option '$1'" >&2; usage ;;
         *)               echo "Error: unexpected argument '$1'" >&2; usage ;;
@@ -191,8 +193,9 @@ deploy_scenario() {
 
     echo "--- Deploying ${scenario} ---"
     local helm_args=(-n "${NAMESPACE}" -f "${scenario_values}" --set omb.workload="${WORKLOAD}")
-    # ${array[@]+"${array[@]}"} is the bash 3.2-safe idiom for empty array expansion (see run-all-scenarios.sh)
+    # ${array[@]+"${array[@]}"} is the bash 3.2-safe idiom for empty array expansion
     [[ -n "${PROFILE_VALUES}" ]] && helm_args+=(-f "${PROFILE_VALUES}")
+    for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do helm_args+=(--set "${set_arg}"); done
     helm install "${HELM_RELEASE}" "${HELM_CHART}" "${helm_args[@]}"
 
     echo "Waiting for Kafka (timeout: ${KAFKA_READY_TIMEOUT})..."
