@@ -19,7 +19,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        transactionalId: "random-string-39"
+        transactionalId: "my-transactional-id"
         acks: 1
         timeoutMs: 314
         topicData:
@@ -58,7 +58,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    transactionalId: "random-string-39"
+    transactionalId: "my-transactional-id"
     acks: 1
     timeoutMs: 314
     topicData:
@@ -83,5 +83,12 @@ then:
                 batchIndexErrorMessage: "random-string-236"
             errorMessage: "random-string-728"
     throttleTimeMs: 558
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: "denied"

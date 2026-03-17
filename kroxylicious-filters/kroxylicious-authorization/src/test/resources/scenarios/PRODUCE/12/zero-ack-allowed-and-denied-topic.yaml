@@ -22,7 +22,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        transactionalId: "random-string-292"
+        transactionalId: "my-transactional-id"
         acks: 0
         timeoutMs: 141
         topicData:
@@ -45,7 +45,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    transactionalId: "random-string-292"
+    transactionalId: "my-transactional-id"
     acks: 0
     timeoutMs: 141
     topicData:
@@ -59,5 +59,16 @@ when:
             records: !!binary ""
 then:
   hasResponse: false
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: "denied"

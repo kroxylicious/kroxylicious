@@ -87,5 +87,12 @@ then:
                 batchIndexErrorMessage: "random-string-410"
             errorMessage: "random-string-667"
     throttleTimeMs: 141
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null

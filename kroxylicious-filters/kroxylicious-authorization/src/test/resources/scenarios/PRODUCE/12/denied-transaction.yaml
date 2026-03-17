@@ -36,5 +36,12 @@ when:
             records: !!binary "AAAAAAAAAAEAAABAAAAAAQJiprm8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEAAAABAAAAARwAAAAGS0VZClZBTFVFAA==" # records containing a transactional batch
 then:
   expectedErrorResponse: "TRANSACTIONAL_ID_AUTHORIZATION_FAILED"
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "WRITE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "denied-transactional-id"
+      status: "denied"
