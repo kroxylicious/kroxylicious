@@ -92,7 +92,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         String testClassName = extensionContext.getRequiredTestClass().getName();
         String testMethodName = extensionContext.getRequiredTestMethod().getName();
         try {
-            if (!isAbortedTest(extensionContext)) {
+            if (extensionContext.getExecutionException().isPresent() && !isAbortedTest(extensionContext)) {
                 logCollector.collectLogs(testClassName, testMethodName);
             }
         }

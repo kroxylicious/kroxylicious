@@ -68,7 +68,7 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                     },
                     (AfterEachCallback) extensionContext -> {
                         try {
-                            if (!isAbortedTest(extensionContext)) {
+                            if (extensionContext.getExecutionException().isPresent() && !isAbortedTest(extensionContext)) {
                                 logCollector.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
                             }
                         }
