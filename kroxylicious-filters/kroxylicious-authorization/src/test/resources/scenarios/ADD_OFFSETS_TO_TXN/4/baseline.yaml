@@ -63,3 +63,7 @@ then:
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
       status: null
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

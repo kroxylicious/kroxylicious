@@ -36,3 +36,12 @@ then:
   expectedResponse:
     throttleTimeMs: 0
     errorCode: 30 # GROUP_AUTHORIZATION_FAILED
+  expectedAuditActions:
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: "denied"
+    - action: "Write"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null
