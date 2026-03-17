@@ -244,12 +244,12 @@ if [[ -n "${PROXY_POD}" ]]; then
         -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
 
-    # Wait for any stale JFR PVC from a previous run to be fully deleted.
-    # A terminating PVC will cause 'kubectl apply' to report "unchanged" and
-    # the new pod will fail to mount it.
+    # Ensure any stale JFR PVC from a previous run is fully gone before creating a new one.
+    # It may be Terminating (teardown in progress) or simply orphaned (--skip-teardown was used).
+    # kubectl delete --timeout waits for full removal in both cases.
     if kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
-        echo "Waiting for stale JFR PVC ${JFR_PVC_NAME} to be fully deleted..."
-        kubectl wait --for=delete pvc/"${JFR_PVC_NAME}" -n "${NAMESPACE}" --timeout=60s
+        echo "Deleting stale JFR PVC ${JFR_PVC_NAME} and waiting for full removal..."
+        kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     fi
 
     echo "Creating JFR PVC ${JFR_PVC_NAME} (${JFR_PVC_SIZE})..."
