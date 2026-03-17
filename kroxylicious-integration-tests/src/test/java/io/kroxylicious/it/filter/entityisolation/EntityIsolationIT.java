@@ -39,6 +39,7 @@ import org.apache.kafka.clients.consumer.internals.ShareAcknowledgementMode;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.GroupState;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AccessControlEntryFilter;
@@ -82,6 +83,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.collection;
 import static org.assertj.core.api.InstanceOfAssertFactories.map;
 import static org.awaitility.Awaitility.await;
@@ -98,7 +100,8 @@ class EntityIsolationIT {
 
     private static final String CONSUMER_GROUP_NAME = "mygroup";
 
-    @SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"), @SaslMechanism.Principal(user = "bob", password = "pwd") })
+    @SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"), @SaslMechanism.Principal(user = "bob", password = "pwd"),
+            @SaslMechanism.Principal(user = "dash-boy", password = "pwd") })
     KafkaCluster cluster;
 
     private enum ConsumerStyle {
@@ -704,6 +707,27 @@ class EntityIsolationIT {
                         .extracting(AclBinding::pattern)
                         .extracting(ResourcePattern::name)
                         .containsExactlyInAnyOrderElementsOf(List.of(bobResourcePattern.name()));
+            }
+        }
+    }
+
+    /**
+     * Rejects unacceptable principal
+     * @param topic topic
+     */
+    @Test
+    void rejectsUnacceptablePrincipal(Topic topic) {
+
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.GROUP_ID));
+        // The principal will be rejected as the dash is also the separator character used by the mapper.
+        var dashboy = buildClientConfig("dash-boy", "pwd");
+
+        try (var tester = kroxyliciousTester(configBuilder)) {
+
+            try (var producer = tester.producer(dashboy)) {
+                var record = new ProducerRecord<>(topic.name(), "k1", "v1");
+                assertThatThrownBy(() -> producer.send(record))
+                        .isInstanceOf(KafkaException.class);
             }
         }
     }

@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
+import io.kroxylicious.filter.entityisolation.EntityNameMapper.EntityMapperException;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -45,10 +46,12 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
 
     private final Map<ApiKeys, ? extends EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> processorMap;
     private final Map<Integer, Object> correlatedRequestContext = new HashMap<>();
+    private final EntityNameMapper mapper;
 
     EntityIsolationFilter(Set<EntityType> resourceTypes, EntityNameMapper mapper) {
         Objects.requireNonNull(resourceTypes);
         Objects.requireNonNull(mapper);
+        this.mapper = mapper;
 
         Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> pm = new EnumMap<>(ApiKeys.class);
 
@@ -89,16 +92,28 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         return Optional.ofNullable(processorMap.get(apiKey))
                 .map(EntityIsolationProcessor.class::cast)
                 .map(eip -> {
+                    var mapperContext = buildMapperContext(filterContext);
+
                     if (eip.versionIsOutOfRange(apiVersion)) {
-                        // fail closed
-                        logFailClosed(filterContext, apiKey, apiVersion, eip.minSupportedVersion(), eip.maxSupportedVersion());
+                        logUnexpectedApiVersion(filterContext, apiKey, apiVersion, eip.minSupportedVersion(), eip.maxSupportedVersion());
                         return filterContext.requestFilterResultBuilder()
                                 .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
                                 .withCloseConnection()
                                 .completed();
                     }
+
+                    try {
+                        mapper.validateContext(mapperContext);
+                    }
+                    catch (EntityMapperException e) {
+                        logMappingException(filterContext, apiKey, apiVersion, e);
+                        return filterContext.requestFilterResultBuilder()
+                                .errorResponse(header, request, Errors.UNKNOWN_SERVER_ERROR.exception())
+                                .withCloseConnection()
+                                .completed();
+                    }
+
                     log(filterContext, "request", apiKey, request);
-                    var mapperContext = buildMapperContext(filterContext);
                     var crc = eip.createCorrelatedRequestContext(request);
                     return ((CompletionStage<RequestFilterResult>) eip.onRequest(header, apiVersion, request, filterContext, mapperContext))
                             .thenApply(rfr -> {
@@ -158,7 +173,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 .log();
     }
 
-    private static void logFailClosed(FilterContext context, ApiKeys key, short version, short minVersion, short maxVersion) {
+    private static void logUnexpectedApiVersion(FilterContext context, ApiKeys key, short version, short minVersion, short maxVersion) {
         LOGGER.atWarn()
                 .addArgument(context::sessionId)
                 .addArgument(context::authenticatedSubject)
@@ -166,7 +181,19 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 .addArgument(version)
                 .addArgument(minVersion)
                 .addArgument(maxVersion)
-                .setMessage("{} for {}: {} (version {}) falls outside range {}...{} known to this filter. closing connection.")
+                .setMessage("{} for {}: {} (version {}) falls outside range {}...{} known to this filter. Closing connection.")
+                .log();
+    }
+
+    private static void logMappingException(FilterContext context, ApiKeys key, short version, Throwable cause) {
+        LOGGER.atWarn()
+                .addArgument(context::sessionId)
+                .addArgument(context::authenticatedSubject)
+                .addArgument(key)
+                .addArgument(version)
+                .addArgument(cause.getMessage())
+                .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                .setMessage("{} for {}: {} (version {}) failed. Closing connection. Cause message {}. Raise log level to DEBUG to see the stack.")
                 .log();
     }
 

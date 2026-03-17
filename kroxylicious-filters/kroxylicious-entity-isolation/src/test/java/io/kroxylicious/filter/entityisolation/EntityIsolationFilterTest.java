@@ -36,12 +36,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.reflect.ClassPath;
 
+import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -67,23 +70,36 @@ class EntityIsolationFilterTest {
                 });
     }
 
-    private static EntityNameMapper createEntityMapper(String subject) {
+    private static EntityNameMapper createEntityMapper(@Nullable String subject) {
         return new EntityNameMapper() {
+            public static final String SEPARATOR = "-";
+
             @Override
-            public String map(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String downstreamResourceName) {
-                return subject + "-" + downstreamResourceName;
+            public void validateContext(MapperContext mapperContext) throws EntityMapperException {
+                if (subject == null || subject.contains(SEPARATOR)) {
+                    throw new EntityMapperException("Unacceptable subject " + subject);
+                }
             }
 
             @Override
-            public String unmap(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
-                var prefix = subject + "-";
-                boolean hasPrefix = upstreamResourceName.startsWith(prefix);
-                return hasPrefix ? upstreamResourceName.substring(prefix.length()) : upstreamResourceName;
+            public String map(MapperContext mapperContext, EntityType entityType, String downstreamResourceName) {
+                return subject + SEPARATOR + downstreamResourceName;
             }
 
             @Override
-            public boolean isOwnedByContext(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
-                var prefix = subject + "-";
+            public String unmap(MapperContext mapperContext, EntityType entityType, String upstreamResourceName) {
+                var prefix = subject + SEPARATOR;
+                if (upstreamResourceName.startsWith(prefix)) {
+                    return upstreamResourceName.substring(prefix.length());
+                }
+                else {
+                    throw new IllegalStateException("Exception unmapping " + upstreamResourceName + " for subject");
+                }
+            }
+
+            @Override
+            public boolean isOwnedByContext(MapperContext mapperContext, EntityType resourceType, String upstreamResourceName) {
+                var prefix = subject + SEPARATOR;
                 return upstreamResourceName.startsWith(prefix);
             }
         };

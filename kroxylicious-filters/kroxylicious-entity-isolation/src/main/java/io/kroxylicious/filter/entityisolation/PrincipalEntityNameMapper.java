@@ -8,11 +8,14 @@ package io.kroxylicious.filter.entityisolation;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.Unique;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An entity name mapper that forms the isolation using the principal name.
@@ -41,17 +44,33 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     }
 
     @Override
+    public void validateContext(MapperContext mapperContext) throws EntityMapperException {
+        Objects.requireNonNull(mapperContext);
+        var principal = getPrincipalName(mapperContext)
+                .orElseThrow(() -> new EntityMapperException(
+                        "The PrincipalEntityNameMapper requires an authenticated subject with a unique principal of type %s with a non-empty name, got subject %s"
+                                .formatted(
+                                        uniquePrincipalType.getSimpleName(), mapperContext.authenticatedSubject())));
+
+        if (principal.name().contains(separator)) {
+            throw new EntityMapperException("Principal '%s' is unacceptable as it contains the mapping separator '%s'".formatted(principal, separator));
+        }
+    }
+
+    @Override
     public String map(MapperContext mapperContext, EntityType entityType, String downstreamResourceName) {
         Objects.requireNonNull(mapperContext);
         Objects.requireNonNull(entityType);
         Objects.requireNonNull(downstreamResourceName);
-        var user = getValidatedValidatedPrincipalName(mapperContext.authenticatedSubject());
-        return user.map(authId -> doMap(authId, downstreamResourceName))
-                .orElse(downstreamResourceName);
+
+        return getPrincipalName(mapperContext)
+                .map(Principal::name)
+                .map(name -> doMap(name, downstreamResourceName))
+                .orElseThrow(() -> new IllegalStateException("Unexpected exception mapping entity name '%s' for %s".formatted(downstreamResourceName, mapperContext)));
     }
 
-    private String doMap(String authId, String unmappedResourceName) {
-        return authId + separator + unmappedResourceName;
+    private String doMap(String principal, String downstreamResourceName) {
+        return principal + separator + downstreamResourceName;
     }
 
     @Override
@@ -59,19 +78,19 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
         Objects.requireNonNull(mapperContext);
         Objects.requireNonNull(entityType);
         Objects.requireNonNull(upstreamResourceName);
-        var user = getValidatedValidatedPrincipalName(mapperContext.authenticatedSubject());
-        return user.map(authId -> doUnmap(authId, upstreamResourceName))
-                .orElse(upstreamResourceName);
+        return getPrincipalName(mapperContext)
+                .map(Principal::name)
+                .map(name -> doUnmap(name, upstreamResourceName))
+                .orElseThrow(() -> new IllegalStateException("Unexpected exception unmapping entity name '%s' for %s".formatted(upstreamResourceName, mapperContext)));
     }
 
+    @Nullable
     private String doUnmap(String authId, String mappedResourceName) {
         var prefix = authId + separator;
         if (mappedResourceName.startsWith(prefix)) {
             return mappedResourceName.substring(prefix.length());
         }
-        else {
-            throw new IllegalArgumentException("Resource name '%s' does not belong to the namespace belonging to '%s'".formatted(mappedResourceName, authId));
-        }
+        return null;
     }
 
     @Override
@@ -79,8 +98,9 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
         Objects.requireNonNull(mapperContext);
         Objects.requireNonNull(entityType);
         Objects.requireNonNull(upstreamResourceName);
-        var user = getValidatedValidatedPrincipalName(mapperContext.authenticatedSubject());
-        return user.map(authId -> upstreamResourceName.startsWith(authId + separator))
+        return getPrincipalName(mapperContext)
+                .map(Principal::name)
+                .map(name -> doUnmap(name, upstreamResourceName) != null)
                 .orElse(false);
     }
 
@@ -89,9 +109,16 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
         var name = authenticatedSubject.uniquePrincipalOfType(uniquePrincipalType).map(Principal::name);
         name.ifPresent(n -> {
             if (n.contains(separator)) {
-                throw new UnacceptableEntityNameException("Principal name '%s' is unaccepted as it contains the separator '%s'".formatted(n, separator));
+                throw new EntityMapperException("Principal name '%s' is unaccepted as it contains the separator '%s'".formatted(n, separator));
             }
         });
         return name;
+    }
+
+    private Optional<? extends Principal> getPrincipalName(MapperContext mapperContext) {
+        return Optional.of(mapperContext)
+                .map(MapperContext::authenticatedSubject)
+                .flatMap(a -> a.uniquePrincipalOfType(uniquePrincipalType))
+                .filter(Predicate.not(p -> p.name() == null || p.name().isBlank()));
     }
 }
