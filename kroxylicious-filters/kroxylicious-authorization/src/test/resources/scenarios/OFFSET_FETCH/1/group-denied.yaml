@@ -42,3 +42,8 @@ then:
             committedOffset: -1
             metadata: ""
             errorCode: 30 # group authorization failed
+  expectedAuditActions:
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource" : "my-group"
+      status: "denied"

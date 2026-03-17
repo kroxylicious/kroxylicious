@@ -93,3 +93,7 @@ then:
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource" : "my-group"
+      status: null

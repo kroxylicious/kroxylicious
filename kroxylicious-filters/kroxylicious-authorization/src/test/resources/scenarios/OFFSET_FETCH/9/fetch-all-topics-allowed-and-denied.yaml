@@ -148,3 +148,11 @@ then:
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "with-specific-topics"
+      status: null
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "with-all-topics"
+      status: null
