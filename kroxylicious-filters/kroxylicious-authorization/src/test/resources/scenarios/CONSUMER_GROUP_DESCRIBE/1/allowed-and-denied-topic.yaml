@@ -160,9 +160,9 @@ then:
   expectedAuditActions:
     - action: "DESCRIBE"
       objectRef:
-        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
-      status: "denied"
-    - action: "DESCRIBE"
-      objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"
