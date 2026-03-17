@@ -143,6 +143,8 @@ teardown() {
     # Wait explicitly so the pvc-protection finalizer on the JFR PVC is released.
     kubectl wait pod -l "${PROXY_POD_LABEL}" -n "${NAMESPACE}" \
         --for=delete --timeout=60s 2>/dev/null || true
+    # Delete any stale jfr-collect pod — it mounts the JFR PVC and prevents its deletion
+    kubectl delete pod -l app=jfr-collect -n "${NAMESPACE}" --ignore-not-found --wait --timeout=60s
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     # Delete JFR PVC if one was created
@@ -245,11 +247,21 @@ if [[ -n "${PROXY_POD}" ]]; then
         -o jsonpath='{.items[0].metadata.name}')
 
     # Ensure any stale JFR PVC from a previous run is fully gone before creating a new one.
-    # It may be Terminating (teardown in progress) or simply orphaned (--skip-teardown was used).
-    # kubectl delete --timeout waits for full removal in both cases.
+    # The pvc-protection finalizer is held while any pod mounts the volume, so if an old
+    # proxy pod from a previous run is still terminating, the PVC cannot be deleted until
+    # that pod fully exits.  We issue the delete and then poll rather than relying on a
+    # fixed --timeout (which exits with an error if the deadline is hit).
     if kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
-        echo "Deleting stale JFR PVC ${JFR_PVC_NAME} and waiting for full removal..."
-        kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
+        echo "Deleting stale JFR PVC ${JFR_PVC_NAME} (waiting for any terminating proxy pod)..."
+        kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found 2>/dev/null || true
+        PVC_DEADLINE=$((SECONDS + 120))
+        while kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; do
+            if [[ $SECONDS -ge $PVC_DEADLINE ]]; then
+                echo "Warning: stale JFR PVC ${JFR_PVC_NAME} still present after 120s — proceeding anyway" >&2
+                break
+            fi
+            sleep 5
+        done
     fi
 
     echo "Creating JFR PVC ${JFR_PVC_NAME} (${JFR_PVC_SIZE})..."
