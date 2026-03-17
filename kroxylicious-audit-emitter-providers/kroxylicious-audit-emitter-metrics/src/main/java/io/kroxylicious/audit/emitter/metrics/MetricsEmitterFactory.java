@@ -20,6 +20,6 @@ public class MetricsEmitterFactory implements AuditEmitterFactory<MetricsEmitter
         if (configuration == null) {
             configuration = new MetricsEmitterConfig(Map.of());
         }
-        return new MetricsEmitter(Optional.ofNullable(configuration.objectScopeMapping()).orElse(Map.of()));
+        return new MetricsEmitter(Optional.ofNullable(configuration.scopeMapping()).orElse(Map.of()));
     }
 }

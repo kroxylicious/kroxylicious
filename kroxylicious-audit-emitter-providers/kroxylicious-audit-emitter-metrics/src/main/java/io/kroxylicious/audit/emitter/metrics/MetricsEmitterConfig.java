@@ -8,10 +8,12 @@ package io.kroxylicious.audit.emitter.metrics;
 
 import java.util.Map;
 
+import io.kroxylicious.proxy.audit.AuditableAction;
+
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * @param objectScopeMapping A mapping from objectRef scope to meter tag key.
+ * @param scopeMapping A mapping from {@link AuditableAction#objectRef()} scope to meter tag key.
  * If an objectRef scope is not present in the {@code objectScopeMapping} there
  * will not be a corresponding tag in the associated meter tags.
  * If an objectRef scope is present the meter tag will be the mapping's value.
@@ -19,4 +21,4 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * with a large number of tags (a.k.a. cardinality explosion), and to ensure that tags
  * are named consistently.
  */
-public record MetricsEmitterConfig(@Nullable Map<String, String> objectScopeMapping) {}
+public record MetricsEmitterConfig(@Nullable Map<String, String> scopeMapping) {}

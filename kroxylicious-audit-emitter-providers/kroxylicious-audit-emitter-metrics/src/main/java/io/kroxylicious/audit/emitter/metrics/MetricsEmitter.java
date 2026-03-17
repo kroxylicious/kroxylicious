@@ -6,9 +6,9 @@
 
 package io.kroxylicious.audit.emitter.metrics;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.ImmutableTag;
@@ -25,11 +25,13 @@ import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class MetricsEmitter implements AuditEmitter {
 
+    public static final String METER_NAME = "kroxylicious_audit";
     private final Map<String, String> tagMapping;
-    private Map<String, Object> meterNames = new ConcurrentHashMap<>();
+    private final Meter.MeterProvider<Counter> meterProvider;
 
     public MetricsEmitter(Map<String, String> tagMapping) {
         this.tagMapping = tagMapping;
+        this.meterProvider = buildCounterMeterProvider(METER_NAME, "The number of audit actions");
     }
 
     private static Meter.MeterProvider<Counter> buildCounterMeterProvider(String meterName,
@@ -40,17 +42,15 @@ public class MetricsEmitter implements AuditEmitter {
                 .withRegistry(globalRegistry);
     }
 
-    private static String toSnakeCase(String input) {
-        // TODO this could be unneccesary if we recommend that actions are in snake case
-        return input;
-    }
-
-    private Iterable<? extends Tag> tags(Map<String, String> objectRef) {
-        List<ImmutableTag> list = tagMapping.entrySet().stream()
-                .filter(e -> objectRef.containsKey(e.getKey()))
-                .map(e -> new ImmutableTag(e.getValue(), toSnakeCase(objectRef.get(e.getKey()))))
-                .toList();
-        return list;
+    private Iterable<? extends Tag> tags(String action, @Nullable String status, Map<String, String> objectRef) {
+        return Stream.concat(
+                Stream.of(
+                        new ImmutableTag("action", action),
+                        new ImmutableTag("outcome", status == null ? "success" : "failure")),
+                tagMapping.entrySet().stream()
+                        .filter(e -> objectRef.containsKey(e.getKey()))
+                        .map(e -> new ImmutableTag(e.getValue(), objectRef.get(e.getKey()))))
+                        .toList();
     }
 
     @Override
@@ -60,31 +60,19 @@ public class MetricsEmitter implements AuditEmitter {
 
     @Override
     public void emitAction(AuditableAction action, Context context) {
-        String meterName;
-        String meterDescription;
-        if (action.status() == null) {
-            meterName = "kroxylicious_audit_" + toSnakeCase(action.action()) + "_success";
-            meterDescription = "The number of successful " + action + " events";
-        }
-        else {
-            meterName = "kroxylicious_audit_" + toSnakeCase(action.action()) + "_failure";
-            meterDescription = "The number of failed " + action + " events";
-        }
-        meterNames.put(meterName, this);
-        Counter counter = buildCounterMeterProvider(meterName, meterDescription)
-                .withTags(tags(action.objectRef()));
+
+        var counter = meterProvider
+                .withTags(tags(action.action(), action.status(), action.objectRef()));
         counter.increment();
     }
 
     @Override
     public void close() {
-        meterNames.keySet().forEach(meterName -> {
-            try {
-                globalRegistry.get(meterName).meters().forEach(globalRegistry::remove);
-            }
-            catch (MeterNotFoundException e) {
-                // If it didn't exist, I guess we don't have to remove it
-            }
-        });
+        try {
+            globalRegistry.get(METER_NAME).meters().forEach(globalRegistry::remove);
+        }
+        catch (MeterNotFoundException e) {
+            // If it didn't exist, I guess we don't have to remove it
+        }
     }
 }
