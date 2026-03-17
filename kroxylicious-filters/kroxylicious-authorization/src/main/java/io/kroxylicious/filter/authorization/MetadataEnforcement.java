@@ -8,8 +8,10 @@ package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
@@ -211,27 +213,34 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
             throw new IllegalStateException("No MetadataCompleter found for correlationId: " + header.correlationId());
         }
         List<Action> actions = new ArrayList<>();
+        Set<Action> nonAuditableActions = new HashSet<>();
         if (completer.includeClusterAuthorizedOperations()) {
             for (var clusterOp : ClusterResource.values()) {
-                actions.add(new Action(clusterOp, ""));
+                Action action = new Action(clusterOp, "");
+                actions.add(action);
+                nonAuditableActions.add(action);
             }
         }
         if (completer.includeTopicAuthorizedOperations()) {
-            actions.addAll(response.topics().stream()
+            List<Action> topicActions = response.topics().stream()
                     .map(MetadataResponseData.MetadataResponseTopic::name)
                     .filter(Objects::nonNull)
                     .flatMap(topicName -> Arrays.stream(TopicResource.values()).map(op -> new Action(op, topicName)))
-                    .toList());
+                    .toList();
+            actions.addAll(topicActions);
+            nonAuditableActions.addAll(topicActions);
         }
         else {
-            actions.addAll(response.topics().stream()
+            List<Action> topicDescribeActions = response.topics().stream()
                     .map(MetadataResponseData.MetadataResponseTopic::name)
                     .filter(Objects::nonNull)
                     .map(topicName -> new Action(TopicResource.DESCRIBE, topicName))
-                    .toList());
+                    .toList();
+            actions.addAll(topicDescribeActions);
+            nonAuditableActions.removeAll(actions);
         }
 
-        return authorizationFilter.authorization(context, actions)
+        return authorizationFilter.authorization(context, actions, nonAuditableActions)
                 .thenCompose(authorize -> {
                     var toRemove = new ArrayList<MetadataResponseData.MetadataResponseTopic>();
 
@@ -274,11 +283,11 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
                 });
     }
 
-    static record MetadataCompleter(boolean includeClusterAuthorizedOperations,
-                                    boolean includeTopicAuthorizedOperations,
-                                    boolean isAllTopics,
-                                    boolean requestUsesTopicIds,
-                                    List<MetadataResponseData.MetadataResponseTopic> topics)
+    record MetadataCompleter(boolean includeClusterAuthorizedOperations,
+                             boolean includeTopicAuthorizedOperations,
+                             boolean isAllTopics,
+                             boolean requestUsesTopicIds,
+                             List<MetadataResponseData.MetadataResponseTopic> topics)
             implements InflightState<MetadataResponseData> {
         @Override
         public MetadataResponseData merge(MetadataResponseData response) {

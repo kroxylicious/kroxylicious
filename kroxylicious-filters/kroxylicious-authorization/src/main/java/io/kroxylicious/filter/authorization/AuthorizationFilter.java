@@ -13,6 +13,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,6 +31,8 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;
+import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -161,11 +164,19 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         }
     }
 
-    CompletionStage<AuthorizeResult> authorization(FilterContext context, List<Action> actions) {
+    CompletionStage<AuthorizeResult> authorization(FilterContext context, List<Action> auditableActions) {
+        return authorization(context, auditableActions, Set.of());
+    }
+
+    CompletionStage<AuthorizeResult> authorization(FilterContext context,
+                                                   List<Action> actions,
+                                                   Set<Action> nonAuditableActions) {
+
         var actionsPartitionedByAuthorizerSupport = authorizer.supportedResourceTypes()
-                .map(supportedTypes -> actions.stream().collect(Collectors.partitioningBy(
-                        action -> action.resourceTypeClass() == ClusterResource.class
-                                || supportedTypes.contains(action.resourceTypeClass()))))
+                .map(supportedTypes -> actions.stream()
+                        .collect(Collectors.partitioningBy(
+                                action -> action.resourceTypeClass() == ClusterResource.class
+                                        || supportedTypes.contains(action.resourceTypeClass()))))
                 .orElse(Map.of(Boolean.TRUE, actions));
         var actionsWithSupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(Boolean.TRUE, List.of());
         var actionsWithUnsupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(Boolean.FALSE, List.of());
@@ -173,24 +184,51 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 actionsWithSupportedResourceTypes)
                 .thenApply(authz -> {
                     if (!authz.denied().isEmpty()) {
-                        LOG.info("DENY {} to {}", authz.denied(), authz.subject());
+                        logAndAuditLog(Decision.DENY, context, nonAuditableActions, authz.denied(), authz.subject(), "");
                     }
-                    else if (!authz.allowed().isEmpty()) {
-                        LOG.debug("ALLOW {} to {}", authz.allowed(), authz.subject());
+                    if (!authz.allowed().isEmpty()) {
+                        logAndAuditLog(Decision.ALLOW, context, nonAuditableActions, authz.allowed(), authz.subject(), "");
                     }
-                    else if (actions.isEmpty()) {
+                    if (actions.isEmpty()) {
                         LOG.debug("ALLOW {} no authorizable actions", authz.subject());
                     }
                     if (!actionsWithUnsupportedResourceTypes.isEmpty()) {
-                        LOG.debug("ALLOW {} to {} (due to resource types not being supported by {})",
-                                actionsWithUnsupportedResourceTypes, authz.subject(),
-                                authorizer.getClass().getName());
+                        logAndAuditLog(Decision.ALLOW, context, nonAuditableActions, actionsWithUnsupportedResourceTypes, authz.subject(),
+                                "(due to resource types not being supported by " + authorizer.getClass().getName() + ")");
                         authz = new AuthorizeResult(authz.subject(),
                                 Stream.concat(authz.allowed().stream(), actionsWithUnsupportedResourceTypes.stream()).collect(Collectors.toUnmodifiableList()),
                                 authz.denied());
                     }
                     return authz;
                 });
+    }
+
+    private static void logAndAuditLog(Decision decision,
+                                       FilterContext context,
+                                       Set<Action> nonAuditableActions,
+                                       List<Action> actionsOfDecision,
+                                       Subject subject,
+                                       String reason) {
+        var loggingEvent = switch (decision) {
+            case DENY -> LOG.atInfo();
+            case ALLOW -> LOG.atDebug();
+        };
+        loggingEvent.setMessage("{} {} to {}{}")
+                .addArgument(decision)
+                .addArgument(actionsOfDecision)
+                .addArgument(subject)
+                .addArgument(reason)
+                .log();
+        for (Action action : actionsOfDecision) {
+            if (!nonAuditableActions.contains(action)) {
+                var auditEvent = switch (decision) {
+                    case DENY -> context.auditLogger().actionWithOutcome(String.valueOf(action.operation()), "denied", null);
+                    case ALLOW -> context.auditLogger().action(String.valueOf(action.operation()));
+                };
+                auditEvent.withObjectRef(Map.of(action.resourceTypeClass().getName(), action.resourceName()))
+                        .log();
+            }
+        }
     }
 
     static void nonAuthorizableRequest(FilterContext context) {

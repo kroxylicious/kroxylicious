@@ -97,6 +97,7 @@ class AuthorizationFilterTest {
         when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.empty());
         AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
         FilterContext filterContext = Mockito.mock(FilterContext.class);
+        when(filterContext.auditLogger()).thenReturn(new MockFilterContext.MockAuditLogger());
         when(filterContext.authenticatedSubject()).thenReturn(subject);
         // when
         CompletionStage<AuthorizeResult> authorization = filter.authorization(filterContext, actions);
@@ -117,6 +118,7 @@ class AuthorizationFilterTest {
         when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.of(Set.of()));
         AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
         FilterContext filterContext = Mockito.mock(FilterContext.class);
+        when(filterContext.auditLogger()).thenReturn(new MockFilterContext.MockAuditLogger());
         when(filterContext.authenticatedSubject()).thenReturn(subject);
         List<Action> actions = List.of(new Action(TopicResource.ALTER_CONFIGS, "resourceA"),
                 new Action(TransactionalIdResource.DESCRIBE, "resourceB"));
@@ -142,6 +144,7 @@ class AuthorizationFilterTest {
         when(mockAuthorizer.supportedResourceTypes()).thenReturn(Optional.of(Set.of(TopicResource.class)));
         AuthorizationFilter filter = new AuthorizationFilter(mockAuthorizer);
         FilterContext filterContext = Mockito.mock(FilterContext.class);
+        when(filterContext.auditLogger()).thenReturn(new MockFilterContext.MockAuditLogger());
         when(filterContext.authenticatedSubject()).thenReturn(subject);
         // when
         CompletionStage<AuthorizeResult> authorization = filter.authorization(filterContext, actions);

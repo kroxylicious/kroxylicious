@@ -7,9 +7,13 @@
 package io.kroxylicious.filter.authorization;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
@@ -25,6 +29,8 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPartitionsRequestData, DescribeTopicPartitionsResponseData> {
     @Override
@@ -50,9 +56,16 @@ class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPar
         }
         else {
             // resolve all TopicResource operations for the purposes of constructing authorized operations
-            List<Action> actions = request.topics().stream().flatMap(topicRequest -> Arrays.stream(TopicResource.values()).map(r -> new Action(r, topicRequest.name())))
+            List<Action> actions = topicsCrossWithOperations(
+                    request.topics(),
+                    EnumSet.allOf(TopicResource.class))
                     .toList();
-            return authorizationFilter.authorization(context, actions).thenCompose(authorizeResult -> {
+            Set<Action> nonAuditableActions = topicsCrossWithOperations(
+                    request.topics(),
+                    // only DESCRIBE is auditable
+                    EnumSet.complementOf(EnumSet.of(TopicResource.DESCRIBE)))
+                    .collect(Collectors.toSet());
+            return authorizationFilter.authorization(context, actions, nonAuditableActions).thenCompose(authorizeResult -> {
                 Map<Decision, List<DescribeTopicPartitionsRequestData.TopicRequest>> partitioned = authorizeResult.partition(request.topics(), TopicResource.DESCRIBE,
                         DescribeTopicPartitionsRequestData.TopicRequest::name);
                 var unauthorized = partitioned.get(Decision.DENY).stream().map(topic -> {
@@ -85,6 +98,12 @@ class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPar
                 }
             });
         }
+    }
+
+    @NonNull
+    private static Stream<Action> topicsCrossWithOperations(List<DescribeTopicPartitionsRequestData.TopicRequest> topics, EnumSet<TopicResource> topicResourceOps) {
+        return topics.stream().flatMap(topicRequest -> topicResourceOps.stream()
+                .map(topicResourceOp -> new Action(topicResourceOp, topicRequest.name())));
     }
 
     record AllTopicsInflightState() implements InflightState<DescribeTopicPartitionsResponseData> {
