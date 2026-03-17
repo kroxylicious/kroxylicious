@@ -16,7 +16,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.requests.FindCoordinatorRequest.CoordinatorType;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
+import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -29,12 +29,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * from the request.
  */
 class FindCoordinatorEntityIsolationProcessor
-        implements EntityIsolationProcessor<FindCoordinatorRequestData, FindCoordinatorResponseData, ResourceType> {
+        implements EntityIsolationProcessor<FindCoordinatorRequestData, FindCoordinatorResponseData, EntityIsolation.EntityType> {
 
-    private final Predicate<ResourceType> shouldMap;
+    private final Predicate<EntityIsolation.EntityType> shouldMap;
     private final EntityNameMapper mapper;
 
-    FindCoordinatorEntityIsolationProcessor(Predicate<ResourceType> shouldMap, EntityNameMapper mapper) {
+    FindCoordinatorEntityIsolationProcessor(Predicate<EntityType> shouldMap, EntityNameMapper mapper) {
         this.shouldMap = shouldMap;
         this.mapper = mapper;
     }
@@ -83,7 +83,7 @@ class FindCoordinatorEntityIsolationProcessor
     @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     public CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
                                                             short apiVersion,
-                                                            @Nullable ResourceType requestedResourceType,
+                                                            @Nullable EntityIsolation.EntityType requestedResourceType,
                                                             FindCoordinatorResponseData response,
                                                             FilterContext filterContext,
                                                             MapperContext mapperContext) {
@@ -97,19 +97,19 @@ class FindCoordinatorEntityIsolationProcessor
 
     @Nullable
     @Override
-    public ResourceType createCorrelatedRequestContext(FindCoordinatorRequestData request) {
+    public EntityType createCorrelatedRequestContext(FindCoordinatorRequestData request) {
         return getResourceType(request.keyType()).orElse(null);
     }
 
-    private Optional<ResourceType> getResourceType(byte id) {
+    private Optional<EntityType> getResourceType(byte id) {
         var coordinatorType = CoordinatorType.forId(id);
         return convertCoordinatorType(coordinatorType);
     }
 
-    private Optional<ResourceType> convertCoordinatorType(CoordinatorType coordinatorType) {
+    private Optional<EntityType> convertCoordinatorType(CoordinatorType coordinatorType) {
         return switch (coordinatorType) {
-            case GROUP, SHARE -> Optional.of(ResourceType.GROUP_ID);
-            case TRANSACTION -> Optional.of(ResourceType.TRANSACTIONAL_ID);
+            case GROUP, SHARE -> Optional.of(EntityType.GROUP_ID);
+            case TRANSACTION -> Optional.of(EntityType.TRANSACTIONAL_ID);
         };
     }
 

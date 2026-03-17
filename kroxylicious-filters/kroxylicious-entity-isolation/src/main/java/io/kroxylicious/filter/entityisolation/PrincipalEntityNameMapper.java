@@ -40,7 +40,7 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     }
 
     @Override
-    public String map(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String downstreamResourceName) {
+    public String map(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String downstreamResourceName) {
         var user = getValidatedValidatedPrincipalName(mapperContext.authenticatedSubject());
         return user.map(authId -> doMap(authId, downstreamResourceName))
                 .orElse(downstreamResourceName);
@@ -51,7 +51,7 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     }
 
     @Override
-    public String unmap(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String upstreamResourceName) {
+    public String unmap(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
         var user = getValidatedValidatedPrincipalName(mapperContext.authenticatedSubject());
         return user.map(authId -> doUnmap(authId, upstreamResourceName))
                 .orElse(upstreamResourceName);
@@ -68,7 +68,7 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     }
 
     @Override
-    public boolean isInNamespace(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String upstreamResourceName) {
+    public boolean isInNamespace(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
         var user = getValidatedValidatedPrincipalName(mapperContext.authenticatedSubject());
         return user.map(authId -> upstreamResourceName.startsWith(authId + separator))
                 .orElse(false);

@@ -47,14 +47,14 @@ class PrincipalEntityNameMapperTest {
     @Test
     void map() {
         var mapperContext = buildMapperContext(subject);
-        assertThat(mapper.map(mapperContext, EntityIsolation.ResourceType.TOPIC_NAME, "foo"))
+        assertThat(mapper.map(mapperContext, EntityIsolation.EntityType.TOPIC_NAME, "foo"))
                 .isEqualTo("bob-foo");
     }
 
     @Test
     void unmap() {
         var mapperContext = buildMapperContext(subject);
-        assertThat(mapper.unmap(mapperContext, EntityIsolation.ResourceType.TOPIC_NAME, "bob-foo"))
+        assertThat(mapper.unmap(mapperContext, EntityIsolation.EntityType.TOPIC_NAME, "bob-foo"))
                 .isEqualTo("foo");
     }
 
@@ -62,7 +62,7 @@ class PrincipalEntityNameMapperTest {
     void shouldRejectPrincipalContainingSeparator() {
         when(user.name()).thenReturn("dash-boy");
         var mapperContext = buildMapperContext(subject);
-        assertThatThrownBy(() -> mapper.map(mapperContext, EntityIsolation.ResourceType.TOPIC_NAME, "foo"))
+        assertThatThrownBy(() -> mapper.map(mapperContext, EntityIsolation.EntityType.TOPIC_NAME, "foo"))
                 .isInstanceOf(UnacceptableEntityNameException.class)
                 .hasMessageContaining("Principal name 'dash-boy' may not contain the separator '-'");
     }
@@ -70,20 +70,20 @@ class PrincipalEntityNameMapperTest {
     @Test
     void shouldRejectOutOfNamespaceResourceName() {
         var mapperContext = buildMapperContext(subject);
-        assertThatThrownBy(() -> mapper.unmap(mapperContext, EntityIsolation.ResourceType.TOPIC_NAME, "alice-foo"))
+        assertThatThrownBy(() -> mapper.unmap(mapperContext, EntityIsolation.EntityType.TOPIC_NAME, "alice-foo"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void isInNamespace() {
         var mapperContext = buildMapperContext(subject);
-        assertThat(mapper.isInNamespace(mapperContext, EntityIsolation.ResourceType.TOPIC_NAME, "bob-foo"))
+        assertThat(mapper.isInNamespace(mapperContext, EntityIsolation.EntityType.TOPIC_NAME, "bob-foo"))
                 .isTrue();
     }
 
     @Test
     void notInNamespace() {
-        assertThat(mapper.isInNamespace(buildMapperContext(subject), EntityIsolation.ResourceType.TOPIC_NAME, "alice-foo"))
+        assertThat(mapper.isInNamespace(buildMapperContext(subject), EntityIsolation.EntityType.TOPIC_NAME, "alice-foo"))
                 .isFalse();
     }
 

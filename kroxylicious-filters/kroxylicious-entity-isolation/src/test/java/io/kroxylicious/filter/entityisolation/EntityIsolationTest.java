@@ -23,7 +23,7 @@ class EntityIsolationTest {
     @Test
     @SuppressWarnings({ "unchecked", "resource" })
     void shouldInitAndCreateFilter() {
-        var config = new EntityIsolation.Config(Set.of(EntityIsolation.ResourceType.GROUP_ID), "MAPPER", null);
+        var config = new EntityIsolation.Config(Set.of(EntityIsolation.EntityType.GROUP_ID), "MAPPER", null);
         var resourceIsolation = new EntityIsolation();
         var fc = mock(FilterFactoryContext.class);
         var mapperService = mock(EntityNameMapperService.class);
@@ -42,7 +42,7 @@ class EntityIsolationTest {
 
     @Test
     void topicMappingNotYetSupported() {
-        var topicName = Set.of(EntityIsolation.ResourceType.TOPIC_NAME);
+        var topicName = Set.of(EntityIsolation.EntityType.TOPIC_NAME);
         assertThatThrownBy(() -> new EntityIsolation.Config(topicName, "MAPPER", null))
                 .isInstanceOf(IllegalArgumentException.class);
     }

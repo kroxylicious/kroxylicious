@@ -26,7 +26,7 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
+import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -46,7 +46,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
     private final Map<ApiKeys, ? extends EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> processorMap;
     private final Map<Integer, Object> correlatedRequestContext = new HashMap<>();
 
-    EntityIsolationFilter(Set<ResourceType> resourceTypes, EntityNameMapper mapper) {
+    EntityIsolationFilter(Set<EntityType> resourceTypes, EntityNameMapper mapper) {
         Objects.requireNonNull(resourceTypes);
         Objects.requireNonNull(mapper);
         var wrappedMapper = new EmptyResourceNameHandlingMapper(Objects.requireNonNull(mapper));
@@ -156,7 +156,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         }
 
         @Override
-        public String map(MapperContext mapperContext, ResourceType resourceType, String downstreamResourceName) {
+        public String map(MapperContext mapperContext, EntityType resourceType, String downstreamResourceName) {
             if (downstreamResourceName == null || downstreamResourceName.isEmpty()) {
                 return downstreamResourceName;
             }
@@ -164,7 +164,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         }
 
         @Override
-        public String unmap(MapperContext mapperContext, ResourceType resourceType, String upstreamResourceName) {
+        public String unmap(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
             if (upstreamResourceName == null || upstreamResourceName.isEmpty()) {
                 return upstreamResourceName;
             }
@@ -172,7 +172,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         }
 
         @Override
-        public boolean isInNamespace(MapperContext mapperContext, ResourceType resourceType, String upstreamResourceName) {
+        public boolean isInNamespace(MapperContext mapperContext, EntityType resourceType, String upstreamResourceName) {
             if (upstreamResourceName == null || upstreamResourceName.isEmpty()) {
                 return false;
             }

@@ -6,13 +6,13 @@
 
 package io.kroxylicious.filter.entityisolation;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
+import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 
 /**
  * Maps from a downstream kafka resource name to an upstream name (or vice-versa).
  * <br/>
- * The {@link #unmap(MapperContext, ResourceType, String)} function must be the reciprocal of
- * the {@link #map(MapperContext, ResourceType, String)}.
+ * The {@link #unmap(MapperContext, EntityIsolation.EntityType, String)} function must be the reciprocal of
+ * the {@link #map(MapperContext, EntityType, String)}.
  */
 public interface EntityNameMapper {
     /**
@@ -26,7 +26,7 @@ public interface EntityNameMapper {
      *
      */
     String map(MapperContext mapperContext,
-               ResourceType resourceType,
+               EntityIsolation.EntityType resourceType,
                String downstreamResourceName)
             throws UnacceptableEntityNameException;
 
@@ -40,7 +40,7 @@ public interface EntityNameMapper {
      * @throws UnacceptableEntityNameException generated name for the entity is unacceptable
      */
     String unmap(MapperContext mapperContext,
-                 ResourceType resourceType,
+                 EntityType resourceType,
                  String upstreamResourceName)
             throws UnacceptableEntityNameException;
 
@@ -54,7 +54,7 @@ public interface EntityNameMapper {
      * @throws UnacceptableEntityNameException generated name for the entity is unacceptable
      */
     boolean isInNamespace(MapperContext mapperContext,
-                          ResourceType resourceType,
+                          EntityType resourceType,
                           String upstreamResourceName)
             throws UnacceptableEntityNameException;
 

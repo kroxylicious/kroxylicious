@@ -65,7 +65,7 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
     /**
      * The kafka entity types that can be isolated.
      */
-    public enum ResourceType {
+    public enum EntityType {
         /**
          * Topic name
          */
@@ -87,14 +87,14 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
      * @param mapper mapper name
      * @param mapperConfig mapper config
      */
-    public record Config(@JsonProperty(required = true) Set<ResourceType> resourceTypes,
+    public record Config(@JsonProperty(required = true) Set<EntityType> resourceTypes,
                          @JsonProperty(required = true) @PluginImplName(EntityNameMapperService.class) String mapper,
                          @PluginImplConfig(implNameProperty = "mapper") Object mapperConfig) {
 
         public Config {
             Objects.requireNonNull(resourceTypes);
             Objects.requireNonNull(mapper);
-            if (resourceTypes.contains(ResourceType.TOPIC_NAME)) {
+            if (resourceTypes.contains(EntityType.TOPIC_NAME)) {
                 throw new IllegalArgumentException("Resource type TOPIC_NAME not yet supported by this filter");
             }
         }
@@ -107,7 +107,7 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
      * @param resourceTypeCode resource type code
      * @return resource type
      */
-    static Optional<EntityIsolation.ResourceType> fromResourceTypeCode(ApiKeys apiKey, byte resourceTypeCode) {
+    static Optional<EntityType> fromResourceTypeCode(ApiKeys apiKey, byte resourceTypeCode) {
         return switch (apiKey) {
             case INCREMENTAL_ALTER_CONFIGS, ALTER_CONFIGS, DESCRIBE_CONFIGS, LIST_CONFIG_RESOURCES -> fromConfigResourceType(resourceTypeCode);
             case CREATE_ACLS, DELETE_ACLS, DESCRIBE_ACLS -> fromAclResourceType(resourceTypeCode);
@@ -115,31 +115,31 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
         };
     }
 
-    private static Optional<ResourceType> fromConfigResourceType(byte resourceType) {
+    private static Optional<EntityType> fromConfigResourceType(byte resourceType) {
         return Optional.of(resourceType)
                 .map(ConfigResource.Type::forId)
                 .flatMap(EntityIsolation::fromConfigResourceType);
     }
 
-    private static Optional<ResourceType> fromAclResourceType(byte resourceType) {
+    private static Optional<EntityType> fromAclResourceType(byte resourceType) {
         return Optional.of(resourceType)
                 .map(org.apache.kafka.common.resource.ResourceType::fromCode)
                 .flatMap(EntityIsolation::fromAclResourceType);
     }
 
-    private static Optional<ResourceType> fromConfigResourceType(ConfigResource.Type resourceType) {
+    private static Optional<EntityType> fromConfigResourceType(ConfigResource.Type resourceType) {
         return switch (resourceType) {
-            case TOPIC -> Optional.of(ResourceType.TOPIC_NAME);
-            case GROUP -> Optional.of(ResourceType.GROUP_ID);
+            case TOPIC -> Optional.of(EntityType.TOPIC_NAME);
+            case GROUP -> Optional.of(EntityType.GROUP_ID);
             default -> Optional.empty();
         };
     }
 
-    private static Optional<ResourceType> fromAclResourceType(org.apache.kafka.common.resource.ResourceType resourceType) {
+    private static Optional<EntityType> fromAclResourceType(org.apache.kafka.common.resource.ResourceType resourceType) {
         return switch (resourceType) {
-            case TOPIC -> Optional.of(ResourceType.TOPIC_NAME);
-            case GROUP -> Optional.of(ResourceType.GROUP_ID);
-            case TRANSACTIONAL_ID -> Optional.of(ResourceType.TRANSACTIONAL_ID);
+            case TOPIC -> Optional.of(EntityType.TOPIC_NAME);
+            case GROUP -> Optional.of(EntityType.GROUP_ID);
+            case TRANSACTIONAL_ID -> Optional.of(EntityType.TRANSACTIONAL_ID);
             default -> Optional.empty();
         };
     }

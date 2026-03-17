@@ -131,7 +131,7 @@ class EntityIsolationIT {
      */
     @Test
     void describeShareGroupMaintainsGroupIsolation(Topic topic) {
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.GROUP_ID));
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         var bobConfig = buildClientConfig("bob", "pwd");
@@ -177,7 +177,7 @@ class EntityIsolationIT {
     }
 
     private void ensureGroupIsolationMaintained(ConsumerStyle consumerStyle, KafkaCluster cluster, Topic topic, boolean useDescribe) {
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.GROUP_ID));
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         var bobConfig = buildClientConfig("bob", "pwd");
@@ -210,7 +210,7 @@ class EntityIsolationIT {
     @Test
     void consumerGroupOffsetCommitMaintainsGroupIsolation(Topic topic) {
 
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.GROUP_ID));
         var aliceConfig = buildClientConfig("alice", "pwd",
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
@@ -273,7 +273,7 @@ class EntityIsolationIT {
     @Test
     void listConsumerGroupOffsets(Topic topic) {
 
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.GROUP_ID));
         var aliceConfig = buildClientConfig("alice", "pwd",
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
@@ -322,7 +322,7 @@ class EntityIsolationIT {
      */
     @Test
     void deleteConsumerGroups(Topic topic) {
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.GROUP_ID));
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         try (var tester = kroxyliciousTester(configBuilder);
@@ -349,7 +349,7 @@ class EntityIsolationIT {
     @Test
     void listShareConsumerGroupOffsets(Topic topic) {
 
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.GROUP_ID));
         var aliceConfig = buildClientConfig("alice", "pwd",
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
                         ConsumerConfig.SHARE_ACKNOWLEDGEMENT_MODE_CONFIG, ShareAcknowledgementMode.EXPLICIT.name()));
@@ -400,7 +400,7 @@ class EntityIsolationIT {
      */
     @Test
     void deleteShareConsumerGroups(Topic topic) {
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.GROUP_ID));
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         try (var tester = kroxyliciousTester(configBuilder);
@@ -436,7 +436,7 @@ class EntityIsolationIT {
      */
     @Test
     void groupConfigIsolation() {
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.GROUP_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.GROUP_ID));
 
         var aliceConfig = buildClientConfig("alice", "pwd");
         var bobConfig = buildClientConfig("bob", "pwd");
@@ -474,7 +474,7 @@ class EntityIsolationIT {
      */
     @Test
     void produceInTransaction(Topic topic) {
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.TRANSACTIONAL_ID));
 
         var transactionalId = "mytxn";
         var aliceConfig = buildClientConfig("alice", "pwd",
@@ -510,7 +510,7 @@ class EntityIsolationIT {
      */
     @Test
     void produceAndConsumeInTransaction(Topic input, Topic output) {
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.TRANSACTIONAL_ID));
 
         var transactionalId = "mytxn";
         var aliceConfig = buildClientConfig("alice", "pwd");
@@ -570,7 +570,7 @@ class EntityIsolationIT {
      */
     @Test
     void transactionIsolation(Topic topic) {
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.TRANSACTIONAL_ID));
 
         var transactionalId = "mytxn";
         var aliceConfig = buildClientConfig("alice", "pwd",
@@ -621,7 +621,7 @@ class EntityIsolationIT {
      */
     @Test
     void transactionFilteringByClientRegex(Topic topic) {
-        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID));
+        var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.TRANSACTIONAL_ID));
 
         var cat = "cat";
         var bat = "bat";
@@ -654,15 +654,15 @@ class EntityIsolationIT {
                 Arguments.argumentSet("group - literal",
                         new ResourcePattern(ResourceType.GROUP, "AliceGroup", PatternType.LITERAL),
                         new ResourcePattern(ResourceType.GROUP, "BobGroup", PatternType.LITERAL),
-                        List.of(EntityIsolation.ResourceType.GROUP_ID)),
+                        List.of(EntityIsolation.EntityType.GROUP_ID)),
                 Arguments.argumentSet("group - prefixed",
                         new ResourcePattern(ResourceType.GROUP, "AliceGroup", PatternType.PREFIXED),
                         new ResourcePattern(ResourceType.GROUP, "BobGroup", PatternType.PREFIXED),
-                        List.of(EntityIsolation.ResourceType.GROUP_ID)),
+                        List.of(EntityIsolation.EntityType.GROUP_ID)),
                 Arguments.argumentSet("transactionalId - literal",
                         new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "AliceTxn", PatternType.LITERAL),
                         new ResourcePattern(ResourceType.TRANSACTIONAL_ID, "BobTxn", PatternType.PREFIXED),
-                        List.of(EntityIsolation.ResourceType.TRANSACTIONAL_ID)));
+                        List.of(EntityIsolation.EntityType.TRANSACTIONAL_ID)));
     }
 
     /**
@@ -676,7 +676,7 @@ class EntityIsolationIT {
     @MethodSource("aclBindings")
     void aclRuleWithResourceTypeIsolation(ResourcePattern aliceResourcePattern,
                                           ResourcePattern bobResourcePattern,
-                                          List<EntityIsolation.ResourceType> mappedResourceTypes,
+                                          List<EntityIsolation.EntityType> mappedResourceTypes,
                                           @SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
                                                   @SaslMechanism.Principal(user = "bob", password = "pwd") }) @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer") @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:alice;User:bob") @Name("authz") KafkaCluster authzCluster) {
         var configBuilder = buildProxyConfig(authzCluster, mappedResourceTypes);
@@ -725,7 +725,7 @@ class EntityIsolationIT {
         }
     }
 
-    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, List<EntityIsolation.ResourceType> resourcesTypes) {
+    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, List<EntityIsolation.EntityType> resourcesTypes) {
         var configBuilder = KroxyliciousConfigUtils.proxy(cluster);
 
         var saslInspectionFilter = new NamedFilterDefinitionBuilder(

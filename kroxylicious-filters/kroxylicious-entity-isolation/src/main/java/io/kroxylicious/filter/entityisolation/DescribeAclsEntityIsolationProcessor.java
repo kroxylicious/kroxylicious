@@ -16,7 +16,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
+import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -27,10 +27,10 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 */
 class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<DescribeAclsRequestData, DescribeAclsResponseData, Void> {
 
-    private final Predicate<ResourceType> shouldMap;
+    private final Predicate<EntityType> shouldMap;
     private final EntityNameMapper mapper;
 
-    DescribeAclsEntityIsolationProcessor(Predicate<ResourceType> shouldMap, EntityNameMapper mapper) {
+    DescribeAclsEntityIsolationProcessor(Predicate<EntityType> shouldMap, EntityNameMapper mapper) {
         this.shouldMap = Objects.requireNonNull(shouldMap);
         this.mapper = Objects.requireNonNull(mapper);
     }

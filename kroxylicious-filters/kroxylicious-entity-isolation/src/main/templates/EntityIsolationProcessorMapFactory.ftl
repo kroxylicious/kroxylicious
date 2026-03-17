@@ -30,7 +30,7 @@ import java.util.function.Predicate;
 
 import javax.annotation.processing.Generated;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
+import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 
 <#list inputSpecs>
     <#items as apiSpec>
@@ -54,7 +54,7 @@ final class EntityIsolationProcessorMapFactory  {
         // ignored
     }
 
-    static Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> createProcessorMap(Predicate<ResourceType> shouldMap, EntityNameMapper entityNameMapper) {
+    static Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> createProcessorMap(Predicate<EntityType> shouldMap, EntityNameMapper entityNameMapper) {
         var map = new EnumMap<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>>(ApiKeys.class);
 
 <#list inputSpecs>

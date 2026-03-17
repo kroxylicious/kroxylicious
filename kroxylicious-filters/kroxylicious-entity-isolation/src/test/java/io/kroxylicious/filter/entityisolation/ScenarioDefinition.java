@@ -32,7 +32,7 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
      * @param resourceTypes rules
      * @param topicNames topic id to topic name map
      */
-    public record Given(List<MockResponse> mockedUpstreamResponses, java.util.Set<EntityIsolation.ResourceType> resourceTypes,
+    public record Given(List<MockResponse> mockedUpstreamResponses, java.util.Set<EntityIsolation.EntityType> resourceTypes,
                         @Nullable Map<Uuid, String> topicNames) {}
 
     /**
