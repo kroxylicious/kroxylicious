@@ -49,20 +49,19 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
     EntityIsolationFilter(Set<EntityType> resourceTypes, EntityNameMapper mapper) {
         Objects.requireNonNull(resourceTypes);
         Objects.requireNonNull(mapper);
-        var wrappedMapper = new EmptyResourceNameHandlingMapper(Objects.requireNonNull(mapper));
 
         Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> pm = new EnumMap<>(ApiKeys.class);
 
         // Handles version negotiation
         pm.put(ApiKeys.API_VERSIONS, new ApiVersionsHandler());
         // The following processors require special code and are handwritten.
-        pm.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
-        pm.put(ApiKeys.DELETE_ACLS, new DeleteAclsEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
-        pm.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
-        pm.put(ApiKeys.DESCRIBE_ACLS, new DescribeAclsEntityIsolationProcessor(resourceTypes::contains, wrappedMapper));
+        pm.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEntityIsolationProcessor(resourceTypes::contains, mapper));
+        pm.put(ApiKeys.DELETE_ACLS, new DeleteAclsEntityIsolationProcessor(resourceTypes::contains, mapper));
+        pm.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEntityIsolationProcessor(resourceTypes::contains, mapper));
+        pm.put(ApiKeys.DESCRIBE_ACLS, new DescribeAclsEntityIsolationProcessor(resourceTypes::contains, mapper));
 
         // Add the generated processors, excluding the special cases.
-        createProcessorMap(resourceTypes::contains, wrappedMapper).forEach(pm::putIfAbsent);
+        createProcessorMap(resourceTypes::contains, mapper).forEach(pm::putIfAbsent);
         this.processorMap = Collections.unmodifiableMap(pm);
     }
 
@@ -145,40 +144,6 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         return new MapperContext(context.authenticatedSubject(),
                 context.clientTlsContext().orElse(null),
                 context.clientSaslContext().orElse(null));
-    }
-
-    private static class EmptyResourceNameHandlingMapper implements EntityNameMapper {
-
-        private final EntityNameMapper mapper;
-
-        EmptyResourceNameHandlingMapper(EntityNameMapper entityNameMapper) {
-            this.mapper = Objects.requireNonNull(entityNameMapper);
-        }
-
-        @Override
-        public String map(MapperContext mapperContext, EntityType resourceType, String downstreamResourceName) {
-            if (downstreamResourceName == null || downstreamResourceName.isEmpty()) {
-                return downstreamResourceName;
-            }
-            return mapper.map(mapperContext, resourceType, downstreamResourceName);
-        }
-
-        @Override
-        public String unmap(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
-            if (upstreamResourceName == null || upstreamResourceName.isEmpty()) {
-                return upstreamResourceName;
-            }
-            return mapper.unmap(mapperContext, resourceType, upstreamResourceName);
-        }
-
-        @Override
-        public boolean isOwnedByContext(MapperContext mapperContext, EntityType resourceType, String upstreamResourceName) {
-            if (upstreamResourceName == null || upstreamResourceName.isEmpty()) {
-                return false;
-            }
-
-            return mapper.isOwnedByContext(mapperContext, resourceType, upstreamResourceName);
-        }
     }
 
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {

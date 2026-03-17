@@ -9,6 +9,7 @@ package io.kroxylicious.filter.entityisolation;
 import java.util.Objects;
 import java.util.Optional;
 
+import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.Unique;
@@ -40,7 +41,10 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     }
 
     @Override
-    public String map(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String downstreamResourceName) {
+    public String map(MapperContext mapperContext, EntityType entityType, String downstreamResourceName) {
+        Objects.requireNonNull(mapperContext);
+        Objects.requireNonNull(entityType);
+        Objects.requireNonNull(downstreamResourceName);
         var user = getValidatedValidatedPrincipalName(mapperContext.authenticatedSubject());
         return user.map(authId -> doMap(authId, downstreamResourceName))
                 .orElse(downstreamResourceName);
@@ -51,7 +55,10 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     }
 
     @Override
-    public String unmap(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
+    public String unmap(MapperContext mapperContext, EntityType entityType, String upstreamResourceName) {
+        Objects.requireNonNull(mapperContext);
+        Objects.requireNonNull(entityType);
+        Objects.requireNonNull(upstreamResourceName);
         var user = getValidatedValidatedPrincipalName(mapperContext.authenticatedSubject());
         return user.map(authId -> doUnmap(authId, upstreamResourceName))
                 .orElse(upstreamResourceName);
@@ -68,7 +75,10 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     }
 
     @Override
-    public boolean isOwnedByContext(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
+    public boolean isOwnedByContext(MapperContext mapperContext, EntityType entityType, String upstreamResourceName) {
+        Objects.requireNonNull(mapperContext);
+        Objects.requireNonNull(entityType);
+        Objects.requireNonNull(upstreamResourceName);
         var user = getValidatedValidatedPrincipalName(mapperContext.authenticatedSubject());
         return user.map(authId -> upstreamResourceName.startsWith(authId + separator))
                 .orElse(false);
@@ -84,5 +94,4 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
         });
         return name;
     }
-
 }

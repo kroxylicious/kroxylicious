@@ -118,4 +118,5 @@ interface EntityIsolationProcessor<Q extends ApiMessage, S extends ApiMessage, C
                                                              MapperContext mapperContext) {
         return filterContext.forwardResponse(header, response);
     }
+
 }

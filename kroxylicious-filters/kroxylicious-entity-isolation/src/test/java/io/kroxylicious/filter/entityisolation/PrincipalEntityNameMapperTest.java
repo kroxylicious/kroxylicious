@@ -15,7 +15,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
-import io.kroxylicious.filter.entityisolation.EntityNameMapper.UnacceptableEntityNameException;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
@@ -81,7 +80,7 @@ class PrincipalEntityNameMapperTest {
         var mapperContext = buildMapperContext(bobSubject);
         // When/Then
         assertThatThrownBy(() -> mapper.map(mapperContext, EntityType.TOPIC_NAME, "foo"))
-                .isInstanceOf(UnacceptableEntityNameException.class)
+                .isInstanceOf(EntityNameMapper.UnacceptableEntityNameException.class)
                 .hasMessageContaining("Principal name 'dash-boy' is unaccepted as it contains the separator '-'");
     }
 

@@ -7,7 +7,7 @@
 metadata:
   apiKeys: "INIT_PRODUCER_ID"
   apiVersion: 6
-  scenario: "baseline"
+  scenario: "The transactional id is null the producer is not transactional."
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "INIT_PRODUCER_ID"
@@ -18,7 +18,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        transactionalId: ""
+        transactionalId: null
         transactionTimeoutMs: 30000
         producerId: 0
         producerEpoch: 0
@@ -33,7 +33,7 @@ given:
         producerEpoch: 0
         ongoingTxnProducerId: 0
         ongoingTxnProducerEpoch: 0
-  resourceTypes: ["GROUP_ID"]
+  resourceTypes: ["TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: "alice"
@@ -43,7 +43,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    transactionalId: ""
+    transactionalId: null
     transactionTimeoutMs: 30000
     producerId: 0
     producerEpoch: 0

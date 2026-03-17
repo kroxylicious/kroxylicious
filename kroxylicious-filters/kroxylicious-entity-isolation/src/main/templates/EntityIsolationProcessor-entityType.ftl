@@ -20,7 +20,7 @@ indent      java identation
         <#items as field>
             <#local getter="${field.name?uncap_first}" setter="set${field.name}" />
             <#if filteredEntityTypes?seq_contains(field.entityType)>
-        ${pad}if (shouldMap.test(EntityType.${field.entityType}) && <@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/>) {
+        ${pad}if (shouldMap.test(EntityType.${field.entityType}) && <@inVersionRange "header.requestApiVersion()", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
                 <#if field.type == 'string'>
             ${pad}    ${fieldVar}.${setter}(mapper.map(mapperContext, EntityType.${field.entityType}, ${fieldVar}.${getter}()));
                 <#elseif field.type == '[]string'>
