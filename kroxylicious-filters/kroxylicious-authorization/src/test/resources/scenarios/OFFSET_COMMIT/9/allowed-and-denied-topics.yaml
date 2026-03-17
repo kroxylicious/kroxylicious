@@ -96,11 +96,11 @@ then:
 
 
   expectedAuditActions:
-    - action: "READ"
+    - action: "Read"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null
-    - action: "READ"
+    - action: "Read"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"

@@ -68,7 +68,7 @@ then:
             lowWatermark: 603
             errorCode: 482
   expectedAuditActions:
-    - action: "DELETE"
+    - action: "Delete"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null

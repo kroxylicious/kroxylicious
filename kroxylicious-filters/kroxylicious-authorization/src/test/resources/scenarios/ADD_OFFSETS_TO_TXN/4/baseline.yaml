@@ -59,7 +59,7 @@ then:
     errorCode: 574
 
   expectedAuditActions:
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
       status: null

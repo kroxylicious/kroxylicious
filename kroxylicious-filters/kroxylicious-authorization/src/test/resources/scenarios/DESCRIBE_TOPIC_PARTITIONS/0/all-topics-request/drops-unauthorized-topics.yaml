@@ -72,7 +72,7 @@ then:
     topics: []
     nextCursor: null
   expectedAuditActions:
-    - action: "DESCRIBE"
+    - action: "Describe"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"

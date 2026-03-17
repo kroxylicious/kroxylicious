@@ -32,6 +32,7 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
@@ -222,12 +223,22 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         for (Action action : actionsOfDecision) {
             if (!nonAuditableActions.contains(action)) {
                 var auditEvent = switch (decision) {
-                    case DENY -> context.auditLogger().actionWithOutcome(String.valueOf(action.operation()), "denied", null);
-                    case ALLOW -> context.auditLogger().action(String.valueOf(action.operation()));
+                    case DENY -> context.auditLogger().actionWithOutcome(getAction(action), "denied", null);
+                    case ALLOW -> context.auditLogger().action(getAction(action));
                 };
                 auditEvent.withObjectRef(Map.of(action.resourceTypeClass().getName(), action.resourceName()))
                         .log();
             }
+        }
+    }
+
+    private static String getAction(Action action) {
+        ResourceType<?> operation = action.operation();
+        if (operation instanceof AuditAct auditAct) {
+            return auditAct.auditAction();
+        }
+        else {
+            return String.valueOf(operation);
         }
     }
 

@@ -80,11 +80,11 @@ then:
             lowWatermark: -1
             errorCode: 29
   expectedAuditActions:
-    - action: "DELETE"
+    - action: "Delete"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null
-    - action: "DELETE"
+    - action: "Delete"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"

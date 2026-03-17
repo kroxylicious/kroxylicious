@@ -37,11 +37,11 @@ when:
 then:
   expectedErrorResponse: "TRANSACTIONAL_ID_AUTHORIZATION_FAILED"
   expectedAuditActions:
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "denied-transactional-id"
       status: "denied"

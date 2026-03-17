@@ -38,11 +38,11 @@ then:
   hasResponse: false
   expectRequestDropped: true
   expectedAuditActions:
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
       status: "denied"

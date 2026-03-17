@@ -59,15 +59,15 @@ then:
             partitionErrorCode: 55
 
   expectedAuditActions:
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
       status: null
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"

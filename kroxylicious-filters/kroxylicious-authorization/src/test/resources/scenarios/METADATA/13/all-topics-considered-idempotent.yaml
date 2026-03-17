@@ -106,7 +106,7 @@ then:
         topicAuthorizedOperations: 760
     errorCode: 1003
   expectedAuditActions:
-    - action: DESCRIBE
+    - action: Describe
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null

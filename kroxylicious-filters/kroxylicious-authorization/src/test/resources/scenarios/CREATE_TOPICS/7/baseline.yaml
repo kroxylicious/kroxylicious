@@ -101,7 +101,7 @@ then:
             isSensitive: true
 
   expectedAuditActions:
-    - action: "CREATE"
+    - action: "Create"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null

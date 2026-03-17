@@ -81,11 +81,11 @@ then:
         errorMessage: null
 
   expectedAuditActions:
-    - action: "ALTER"
+    - action: "Alter"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null
-    - action: "ALTER"
+    - action: "Alter"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"

@@ -67,7 +67,7 @@ then:
             records: !!binary ""
 
   expectedAuditActions:
-    - action: "READ"
+    - action: "Read"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"

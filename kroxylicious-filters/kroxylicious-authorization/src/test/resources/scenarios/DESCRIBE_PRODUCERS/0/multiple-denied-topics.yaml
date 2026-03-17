@@ -66,11 +66,11 @@ then:
             errorMessage: "Topic authorization failed."
             activeProducers: [ ]
   expectedAuditActions:
-    - action: "READ"
+    - action: "Read"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"
-    - action: "READ"
+    - action: "Read"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized2"
       status: "denied"

@@ -68,7 +68,7 @@ then:
         producerId: 442
         transactionState: "random-string-556"
   expectedAuditActions:
-    - action: "DESCRIBE"
+    - action: "Describe"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
       status: null

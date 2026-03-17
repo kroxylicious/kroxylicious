@@ -42,7 +42,7 @@ then:
         errorCode: 53
         errorMessage: ""
   expectedAuditActions:
-    - action: "DESCRIBE"
+    - action: "Describe"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "unauthorized"
       status: "denied"

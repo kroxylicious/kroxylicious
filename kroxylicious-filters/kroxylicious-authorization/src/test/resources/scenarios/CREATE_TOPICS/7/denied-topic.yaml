@@ -58,7 +58,7 @@ then:
         configs: [ ]
 
   expectedAuditActions:
-    - action: "CREATE"
+    - action: "Create"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"

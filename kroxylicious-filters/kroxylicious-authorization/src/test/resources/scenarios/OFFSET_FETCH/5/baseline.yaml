@@ -76,7 +76,7 @@ then:
             errorCode: 10
     errorCode: 693
   expectedAuditActions:
-    - action: DESCRIBE
+    - action: Describe
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource" : "my-topic"
       status: null

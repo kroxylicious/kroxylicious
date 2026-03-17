@@ -52,11 +52,11 @@ then:
     heartbeatIntervalMs: 0
     assignment: null
   expectedAuditActions:
-    - action: "DESCRIBE"
+    - action: "Describe"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null
-    - action: "DESCRIBE"
+    - action: "Describe"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-unauthorized-topic"
       status: "denied"

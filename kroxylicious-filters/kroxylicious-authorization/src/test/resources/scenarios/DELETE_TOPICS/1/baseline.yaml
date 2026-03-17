@@ -56,7 +56,7 @@ then:
       - name: "my-topic"
         errorCode: 648
   expectedAuditActions:
-    - action: "DELETE"
+    - action: "Delete"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null

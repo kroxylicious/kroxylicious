@@ -72,7 +72,7 @@ then:
             errorCode: 511
     errorCode: 173
   expectedAuditActions:
-    - action: DESCRIBE
+    - action: Describe
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource" : "my-topic"
       status: null

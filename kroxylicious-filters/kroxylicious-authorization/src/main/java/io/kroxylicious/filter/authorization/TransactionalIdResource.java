@@ -10,17 +10,19 @@ import java.util.Set;
 
 import io.kroxylicious.authorizer.service.ResourceType;
 
-public enum TransactionalIdResource implements ResourceType<TransactionalIdResource> {
-    WRITE(4),
-    DESCRIBE(8),
-    TWO_PHASE_COMMIT((byte) 15);
+public enum TransactionalIdResource implements ResourceType<TransactionalIdResource>, AuditAct {
+    WRITE(4, "Write"),
+    DESCRIBE(8, "Describe"),
+    TWO_PHASE_COMMIT((byte) 15, "TwoPhaseCommit");
 
     private static final Set<TransactionalIdResource> DESCRIBE_SET = Set.of(DESCRIBE);
 
     public final int kafkaOrdinal;
+    private final String auditAction;
 
-    TransactionalIdResource(int kafkaOrdinal) {
+    TransactionalIdResource(int kafkaOrdinal, String auditAction) {
         this.kafkaOrdinal = kafkaOrdinal;
+        this.auditAction = auditAction;
     }
 
     @Override
@@ -31,5 +33,10 @@ public enum TransactionalIdResource implements ResourceType<TransactionalIdResou
         else {
             return Set.of();
         }
+    }
+
+    @Override
+    public String auditAction() {
+        return auditAction;
     }
 }

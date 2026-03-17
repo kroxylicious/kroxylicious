@@ -31,8 +31,6 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPartitionsRequestData, DescribeTopicPartitionsResponseData> {
     @Override
     short minSupportedVersion() {
@@ -134,9 +132,9 @@ class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPar
     private static CompletionStage<ResponseFilterResult> removeUnauthorizedTopics(ResponseHeaderData header, DescribeTopicPartitionsResponseData response,
                                                                                   FilterContext context, AuthorizationFilter authorizationFilter) {
         // resolve all TopicResource operations for the purposes of constructing authorized operations
-//        List<Action> actions = response.topics().stream().flatMap(topicRequest
-//                        -> EnumSet.allOf(TopicResource.class).stream().map(r -> new Action(r, topicRequest.name())))
-//                .toList();
+        // List<Action> actions = response.topics().stream().flatMap(topicRequest
+        // -> EnumSet.allOf(TopicResource.class).stream().map(r -> new Action(r, topicRequest.name())))
+        // .toList();
         List<Action> actions = topicsCrossWithOperations(
                 response.topics(),
                 DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic::name,

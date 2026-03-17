@@ -55,11 +55,11 @@ then:
     correlationId: 1
   expectedErrorResponse: "TRANSACTIONAL_ID_AUTHORIZATION_FAILED"
   expectedAuditActions:
-    - action: "READ"
+    - action: "Read"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
       status: "denied"

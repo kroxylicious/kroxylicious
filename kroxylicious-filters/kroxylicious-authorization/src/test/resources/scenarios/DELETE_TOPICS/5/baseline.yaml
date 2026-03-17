@@ -58,7 +58,7 @@ then:
         errorCode: 86
         errorMessage: "random-string-871"
   expectedAuditActions:
-    - action: "DELETE"
+    - action: "Delete"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null

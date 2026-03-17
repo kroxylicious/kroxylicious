@@ -10,20 +10,22 @@ import java.util.Set;
 
 import io.kroxylicious.authorizer.service.ResourceType;
 
-public enum TopicResource implements ResourceType<TopicResource> {
-    READ(3),
-    WRITE(4),
-    CREATE(5),
-    DELETE(6),
-    ALTER(7),
-    DESCRIBE(8),
-    DESCRIBE_CONFIGS(10),
-    ALTER_CONFIGS(11);
+public enum TopicResource implements ResourceType<TopicResource>, AuditAct {
+    READ(3, "Read"),
+    WRITE(4, "Write"),
+    CREATE(5, "Create"),
+    DELETE(6, "Delete"),
+    ALTER(7, "Alter"),
+    DESCRIBE(8, "Describe"),
+    DESCRIBE_CONFIGS(10, "DescribeConfigs"),
+    ALTER_CONFIGS(11, "AlterConfigs");
 
     public final int kafkaOrdinal;
+    private final String auditAction;
 
-    TopicResource(int kafkaOrdinal) {
+    TopicResource(int kafkaOrdinal, String auditAction) {
         this.kafkaOrdinal = kafkaOrdinal;
+        this.auditAction = auditAction;
     }
 
     @Override
@@ -33,5 +35,10 @@ public enum TopicResource implements ResourceType<TopicResource> {
             case ALTER_CONFIGS -> Set.of(DESCRIBE_CONFIGS);
             default -> Set.of();
         };
+    }
+
+    @Override
+    public String auditAction() {
+        return auditAction;
     }
 }

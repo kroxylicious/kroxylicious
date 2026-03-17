@@ -83,7 +83,7 @@ then:
                 errorCode: 1010
         errorCode: 162
   expectedAuditActions:
-    - action: DESCRIBE
+    - action: Describe
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null

@@ -81,7 +81,7 @@ then:
             errorCode: 94
 
   expectedAuditActions:
-    - action: "READ"
+    - action: "Read"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null

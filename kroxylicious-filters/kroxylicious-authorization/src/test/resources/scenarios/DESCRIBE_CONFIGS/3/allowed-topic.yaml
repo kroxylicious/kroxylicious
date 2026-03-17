@@ -92,7 +92,7 @@ then:
             configType: 61
             documentation: "random-string-127"
   expectedAuditActions:
-    - action: "DESCRIBE_CONFIGS"
+    - action: "DescribeConfigs"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null

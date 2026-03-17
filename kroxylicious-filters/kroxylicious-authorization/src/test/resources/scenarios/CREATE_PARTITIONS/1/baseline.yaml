@@ -69,7 +69,7 @@ then:
         errorMessage: "random-string-965"
 
   expectedAuditActions:
-    - action: "ALTER"
+    - action: "Alter"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null

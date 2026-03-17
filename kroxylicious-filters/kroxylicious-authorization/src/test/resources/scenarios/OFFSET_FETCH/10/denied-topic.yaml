@@ -89,7 +89,7 @@ then:
                 errorCode: 29
         errorCode: 0
   expectedAuditActions:
-    - action: DESCRIBE
+    - action: Describe
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"

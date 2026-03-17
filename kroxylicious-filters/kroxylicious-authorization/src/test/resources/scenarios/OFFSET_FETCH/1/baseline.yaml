@@ -70,7 +70,7 @@ then:
             metadata: "random-string-135"
             errorCode: 283
   expectedAuditActions:
-    - action: DESCRIBE
+    - action: Describe
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource" : "my-topic"
       status: null

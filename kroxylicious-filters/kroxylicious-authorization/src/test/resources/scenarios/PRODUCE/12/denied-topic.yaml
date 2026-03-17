@@ -39,11 +39,11 @@ then:
     correlationId: 1
   expectedErrorResponse: "TOPIC_AUTHORIZATION_FAILED"
   expectedAuditActions:
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
       status: "denied"

@@ -39,7 +39,7 @@ then:
     host: ""
     port: -1
   expectedAuditActions:
-    - action: "DESCRIBE"
+    - action: "Describe"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "unauthorized"
       status: "denied"

@@ -84,7 +84,7 @@ then:
                 errorCode: 23
         errorCode: 642
   expectedAuditActions:
-    - action: DESCRIBE
+    - action: Describe
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource" : "my-topic"
       status: null

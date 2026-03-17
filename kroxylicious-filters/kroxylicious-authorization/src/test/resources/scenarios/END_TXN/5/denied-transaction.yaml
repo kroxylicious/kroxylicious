@@ -36,7 +36,7 @@ then:
     producerId: -1
     producerEpoch: -1
   expectedAuditActions:
-    - action: "WRITE"
+    - action: "Write"
       objectRef:
         "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
       status: "denied"

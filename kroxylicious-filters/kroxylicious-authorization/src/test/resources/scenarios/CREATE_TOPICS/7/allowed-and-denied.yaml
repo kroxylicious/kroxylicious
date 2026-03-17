@@ -117,11 +117,11 @@ then:
         replicationFactor: -1
         configs: []
   expectedAuditActions:
-    - action: "CREATE"
+    - action: "Create"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
       status: null
-    - action: "CREATE"
+    - action: "Create"
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"
