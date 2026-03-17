@@ -57,6 +57,13 @@ TEST_CLUSTER_EXECUTION_MODE=CONTAINER mvn verify
 | Documentation (DT) | `-DskipDTs` | Validates code snippets in docs |
 | System (ST) | `-DskipSTs` | Full end-to-end on Kubernetes (requires a cluster) |
 
+### Test Support Modules
+
+Use the dedicated test support libraries rather than rolling your own infrastructure:
+
+- **`kroxylicious-filter-test-support`** — unit testing for filters: mock `FilterContext`, request/response builders, and assertion helpers.
+- **`kroxylicious-integration-test-support`** — integration testing with a real proxy and Kafka: `KroxyliciousConfigUtils`, `KafkaCluster`, and request/response helpers for end-to-end scenarios.
+
 ## Architecture Overview
 
 Kroxylicious is a Kafka protocol proxy built with Netty. Filters may intercept, modify, drop, or short-circuit requests and responses. A filter chain is defined once per virtual cluster; each client connection to that cluster gets its own instance of the chain, with dedicated filter instances. Requests flow through the chain in order, responses flow back in reverse.
@@ -79,6 +86,20 @@ The following are considered public API — changes require a design proposal be
 The general principle is that **any externally visible surface of the proxy at runtime is public API**. If a user or operator can observe or interact with it without modifying the proxy binary, renaming or restructuring it is a breaking change.
 
 Other modules may also contain public API surface; when in doubt, raise it for discussion before making breaking changes.
+
+### Deployment Models
+
+The proxy can be deployed in two ways:
+
+- **Standalone**: run directly via the startup script in the distribution tarball. Configuration is a single YAML file; reloading requires a restart.
+- **Kubernetes operator**: the `kroxylicious-operator` module manages the proxy lifecycle via custom resources. The operator CRDs are:
+  - `KafkaProxy` — declares a proxy instance
+  - `KafkaProxyIngress` — exposes a proxy port
+  - `KafkaService` — references an upstream Kafka cluster
+  - `VirtualKafkaCluster` — maps a virtual cluster name to a `KafkaService` through a `KafkaProxy`
+  - `KafkaProtocolFilter` — attaches a filter to a virtual cluster
+
+Behaviour and available configuration keys differ between deployment models. When working on operator features, changes to the CRD types in `kroxylicious-kubernetes-api` are public API and require a design proposal.
 
 ### Plugin Architecture
 
@@ -104,6 +125,8 @@ At runtime, `PluginFactoryRegistry` resolves a plugin interface type (e.g. `Filt
 
 Filters run on Netty event loop threads. **Do not block.** Use `CompletableFuture` for any async work. `FilterFactory.initialize()` and `createFilter()` run on different threads.
 
+`CompletableFuture` completions can execute on arbitrary threads (typically the thread that completes the future). Any stage that touches channel state or calls `FilterContext` methods must be dispatched back to the event loop — failure to do so causes subtle race conditions that are hard to reproduce.
+
 ### Module Layering
 
 Checkstyle enforces module boundaries — the build will fail if they are violated:
@@ -124,7 +147,7 @@ YAML-based, deserialised with Jackson. Durations use Go-style format: `30s`, `5m
 - **Formatter**: Eclipse formatter — config in `etc/eclipse-formatter-config.xml`
 - **Import ordering**: `impsort-maven-plugin` (enforced by `mvn process-sources`)
 - **Licence headers**: Apache 2.0 required on all source files
-- **API compatibility**: JAPICMP validates public API stability
+- **API compatibility**: JAPICMP validates public API stability — a JAPICMP failure means you have made an unintended breaking change; fix the code, do not bump the baseline version
 
 ### Logging
 
