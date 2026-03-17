@@ -409,7 +409,7 @@ stop_metrics_poller
 echo ""
 echo "--- Collecting results ---"
 mkdir -p "${OUTPUT_DIR}"
-JFR_PVC_NAME="${JFR_PVC_NAME}" "${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
+JFR_PVC_NAME="${JFR_PVC_NAME}" PROXY_POD="${PROXY_POD:-}" "${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
 
 # Rename JFR and flamegraph files to include scenario and workload for clarity
 [[ -f "${OUTPUT_DIR}/benchmark.jfr" ]] && mv "${OUTPUT_DIR}/benchmark.jfr" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
