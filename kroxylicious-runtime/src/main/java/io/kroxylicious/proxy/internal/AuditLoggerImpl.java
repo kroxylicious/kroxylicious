@@ -34,7 +34,7 @@ public class AuditLoggerImpl implements AuditLogger, AutoCloseable {
 
     private final Supplier<Instant> instantSupplier;
     private final Supplier<Actor> actorSupplier;
-    private List<AuditEmitter> emitters;
+    private final List<AuditEmitter> emitters;
     private final NoopAuditableActionBuilder noopBuilder;
 
     public AuditLoggerImpl(List<AuditEmitter> auditEmitters) {
@@ -66,7 +66,7 @@ public class AuditLoggerImpl implements AuditLogger, AutoCloseable {
 
     @Override
     @CheckReturnValue(explanation = "log() must be called on the result of this method")
-    public AuditableActionBuilder actionWithOutcome(String action, String status, String reason) {
+    public AuditableActionBuilder actionWithOutcome(String action, String status, @Nullable String reason) {
         return action(Objects.requireNonNull(action), Objects.requireNonNull(status), reason);
     }
 
@@ -78,7 +78,7 @@ public class AuditLoggerImpl implements AuditLogger, AutoCloseable {
     }
 
     private boolean anyEmitterHasInterest(String action, @Nullable String status) {
-        if (emitters != null && !emitters.isEmpty()) {
+        if (!emitters.isEmpty()) {
             for (AuditEmitter emitter : emitters) {
                 try {
                     if (emitter.isInterested(action, status)) {
