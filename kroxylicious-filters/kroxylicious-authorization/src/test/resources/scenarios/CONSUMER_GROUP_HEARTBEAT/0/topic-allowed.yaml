@@ -89,4 +89,8 @@ then:
         - topicId: "CMRxch-QTDC1n6dzHhc6TA"
           partitions:
             - 942
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

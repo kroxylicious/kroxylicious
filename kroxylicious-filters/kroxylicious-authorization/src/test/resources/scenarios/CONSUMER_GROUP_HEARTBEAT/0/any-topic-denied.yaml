@@ -51,4 +51,12 @@ then:
     memberEpoch: 0
     heartbeatIntervalMs: 0
     assignment: null
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-unauthorized-topic"
+      status: "denied"
