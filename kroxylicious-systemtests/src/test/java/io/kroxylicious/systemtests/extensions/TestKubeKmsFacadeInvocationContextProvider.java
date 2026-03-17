@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.extensions;
 
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -19,12 +20,11 @@ import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
+import org.opentest4j.TestAbortedException;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 import io.kroxylicious.systemtests.logs.TestLogCollector;
-
-import static io.kroxylicious.systemtests.utils.TestUtils.isAbortedTest;
 
 public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider {
     private static final TestLogCollector logCollector = TestLogCollector.getInstance();
@@ -68,9 +68,10 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                     },
                     (AfterEachCallback) extensionContext -> {
                         try {
-                            if (!isAbortedTest(extensionContext)) {
-                                logCollector.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
-                            }
+                            extensionContext.getExecutionException()
+                                    .filter(Predicate.not(TestAbortedException.class::isInstance))
+                                    .ifPresent(ee -> logCollector.collectLogs(extensionContext.getRequiredTestClass().getName(),
+                                            extensionContext.getRequiredTestMethod().getName()));
                         }
                         finally {
                             kmsFacade.stop();
