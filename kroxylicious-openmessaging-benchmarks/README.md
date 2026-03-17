@@ -118,7 +118,7 @@ kroxylicious-openmessaging-benchmarks/
 │       │   ├── kroxylicious-service.yaml
 │       │   ├── kroxylicious-cluster.yaml
 │       │   ├── omb-workers-statefulset.yaml
-│       │   ├── omb-benchmark-deployment.yaml
+│       │   ├── omb-benchmark-job.yaml
 │       │   └── configmaps/
 │       │       ├── omb-driver-baseline.yaml
 │       │       ├── workload-1topic-1kb.yaml
@@ -468,7 +468,7 @@ kubectl get pods -l app=omb-worker -o wide -n kafka
 
 Check if Kafka is accessible from benchmark pod:
 ```bash
-kubectl exec deploy/omb-benchmark -n kafka -- kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
+kubectl exec job/omb-benchmark -n kafka -- kafka-topics --bootstrap-server kafka-kafka-bootstrap:9092 --list
 ```
 
 ## Contributing
