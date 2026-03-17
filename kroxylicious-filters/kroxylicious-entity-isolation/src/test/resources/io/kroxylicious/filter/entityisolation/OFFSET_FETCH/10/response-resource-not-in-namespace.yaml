@@ -1,0 +1,89 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "OFFSET_FETCH"
+  apiVersion: 10
+  scenario: |
+    when upstream response contains a group not prefixed with 'alice-'
+    then that group is removed from the response
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_FETCH"
+      expectedRequestVersion: 10
+      expectedRequestHeader:
+        requestApiKey: 9
+        requestApiVersion: 10
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groups:
+          - groupId: alice-mygroup
+            memberId: mymember
+            memberEpoch: 0
+            topics:
+              - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+                partitionIndexes: [0]
+        requireStable: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        groups:
+          - groupId: alice-mygroup
+            topics:
+              - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+                partitions:
+                  - partitionIndex: 0
+                    committedOffset: 0
+                    committedLeaderEpoch: 0
+                    metadata: null
+                    errorCode: 0
+            errorCode: 0
+          - groupId: bob-mygroup # resource not in 'alice-' namespcae
+            topics:
+              - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+                partitions:
+                  - partitionIndex: 0
+                    committedOffset: 0
+                    committedLeaderEpoch: 0
+                    metadata: null
+                    errorCode: 0
+            errorCode: 0
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 9
+    requestApiVersion: 10
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groups:
+      - groupId: mygroup
+        memberId: mymember
+        memberEpoch: 0
+        topics:
+          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitionIndexes: [0]
+    requireStable: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    groups:
+      - groupId: mygroup
+        topics:
+          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions:
+              - partitionIndex: 0
+                committedOffset: 0
+                committedLeaderEpoch: 0
+                metadata: null
+                errorCode: 0
+        errorCode: 0

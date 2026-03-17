@@ -1,0 +1,75 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "DESCRIBE_TRANSACTIONS"
+  apiVersion: 0
+  scenario: |
+    when upstream response contains a transaction not prefixed with 'alice-'
+    then that transaction is removed from the response
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_TRANSACTIONS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 65
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalIds: ["alice-12345"]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        transactionStates:
+          - errorCode: 0
+            transactionalId: alice-12345
+            transactionState: ""
+            transactionTimeoutMs: 0
+            transactionStartTimeMs: 0
+            producerId: 0
+            producerEpoch: 0
+            topics:
+              - topic: foo
+                partitions: [0]
+          - errorCode: 0
+            transactionalId: bob-12345 # resource not in 'alice-' namespace
+            transactionState: ""
+            transactionTimeoutMs: 0
+            transactionStartTimeMs: 0
+            producerId: 0
+            producerEpoch: 0
+            topics:
+              - topic: foo
+                partitions: [0]
+  resourceTypes: ["TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 65
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalIds: ["12345"]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    transactionStates:
+      - errorCode: 0
+        transactionalId: "12345"
+        transactionState: ""
+        transactionTimeoutMs: 0
+        transactionStartTimeMs: 0
+        producerId: 0
+        producerEpoch: 0
+        topics:
+          - topic: foo
+            partitions: [0]

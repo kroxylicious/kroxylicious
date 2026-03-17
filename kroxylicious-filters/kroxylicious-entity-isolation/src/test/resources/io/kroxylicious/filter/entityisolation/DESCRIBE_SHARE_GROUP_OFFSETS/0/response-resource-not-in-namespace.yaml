@@ -1,0 +1,89 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "DESCRIBE_SHARE_GROUP_OFFSETS"
+  apiVersion: 0
+  scenario: |
+    when upstream response contains a group not prefixed with 'alice-'
+    then that group is removed from the response
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_SHARE_GROUP_OFFSETS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 90
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groups:
+          - groupId: alice-mygroup
+            topics:
+              - topicName: foo
+                partitions: [0]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        groups:
+          - groupId: alice-mygroup
+            topics:
+              - topicName: foo
+                topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+                partitions:
+                  - partitionIndex: 0
+                    startOffset: 0
+                    leaderEpoch: 0
+                    errorCode: 0
+                    errorMessage: ""
+            errorCode: 0
+            errorMessage: ""
+          - groupId: bob-mygroup # resource not in 'alice-' namespace
+            topics:
+              - topicName: foo
+                topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+                partitions:
+                  - partitionIndex: 0
+                    startOffset: 0
+                    leaderEpoch: 0
+                    errorCode: 0
+                    errorMessage: ""
+            errorCode: 0
+            errorMessage: ""
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 90
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groups:
+      - groupId: mygroup
+        topics:
+          - topicName: foo
+            partitions: [0]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    groups:
+      - groupId: mygroup
+        topics:
+          - topicName: foo
+            topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions:
+              - partitionIndex: 0
+                startOffset: 0
+                leaderEpoch: 0
+                errorCode: 0
+                errorMessage: ""
+        errorCode: 0
+        errorMessage: ""
