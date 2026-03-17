@@ -75,9 +75,8 @@ then:
             metadata: "random-string-489"
             errorCode: 227
     errorCode: 996
-
   expectedAuditActions:
-    - action: "READ"
+    - action: DESCRIBE
       objectRef:
-        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
-      status: "denied"
+        "io.kroxylicious.filter.authorization.TopicResource" : "my-topic"
+      status: null

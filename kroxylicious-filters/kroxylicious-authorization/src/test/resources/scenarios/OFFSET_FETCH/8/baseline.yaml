@@ -83,5 +83,8 @@ then:
                 metadata: "random-string-490"
                 errorCode: 23
         errorCode: 642
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: DESCRIBE
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource" : "my-topic"
+      status: null

@@ -101,13 +101,12 @@ then:
             metadata: ""
             errorCode: 29
     errorCode: 17
-
   expectedAuditActions:
-    - action: "READ"
+    - action: DESCRIBE
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
-      status: "denied"
-    - action: "READ"
+      status: null
+    - action: DESCRIBE
       objectRef:
         "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
       status: "denied"
