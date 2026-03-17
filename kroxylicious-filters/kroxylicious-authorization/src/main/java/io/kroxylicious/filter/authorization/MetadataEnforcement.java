@@ -8,6 +8,7 @@ package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -225,10 +226,15 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
             List<Action> topicActions = response.topics().stream()
                     .map(MetadataResponseData.MetadataResponseTopic::name)
                     .filter(Objects::nonNull)
-                    .flatMap(topicName -> Arrays.stream(TopicResource.values()).map(op -> new Action(op, topicName)))
+                    .flatMap(topicName -> EnumSet.allOf(TopicResource.class).stream().map(op -> new Action(op, topicName)))
                     .toList();
             actions.addAll(topicActions);
-            nonAuditableActions.addAll(topicActions);
+            List<Action> nonAuditable = response.topics().stream()
+                    .map(MetadataResponseData.MetadataResponseTopic::name)
+                    .filter(Objects::nonNull)
+                    .flatMap(topicName -> EnumSet.complementOf(EnumSet.of(TopicResource.DESCRIBE)).stream().map(op -> new Action(op, topicName)))
+                    .toList();
+            nonAuditableActions.addAll(nonAuditable);
         }
         else {
             List<Action> topicDescribeActions = response.topics().stream()
@@ -237,7 +243,7 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
                     .map(topicName -> new Action(TopicResource.DESCRIBE, topicName))
                     .toList();
             actions.addAll(topicDescribeActions);
-            nonAuditableActions.removeAll(actions);
+            nonAuditableActions.removeAll(topicDescribeActions);
         }
 
         return authorizationFilter.authorization(context, actions, nonAuditableActions)

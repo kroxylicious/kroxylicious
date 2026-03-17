@@ -108,5 +108,8 @@ then:
               - 421
         # DESCRIBE bitset
         topicAuthorizedOperations: 256
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: DESCRIBE
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
