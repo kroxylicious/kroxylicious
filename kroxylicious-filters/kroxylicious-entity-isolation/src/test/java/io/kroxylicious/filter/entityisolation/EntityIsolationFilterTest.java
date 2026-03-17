@@ -70,21 +70,21 @@ class EntityIsolationFilterTest {
     private static EntityNameMapper createEntityMapper(String subject) {
         return new EntityNameMapper() {
             @Override
-            public String map(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String unmappedResourceName) {
-                return subject + "-" + unmappedResourceName;
+            public String map(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String downstreamResourceName) {
+                return subject + "-" + downstreamResourceName;
             }
 
             @Override
-            public String unmap(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String mappedResourceName) {
+            public String unmap(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String upstreamResourceName) {
                 var prefix = subject + "-";
-                boolean hasPrefix = mappedResourceName.startsWith(prefix);
-                return hasPrefix ? mappedResourceName.substring(prefix.length()) : mappedResourceName;
+                boolean hasPrefix = upstreamResourceName.startsWith(prefix);
+                return hasPrefix ? upstreamResourceName.substring(prefix.length()) : upstreamResourceName;
             }
 
             @Override
-            public boolean isInNamespace(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String mappedResourceName) {
+            public boolean isInNamespace(MapperContext mapperContext, EntityIsolation.ResourceType resourceType, String upstreamResourceName) {
                 var prefix = subject + "-";
-                return mappedResourceName.startsWith(prefix);
+                return upstreamResourceName.startsWith(prefix);
             }
         };
     }

@@ -156,28 +156,28 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         }
 
         @Override
-        public String map(MapperContext mapperContext, ResourceType resourceType, String originalName) {
-            if (originalName == null || originalName.isEmpty()) {
-                return originalName;
+        public String map(MapperContext mapperContext, ResourceType resourceType, String downstreamResourceName) {
+            if (downstreamResourceName == null || downstreamResourceName.isEmpty()) {
+                return downstreamResourceName;
             }
-            return mapper.map(mapperContext, resourceType, originalName);
+            return mapper.map(mapperContext, resourceType, downstreamResourceName);
         }
 
         @Override
-        public String unmap(MapperContext mapperContext, ResourceType resourceType, String mappedName) {
-            if (mappedName == null || mappedName.isEmpty()) {
-                return mappedName;
+        public String unmap(MapperContext mapperContext, ResourceType resourceType, String upstreamResourceName) {
+            if (upstreamResourceName == null || upstreamResourceName.isEmpty()) {
+                return upstreamResourceName;
             }
-            return mapper.unmap(mapperContext, resourceType, mappedName);
+            return mapper.unmap(mapperContext, resourceType, upstreamResourceName);
         }
 
         @Override
-        public boolean isInNamespace(MapperContext mapperContext, ResourceType resourceType, String mappedName) {
-            if (mappedName == null || mappedName.isEmpty()) {
+        public boolean isInNamespace(MapperContext mapperContext, ResourceType resourceType, String upstreamResourceName) {
+            if (upstreamResourceName == null || upstreamResourceName.isEmpty()) {
                 return false;
             }
 
-            return mapper.isInNamespace(mapperContext, resourceType, mappedName);
+            return mapper.isInNamespace(mapperContext, resourceType, upstreamResourceName);
         }
     }
 

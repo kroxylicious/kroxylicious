@@ -9,53 +9,53 @@ package io.kroxylicious.filter.entityisolation;
 import io.kroxylicious.filter.entityisolation.EntityIsolation.ResourceType;
 
 /**
- * Maps an unmapped kafka resource name into a mapped one, or vice versa.
+ * Maps from a downstream kafka resource name to an upstream name (or vice-versa).
  * <br/>
  * The {@link #unmap(MapperContext, ResourceType, String)} function must be the reciprocal of
  * the {@link #map(MapperContext, ResourceType, String)}.
  */
 public interface EntityNameMapper {
     /**
-     * Maps a unmapped resource name into a mapper one.
+     * Maps a downstream kafka resource name to an upstream name.
      *
      * @param mapperContext mapper context.
      * @param resourceType resource type.
-     * @param unmappedResourceName unmapped resource name.
-     * @return mapped resource name.
+     * @param downstreamResourceName downstream resource name.
+     * @return upstream resource name
      * @throws UnacceptableEntityNameException generated name for the entity is unacceptable
      *
      */
     String map(MapperContext mapperContext,
                ResourceType resourceType,
-               String unmappedResourceName)
+               String downstreamResourceName)
             throws UnacceptableEntityNameException;
 
     /**
-     * Maps a mapped resource name back into an unmapped one.
+     *  Maps an upstream kafka resource name to a downstream name.
      *
      * @param mapperContext mapper context.
      * @param resourceType resource type.
-     * @param mappedResourceName mapped resource name.
-     * @return unmapped resource name
+     * @param upstreamResourceName upstream resource name.
+     * @return downstream resource name
      * @throws UnacceptableEntityNameException generated name for the entity is unacceptable
      */
     String unmap(MapperContext mapperContext,
                  ResourceType resourceType,
-                 String mappedResourceName)
+                 String upstreamResourceName)
             throws UnacceptableEntityNameException;
 
     /**
-     * Tests whether the given mapped resource name belongs in this namespace.
+     * Tests whether the given upstreams resource name belongs in this namespace.
      *
      * @param mapperContext mapper context.
      * @param resourceType resource type.
-     * @param mappedResourceName mapped resource name.
+     * @param upstreamResourceName upstream resource name.
      * @return true if the mapped resource name belongs in this namespace, false otherwise.
      * @throws UnacceptableEntityNameException generated name for the entity is unacceptable
      */
     boolean isInNamespace(MapperContext mapperContext,
                           ResourceType resourceType,
-                          String mappedResourceName)
+                          String upstreamResourceName)
             throws UnacceptableEntityNameException;
 
     /**
