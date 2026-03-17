@@ -12,7 +12,6 @@ import java.util.Optional;
 import io.kroxylicious.proxy.audit.AuditEmitter;
 import io.kroxylicious.proxy.audit.AuditEmitterFactory;
 import io.kroxylicious.proxy.plugin.Plugin;
-import io.kroxylicious.proxy.plugin.Plugins;
 
 @Plugin(configType = MetricsEmitterConfig.class)
 public class MetricsEmitterFactory implements AuditEmitterFactory<MetricsEmitterConfig> {
