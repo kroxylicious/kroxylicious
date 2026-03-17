@@ -243,6 +243,14 @@ start_metrics_poller() {
     echo "Metrics poller running (PID ${METRICS_PID})"
 }
 
+stop_logs_tailer() {
+    if [[ -n "${LOGS_PID}" ]]; then
+        kill "${LOGS_PID}" 2>/dev/null || true
+        wait "${LOGS_PID}" 2>/dev/null || true
+        LOGS_PID=""
+    fi
+}
+
 stop_metrics_poller() {
     if [[ -n "${METRICS_PID}" ]]; then
         echo "Stopping metrics poller (PID ${METRICS_PID})..."
@@ -572,9 +580,7 @@ while true; do
         break
     fi
 done
-
-kill "${LOGS_PID}" 2>/dev/null || true
-wait "${LOGS_PID}" 2>/dev/null || true
+stop_logs_tailer
 
 if [[ "${BENCHMARK_EXIT}" -eq 124 ]]; then
     echo "TIMED OUT after ${PROBE_TIMEOUT}s" >&2
