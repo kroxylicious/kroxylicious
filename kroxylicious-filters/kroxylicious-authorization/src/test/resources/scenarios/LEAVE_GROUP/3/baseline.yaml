@@ -55,3 +55,8 @@ then:
     throttleTimeMs: 100
     errorCode: 484
     members: []
+  expectedAuditActions:
+    - action: Read
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

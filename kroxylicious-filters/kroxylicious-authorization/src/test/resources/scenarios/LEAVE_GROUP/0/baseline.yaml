@@ -47,3 +47,8 @@ then:
     correlationId: 1
   expectedResponse:
     errorCode: 484
+  expectedAuditActions:
+    - action: Read
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null
