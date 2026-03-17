@@ -79,5 +79,8 @@ then:
       - memberId: "random-string-369"
         metadata: !!binary |-
           JF3/W64=
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: Read
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null
