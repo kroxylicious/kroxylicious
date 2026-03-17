@@ -243,7 +243,6 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
                     .map(topicName -> new Action(TopicResource.DESCRIBE, topicName))
                     .toList();
             actions.addAll(topicDescribeActions);
-            nonAuditableActions.removeAll(topicDescribeActions);
         }
 
         return authorizationFilter.authorization(context, actions, nonAuditableActions)
