@@ -487,6 +487,21 @@ fi
 mkdir -p "${OUTPUT_DIR}"
 IFS=',' read -ra SCENARIO_ARRAY <<< "${SCENARIO_LIST}"
 
+# Write run metadata immediately so it is captured even if the sweep fails partway through
+cat > "${OUTPUT_DIR}/run-metadata.json" <<METADATA_EOF
+{
+  "gitCommit": "$(git rev-parse HEAD 2>/dev/null || echo "unknown")",
+  "gitBranch": "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")",
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "minRate": ${MIN_RATE},
+  "maxRate": ${MAX_RATE},
+  "stepPercent": ${STEP_PERCENT},
+  "scenarios": "${SCENARIO_LIST}",
+  "workload": "${WORKLOAD}",
+  "profile": "${PROFILE_VALUES:-}"
+}
+METADATA_EOF
+
 echo "=== Measuring proxy overhead ==="
 echo "Scenarios:  ${SCENARIO_LIST}"
 echo "Output dir: ${OUTPUT_DIR}"
