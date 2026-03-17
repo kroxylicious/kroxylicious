@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -36,8 +39,10 @@ import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ShareAcknowledgementMode;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.GroupState;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
@@ -726,9 +731,21 @@ class EntityIsolationIT {
 
             try (var producer = tester.producer(dashboy)) {
                 var record = new ProducerRecord<>(topic.name(), "k1", "v1");
-                assertThatThrownBy(() -> producer.send(record))
-                        .isInstanceOf(KafkaException.class);
+
+                assertThat(sendExpectingFailure(producer, record)).isInstanceOf(KafkaException.class);
             }
+        }
+    }
+
+    private static Throwable sendExpectingFailure(Producer<String, String> producer, ProducerRecord<String, String> record) {
+        try {
+            // sometimes the send throws, in others the get on the Future
+            Future<RecordMetadata> send = producer.send(record);
+            assertThatThrownBy(() -> send.get(5, TimeUnit.SECONDS)).isInstanceOfAny(ExecutionException.class, KafkaException.class);
+            return send.exceptionNow();
+        }
+        catch (Exception e) {
+            return e;
         }
     }
 
