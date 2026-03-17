@@ -137,6 +137,12 @@ teardown() {
     if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
         helm uninstall "${HELM_RELEASE}" -n "${NAMESPACE}" --wait --timeout 120s
     fi
+    # The proxy Deployment is managed by the Kroxylicious operator, not Helm directly.
+    # helm uninstall --wait covers Helm-managed resources (e.g. the KafkaProxy CR) but
+    # the operator may not have fully terminated the proxy pods by the time Helm returns.
+    # Wait explicitly so the pvc-protection finalizer on the JFR PVC is released.
+    kubectl wait pod -l "${PROXY_POD_LABEL}" -n "${NAMESPACE}" \
+        --for=delete --timeout=60s 2>/dev/null || true
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     # Delete JFR PVC if one was created
