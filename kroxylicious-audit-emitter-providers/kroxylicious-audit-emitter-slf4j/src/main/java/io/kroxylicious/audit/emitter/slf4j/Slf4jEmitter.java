@@ -59,7 +59,7 @@ class Slf4jEmitter implements AuditEmitter {
             case ERROR -> logger.atError();
         };
         if (builder != null) {
-            builder.setMessage(context.asJsonString(action))
+            builder.setMessage(context.asString(action, TextFormat.KROXYLICIOUS_JSON_V1))
                     .log();
         }
     }

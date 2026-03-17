@@ -6,11 +6,13 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -28,17 +30,42 @@ class AuditEmitterContextImpl implements AuditEmitter.Context {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
     @Override
-    public String asJsonString(AuditableAction action) {
-        try {
-            StringWriter w = new StringWriter();
-            JsonGenerator generator = JSON_FACTORY.createGenerator(w);
-            writeAction(action, generator);
-            generator.flush();
-            generator.close();
-            return w.toString();
+    public String asString(AuditableAction action, AuditEmitter.TextFormat format) {
+        if (format == AuditEmitter.TextFormat.KROXYLICIOUS_JSON_V1) {
+            try {
+                StringWriter w = new StringWriter();
+                JsonGenerator generator = JSON_FACTORY.createGenerator(w);
+                writeAction(action, generator);
+                generator.flush();
+                generator.close();
+                return w.toString();
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
         }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
+        else {
+            throw new IllegalArgumentException("Unknown format: " + format);
+        }
+    }
+
+    @Override
+    public byte[] asBytes(AuditableAction action, AuditEmitter.BinaryFormat format) {
+        if (format == AuditEmitter.BinaryFormat.KROXYLICIOUS_JSON_V1) {
+            try {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                JsonGenerator generator = JSON_FACTORY.createGenerator(out, JsonEncoding.UTF8);
+                writeAction(action, generator);
+                generator.flush();
+                generator.close();
+                return out.toByteArray();
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+        else {
+            throw new IllegalArgumentException("Unknown format: " + format);
         }
     }
 

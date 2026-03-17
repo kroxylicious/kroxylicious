@@ -236,7 +236,7 @@ class AuditLoggerImplTest {
 
             @Override
             public void emitAction(AuditableAction action, Context context) {
-                s[0] = context.asJsonString(action);
+                s[0] = context.asString(action, TextFormat.KROXYLICIOUS_JSON_V1);
             }
 
             @Override

@@ -30,7 +30,25 @@ public interface AuditEmitter extends AutoCloseable {
     void close();
 
     interface Context {
-        String asJsonString(AuditableAction action);
-        // byte[] asJsonBytes(AuditableAction action);
+        String asString(AuditableAction action, TextFormat format);
+        byte[] asBytes(AuditableAction action, BinaryFormat format);
+    }
+
+    enum TextFormat {
+        /**
+         * JSON, using the built-in JSON format.
+         * A schema describing this JSON is available at
+         * <a href="https://kroxylicious.io/schemas/audit_v1.json">https://kroxylicious.io/schemas/audit_v1.json</a>.
+         */
+        KROXYLICIOUS_JSON_V1
+    }
+
+    enum BinaryFormat {
+        /**
+         * UTF-8 encoded JSON, using the built-in JSON format.
+         * A schema describing this JSON is available at
+         * <a href="https://kroxylicious.io/schemas/audit_v1.json">https://kroxylicious.io/schemas/audit_v1.json</a>.
+         */
+        KROXYLICIOUS_JSON_V1
     }
 }

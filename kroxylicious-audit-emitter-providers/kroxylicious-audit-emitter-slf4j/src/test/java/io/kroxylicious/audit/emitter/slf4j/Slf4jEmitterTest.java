@@ -74,7 +74,7 @@ class Slf4jEmitterTest {
         when(auditableAction.action()).thenReturn(action);
         when(auditableAction.status()).thenReturn(null);
         AuditEmitter.Context context = mock(AuditEmitter.Context.class);
-        when(context.asJsonString(any())).thenReturn(message);
+        when(context.asString(any(), any())).thenReturn(message);
         try (LogCaptor connectCaptor = LogCaptor.forName("audit." + action)) {
 
             try (var emitter = new Slf4jEmitter(defaultLevel, Map.of())) {
