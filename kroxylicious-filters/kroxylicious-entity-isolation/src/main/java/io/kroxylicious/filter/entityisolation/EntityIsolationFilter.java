@@ -172,12 +172,12 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         }
 
         @Override
-        public boolean isInNamespace(MapperContext mapperContext, EntityType resourceType, String upstreamResourceName) {
+        public boolean isOwnedByContext(MapperContext mapperContext, EntityType resourceType, String upstreamResourceName) {
             if (upstreamResourceName == null || upstreamResourceName.isEmpty()) {
                 return false;
             }
 
-            return mapper.isInNamespace(mapperContext, resourceType, upstreamResourceName);
+            return mapper.isOwnedByContext(mapperContext, resourceType, upstreamResourceName);
         }
     }
 

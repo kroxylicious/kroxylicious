@@ -111,7 +111,7 @@ class ListTransactionsEntityIsolationProcessor
             // process entity fields defined at this level
             if (shouldMap.test(EntityType.TRANSACTIONAL_ID) && (short) 0 <= apiVersion && apiVersion <= (short) 2
                     && transactionState.transactionalId() != null) {
-                if (mapper.isInNamespace(mapperContext, EntityType.TRANSACTIONAL_ID, transactionState.transactionalId())) {
+                if (mapper.isOwnedByContext(mapperContext, EntityType.TRANSACTIONAL_ID, transactionState.transactionalId())) {
                     var txnId = mapper.unmap(mapperContext, EntityType.TRANSACTIONAL_ID, transactionState.transactionalId());
                     if (pat.matcher(txnId).find()) {
                         transactionState.setTransactionalId(txnId);

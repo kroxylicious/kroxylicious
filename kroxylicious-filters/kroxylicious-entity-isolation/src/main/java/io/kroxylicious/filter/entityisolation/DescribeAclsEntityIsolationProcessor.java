@@ -81,7 +81,7 @@ class DescribeAclsEntityIsolationProcessor implements EntityIsolationProcessor<D
                 EntityIsolation.fromResourceTypeCode(ApiKeys.DESCRIBE_ACLS, describeAclsResource.resourceType())
                         .filter(shouldMap)
                         .ifPresent(entityType -> {
-                            if (mapper.isInNamespace(mapperContext, entityType, describeAclsResource.resourceName())) {
+                            if (mapper.isOwnedByContext(mapperContext, entityType, describeAclsResource.resourceName())) {
                                 describeAclsResource.setResourceName(mapper.unmap(mapperContext, entityType, describeAclsResource.resourceName()));
                             }
                             else {

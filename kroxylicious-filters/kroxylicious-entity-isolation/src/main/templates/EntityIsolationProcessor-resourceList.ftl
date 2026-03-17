@@ -59,7 +59,7 @@ ${pad}        var ${elementVar} = ${collectionIteratorVar}.next();
 ${pad}        EntityIsolation.fromResourceTypeCode(ApiKeys.${inputSpec.apiKey}, ${elementVar}.resourceType())
 ${pad}              .filter(shouldMap)
 ${pad}              .ifPresent(entityType -> {
-${pad}            if (mapper.isInNamespace(mapperContext, entityType, ${elementVar}.resourceName())) {
+${pad}            if (mapper.isOwnedByContext(mapperContext, entityType, ${elementVar}.resourceName())) {
 ${pad}                ${elementVar}.setResourceName(mapper.unmap(mapperContext, entityType, ${elementVar}.resourceName()));
 ${pad}            }
 ${pad}            else {

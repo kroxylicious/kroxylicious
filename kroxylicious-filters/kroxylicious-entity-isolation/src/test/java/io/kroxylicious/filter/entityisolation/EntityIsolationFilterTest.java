@@ -82,7 +82,7 @@ class EntityIsolationFilterTest {
             }
 
             @Override
-            public boolean isInNamespace(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
+            public boolean isOwnedByContext(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
                 var prefix = subject + "-";
                 return upstreamResourceName.startsWith(prefix);
             }

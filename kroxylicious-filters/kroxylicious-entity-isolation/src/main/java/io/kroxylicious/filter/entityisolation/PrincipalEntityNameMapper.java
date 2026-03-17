@@ -68,7 +68,7 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     }
 
     @Override
-    public boolean isInNamespace(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
+    public boolean isOwnedByContext(MapperContext mapperContext, EntityIsolation.EntityType resourceType, String upstreamResourceName) {
         var user = getValidatedValidatedPrincipalName(mapperContext.authenticatedSubject());
         return user.map(authId -> upstreamResourceName.startsWith(authId + separator))
                 .orElse(false);

@@ -11,7 +11,7 @@ import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 /**
  * Maps from a downstream kafka resource name to an upstream name (or vice-versa).
  * <br/>
- * The {@link #unmap(MapperContext, EntityIsolation.EntityType, String)} function must be the reciprocal of
+ * The {@link #unmap(MapperContext, EntityType, String)} function must be the reciprocal of
  * the {@link #map(MapperContext, EntityType, String)}.
  */
 public interface EntityNameMapper {
@@ -26,7 +26,7 @@ public interface EntityNameMapper {
      *
      */
     String map(MapperContext mapperContext,
-               EntityIsolation.EntityType resourceType,
+               EntityType resourceType,
                String downstreamResourceName)
             throws UnacceptableEntityNameException;
 
@@ -45,17 +45,17 @@ public interface EntityNameMapper {
             throws UnacceptableEntityNameException;
 
     /**
-     * Tests whether the given upstreams resource name belongs in this namespace.
+     * Tests whether the given upstreams resource name belongs to this context.
      *
      * @param mapperContext mapper context.
      * @param resourceType resource type.
      * @param upstreamResourceName upstream resource name.
-     * @return true if the mapped resource name belongs in this namespace, false otherwise.
+     * @return true if the mapped resource name belongs in this context, false otherwise.
      * @throws UnacceptableEntityNameException generated name for the entity is unacceptable
      */
-    boolean isInNamespace(MapperContext mapperContext,
-                          EntityType resourceType,
-                          String upstreamResourceName)
+    boolean isOwnedByContext(MapperContext mapperContext,
+                             EntityType resourceType,
+                             String upstreamResourceName)
             throws UnacceptableEntityNameException;
 
     /**

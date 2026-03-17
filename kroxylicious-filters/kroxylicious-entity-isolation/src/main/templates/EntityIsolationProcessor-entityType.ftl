@@ -62,7 +62,7 @@ ${pad}// process entity fields defined at this level
             <#if filteredEntityTypes?seq_contains(field.entityType)>
 ${pad}if (shouldMap.test(EntityType.${field.entityType}) && <@inVersionRange "apiVersion", messageSpec.validVersions.intersect(field.versions)/> && ${fieldVar}.${getter}() != null) {
                 <#if field.type == 'string'>
-${pad}    if (mapper.isInNamespace(mapperContext, EntityType.${field.entityType}, ${fieldVar}.${getter}())) {
+${pad}    if (mapper.isOwnedByContext(mapperContext, EntityType.${field.entityType}, ${fieldVar}.${getter}())) {
 ${pad}        ${fieldVar}.${setter}(mapper.unmap(mapperContext, EntityType.${field.entityType}, ${fieldVar}.${getter}()));
 ${pad}    }
                     <#if collectionIterator?has_content>
@@ -72,7 +72,7 @@ ${pad}    }
                     </#if>
                 <#elseif field.type == '[]string'>
 ${pad}    ${fieldVar}.${setter}(${fieldVar}.${getter}().stream()
-${pad}                        .filter(orig -> mapper.isInNamespace(mapperContext, EntityType.${field.entityType}, orig))
+${pad}                        .filter(orig -> mapper.isOwnedByContext(mapperContext, EntityType.${field.entityType}, orig))
 ${pad}                        .map(orig -> mapper.unmap(mapperContext, EntityType.${field.entityType}, orig)).toList());
                     <#if collectionIterator?has_content>
 ${pad}    if (!${fieldVar}.${getter}().isEmpty()) {

@@ -87,7 +87,7 @@ class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<Del
                 EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, configResource.resourceType())
                         .filter(shouldMap)
                         .ifPresent(entityType -> {
-                            if (mapper.isInNamespace(mapperContext, entityType, configResource.resourceName())) {
+                            if (mapper.isOwnedByContext(mapperContext, entityType, configResource.resourceName())) {
                                 configResource.setResourceName(mapper.unmap(mapperContext, entityType, configResource.resourceName()));
                             }
                             else {
