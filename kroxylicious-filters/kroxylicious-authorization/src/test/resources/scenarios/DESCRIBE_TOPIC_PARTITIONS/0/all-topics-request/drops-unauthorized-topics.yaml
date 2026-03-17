@@ -71,4 +71,8 @@ then:
     throttleTimeMs: 343
     topics: []
     nextCursor: null
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "DESCRIBE"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

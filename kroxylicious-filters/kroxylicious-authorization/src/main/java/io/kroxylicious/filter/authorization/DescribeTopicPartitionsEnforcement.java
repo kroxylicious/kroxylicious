@@ -6,12 +6,13 @@
 
 package io.kroxylicious.filter.authorization;
 
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -58,10 +59,12 @@ class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPar
             // resolve all TopicResource operations for the purposes of constructing authorized operations
             List<Action> actions = topicsCrossWithOperations(
                     request.topics(),
+                    DescribeTopicPartitionsRequestData.TopicRequest::name,
                     EnumSet.allOf(TopicResource.class))
                     .toList();
             Set<Action> nonAuditableActions = topicsCrossWithOperations(
                     request.topics(),
+                    DescribeTopicPartitionsRequestData.TopicRequest::name,
                     // only DESCRIBE is auditable
                     EnumSet.complementOf(EnumSet.of(TopicResource.DESCRIBE)))
                     .collect(Collectors.toSet());
@@ -100,10 +103,9 @@ class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPar
         }
     }
 
-    @NonNull
-    private static Stream<Action> topicsCrossWithOperations(List<DescribeTopicPartitionsRequestData.TopicRequest> topics, EnumSet<TopicResource> topicResourceOps) {
+    private static <T> Stream<Action> topicsCrossWithOperations(Collection<T> topics, Function<T, String> nameExtractor, EnumSet<TopicResource> topicResourceOps) {
         return topics.stream().flatMap(topicRequest -> topicResourceOps.stream()
-                .map(topicResourceOp -> new Action(topicResourceOp, topicRequest.name())));
+                .map(topicResourceOp -> new Action(topicResourceOp, nameExtractor.apply(topicRequest))));
     }
 
     record AllTopicsInflightState() implements InflightState<DescribeTopicPartitionsResponseData> {
@@ -132,9 +134,22 @@ class DescribeTopicPartitionsEnforcement extends ApiEnforcement<DescribeTopicPar
     private static CompletionStage<ResponseFilterResult> removeUnauthorizedTopics(ResponseHeaderData header, DescribeTopicPartitionsResponseData response,
                                                                                   FilterContext context, AuthorizationFilter authorizationFilter) {
         // resolve all TopicResource operations for the purposes of constructing authorized operations
-        List<Action> actions = response.topics().stream().flatMap(topicRequest -> Arrays.stream(TopicResource.values()).map(r -> new Action(r, topicRequest.name())))
+//        List<Action> actions = response.topics().stream().flatMap(topicRequest
+//                        -> EnumSet.allOf(TopicResource.class).stream().map(r -> new Action(r, topicRequest.name())))
+//                .toList();
+        List<Action> actions = topicsCrossWithOperations(
+                response.topics(),
+                DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic::name,
+                EnumSet.allOf(TopicResource.class))
                 .toList();
-        CompletionStage<AuthorizeResult> stage = authorizationFilter.authorization(context, actions);
+        Set<Action> nonAuditableActions = topicsCrossWithOperations(
+                response.topics(),
+                DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic::name,
+                // only DESCRIBE is auditable
+                EnumSet.complementOf(EnumSet.of(TopicResource.DESCRIBE)))
+                .collect(Collectors.toSet());
+
+        CompletionStage<AuthorizeResult> stage = authorizationFilter.authorization(context, actions, nonAuditableActions);
         return stage.thenCompose(authorizeResult -> {
             Map<Decision, List<DescribeTopicPartitionsResponseTopic>> partitioned = authorizeResult.partition(response.topics(), TopicResource.DESCRIBE,
                     DescribeTopicPartitionsResponseTopic::name);
