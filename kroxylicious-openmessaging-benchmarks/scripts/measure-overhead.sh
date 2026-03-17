@@ -11,6 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MODULE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 HELM_CHART="${MODULE_DIR}/helm/kroxylicious-benchmark"
 HELM_RELEASE="benchmark"
+OMB_COORDINATOR="job/omb-benchmark"
 
 DEFAULT_WORKLOAD="1topic-1kb"
 
@@ -268,7 +269,7 @@ run_probe() {
 
     # Clear previous OMB result files from the pod so we can unambiguously
     # identify the result from this probe afterwards.
-    kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
+    kubectl exec "${OMB_COORDINATOR}" -n "${NAMESPACE}" -- \
         sh -c 'rm -f /var/lib/omb/results/*.json' 2>/dev/null || true
 
     # Run OMB with the target producer rate. The workload ConfigMap is read-only,
@@ -279,7 +280,7 @@ run_probe() {
     echo "  OMB log: ${omb_log}"
     local exec_rc=0
     timeout "${PROBE_TIMEOUT}" \
-        kubectl exec deploy/omb-benchmark -n "${NAMESPACE}" -- \
+        kubectl exec "${OMB_COORDINATOR}" -n "${NAMESPACE}" -- \
         sh -c "sed 's/^producerRate:.*/producerRate: ${rate}/' /etc/omb/workloads/workload.yaml > /tmp/workload.yaml && \
                cd /var/lib/omb/results && \
                /opt/benchmark/bin/benchmark \
