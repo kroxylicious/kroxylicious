@@ -19,7 +19,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * An entity name mapper that forms the isolation using the principal name.
  * <br/>
- * When mapping from the downstream to the upstream, resource names are prepended
+ * When mapping from the downstream to the upstream, entity names are prepended
  * with the principal name of the authenticated subject and a separator.
  * <br/>
  * When mapping from the upstream to the downstream, the principal prefix and separator
@@ -43,50 +43,50 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     }
 
     @Override
-    public String map(MapperContext mapperContext, EntityType entityType, String downstreamResourceName) {
+    public String map(MapperContext mapperContext, EntityType entityType, String downstreamEntityName) {
         Objects.requireNonNull(mapperContext);
         Objects.requireNonNull(entityType);
-        Objects.requireNonNull(downstreamResourceName);
+        Objects.requireNonNull(downstreamEntityName);
 
         var validatedPrincipal = getValidatedPrincipal(mapperContext);
-        return doMap(validatedPrincipal.name(), downstreamResourceName);
+        return doMap(validatedPrincipal.name(), downstreamEntityName);
     }
 
-    private String doMap(String principal, String downstreamResourceName) {
+    private String doMap(String principal, String downstreamEntityName) {
         // Once we start mapping topic names, we must verify the length upstream name doesn't violate the topic naming org.apache.kafka.common.internals.Topic.isValid
         // Also if https://cwiki.apache.org/confluence/display/KAFKA/KIP-1233%3A+Maximum+lengths+for+resource+names+and+IDs is accepted there may be rules to apply to groupIds/transactionalIds
-        return buildPrefix(principal) + downstreamResourceName;
+        return buildPrefix(principal) + downstreamEntityName;
     }
 
     @Override
-    public boolean isOwnedByContext(MapperContext mapperContext, EntityType entityType, String upstreamResourceName) {
+    public boolean isOwnedByContext(MapperContext mapperContext, EntityType entityType, String upstreamEntityName) {
         Objects.requireNonNull(mapperContext);
         Objects.requireNonNull(entityType);
-        Objects.requireNonNull(upstreamResourceName);
+        Objects.requireNonNull(upstreamEntityName);
         return Optional.of(getValidatedPrincipal(mapperContext))
                 .map(Principal::name)
-                .map(name -> doUnmap(name, upstreamResourceName) != null)
+                .map(name -> doUnmap(name, upstreamEntityName) != null)
                 .orElse(false);
     }
 
     @Override
-    public String unmap(MapperContext mapperContext, EntityType entityType, String upstreamResourceName) {
+    public String unmap(MapperContext mapperContext, EntityType entityType, String upstreamEntityName) {
         Objects.requireNonNull(mapperContext);
         Objects.requireNonNull(entityType);
-        Objects.requireNonNull(upstreamResourceName);
+        Objects.requireNonNull(upstreamEntityName);
 
         var validatedPrincipal = getValidatedPrincipal(mapperContext);
         return Optional.of(validatedPrincipal)
                 .map(Principal::name)
-                .map(name -> doUnmap(name, upstreamResourceName))
-                .orElseThrow(() -> new IllegalStateException("Unexpected exception unmapping entity name '%s' for %s".formatted(upstreamResourceName, mapperContext)));
+                .map(name -> doUnmap(name, upstreamEntityName))
+                .orElseThrow(() -> new IllegalStateException("Unexpected exception unmapping entity name '%s' for %s".formatted(upstreamEntityName, mapperContext)));
     }
 
     @Nullable
-    private String doUnmap(String principalName, String mappedResourceName) {
+    private String doUnmap(String principalName, String mappedEntityName) {
         var prefix = buildPrefix(principalName);
-        if (mappedResourceName.startsWith(prefix)) {
-            return mappedResourceName.substring(prefix.length());
+        if (mappedEntityName.startsWith(prefix)) {
+            return mappedEntityName.substring(prefix.length());
         }
         return null;
     }

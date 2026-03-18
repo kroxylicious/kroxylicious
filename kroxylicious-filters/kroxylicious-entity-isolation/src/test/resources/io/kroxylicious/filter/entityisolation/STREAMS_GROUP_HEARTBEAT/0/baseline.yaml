@@ -54,7 +54,7 @@ given:
         warmupTasks: []
         endpointInformationEpoch: 0
         partitionsByUserEndpoint: []
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

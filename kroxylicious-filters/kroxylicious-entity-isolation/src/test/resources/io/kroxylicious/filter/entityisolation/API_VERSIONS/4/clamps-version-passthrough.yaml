@@ -31,7 +31,7 @@ given:
             maxVersion: 32767
         throttleTimeMs: 880
   topicNames: null
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
 when:
   subject: "alice"
   requestHeader:

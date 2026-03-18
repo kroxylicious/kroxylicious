@@ -124,10 +124,10 @@ class PrincipalEntityNameMapperTest {
 
         var bobContext = buildMapperContext(bobSubject);
 
-        var aliceUpstreamResource = mapper.map(aliceContext, EntityType.TOPIC_NAME, "foo");
+        var aliceUpstreamEntityName = mapper.map(aliceContext, EntityType.TOPIC_NAME, "foo");
 
         // When / Then
-        assertThatThrownBy(() -> mapper.unmap(bobContext, EntityType.TOPIC_NAME, aliceUpstreamResource))
+        assertThatThrownBy(() -> mapper.unmap(bobContext, EntityType.TOPIC_NAME, aliceUpstreamEntityName))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -148,10 +148,10 @@ class PrincipalEntityNameMapperTest {
 
         var bobContext = buildMapperContext(bobSubject);
 
-        var aliceUpstreamResource = mapper.map(aliceContext, EntityType.TOPIC_NAME, "foo");
+        var aliceUpstreamEntityName = mapper.map(aliceContext, EntityType.TOPIC_NAME, "foo");
 
         // When/Then
-        assertThat(mapper.isOwnedByContext(bobContext, EntityType.TOPIC_NAME, aliceUpstreamResource)).isFalse();
+        assertThat(mapper.isOwnedByContext(bobContext, EntityType.TOPIC_NAME, aliceUpstreamEntityName)).isFalse();
     }
 
     private MapperContext buildMapperContext(Subject s) {

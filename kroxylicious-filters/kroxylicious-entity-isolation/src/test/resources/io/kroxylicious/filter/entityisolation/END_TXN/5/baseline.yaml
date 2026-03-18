@@ -29,7 +29,7 @@ given:
         errorCode: 0
         producerId: 0
         producerEpoch: 0
-  resourceTypes: ["TRANSACTIONAL_ID"]
+  entityTypes: ["TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: "alice"

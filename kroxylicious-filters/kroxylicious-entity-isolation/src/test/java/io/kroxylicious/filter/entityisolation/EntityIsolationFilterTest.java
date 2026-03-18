@@ -99,7 +99,7 @@ class EntityIsolationFilterTest {
 
     private void runScenario(ScenarioDefinition definition) {
         var entityMapper = createEntityMapper();
-        var isolationFilter = new EntityIsolationFilter(definition.given().resourceTypes(), entityMapper);
+        var isolationFilter = new EntityIsolationFilter(definition.given().entityTypes(), entityMapper);
         ApiKeys apiKeys = definition.metadata().apiKeys();
         short version = definition.metadata().apiVersion();
         short requestHeaderVersion = apiKeys.requestHeaderVersion(version);

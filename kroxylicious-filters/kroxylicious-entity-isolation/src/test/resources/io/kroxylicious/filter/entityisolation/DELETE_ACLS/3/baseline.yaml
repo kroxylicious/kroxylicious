@@ -62,7 +62,7 @@ given:
                 host: "*"
                 operation: 5
                 permissionType: 3
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

@@ -10,7 +10,7 @@ metadata:
   scenario: "unacceptable principal is rejected"
 given:
   mockedUpstreamResponses: []
-  resourceTypes: ["TRANSACTIONAL_ID"]
+  entityTypes: ["TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: "dash-boy"

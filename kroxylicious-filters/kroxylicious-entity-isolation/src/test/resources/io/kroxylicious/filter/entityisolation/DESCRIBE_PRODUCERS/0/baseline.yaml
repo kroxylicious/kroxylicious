@@ -38,7 +38,7 @@ given:
                     lastTimestamp: 0
                     coordinatorEpoch: 0
                     currentTxnStartOffset: 0
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

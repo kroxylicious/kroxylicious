@@ -28,7 +28,7 @@ given:
       upstreamResponse:
         throttleTimeMs: 1016
         errorCode: 0
-  resourceTypes: ["GROUP_ID", "TRANSACTIONAL_ID"]
+  entityTypes: ["GROUP_ID", "TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: "alice"

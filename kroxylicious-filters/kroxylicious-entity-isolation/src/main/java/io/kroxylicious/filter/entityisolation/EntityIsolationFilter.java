@@ -47,8 +47,8 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
     private final Map<ApiKeys, ? extends EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> processorMap;
     private final Map<Integer, Object> correlatedRequestContext = new HashMap<>();
 
-    EntityIsolationFilter(Set<EntityType> resourceTypes, EntityNameMapper mapper) {
-        Objects.requireNonNull(resourceTypes);
+    EntityIsolationFilter(Set<EntityType> entityTypes, EntityNameMapper mapper) {
+        Objects.requireNonNull(entityTypes);
         Objects.requireNonNull(mapper);
 
         Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> pm = new EnumMap<>(ApiKeys.class);
@@ -56,13 +56,13 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
         // Handles version negotiation
         pm.put(ApiKeys.API_VERSIONS, new ApiVersionsHandler());
         // The following processors require special code and are handwritten.
-        pm.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEntityIsolationProcessor(resourceTypes::contains, mapper));
-        pm.put(ApiKeys.DELETE_ACLS, new DeleteAclsEntityIsolationProcessor(resourceTypes::contains, mapper));
-        pm.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEntityIsolationProcessor(resourceTypes::contains, mapper));
-        pm.put(ApiKeys.DESCRIBE_ACLS, new DescribeAclsEntityIsolationProcessor(resourceTypes::contains, mapper));
+        pm.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEntityIsolationProcessor(entityTypes::contains, mapper));
+        pm.put(ApiKeys.DELETE_ACLS, new DeleteAclsEntityIsolationProcessor(entityTypes::contains, mapper));
+        pm.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEntityIsolationProcessor(entityTypes::contains, mapper));
+        pm.put(ApiKeys.DESCRIBE_ACLS, new DescribeAclsEntityIsolationProcessor(entityTypes::contains, mapper));
 
         // Add the generated processors, excluding the special cases.
-        createProcessorMap(resourceTypes::contains, mapper).forEach(pm::putIfAbsent);
+        createProcessorMap(entityTypes::contains, mapper).forEach(pm::putIfAbsent);
         this.processorMap = Collections.unmodifiableMap(pm);
     }
 

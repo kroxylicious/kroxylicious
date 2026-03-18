@@ -31,7 +31,7 @@ given:
         nodeId: 0
         host: "random-string-822"
         port: 919
-  resourceTypes: ["TRANSACTIONAL_ID"]
+  entityTypes: ["TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: "alice"

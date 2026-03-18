@@ -39,7 +39,7 @@ given:
                 timestamp: 0
                 offset: 0
                 leaderEpoch: 0
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

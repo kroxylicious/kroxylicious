@@ -26,7 +26,7 @@ given:
         results:
           - groupId: alice-mygroup
             errorCode: 0
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

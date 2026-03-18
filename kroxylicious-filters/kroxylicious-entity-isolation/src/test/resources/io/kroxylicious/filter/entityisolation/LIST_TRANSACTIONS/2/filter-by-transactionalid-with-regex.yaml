@@ -41,7 +41,7 @@ given:
           - transactionalId: bob-mytxn
             producerId: 3
             transactionState: Ongoing
-  resourceTypes: ["TRANSACTIONAL_ID"]
+  entityTypes: ["TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: "alice"

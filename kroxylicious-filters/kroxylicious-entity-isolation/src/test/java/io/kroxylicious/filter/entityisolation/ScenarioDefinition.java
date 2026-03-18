@@ -29,10 +29,10 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
 
     /**
      * @param mockedUpstreamResponses response for mock upstream to respond with, empty if expect no requests to be sent upstream
-     * @param resourceTypes rules
+     * @param entityTypes rules
      * @param topicNames topic id to topic name map
      */
-    public record Given(List<MockResponse> mockedUpstreamResponses, java.util.Set<EntityIsolation.EntityType> resourceTypes,
+    public record Given(List<MockResponse> mockedUpstreamResponses, java.util.Set<EntityIsolation.EntityType> entityTypes,
                         @Nullable Map<Uuid, String> topicNames) {}
 
     /**
