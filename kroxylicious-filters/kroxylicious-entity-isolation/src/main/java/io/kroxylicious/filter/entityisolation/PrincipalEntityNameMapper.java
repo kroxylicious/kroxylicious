@@ -109,6 +109,6 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
                 .filter(Predicate.not(name -> name.contains(separator)))
                 .orElseThrow(() -> new EntityMapperException(
                         "Principal '%s' is unacceptable as it contains the mapping separator '%s'".formatted(principalOpt.get(), separator)));
-        return principalOpt.get();
+        return principalOpt.orElseThrow();
     }
 }
