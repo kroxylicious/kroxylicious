@@ -6,7 +6,6 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
-Open
 
 * [#2697](https://github.com/kroxylicious/kroxylicious/issues/2697) EntityIsolationFilter (restricted to groupId and transactionalId entity type only)
 * [#3007](https://github.com/kroxylicious/kroxylicious/issues/3007) Allow schema validation to use a schema registry protected by an internally signed certificate.
