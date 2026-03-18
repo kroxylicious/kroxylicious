@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: 'Check out repository'
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
           fetch-tags: true
