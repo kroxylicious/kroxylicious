@@ -1,0 +1,16 @@
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// index.adoc
+
+
+[discrete]
+[id='con-about-record-validation-guide-{context}']
+= About this guide
+
+[role="_abstract"]
+This guide covers using the *Kroxylicious Entity Isolation Filter*.
+This filter gives an authenticated user a private space within a Kafka cluster that is isolated from other users
+sharing the same cluster.  Isolation can be applied selectively so that isolation is applied to some resource types
+and not others.
