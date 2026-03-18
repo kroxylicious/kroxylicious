@@ -6,6 +6,8 @@
 
 package io.kroxylicious.systemtests;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -122,6 +124,7 @@ class NonJVMClientsST extends AbstractSystemTests {
 
     @BeforeAll
     void setupBefore() {
+        preloadImages();
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.warn("Skipping kafka deployment. It is already deployed!");
@@ -139,8 +142,25 @@ class NonJVMClientsST extends AbstractSystemTests {
         kroxyliciousOperator.deploy();
     }
 
+    private void preloadImages() {
+        Method[] methods = KafkaClients.class.getDeclaredMethods();
+        for (Method method : methods) {
+            if (!method.getName().startsWith("get")) {
+                try {
+                    Object obj = method.invoke(KafkaClients.class);
+                    ((KafkaClient)obj).preloadImage();
+                }
+                catch (IllegalAccessException | InvocationTargetException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
     @AfterAll
     void cleanUp() {
-        kroxyliciousOperator.delete();
+        if (kroxyliciousOperator != null) {
+            kroxyliciousOperator.delete();
+        }
     }
 }
