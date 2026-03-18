@@ -84,3 +84,8 @@ then:
         protocolData: "consumer"
         members: [ ]
         authorizedOperations: 3400 # READ + DELETE + DESCRIBE + ALTER_CONFIGS + DESCRIBE_CONFIGS
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

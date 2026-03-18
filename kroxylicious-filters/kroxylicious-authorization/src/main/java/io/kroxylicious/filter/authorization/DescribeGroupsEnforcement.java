@@ -6,14 +6,20 @@
 
 package io.kroxylicious.filter.authorization;
 
+import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.DescribeGroupsResponseData;
 import org.apache.kafka.common.message.DescribeGroupsResponseData.DescribedGroup;
+import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.DescribeGroupsResponse;
@@ -40,8 +46,18 @@ public class DescribeGroupsEnforcement extends ApiEnforcement<DescribeGroupsRequ
                                                    FilterContext context,
                                                    AuthorizationFilter authorizationFilter) {
         boolean isIncludeAuthorizedOps = request.includeAuthorizedOperations();
-        List<Action> actions = actionsToAuthorize(request, isIncludeAuthorizedOps);
-        return authorizationFilter.authorization(context, actions).thenCompose(authorizeResult -> {
+        List<Action> actions = groupsCrossWithOperations(
+                request.groups(),
+                Function.identity(),
+                isIncludeAuthorizedOps ? EnumSet.allOf(GroupResource.class) : EnumSet.of(GroupResource.DESCRIBE))
+                .toList();
+        Set<Action> nonAuditableActions = groupsCrossWithOperations(
+                request.groups(),
+                Function.identity(),
+                // only DESCRIBE is auditable
+                isIncludeAuthorizedOps ? EnumSet.complementOf(EnumSet.of(GroupResource.DESCRIBE)) : EnumSet.noneOf(GroupResource.class))
+                .collect(Collectors.toSet());
+        return authorizationFilter.authorization(context, actions, nonAuditableActions).thenCompose(authorizeResult -> {
             if (authorizeResult.allowed().isEmpty()) {
                 return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
             }
@@ -68,23 +84,11 @@ public class DescribeGroupsEnforcement extends ApiEnforcement<DescribeGroupsRequ
         });
     }
 
-    private static List<Action> actionsToAuthorize(DescribeGroupsRequestData request, boolean isIncludeAuthorizedOps) {
-        List<GroupResource> operationsToAuthorize = operationsToAuthorize(isIncludeAuthorizedOps);
-        return request.groups().stream()
-                .flatMap(group -> operationsToAuthorize.stream()
-                        .map(groupResource -> new Action(groupResource, group)))
-                .toList();
-    }
-
-    private static List<GroupResource> operationsToAuthorize(boolean isIncludeAuthorizedOps) {
-        if (isIncludeAuthorizedOps) {
-            // we need to know which operations are authorized to include them in the authorized ops
-            return List.of(GroupResource.values());
-        }
-        else {
-            // we only need to know if the actor can DESCRIBE
-            return List.of(GroupResource.DESCRIBE);
-        }
+    private static <T> Stream<Action> groupsCrossWithOperations(Collection<T> topics,
+                                                                Function<T, String> nameExtractor,
+                                                                EnumSet<GroupResource> groupResourceOps) {
+        return topics.stream().flatMap(topicRequest -> groupResourceOps.stream()
+                .map(topicResourceOp -> new Action(topicResourceOp, nameExtractor.apply(topicRequest))));
     }
 
     private static DescribedGroup groupAuthzFailureResult(String deniedGroup) {
