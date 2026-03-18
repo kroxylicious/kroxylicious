@@ -596,7 +596,11 @@ class MetricsIT {
                     var managementClient = tester.getManagementClient();) {
 
                 var metricList = managementClient.scrapeMetrics();
-                var metrics = metricList.stream().filter(metric -> metric.name().equals("kroxylicious_audit_ProxyStart_success_total")).toList();
+                var metrics = metricList.stream()
+                        .filter(metric -> metric.name().equals("kroxylicious_audit_total")
+                                && "ProxyStart".equals(metric.labels().get("action"))
+                                && "success".equals(metric.labels().get("outcome")))
+                        .toList();
                 assertThat(metrics)
                         .singleElement()
                         .value().isEqualTo(1);
