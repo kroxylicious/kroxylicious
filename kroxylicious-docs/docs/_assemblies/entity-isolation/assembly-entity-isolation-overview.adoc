@@ -1,0 +1,82 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// index.adoc
+
+[id='assembly-entity-isolation-overview-{context}']
+= Entity Isolation overview
+
+[role="_abstract"]
+The Kroxylicious Entity Isolation filter gives each authenticated client a private, isolated view of certain Kafka entity types within a shared cluster.
+When entity isolation is enabled for a resource type, each client operates as if it owns that namespace entirely — it cannot see, interfere with, or accidentally collide with the same-named resources belonging to other clients.
+
+ifndef::OpenShiftOnly[]
+* If your applications use TLS client authentication, configure the link:{ProxyGuideUrl}[transport subject builder within the virtual cluster] to build a subject based on the client certificate.
+endif::OpenShiftOnly[]
+* If your applications use SASL authentication, configure the link:{SASLInspectionGuideUrl}[SASL inspection filter] to build the authenticated subject from the successful SASL exchange between the client and the broker.
+
+The filter achieves this by intercepting Kafka RPCs on both the request and response paths:
+
+* On the *request path*, resource names are transparently mapped from the client's isolated view to a cluster-wide name that includes a client-specific prefix or transformation.
+* On the *response path*, the cluster-wide name is mapped back to the client's view.
+Resources that do not belong to the current client's namespace are filtered out of list and describe responses.
+
+.Entity Isolation filter — request and response path
+image::{realimagesdir}/entity-isolation-seq.svg["Diagram showing how the entity isolation re-writes requests and responses."]
+
+== Supported entity types
+
+The current implementation supports isolation for the following Kafka entity types:
+
+`GROUP_ID`::
+Consumer group identifiers used in all consumer group RPCs (e.g. `JoinGroup`, `OffsetFetch`, `DeleteGroups`).
+
+`TRANSACTIONAL_ID`::
+Transactional producer identifiers used in transactional RPCs (e.g. `InitProducerId`, `AddPartitionsToTxn`, `EndTxn`).
+
+NOTE: Topic name isolation is not yet supported.
+Any attempt to enable `TOPIC` entity type isolation will be rejected by the filter at startup.
+Support for `TOPIC` isolation is planned for a future release.
+
+== How it works
+
+=== Name mapping
+
+The filter delegates all resource name transformations to a pluggable `EntityNameMapper`.
+The mapper is given the authenticated subject of the current connection and the entity type being mapped, and is responsible for:
+
+* Translating a client-visible name to a cluster-visible name (mapping).
+* Translating a cluster-visible name back to a client-visible name (unmapping).
+* Deciding whether a cluster-visible name falls within the current client's namespace.
+
+The built-in mapper, `PrincipalEntityNameMapper`, prefixes resource names with the authenticated Kafka principal.
+For a principal `alice`, a consumer group called `my-consumer-group` is stored on the broker as `alice-my-consumer-group`.
+
+[NOTE]
+====
+The default separator character between the principal and the resource name is a hyphen (`-`).
+Principals that already contain the separator are not supported.
+If a client uses a principal containing a separate, the client will be disconnected with an error.
+====
+
+=== Request path
+
+When a Kafka request arrives at the proxy:
+
+. The filter identifies fields in the request that reference entity types for which isolation is enabled.
+. Each matching field value is passed to the `EntityNameMapper` which returns the cluster-visible name.
+. The mutated request is forwarded to the broker.
+
+For requests that carry a regex filter (e.g. `ListTransactions` with a `transactionalIdFilter` regex), the filter rewrites the regex so that it matches the cluster-visible namespace of the current client.
+
+=== Response path
+
+When the broker's response arrives at the proxy:
+
+. The filter identifies fields in the response that reference entity types for which isolation is enabled.
+. For each such field, the `EntityNameMapper` checks whether the value belongs to the current client's namespace.
+** If it does, the value is unmapped to the client-visible name and passed through.
+** If it does not, the containing record is filtered out of the response entirely.
+. The mutated response is returned to the client.
+
