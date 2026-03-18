@@ -45,7 +45,7 @@ given:
             groupInstanceId: ""
             metadata: !!binary |-
                aGVsbG8K
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

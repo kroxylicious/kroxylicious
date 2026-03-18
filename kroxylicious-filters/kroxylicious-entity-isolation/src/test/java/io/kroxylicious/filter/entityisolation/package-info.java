@@ -5,7 +5,7 @@
  */
 
 /**
- * Contains the resource isolation filter.
+ * Contains the entity isolation filter.
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)

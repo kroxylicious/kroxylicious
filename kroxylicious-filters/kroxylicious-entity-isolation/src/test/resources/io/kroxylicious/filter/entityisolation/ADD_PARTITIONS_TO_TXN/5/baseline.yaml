@@ -38,7 +38,7 @@ given:
                   - partitionIndex: 0
                     partitionErrorCode: 0
         throttleTimeMs: 0
-  resourceTypes: ["TRANSACTIONAL_ID"]
+  entityTypes: ["TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: "alice"

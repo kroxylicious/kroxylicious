@@ -60,8 +60,8 @@ class FindCoordinatorEntityIsolationProcessor
                                                           FindCoordinatorRequestData request,
                                                           FilterContext filterContext,
                                                           MapperContext mapperContext) {
-        var resourceType = getResourceType(request.keyType());
-        resourceType.filter(shouldMap)
+        var entityType = getEntityType(request.keyType());
+        entityType.filter(shouldMap)
                 .ifPresent(rt -> {
                     if ((short) 0 <= header.requestApiVersion() && header.requestApiVersion() <= (short) 3) {
                         request.setKey(mapper.map(mapperContext, rt, request.key()));
@@ -83,14 +83,14 @@ class FindCoordinatorEntityIsolationProcessor
     @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     public CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
                                                             short apiVersion,
-                                                            @Nullable EntityIsolation.EntityType requestedResourceType,
+                                                            @Nullable EntityIsolation.EntityType requestedEntityType,
                                                             FindCoordinatorResponseData response,
                                                             FilterContext filterContext,
                                                             MapperContext mapperContext) {
-        Optional.ofNullable(requestedResourceType)
+        Optional.ofNullable(requestedEntityType)
                 .filter(shouldMap)
-                .ifPresent(resourceType -> response.coordinators()
-                        .forEach(coordinator -> coordinator.setKey(mapper.unmap(mapperContext, requestedResourceType, coordinator.key()))));
+                .ifPresent(entityType -> response.coordinators()
+                        .forEach(coordinator -> coordinator.setKey(mapper.unmap(mapperContext, requestedEntityType, coordinator.key()))));
 
         return filterContext.forwardResponse(header, response);
     }
@@ -98,10 +98,10 @@ class FindCoordinatorEntityIsolationProcessor
     @Nullable
     @Override
     public EntityType createCorrelatedRequestContext(FindCoordinatorRequestData request) {
-        return getResourceType(request.keyType()).orElse(null);
+        return getEntityType(request.keyType()).orElse(null);
     }
 
-    private Optional<EntityType> getResourceType(byte id) {
+    private Optional<EntityType> getEntityType(byte id) {
         var coordinatorType = CoordinatorType.forId(id);
         return convertCoordinatorType(coordinatorType);
     }

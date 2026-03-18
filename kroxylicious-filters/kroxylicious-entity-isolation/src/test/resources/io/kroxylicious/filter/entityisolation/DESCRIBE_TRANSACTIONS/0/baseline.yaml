@@ -34,7 +34,7 @@ given:
             topics:
               - topic: foo
                 partitions: [0]
-  resourceTypes: ["TRANSACTIONAL_ID"]
+  entityTypes: ["TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: "alice"

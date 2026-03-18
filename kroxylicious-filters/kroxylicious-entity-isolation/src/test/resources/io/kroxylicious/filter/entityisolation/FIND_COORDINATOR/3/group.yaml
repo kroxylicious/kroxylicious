@@ -30,7 +30,7 @@ given:
         nodeId: 0
         host: "random-string-822"
         port: 919
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

@@ -51,7 +51,7 @@ public class PrincipalEntityNameMapperService implements EntityNameMapperService
     /**
      * Configuration for the {@link PrincipalEntityNameMapperService}
      *
-     * @param principalType the type of principal that will be prepended to the resource name to isolate the entity.
+     * @param principalType the type of principal that will be prepended to the entity name to isolate the entity.
      * @param separator the separator character
      */
     record Config(@Nullable @JsonProperty() Class<? extends Principal> principalType,

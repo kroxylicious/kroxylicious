@@ -31,7 +31,7 @@ given:
         resultsByTopicV3AndBelow:
           - name: foo
             resultsByPartition: []
-  resourceTypes: ["TRANSACTIONAL_ID"]
+  entityTypes: ["TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: "alice"

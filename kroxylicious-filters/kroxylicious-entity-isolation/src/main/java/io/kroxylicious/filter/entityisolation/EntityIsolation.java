@@ -26,7 +26,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Entity isolation gives a user a private space within a Kafka cluster that is isolated from other users sharing the same cluster
- * for some of their resources.  Isolation can be applied selectively so that isolation is applied to some resource types
+ * for some of their entities.  Isolation can be applied selectively so that isolation is applied to some entity types
  * and not others.
  * <br/>
  * Currently, entity isolation is limited to groupId and transactionalId entity types.
@@ -89,7 +89,7 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
     /**
      * Configuration for the {@link EntityIsolation}.
      *
-     * @param entityTypes set of resource types to isolated.
+     * @param entityTypes set of entity types to isolated.
      * @param mapper mapper name
      * @param mapperConfig mapper config
      */
@@ -111,7 +111,7 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
      *
      * @param apiKey api key
      * @param resourceTypeCode resource type code
-     * @return resource type
+     * @return entity type
      */
     static Optional<EntityType> fromResourceTypeCode(ApiKeys apiKey, byte resourceTypeCode) {
         return switch (apiKey) {

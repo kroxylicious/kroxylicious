@@ -42,7 +42,7 @@ given:
                     batchIndexErrorMessage: null
                 errorMessage: null
         throttleTimeMs: 0
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

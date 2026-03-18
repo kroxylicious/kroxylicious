@@ -51,7 +51,7 @@ given:
             errorMessage:
             resourceType: 2
             resourceName: "mytopic"
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

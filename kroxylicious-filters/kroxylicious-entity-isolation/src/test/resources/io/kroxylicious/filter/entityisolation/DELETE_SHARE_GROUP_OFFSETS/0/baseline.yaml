@@ -33,7 +33,7 @@ given:
             topicId: "AAAAAAAAAAAAAAAAAAAAAA"
             errorCode: 0
             errorMessage: ""
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

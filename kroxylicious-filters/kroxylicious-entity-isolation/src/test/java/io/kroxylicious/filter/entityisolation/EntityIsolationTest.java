@@ -24,7 +24,7 @@ class EntityIsolationTest {
     @SuppressWarnings({ "unchecked", "resource" })
     void shouldInitAndCreateFilter() {
         var config = new EntityIsolation.Config(Set.of(EntityIsolation.EntityType.GROUP_ID), "MAPPER", null);
-        var resourceIsolation = new EntityIsolation();
+        var entityIsolation = new EntityIsolation();
         var fc = mock(FilterFactoryContext.class);
         var mapperService = mock(EntityNameMapperService.class);
         var mapper = mock(EntityNameMapper.class);
@@ -33,11 +33,11 @@ class EntityIsolationTest {
         doReturn(mapper).when(mapperService).build();
         doReturn(mock(FilterDispatchExecutor.class)).when(fc).filterDispatchExecutor();
 
-        var sec = resourceIsolation.initialize(fc, config);
-        var filter = resourceIsolation.createFilter(fc, sec);
+        var sec = entityIsolation.initialize(fc, config);
+        var filter = entityIsolation.createFilter(fc, sec);
         assertThat(filter).isNotNull();
         verify(mapperService).initialize(null);
-        resourceIsolation.close(sec);
+        entityIsolation.close(sec);
     }
 
     @Test

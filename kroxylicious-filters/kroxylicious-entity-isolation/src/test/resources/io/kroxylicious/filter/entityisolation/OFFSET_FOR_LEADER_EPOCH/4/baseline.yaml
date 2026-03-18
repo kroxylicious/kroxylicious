@@ -36,7 +36,7 @@ given:
                 partition: 0
                 leaderEpoch: 0
                 endOffset: 0
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

@@ -33,7 +33,7 @@ given:
             port: 919
             errorCode: 0
             errorMessage: ""
-  resourceTypes: ["TRANSACTIONAL_ID"]
+  entityTypes: ["TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: "alice"

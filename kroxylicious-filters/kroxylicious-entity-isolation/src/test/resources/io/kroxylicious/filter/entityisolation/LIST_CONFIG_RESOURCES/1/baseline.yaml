@@ -31,7 +31,7 @@ given:
             resourceType: 32
           - resourceName: "mytopic"
             resourceType: 2
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

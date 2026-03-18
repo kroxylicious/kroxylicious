@@ -59,7 +59,7 @@ given:
                 synonyms: []
                 configType: 0
                 documentation: ""
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"

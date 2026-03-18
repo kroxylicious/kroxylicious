@@ -65,7 +65,7 @@ given:
             host: localhost
             port: 0
             rack: us-east1
-  resourceTypes: ["GROUP_ID"]
+  entityTypes: ["GROUP_ID"]
   topicNames: null
 when:
   subject: "alice"
