@@ -16,6 +16,9 @@ HELM_RELEASE="benchmark"
 KAFKA_READY_TIMEOUT="${KAFKA_READY_TIMEOUT:-600s}"
 POD_READY_TIMEOUT="${POD_READY_TIMEOUT:-300s}"
 METRICS_INTERVAL="${METRICS_INTERVAL:-30}"
+# Maximum time to wait for a single benchmark to complete (seconds).
+# Should exceed testDurationMinutes + warmupDurationMinutes + setup overhead.
+PROBE_TIMEOUT="${PROBE_TIMEOUT:-3600}"
 
 PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
 
@@ -28,17 +31,17 @@ JFR_PVC_NAME="${HELM_RELEASE}-jfr"
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") [--profile <values-file>] [--set <key=value> ...] <scenario> <workload> <output-dir>
+Usage: $(basename "$0") [--profile <values-file>] [--set <key=value> ...] [--skip-deploy] [--skip-teardown] [--producer-rate <n>] <scenario> <workload> <output-dir>
 
 Runs a single benchmark scenario end-to-end:
-  1. Deploy benchmark infrastructure via Helm
-  2. Wait for Kafka and OMB pods to be ready
-  3. Execute the OMB benchmark
-  4. Collect results, JFR recording, and CPU flamegraph
-  5. Tear down infrastructure (Helm uninstall + PVC cleanup)
+  1. Deploy benchmark infrastructure via Helm  (skipped with --skip-deploy)
+  2. Wait for Kafka and OMB pods to be ready   (skipped with --skip-deploy)
+  3. Execute the OMB benchmark via kubectl exec
+  4. Collect results, JFR recording, and CPU flamegraph  (JFR skipped with --skip-deploy)
+  5. Tear down infrastructure (Helm uninstall + PVC cleanup)  (skipped with --skip-teardown)
 
-When a proxy pod is present, JFR and async-profiler CPU profiling are enabled automatically.
-Results include benchmark.jfr and flamegraph.html written to output-dir.
+When a proxy pod is present (and --skip-deploy is not set), JFR and async-profiler CPU profiling
+are enabled automatically. Results include benchmark.jfr and flamegraph.html written to output-dir.
 
 Arguments:
   scenario    Scenario name matching a file in helm/scenarios/<scenario>-values.yaml
@@ -50,23 +53,29 @@ Options:
   --profile <values-file>   Additional Helm values file layered on top of the scenario
                             (e.g. helm/kroxylicious-benchmark/scenarios/single-node-values.yaml)
   --set <key=value>         Pass a Helm --set override (may be repeated)
-  --skip-teardown             Leave infrastructure running after the benchmark (or on failure).
-                            Useful for post-failure debugging (e.g. jcmd, kubectl exec).
+  --skip-deploy             Skip Helm deploy and pod wait; assume infrastructure is already up.
+                            Resets Kafka topics before running. Used by rate-sweep.sh for probes
+                            after the first. Implies no JFR setup or collection.
+  --skip-teardown           Leave infrastructure running after the benchmark (or on failure).
+                            Useful for post-failure debugging or multi-probe sweeps.
                             The script will print the teardown commands to run manually.
+  --producer-rate <n>       Override the producerRate in the workload (msg/sec).
+                            When set, the rate is injected via sed before running.
   -h, --help                Show this help
 
 Environment:
-  NAMESPACE              Kubernetes namespace (default: kafka)
-  KAFKA_READY_TIMEOUT    Timeout waiting for Kafka to be ready (default: 600s)
-  POD_READY_TIMEOUT      Timeout waiting for pods to be ready (default: 300s)
-  METRICS_INTERVAL       Proxy metrics polling interval in seconds (default: 30)
-  JFR_MAX_SIZE_MB        Maximum size of the JFR recording in megabytes (default: 64)
+  NAMESPACE                    Kubernetes namespace (default: kafka)
+  KAFKA_READY_TIMEOUT          Timeout waiting for Kafka to be ready (default: 600s)
+  POD_READY_TIMEOUT            Timeout waiting for pods to be ready (default: 300s)
+  PROBE_TIMEOUT                Max seconds to wait for the benchmark to complete (default: 3600)
+  METRICS_INTERVAL             Proxy metrics polling interval in seconds (default: 30)
+  JFR_MAX_SIZE_MB              Maximum size of the JFR recording in megabytes (default: 64)
 
 Examples:
   $(basename "$0") baseline 1topic-1kb ./results/baseline/
+  $(basename "$0") --producer-rate 30000 baseline 1topic-1kb ./results/baseline/rate-30000/
+  $(basename "$0") --skip-deploy --skip-teardown --producer-rate 50000 baseline 1topic-1kb ./results/baseline/rate-50000/
   $(basename "$0") --profile ./helm/kroxylicious-benchmark/scenarios/single-node-values.yaml \
-    baseline 1topic-1kb ./results/baseline/
-  $(basename "$0") --set benchmark.testDurationMinutes=1 --set benchmark.warmupDurationMinutes=0 \
     baseline 1topic-1kb ./results/baseline/
   NAMESPACE=benchmarks $(basename "$0") baseline 1topic-1kb ./results/
 EOF
@@ -75,7 +84,9 @@ EOF
 
 PROFILE_VALUES=""
 HELM_SET_ARGS=()
+SKIP_DEPLOY=false
 SKIP_TEARDOWN=false
+PRODUCER_RATE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -87,9 +98,17 @@ while [[ $# -gt 0 ]]; do
             HELM_SET_ARGS+=("$2")
             shift 2
             ;;
+        --skip-deploy)
+            SKIP_DEPLOY=true
+            shift
+            ;;
         --skip-teardown)
             SKIP_TEARDOWN=true
             shift
+            ;;
+        --producer-rate)
+            PRODUCER_RATE="$2"
+            shift 2
             ;;
         -h|--help)
             usage
@@ -154,6 +173,57 @@ teardown() {
     echo "Teardown complete."
 }
 
+check_workers_healthy() {
+    local desired
+    desired=$(kubectl get statefulset omb-worker -n "${NAMESPACE}" \
+        -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+    if [[ "${desired}" == "0" ]]; then
+        echo "OMB worker StatefulSet not found or has 0 replicas" >&2
+        return 1
+    fi
+    local ready
+    ready=$(kubectl get statefulset omb-worker -n "${NAMESPACE}" \
+        -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+    if [[ "${ready}" == "${desired}" ]]; then
+        return 0
+    fi
+    echo "OMB workers not fully ready (${ready}/${desired}) — waiting up to ${POD_READY_TIMEOUT}..."
+    if kubectl rollout status statefulset/omb-worker \
+            -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}" 2>/dev/null; then
+        echo "OMB workers ready."
+    else
+        echo "OMB workers did not recover within ${POD_READY_TIMEOUT}" >&2
+        return 1
+    fi
+}
+
+reset_topics() {
+    echo "Resetting Kafka topics..."
+    local kafka_pod
+    kafka_pod=$(kubectl get pod -n "${NAMESPACE}" \
+        -l "strimzi.io/cluster=kafka,strimzi.io/pool-name=kafka-pool" \
+        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
+    if [[ -z "${kafka_pod}" ]]; then
+        echo "Warning: no Kafka broker pod found — skipping topic reset" >&2
+        return
+    fi
+    kubectl exec "${kafka_pod}" -n "${NAMESPACE}" -- \
+        bash -c 'user_topics=$(/opt/kafka/bin/kafka-topics.sh \
+                     --bootstrap-server localhost:9092 --list 2>/dev/null \
+                     | grep -v "^__" || true)
+                 if [[ -n "$user_topics" ]]; then
+                     echo "$user_topics" | while IFS= read -r topic; do
+                         /opt/kafka/bin/kafka-topics.sh \
+                             --bootstrap-server localhost:9092 \
+                             --delete --topic "$topic" 2>/dev/null || true
+                     done
+                     echo "Deleted topics: $(echo "$user_topics" | tr "\n" " ")"
+                 else
+                     echo "No user topics to delete."
+                 fi'
+    echo "Topic reset complete."
+}
+
 start_metrics_poller() {
     local proxy_pod
     proxy_pod=$(kubectl get pod -n "${NAMESPACE}" \
@@ -170,14 +240,6 @@ start_metrics_poller() {
     echo "Metrics poller running (PID ${METRICS_PID})"
 }
 
-stop_logs_tailer() {
-    if [[ -n "${LOGS_PID}" ]]; then
-        kill "${LOGS_PID}" 2>/dev/null || true
-        wait "${LOGS_PID}" 2>/dev/null || true
-        LOGS_PID=""
-    fi
-}
-
 stop_metrics_poller() {
     if [[ -n "${METRICS_PID}" ]]; then
         echo "Stopping metrics poller (PID ${METRICS_PID})..."
@@ -190,6 +252,9 @@ stop_metrics_poller() {
 echo "=== Benchmark run: ${SCENARIO} / ${WORKLOAD} ==="
 echo "Namespace:  ${NAMESPACE}"
 echo "Output dir: ${OUTPUT_DIR}"
+if [[ -n "${PRODUCER_RATE}" ]]; then
+    echo "Rate:       ${PRODUCER_RATE} msg/sec"
+fi
 if [[ -n "${PROFILE_VALUES}" ]]; then
     echo "Profile:    ${PROFILE_VALUES}"
 fi
@@ -198,60 +263,64 @@ if [[ ${#HELM_SET_ARGS[@]} -gt 0 ]]; then
 fi
 echo ""
 
-# Ensure previous run is cleaned up before starting
-if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
-    echo "Warning: Helm release '${HELM_RELEASE}' already exists. Tearing down before proceeding."
-    teardown
+if [[ "${SKIP_DEPLOY}" == "false" ]]; then
+    # Ensure previous run is cleaned up before starting
+    if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
+        echo "Warning: Helm release '${HELM_RELEASE}' already exists. Tearing down before proceeding."
+        teardown
+    fi
+
+    # --- Deploy ---
+
+    echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
+    HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
+    [[ -n "${PROFILE_VALUES}" ]] && HELM_ARGS+=(-f "${PROFILE_VALUES}")
+    HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
+    for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do HELM_ARGS+=(--set "${set_arg}"); done
+
+    helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" --timeout 300s
+
+    # Register teardown to run on exit (success or failure) so we always clean up.
+    # Skipped when --skip-teardown is set, leaving infrastructure up for debugging.
+    if [[ "${SKIP_TEARDOWN}" == "false" ]]; then
+        trap teardown EXIT
+    fi
+
+    # --- Wait for Kafka ---
+
+    echo "Waiting for Kafka cluster to be ready (timeout: ${KAFKA_READY_TIMEOUT})..."
+    kubectl wait kafka/kafka \
+        --for=condition=Ready \
+        --timeout="${KAFKA_READY_TIMEOUT}" \
+        -n "${NAMESPACE}"
+    echo "Kafka is ready."
+
+    # --- Wait for OMB pods ---
+
+    echo "Waiting for OMB workers to be ready..."
+    kubectl rollout status statefulset/omb-worker -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
+
+    echo "Waiting for OMB benchmark pod to be ready..."
+    kubectl wait --for=condition=ready pod \
+        -l app=omb-benchmark \
+        -n "${NAMESPACE}" \
+        --timeout="${POD_READY_TIMEOUT}"
+    echo "OMB pods are ready."
+else
+    # Infrastructure already up — verify workers are healthy and reset topics for a clean run
+    echo "--- Skipping deploy (--skip-deploy) ---"
+    check_workers_healthy
+    reset_topics
 fi
 
-# --- Deploy ---
-
-echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
-HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
-[[ -n "${PROFILE_VALUES}" ]] && HELM_ARGS+=(-f "${PROFILE_VALUES}")
-HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
-for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do HELM_ARGS+=(--set "${set_arg}"); done
-
-helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" --timeout 300s
-
-# Register teardown to run on exit (success or failure) so we always clean up.
-# Skipped when --skip-teardown is set, leaving infrastructure up for debugging.
-if [[ "${SKIP_TEARDOWN}" == "false" ]]; then
-    trap teardown EXIT
-fi
-
-# --- Wait for Kafka ---
-
-echo "Waiting for Kafka cluster to be ready (timeout: ${KAFKA_READY_TIMEOUT})..."
-kubectl wait kafka/kafka \
-    --for=condition=Ready \
-    --timeout="${KAFKA_READY_TIMEOUT}" \
-    -n "${NAMESPACE}"
-echo "Kafka is ready."
-
-# --- Wait for OMB pods ---
-
-echo "Waiting for OMB workers to be ready..."
-kubectl rollout status statefulset/omb-worker -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
-
-echo "Waiting for OMB benchmark pod to be ready..."
-kubectl wait --for=condition=ready pod \
-    -l app=omb-benchmark \
-    -n "${NAMESPACE}" \
-    --timeout="${POD_READY_TIMEOUT}"
-echo "OMB pods are ready."
-
-# Note: the benchmark starts automatically inside the Job pod (no kubectl exec needed).
-# run-benchmark.sh waits for the .done marker file written when the benchmark exits.
-
-# --- Start JFR and async-profiler recording on proxy pod (if present) ---
+# --- Start JFR and async-profiler recording on proxy pod (if present, first run only) ---
 
 PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
 PROXY_DEPLOYMENT=""
 PROXY_POD=""
 
 PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
-if [[ -n "${PROXY_POD}" ]]; then
+if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
     PROXY_DEPLOYMENT=$(kubectl get deployment -n "${NAMESPACE}" \
         -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
@@ -333,48 +402,58 @@ start_metrics_poller
 echo ""
 echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
 
-# The benchmark runs as the Job pod's main process. Poll for the .done marker
-# file that the pod writes when the benchmark exits, then read the exit code.
+mkdir -p "${OUTPUT_DIR}"
 BENCHMARK_POD=$(kubectl get pod -n "${NAMESPACE}" -l app=omb-benchmark \
     -o jsonpath='{.items[0].metadata.name}')
 echo "Benchmark pod: ${BENCHMARK_POD}"
-echo "Streaming benchmark output..."
-kubectl logs -f "${BENCHMARK_POD}" -n "${NAMESPACE}" &
-LOGS_PID=$!
+echo "  OMB log: ${OUTPUT_DIR}/omb.log"
 
-DONE_FILE="/var/lib/omb/results/.done"
-until kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
-        test -f "${DONE_FILE}" 2>/dev/null; do
-    # Check whether the pod has failed (e.g. OOM-killed) — if so it will never
-    # write .done and the loop would otherwise hang indefinitely.
-    pod_phase=$(kubectl get pod "${BENCHMARK_POD}" -n "${NAMESPACE}" \
-        -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
-    if [[ "${pod_phase}" == "Failed" ]]; then
-        stop_logs_tailer
-        echo "Benchmark pod failed (phase: ${pod_phase}) before writing results — likely OOM-killed" >&2
-        exit 1
-    fi
-    sleep 5
-done
-stop_logs_tailer
+# Clear any result files left by a previous probe
+kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
+    sh -c 'rm -f /var/lib/omb/results/*.json' 2>/dev/null || true
 
-BENCHMARK_EXIT=$(kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
-    cat "${DONE_FILE}" 2>/dev/null || echo "1")
-if [[ "${BENCHMARK_EXIT}" != "0" ]]; then
-    echo "Benchmark failed with exit code ${BENCHMARK_EXIT}" >&2
+# Build workload command: optionally override producerRate via sed
+if [[ -n "${PRODUCER_RATE}" ]]; then
+    WORKLOAD_CMD="sed 's/^producerRate:.*/producerRate: ${PRODUCER_RATE}/' /etc/omb/workloads/workload.yaml > /tmp/workload.yaml"
+else
+    WORKLOAD_CMD="cp /etc/omb/workloads/workload.yaml /tmp/workload.yaml"
 fi
+
+BENCHMARK_EXIT=0
+timeout "${PROBE_TIMEOUT}" kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
+    sh -c "${WORKLOAD_CMD}"' && /opt/benchmark/bin/benchmark \
+        --drivers /etc/omb/driver/driver-kafka.yaml \
+        --workers "${WORKERS}" \
+        /tmp/workload.yaml' \
+    > "${OUTPUT_DIR}/omb.log" 2>&1 || BENCHMARK_EXIT=$?
+
+if [[ "${BENCHMARK_EXIT}" -eq 124 ]]; then
+    echo "TIMED OUT after ${PROBE_TIMEOUT}s — OMB may be stuck in shutdown" >&2
+    echo "Last lines of OMB log:" >&2
+    tail -10 "${OUTPUT_DIR}/omb.log" >&2 || true
+elif [[ "${BENCHMARK_EXIT}" -ne 0 ]]; then
+    echo "Benchmark failed with exit code ${BENCHMARK_EXIT}" >&2
+    echo "Last lines of OMB log:" >&2
+    tail -10 "${OUTPUT_DIR}/omb.log" >&2 || true
+fi
+
 
 # --- Dump JFR recording and flamegraph ---
 
-if [[ -n "${PROXY_DEPLOYMENT}" ]]; then
+# Re-fetch proxy pod — the operator may have rolled a new pod during the benchmark.
+# Warn if multiple pods are present: we only profile items[0] (see issue #3497).
+PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
+    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
+PROXY_POD_COUNT=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
+    --no-headers 2>/dev/null | wc -l | tr -d ' ') || true
+if [[ "${PROXY_POD_COUNT:-0}" -gt 1 ]]; then
+    echo "Warning: ${PROXY_POD_COUNT} proxy pods found — profiling only ${PROXY_POD}." >&2
+    echo "         Multi-pod profiling is not yet supported: https://github.com/kroxylicious/kroxylicious/issues/3497" >&2
+fi
+
+if [[ -n "${PROXY_POD}" ]]; then
     echo ""
     echo "--- Dumping JFR recording and flamegraph ---"
-    # Re-fetch pod name — the operator may have rolled out a new pod during the benchmark
-    PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
-        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
-    if [[ -z "${PROXY_POD}" ]]; then
-        echo "Warning: proxy pod not found — skipping JFR and flamegraph dump" >&2
-    fi
     JVM_PID=$(kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
         sh -c 'JAVA_TOOL_OPTIONS="" jcmd 2>/dev/null | awk "/^[0-9]+[[:space:]]/ && !/jdk\.jcmd/{print \$1; exit}"')
     if [[ -z "${JVM_PID}" ]]; then
@@ -398,6 +477,13 @@ if [[ -n "${PROXY_DEPLOYMENT}" ]]; then
         else
             echo "Warning: async-profiler stop failed — flamegraph may be incomplete or absent" >&2
         fi
+
+        # If more probes follow, restart a fresh recording for the next rate.
+        if [[ "${SKIP_TEARDOWN}" == "true" ]]; then
+            kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.start name=benchmark settings=default maxsize=${JFR_MAX_SIZE}"
+            echo "JFR recording restarted for next probe."
+        fi
     fi
     echo "Dump complete."
 fi
@@ -409,11 +495,41 @@ stop_metrics_poller
 echo ""
 echo "--- Collecting results ---"
 mkdir -p "${OUTPUT_DIR}"
-JFR_PVC_NAME="${JFR_PVC_NAME}" PROXY_POD="${PROXY_POD:-}" "${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
 
-# Rename JFR and flamegraph files to include scenario and workload for clarity
-[[ -f "${OUTPUT_DIR}/benchmark.jfr" ]] && mv "${OUTPUT_DIR}/benchmark.jfr" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
-[[ -f "${OUTPUT_DIR}/flamegraph.html" ]] && mv "${OUTPUT_DIR}/flamegraph.html" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-flamegraph.html"
+if [[ "${SKIP_DEPLOY}" == "false" ]]; then
+    # Full collection: result JSON + JFR dump + flamegraph + run metadata
+    JFR_PVC_NAME="${JFR_PVC_NAME}" PROXY_POD="${PROXY_POD:-}" "${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
+    [[ -f "${OUTPUT_DIR}/benchmark.jfr" ]] && mv "${OUTPUT_DIR}/benchmark.jfr" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
+    [[ -f "${OUTPUT_DIR}/flamegraph.html" ]] && mv "${OUTPUT_DIR}/flamegraph.html" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-flamegraph.html"
+else
+    # Lightweight collection: result JSON + JFR/flamegraph already dumped above
+    result_file=$(kubectl exec -n "${NAMESPACE}" "${BENCHMARK_POD}" -- \
+        sh -c 'ls -t /var/lib/omb/results/*.json 2>/dev/null | head -1') || true
+    if [[ -z "${result_file}" ]]; then
+        echo "No result file found — benchmark may not have written output" >&2
+    else
+        kubectl cp "${NAMESPACE}/${BENCHMARK_POD}:${result_file}" "${OUTPUT_DIR}/result.json"
+        echo "  result.json"
+    fi
+
+    if [[ -n "${PROXY_POD}" ]]; then
+        local_jfr="${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
+        local_fg="${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-flamegraph.html"
+        kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- cat /tmp/benchmark.jfr \
+            > "${local_jfr}" 2>/dev/null || true
+        if [[ -s "${local_jfr}" ]]; then
+            echo "  ${SCENARIO}-${WORKLOAD}-benchmark.jfr ($(du -h "${local_jfr}" | cut -f1))"
+        else
+            echo "Warning: benchmark.jfr is empty — JFR dump may not have completed" >&2
+            rm -f "${local_jfr}"
+        fi
+        if kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- test -s /tmp/flamegraph.html 2>/dev/null; then
+            kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- cat /tmp/flamegraph.html \
+                > "${local_fg}" 2>/dev/null || true
+            echo "  ${SCENARIO}-${WORKLOAD}-flamegraph.html ($(du -h "${local_fg}" | cut -f1))"
+        fi
+    fi
+fi
 
 echo ""
 echo "=== Benchmark complete: ${SCENARIO} / ${WORKLOAD} ==="
@@ -428,4 +544,4 @@ if [[ "${SKIP_TEARDOWN}" == "true" ]]; then
     echo "  kubectl delete pvc ${JFR_PVC_NAME} -n ${NAMESPACE} --ignore-not-found"
 fi
 # teardown runs via trap on EXIT (unless --skip-teardown was set)
-exit "${BENCHMARK_EXIT:-0}"
+exit "${BENCHMARK_EXIT}"
