@@ -148,7 +148,7 @@ class NonJVMClientsST extends AbstractSystemTests {
             if (!method.getName().startsWith("get")) {
                 try {
                     Object obj = method.invoke(KafkaClients.class);
-                    ((KafkaClient)obj).preloadImage();
+                    ((KafkaClient) obj).preloadImage();
                 }
                 catch (IllegalAccessException | InvocationTargetException e) {
                     throw new RuntimeException(e);
