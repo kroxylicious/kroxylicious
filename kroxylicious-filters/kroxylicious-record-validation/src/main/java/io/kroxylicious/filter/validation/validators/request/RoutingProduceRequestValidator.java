@@ -18,8 +18,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.ProduceRequestData;
-
 import io.kroxylicious.filter.validation.validators.topic.TopicValidationResult;
 import io.kroxylicious.filter.validation.validators.topic.TopicValidator;
 import io.kroxylicious.filter.validation.validators.topic.TopicValidators;
@@ -55,10 +53,9 @@ public class RoutingProduceRequestValidator implements ProduceRequestValidator {
         this.defaultValidator = defaultValidator;
     }
 
-    @Override
-    public CompletionStage<ProduceRequestValidationResult> validateRequest(ProduceRequestData request) {
-        CompletableFuture<TopicValidationResult>[] results = request.topicData().stream()
-                .map(topicProduceData -> getTopicValidator(topicProduceData).validateTopicData(topicProduceData).toCompletableFuture())
+    public CompletionStage<ProduceRequestValidationResult> validateRequest(List<NamedTopicProduceData> topicData) {
+        CompletableFuture<TopicValidationResult>[] results = topicData.stream()
+                .map(this::validateTopicProduceData)
                 .toArray(CompletableFuture[]::new);
         return CompletableFuture.allOf(results).thenApply(unused -> {
             Map<String, TopicValidationResult> result = Arrays.stream(results).map(CompletableFuture::join)
@@ -67,9 +64,14 @@ public class RoutingProduceRequestValidator implements ProduceRequestValidator {
         });
     }
 
-    private TopicValidator getTopicValidator(ProduceRequestData.TopicProduceData topicProduceData) {
-        return cache.computeIfAbsent(topicProduceData.name(), topicName -> {
-            Optional<RoutingRule> first = rules.stream().filter(routingRule -> routingRule.topicPredicate().test(topicName)).findFirst();
+    private CompletableFuture<TopicValidationResult> validateTopicProduceData(NamedTopicProduceData topicProduceData) {
+        TopicValidator topicValidator = getTopicValidator(topicProduceData.topicName());
+        return topicValidator.validateTopicData(topicProduceData.data(), topicProduceData.topicName()).toCompletableFuture();
+    }
+
+    private TopicValidator getTopicValidator(String topicName) {
+        return cache.computeIfAbsent(topicName, name -> {
+            Optional<RoutingRule> first = rules.stream().filter(routingRule -> routingRule.topicPredicate().test(name)).findFirst();
             return first.map(RoutingRule::validator).orElse(defaultValidator);
         });
     }
