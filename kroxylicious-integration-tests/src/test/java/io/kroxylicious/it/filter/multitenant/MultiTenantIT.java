@@ -385,6 +385,26 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     }
 
+    @Test
+    void tenantWithCustomPrefixName(KafkaCluster cluster, KafkaAdminClient directAdmin) {
+        var customPrefix = "customprefix";
+        var config = getConfig(cluster, this.certificateGenerator, Map.of("prefixResourceName", customPrefix));
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
+            createTopics(admin, NEW_TOPIC_1);
+        }
+
+        // Verify that the topic on the actual Kafka cluster uses the custom prefix, not the virtual cluster name
+        var expectedTargetClusterTopicName = "%s-%s".formatted(customPrefix, TOPIC_1);
+        await().atMost(Duration.ofSeconds(5)).ignoreExceptions().untilAsserted(() -> {
+            var listTopicsResult = directAdmin.listTopics();
+            var names = listTopicsResult.names().get();
+            assertThat(names).contains(expectedTargetClusterTopicName);
+            // Ensure it does NOT contain the default virtual cluster prefix
+            assertThat(names).doesNotContain("%s-%s".formatted(TENANT_1_CLUSTER, TOPIC_1));
+        });
+    }
+
     // ========================================================
     // UTILS
     // ========================================================
