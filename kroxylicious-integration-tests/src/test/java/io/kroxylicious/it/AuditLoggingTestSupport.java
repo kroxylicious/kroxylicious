@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.it;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.logging.log4j.Level;
@@ -14,7 +15,10 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.test.appender.ListAppender;
 import org.assertj.core.api.Condition;
-import org.assertj.core.condition.Not;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.proxy.config.AuditEmitterConfigBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
@@ -40,6 +44,7 @@ public class AuditLoggingTestSupport {
      * Must be used within try-with-resources to ensure proper cleanup.
      */
     public static class LogCaptor implements AutoCloseable {
+        private static final ObjectMapper MAPPER = new ObjectMapper();
         private final ListAppender appender;
         private final LoggerContext context;
         private final Configuration config;
@@ -70,58 +75,110 @@ public class AuditLoggingTestSupport {
             context.updateLoggers();
         }
 
-        public List<LogEvent> capturedEvents() {
-            return appender.getEvents();
+        public List<JsonNode> capturedEvents() {
+            List<LogEvent> events = appender.getEvents();
+            List<JsonNode> parsedEvents = new ArrayList<>(events.size());
+
+            for (int i = 0; i < events.size(); i++) {
+                LogEvent event = events.get(i);
+                String message = event.getMessage().getFormattedMessage();
+                try {
+                    JsonNode json = MAPPER.readTree(message);
+                    parsedEvents.add(json);
+                }
+                catch (JsonProcessingException e) {
+                    throw new IllegalStateException(
+                            String.format("Failed to parse audit event at index %d as JSON. " +
+                                    "Logger: %s, Message: %s",
+                                    i, event.getLoggerName(), message),
+                            e);
+                }
+            }
+
+            return parsedEvents;
         }
     }
 
     /**
      * Returns a condition that matches successful audit events (no status field).
      */
-    public static Condition<LogEvent> isSuccess() {
-        return Not.not(isFailure());
+    public static Condition<JsonNode> isSuccess() {
+        return new Condition<>(json -> {
+            JsonNode statusNode = json.get("status");
+            return statusNode == null || statusNode.isNull();
+        }, "is successful audit event");
     }
 
     /**
      * Returns a condition that matches failed audit events (contains status field).
      */
-    public static Condition<LogEvent> isFailure() {
-        return new Condition<>(e -> e.getMessage().getFormattedMessage().contains("\"status\":\""),
-                "isFailure");
+    public static Condition<JsonNode> isFailure() {
+        return new Condition<>(json -> {
+            JsonNode statusNode = json.get("status");
+            return statusNode != null && !statusNode.isNull();
+        }, "is failed audit event");
     }
 
     /**
      * Returns a condition that matches audit events with the specified action name.
      */
-    public static Condition<LogEvent> auditAction(String action) {
-        return new Condition<>(e -> e.getMessage().getFormattedMessage().contains("\"action\":\"" + action + "\""),
-                action + " action");
+    public static Condition<JsonNode> auditAction(String action) {
+        return new Condition<>(json -> {
+            JsonNode actionNode = json.get("action");
+            return actionNode != null &&
+                    actionNode.isTextual() &&
+                    action.equals(actionNode.asText());
+        }, "action=" + action);
     }
 
     /**
      * Returns a condition that matches audit events containing the specified objectRef entry.
      * The objectRef maps resource type class names to resource identifiers.
      */
-    public static Condition<LogEvent> hasObjectRef(String resourceType, String resourceName) {
-        return new Condition<>(e -> {
-            String message = e.getMessage().getFormattedMessage();
-            // Check for both compact and spaced JSON formats
-            return message.contains("\"objectRef\":{\"" + resourceType + "\":\"" + resourceName + "\"}")
-                    || message.contains("\"objectRef\": {\"" + resourceType + "\": \"" + resourceName + "\"}");
-        }, "has objectRef with " + resourceType + "=" + resourceName);
+    public static Condition<JsonNode> hasObjectRef(String resourceType, String resourceName) {
+        return new Condition<>(json -> {
+            JsonNode objectRefNode = json.get("objectRef");
+            if (objectRefNode == null || !objectRefNode.isObject()) {
+                return false;
+            }
+
+            JsonNode resourceNode = objectRefNode.get(resourceType);
+            return resourceNode != null &&
+                    resourceNode.isTextual() &&
+                    resourceName.equals(resourceNode.asText());
+        }, "has objectRef " + resourceType + "=" + resourceName);
     }
 
     /**
      * Returns a condition that matches audit events where the actor has a principal with the specified name.
      * The actor's principals array contains objects with "name" fields.
      */
-    public static Condition<LogEvent> hasActorPrincipal(String principalName) {
-        return new Condition<>(e -> {
-            String message = e.getMessage().getFormattedMessage();
-            // Check if principals array contains an entry with the specified name
-            return message.contains("\"principals\"") && message.contains("\"name\":\"" + principalName + "\"")
-                    || message.contains("\"principals\"") && message.contains("\"name\": \"" + principalName + "\"");
-        }, "has actor principal with name=" + principalName);
+    public static Condition<JsonNode> hasActorPrincipal(String principalName) {
+        return new Condition<>(json -> {
+            JsonNode actorNode = json.get("actor");
+            if (actorNode == null || !actorNode.isObject()) {
+                return false;
+            }
+
+            JsonNode principalsNode = actorNode.get("principals");
+            if (principalsNode == null || !principalsNode.isArray()) {
+                return false;
+            }
+
+            // Check if any principal in the array has matching name
+            for (JsonNode principal : principalsNode) {
+                if (principal.isObject()) {
+                    JsonNode nameNode = principal.get("name");
+                    if (nameNode != null &&
+                            nameNode.isTextual() &&
+                            principalName.equals(nameNode.asText())) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }, "has actor principal name=" + principalName);
     }
 
     /**
