@@ -184,8 +184,7 @@ class AuditLoggerImplTest {
                                     "srcAddr" : "127.0.0.1/<unresolved>:12345",
                                     "session" : "ABC-1234",
                                     "principals" : [ {
-                                      "type" : "io.kroxylicious.proxy.authentication.User",
-                                      "name" : "alice"
+                                      "io.kroxylicious.proxy.authentication.User" : "alice"
                                     } ]
                                   },
                                   "objectRef" : {
@@ -206,8 +205,7 @@ class AuditLoggerImplTest {
                                     "srcAddr" : "127.0.0.1/<unresolved>:12345",
                                     "session" : "ABC-1234",
                                     "principals" : [ {
-                                      "type" : "io.kroxylicious.proxy.authentication.User",
-                                      "name" : "alice"
+                                      "io.kroxylicious.proxy.authentication.User" : "alice"
                                     } ]
                                   },
                                   "objectRef" : {

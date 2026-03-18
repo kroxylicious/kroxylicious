@@ -5,8 +5,10 @@
  */
 package io.kroxylicious.it;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -19,6 +21,12 @@ import org.assertj.core.api.Condition;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.networknt.schema.Error;
+import com.networknt.schema.OutputFormat;
+import com.networknt.schema.Schema;
+import com.networknt.schema.SchemaLocation;
+import com.networknt.schema.SchemaRegistry;
+import com.networknt.schema.SpecificationVersion;
 
 import io.kroxylicious.proxy.config.AuditEmitterConfigBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
@@ -45,6 +53,24 @@ public class AuditLoggingTestSupport {
      */
     public static class LogCaptor implements AutoCloseable {
         private static final ObjectMapper MAPPER = new ObjectMapper();
+        private static final Schema AUDIT_SCHEMA;
+
+        static {
+            try {
+                SchemaRegistry schemaRegistry = SchemaRegistry.withDefaultDialect(
+                        SpecificationVersion.DRAFT_2020_12);
+                InputStream schemaStream = LogCaptor.class.getResourceAsStream("/schemas/audit_action_v1.json");
+                if (schemaStream == null) {
+                    throw new IllegalStateException("Could not load audit schema from classpath: /schemas/audit_action_v1.json");
+                }
+                JsonNode schemaNode = MAPPER.readTree(schemaStream);
+                AUDIT_SCHEMA = schemaRegistry.getSchema(SchemaLocation.of("classpath:/schemas/audit_action_v1.json"), schemaNode);
+            }
+            catch (Exception e) {
+                throw new ExceptionInInitializerError("Failed to load audit schema: " + e.getMessage());
+            }
+        }
+
         private final ListAppender appender;
         private final LoggerContext context;
         private final Configuration config;
@@ -84,6 +110,23 @@ public class AuditLoggingTestSupport {
                 String message = event.getMessage().getFormattedMessage();
                 try {
                     JsonNode json = MAPPER.readTree(message);
+
+                    // Validate against schema with format assertions enabled
+                    List<Error> errors = AUDIT_SCHEMA.validate(json, OutputFormat.DEFAULT, executionContext -> {
+                        executionContext.executionConfig(config -> config.formatAssertionsEnabled(true));
+                    });
+
+                    if (!errors.isEmpty()) {
+                        String errorDetails = errors.stream()
+                                .map(error -> error.getInstanceLocation() + ": " + error.getMessage())
+                                .collect(Collectors.joining("\n  - "));
+                        throw new IllegalStateException(
+                                String.format("Failed to validate audit event at index %d against schema (audit_action_v1).\n" +
+                                        "Validation errors:\n  - %s\n" +
+                                        "Event JSON: %s",
+                                        i, errorDetails, json.toPrettyString()));
+                    }
+
                     parsedEvents.add(json);
                 }
                 catch (JsonProcessingException e) {
@@ -151,7 +194,7 @@ public class AuditLoggingTestSupport {
 
     /**
      * Returns a condition that matches audit events where the actor has a principal with the specified name.
-     * The actor's principals array contains objects with "name" fields.
+     * The actor's principals array contains single-property objects where the value is the principal name.
      */
     public static Condition<JsonNode> hasActorPrincipal(String principalName) {
         return new Condition<>(json -> {
@@ -165,14 +208,20 @@ public class AuditLoggingTestSupport {
                 return false;
             }
 
-            // Check if any principal in the array has matching name
+            // Check if any principal in the array has a property value matching the principal name
             for (JsonNode principal : principalsNode) {
                 if (principal.isObject()) {
-                    JsonNode nameNode = principal.get("name");
-                    if (nameNode != null &&
-                            nameNode.isTextual() &&
-                            principalName.equals(nameNode.asText())) {
-                        return true;
+                    // Principals are single-property objects like {"io.kroxylicious.proxy.authentication.User":"alice"}
+                    // Check if any property value matches the principalName
+                    var fields = principal.fields();
+                    while (fields.hasNext()) {
+                        var entry = fields.next();
+                        JsonNode value = entry.getValue();
+                        if (value != null &&
+                                value.isTextual() &&
+                                principalName.equals(value.asText())) {
+                            return true;
+                        }
                     }
                 }
             }

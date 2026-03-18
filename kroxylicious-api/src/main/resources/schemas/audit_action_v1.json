@@ -5,19 +5,18 @@
     "properties" : {
         "time" : {
             "type" : "string",
-            "format" : "date-time",
-            "pattern" : "[\\d]{8}T[\\d]{2}:[\\d]{2}:[\\d]{2}(.[\\d]1)?"
+            "format" : "date-time"
         },
         "action" : {
             "type" : "string",
             "pattern" : "^([a-z0-9_]+[.])*[A-Z][a-zA-Z0-9_]*$"
         },
         "status" : {
-            "type" : "string",
+            "type" : ["string", "null"],
             "pattern" : "^([a-zA-Z0-9_]+[.])*[a-zA-Z0-9_]+$"
         },
         "reason" : {
-            "type" : "string"
+            "type" : ["string", "null"]
         },
         "actor" : {
             "type" : "object",

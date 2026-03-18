@@ -1,4 +1,4 @@
-$schema: ./audit-action.json
+$schema: ../../../../../resources/schemas/audit_action_v1.json
 action: org.Foo
 time: 20260101T12:30:00.00000
 status: "42"
