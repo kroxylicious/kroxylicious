@@ -35,16 +35,8 @@ import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LogEvent;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.test.appender.ListAppender;
 import org.assertj.core.api.Assertions;
-import org.assertj.core.api.Condition;
 import org.assertj.core.condition.AllOf;
-import org.assertj.core.condition.Not;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,7 +51,6 @@ import io.micrometer.core.instrument.Metrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
 import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
-import io.kroxylicious.proxy.config.AuditEmitterConfigBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.MicrometerDefinitionBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -80,6 +71,9 @@ import io.kroxylicious.testing.kafka.junit5ext.TopicPartitions;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.it.AuditLoggingTestSupport.addAuditMetricsAndLogging;
+import static io.kroxylicious.it.AuditLoggingTestSupport.auditAction;
+import static io.kroxylicious.it.AuditLoggingTestSupport.isSuccess;
 import static io.kroxylicious.proxy.internal.util.Metrics.API_KEY_LABEL;
 import static io.kroxylicious.proxy.internal.util.Metrics.DECODED_LABEL;
 import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
@@ -592,46 +586,11 @@ class MetricsIT {
                                 .isGreaterThanOrEqualTo(1.0)));
     }
 
-    static class LogCaptor implements AutoCloseable {
-        private final ListAppender appender;
-        private final LoggerContext context;
-        private final Configuration config;
-
-        LogCaptor() {
-            context = (LoggerContext) LogManager.getContext(false);
-            config = context.getConfiguration();
-            // Create and start the ListAppender
-            appender = ListAppender.newBuilder()
-                    .setName("TestAppender")
-                    .build();
-            appender.start();
-
-            // Attach it to the root configuration (or a specific logger)
-            config.addAppender(appender);
-            config.getLoggerConfig("audit").addAppender(appender, Level.ALL, null);
-            //config.getRootLogger().addAppender(appender, Level.ALL, null);
-
-            // Update the context to apply changes
-            context.updateLoggers();
-        }
-
-        @Override
-        public void close() {
-            // Stop and remove the appender to prevent side effects in other tests
-            appender.stop();
-            config.getLoggerConfig("audit").removeAppender("TestAppender");
-            context.updateLoggers();
-        }
-
-        public List<LogEvent> capturedEvents() {
-            return appender.getEvents();
-        }
-    }
-
     @Test
     void shouldIncrementProxyStart(KafkaCluster cluster) {
-        try (var captor = new LogCaptor()) {
-            var builder = configWithMetricsAndAuditting(cluster);
+        try (var captor = new AuditLoggingTestSupport.LogCaptor()) {
+            var builder = configWithMetrics(cluster);
+            addAuditMetricsAndLogging(builder);
 
             try (var tester = kroxyliciousTester(builder);
                     var managementClient = tester.getManagementClient();) {
@@ -647,35 +606,12 @@ class MetricsIT {
                 // managementClient and the proxy.
             }
 
+            // Regression check: verify logging still works alongside metrics
             assertThat(captor.capturedEvents())
                     .haveExactly(1, AllOf.allOf(auditAction("ProxyStart"), isSuccess()));
             assertThat(captor.capturedEvents())
                     .haveExactly(1, AllOf.allOf(auditAction("ProxyStop"), isSuccess()));
         }
-    }
-
-    @NonNull
-    private ConfigurationBuilder configWithMetricsAndAuditting(KafkaCluster cluster) {
-        var builder = configWithMetrics(cluster);
-        builder.withNewAudit()
-                    .addToEmitters(new AuditEmitterConfigBuilder("metric-emitter", "io.kroxylicious.audit.emitter.metrics.MetricsEmitterFactory").build())
-                    .addToEmitters(new AuditEmitterConfigBuilder("logging-emitter", "io.kroxylicious.audit.emitter.slf4j.Slf4jEmitterFactory").build())
-                .endAudit();
-        return builder;
-    }
-
-    private static Condition<LogEvent> isSuccess() {
-        return Not.not(isFailure());
-    }
-
-    private static Condition<LogEvent> isFailure() {
-        return new Condition<>(e -> e.getMessage().getFormattedMessage().contains("\"status\":\""),
-                "isFailure");
-    }
-
-    private static Condition<LogEvent> auditAction(String action) {
-        return new Condition<>(e -> e.getMessage().getFormattedMessage().contains("\"action\":\"" + action + "\""),
-                action + " action");
     }
 
     @ParameterizedTest
