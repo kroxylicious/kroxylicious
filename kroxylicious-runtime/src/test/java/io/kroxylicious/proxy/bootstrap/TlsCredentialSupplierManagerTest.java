@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition;
+import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
@@ -163,7 +163,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testFactoryInitializationWithConfig() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", config);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             assertThat(manager.isConfigured()).isTrue();
@@ -179,7 +179,7 @@ class TlsCredentialSupplierManagerTest {
 
     @Test
     void testFactoryInitializationWithoutConfig() {
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("NoConfigSupplierFactory", null);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("NoConfigSupplierFactory", null);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             assertThat(manager.isConfigured()).isTrue();
@@ -191,7 +191,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testGetSupplierReturnsSameInstance() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", config);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             ServerTlsCredentialSupplier supplier1 = manager.getSupplier();
@@ -211,7 +211,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testInvalidConfigurationThrowsException() {
         TestConfig config = new TestConfig("invalid");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", config);
 
         assertThatThrownBy(() -> new TlsCredentialSupplierManager(pfr, definition))
                 .isInstanceOf(PluginConfigurationException.class)
@@ -222,7 +222,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testInitializationFailureThrowsException() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("FailingInitializeFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("FailingInitializeFactory", config);
 
         assertThatThrownBy(() -> new TlsCredentialSupplierManager(pfr, definition))
                 .isInstanceOf(PluginConfigurationException.class)
@@ -233,7 +233,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testCreationFailureThrowsExceptionAtConstruction() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("FailingCreateFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("FailingCreateFactory", config);
 
         // Now the creation failure happens at construction time (eager creation)
         assertThatThrownBy(() -> new TlsCredentialSupplierManager(pfr, definition))
@@ -246,7 +246,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testWrongConfigTypeThrowsException() {
         InvalidConfig config = new InvalidConfig("wrong-type");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", config);
 
         assertThatThrownBy(() -> new TlsCredentialSupplierManager(pfr, definition))
                 .isInstanceOf(PluginConfigurationException.class)
@@ -258,7 +258,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testUnknownFactoryTypeThrowsException() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("UnknownFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("UnknownFactory", config);
 
         assertThatThrownBy(() -> new TlsCredentialSupplierManager(pfr, definition))
                 .isInstanceOf(RuntimeException.class)
@@ -268,7 +268,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testGetSupplierAfterCloseThrowsException() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", config);
 
         TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition);
         manager.close();
@@ -281,7 +281,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testPluginInstanceMethodIsAvailable() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", config);
 
         // Create a factory that tests pluginInstance during initialization
         @Plugin(configType = TestConfig.class)
@@ -340,7 +340,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testFilterDispatchExecutorNotAvailableAtInitTime() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", config);
 
         @Plugin(configType = TestConfig.class)
         class ExecutorTestFactory implements ServerTlsCredentialSupplierFactory<TestConfig, TestConfig> {
@@ -393,7 +393,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testCloseIsIdempotent() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", config);
 
         TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition);
         manager.close();
@@ -414,7 +414,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testFactoryLifecycleOrderIsCorrect() {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", config);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             // After construction, both initialize and create should have been called (eager creation)
@@ -482,7 +482,7 @@ class TlsCredentialSupplierManagerTest {
             }
         };
 
-        TlsCredentialSupplierDefinition validDefinition = new TlsCredentialSupplierDefinition("ValidatingFactory", config);
+        TlsCredentialSupplierConfig validDefinition = new TlsCredentialSupplierConfig("ValidatingFactory", config);
 
         // Valid config should succeed
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(testPfr, validDefinition)) {
@@ -491,7 +491,7 @@ class TlsCredentialSupplierManagerTest {
 
         // Invalid config should fail during construction
         TestConfig invalidConfig = new TestConfig("");
-        TlsCredentialSupplierDefinition invalidDefinition = new TlsCredentialSupplierDefinition("ValidatingFactory", invalidConfig);
+        TlsCredentialSupplierConfig invalidDefinition = new TlsCredentialSupplierConfig("ValidatingFactory", invalidConfig);
 
         assertThatThrownBy(() -> new TlsCredentialSupplierManager(testPfr, invalidDefinition))
                 .isInstanceOf(PluginConfigurationException.class)
@@ -555,7 +555,7 @@ class TlsCredentialSupplierManagerTest {
             }
         };
 
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("SharedResourceFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("SharedResourceFactory", config);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(testPfr, definition)) {
             // getSupplier returns the same shared instance
@@ -572,7 +572,7 @@ class TlsCredentialSupplierManagerTest {
 
     @Test
     void testNullConfigForVoidConfigType() {
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("NoConfigSupplierFactory", null);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("NoConfigSupplierFactory", null);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             assertThat(manager.isConfigured()).isTrue();
@@ -585,7 +585,7 @@ class TlsCredentialSupplierManagerTest {
 
     @Test
     void testConfigRequiredWhenFactoryExpectsIt() {
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", null);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", null);
 
         // Factory expects TestConfig but received null
         assertThatThrownBy(() -> new TlsCredentialSupplierManager(pfr, definition))
@@ -595,7 +595,7 @@ class TlsCredentialSupplierManagerTest {
     @Test
     void testThreadSafeAccessToSharedSupplier() throws Exception {
         TestConfig config = new TestConfig("test-value");
-        TlsCredentialSupplierDefinition definition = new TlsCredentialSupplierDefinition("TestSupplierFactory", config);
+        TlsCredentialSupplierConfig definition = new TlsCredentialSupplierConfig("TestSupplierFactory", config);
 
         try (TlsCredentialSupplierManager manager = new TlsCredentialSupplierManager(pfr, definition)) {
             // Access shared supplier from multiple threads concurrently

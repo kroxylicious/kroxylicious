@@ -202,7 +202,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                             .withNewTls()
                                 .withNewInsecureTlsTrust(true)
                                 // Configure TLS credential supplier using plugin name
-                                .withTlsCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition(
+                                .withCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig(
                                     TestCredentialSupplierFactory.class.getName(),
                                     new TestSupplierConfig("demo", "default")))
                             .endTls()
@@ -250,7 +250,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                             .withBootstrapServers(bootstrapServers)
                             .withNewTls()
                                 .withNewInsecureTlsTrust(true)
-                                .withTlsCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition(
+                                .withCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig(
                                     TestCredentialSupplierFactory.class.getName(),
                                     new TestSupplierConfig("demo", "default")))
                             .endTls()
@@ -301,7 +301,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                             .withBootstrapServers(bootstrapServers)
                             .withNewTls()
                                 .withNewInsecureTlsTrust(true)
-                                .withTlsCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition(
+                                .withCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig(
                                     TestCredentialSupplierFactory.class.getName(),
                                     new TestSupplierConfig("demo", "tracking")))
                             .endTls()
@@ -352,7 +352,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                             .withBootstrapServers(bootstrapServers)
                             .withNewTls()
                                 .withNewInsecureTlsTrust(true)
-                                .withTlsCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition(
+                                .withCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig(
                                     TestCredentialSupplierFactory.class.getName(),
                                     new TestSupplierConfig("demo", "multi-client")))
                             .endTls()

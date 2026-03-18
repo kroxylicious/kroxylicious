@@ -18,22 +18,22 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param trust specifies a trust provider used by this peer to determine whether to trust the peer. If omitted platform trust is used instead.
  * @param cipherSuites specifies a custom object which contains details of allowed and denied cipher suites
  * @param protocols specifies a custom object which contains details of allowed and denied tls protocols
- * @param tlsCredentialSupplier specifies a dynamic TLS credential supplier for per-client certificate selection (optional)
+ * @param credentialSupplier specifies a dynamic TLS credential supplier for per-client certificate selection (optional)
  */
 public record Tls(@Nullable KeyProvider key,
                   @Nullable TrustProvider trust,
                   @Nullable AllowDeny<String> cipherSuites,
                   @Nullable AllowDeny<String> protocols,
-                  @Nullable TlsCredentialSupplierDefinition tlsCredentialSupplier) {
+                  @Nullable TlsCredentialSupplierConfig credentialSupplier) {
 
     /**
      * Compact constructor with validation.
      */
     public Tls {
-        if (key != null && tlsCredentialSupplier != null) {
+        if (key != null && credentialSupplier != null) {
             throw new IllegalArgumentException(
-                    "Cannot configure both 'key' and 'tlsCredentialSupplier' - they are mutually exclusive. " +
-                            "Use 'key' for static TLS credentials or 'tlsCredentialSupplier' for dynamic credential selection.");
+                    "Cannot configure both 'key' and 'credentialSupplier' - they are mutually exclusive. " +
+                            "Use 'key' for static TLS credentials or 'credentialSupplier' for dynamic credential selection.");
         }
     }
 
@@ -42,7 +42,7 @@ public record Tls(@Nullable KeyProvider key,
      * This constructor is provided for backward compatibility with v0.18.0.
      * <p>
      * For configurations that require dynamic TLS credential selection, use the
-     * 5-parameter constructor that includes {@code tlsCredentialSupplier}.
+     * 5-parameter constructor that includes {@code credentialSupplier}.
      *
      * @param key specifies a key provider that provides the certificate/key used to identify this peer.
      * @param trust specifies a trust provider used by this peer to determine whether to trust the peer.

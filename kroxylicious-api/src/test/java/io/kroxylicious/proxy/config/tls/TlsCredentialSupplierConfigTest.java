@@ -11,35 +11,35 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class TlsCredentialSupplierDefinitionTest {
+class TlsCredentialSupplierConfigTest {
 
     @Test
-    void shouldCreateValidDefinitionWithTypeOnly() {
+    void shouldCreateValidConfigWithTypeOnly() {
         // Given/When
-        var definition = new TlsCredentialSupplierDefinition("MySupplier", null);
+        var config = new TlsCredentialSupplierConfig("MySupplier", null);
 
         // Then
-        assertThat(definition.type()).isEqualTo("MySupplier");
-        assertThat(definition.config()).isNull();
+        assertThat(config.type()).isEqualTo("MySupplier");
+        assertThat(config.config()).isNull();
     }
 
     @Test
-    void shouldCreateValidDefinitionWithTypeAndConfig() {
+    void shouldCreateValidConfigWithTypeAndConfig() {
         // Given
-        var config = new Object();
+        var configValue = new Object();
 
         // When
-        var definition = new TlsCredentialSupplierDefinition("MySupplier", config);
+        var config = new TlsCredentialSupplierConfig("MySupplier", configValue);
 
         // Then
-        assertThat(definition.type()).isEqualTo("MySupplier");
-        assertThat(definition.config()).isSameAs(config);
+        assertThat(config.type()).isEqualTo("MySupplier");
+        assertThat(config.config()).isSameAs(configValue);
     }
 
     @Test
     void shouldRejectNullType() {
         // Given/When/Then
-        assertThatThrownBy(() -> new TlsCredentialSupplierDefinition(null, null))
+        assertThatThrownBy(() -> new TlsCredentialSupplierConfig(null, null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("TLS credential supplier type must not be null");
     }

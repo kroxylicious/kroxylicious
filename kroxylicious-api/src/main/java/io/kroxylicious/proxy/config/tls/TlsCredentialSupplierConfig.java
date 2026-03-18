@@ -28,12 +28,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param type The type of TLS credential supplier (references a {@link ServerTlsCredentialSupplierFactory} implementation)
  * @param config Supplier-specific configuration (optional)
  */
-public record TlsCredentialSupplierDefinition(
-                                              @PluginImplName(ServerTlsCredentialSupplierFactory.class) @JsonProperty(required = true) String type,
-                                              @Nullable @PluginImplConfig(implNameProperty = "type") Object config) {
+public record TlsCredentialSupplierConfig(
+                                          @PluginImplName(ServerTlsCredentialSupplierFactory.class) @JsonProperty(required = true) String type,
+                                          @Nullable @PluginImplConfig(implNameProperty = "type") Object config) {
 
     @JsonCreator
-    public TlsCredentialSupplierDefinition {
+    public TlsCredentialSupplierConfig {
         Objects.requireNonNull(type, "TLS credential supplier type must not be null");
     }
 }

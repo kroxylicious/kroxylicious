@@ -135,7 +135,7 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  *           storePassword:
  *             passwordFile: /path/to/password.txt
  *         # TLS credential supplier configuration
- *         tlsCredentialSupplier:
+ *         credentialSupplier:
  *           type: FileBasedSupplier  # References @Plugin annotation's name
  *           config:
  *             keyPath: /path/to/client-key.pem
