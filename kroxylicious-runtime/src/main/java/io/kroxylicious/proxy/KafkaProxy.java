@@ -253,9 +253,9 @@ public final class KafkaProxy implements AutoCloseable {
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
+                    new KafkaProxyInitializer(auditLogger, filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
+                    new KafkaProxyInitializer(auditLogger, filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 

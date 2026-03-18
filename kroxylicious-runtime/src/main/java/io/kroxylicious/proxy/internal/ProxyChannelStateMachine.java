@@ -45,7 +45,6 @@ import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
@@ -149,9 +148,10 @@ public class ProxyChannelStateMachine {
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
+    private final AuditLogger auditLogger;
+
     private final EndpointBinding endpointBinding;
 
-    @NonNull
     // Ideally this would be final, however that breaks forceState which is used heavily in testing.
     private KafkaSession kafkaSession;
 
@@ -187,8 +187,10 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
-    public ProxyChannelStateMachine(EndpointBinding endpointBinding,
+    public ProxyChannelStateMachine(AuditLogger auditLogger,
+                                    EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder) {
+        this.auditLogger = auditLogger;
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
@@ -754,7 +756,7 @@ public class ProxyChannelStateMachine {
     }
 
     AuditLogger auditLogger() {
-        return new NoopAuditLogger();
+        return auditLogger;
     }
 
 }

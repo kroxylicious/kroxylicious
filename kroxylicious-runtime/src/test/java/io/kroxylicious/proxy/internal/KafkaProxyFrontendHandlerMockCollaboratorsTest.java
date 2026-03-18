@@ -291,9 +291,12 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Test
     void shouldMarkSessionAuthenticatedWhenSessionTransportAuthenticated() throws Exception {
         // Given
+        var auditLogger = new NoopAuditLogger();
         Subject subject = new Subject(new User("bob"));
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(subject));
-        var proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, subjectBuilder);
+        var proxyChannelStateMachine = new ProxyChannelStateMachine(auditLogger,
+                endpointBinding,
+                subjectBuilder);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -316,8 +319,11 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Test
     void shouldNotMarkSessionAuthenticatedWhenSessionTransportAuthenticatedIsAnonymous() throws Exception {
         // Given
+        var auditLogger = new NoopAuditLogger();
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(Subject.anonymous()));
-        var proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, subjectBuilder);
+        var proxyChannelStateMachine = new ProxyChannelStateMachine(auditLogger,
+                endpointBinding,
+                subjectBuilder);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
