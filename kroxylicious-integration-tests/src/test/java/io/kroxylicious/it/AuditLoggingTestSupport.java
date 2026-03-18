@@ -8,6 +8,7 @@ package io.kroxylicious.it;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
@@ -21,12 +22,10 @@ import org.assertj.core.api.Condition;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.Error;
-import com.networknt.schema.OutputFormat;
-import com.networknt.schema.Schema;
-import com.networknt.schema.SchemaLocation;
-import com.networknt.schema.SchemaRegistry;
-import com.networknt.schema.SpecificationVersion;
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.SpecVersion;
+import com.networknt.schema.ValidationMessage;
 
 import io.kroxylicious.proxy.config.AuditEmitterConfigBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
@@ -53,18 +52,17 @@ public class AuditLoggingTestSupport {
      */
     public static class LogCaptor implements AutoCloseable {
         private static final ObjectMapper MAPPER = new ObjectMapper();
-        private static final Schema AUDIT_SCHEMA;
+        private static final JsonSchema AUDIT_SCHEMA;
 
         static {
             try {
-                SchemaRegistry schemaRegistry = SchemaRegistry.withDefaultDialect(
-                        SpecificationVersion.DRAFT_2020_12);
+                JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012);
                 InputStream schemaStream = LogCaptor.class.getResourceAsStream("/schemas/audit_action_v1.json");
                 if (schemaStream == null) {
                     throw new IllegalStateException("Could not load audit schema from classpath: /schemas/audit_action_v1.json");
                 }
                 JsonNode schemaNode = MAPPER.readTree(schemaStream);
-                AUDIT_SCHEMA = schemaRegistry.getSchema(SchemaLocation.of("classpath:/schemas/audit_action_v1.json"), schemaNode);
+                AUDIT_SCHEMA = factory.getSchema(schemaNode);
             }
             catch (Exception e) {
                 throw new ExceptionInInitializerError("Failed to load audit schema: " + e.getMessage());
@@ -112,13 +110,13 @@ public class AuditLoggingTestSupport {
                     JsonNode json = MAPPER.readTree(message);
 
                     // Validate against schema with format assertions enabled
-                    List<Error> errors = AUDIT_SCHEMA.validate(json, OutputFormat.DEFAULT, executionContext -> {
-                        executionContext.executionConfig(config -> config.formatAssertionsEnabled(true));
+                    Set<ValidationMessage> errors = AUDIT_SCHEMA.validate(json, executionContext -> {
+                        executionContext.getExecutionConfig().setFormatAssertionsEnabled(true);
                     });
 
                     if (!errors.isEmpty()) {
                         String errorDetails = errors.stream()
-                                .map(error -> error.getInstanceLocation() + ": " + error.getMessage())
+                                .map(ValidationMessage::toString)
                                 .collect(Collectors.joining("\n  - "));
                         throw new IllegalStateException(
                                 String.format("Failed to validate audit event at index %d against schema (audit_action_v1).\n" +

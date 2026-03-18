@@ -134,13 +134,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-audit-emitter-slf4j</artifactId>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-audit-emitter-metrics</artifactId>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -166,7 +166,7 @@
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <version>2.0.1</version>
+            <version>1.5.9</version>
             <scope>test</scope>
         </dependency>
         <dependency>
