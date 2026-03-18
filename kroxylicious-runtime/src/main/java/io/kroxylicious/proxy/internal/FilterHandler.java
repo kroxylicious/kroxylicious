@@ -617,7 +617,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public AuditLogger auditLogger() {
-            return proxyChannelStateMachine.auditLogger();
+            return proxyChannelStateMachine.clientAuditLogger();
         }
 
         InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {

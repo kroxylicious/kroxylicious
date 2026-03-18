@@ -31,6 +31,7 @@ public interface AuditEmitter extends AutoCloseable {
 
     interface Context {
         String asString(AuditableAction action, TextFormat format);
+
         byte[] asBytes(AuditableAction action, BinaryFormat format);
     }
 

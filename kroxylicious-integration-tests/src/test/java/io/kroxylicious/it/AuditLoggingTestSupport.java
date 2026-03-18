@@ -99,6 +99,32 @@ public class AuditLoggingTestSupport {
     }
 
     /**
+     * Returns a condition that matches audit events containing the specified objectRef entry.
+     * The objectRef maps resource type class names to resource identifiers.
+     */
+    public static Condition<LogEvent> hasObjectRef(String resourceType, String resourceName) {
+        return new Condition<>(e -> {
+            String message = e.getMessage().getFormattedMessage();
+            // Check for both compact and spaced JSON formats
+            return message.contains("\"objectRef\":{\"" + resourceType + "\":\"" + resourceName + "\"}")
+                    || message.contains("\"objectRef\": {\"" + resourceType + "\": \"" + resourceName + "\"}");
+        }, "has objectRef with " + resourceType + "=" + resourceName);
+    }
+
+    /**
+     * Returns a condition that matches audit events where the actor has a principal with the specified name.
+     * The actor's principals array contains objects with "name" fields.
+     */
+    public static Condition<LogEvent> hasActorPrincipal(String principalName) {
+        return new Condition<>(e -> {
+            String message = e.getMessage().getFormattedMessage();
+            // Check if principals array contains an entry with the specified name
+            return message.contains("\"principals\"") && message.contains("\"name\":\"" + principalName + "\"")
+                    || message.contains("\"principals\"") && message.contains("\"name\": \"" + principalName + "\"");
+        }, "has actor principal with name=" + principalName);
+    }
+
+    /**
      * Adds only Slf4j audit logging emitter to the configuration.
      * Use this for tests that focus purely on audit logging without metrics.
      *

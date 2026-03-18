@@ -1,60 +1,60 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://schema.kroxylicious/io/audit-action.yaml",
-  "type": "object",
-  "properties": {
-    "time": {
-      "type": "string",
-      "format": "date-time",
-      "pattern": "[\\d]{8}T[\\d]{2}:[\\d]{2}:[\\d]{2}(.[\\d]1)?"
-    },
-    "action": {
-      "type": "string",
-      "pattern": "^([a-z0-9_]+[.])*[A-Z][a-zA-Z0-9_]*$"
-    },
-    "status": {
-      "type": "string",
-      "pattern": "^([a-zA-Z0-9_]+[.])*[a-zA-Z0-9_]+$"
-    },
-    "reason": {
-      "type": "string"
-    },
-    "actor": {
-      "type": "object",
-      "properties": {
-        "srcAddr": {
-          "type": "string"
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "$id" : "http://schema.kroxylicious/io/audit-action.yaml",
+    "type" : "object",
+    "properties" : {
+        "time" : {
+            "type" : "string",
+            "format" : "date-time",
+            "pattern" : "[\\d]{8}T[\\d]{2}:[\\d]{2}:[\\d]{2}(.[\\d]1)?"
         },
-        "session": {
-          "type": "string",
-          "format": "uuid"
+        "action" : {
+            "type" : "string",
+            "pattern" : "^([a-z0-9_]+[.])*[A-Z][a-zA-Z0-9_]*$"
         },
-        "principals": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "maxProperties": 1,
-            "minProperties": 1,
-            "additionalProperties": {
-              "type": "string"
+        "status" : {
+            "type" : "string",
+            "pattern" : "^([a-zA-Z0-9_]+[.])*[a-zA-Z0-9_]+$"
+        },
+        "reason" : {
+            "type" : "string"
+        },
+        "actor" : {
+            "type" : "object",
+            "properties" : {
+                "srcAddr" : {
+                    "type" : "string"
+                },
+                "session" : {
+                    "type" : "string",
+                    "format" : "uuid"
+                },
+                "principals" : {
+                    "type" : "array",
+                    "items" : {
+                        "type" : "object",
+                        "maxProperties" : 1,
+                        "minProperties" : 1,
+                        "additionalProperties" : {
+                            "type" : "string"
+                        }
+                    }
+                }
             }
-          }
+        },
+        "objectRef" : {
+            "type" : "object",
+            "minProperties" : 1,
+            "additionalProperties" : {
+                "type" : "string"
+            }
+        },
+        "context" : {
+            "type" : "object",
+            "minProperties" : 1,
+            "additionalProperties" : {
+                "type" : "string"
+            }
         }
-      }
-    },
-    "objectRef": {
-      "type": "object",
-      "minProperties": 1,
-      "additionalProperties": {
-        "type": "string"
-      }
-    },
-    "context": {
-      "type": "object",
-      "minProperties": 1,
-      "additionalProperties": {
-        "type": "string"
-      }
     }
-  }
 }

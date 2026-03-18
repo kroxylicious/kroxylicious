@@ -56,6 +56,12 @@ Configuration:
          AppenderRef:
            - ref: Console
 
+      -  name: io.kroxylicious.proxy.internal
+         additivity: false
+         level: INFO
+         AppenderRef:
+           - ref: Console
+
       -  name: io.kroxylicious.proxy.audit
          additivity: false
          level: DEBUG

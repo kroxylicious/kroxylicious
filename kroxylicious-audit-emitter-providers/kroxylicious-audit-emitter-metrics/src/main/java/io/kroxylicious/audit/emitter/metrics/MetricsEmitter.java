@@ -7,7 +7,6 @@
 package io.kroxylicious.audit.emitter.metrics;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import io.micrometer.core.instrument.Counter;
@@ -50,7 +49,7 @@ public class MetricsEmitter implements AuditEmitter {
                 tagMapping.entrySet().stream()
                         .filter(e -> objectRef.containsKey(e.getKey()))
                         .map(e -> new ImmutableTag(e.getValue(), objectRef.get(e.getKey()))))
-                        .toList();
+                .toList();
     }
 
     @Override

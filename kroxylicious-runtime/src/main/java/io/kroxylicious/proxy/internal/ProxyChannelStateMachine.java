@@ -150,6 +150,13 @@ public class ProxyChannelStateMachine {
 
     private final AuditLogger auditLogger;
 
+    /**
+     * Client-specific audit logger that captures the authenticated client's identity.
+     * Null until authentication completes. Falls back to {@link #auditLogger} before authentication.
+     */
+    @Nullable
+    private AuditLogger clientAuditLogger;
+
     private final EndpointBinding endpointBinding;
 
     // Ideally this would be final, however that breaks forceState which is used heavily in testing.
@@ -547,6 +554,7 @@ public class ProxyChannelStateMachine {
 
     public void onSessionTransportAuthenticated() {
         this.kafkaSession.transitionTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
+        createClientAuditLogger();
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
@@ -555,12 +563,27 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
+    private void createClientAuditLogger() {
+        Subject subject = authenticatedSubject();
+        if (auditLogger instanceof AuditLoggerImpl auditLoggerImpl) {
+            this.clientAuditLogger = auditLoggerImpl.derive(() -> ClientActorImpl.of(
+                    clientAddress(),
+                    sessionId(),
+                    subject));
+        }
+        else {
+            LOGGER.warn("AuditLogger is not an AuditLoggerImpl, client audit logging will not include principal information");
+            this.clientAuditLogger = auditLogger;
+        }
+    }
+
     public Optional<ClientTlsContext> clientTlsContext() {
         return clientSubjectManager.clientTlsContext();
     }
 
     public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
         clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
+        createClientAuditLogger();
     }
 
     public Optional<ClientSaslContext> clientSaslContext() {
@@ -757,6 +780,16 @@ public class ProxyChannelStateMachine {
 
     AuditLogger auditLogger() {
         return auditLogger;
+    }
+
+    /**
+     * Returns the client-specific audit logger that includes the authenticated client's identity.
+     * Falls back to the proxy audit logger if the client has not yet authenticated.
+     *
+     * @return audit logger with client actor information when available
+     */
+    AuditLogger clientAuditLogger() {
+        return clientAuditLogger != null ? clientAuditLogger : auditLogger;
     }
 
 }

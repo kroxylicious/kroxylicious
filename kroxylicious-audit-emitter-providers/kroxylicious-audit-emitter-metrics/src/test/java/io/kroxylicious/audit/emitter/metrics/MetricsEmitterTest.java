@@ -111,8 +111,7 @@ class MetricsEmitterTest {
                         Map.of(),
                         "kroxylicious_audit",
                         List.of(new ImmutableTag("action", "foo"),
-                                new ImmutableTag("outcome", "failure")))
-        );
+                                new ImmutableTag("outcome", "failure"))));
     }
 
     @ParameterizedTest
