@@ -46,3 +46,8 @@ then:
   expectedResponse:
     errorCode: 0
     groups: []
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: "denied"

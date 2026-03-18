@@ -51,5 +51,8 @@ then:
     nodeId: 223
     host: "random-string-822"
     port: 919
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

@@ -65,5 +65,8 @@ then:
     errorCode: 868
     assignment: !!binary |-
       nZHKxws=
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

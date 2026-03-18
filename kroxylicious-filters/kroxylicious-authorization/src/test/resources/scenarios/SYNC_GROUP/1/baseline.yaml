@@ -63,5 +63,8 @@ then:
     errorCode: 319
     assignment: !!binary |-
       H/MOjxo=
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

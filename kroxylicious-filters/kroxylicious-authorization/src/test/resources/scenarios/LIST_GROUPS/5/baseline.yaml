@@ -63,3 +63,8 @@ then:
         protocolType: "consumer"
         groupState: "good"
         groupType: "happy"
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

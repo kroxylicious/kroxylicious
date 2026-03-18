@@ -65,3 +65,4 @@ then:
         minVersion: 0 # unmodified despite filter not supporting v0-v2
         maxVersion: 13 # max version supported by filter
     throttleTimeMs: 880
+  expectedAuditActions: []

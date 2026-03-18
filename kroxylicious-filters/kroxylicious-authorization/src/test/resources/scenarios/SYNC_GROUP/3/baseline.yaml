@@ -65,5 +65,8 @@ then:
     errorCode: 512
     assignment: !!binary |-
       jhQd4Eo=
-
-  expectedAuditActions: []
+  expectedAuditActions:
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null
