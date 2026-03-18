@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition;
+import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
@@ -55,13 +55,13 @@ public class TlsCredentialSupplierManager implements AutoCloseable {
      */
     private static final class FactoryWrapper {
         private final ServerTlsCredentialSupplierFactory<? super Object, ? super Object> factory;
-        private final TlsCredentialSupplierDefinition definition;
+        private final TlsCredentialSupplierConfig definition;
         private final Object initializationData;
         private final ServerTlsCredentialSupplier supplier;
         private final AtomicBoolean closed = new AtomicBoolean(false);
 
         private FactoryWrapper(ServerTlsCredentialSupplierFactoryContext context,
-                               TlsCredentialSupplierDefinition definition,
+                               TlsCredentialSupplierConfig definition,
                                ServerTlsCredentialSupplierFactory<? super Object, ? super Object> factory) {
             this.factory = Objects.requireNonNull(factory);
             this.definition = Objects.requireNonNull(definition);
@@ -144,7 +144,7 @@ public class TlsCredentialSupplierManager implements AutoCloseable {
      * @param pfr The plugin factory registry for ServiceLoader-based discovery
      * @param definition The TLS credential supplier definition from configuration (may be null)
      */
-    public TlsCredentialSupplierManager(PluginFactoryRegistry pfr, @Nullable TlsCredentialSupplierDefinition definition) {
+    public TlsCredentialSupplierManager(PluginFactoryRegistry pfr, @Nullable TlsCredentialSupplierConfig definition) {
         Objects.requireNonNull(pfr);
 
         if (definition == null) {

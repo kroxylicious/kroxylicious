@@ -31,13 +31,13 @@ class TlsBackwardCompatibilityTest {
         assertThat(tls.definesKey()).isTrue();
         assertThat(tls.key()).isNotNull();
         assertThat(tls.trust()).isNotNull();
-        assertThat(tls.tlsCredentialSupplier()).isNull();
+        assertThat(tls.credentialSupplier()).isNull();
     }
 
     @Test
     void testTlsConfigWithCredentialSupplierIsValid() {
         // Given - TLS config with credential supplier only (no static key due to mutual exclusivity)
-        TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("MySupplier", null);
+        TlsCredentialSupplierConfig supplierDef = new TlsCredentialSupplierConfig("MySupplier", null);
 
         Tls tls = new Tls(
                 null, // No static key - using credential supplier
@@ -50,28 +50,28 @@ class TlsBackwardCompatibilityTest {
         assertThat(tls.definesKey()).isFalse();
         assertThat(tls.key()).isNull();
         assertThat(tls.trust()).isNotNull();
-        assertThat(tls.tlsCredentialSupplier()).isNotNull();
-        assertThat(tls.tlsCredentialSupplier().type()).isEqualTo("MySupplier");
+        assertThat(tls.credentialSupplier()).isNotNull();
+        assertThat(tls.credentialSupplier().type()).isEqualTo("MySupplier");
     }
 
     @Test
     void testMutualExclusivityValidationMessage() {
-        // Given - attempting to configure both key and tlsCredentialSupplier
+        // Given - attempting to configure both key and credentialSupplier
         KeyProvider key = new KeyPair("/path/to/key", "/path/to/cert", null);
-        TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("TestSupplier", null);
+        TlsCredentialSupplierConfig supplierDef = new TlsCredentialSupplierConfig("TestSupplier", null);
 
         // When/Then - should throw with descriptive error message
         assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> new Tls(key, null, null, null, supplierDef)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("mutually exclusive")
                 .hasMessageContaining("key")
-                .hasMessageContaining("tlsCredentialSupplier");
+                .hasMessageContaining("credentialSupplier");
     }
 
     @Test
     void testTlsConfigWithOnlyCredentialSupplierIsValid() {
         // Given - TLS config with only credential supplier (no static key/trust)
-        TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("DynamicSupplier",
+        TlsCredentialSupplierConfig supplierDef = new TlsCredentialSupplierConfig("DynamicSupplier",
                 new Object());
 
         Tls tls = new Tls(null, null, null, null, supplierDef);
@@ -80,13 +80,13 @@ class TlsBackwardCompatibilityTest {
         assertThat(tls.definesKey()).isFalse();
         assertThat(tls.key()).isNull();
         assertThat(tls.trust()).isNull();
-        assertThat(tls.tlsCredentialSupplier()).isNotNull();
+        assertThat(tls.credentialSupplier()).isNotNull();
     }
 
     @Test
     void testTlsConfigWithBothStaticAndDynamicCredentialsIsRejected() {
         // Given - TLS config attempting to use both static credentials and credential supplier
-        TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("FallbackSupplier", null);
+        TlsCredentialSupplierConfig supplierDef = new TlsCredentialSupplierConfig("FallbackSupplier", null);
 
         // Then - should throw IllegalArgumentException due to mutual exclusivity
         assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> new Tls(
@@ -96,7 +96,7 @@ class TlsBackwardCompatibilityTest {
                 null,
                 supplierDef)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Cannot configure both 'key' and 'tlsCredentialSupplier'")
+                .hasMessageContaining("Cannot configure both 'key' and 'credentialSupplier'")
                 .hasMessageContaining("mutually exclusive");
     }
 
@@ -117,7 +117,7 @@ class TlsBackwardCompatibilityTest {
         assertThat(tls.trust()).isNull();
         assertThat(tls.cipherSuites()).isNull();
         assertThat(tls.protocols()).isNull();
-        assertThat(tls.tlsCredentialSupplier()).isNull();
+        assertThat(tls.credentialSupplier()).isNull();
     }
 
     @Test
@@ -131,7 +131,7 @@ class TlsBackwardCompatibilityTest {
         assertThat(tls.trust()).isNull();
         assertThat(tls.cipherSuites()).isNull();
         assertThat(tls.protocols()).isNull();
-        assertThat(tls.tlsCredentialSupplier()).isNull();
+        assertThat(tls.credentialSupplier()).isNull();
     }
 
     @Test
@@ -157,13 +157,13 @@ class TlsBackwardCompatibilityTest {
         assertThat(tls.cipherSuites().allowed()).contains("TLS_AES_256_GCM_SHA384");
         assertThat(tls.protocols()).isNotNull();
         assertThat(tls.protocols().allowed()).contains("TLSv1.3");
-        assertThat(tls.tlsCredentialSupplier()).isNull();
+        assertThat(tls.credentialSupplier()).isNull();
     }
 
     @Test
     void testTlsConfigWithAllFeaturesIncludingCredentialSupplier() {
         // Given - comprehensive TLS config with credential supplier (no static key due to mutual exclusivity)
-        TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("AdvancedSupplier",
+        TlsCredentialSupplierConfig supplierDef = new TlsCredentialSupplierConfig("AdvancedSupplier",
                 java.util.Map.of("option", "value"));
 
         AllowDeny<String> cipherSuites = new AllowDeny<>(
@@ -186,9 +186,9 @@ class TlsBackwardCompatibilityTest {
         assertThat(tls.trust()).isNotNull();
         assertThat(tls.cipherSuites()).isNotNull();
         assertThat(tls.protocols()).isNotNull();
-        assertThat(tls.tlsCredentialSupplier()).isNotNull();
-        assertThat(tls.tlsCredentialSupplier().type()).isEqualTo("AdvancedSupplier");
-        assertThat(tls.tlsCredentialSupplier().config()).isNotNull();
+        assertThat(tls.credentialSupplier()).isNotNull();
+        assertThat(tls.credentialSupplier().type()).isEqualTo("AdvancedSupplier");
+        assertThat(tls.credentialSupplier().config()).isNotNull();
     }
 
     @Test
@@ -207,18 +207,18 @@ class TlsBackwardCompatibilityTest {
     @Test
     void testDefinesKeyMethodIsIndependentOfCredentialSupplier() {
         // Given - config with credential supplier but no static key
-        TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("DynamicSupplier", null);
+        TlsCredentialSupplierConfig supplierDef = new TlsCredentialSupplierConfig("DynamicSupplier", null);
         Tls tls = new Tls(null, null, null, null, supplierDef);
 
         // Then - definesKey() only checks for static key provider
         assertThat(tls.definesKey()).isFalse();
-        assertThat(tls.tlsCredentialSupplier()).isNotNull();
+        assertThat(tls.credentialSupplier()).isNotNull();
     }
 
     @Test
     void testCredentialSupplierConfigCanBeNull() {
         // Given - credential supplier without config (Void config type)
-        TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("NoConfigSupplier", null);
+        TlsCredentialSupplierConfig supplierDef = new TlsCredentialSupplierConfig("NoConfigSupplier", null);
 
         // Then - config is null but type is present
         assertThat(supplierDef.type()).isEqualTo("NoConfigSupplier");
@@ -230,7 +230,7 @@ class TlsBackwardCompatibilityTest {
         // Given - credential supplier with complex config
         record SupplierConfig(String endpoint, int timeout) {}
         SupplierConfig config = new SupplierConfig("https://kms.example.com", 30);
-        TlsCredentialSupplierDefinition supplierDef = new TlsCredentialSupplierDefinition("KmsSupplier", config);
+        TlsCredentialSupplierConfig supplierDef = new TlsCredentialSupplierConfig("KmsSupplier", config);
 
         // Then - config is preserved
         assertThat(supplierDef.type()).isEqualTo("KmsSupplier");
@@ -246,7 +246,7 @@ class TlsBackwardCompatibilityTest {
                 new KeyPair("/path/to/key", "/path/to/cert", null),
                 new TrustStore("/path/to/truststore", null, "JKS"),
                 null,
-                null); // 4 parameters only - no tlsCredentialSupplier
+                null); // 4 parameters only - no credentialSupplier
 
         // Then - should behave identically to 5-parameter version with null
         assertThat(tls.definesKey()).isTrue();
@@ -254,7 +254,7 @@ class TlsBackwardCompatibilityTest {
         assertThat(tls.trust()).isNotNull();
         assertThat(tls.cipherSuites()).isNull();
         assertThat(tls.protocols()).isNull();
-        assertThat(tls.tlsCredentialSupplier()).isNull();
+        assertThat(tls.credentialSupplier()).isNull();
     }
 
     @Test
@@ -277,6 +277,6 @@ class TlsBackwardCompatibilityTest {
         assertThat(tls.definesKey()).isTrue();
         assertThat(tls.cipherSuites()).isNotNull();
         assertThat(tls.protocols()).isNotNull();
-        assertThat(tls.tlsCredentialSupplier()).isNull();
+        assertThat(tls.credentialSupplier()).isNull();
     }
 }

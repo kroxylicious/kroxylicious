@@ -43,7 +43,7 @@ import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.SslContextBuildException;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierDefinition;
+import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
@@ -123,8 +123,8 @@ public class VirtualClusterModel {
         this.pluginFactoryRegistry = pluginFactoryRegistry;
 
         if (pluginFactoryRegistry != null) {
-            TlsCredentialSupplierDefinition definition = targetCluster.tls()
-                    .flatMap(tls -> Optional.ofNullable(tls.tlsCredentialSupplier()))
+            TlsCredentialSupplierConfig definition = targetCluster.tls()
+                    .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
                     .orElse(null);
             this.tlsCredentialSupplierManager = new TlsCredentialSupplierManager(pluginFactoryRegistry, definition);
         }
@@ -237,7 +237,7 @@ public class VirtualClusterModel {
      */
     public boolean usesDynamicTlsCredentials() {
         return targetCluster.tls()
-                .map(tls -> tls.tlsCredentialSupplier() != null)
+                .map(tls -> tls.credentialSupplier() != null)
                 .orElse(false);
     }
 

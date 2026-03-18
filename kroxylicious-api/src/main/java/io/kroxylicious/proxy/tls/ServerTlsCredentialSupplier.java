@@ -62,6 +62,16 @@ import java.util.concurrent.CompletionStage;
  *     private final PrivateKey defaultKey;
  *     private final Certificate[] defaultChain;
  *
+ *     public ClientSpecificSupplier(Map<String, PrivateKey> clientKeys,
+ *                                   Map<String, Certificate[]> clientChains,
+ *                                   PrivateKey defaultKey,
+ *                                   Certificate[] defaultChain) {
+ *         this.clientKeys = clientKeys;
+ *         this.clientChains = clientChains;
+ *         this.defaultKey = defaultKey;
+ *         this.defaultChain = defaultChain;
+ *     }
+ *
  *     @Override
  *     public CompletionStage<TlsCredentials> tlsCredentials(ServerTlsCredentialSupplierContext context) {
  *         Optional<ClientTlsContext> clientContext = context.clientTlsContext();

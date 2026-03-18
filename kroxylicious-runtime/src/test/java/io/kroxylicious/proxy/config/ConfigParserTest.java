@@ -1025,7 +1025,7 @@ class ConfigParserTest {
                 .extracting(VirtualCluster::targetCluster)
                 .satisfies(targetCluster -> {
                     assertThat(targetCluster.tls()).isPresent();
-                    assertThat(targetCluster.tls().get().tlsCredentialSupplier()).isNull();
+                    assertThat(targetCluster.tls().get().credentialSupplier()).isNull();
                 });
     }
 
@@ -1038,7 +1038,7 @@ class ConfigParserTest {
                   targetCluster:
                     bootstrapServers: magic-kafka.example:1234
                     tls:
-                      tlsCredentialSupplier:
+                      credentialSupplier:
                         type: UnknownSupplier
                   gateways:
                   - name: mygateway
@@ -1060,7 +1060,7 @@ class ConfigParserTest {
                   targetCluster:
                     bootstrapServers: magic-kafka.example:1234
                     tls:
-                      tlsCredentialSupplier:
+                      credentialSupplier:
                         type: UnknownSupplier
                         config:
                           path: /etc/certs
@@ -1085,7 +1085,7 @@ class ConfigParserTest {
                   targetCluster:
                     bootstrapServers: magic-kafka.example:1234
                     tls:
-                      tlsCredentialSupplier:
+                      credentialSupplier:
                         config:
                           path: /etc/certs
                   gateways:
