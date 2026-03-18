@@ -53,7 +53,7 @@ jobs:
         run: |
           echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           path: kroxylicious
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
@@ -71,7 +71,7 @@ jobs:
         working-directory: kroxylicious
       
       - name: Checkout Website
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           path: kroxylicious.github.io
           repository: kroxylicious/kroxylicious.github.io
@@ -110,7 +110,7 @@ jobs:
             bash -c 'eval "$(rbenv init -)" && cp -r /css/_sass/bootstrap /site/_sass/ && bundle exec jekyll build --config=_config.yml,_config-baseurl.yml,_config-overrides.yml'
         working-directory: kroxylicious.github.io
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
         with:
           path: kroxylicious.github.io/_site
           retention-days: 14
@@ -136,7 +136,7 @@ jobs:
           echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
         uses: ./kroxylicious/.github/actions/common/slack-notification
