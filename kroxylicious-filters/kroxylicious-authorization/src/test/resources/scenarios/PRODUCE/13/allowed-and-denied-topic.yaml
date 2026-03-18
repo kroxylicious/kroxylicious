@@ -19,7 +19,7 @@ given:
         correlationId: 1
         clientId: "clientId"
       expectedRequest:
-        transactionalId: "random-string-292"
+        transactionalId: "my-transactional-id"
         acks: 1
         timeoutMs: 141
         topicData:
@@ -60,7 +60,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    transactionalId: "random-string-292"
+    transactionalId: "my-transactional-id"
     acks: 1
     timeoutMs: 141
     topicData:
@@ -98,3 +98,16 @@ then:
             recordErrors: [ ]
             errorMessage: "Topic authorization failed."
     throttleTimeMs: 141
+  expectedAuditActions:
+    - action: "Write"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "Write"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"
+    - action: "Write"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: "denied"

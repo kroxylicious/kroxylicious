@@ -218,3 +218,20 @@ then:
         errorMessage: "Group authorization failed."
         resourceType: 32
         resourceName: "denied-group"
+  expectedAuditActions:
+    - action: "AlterConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "denied-group"
+      status: "denied"
+    - action: "AlterConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "denied-topic"
+      status: "denied"
+    - action: "AlterConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null
+    - action: "AlterConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

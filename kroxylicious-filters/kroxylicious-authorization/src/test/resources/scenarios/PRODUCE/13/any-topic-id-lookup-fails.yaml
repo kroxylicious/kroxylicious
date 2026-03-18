@@ -39,3 +39,4 @@ then:
     correlationId: 1
   expectAuthorizationOutcomeLog: false
   expectedErrorResponse: UNKNOWN_TOPIC_ID
+  expectedAuditActions: []
