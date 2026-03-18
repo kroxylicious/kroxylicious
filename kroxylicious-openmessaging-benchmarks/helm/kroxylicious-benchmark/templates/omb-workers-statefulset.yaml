@@ -44,18 +44,21 @@ spec:
         env:
         - name: JAVA_OPTS
           value: "{{ .Values.omb.workerJavaOpts }} -Dorg.slf4j.simpleLogger.defaultLogLevel={{ .Values.omb.logLevel }}"
+        workingDir: /tmp
         command:
         - /bin/bash
         - -c
         - |
           # Start OMB worker
-          bin/benchmark-worker
+          /opt/benchmark/bin/benchmark-worker
         ports:
         - containerPort: 8080
           name: http
         volumeMounts:
         - name: driver-config
           mountPath: /etc/omb/driver
+        - name: tmp
+          mountPath: /tmp
         resources:
           {{- toYaml .Values.omb.resources | nindent 10 }}
         livenessProbe:
@@ -72,3 +75,5 @@ spec:
       - name: driver-config
         configMap:
           name: omb-driver-{{ .Values.omb.driver }}
+      - name: tmp
+        emptyDir: {}

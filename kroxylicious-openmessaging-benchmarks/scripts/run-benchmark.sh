@@ -181,20 +181,48 @@ check_workers_healthy() {
         echo "OMB worker StatefulSet not found or has 0 replicas" >&2
         return 1
     fi
+
+    # Wait for Kubernetes to consider all pods ready (TCP readiness probe)
     local ready
     ready=$(kubectl get statefulset omb-worker -n "${NAMESPACE}" \
         -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-    if [[ "${ready}" == "${desired}" ]]; then
+    if [[ "${ready}" != "${desired}" ]]; then
+        echo "OMB workers not fully ready (${ready}/${desired}) — waiting up to ${POD_READY_TIMEOUT}..."
+        if ! kubectl rollout status statefulset/omb-worker \
+                -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}" 2>/dev/null; then
+            echo "OMB workers did not recover within ${POD_READY_TIMEOUT}" >&2
+            return 1
+        fi
+    fi
+
+    # HTTP-check each worker from inside the cluster via the coordinator pod.
+    # The TCP readiness probe can pass while the worker HTTP server is still
+    # starting or has crashed — curl gives a definitive answer. This mirrors
+    # the startup check the benchmark coordinator pod performs on first boot.
+    local benchmark_pod
+    benchmark_pod=$(kubectl get pod -n "${NAMESPACE}" -l app=omb-benchmark \
+        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
+    if [[ -z "${benchmark_pod}" ]]; then
+        echo "Warning: benchmark pod not found — skipping HTTP worker check" >&2
         return 0
     fi
-    echo "OMB workers not fully ready (${ready}/${desired}) — waiting up to ${POD_READY_TIMEOUT}..."
-    if kubectl rollout status statefulset/omb-worker \
-            -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}" 2>/dev/null; then
-        echo "OMB workers ready."
-    else
-        echo "OMB workers did not recover within ${POD_READY_TIMEOUT}" >&2
-        return 1
-    fi
+
+    local timeout_secs="${POD_READY_TIMEOUT%s}"
+    local deadline=$((SECONDS + timeout_secs))
+    echo "Verifying OMB worker HTTP endpoints..."
+    for i in $(seq 0 $((desired - 1))); do
+        local worker="omb-worker-${i}.omb-worker:8080"
+        while ! kubectl exec "${benchmark_pod}" -n "${NAMESPACE}" -- \
+                curl -sf "http://${worker}" > /dev/null 2>&1; do
+            if [[ $SECONDS -ge $deadline ]]; then
+                echo "OMB worker ${worker} did not become reachable within ${POD_READY_TIMEOUT}" >&2
+                return 1
+            fi
+            echo "  Waiting for ${worker}..."
+            sleep 5
+        done
+        echo "  ${worker} OK."
+    done
 }
 
 reset_topics() {
