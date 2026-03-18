@@ -51,7 +51,7 @@ Configuration:
 
       -  name: io.kroxylicious.filter.entityisolation
          additivity: false
-         level: DEBUG
+         level: INFO
 
          AppenderRef:
            - ref: Console
