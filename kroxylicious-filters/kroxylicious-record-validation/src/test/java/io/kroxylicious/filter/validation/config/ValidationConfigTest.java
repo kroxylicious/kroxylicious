@@ -37,7 +37,7 @@ class ValidationConfigTest {
     private static ValidationConfig expectedApicurioTlsTrustStoreConfig() throws MalformedURLException {
         var tls = new Tls(null, new TrustStore("/path/to/truststore.jks", new InlinePassword("changeit"), "JKS"), null, null);
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(null, new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, tls),
+                new BytebufValidation(null, new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, tls, null),
                         null, false, true));
         return new ValidationConfig(List.of(ruleOne), null);
     }
@@ -45,14 +45,14 @@ class ValidationConfigTest {
     private static ValidationConfig expectedApicurioTlsInsecureConfig() throws MalformedURLException {
         var tls = new Tls(null, new InsecureTls(true), null, null);
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(null, new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, tls),
+                new BytebufValidation(null, new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, tls, null),
                         null, false, true));
         return new ValidationConfig(List.of(ruleOne), null);
     }
 
     private static ValidationConfig expectedApicurioConfig() throws MalformedURLException {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, null),
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, null, null),
                         new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null), false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);

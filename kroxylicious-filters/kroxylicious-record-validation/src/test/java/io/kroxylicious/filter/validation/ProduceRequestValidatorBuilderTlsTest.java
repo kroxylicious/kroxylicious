@@ -141,7 +141,7 @@ class ProduceRequestValidatorBuilderTlsTest {
     }
 
     private SchemaValidationConfig schemaConfig(@Nullable Tls tls) {
-        return new SchemaValidationConfig(registryUrl, 1L, null, tls);
+        return new SchemaValidationConfig(registryUrl, 1L, null, tls, null);
     }
 
     private Object buildValidatorConfig(SchemaValidationConfig schemaConfig) {
