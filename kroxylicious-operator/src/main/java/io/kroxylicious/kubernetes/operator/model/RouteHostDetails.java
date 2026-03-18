@@ -112,9 +112,12 @@ public record RouteHostDetails(
         RouteFor routeFor;
         try {
             String routeForLabelValue = route.getMetadata().getLabels().get(RouteFor.LABEL_KEY);
+            if (routeForLabelValue == null) {
+                return Optional.empty();
+            }
             routeFor = RouteFor.valueOf(routeForLabelValue.toUpperCase());
         }
-        catch (Exception e) {
+        catch (IllegalArgumentException e) {
             return Optional.empty();
         }
 
