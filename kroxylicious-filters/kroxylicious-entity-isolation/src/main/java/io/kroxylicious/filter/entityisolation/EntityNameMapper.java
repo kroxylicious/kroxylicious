@@ -17,16 +17,6 @@ import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 public interface EntityNameMapper {
 
     /**
-     * Validates that the context provided is acceptable for use with this mapper.
-     * The mapper implementation us guaranteed that this method is at least once
-     * before any mapping operations are performed with the same context.
-     *
-     * @param mapperContext mapper context.
-     * @throws EntityMapperException the provided context is unsuitable.
-     */
-    void validateContext(MapperContext mapperContext) throws EntityMapperException;
-
-    /**
      * Maps a downstream kafka resource name to an upstream name.
      *
      * @param mapperContext mapper context.

@@ -36,7 +36,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.reflect.ClassPath;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -44,71 +43,62 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIsolationFilterTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 
-    private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
-            String.format("%s/[A-Z_]+/\\d+/.*\\.yaml", EntityIsolationFilterTest.class.getPackageName().replace(".", "/")));
+    private static final String PACKAGE_PATH = EntityIsolationFilterTest.class.getPackageName().replace(".", "/");
+    private static final Pattern ISOLATION_TEST_FILTER = Pattern.compile(String.format("%s/[A-Z_]+/\\d+/.*\\.yaml", PACKAGE_PATH));
+    private static final Pattern NON_SPECIFIC_TEST_FILTER = Pattern.compile(String.format("%s/_NON-API-SPECIFIC/.*\\.yaml", PACKAGE_PATH));
 
-    static Stream<Arguments> scenarios() throws Exception {
-        List<ClassPath.ResourceInfo> resources = ClassPath.from(EntityIsolationFilterTest.class.getClassLoader()).getResources().stream()
-                .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches()).toList();
-        return resources.stream()
-                .map(resourceInfo -> {
-                    try {
-                        ScenarioDefinition scenarioDefinition = MAPPER.reader().readValue(resourceInfo.asByteSource().read(), ScenarioDefinition.class);
-                        return Arguments.argumentSet(resourceInfo.getResourceName(), scenarioDefinition);
-                    }
-                    catch (IOException e) {
-                        throw new UncheckedIOException("Failed to unmarshall" + resourceInfo, e);
-                    }
-                });
+    static Stream<Arguments> isolationScenarios() {
+        return buildScenarios(ISOLATION_TEST_FILTER);
     }
 
-    private static EntityNameMapper createEntityMapper(@Nullable String subject) {
-        return new EntityNameMapper() {
-            public static final String SEPARATOR = "-";
+    static Stream<Arguments> nonApiSpecificScenarios() {
+        return buildScenarios(NON_SPECIFIC_TEST_FILTER);
+    }
 
-            @Override
-            public void validateContext(MapperContext mapperContext) throws EntityMapperException {
-                if (subject == null || subject.contains(SEPARATOR)) {
-                    throw new EntityMapperException("Unacceptable subject " + subject);
-                }
-            }
+    private static Stream<Arguments> buildScenarios(Pattern testFilter) {
+        try {
+            List<ClassPath.ResourceInfo> resources = ClassPath.from(EntityIsolationFilterTest.class.getClassLoader()).getResources().stream()
+                    .filter(ri -> testFilter.matcher(ri.getResourceName()).matches()).toList();
+            return resources.stream()
+                    .map(resourceInfo -> {
+                        try {
+                            ScenarioDefinition scenarioDefinition = MAPPER.reader().readValue(resourceInfo.asByteSource().read(), ScenarioDefinition.class);
+                            return Arguments.argumentSet(resourceInfo.getResourceName(), scenarioDefinition);
+                        }
+                        catch (IOException e) {
+                            throw new UncheckedIOException("Failed to unmarshall" + resourceInfo, e);
+                        }
+                    });
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Failed to build scenarios for " + testFilter, e);
+        }
+    }
 
-            @Override
-            public String map(MapperContext mapperContext, EntityType entityType, String downstreamResourceName) {
-                return subject + SEPARATOR + downstreamResourceName;
-            }
-
-            @Override
-            public String unmap(MapperContext mapperContext, EntityType entityType, String upstreamResourceName) {
-                var prefix = subject + SEPARATOR;
-                if (upstreamResourceName.startsWith(prefix)) {
-                    return upstreamResourceName.substring(prefix.length());
-                }
-                else {
-                    throw new IllegalStateException("Exception unmapping " + upstreamResourceName + " for subject");
-                }
-            }
-
-            @Override
-            public boolean isOwnedByContext(MapperContext mapperContext, EntityType resourceType, String upstreamResourceName) {
-                var prefix = subject + SEPARATOR;
-                return upstreamResourceName.startsWith(prefix);
-            }
-        };
+    private static EntityNameMapper createEntityMapper() {
+        return new PrincipalEntityNameMapper(User.class, "-");
     }
 
     @ParameterizedTest
-    @MethodSource("scenarios")
-    void shouldIsolate(ScenarioDefinition definition) throws Exception {
-        var entityMapper = createEntityMapper(definition.when().subject());
+    @MethodSource("isolationScenarios")
+    void shouldIsolate(ScenarioDefinition definition) {
+        runScenario(definition);
+    }
+
+    @ParameterizedTest
+    @MethodSource("nonApiSpecificScenarios")
+    void shouldHandle(ScenarioDefinition definition) {
+        runScenario(definition);
+    }
+
+    private void runScenario(ScenarioDefinition definition) {
+        var entityMapper = createEntityMapper();
         var isolationFilter = new EntityIsolationFilter(definition.given().resourceTypes(), entityMapper);
         ApiKeys apiKeys = definition.metadata().apiKeys();
         short version = definition.metadata().apiVersion();

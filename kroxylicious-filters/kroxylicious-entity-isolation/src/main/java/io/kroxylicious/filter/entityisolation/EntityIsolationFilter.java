@@ -46,12 +46,10 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
 
     private final Map<ApiKeys, ? extends EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> processorMap;
     private final Map<Integer, Object> correlatedRequestContext = new HashMap<>();
-    private final EntityNameMapper mapper;
 
     EntityIsolationFilter(Set<EntityType> resourceTypes, EntityNameMapper mapper) {
         Objects.requireNonNull(resourceTypes);
         Objects.requireNonNull(mapper);
-        this.mapper = mapper;
 
         Map<ApiKeys, EntityIsolationProcessor<? extends ApiMessage, ? extends ApiMessage, ?>> pm = new EnumMap<>(ApiKeys.class);
 
@@ -89,42 +87,40 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                                                           RequestHeaderData header,
                                                           ApiMessage request,
                                                           FilterContext filterContext) {
-        return Optional.ofNullable(processorMap.get(apiKey))
-                .map(EntityIsolationProcessor.class::cast)
-                .map(eip -> {
-                    var mapperContext = buildMapperContext(filterContext);
+        try {
+            return Optional.ofNullable(processorMap.get(apiKey))
+                    .map(EntityIsolationProcessor.class::cast)
+                    .map(eip -> {
+                        var mapperContext = buildMapperContext(filterContext);
 
-                    if (eip.versionIsOutOfRange(apiVersion)) {
-                        logUnexpectedApiVersion(filterContext, apiKey, apiVersion, eip.minSupportedVersion(), eip.maxSupportedVersion());
-                        return filterContext.requestFilterResultBuilder()
-                                .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
-                                .withCloseConnection()
-                                .completed();
-                    }
+                        if (eip.versionIsOutOfRange(apiVersion)) {
+                            logUnexpectedApiVersion(filterContext, apiKey, apiVersion, eip.minSupportedVersion(), eip.maxSupportedVersion());
+                            return filterContext.requestFilterResultBuilder()
+                                    .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
+                                    .withCloseConnection()
+                                    .completed();
+                        }
 
-                    try {
-                        mapper.validateContext(mapperContext);
-                    }
-                    catch (EntityMapperException e) {
-                        logMappingException(filterContext, apiKey, apiVersion, e);
-                        return filterContext.requestFilterResultBuilder()
-                                .errorResponse(header, request, Errors.UNKNOWN_SERVER_ERROR.exception())
-                                .withCloseConnection()
-                                .completed();
-                    }
-
-                    log(filterContext, "request", apiKey, request);
-                    var crc = eip.createCorrelatedRequestContext(request);
-                    return ((CompletionStage<RequestFilterResult>) eip.onRequest(header, apiVersion, request, filterContext, mapperContext))
-                            .thenApply(rfr -> {
-                                if (!(crc == null || rfr.shortCircuitResponse() || rfr.drop() || rfr.closeConnection())) {
-                                    correlatedRequestContext.put(header.correlationId(), crc);
-                                }
-                                log(filterContext, "request result", apiKey, request);
-                                return rfr;
-                            });
-                })
-                .orElse(filterContext.forwardRequest(header, request));
+                        log(filterContext, "request", apiKey, request);
+                        var crc = eip.createCorrelatedRequestContext(request);
+                        return ((CompletionStage<RequestFilterResult>) eip.onRequest(header, apiVersion, request, filterContext, mapperContext))
+                                .thenApply(rfr -> {
+                                    if (!(crc == null || rfr.shortCircuitResponse() || rfr.drop() || rfr.closeConnection())) {
+                                        correlatedRequestContext.put(header.correlationId(), crc);
+                                    }
+                                    log(filterContext, "request result", apiKey, request);
+                                    return rfr;
+                                });
+                    })
+                    .orElse(filterContext.forwardRequest(header, request));
+        }
+        catch (EntityMapperException e) {
+            logMappingException(filterContext, apiKey, apiVersion, e);
+            return filterContext.requestFilterResultBuilder()
+                    .errorResponse(header, request, Errors.UNKNOWN_SERVER_ERROR.exception())
+                    .withCloseConnection()
+                    .completed();
+        }
 
     }
 
@@ -135,19 +131,27 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                                                             ResponseHeaderData header,
                                                             ApiMessage response,
                                                             FilterContext filterContext) {
-        return Optional.ofNullable(processorMap.get(apiKey))
-                .map(EntityIsolationProcessor.class::cast)
-                .map(eip -> {
-                    log(filterContext, "response", apiKey, response);
-                    var mapperContext = buildMapperContext(filterContext);
-                    var crc = correlatedRequestContext.remove(header.correlationId());
-                    return eip.onResponse(header, apiVersion, crc, response, filterContext, mapperContext)
-                            .thenApply(rfr -> {
-                                log(filterContext, "response result", apiKey, response);
-                                return rfr;
-                            });
-                })
-                .orElse(filterContext.forwardResponse(header, response));
+        try {
+            return Optional.ofNullable(processorMap.get(apiKey))
+                    .map(EntityIsolationProcessor.class::cast)
+                    .map(eip -> {
+                        log(filterContext, "response", apiKey, response);
+                        var mapperContext = buildMapperContext(filterContext);
+                        var crc = correlatedRequestContext.remove(header.correlationId());
+                        return ((CompletionStage<ResponseFilterResult>) eip.onResponse(header, apiVersion, crc, response, filterContext, mapperContext))
+                                .thenApply(rfr -> {
+                                    log(filterContext, "response result", apiKey, response);
+                                    return rfr;
+                                });
+                    })
+                    .orElse(filterContext.forwardResponse(header, response));
+        }
+        catch (EntityMapperException e) {
+            logMappingException(filterContext, apiKey, apiVersion, e);
+            return filterContext.responseFilterResultBuilder()
+                    .withCloseConnection()
+                    .completed();
+        }
     }
 
     @VisibleForTesting

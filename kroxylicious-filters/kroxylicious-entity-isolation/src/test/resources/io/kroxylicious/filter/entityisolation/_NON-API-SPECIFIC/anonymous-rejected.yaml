@@ -5,25 +5,26 @@
 #
 
 metadata:
-  apiKeys: "METADATA"
-  apiVersion: 13
+  apiKeys: "INIT_PRODUCER_ID"
+  apiVersion: 6
   scenario: "unacceptable principal is detected and rejected"
 given:
   mockedUpstreamResponses: []
-  resourceTypes: ["GROUP_ID"]
+  resourceTypes: ["TRANSACTIONAL_ID"]
   topicNames: null
 when:
   subject: null
   requestHeader:
-    requestApiKey: 3
-    requestApiVersion: 13
+    requestApiKey: 22
+    requestApiVersion: 6
     correlationId: 1
     clientId: "clientId"
   request:
-    topics:
-      - topicId: AAAAAAAAAAAAAAAAAAAAAA
-        name:
-    allowAutoTopicCreation: true
-    includeTopicAuthorizedOperations: true
+    transactionalId: "12345"
+    transactionTimeoutMs: 30000
+    producerId: 0
+    producerEpoch: 0
+    enable2Pc: false
+    keepPreparedTxn: false
 then:
   expectedErrorResponse: "UNKNOWN_SERVER_ERROR"

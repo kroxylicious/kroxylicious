@@ -21,7 +21,6 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -72,43 +71,9 @@ class PrincipalEntityNameMapperTest {
     }
 
     @Test
-    void shouldValidateSuccessfully() {
+    void shouldMapSuccessfully() {
         // Given
         var mapperContext = buildMapperContext(bobSubject);
-
-        // When / Then
-        assertThatNoException().isThrownBy(() -> mapper.validateContext(mapperContext));
-    }
-
-    @Test
-    void validateShouldRejectAnonymousSubject() {
-        // Given
-        var mapperContext = buildMapperContext(Subject.anonymous());
-
-        // When/Then
-        assertThatThrownBy(() -> mapper.validateContext(mapperContext))
-                .isInstanceOf(EntityMapperException.class)
-                .hasMessageContaining(
-                        "The PrincipalEntityNameMapper requires an authenticated subject with a unique principal of type User with a non-empty name, got subject Subject[principals=[]]");
-    }
-
-    @Test
-    void validateShouldRejectPrincipalContainingSeparator() {
-        // Given
-        when(bobSubject.uniquePrincipalOfType(User.class)).thenReturn(Optional.of(new User("dash-boy")));
-        var mapperContext = buildMapperContext(bobSubject);
-
-        // When/Then
-        assertThatThrownBy(() -> mapper.validateContext(mapperContext))
-                .isInstanceOf(EntityMapperException.class)
-                .hasMessageContaining("Principal 'User[name=dash-boy]' is unacceptable as it contains the mapping separator '-'");
-    }
-
-    @Test
-    void map() {
-        // Given
-        var mapperContext = buildMapperContext(bobSubject);
-        mapper.validateContext(mapperContext);
 
         // When
         var upstreamName = mapper.map(mapperContext, EntityType.TOPIC_NAME, "foo");
@@ -117,13 +82,37 @@ class PrincipalEntityNameMapperTest {
     }
 
     @Test
-    void unmap() {
+    void mapShouldRejectAnonymousSubject() {
+        // Given
+        var mapperContext = buildMapperContext(Subject.anonymous());
+
+        // When/Then
+        assertThatThrownBy(() -> mapper.map(mapperContext, EntityType.TOPIC_NAME, "foo"))
+                .isInstanceOf(EntityMapperException.class)
+                .hasMessageContaining(
+                        "The PrincipalEntityNameMapper requires an authenticated subject with a unique principal of type User with a non-empty name, got subject Subject[principals=[]]");
+    }
+
+    @Test
+    void mapShouldRejectPrincipalContainingSeparator() {
+        // Given
+        when(bobSubject.uniquePrincipalOfType(User.class)).thenReturn(Optional.of(new User("dash-boy")));
+        var mapperContext = buildMapperContext(bobSubject);
+
+        // When/Then
+        // When/Then
+        assertThatThrownBy(() -> mapper.map(mapperContext, EntityType.TOPIC_NAME, "foo"))
+                .isInstanceOf(EntityMapperException.class)
+                .hasMessageContaining("Principal 'User[name=dash-boy]' is unacceptable as it contains the mapping separator '-'");
+    }
+
+    @Test
+    void shouldUnmapSuccessfully() {
         // Given
         var mapperContext = buildMapperContext(bobSubject);
-        mapper.validateContext(mapperContext);
 
         // When
-        String upstreamName = mapper.unmap(mapperContext, EntityType.TOPIC_NAME, "bob-foo");
+        var upstreamName = mapper.unmap(mapperContext, EntityType.TOPIC_NAME, "bob-foo");
         // Then
         assertThat(upstreamName).isEqualTo("foo");
     }
@@ -132,10 +121,8 @@ class PrincipalEntityNameMapperTest {
     void unmapShouldRejectUpstreamNameOwnedByAnotherContext() {
         // Given
         var aliceContext = buildMapperContext(aliceSubject);
-        mapper.validateContext(aliceContext);
 
         var bobContext = buildMapperContext(bobSubject);
-        mapper.validateContext(bobContext);
 
         var aliceUpstreamResource = mapper.map(aliceContext, EntityType.TOPIC_NAME, "foo");
 
@@ -148,7 +135,7 @@ class PrincipalEntityNameMapperTest {
     void isOwnedByContext() {
         // Given
         var mapperContext = buildMapperContext(bobSubject);
-        mapper.validateContext(mapperContext);
+
         // When/Then
         assertThat(mapper.isOwnedByContext(mapperContext, EntityType.TOPIC_NAME, "bob-foo"))
                 .isTrue();
@@ -158,10 +145,8 @@ class PrincipalEntityNameMapperTest {
     void isNotOwnedByContext() {
         // Given
         var aliceContext = buildMapperContext(aliceSubject);
-        mapper.validateContext(aliceContext);
 
         var bobContext = buildMapperContext(bobSubject);
-        mapper.validateContext(bobContext);
 
         var aliceUpstreamResource = mapper.map(aliceContext, EntityType.TOPIC_NAME, "foo");
 
