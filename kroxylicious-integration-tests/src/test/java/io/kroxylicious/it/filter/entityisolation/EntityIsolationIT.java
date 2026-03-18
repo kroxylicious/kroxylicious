@@ -749,7 +749,7 @@ class EntityIsolationIT {
         }
     }
 
-    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, List<EntityIsolation.EntityType> resourcesTypes) {
+    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, List<EntityIsolation.EntityType> entityTypes) {
         var configBuilder = KroxyliciousConfigUtils.proxy(cluster);
 
         var saslInspectionFilter = new NamedFilterDefinitionBuilder(
@@ -763,7 +763,7 @@ class EntityIsolationIT {
                 EntityIsolation.class.getName(),
                 EntityIsolation.class.getName());
 
-        entityIsolationFilter.withConfig("resourceTypes", resourcesTypes,
+        entityIsolationFilter.withConfig("entityTypes", entityTypes,
                 "mapper", PrincipalEntityNameMapperService.class.getSimpleName(),
                 "mapperConfig", Map.of("principalType", User.class.getName()));
         var entityIsolation = entityIsolationFilter.build();

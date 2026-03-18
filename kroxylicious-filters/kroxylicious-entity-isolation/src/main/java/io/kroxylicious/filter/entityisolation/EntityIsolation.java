@@ -65,7 +65,7 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
         if (mapper == null) {
             throw new IllegalStateException("filter factory has not been initialized");
         }
-        return new EntityIsolationFilter(configuration.resourceTypes, mapper);
+        return new EntityIsolationFilter(configuration.entityTypes, mapper);
     }
 
     /**
@@ -89,19 +89,19 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
     /**
      * Configuration for the {@link EntityIsolation}.
      *
-     * @param resourceTypes set of resource types to isolated.
+     * @param entityTypes set of resource types to isolated.
      * @param mapper mapper name
      * @param mapperConfig mapper config
      */
-    public record Config(@JsonProperty(required = true) Set<EntityType> resourceTypes,
+    public record Config(@JsonProperty(required = true) Set<EntityType> entityTypes,
                          @JsonProperty(required = true) @PluginImplName(EntityNameMapperService.class) String mapper,
                          @PluginImplConfig(implNameProperty = "mapper") Object mapperConfig) {
 
         public Config {
-            Objects.requireNonNull(resourceTypes);
+            Objects.requireNonNull(entityTypes);
             Objects.requireNonNull(mapper);
-            if (resourceTypes.contains(EntityType.TOPIC_NAME)) {
-                throw new IllegalArgumentException("Resource type TOPIC_NAME not yet supported by this filter");
+            if (entityTypes.contains(EntityType.TOPIC_NAME)) {
+                throw new IllegalArgumentException("Entity type TOPIC_NAME not yet supported by this filter");
             }
         }
     }

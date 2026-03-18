@@ -13,7 +13,7 @@ metadata:
 spec:
   type: EntityIsolation
   configTemplate:
-    resourceTypes:
+    entityTypes:
       - GROUP_ID
       - TRANSACTIONAL_ID
     mapper: PrincipalEntityNameMapperService
