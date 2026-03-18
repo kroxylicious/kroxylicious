@@ -8,21 +8,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-MODULE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-HELM_CHART="${MODULE_DIR}/helm/kroxylicious-benchmark"
-HELM_RELEASE="benchmark"
-OMB_COORDINATOR="job/omb-benchmark"
 
 DEFAULT_WORKLOAD="1topic-1kb"
-
-NAMESPACE="${NAMESPACE:-kafka}"
-KAFKA_READY_TIMEOUT="${KAFKA_READY_TIMEOUT:-600s}"
-POD_READY_TIMEOUT="${POD_READY_TIMEOUT:-300s}"
-# Maximum time to wait for a single OMB probe to complete (seconds).
-# Should exceed testDurationMinutes + warmupDurationMinutes + setup overhead.
-# Default: 30 minutes, suitable for smoke runs. Increase for production runs.
-PROBE_TIMEOUT="${PROBE_TIMEOUT:-1800}"
-
 DEFAULT_SCENARIOS="baseline,proxy-no-filters"
 DEFAULT_STEP_PERCENT=10
 
@@ -30,13 +17,14 @@ usage() {
     cat >&2 <<EOF
 Usage: $(basename "$0") [options] --output-dir <dir>
 
-Runs a rate sweep across one or more scenarios to measure proxy overhead
-at different throughput levels. For each scenario, infrastructure is deployed
-once, OMB is run at each rate in the sweep, then infrastructure is torn down.
+Runs a rate sweep across one or more scenarios to find the saturation point
+and measure proxy overhead. For each scenario, infrastructure is deployed once,
+run-benchmark.sh is invoked at each rate in the sweep (reusing the deployment),
+then infrastructure is torn down. Kafka topics are reset between probes.
 
-Results are written as JSON per rate step. A summary table is printed at the
-end. If baseline results are available (from this run or via --baseline-from),
-a side-by-side comparison is produced.
+Results are written as JSON per rate step. A summary table is printed at the end.
+If baseline results are available (from this run or via --baseline-from), a
+side-by-side comparison is produced.
 
 Options:
   --output-dir <dir>        Directory to write results into (required)
@@ -45,26 +33,22 @@ Options:
   --baseline-from <dir>     Read pre-existing baseline results from here;
                             implies baseline is excluded from --scenarios
   --min-rate <n>            Minimum producer rate in msg/sec (required)
-                            Suggested: ~10% of the cluster's expected maximum throughput
   --max-rate <n>            Maximum producer rate in msg/sec (required)
-                            Suggested: ~120% of expected maximum to ensure saturation is reached
   --step-percent <n>        Step size as a percentage of the range (default: ${DEFAULT_STEP_PERCENT})
-                            Fixed increment: (max - min) * step% — e.g. step=25% gives 4 probes
   --workload <name>         OMB workload to use (default: ${DEFAULT_WORKLOAD})
-                            Available: 1topic-1kb, 10topics-1kb, 100topics-1kb
   --profile <values-file>   Additional Helm values layered on top of each scenario
-  --dry-run                 Print rate sequence and planned steps without deploying anything
+  --set <key=value>         Pass a Helm --set override to run-benchmark.sh (may be repeated)
+  --dry-run                 Print rate sequence and planned steps without running anything
   -h, --help                Show this help
 
 Environment:
   NAMESPACE              Kubernetes namespace (default: kafka)
   KAFKA_READY_TIMEOUT    Timeout waiting for Kafka cluster (default: 600s)
   POD_READY_TIMEOUT      Timeout waiting for pods (default: 300s)
-  PROBE_TIMEOUT          Max seconds to wait for a single probe to complete (default: 1800)
-                         Increase for production runs (testDuration + warmupDuration + overhead)
+  PROBE_TIMEOUT          Max seconds to wait for a single probe to complete (default: 3600)
 
 Examples:
-  # Full run — baseline then proxy, 10% steps from 10k to 110k msg/sec
+  # Full sweep — baseline then proxy, 10% steps from 10k to 110k msg/sec
   $(basename "$0") --min-rate 10000 --max-rate 110000 --output-dir ./results/run-1/
 
   # Preview rate sequence without deploying anything
@@ -145,7 +129,6 @@ fi
 # The fixed increment is (MAX_RATE - MIN_RATE) * STEP_PERCENT / 100, so
 # step=10% always produces 10 evenly-spaced probes regardless of the range.
 # MAX_RATE is always included as the final probe.
-# Prints one integer rate per line.
 rate_sequence() {
     awk -v min="${MIN_RATE}" -v max="${MAX_RATE}" -v step="${STEP_PERCENT}" 'BEGIN {
         increment = (max - min) * step / 100
@@ -168,7 +151,7 @@ if [[ "${DRY_RUN}" == "true" ]]; then
     echo "=== Dry run: $(basename "$0") ==="
     echo "Scenarios:    ${SCENARIOS}"
     echo "Workload:     ${WORKLOAD}"
-    echo "Output dir:   ${OUTPUT_DIR}"
+    echo "Output dir:   ${OUTPUT_DIR:-<not set>}"
     [[ -n "${BASELINE_FROM}" ]] && echo "Baseline from: ${BASELINE_FROM}"
     [[ -n "${PROFILE_VALUES}" ]] && echo "Profile:       ${PROFILE_VALUES}"
     echo ""
@@ -181,190 +164,14 @@ if [[ "${DRY_RUN}" == "true" ]]; then
     exit 0
 fi
 
-# --- Infrastructure lifecycle ---
-
-deploy_scenario() {
-    local scenario="$1"
-    local scenario_values="${HELM_CHART}/scenarios/${scenario}-values.yaml"
-
-    if [[ ! -f "${scenario_values}" ]]; then
-        echo "Error: scenario values not found: ${scenario_values}" >&2
-        exit 1
-    fi
-
-    echo "--- Deploying ${scenario} ---"
-    local helm_args=(-n "${NAMESPACE}" -f "${scenario_values}" --set omb.workload="${WORKLOAD}")
-    # ${array[@]+"${array[@]}"} is the bash 3.2-safe idiom for empty array expansion
-    [[ -n "${PROFILE_VALUES}" ]] && helm_args+=(-f "${PROFILE_VALUES}")
-    for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do helm_args+=(--set "${set_arg}"); done
-    helm install "${HELM_RELEASE}" "${HELM_CHART}" "${helm_args[@]}"
-
-    echo "Waiting for Kafka (timeout: ${KAFKA_READY_TIMEOUT})..."
-    kubectl wait kafka/kafka --for=condition=Ready --timeout="${KAFKA_READY_TIMEOUT}" -n "${NAMESPACE}"
-
-    echo "Waiting for OMB workers..."
-    kubectl rollout status statefulset/omb-worker -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
-
-    echo "Waiting for OMB benchmark pod..."
-    kubectl wait --for=condition=ready pod -l app=omb-benchmark -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
-
-    echo "Infrastructure ready."
-}
-
-teardown_scenario() {
-    echo "--- Tearing down ---"
-    if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
-        helm uninstall "${HELM_RELEASE}" -n "${NAMESPACE}"
-    fi
-    kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found
-}
-
-# --- Probe execution ---
-
-# Waits for all OMB worker pods to be ready before starting a probe.
-# A bounced worker pod causes the OMB JVM to hang in shutdown (UnknownHostException
-# in stopAll()), which would cause kubectl exec to hang indefinitely.
-# Grants a grace period of POD_READY_TIMEOUT for workers to recover after a bounce
-# rather than immediately failing the probe.
-check_workers_healthy() {
-    local desired
-    desired=$(kubectl get statefulset omb-worker -n "${NAMESPACE}" \
-        -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
-    if [[ "${desired}" == "0" ]]; then
-        echo "  ✗ OMB worker StatefulSet not found or has 0 replicas" >&2
-        return 1
-    fi
-
-    local ready
-    ready=$(kubectl get statefulset omb-worker -n "${NAMESPACE}" \
-        -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-    if [[ "${ready}" == "${desired}" ]]; then
-        return 0
-    fi
-
-    echo "  OMB workers not fully ready (${ready}/${desired}) — waiting up to ${POD_READY_TIMEOUT}..."
-    if kubectl rollout status statefulset/omb-worker \
-            -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}" 2>/dev/null; then
-        echo "  OMB workers ready."
-    else
-        echo "  ✗ OMB workers did not recover within ${POD_READY_TIMEOUT}" >&2
-        echo "    kubectl get pods -l app=omb-worker -n ${NAMESPACE}" >&2
-        return 1
-    fi
-}
-
-run_probe() {
-    local rate="$1"
-    local probe_output_dir="$2"
-
-    mkdir -p "${probe_output_dir}"
-    local omb_log="${probe_output_dir}/omb.log"
-
-    # Verify workers are healthy before starting — a bounced worker pod causes the
-    # OMB JVM to hang in stopAll() with UnknownHostException, which would cause
-    # kubectl exec to block indefinitely.
-    if ! check_workers_healthy; then
-        return 1
-    fi
-
-    # Clear previous OMB result files from the pod so we can unambiguously
-    # identify the result from this probe afterwards.
-    kubectl exec "${OMB_COORDINATOR}" -n "${NAMESPACE}" -- \
-        sh -c 'rm -f /var/lib/omb/results/*.json' 2>/dev/null || true
-
-    # Run OMB with the target producer rate. The workload ConfigMap is read-only,
-    # so we use sed to write a modified copy into /tmp and run from there.
-    # OMB output is redirected to a log file to keep the terminal readable.
-    # timeout guards against the OMB JVM hanging in shutdown (e.g. after a worker
-    # pod is bounced mid-run); exit code 124 means the timeout was hit.
-    echo "  OMB log: ${omb_log}"
-    local exec_rc=0
-    timeout "${PROBE_TIMEOUT}" \
-        kubectl exec "${OMB_COORDINATOR}" -n "${NAMESPACE}" -- \
-        sh -c "sed 's/^producerRate:.*/producerRate: ${rate}/' /etc/omb/workloads/workload.yaml > /tmp/workload.yaml && \
-               cd /var/lib/omb/results && \
-               /opt/benchmark/bin/benchmark \
-                 --drivers /etc/omb/driver/driver-kafka.yaml \
-                 --workers \"\${WORKERS}\" \
-                 /tmp/workload.yaml" > "${omb_log}" 2>&1 || exec_rc=$?
-
-    if [[ "${exec_rc}" -eq 124 ]]; then
-        echo "  TIMED OUT after ${PROBE_TIMEOUT}s — OMB JVM may be stuck in shutdown" >&2
-        echo "  Last lines of OMB log:" >&2
-        tail -10 "${omb_log}" >&2 || true
-        echo "  Consider increasing PROBE_TIMEOUT (current: ${PROBE_TIMEOUT}s)" >&2
-        return 1
-    elif [[ "${exec_rc}" -ne 0 ]]; then
-        echo "  FAILED (exit ${exec_rc})" >&2
-        echo "  Last lines of OMB log:" >&2
-        tail -5 "${omb_log}" >&2 || true
-        diagnose_pod_failure "app=omb-benchmark" "${rate}"
-        return 1
-    fi
-
-    # Collect the result JSON produced by this probe.
-    local benchmark_pod
-    benchmark_pod=$(kubectl get pod -n "${NAMESPACE}" -l app=omb-benchmark \
-        -o jsonpath='{.items[0].metadata.name}')
-
-    local result_file
-    result_file=$(kubectl exec -n "${NAMESPACE}" "${benchmark_pod}" -- \
-        sh -c 'ls -t /var/lib/omb/results/*.json 2>/dev/null | head -1') || true
-
-    if [[ -z "${result_file}" ]]; then
-        echo "  No result file found — OMB may not have written output" >&2
-        diagnose_pod_failure "app=omb-benchmark" "${rate}"
-        return 1
-    fi
-
-    kubectl cp "${NAMESPACE}/${benchmark_pod}:${result_file}" "${probe_output_dir}/result.json"
-    echo "  Result collected: ${probe_output_dir}/result.json"
-}
-
-# Queries pod status after a failure and emits a human-readable diagnosis.
-# Distinguishes OOMKill / eviction (infrastructure limit) from OMB process errors.
-diagnose_pod_failure() {
-    local label="$1"
-    local rate="$2"
-
-    local phase reason restart_count
-    phase=$(kubectl get pod -n "${NAMESPACE}" -l "${label}" \
-        -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Unknown")
-    reason=$(kubectl get pod -n "${NAMESPACE}" -l "${label}" \
-        -o jsonpath='{.items[0].status.containerStatuses[0].lastState.terminated.reason}' \
-        2>/dev/null || echo "")
-    restart_count=$(kubectl get pod -n "${NAMESPACE}" -l "${label}" \
-        -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}' \
-        2>/dev/null || echo "0")
-
-    if [[ "${reason}" == "OOMKilled" ]]; then
-        echo "  ✗ OOMKilled at ${rate} msg/sec — pod exceeded its memory limit" >&2
-        echo "    Increase memory limits or reduce the target rate" >&2
-    elif [[ "${phase}" != "Running" ]]; then
-        echo "  ✗ Pod is not Running (phase=${phase} reason=${reason} restarts=${restart_count})" >&2
-        echo "    kubectl describe pod -l ${label} -n ${NAMESPACE}" >&2
-    elif [[ "${restart_count}" -gt 0 ]]; then
-        echo "  ✗ Pod restarted during probe (restarts=${restart_count} last reason=${reason})" >&2
-        echo "    kubectl logs -l ${label} -n ${NAMESPACE} --previous" >&2
-    else
-        echo "  ✗ OMB process exited non-zero — benchmark may have failed" >&2
-        echo "    kubectl logs -l ${label} -n ${NAMESPACE} | tail -50" >&2
-    fi
-}
-
 # --- Summary table ---
 
-# Prints a rate-by-rate comparison table across all scenarios.
-# For each rate step shows: achieved msg/s (to detect saturation) and
-# mean end-to-end p99 latency. If baseline results are present an
-# overhead column is appended for each non-baseline scenario.
 print_summary() {
     if ! command -v jq &>/dev/null; then
         echo "Warning: jq not found — skipping summary table" >&2
         return
     fi
 
-    # Resolve baseline results directory (from --baseline-from or this run)
     local baseline_dir=""
     if [[ -n "${BASELINE_FROM}" ]]; then
         baseline_dir="${BASELINE_FROM}"
@@ -372,7 +179,6 @@ print_summary() {
         baseline_dir="${OUTPUT_DIR}/baseline"
     fi
 
-    # Collect probe rates from the reference directory, sorted numerically
     local ref_dir="${baseline_dir:-${OUTPUT_DIR}/${SCENARIO_ARRAY[0]}}"
     local rates=()
     while IFS= read -r rate; do
@@ -385,7 +191,6 @@ print_summary() {
         return
     fi
 
-    # Non-baseline scenarios to compare against baseline
     local other_scenarios=()
     for s in "${SCENARIO_ARRAY[@]}"; do
         [[ "${s}" != "baseline" ]] && other_scenarios+=("${s}")
@@ -395,7 +200,6 @@ print_summary() {
     echo "(achieved = mean publish rate; p99 = mean end-to-end latency p99; ✗ = saturated)"
     echo ""
 
-    # Header
     printf "%-14s" "Target (msg/s)"
     if [[ -n "${baseline_dir}" ]]; then
         printf "  %-20s  %-14s" "Baseline achieved" "Baseline p99"
@@ -407,11 +211,9 @@ print_summary() {
     printf "\n"
     printf '%s\n' "$(printf '%*s' 100 '' | tr ' ' '-')"
 
-    # One row per rate
     for rate in "${rates[@]}"; do
         printf "%-14s" "$(printf '%'"'"'d' "${rate}")"
 
-        # Baseline columns
         local baseline_p99=""
         if [[ -n "${baseline_dir}" ]]; then
             local bf="${baseline_dir}/rate-${rate}/result.json"
@@ -436,7 +238,6 @@ print_summary() {
             fi
         fi
 
-        # Non-baseline scenario columns
         for s in "${other_scenarios[@]}"; do
             local sf="${OUTPUT_DIR}/${s}/rate-${rate}/result.json"
             local sd="${OUTPUT_DIR}/${s}/rate-${rate}"
@@ -478,10 +279,7 @@ print_summary() {
 
 # --- Main ---
 
-trap teardown_scenario EXIT
-
-# If --baseline-from is provided, exclude baseline from the run list —
-# the pre-existing results will be used for comparison instead.
+# If --baseline-from is provided, exclude baseline from the run list.
 SCENARIO_LIST="${SCENARIOS}"
 if [[ -n "${BASELINE_FROM}" ]]; then
     SCENARIO_LIST=$(echo "${SCENARIO_LIST}" | tr ',' '\n' | grep -v '^baseline$' | tr '\n' ',' | sed 's/,$//')
@@ -494,7 +292,6 @@ fi
 mkdir -p "${OUTPUT_DIR}"
 IFS=',' read -ra SCENARIO_ARRAY <<< "${SCENARIO_LIST}"
 
-# Write run metadata immediately so it is captured even if the sweep fails partway through
 cat > "${OUTPUT_DIR}/run-metadata.json" <<METADATA_EOF
 {
   "gitCommit": "$(git rev-parse HEAD 2>/dev/null || echo "unknown")",
@@ -509,7 +306,7 @@ cat > "${OUTPUT_DIR}/run-metadata.json" <<METADATA_EOF
 }
 METADATA_EOF
 
-echo "=== Measuring proxy overhead ==="
+echo "=== Rate sweep ==="
 echo "Scenarios:  ${SCENARIO_LIST}"
 echo "Workload:   ${WORKLOAD}"
 echo "Output dir: ${OUTPUT_DIR}"
@@ -522,14 +319,6 @@ for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
 
     echo "=== Scenario: ${SCENARIO} ==="
 
-    if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
-        echo "Warning: Helm release '${HELM_RELEASE}' already exists, tearing down first."
-        teardown_scenario
-    fi
-
-    deploy_scenario "${SCENARIO}"
-
-    # Pre-collect rates so we can show N/M progress
     RATES=()
     while IFS= read -r r; do RATES+=("$r"); done < <(rate_sequence)
     TOTAL_PROBES=${#RATES[@]}
@@ -539,15 +328,27 @@ for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
         RATE="${RATES[$i]}"
         PROBE_NUM=$((i + 1))
         PROBE_OUTPUT="${SCENARIO_OUTPUT}/rate-${RATE}"
+
         echo "--- Probe ${PROBE_NUM}/${TOTAL_PROBES}: $(printf '%'"'"'d' "${RATE}") msg/sec ---"
-        if ! run_probe "${RATE}" "${PROBE_OUTPUT}"; then
+
+        # Build run-benchmark.sh args.
+        # First probe deploys (no --skip-deploy); last probe tears down (no --skip-teardown).
+        RB_ARGS=(--producer-rate "${RATE}")
+        [[ $i -gt 0 ]]                     && RB_ARGS+=(--skip-deploy)
+        [[ $i -lt $((TOTAL_PROBES - 1)) ]] && RB_ARGS+=(--skip-teardown)
+        [[ -n "${PROFILE_VALUES}" ]]        && RB_ARGS+=(--profile "${PROFILE_VALUES}")
+        for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do
+            RB_ARGS+=(--set "${set_arg}")
+        done
+
+        if ! "${SCRIPT_DIR}/run-benchmark.sh" "${RB_ARGS[@]}" \
+                "${SCENARIO}" "${WORKLOAD}" "${PROBE_OUTPUT}"; then
             FAILED=true
             break
         fi
     done
-    [[ "${FAILED}" == "true" ]] && echo "  Sweep stopped early for ${SCENARIO}" >&2
 
-    teardown_scenario
+    [[ "${FAILED}" == "true" ]] && echo "  Sweep stopped early for ${SCENARIO}" >&2
     echo ""
 done
 
