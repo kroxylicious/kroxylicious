@@ -204,3 +204,20 @@ then:
         resourceType: 32
         resourceName: "denied-group"
         configs: [ ]
+  expectedAuditActions:
+    - action: "DescribeConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "DescribeConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "denied-topic"
+      status: "denied"
+    - action: "DescribeConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null
+    - action: "DescribeConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "denied-group"
+      status: "denied"
