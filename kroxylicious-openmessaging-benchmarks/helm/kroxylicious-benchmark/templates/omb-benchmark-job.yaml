@@ -54,17 +54,7 @@ spec:
           done
           echo "Kafka is ready"
 
-          # Run benchmark as main process so cgroup memory limits apply correctly
-          /opt/benchmark/bin/benchmark \
-            --drivers /etc/omb/driver/driver-kafka.yaml \
-            --workers "$WORKERS" \
-            /etc/omb/workloads/workload.yaml
-          BENCHMARK_EXIT=$?
-
-          # Write exit code to marker file so run-benchmark.sh knows we're done
-          echo "${BENCHMARK_EXIT}" > /var/lib/omb/results/.done
-
-          # Hold pod open for result collection — terminated by helm uninstall
+          # Hold pod open — benchmark is triggered on demand via kubectl exec from run-benchmark.sh
           sleep infinity
         volumeMounts:
         - name: driver-config
