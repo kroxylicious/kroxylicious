@@ -55,7 +55,7 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     private String doMap(String principal, String downstreamResourceName) {
         // Once we start mapping topic names, we must verify the length upstream name doesn't violate the topic naming org.apache.kafka.common.internals.Topic.isValid
         // Also if https://cwiki.apache.org/confluence/display/KAFKA/KIP-1233%3A+Maximum+lengths+for+resource+names+and+IDs is accepted there may be rules to apply to groupIds/transactionalIds
-        return principal + separator + downstreamResourceName;
+        return buildPrefix(principal) + downstreamResourceName;
     }
 
     @Override
@@ -84,11 +84,15 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
 
     @Nullable
     private String doUnmap(String principalName, String mappedResourceName) {
-        var prefix = principalName + separator;
+        var prefix = buildPrefix(principalName);
         if (mappedResourceName.startsWith(prefix)) {
             return mappedResourceName.substring(prefix.length());
         }
         return null;
+    }
+
+    private String buildPrefix(String principalName) {
+        return principalName + separator;
     }
 
     private Principal getValidatedPrincipal(MapperContext mapperContext) {

@@ -25,6 +25,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
+ * Entity isolation gives a user a private space within a Kafka cluster that is isolated from other users sharing the same cluster
+ * for some of their resources.  Isolation can be applied selectively so that isolation is applied to some resource types
+ * and not others.
+ * <br/>
+ * Currently, entity isolation is limited to groupId and transactionalId entity types.
+ * <br/>
  * A {@link FilterFactory} for {@link EntityIsolationFilter}.
  */
 @Plugin(configType = EntityIsolation.Config.class)

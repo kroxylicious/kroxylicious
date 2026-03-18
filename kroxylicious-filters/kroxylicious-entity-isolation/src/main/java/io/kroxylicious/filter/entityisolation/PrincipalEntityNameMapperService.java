@@ -22,30 +22,30 @@ public class PrincipalEntityNameMapperService implements EntityNameMapperService
     private static final Config DEFAULT_CONFIG = new Config(User.class, "-");
 
     @Nullable
-    private Config config;
+    private Config effectiveConfig;
 
     @Override
     public void initialize(@Nullable Config c) {
         if (c == null || DEFAULT_CONFIG.equals(c)) {
-            config = DEFAULT_CONFIG;
+            effectiveConfig = DEFAULT_CONFIG;
         }
         else {
-            config = new Config(c.principalType() == null ? DEFAULT_CONFIG.principalType() : c.principalType(),
+            effectiveConfig = new Config(c.principalType() == null ? DEFAULT_CONFIG.principalType() : c.principalType(),
                     c.separator() == null ? DEFAULT_CONFIG.separator() : c.separator());
         }
     }
 
     @Override
     public EntityNameMapper build() {
-        Objects.requireNonNull(config, "config is required");
-        return new PrincipalEntityNameMapper(Objects.requireNonNull(config.principalType()),
-                Objects.requireNonNull(config.separator()));
+        Objects.requireNonNull(effectiveConfig, "config is required");
+        return new PrincipalEntityNameMapper(Objects.requireNonNull(effectiveConfig.principalType()),
+                Objects.requireNonNull(effectiveConfig.separator()));
     }
 
     @Nullable
     @VisibleForTesting
     Config getEffectiveConfig() {
-        return config;
+        return effectiveConfig;
     }
 
     /**
