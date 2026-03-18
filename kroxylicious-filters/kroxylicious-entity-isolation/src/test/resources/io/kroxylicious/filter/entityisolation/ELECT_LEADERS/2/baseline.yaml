@@ -1,0 +1,63 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "ELECT_LEADERS"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "ELECT_LEADERS"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 43
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        electionType: 1
+        topicPartitions:
+          - topic: foo
+            partitions: [0]
+        timeoutMs: 0
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        replicaElectionResults:
+          - topic: foo
+            partitionResult:
+              - partitionId: 0
+                errorCode: 0
+                errorMessage: ""
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 43
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    electionType: 1
+    topicPartitions:
+      - topic: foo
+        partitions: [0]
+    timeoutMs: 0
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    replicaElectionResults:
+      - topic: foo
+        partitionResult:
+          - partitionId: 0
+            errorCode: 0
+            errorMessage: ""

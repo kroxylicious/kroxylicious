@@ -1,0 +1,93 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "SHARE_ACKNOWLEDGE"
+  apiVersion: 1
+  scenario: "group is nullable in the request"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "SHARE_ACKNOWLEDGE"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 79
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: null
+        memberId: mymember
+        shareSessionEpoch: 0
+        topics:
+          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions:
+              - partitionIndex: 0
+                acknowledgementBatches:
+                  - firstOffset: 0
+                    lastOffset: 0
+                    acknowledgeTypes: [0]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        errorMessage: ""
+        responses:
+          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions:
+              - partitionIndex: 0
+                errorCode: 0
+                errorMessage: ""
+                currentLeader:
+                  leaderId: 0
+                  leaderEpoch: 0
+        nodeEndpoints:
+          - nodeId: 0
+            host: localhost
+            port: 0
+            rack: us-east1
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 79
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: null
+    memberId: mymember
+    shareSessionEpoch: 0
+    topics:
+      - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+        partitions:
+          - partitionIndex: 0
+            acknowledgementBatches:
+              - firstOffset: 0
+                lastOffset: 0
+                acknowledgeTypes: [0]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    errorMessage: ""
+    responses:
+      - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+        partitions:
+          - partitionIndex: 0
+            errorCode: 0
+            errorMessage: ""
+            currentLeader:
+              leaderId: 0
+              leaderEpoch: 0
+    nodeEndpoints:
+      - nodeId: 0
+        host: localhost
+        port: 0
+        rack: us-east1

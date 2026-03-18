@@ -1,0 +1,127 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_CONFIGS"
+  apiVersion: 4
+  scenario: |
+    when upstream response contains a group not prefixed with 'alice-'
+    then that group is removed from the response
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_CONFIGS"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 32
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        resources:
+          - resourceType: 32
+            resourceName: "alice-mygroup"
+            configurationKeys: []
+          - resourceType: 2
+            resourceName: "mytopic"
+            configurationKeys: []
+        includeSynonyms: false
+        includeDocumentation: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1016
+        results:
+          - errorCode: 0
+            errorMessage: ""
+            resourceType: 32
+            resourceName: "alice-mygroup"
+            configs:
+              - name: "name"
+                value: "value"
+                readOnly: false
+                configSource: 0
+                isSensitive: false
+                synonyms: []
+                configType: 0
+                documentation: ""
+          - errorCode: 0
+            errorMessage: ""
+            resourceType: 32
+            resourceName: "bob-mygroup" # resource in another namespace
+            configs:
+              - name: "name"
+                value: "value"
+                readOnly: false
+                configSource: 0
+                isSensitive: false
+                synonyms: []
+                configType: 0
+                documentation: ""
+          - errorCode: 0
+            errorMessage: ""
+            resourceType: 2
+            resourceName: "mytopic"
+            configs:
+              - name: "name"
+                value: "value"
+                readOnly: false
+                configSource: 0
+                isSensitive: false
+                synonyms: []
+                configType: 0
+                documentation: ""
+  resourceTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 32
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    resources:
+      - resourceType: 32
+        resourceName: "mygroup"
+        configurationKeys: []
+      - resourceType: 2
+        resourceName: "mytopic"
+        configurationKeys: []
+    includeSynonyms: false
+    includeDocumentation: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1016
+    results:
+      - errorCode: 0
+        errorMessage: ""
+        resourceType: 32
+        resourceName: "mygroup"
+        configs:
+          - name: "name"
+            value: "value"
+            readOnly: false
+            configSource: 0
+            isSensitive: false
+            synonyms: []
+            configType: 0
+            documentation: ""
+      - errorCode: 0
+        errorMessage: ""
+        resourceType: 2
+        resourceName: "mytopic"
+        configs:
+          - name: "name"
+            value: "value"
+            readOnly: false
+            configSource: 0
+            isSensitive: false
+            synonyms: []
+            configType: 0
+            documentation: ""

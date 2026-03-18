@@ -6,7 +6,9 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+Open
 
+* [#2697](https://github.com/kroxylicious/kroxylicious/issues/2697) EntityIsolationFilter (restricted to groupId and transactionalId entity type only)
 * [#3007](https://github.com/kroxylicious/kroxylicious/issues/3007) Allow schema validation to use a schema registry protected by an internally signed certificate.
 * [#2890](https://github.com/kroxylicious/kroxylicious/pull/2890) Update record-validation to Apicurio v3.
 * [#3383](https://github.com/kroxylicious/kroxylicious/pull/3383): fix(operator): the operator now uses Server-Side Apply for all dependent resources. This is a no-op change for users: existing deployments are unaffected and externally-applied SSA patches (e.g. annotations or env vars added by observability tooling) will now survive operator reconciles. Users upgrading from a prior release may observe one additional reconcile cycle as Kubernetes transfers field ownership to the SSA manager.

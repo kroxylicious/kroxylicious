@@ -1,0 +1,25 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "DELETE_ACLS"
+  apiVersion: 0
+  scenario: "verifies the filter fails closed if client sends an unsupported version"
+given:
+  mockedUpstreamResponses: []
+  resourceTypes: ["TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 4
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    filters: []
+then:
+  expectedErrorResponse: "UNSUPPORTED_VERSION"
