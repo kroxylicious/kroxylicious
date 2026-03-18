@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ContainerStatus;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
@@ -65,6 +66,10 @@ public interface KafkaClient {
                 .withNewRunConfig()
                 .withImage(image)
                 .withRestartPolicy("Never").withCommand("ls").done();
+        checkPreloadedImage(pod);
+    }
+
+    static void checkPreloadedImage(Pod pod) {
         try {
             kubeClient().getClient().resource(pod).waitUntilCondition(Readiness::isPodSucceeded, 2, TimeUnit.MINUTES);
         }

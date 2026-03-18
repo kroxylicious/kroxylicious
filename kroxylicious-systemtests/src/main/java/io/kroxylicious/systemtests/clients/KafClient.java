@@ -10,10 +10,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.awaitility.core.ConditionTimeoutException;
@@ -22,10 +19,8 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
-import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.skodjob.testframe.utils.KubeUtils;
 
 import io.kroxylicious.systemtests.Constants;
@@ -88,19 +83,7 @@ public class KafClient implements KafkaClient {
                 .withNewRunConfig()
                 .withImage(image)
                 .withRestartPolicy("Never").done();
-        try {
-            kubeClient().getClient().resource(pod).waitUntilCondition(Readiness::isPodSucceeded, 2, TimeUnit.MINUTES);
-        }
-        finally {
-            var reread = kubeClient().getClient().resource(pod).get();
-            if (!Readiness.isPodSucceeded(reread)) {
-                var reasons = reread.getStatus().getContainerStatuses().stream().map(ContainerStatus::getState).map(Objects::toString)
-                        .collect(Collectors.joining(","));
-                kubeClient().logsInSpecificNamespace("default", "preload-operand-image");
-                LOGGER.error("Preloading operand image failed, phase: {}, container state: {}", reread.getStatus().getPhase(), reasons);
-            }
-            kubeClient().getClient().resource(pod).delete();
-        }
+        KafkaClient.checkPreloadedImage(pod);
     }
 
     @Override
