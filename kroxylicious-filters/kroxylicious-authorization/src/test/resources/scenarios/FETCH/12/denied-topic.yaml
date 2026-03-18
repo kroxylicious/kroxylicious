@@ -65,7 +65,6 @@ then:
             abortedTransactions: [ ]
             preferredReadReplica: -1
             records: !!binary ""
-
   expectedAuditActions:
     - action: "Read"
       objectRef:

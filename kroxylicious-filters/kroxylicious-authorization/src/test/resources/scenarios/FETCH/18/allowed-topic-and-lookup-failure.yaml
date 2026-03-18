@@ -137,3 +137,8 @@ then:
             abortedTransactions: [ ]
             preferredReadReplica: -1
             records: !!binary ""
+  expectedAuditActions:
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
