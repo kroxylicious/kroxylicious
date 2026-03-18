@@ -90,49 +90,47 @@ public record RouteHostDetails(
     /**
      * Fetches {@link Route} secondary resources and maps them to a {@link RouteHostDetails} list.
      */
-    @SuppressWarnings("java:S135") // Readability
     public static List<RouteHostDetails> fetchRouteHostDetailsList(Context<KafkaProxy> context) {
-        Set<Route> routes = context.getSecondaryResources(Route.class);
+        return context.getSecondaryResources(Route.class)
+                .stream()
+                .flatMap(route -> buildRouteHostDetails(route).stream())
+                .toList();
+    }
 
-        List<RouteHostDetails> routeHostDetails = new ArrayList<>();
+    private static Optional<RouteHostDetails> buildRouteHostDetails(Route route) {
+        Set<Annotations.ClusterIngressBootstrapServers> bootstrapServers = readBootstrapServersFrom(route);
+        if (bootstrapServers.isEmpty()) {
+            return Optional.empty();
+        }
+        var clusterIngressBootstrapServers = bootstrapServers.toArray(new Annotations.ClusterIngressBootstrapServers[0])[0];
 
-        for (Route route : routes) {
-            Set<Annotations.ClusterIngressBootstrapServers> bootstrapServers = readBootstrapServersFrom(route);
-            if (bootstrapServers.isEmpty()) {
-                continue;
-            }
-            var clusterIngressBootstrapServers = bootstrapServers.toArray(new Annotations.ClusterIngressBootstrapServers[0])[0];
-
-            List<RouteIngress> ingress = route.getStatus().getIngress();
-            if (ingress.isEmpty()) {
-                continue;
-            }
-
-            RouteFor routeFor;
-            try {
-                String routeForLabelValue = route.getMetadata().getLabels().get(RouteFor.LABEL_KEY);
-                routeFor = RouteFor.valueOf(routeForLabelValue.toUpperCase());
-            }
-            catch (Exception e) {
-                continue;
-            }
-
-            String hostWithSubdomain = ingress.get(0).getHost(); // one-bootstrap.apps-crc.testing
-            ArrayList<String> splitHostWithSubdomain = new ArrayList<>(Arrays.asList(hostWithSubdomain.split("\\.")));
-            if (splitHostWithSubdomain.size() < 2) {
-                continue;
-            }
-            splitHostWithSubdomain.remove(0);
-            String hostWithoutSubdomain = String.join(".", splitHostWithSubdomain); // apps-crc.testing
-
-            routeHostDetails.add(new RouteHostDetails(
-                    route.getMetadata().getNamespace(),
-                    clusterIngressBootstrapServers.clusterName(),
-                    clusterIngressBootstrapServers.ingressName(),
-                    routeFor,
-                    hostWithoutSubdomain));
+        List<RouteIngress> ingress = route.getStatus().getIngress();
+        if (ingress.isEmpty()) {
+            return Optional.empty();
         }
 
-        return routeHostDetails;
+        RouteFor routeFor;
+        try {
+            String routeForLabelValue = route.getMetadata().getLabels().get(RouteFor.LABEL_KEY);
+            routeFor = RouteFor.valueOf(routeForLabelValue.toUpperCase());
+        }
+        catch (Exception e) {
+            return Optional.empty();
+        }
+
+        String hostWithSubdomain = ingress.get(0).getHost(); // one-bootstrap.apps-crc.testing
+        ArrayList<String> splitHostWithSubdomain = new ArrayList<>(Arrays.asList(hostWithSubdomain.split("\\.")));
+        if (splitHostWithSubdomain.size() < 2) {
+            return Optional.empty();
+        }
+        splitHostWithSubdomain.remove(0);
+        String hostWithoutSubdomain = String.join(".", splitHostWithSubdomain); // apps-crc.testing
+
+        return Optional.of(new RouteHostDetails(
+                route.getMetadata().getNamespace(),
+                clusterIngressBootstrapServers.clusterName(),
+                clusterIngressBootstrapServers.ingressName(),
+                routeFor,
+                hostWithoutSubdomain));
     }
 }
