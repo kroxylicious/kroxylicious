@@ -6,6 +6,8 @@
 
 package io.kroxylicious.filter.validation.validators.request;
 
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -18,8 +20,18 @@ public interface ProduceRequestValidator {
 
     /**
      * Validate a request
-     * @param request the request
+     * @param namedTopicProduceDataList the named topic request data from a single request
      * @return result describing a validation outcome for all topic partitions and details of records that failed validation
      */
-    CompletionStage<ProduceRequestValidationResult> validateRequest(ProduceRequestData request);
+    CompletionStage<ProduceRequestValidationResult> validateRequest(List<NamedTopicProduceData> namedTopicProduceDataList);
+
+    record NamedTopicProduceData(String topicName, ProduceRequestData.TopicProduceData data) {
+        public NamedTopicProduceData {
+            Objects.requireNonNull(topicName);
+            Objects.requireNonNull(data);
+            if (topicName.isEmpty()) {
+                throw new IllegalStateException("topic name is empty");
+            }
+        }
+    }
 }

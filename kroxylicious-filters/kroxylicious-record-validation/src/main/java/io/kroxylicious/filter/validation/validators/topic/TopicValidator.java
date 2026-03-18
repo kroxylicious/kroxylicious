@@ -14,11 +14,13 @@ import org.apache.kafka.common.message.ProduceRequestData;
  * Validates {@link org.apache.kafka.common.message.ProduceRequestData.TopicProduceData}
  */
 public interface TopicValidator {
+
     /**
      * Validate topic produce data, returning details about which partitions/records were
      * invalid
      * @param request the request
+     * @param topicName the topic name
      * @return result describing whether any partitions were invalid, and details of any invalid partitions/records
      */
-    CompletionStage<TopicValidationResult> validateTopicData(ProduceRequestData.TopicProduceData request);
+    CompletionStage<TopicValidationResult> validateTopicData(ProduceRequestData.TopicProduceData request, String topicName);
 }
