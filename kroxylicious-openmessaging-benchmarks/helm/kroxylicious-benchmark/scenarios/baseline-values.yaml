@@ -11,7 +11,7 @@
 
 # Kroxylicious is disabled for baseline
 kroxylicious:
-  provision: false
+  enabled: false
 
 # Vault is not needed for baseline
 vault:
