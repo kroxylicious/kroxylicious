@@ -4,7 +4,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7-1773204619
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7-1773895075@sha256:f225a0f8eb7d258011e1f7c8b025dc7dd155d6ffc66c17cd203dcec88935b455
 
 ARG TARGETOS=linux
 ARG TARGETARCH
