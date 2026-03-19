@@ -719,7 +719,7 @@ class EntityIsolationIT {
     void rejectsUnacceptablePrincipal(Topic topic) {
 
         var configBuilder = buildProxyConfig(cluster, List.of(EntityIsolation.EntityType.GROUP_ID));
-        // The principal will be rejected as the dash is also the separator character used by the mapper.
+        // The principal will be rejected as the dash is also the separator used by the mapper.
         var dashboy = buildClientConfig("dash-boy", "pwd");
 
         try (var tester = kroxyliciousTester(configBuilder)) {

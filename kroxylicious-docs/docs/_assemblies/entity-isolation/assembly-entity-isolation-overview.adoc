@@ -11,11 +11,6 @@
 The Kroxylicious Entity Isolation filter gives each authenticated client a private, isolated view of certain Kafka entity types within a shared cluster.
 When entity isolation is enabled for a resource type, each client connecting through the proxy operates as if it owns that namespace entirely — it cannot see, interfere with, or accidentally collide with the same-named resources belonging to other clients.
 
-ifndef::OpenShiftOnly[]
-* If your applications use TLS client authentication, configure the link:{ProxyGuideUrl}[transport subject builder within the virtual cluster] to build a subject based on the client certificate.
-endif::OpenShiftOnly[]
-* If your applications use SASL authentication, configure the link:{SASLInspectionGuideUrl}[SASL inspection filter] to build the authenticated subject from the successful SASL exchange between the client and the broker.
-
 The filter achieves this by intercepting Kafka RPCs on both the request and response paths:
 
 * On the *request path*, resource names are transparently mapped from the client's isolated view to a cluster-wide name that includes a client-specific prefix or transformation.
@@ -24,6 +19,13 @@ Resources that do not belong to the current client's namespace are filtered out 
 
 .Entity Isolation filter — request and response path
 image::{realimagesdir}/entity-isolation-seq.svg["Diagram showing how the entity isolation re-writes requests and responses."]
+
+In order to use the Entity Isolation filter, the proxy must be able to determine the authenticated subject. The authenticated subject is the verified identity of the client, derived from its successful authentication.
+
+ifndef::OpenShiftOnly[]
+* If your applications use TLS client authentication, configure the link:{ProxyGuideUrl}[transport subject builder within the virtual cluster] to build a subject based on the client certificate.
+endif::OpenShiftOnly[]
+* If your applications use SASL authentication, configure the link:{SASLInspectionGuideUrl}[SASL inspection filter] to build the authenticated subject from the successful SASL exchange between the client and the broker.
 
 == Supported entity types
 
@@ -53,7 +55,7 @@ For a principal `alice`, a consumer group called `my-consumer-group` is stored o
 
 [NOTE]
 ====
-The default separator character between the principal and the resource name is a hyphen (`-`).
+The default separator between the principal and the resource name is a hyphen (`-`).
 Principals that already contain the separator are not supported.
 If a client uses a principal containing a separator, the client will be disconnected with an error.
 ====
