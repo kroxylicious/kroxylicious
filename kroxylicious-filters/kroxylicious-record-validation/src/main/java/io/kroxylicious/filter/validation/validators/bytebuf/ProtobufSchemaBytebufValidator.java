@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.validation.validators.bytebuf;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
@@ -54,10 +55,14 @@ public class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidat
     }
 
     private static Descriptors.Descriptor resolveProtobufDescriptor(Map<String, Object> schemaResolverConfig, Long schemaId) {
-        SchemaResolver<ProtobufSchema, Message> resolver = new DefaultSchemaResolver<>();
-        resolver.configure(schemaResolverConfig, new ProtobufSchemaParser<>());
-        var schemaLookupResult = resolver.resolveSchemaByArtifactReference(ArtifactReference.fromContentId(schemaId));
-        var protobufSchema = schemaLookupResult.getParsedSchema().getParsedSchema();
-        return protobufSchema.getFileDescriptor().getMessageTypes().get(0);
+        try (SchemaResolver<ProtobufSchema, Message> resolver = new DefaultSchemaResolver<>()) {
+            resolver.configure(schemaResolverConfig, new ProtobufSchemaParser<>());
+            var schemaLookupResult = resolver.resolveSchemaByArtifactReference(ArtifactReference.fromContentId(schemaId));
+            var protobufSchema = schemaLookupResult.getParsedSchema().getParsedSchema();
+            return protobufSchema.getFileDescriptor().getMessageTypes().get(0);
+        }
+        catch (IOException e) {
+            throw new RuntimeException("Failed to resolve Protobuf schema", e);
+        }
     }
 }
