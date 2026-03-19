@@ -349,6 +349,11 @@
                 <version>${apicurio-registry.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.kiota</groupId>
+                <artifactId>kiota-http-jdk</artifactId>
+                <version>${kiota.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-v2-java-sdk</artifactId>
                 <version>${apicurio-registry.version}</version>
