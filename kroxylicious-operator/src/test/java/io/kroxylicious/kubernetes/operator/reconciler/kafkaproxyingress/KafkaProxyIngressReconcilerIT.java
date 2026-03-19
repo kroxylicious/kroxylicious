@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 
 import org.awaitility.core.ConditionFactory;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -19,6 +20,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.operator.ClusterUser;
 import io.kroxylicious.kubernetes.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProxyIngressStatusAssert;
@@ -42,39 +44,46 @@ class KafkaProxyIngressReconcilerIT {
             .replaceClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
             .build();
 
+    private ClusterUser clusterUser;
+
+    @BeforeEach
+    void setUp() {
+        clusterUser = operator.clusterUser();
+    }
+
     @Test
     void testCreateIngressFirst() {
-        KafkaProxyIngress ingressBar = operator.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertResolvedRefsFalse(ingressBar);
-        operator.create(kafkaProxy(PROXY_A));
+        clusterUser.create(kafkaProxy(PROXY_A));
         assertAllConditionsTrue(ingressBar);
     }
 
     @Test
     void testCreateProxyFirst() {
-        operator.create(kafkaProxy(PROXY_A));
-        KafkaProxyIngress ingressBar = operator.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        clusterUser.create(kafkaProxy(PROXY_A));
+        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertAllConditionsTrue(ingressBar);
     }
 
     @Test
     void testDeleteProxy() {
-        KafkaProxy proxy = operator.create(kafkaProxy(PROXY_A));
-        KafkaProxyIngress ingressBar = operator.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        KafkaProxy proxy = clusterUser.create(kafkaProxy(PROXY_A));
+        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertAllConditionsTrue(ingressBar);
 
-        operator.delete(proxy);
+        clusterUser.delete(proxy);
         assertResolvedRefsFalse(ingressBar);
     }
 
     @Test
     void testSwitchProxy() {
-        operator.create(kafkaProxy(PROXY_A));
-        operator.create(kafkaProxy(PROXY_B));
-        KafkaProxyIngress ingressBar = operator.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        clusterUser.create(kafkaProxy(PROXY_A));
+        clusterUser.create(kafkaProxy(PROXY_B));
+        KafkaProxyIngress ingressBar = clusterUser.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertAllConditionsTrue(ingressBar);
 
-        operator.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_B));
+        clusterUser.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_B));
         assertAllConditionsTrue(ingressBar);
     }
 
@@ -86,7 +95,7 @@ class KafkaProxyIngressReconcilerIT {
 
     private void assertAllConditionsTrue(KafkaProxyIngress ingressBar) {
         AWAIT.alias("IngressStatusConditionsAllTrue").untilAsserted(() -> {
-            var kpi = operator.resources(KafkaProxyIngress.class)
+            var kpi = clusterUser.resources(KafkaProxyIngress.class)
                     .withName(ResourcesUtil.name(ingressBar)).get();
             assertThat(kpi.getStatus()).isNotNull();
             var conditionListAssert = KafkaProxyIngressStatusAssert
@@ -106,7 +115,7 @@ class KafkaProxyIngressReconcilerIT {
 
     private void assertResolvedRefsFalse(KafkaProxyIngress cr) {
         AWAIT.alias("IngressStatusResolvedRefs").untilAsserted(() -> {
-            var kpi = operator.resources(KafkaProxyIngress.class)
+            var kpi = clusterUser.resources(KafkaProxyIngress.class)
                     .withName(ResourcesUtil.name(cr)).get();
             assertThat(kpi.getStatus()).isNotNull();
             KafkaProxyIngressStatusAssert

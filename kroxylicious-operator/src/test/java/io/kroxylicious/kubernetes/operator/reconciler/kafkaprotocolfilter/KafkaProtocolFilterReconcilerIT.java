@@ -13,6 +13,7 @@ import java.util.Base64;
 import java.util.Map;
 
 import org.awaitility.core.ConditionFactory;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -26,6 +27,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.ClusterUser;
 import io.kroxylicious.kubernetes.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
@@ -51,38 +53,45 @@ class KafkaProtocolFilterReconcilerIT {
             .replaceClusterRoleGlobs("*.ClusterRole.kroxylicious-operator-watched.yaml")
             .build();
 
+    private ClusterUser clusterUser;
+
+    @BeforeEach
+    void setUp() {
+        clusterUser = operator.clusterUser();
+    }
+
     @Test
     void shouldEventuallyResolveWhenFilterCreatedFirst() {
         createFilterFirst();
     }
 
     private KafkaProtocolFilter createFilterFirst() {
-        KafkaProtocolFilter filterOne = operator.create(filter(FILTER_ONE,
+        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}", "${configmap:" + B + ":foo}"));
         assertResolvedRefsFalse(filterOne, "Referenced Secrets [a] ConfigMaps [b] not found");
-        operator.create(secret(A));
+        clusterUser.create(secret(A));
         assertResolvedRefsFalse(filterOne, "Referenced ConfigMaps [b] not found");
-        operator.create(cm(B));
+        clusterUser.create(cm(B));
         assertAllConditionsTrue(filterOne);
         return filterOne;
     }
 
     @Test
     void shouldEventuallyResolveWhenASecretCreatedFirst() {
-        operator.create(secret(A));
-        KafkaProtocolFilter filterOne = operator.create(filter(FILTER_ONE,
+        clusterUser.create(secret(A));
+        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}", "${secret:" + B + ":foo}"));
         assertResolvedRefsFalse(filterOne, "Referenced Secrets [b] not found");
-        operator.create(secret(B));
+        clusterUser.create(secret(B));
         assertAllConditionsTrue(filterOne);
     }
 
     @Test
     void shouldEventuallyResolveWhenAllSecretsCreatedFirst() {
-        operator.create(secret(A));
-        operator.create(secret(B));
-        operator.create(secret(C));
-        KafkaProtocolFilter filterOne = operator.create(filter(FILTER_ONE,
+        clusterUser.create(secret(A));
+        clusterUser.create(secret(B));
+        clusterUser.create(secret(C));
+        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}",
                 "${secret:" + B + ":foo}"));
         assertAllConditionsTrue(filterOne);
@@ -90,7 +99,7 @@ class KafkaProtocolFilterReconcilerIT {
 
     private void assertAllConditionsTrue(KafkaProtocolFilter filterOne) {
         AWAIT.alias("FilterStatusResolvedRefs").untilAsserted(() -> {
-            var kpf = operator.resources(KafkaProtocolFilter.class)
+            var kpf = clusterUser.resources(KafkaProtocolFilter.class)
                     .withName(ResourcesUtil.name(filterOne)).get();
             assertThat(kpf.getStatus()).isNotNull();
             KafkaProtocolFilterStatusAssert
@@ -107,10 +116,10 @@ class KafkaProtocolFilterReconcilerIT {
 
     @Test
     void shouldEventuallyResolveWhenSecretsAndConfigMapsFirst() {
-        operator.create(secret(A));
-        operator.create(cm(B));
-        operator.create(secret(C));
-        KafkaProtocolFilter filterOne = operator.create(filter(FILTER_ONE,
+        clusterUser.create(secret(A));
+        clusterUser.create(cm(B));
+        clusterUser.create(secret(C));
+        KafkaProtocolFilter filterOne = clusterUser.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}",
                 "${configmap:" + B + ":foo}"));
         assertAllConditionsTrue(filterOne);
@@ -120,11 +129,11 @@ class KafkaProtocolFilterReconcilerIT {
     void shouldUpdateStatusOnFilterModify() {
         shouldEventuallyResolveWhenFilterCreatedFirst();
 
-        KafkaProtocolFilter filterOne = operator.replace(filter(FILTER_ONE,
+        KafkaProtocolFilter filterOne = clusterUser.replace(filter(FILTER_ONE,
                 "${secret:" + C + ":foo}", "${configmap:" + B + ":foo}"));
         assertResolvedRefsFalse(filterOne, "Referenced Secrets [c] not found");
 
-        operator.create(secret(C));
+        clusterUser.create(secret(C));
         assertAllConditionsTrue(filterOne);
     }
 
@@ -132,7 +141,7 @@ class KafkaProtocolFilterReconcilerIT {
     void shouldUpdateStatusOnSecretModify() {
         var filterOne = createFilterFirst();
 
-        operator.resources(Secret.class).withName(A).edit(secret -> secret.edit()
+        clusterUser.resources(Secret.class).withName(A).edit(secret -> secret.edit()
                 .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
                 .build());
         assertAllConditionsTrue(filterOne);
@@ -142,17 +151,17 @@ class KafkaProtocolFilterReconcilerIT {
     void shouldUpdateReferentAnnotationOnSecretModify() {
         // given
         var filterOne = createFilterFirst();
-        String checksum = operator.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
+        String checksum = clusterUser.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
                 .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
 
         // when
-        operator.resources(Secret.class).withName(A).edit(secret -> secret.edit()
+        clusterUser.resources(Secret.class).withName(A).edit(secret -> secret.edit()
                 .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
                 .build());
 
         // then
         assertAllConditionsTrue(filterOne);
-        String newChecksum = operator.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
+        String newChecksum = clusterUser.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
                 .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
         assertThat(newChecksum).isNotEqualTo(checksum);
     }
@@ -161,17 +170,17 @@ class KafkaProtocolFilterReconcilerIT {
     void shouldUpdateReferentAnnotationOnConfigMapModify() {
         // given
         var filterOne = createFilterFirst();
-        String checksum = operator.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
+        String checksum = clusterUser.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
                 .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
 
         // when
-        operator.resources(ConfigMap.class).withName(B).edit(configMap -> configMap.edit()
+        clusterUser.resources(ConfigMap.class).withName(B).edit(configMap -> configMap.edit()
                 .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
                 .build());
 
         // then
         assertAllConditionsTrue(filterOne);
-        String newChecksum = operator.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
+        String newChecksum = clusterUser.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
                 .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
         assertThat(newChecksum).isNotEqualTo(checksum);
     }
@@ -212,7 +221,7 @@ class KafkaProtocolFilterReconcilerIT {
     private void assertResolvedRefsFalse(KafkaProtocolFilter cr,
                                          String message) {
         AWAIT.alias("FilterStatusResolvedRefs").untilAsserted(() -> {
-            var kpf = operator.resources(KafkaProtocolFilter.class)
+            var kpf = clusterUser.resources(KafkaProtocolFilter.class)
                     .withName(ResourcesUtil.name(cr)).get();
             assertThat(kpf.getStatus()).isNotNull();
             KafkaProtocolFilterStatusAssert
