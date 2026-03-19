@@ -42,6 +42,24 @@ where:
 * <element> is a `ResourceType` implementation name.
 * <alias> is an optional alias for the resource type.
 
+The following resource types are available within the `io.kroxylicious.filter.authorization` package:
+
+|===
+| Resource Type | Implementation Name | Description
+
+| Topic
+| TopicResource
+| Represents Kafka topics.
+
+| Group
+| GroupResource
+| Represents Kafka consumer groups.
+
+| Transactional ID
+| TransactionalIdResource
+| Represents Kafka transactional IDs used for EOS (Exactly Once Semantics).
+|===
+
 For example, `TopicResource` is the implementation that represents Kafka topics.
 To declare it use a `import` statement like this.
 
