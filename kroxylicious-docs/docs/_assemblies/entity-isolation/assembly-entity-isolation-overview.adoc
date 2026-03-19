@@ -36,8 +36,6 @@ Consumer group identifiers used in all consumer group RPCs (e.g. `JoinGroup`, `O
 Transactional producer identifiers used in transactional RPCs (e.g. `InitProducerId`, `AddPartitionsToTxn`, `EndTxn`).
 
 NOTE: Topic name isolation is not yet supported.
-Any attempt to enable `TOPIC` entity type isolation will be rejected by the filter at startup.
-Support for `TOPIC` isolation is planned for a future release.
 
 == How it works
 
