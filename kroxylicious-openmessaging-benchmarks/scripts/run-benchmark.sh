@@ -506,6 +506,9 @@ if [[ "${SKIP_DEPLOY}" == "false" ]]; then
     JFR_PVC_NAME="${JFR_PVC_NAME}" PROXY_POD="${PROXY_POD:-}" "${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
     [[ -f "${OUTPUT_DIR}/benchmark.jfr" ]] && mv "${OUTPUT_DIR}/benchmark.jfr" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
     [[ -f "${OUTPUT_DIR}/flamegraph.html" ]] && mv "${OUTPUT_DIR}/flamegraph.html" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-flamegraph.html"
+    # Normalise the OMB result filename to result.json so rate-sweep.sh summary finds it
+    omg_result=$(find "${OUTPUT_DIR}" -maxdepth 1 -name "*.json" ! -name "run-metadata.json" ! -name "result.json" | head -1)
+    [[ -n "${omg_result}" ]] && cp "${omg_result}" "${OUTPUT_DIR}/result.json"
 else
     # Lightweight collection: result JSON + JFR/flamegraph already dumped above
     result_file=$(kubectl exec -n "${NAMESPACE}" "${BENCHMARK_POD}" -- \
