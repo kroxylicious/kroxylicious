@@ -5,7 +5,7 @@
 // index.adoc
 
 [id='assembly-configuring-authorization-filter-{context}']
-= Configuring the Entity Isolatiion filter
+= Configuring the Entity Isolation filter
 
 
 [role="_abstract"]
