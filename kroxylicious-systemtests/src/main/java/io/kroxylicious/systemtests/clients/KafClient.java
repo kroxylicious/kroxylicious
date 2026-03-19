@@ -64,9 +64,26 @@ public class KafClient implements KafkaClient {
     }
 
     @Override
+    public String getImage() {
+        return Constants.KAF_CLIENT_IMAGE;
+    }
+
+    @Override
     public KafkaClient inNamespace(String namespace) {
         this.deployNamespace = namespace;
         return this;
+    }
+
+    @Override
+    public void preloadImage() {
+        // kaf does not support image with a command (it is build using scratch), so we need to launch without any
+        String image = getImage();
+        LOGGER.info("Preloading Test Kafka Client Image from {}", image);
+        var pod = kubeClient().getClient().run().withName("preload-operand-image")
+                .withNewRunConfig()
+                .withImage(image)
+                .withRestartPolicy("Never").done();
+        KafkaClient.checkPreloadedImage(pod);
     }
 
     @Override

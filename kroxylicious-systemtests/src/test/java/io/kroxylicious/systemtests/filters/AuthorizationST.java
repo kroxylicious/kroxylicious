@@ -27,6 +27,7 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.executor.ExecResult;
@@ -54,6 +55,7 @@ class AuthorizationST extends AbstractSystemTests {
 
     @BeforeAll
     void setUp() {
+        KafkaClients.getKafkaClient().preloadImage();
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.atInfo().setMessage("Skipping kafka deployment. It is already deployed!").log();
