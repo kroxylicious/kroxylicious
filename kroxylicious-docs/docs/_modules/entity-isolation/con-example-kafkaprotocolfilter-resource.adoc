@@ -10,7 +10,7 @@
 [role="_abstract"]
 If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProtocolFilter` resource to contain the filter configuration.
 
-Here's a complete example of a `KafkaProtocolFilter` resource configured for authorization:
+Here's a complete example of a `KafkaProtocolFilter` resource configured for entity isolation:
 
 [source,yaml]
 ----
@@ -27,6 +27,6 @@ spec:
     mapperConfig:
       separator: "-"
 ----
-* `entityTypes` is an array of entity types which will be isolated. Allowed values are `GROUP_ID` and `TRANSACTIONAL_ID`.
+* `entityTypes` is an array of entity types to isolate. Allowed values are `GROUP_ID` and `TRANSACTIONAL_ID`.
 * `mapper` is the name of the naming mapping service implementation.  Currently, this must be `PrincipalEntityNameMapperService`.
-* `separator` is the string that the mapper will use to separate the principal from the resource name.
+* `separator` is the string that the mapper uses to separate the principal from the resource name.
