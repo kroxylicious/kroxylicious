@@ -210,6 +210,11 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             }
 
             @NonNull
+            public <T extends HasMetadata> T getInNamespace(@NonNull Class<T> type, @NonNull String name, @NonNull String namespace) {
+                return testActorClient.resources(type).inNamespace(namespace).withName(name).get();
+            }
+
+            @NonNull
             public <T extends HasMetadata> T replace(@NonNull T resource) {
                 return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).update();
             }
@@ -246,6 +251,9 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
         @Nullable
         <T extends HasMetadata> T get(@NonNull Class<T> type, @NonNull String name);
+
+        @Nullable
+        <T extends HasMetadata> T getInNamespace(@NonNull Class<T> type, @NonNull String name, @NonNull String namespace);
 
         @NonNull
         <T extends HasMetadata> T replace(@NonNull T resource);
