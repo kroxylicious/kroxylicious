@@ -189,7 +189,7 @@ class KafkaProtocolFilterReconcilerIT {
     void shouldUpdateStatusOnSecretDelete() {
         var filterOne = createFilterFirst();
 
-        operator.delete(secret(A));
+        clusterUser.delete(secret(A));
         assertResolvedRefsFalse(filterOne, "Referenced Secrets [a] not found");
     }
 
@@ -197,7 +197,7 @@ class KafkaProtocolFilterReconcilerIT {
     void shouldUpdateStatusOnConfigMapDelete() {
         var filterOne = createFilterFirst();
 
-        operator.delete(cm(B));
+        clusterUser.delete(cm(B));
         assertResolvedRefsFalse(filterOne, "Referenced ConfigMaps [b] not found");
     }
 

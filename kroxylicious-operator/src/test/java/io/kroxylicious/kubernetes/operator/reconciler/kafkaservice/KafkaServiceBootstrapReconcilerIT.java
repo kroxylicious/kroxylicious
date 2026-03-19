@@ -116,7 +116,7 @@ class KafkaServiceBootstrapReconcilerIT {
         assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090, true);
 
         // When
-        operator.delete(tlsCertSecret);
+        clusterUser.delete(tlsCertSecret);
 
         // Then
         assertResolvedRefsFalse(resource, Condition.REASON_REFS_NOT_FOUND, "spec.tls.certificateRef: referenced secret not found");
@@ -197,7 +197,7 @@ class KafkaServiceBootstrapReconcilerIT {
         assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090, true);
 
         // When
-        operator.delete(trustedCaCerts);
+        clusterUser.delete(trustedCaCerts);
 
         // Then
         assertResolvedRefsFalse(resource, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced configmap not found");

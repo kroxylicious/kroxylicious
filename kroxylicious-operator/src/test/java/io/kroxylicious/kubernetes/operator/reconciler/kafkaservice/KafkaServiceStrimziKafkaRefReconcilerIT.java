@@ -198,7 +198,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
         assertResolvedRefsTrue(updated, FOO_BOOTSTRAP_9090, true);
 
         // When
-        operator.delete(kafka);
+        clusterUser.delete(kafka);
 
         // Then
         assertResolvedRefsFalse(updated, Condition.REASON_REFS_NOT_FOUND, "spec.strimziKafkaRef: referenced Kafka resource not found");
