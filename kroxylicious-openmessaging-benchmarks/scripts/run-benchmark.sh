@@ -335,8 +335,13 @@ if [[ "${SKIP_DEPLOY}" == "false" ]]; then
         --timeout="${POD_READY_TIMEOUT}"
     echo "OMB pods are ready."
 else
-    # Infrastructure already up — verify workers are healthy and reset topics for a clean run
+    # Infrastructure already up — restart workers for a clean probe, then reset topics.
+    # OMB workers do not recover after a benchmark run ends (the HTTP handler stops
+    # serving while the JVM stays alive), so we delete the pods and let the StatefulSet
+    # recreate them fresh before each subsequent probe.
     echo "--- Skipping deploy (--skip-deploy) ---"
+    echo "Restarting OMB workers for clean probe..."
+    kubectl delete pod -l app=omb-worker -n "${NAMESPACE}" --wait --timeout=60s
     check_workers_healthy
     reset_topics
 fi
