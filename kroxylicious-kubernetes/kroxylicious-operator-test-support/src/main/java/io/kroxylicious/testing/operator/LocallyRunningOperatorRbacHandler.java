@@ -212,10 +212,23 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
                 new KubernetesClientBuilder().editOrNewConfig().withImpersonateUsername(impersonatedUser).endConfig());
     }
 
+    /**
+     * Returns the Kubernetes client used for user-level interactions.
+     * <p>
+     * This client has the RBAC rights of a cluster user (via the admin client), not the operator.
+     * The client is created lazily on first call and closed in {@link #afterAll}.
+     */
+    @NonNull
+    public KubernetesClient userClient() {
+        if (testActorClient == null) {
+            testActorClient = adminClientFactory.get();
+        }
+        return testActorClient;
+    }
+
     @NonNull
     public TestActor testActor(@NonNull AbstractOperatorExtension operatorExtension) {
-        testActorClient = adminClientFactory.get();
-        var client = testActorClient;
+        var client = userClient();
         return new TestActor() {
 
             @NonNull

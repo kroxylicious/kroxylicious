@@ -22,6 +22,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
@@ -234,6 +235,16 @@ class LocalKroxyliciousOperatorExtensionLifecycleTest {
         verify(mutator).apply(fresh);
         verify(actor).patchStatus(fresh);
         assertThat(result).isSameAs(patched);
+    }
+
+    @Test
+    void clusterUserIsNonNullAfterBeforeAll() throws Exception {
+        when(locallyRunOperatorExtension.getNamespace()).thenReturn("test-ns");
+        when(rbacHandler.userClient()).thenReturn(mock(KubernetesClient.class));
+
+        extension.beforeAll(context);
+
+        assertThat(extension.clusterUser()).isNotNull();
     }
 
     // ---- helpers ----
