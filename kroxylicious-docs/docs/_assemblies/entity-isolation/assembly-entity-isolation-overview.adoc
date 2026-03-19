@@ -9,7 +9,7 @@
 
 [role="_abstract"]
 The Kroxylicious Entity Isolation filter gives each authenticated client a private, isolated view of certain Kafka entity types within a shared cluster.
-When entity isolation is enabled for a resource type, each client operates as if it owns that namespace entirely — it cannot see, interfere with, or accidentally collide with the same-named resources belonging to other clients.
+When entity isolation is enabled for a resource type, each client connecting through the proxy operates as if it owns that namespace entirely — it cannot see, interfere with, or accidentally collide with the same-named resources belonging to other clients.
 
 ifndef::OpenShiftOnly[]
 * If your applications use TLS client authentication, configure the link:{ProxyGuideUrl}[transport subject builder within the virtual cluster] to build a subject based on the client certificate.
@@ -57,7 +57,7 @@ For a principal `alice`, a consumer group called `my-consumer-group` is stored o
 ====
 The default separator character between the principal and the resource name is a hyphen (`-`).
 Principals that already contain the separator are not supported.
-If a client uses a principal containing a separate, the client will be disconnected with an error.
+If a client uses a principal containing a separator, the client will be disconnected with an error.
 ====
 
 === Request path

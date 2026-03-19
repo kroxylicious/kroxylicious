@@ -12,5 +12,5 @@
 [role="_abstract"]
 This guide covers using the *Kroxylicious Entity Isolation Filter*.
 This filter gives an authenticated user a private space within a Kafka cluster that is isolated from other users
-sharing the same cluster.  Isolation can be applied selectively so that isolation is applied to some resource types
-and not others.
+sharing the same cluster.  Isolation can be applied selectively so that isolation is applied to some entity types
+and not others. For example, it's possible to have isolation for consumer groups, but not for topics.

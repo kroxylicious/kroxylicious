@@ -26,9 +26,9 @@ filterDefinitions:
       mapperConfig:
         separator: "-"
 ----
-* `entityTypes` is an array of entity types to which will be isolated. Allowed values are `GROUP_ID` and `TRANSACTIONAL_ID`.
+* `entityTypes` is an array of entity types which will be isolated. Allowed values are `GROUP_ID` and `TRANSACTIONAL_ID`.
 * `mapper` is the name of the naming mapping service implementation.  Currently, this must be `PrincipalEntityNameMapperService`.
-* `separator` is separator character that mapper will use to separate the principal from the resource name.
+* `separator` is the separator character that the mapper will use to separate the principal from the resource name.
 
 
 Refer to the {ProxyGuide} for more information about configuring the proxy.
