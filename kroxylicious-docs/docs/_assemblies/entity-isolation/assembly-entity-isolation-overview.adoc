@@ -66,8 +66,6 @@ When a Kafka request arrives at the proxy:
 . Each matching field value is passed to the `EntityNameMapper` which returns the cluster-visible name.
 . The mutated request is forwarded to the broker.
 
-For requests that carry a regex filter (e.g. `ListTransactions` with a `transactionalIdFilter` regex), the filter rewrites the regex so that it matches the cluster-visible namespace of the current client.
-
 === Response path
 
 When the broker's response arrives at the proxy:
