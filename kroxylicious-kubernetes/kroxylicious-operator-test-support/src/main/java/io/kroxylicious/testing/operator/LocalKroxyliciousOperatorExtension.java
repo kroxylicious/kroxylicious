@@ -29,10 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
@@ -45,7 +42,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A JUnit 5 extension that runs a Kroxylicious operator locally for integration testing.
@@ -277,23 +273,6 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         return new ClusterUser(rbacHandler.userClient(), localOperatorExtension.getNamespace());
     }
 
-    // ---- resource operations ----
-
-    @NonNull
-    public <T extends HasMetadata> T create(@NonNull T resource) {
-        return testActor.create(resource);
-    }
-
-    @Nullable
-    public <T extends HasMetadata> T get(@NonNull Class<T> type, @NonNull String name) {
-        return testActor.get(type, name);
-    }
-
-    @NonNull
-    public <T extends HasMetadata> T replace(@NonNull T resource) {
-        return testActor.replace(resource);
-    }
-
     @NonNull
     public <T extends HasMetadata> T patchStatus(@NonNull T resource) {
         return testActor.patchStatus(resource);
@@ -318,14 +297,6 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         return testActor.patchStatus(mutated);
     }
 
-    public <T extends HasMetadata> boolean delete(@NonNull T resource) {
-        return testActor.delete(resource);
-    }
-
-    @NonNull
-    public <T extends HasMetadata> NonNamespaceOperation<T, KubernetesResourceList<T>, Resource<T>> resources(@NonNull Class<T> type) {
-        return testActor.resources(type);
-    }
 
     public static Builder builder() {
         return new Builder();

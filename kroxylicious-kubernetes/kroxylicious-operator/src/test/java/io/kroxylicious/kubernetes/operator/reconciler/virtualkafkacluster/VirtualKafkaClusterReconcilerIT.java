@@ -198,7 +198,7 @@ class VirtualKafkaClusterReconcilerIT {
         assertAllConditionsTrue(clusterBar);
 
         // When
-        operator.delete((HasMetadata) proxy);
+        clusterUser.delete((HasMetadata) proxy);
 
         // Then
         assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
@@ -215,7 +215,7 @@ class VirtualKafkaClusterReconcilerIT {
         assertAllConditionsTrue(clusterBar);
 
         // When
-        operator.delete(filter);
+        clusterUser.delete(filter);
 
         // Then
         assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
