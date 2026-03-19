@@ -1,0 +1,49 @@
+{{- if .Values.vault.provision }}
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  labels:
+    app: vault
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      containers:
+      - name: vault
+        image: {{ .Values.vault.image }}
+        imagePullPolicy: {{ .Values.vault.imagePullPolicy }}
+        args:
+        - server
+        - -dev
+        - -dev-root-token-id={{ .Values.vault.token }}
+        ports:
+        - containerPort: 8200
+          name: api
+        env:
+        - name: VAULT_DEV_LISTEN_ADDRESS
+          value: "0.0.0.0:8200"
+        readinessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: 8200
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.vault.resources | nindent 10 }}
+        securityContext:
+          capabilities:
+            add:
+            - IPC_LOCK
+{{- end }}

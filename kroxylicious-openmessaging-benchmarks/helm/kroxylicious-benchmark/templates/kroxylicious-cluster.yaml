@@ -13,6 +13,10 @@ spec:
     name: benchmark-proxy
   targetKafkaServiceRef:
     name: kafka
+{{- if .Values.encryption.enabled }}
+  filterRefs:
+    - name: record-encryption
+{{- end }}
   ingresses:
     - ingressRef:
         name: cluster-ip
