@@ -11,7 +11,7 @@
 The Kroxylicious Entity Isolation filter gives each authenticated client a private, isolated view of certain Kafka entity types within a shared cluster.
 When entity isolation is enabled for a resource type, each client connecting through the proxy operates as if it owns that namespace entirely — it cannot see, interfere with, or accidentally collide with the same-named resources belonging to other clients.
 
-The filter achieves this by intercepting Kafka RPCs on both the request and response paths:
+The filter achieves this by intercepting Kafka RPCs on the request and response paths:
 
 * On the *request path*, resource names are transparently mapped from the client's isolated view to a cluster-wide name that includes a client-specific prefix or transformation.
 * On the *response path*, the cluster-wide name is mapped back to the client's view.
@@ -20,7 +20,7 @@ Resources that do not belong to the current client's namespace are filtered out 
 .Entity Isolation filter — request and response path
 image::{realimagesdir}/entity-isolation-seq.svg["Diagram showing how the entity isolation re-writes requests and responses."]
 
-In order to use the Entity Isolation filter, the proxy must be able to determine the authenticated subject. The authenticated subject is the verified identity of the client, derived from its successful authentication.
+To use the Entity Isolation filter, the proxy must determine the authenticated subject. The authenticated subject is the verified identity of the client, derived from successful authentication.
 
 ifndef::OpenShiftOnly[]
 * If your applications use TLS client authentication, configure the link:{ProxyGuideUrl}[transport subject builder within the virtual cluster] to build a subject based on the client certificate.
