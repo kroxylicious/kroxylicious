@@ -308,12 +308,42 @@ record MockFilterContext(ApiMessage header, ApiMessage message, Subject subject,
         }
 
         @Override
-        public AuditableActionBuilder withContext(Map<String, String> context) {
+        public AuditableActionBuilder addToContext(String key, boolean value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, long value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, double value) {
             return this;
         }
 
         @Override
         public AuditableActionBuilder addToContext(String key, String value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, boolean[] value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, long[] value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, double[] value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, String[] value) {
             return this;
         }
 

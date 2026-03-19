@@ -46,14 +46,82 @@ public interface AuditableActionBuilder {
     /**
      * <p>Add some additional context to be included with the action.</p>
      * <p>This allows plugins to provide information not known to the runtime.</p>
-     * @param context additional context to be included with the action.
+     * @param key the key
+     * @param key the value
      * @return the builder for describing the rest of the action, and ultimately {@linkplain #log()} recording it}.
      */
     @CheckReturnValue(explanation = "log() must be called on the result of this method")
-    AuditableActionBuilder withContext(Map<String, String> context);
+    AuditableActionBuilder addToContext(String key, boolean value);
 
+    /**
+     * <p>Add some additional context to be included with the action.</p>
+     * <p>This allows plugins to provide information not known to the runtime.</p>
+     * @param key the key
+     * @param key the value
+     * @return the builder for describing the rest of the action, and ultimately {@linkplain #log()} recording it}.
+     */
+    @CheckReturnValue(explanation = "log() must be called on the result of this method")
+    AuditableActionBuilder addToContext(String key, long value);
+
+    /**
+     * <p>Add some additional context to be included with the action.</p>
+     * <p>This allows plugins to provide information not known to the runtime.</p>
+     * @param key the key
+     * @param key the value
+     * @return the builder for describing the rest of the action, and ultimately {@linkplain #log()} recording it}.
+     */
+    @CheckReturnValue(explanation = "log() must be called on the result of this method")
+    AuditableActionBuilder addToContext(String key, double value);
+
+    /**
+     * <p>Add some additional context to be included with the action.</p>
+     * <p>This allows plugins to provide information not known to the runtime.</p>
+     * @param key the key
+     * @param key the value
+     * @return the builder for describing the rest of the action, and ultimately {@linkplain #log()} recording it}.
+     */
     @CheckReturnValue(explanation = "log() must be called on the result of this method")
     AuditableActionBuilder addToContext(String key, String value);
+
+    /**
+     * <p>Add some additional context to be included with the action.</p>
+     * <p>This allows plugins to provide information not known to the runtime.</p>
+     * @param key the key
+     * @param key the value
+     * @return the builder for describing the rest of the action, and ultimately {@linkplain #log()} recording it}.
+     */
+    @CheckReturnValue(explanation = "log() must be called on the result of this method")
+    AuditableActionBuilder addToContext(String key, boolean[] value);
+
+    /**
+     * <p>Add some additional context to be included with the action.</p>
+     * <p>This allows plugins to provide information not known to the runtime.</p>
+     * @param key the key
+     * @param key the value
+     * @return the builder for describing the rest of the action, and ultimately {@linkplain #log()} recording it}.
+     */
+    @CheckReturnValue(explanation = "log() must be called on the result of this method")
+    AuditableActionBuilder addToContext(String key, long[] value);
+
+    /**
+     * <p>Add some additional context to be included with the action.</p>
+     * <p>This allows plugins to provide information not known to the runtime.</p>
+     * @param key the key
+     * @param key the value
+     * @return the builder for describing the rest of the action, and ultimately {@linkplain #log()} recording it}.
+     */
+    @CheckReturnValue(explanation = "log() must be called on the result of this method")
+    AuditableActionBuilder addToContext(String key, double[] value);
+
+    /**
+     * <p>Add some additional context to be included with the action.</p>
+     * <p>This allows plugins to provide information not known to the runtime.</p>
+     * @param key the key
+     * @param key the value
+     * @return the builder for describing the rest of the action, and ultimately {@linkplain #log()} recording it}.
+     */
+    @CheckReturnValue(explanation = "log() must be called on the result of this method")
+    AuditableActionBuilder addToContext(String key, String[] value);
 
     /**
      * Records the action.

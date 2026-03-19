@@ -13,6 +13,7 @@ import java.util.Objects;
 import io.kroxylicious.proxy.audit.Actor;
 import io.kroxylicious.proxy.audit.AuditableAction;
 import io.kroxylicious.proxy.audit.Correlation;
+import io.kroxylicious.proxy.audit.Value;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -23,7 +24,7 @@ public record AuditableActionImpl(Instant time,
                                   Actor actor,
                                   Map<String, String> objectRef,
                                   @Nullable Correlation correlation,
-                                  @Nullable Map<String, String> context)
+                                  @Nullable Map<String, ? extends Value<?>> context)
         implements AuditableAction {
 
     public AuditableActionImpl {

@@ -71,7 +71,7 @@ class AuditLoggerImplTest {
         // when
         logger.action("Foo")
                 .withObjectRef(Map.of("vc", "my-virtual-cluster"))
-                .withContext(Map.of("A", "a"))
+                .addToContext("A", "a")
                 .log();
     }
 
@@ -95,7 +95,7 @@ class AuditLoggerImplTest {
         // when
         logger.action("Foo")
                 .withObjectRef(Map.of("vc", "my-virtual-cluster"))
-                .withContext(Map.of("A", "a"))
+                .addToContext("A", "a")
                 .log();
 
         // then
@@ -131,7 +131,7 @@ class AuditLoggerImplTest {
         // when
         logger.action("Foo")
                 .withObjectRef(Map.of("vc", "my-virtual-cluster"))
-                .withContext(Map.of("A", "a"))
+                .addToContext("A", "a")
                 .log();
 
         // then
@@ -162,7 +162,7 @@ class AuditLoggerImplTest {
         // when
         logger.action("Foo")
                 .withObjectRef(Map.of("vc", "my-virtual-cluster"))
-                .withContext(Map.of("A", "a"))
+                .addToContext("A", "a")
                 .log();
 
         // then
@@ -173,7 +173,7 @@ class AuditLoggerImplTest {
 
     static List<Arguments> shouldRenderActionAsJson() {
         return List.of(
-                Arguments.of((Function<AuditLogger, AuditableActionBuilder>) (AuditLogger logger) -> logger.action("Foo"),
+                Arguments.argumentSet("successful", (Function<AuditLogger, AuditableActionBuilder>) (AuditLogger logger) -> logger.action("Foo"),
                         """
                                 {
                                   "time" : "1970-01-01T00:00:00Z",
@@ -192,10 +192,18 @@ class AuditLoggerImplTest {
                                     "vc" : "my-virtual-cluster"
                                   },
                                   "context" : {
-                                    "A" : "a"
+                                    "bool" : true,
+                                    "bools" : [ true, false ],
+                                    "double" : 3.5,
+                                    "doubles" : [ 3.5, -1.0E-10 ],
+                                    "int" : 1,
+                                    "ints" : [ 1, 42 ],
+                                    "str" : "a",
+                                    "strs" : [ "a", "b" ]
                                   }
                                 }"""),
-                Arguments.of((Function<AuditLogger, AuditableActionBuilder>) (AuditLogger logger) -> logger.actionWithOutcome("Foo", "Bad", "Oh dear!"),
+                Arguments.argumentSet("unsuccessful",
+                        (Function<AuditLogger, AuditableActionBuilder>) (AuditLogger logger) -> logger.actionWithOutcome("Foo", "Bad", "Oh dear!"),
                         """
                                 {
                                   "time" : "1970-01-01T00:00:00Z",
@@ -214,7 +222,14 @@ class AuditLoggerImplTest {
                                     "vc" : "my-virtual-cluster"
                                   },
                                   "context" : {
-                                    "A" : "a"
+                                    "bool" : true,
+                                    "bools" : [ true, false ],
+                                    "double" : 3.5,
+                                    "doubles" : [ 3.5, -1.0E-10 ],
+                                    "int" : 1,
+                                    "ints" : [ 1, 42 ],
+                                    "str" : "a",
+                                    "strs" : [ "a", "b" ]
                                   }
                                 }"""));
     }
@@ -252,7 +267,14 @@ class AuditLoggerImplTest {
         // when
         fn.apply(logger)
                 .withObjectRef(Map.of("vc", "my-virtual-cluster"))
-                .withContext(Map.of("A", "a"))
+                .addToContext("bool", true)
+                .addToContext("int", 1L)
+                .addToContext("double", 3.5)
+                .addToContext("str", "a")
+                .addToContext("strs", new String[]{ "a", "b" })
+                .addToContext("bools", new boolean[]{ true, false })
+                .addToContext("ints", new long[]{ 1L, 42L })
+                .addToContext("doubles", new double[]{ 3.5, -1e-10 })
                 .log();
 
         // then

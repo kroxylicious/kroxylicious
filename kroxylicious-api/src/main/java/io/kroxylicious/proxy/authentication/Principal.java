@@ -15,6 +15,7 @@ package io.kroxylicious.proxy.authentication;
  */
 public interface Principal {
     String name();
+
     default String type() {
         return getClass().getName();
     }

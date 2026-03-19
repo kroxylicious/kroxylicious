@@ -302,6 +302,13 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
         }
     }
 
+    record AuditEvent(
+                      String action,
+                      @Nullable String status,
+                      @Nullable String reason,
+                      Map<String, String> objectRef,
+                      @Nullable Map<String, Object> context) {}
+
     public static class MockAuditLogger implements AuditLogger {
         private final List<AuditEvent> events = new java.util.ArrayList<>();
 
@@ -319,19 +326,17 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
             return new MockAuditableActionBuilder(action, status, reason, events);
         }
 
-        public record AuditEvent(String action, @Nullable String status, @Nullable String reason,
-                                 Map<String, String> objectRef, @Nullable Map<String, String> context) {}
     }
 
-    public static class MockAuditableActionBuilder implements AuditableActionBuilder {
+    static class MockAuditableActionBuilder implements AuditableActionBuilder {
         private final String action;
         private final String status;
         private final String reason;
-        private final List<MockAuditLogger.AuditEvent> events;
+        private final List<AuditEvent> events;
         private Map<String, String> objectRef;
-        private Map<String, String> context = new java.util.HashMap<>();
+        private Map<String, Object> context = new java.util.HashMap<>();
 
-        public MockAuditableActionBuilder(String action, String status, String reason, List<MockAuditLogger.AuditEvent> events) {
+        MockAuditableActionBuilder(String action, String status, String reason, List<AuditEvent> events) {
             this.action = action;
             this.status = status;
             this.reason = reason;
@@ -345,8 +350,20 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
         }
 
         @Override
-        public AuditableActionBuilder withContext(Map<String, String> context) {
-            this.context = new java.util.HashMap<>(context);
+        public AuditableActionBuilder addToContext(String key, boolean value) {
+            this.context.put(key, value);
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, long value) {
+            this.context.put(key, value);
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, double value) {
+            this.context.put(key, value);
             return this;
         }
 
@@ -357,8 +374,32 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
         }
 
         @Override
+        public AuditableActionBuilder addToContext(String key, boolean[] value) {
+            this.context.put(key, value);
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, long[] value) {
+            this.context.put(key, value);
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, double[] value) {
+            this.context.put(key, value);
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, String[] value) {
+            this.context.put(key, value);
+            return this;
+        }
+
+        @Override
         public void log() {
-            events.add(new MockAuditLogger.AuditEvent(action, status, reason, objectRef, context));
+            events.add(new AuditEvent(action, status, reason, objectRef, context));
         }
     }
 }

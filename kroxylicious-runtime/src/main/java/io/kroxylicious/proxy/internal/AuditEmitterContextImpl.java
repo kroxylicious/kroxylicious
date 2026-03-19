@@ -23,6 +23,7 @@ import io.kroxylicious.proxy.audit.ClientActor;
 import io.kroxylicious.proxy.audit.Correlation;
 import io.kroxylicious.proxy.audit.ProxyActor;
 import io.kroxylicious.proxy.audit.ServerActor;
+import io.kroxylicious.proxy.audit.Value;
 import io.kroxylicious.proxy.authentication.Principal;
 
 class AuditEmitterContextImpl implements AuditEmitter.Context {
@@ -84,10 +85,10 @@ class AuditEmitterContextImpl implements AuditEmitter.Context {
         generator.writeFieldName("objectRef");
         writeMapOfStrings(generator, action.objectRef());
         writeCorrelation(generator, action.correlation());
-        Map<String, String> context = action.context();
+        Map<String, ? extends Value<?>> context = action.context();
         if (context != null) {
             generator.writeFieldName("context");
-            writeMapOfStrings(generator, context);
+            writeMapOfValues(generator, context);
         }
         generator.writeEndObject(); // action
     }
@@ -108,6 +109,50 @@ class AuditEmitterContextImpl implements AuditEmitter.Context {
             }
             generator.writeEndObject();
         }
+    }
+
+    private static void writeMapOfValues(JsonGenerator generator,
+                                         Map<String, ? extends Value<?>> stringStringMap)
+            throws IOException {
+        generator.writeStartObject();
+        for (var entry : stringStringMap.entrySet()) {
+            String name = entry.getKey();
+            generator.writeFieldName(name);
+            var value = (AuditLoggerImpl.AuditableActionBuilderImpl.Value) entry.getValue();
+            if (value instanceof AuditLoggerImpl.AuditableActionBuilderImpl.BooleanValue sv) {
+                generator.writeBoolean(sv.value());
+            }
+            else if (value instanceof AuditLoggerImpl.AuditableActionBuilderImpl.LongValue sv) {
+                generator.writeNumber(sv.value());
+            }
+            else if (value instanceof AuditLoggerImpl.AuditableActionBuilderImpl.DoubleValue sv) {
+                generator.writeNumber(sv.value());
+            }
+            else if (value instanceof AuditLoggerImpl.AuditableActionBuilderImpl.StringValue sv) {
+                generator.writeString(sv.value());
+            }
+            else if (value instanceof AuditLoggerImpl.AuditableActionBuilderImpl.BooleansValue sv) {
+                generator.writeStartArray();
+                for (boolean v : sv.value()) {
+                    generator.writeBoolean(v);
+                }
+                generator.writeEndArray();
+            }
+            else if (value instanceof AuditLoggerImpl.AuditableActionBuilderImpl.LongsValue sv) {
+                generator.writeArray(sv.value(), 0, sv.value().length);
+            }
+            else if (value instanceof AuditLoggerImpl.AuditableActionBuilderImpl.DoublesValue sv) {
+                generator.writeArray(sv.value(), 0, sv.value().length);
+            }
+            else if (value instanceof AuditLoggerImpl.AuditableActionBuilderImpl.StringsValue sv) {
+                generator.writeArray(sv.value(), 0, sv.value().length);
+            }
+            else {
+                throw new IllegalArgumentException("Unsupported value type: " + value.getClass());
+            }
+
+        }
+        generator.writeEndObject();
     }
 
     private static void writeMapOfStrings(JsonGenerator generator,

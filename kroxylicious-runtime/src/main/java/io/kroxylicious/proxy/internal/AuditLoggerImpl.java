@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -26,6 +27,7 @@ import io.kroxylicious.proxy.audit.Correlation;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class AuditLoggerImpl implements AuditLogger, AutoCloseable {
@@ -107,11 +109,141 @@ public class AuditLoggerImpl implements AuditLogger, AutoCloseable {
 
     class AuditableActionBuilderImpl implements AuditableActionBuilder {
 
+        sealed interface Value<T> extends io.kroxylicious.proxy.audit.Value<T>
+                permits BooleanValue, BooleansValue, DoubleValue, DoublesValue, LongValue, LongsValue, StringValue, StringsValue {
+        }
+
+        record StringValue(String value) implements Value<String> {}
+
+        record LongValue(long longValue) implements Value<Long> {
+            @Override
+            public Long value() {
+                return longValue;
+            }
+
+            @Override
+            public String toString() {
+                return "LongValue[value=" + longValue + "]";
+            }
+        }
+
+        record BooleanValue(boolean booleanValue) implements Value<Boolean> {
+            @Override
+            public Boolean value() {
+                return booleanValue;
+            }
+
+            @Override
+            public String toString() {
+                return "BooleanValue[value=" + booleanValue + "]";
+            }
+        }
+
+        record DoubleValue(double doubleValue) implements Value<Double> {
+            @Override
+            public Double value() {
+                return doubleValue;
+            }
+
+            @Override
+            public String toString() {
+                return "DoubleValue[value=" + doubleValue + "]";
+            }
+        }
+
+        record StringsValue(String[] value) implements Value<String[]> {
+            @Override
+            public boolean equals(Object o) {
+                if (!(o instanceof StringsValue that)) {
+                    return false;
+                }
+                return Objects.deepEquals(value, that.value);
+            }
+
+            @Override
+            public int hashCode() {
+                return Arrays.hashCode(value);
+            }
+
+            @Override
+            public String toString() {
+                return "StringsValue[value=" +
+                        Arrays.toString(value) +
+                        ']';
+            }
+        }
+
+        record LongsValue(long[] value) implements Value<long[]> {
+            @Override
+            public boolean equals(Object o) {
+                if (!(o instanceof LongsValue that)) {
+                    return false;
+                }
+                return Objects.deepEquals(value, that.value);
+            }
+
+            @Override
+            public int hashCode() {
+                return Arrays.hashCode(value);
+            }
+
+            @Override
+            public String toString() {
+                return "LongsValue[value=" +
+                        Arrays.toString(value) +
+                        ']';
+            }
+        }
+
+        record BooleansValue(boolean[] value) implements Value<boolean[]> {
+            @Override
+            public boolean equals(Object o) {
+                if (!(o instanceof BooleansValue that)) {
+                    return false;
+                }
+                return Objects.deepEquals(value, that.value);
+            }
+
+            @Override
+            public int hashCode() {
+                return Arrays.hashCode(value);
+            }
+
+            @Override
+            public String toString() {
+                return "BooleansValue[value=" +
+                        Arrays.toString(value) +
+                        ']';
+            }
+        }
+
+        record DoublesValue(double[] value) implements Value<double[]> {
+            @Override
+            public boolean equals(Object o) {
+                if (!(o instanceof DoublesValue that)) {
+                    return false;
+                }
+                return Objects.deepEquals(value, that.value);
+            }
+
+            @Override
+            public int hashCode() {
+                return Arrays.hashCode(value);
+            }
+
+            @Override
+            public String toString() {
+                return "DoublesValue[value=" +
+                        Arrays.toString(value) +
+                        ']';
+            }
+        }
+
         private final String action;
         private final @Nullable String status;
         private final @Nullable String reason;
         private @Nullable SortedMap<String, String> objectRef = null;
-        private @Nullable SortedMap<String, String> context = null;
+        private @Nullable SortedMap<String, Value<?>> context = null;
 
         AuditableActionBuilderImpl(String action, @Nullable String status, @Nullable String reason) {
             this.action = action;
@@ -125,19 +257,53 @@ public class AuditLoggerImpl implements AuditLogger, AutoCloseable {
             return this;
         }
 
-        @Override
-        public AuditableActionBuilder withContext(Map<String, String> context) {
-            this.context = new TreeMap<>(Objects.requireNonNull(context));
+        @NonNull
+        private AuditableActionBuilderImpl addToContext(String key, Value<?> value1) {
+            if (this.context == null) {
+                this.context = new TreeMap<>();
+            }
+            this.context.put(Objects.requireNonNull(key), value1);
             return this;
         }
 
         @Override
         public AuditableActionBuilder addToContext(String key, String value) {
-            if (this.context == null) {
-                this.context = new TreeMap<>();
-            }
-            this.context.put(Objects.requireNonNull(key), Objects.requireNonNull(value));
-            return this;
+            return addToContext(key, new StringValue(Objects.requireNonNull(value)));
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, boolean value) {
+            return addToContext(key, new BooleanValue(value));
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, long value) {
+            return addToContext(key, new LongValue(value));
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, double value) {
+            return addToContext(key, new DoubleValue(value));
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, boolean[] value) {
+            return addToContext(key, new BooleansValue(value));
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, long[] value) {
+            return addToContext(key, new LongsValue(value));
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, double[] value) {
+            return addToContext(key, new DoublesValue(value));
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, String[] value) {
+            return addToContext(key, new StringsValue(value));
         }
 
         @Override

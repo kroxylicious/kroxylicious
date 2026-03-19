@@ -83,5 +83,5 @@ public interface AuditableAction {
      * @return additional data about this action, or null if there is no additional information.
      */
     @Nullable
-    Map<String, String> context();
+    Map<String, ? extends Value<?>> context();
 }
