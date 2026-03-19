@@ -6,13 +6,20 @@
 
 package io.kroxylicious.filter.validation;
 
+import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
+import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.filter.validation.config.BytebufValidation;
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig;
@@ -32,10 +39,52 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ProduceRequestValidatorBuilderTlsTest {
 
     private static URL registryUrl;
+    private static String jksTruststorePath;
+    private static String pkcs12TruststorePath;
+    private static String pemCertPath;
+    private static final String TRUSTSTORE_PASSWORD = "changeit";
+
+    @TempDir
+    private static Path tempDir;
 
     @BeforeAll
     static void init() throws Exception {
         registryUrl = URI.create("http://localhost:8080").toURL();
+        createTrustStoreFiles();
+    }
+
+    private static void createTrustStoreFiles() throws Exception {
+        // Generate a self-signed keystore using keytool, then extract the cert
+        var jksPath = tempDir.resolve("truststore.jks");
+        jksTruststorePath = jksPath.toString();
+
+        new ProcessBuilder("keytool", "-genkeypair", "-alias", "test", "-keyalg", "RSA", "-keysize", "2048",
+                "-validity", "1", "-dname", "CN=test", "-keystore", jksTruststorePath,
+                "-storepass", TRUSTSTORE_PASSWORD, "-keypass", TRUSTSTORE_PASSWORD, "-storetype", "JKS")
+                .inheritIO().start().waitFor();
+
+        // Load the certificate from JKS
+        var jksStore = KeyStore.getInstance("JKS");
+        try (var is = Files.newInputStream(jksPath)) {
+            jksStore.load(is, TRUSTSTORE_PASSWORD.toCharArray());
+        }
+        Certificate cert = jksStore.getCertificate("test");
+
+        // Create PKCS12 truststore with just the cert (no key)
+        var p12Store = KeyStore.getInstance("PKCS12");
+        p12Store.load(null, TRUSTSTORE_PASSWORD.toCharArray());
+        p12Store.setCertificateEntry("test", cert);
+        pkcs12TruststorePath = tempDir.resolve("truststore.p12").toString();
+        try (var fos = new FileOutputStream(pkcs12TruststorePath)) {
+            p12Store.store(fos, TRUSTSTORE_PASSWORD.toCharArray());
+        }
+
+        // Create PEM cert file
+        pemCertPath = tempDir.resolve("certs.pem").toString();
+        var pemContent = "-----BEGIN CERTIFICATE-----\n"
+                + Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(cert.getEncoded())
+                + "\n-----END CERTIFICATE-----\n";
+        Files.writeString(Path.of(pemCertPath), pemContent);
     }
 
     @Test
@@ -47,7 +96,7 @@ class ProduceRequestValidatorBuilderTlsTest {
 
     @Test
     void buildSchemaResolverConfigWithTrustStore() {
-        var trustStore = new TrustStore("/path/to/truststore.jks", new InlinePassword("changeit"), "JKS");
+        var trustStore = new TrustStore(jksTruststorePath, new InlinePassword(TRUSTSTORE_PASSWORD), "JKS");
         var tls = new Tls(null, trustStore, null, null);
         var config = schemaConfig(tls);
         // Should build successfully without exception
@@ -57,7 +106,7 @@ class ProduceRequestValidatorBuilderTlsTest {
 
     @Test
     void buildSchemaResolverConfigWithTrustStoreNoPassword() {
-        var trustStore = new TrustStore("/path/to/truststore.jks", null, "PKCS12");
+        var trustStore = new TrustStore(pkcs12TruststorePath, null, "PKCS12");
         var tls = new Tls(null, trustStore, null, null);
         var config = schemaConfig(tls);
         var validator = buildValidatorConfig(config);
@@ -66,7 +115,7 @@ class ProduceRequestValidatorBuilderTlsTest {
 
     @Test
     void buildSchemaResolverConfigWithTrustStoreNoType() {
-        var trustStore = new TrustStore("/path/to/truststore.jks", new InlinePassword("changeit"), null);
+        var trustStore = new TrustStore(jksTruststorePath, new InlinePassword(TRUSTSTORE_PASSWORD), null);
         var tls = new Tls(null, trustStore, null, null);
         var config = schemaConfig(tls);
         var validator = buildValidatorConfig(config);
@@ -100,7 +149,7 @@ class ProduceRequestValidatorBuilderTlsTest {
 
     @Test
     void buildSchemaResolverConfigWithPemTrustStore() {
-        var trustStore = new TrustStore("/path/to/certs.pem", null, "PEM");
+        var trustStore = new TrustStore(pemCertPath, null, "PEM");
         var tls = new Tls(null, trustStore, null, null);
         var config = schemaConfig(tls);
         var validator = buildValidatorConfig(config);

@@ -52,7 +52,8 @@ class ValidationConfigTest {
 
     private static ValidationConfig expectedApicurioConfig() throws MalformedURLException {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, null, null),
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true),
+                        new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L, null, null, null),
                         new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null), false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
