@@ -439,10 +439,9 @@ class HelmTemplateRenderingTest {
         List<Map<String, Object>> containers = (List<Map<String, Object>>) templateSpec.get("containers");
         assertThat(containers).isNotEmpty();
         List<Map<String, Object>> env = (List<Map<String, Object>>) containers.get(0).get("env");
-        assertThat(env).anySatisfy(e -> {
-            assertThat(e.get("name")).isEqualTo("VAULT_ADDR");
-            assertThat(e.get("value")).isEqualTo("http://vault:8200");
-        });
+        assertThat(env).anySatisfy(e -> assertThat(e)
+                .containsEntry("name", "VAULT_ADDR")
+                .containsEntry("value", "http://vault:8200"));
     }
 
     @Test
@@ -512,7 +511,7 @@ class HelmTemplateRenderingTest {
         assertThat(filterRefs)
                 .as("VirtualKafkaCluster should have filterRefs pointing to the encryption filter")
                 .isNotNull()
-                .anySatisfy(ref -> assertThat(ref.get("name")).isEqualTo("record-encryption"));
+                .anySatisfy(ref -> assertThat(ref).containsEntry("name", "record-encryption"));
     }
 
     @Test
