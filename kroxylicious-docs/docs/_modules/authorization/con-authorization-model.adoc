@@ -1,6 +1,4 @@
 :_mod-docs-content-type: CONCEPT
-:table-stripes: even
-
 
 [id='con-authorization-model-{context}']
 = Authorization Model
