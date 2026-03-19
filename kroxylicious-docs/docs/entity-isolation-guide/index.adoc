@@ -9,4 +9,5 @@ include::_assets/attributes.adoc[]
 
 include::_modules/entity-isolation/con-about-{guide}-guide.adoc[leveloffset=+1]
 include::_assemblies/entity-isolation/assembly-{guide}-overview.adoc[leveloffset=+1]
+include::_assemblies/entity-isolation/assembly-{guide}-detail.adoc[leveloffset=+1]
 include::_assemblies/entity-isolation/assembly-configuring-{guide}-filter.adoc[leveloffset=+1]
