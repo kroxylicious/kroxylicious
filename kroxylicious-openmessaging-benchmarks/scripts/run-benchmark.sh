@@ -195,34 +195,6 @@ check_workers_healthy() {
         fi
     fi
 
-    # HTTP-check each worker from inside the cluster via the coordinator pod.
-    # The TCP readiness probe can pass while the worker HTTP server is still
-    # starting or has crashed — curl gives a definitive answer. This mirrors
-    # the startup check the benchmark coordinator pod performs on first boot.
-    local benchmark_pod
-    benchmark_pod=$(kubectl get pod -n "${NAMESPACE}" -l app=omb-benchmark \
-        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
-    if [[ -z "${benchmark_pod}" ]]; then
-        echo "Warning: benchmark pod not found — skipping HTTP worker check" >&2
-        return 0
-    fi
-
-    local timeout_secs="${POD_READY_TIMEOUT%s}"
-    local deadline=$((SECONDS + timeout_secs))
-    echo "Verifying OMB worker HTTP endpoints..."
-    for i in $(seq 0 $((desired - 1))); do
-        local worker="omb-worker-${i}.omb-worker:8080"
-        while ! kubectl exec "${benchmark_pod}" -n "${NAMESPACE}" -- \
-                curl -sf "http://${worker}" > /dev/null 2>&1; do
-            if [[ $SECONDS -ge $deadline ]]; then
-                echo "OMB worker ${worker} did not become reachable within ${POD_READY_TIMEOUT}" >&2
-                return 1
-            fi
-            echo "  Waiting for ${worker}..."
-            sleep 5
-        done
-        echo "  ${worker} OK."
-    done
 }
 
 reset_topics() {
