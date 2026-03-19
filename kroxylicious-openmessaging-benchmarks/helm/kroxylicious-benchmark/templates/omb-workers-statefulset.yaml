@@ -49,8 +49,11 @@ spec:
         - /bin/bash
         - -c
         - |
-          # Start OMB worker
-          /opt/benchmark/bin/benchmark-worker
+          # Symlink /opt/benchmark/lib into /tmp so benchmark-worker's `if [ -d "./lib" ]`
+          # check succeeds from workingDir=/tmp. workingDir=/tmp keeps log files in the
+          # writable emptyDir volume, which is needed on OpenShift read-only root filesystems.
+          ln -sf /opt/benchmark/lib /tmp/lib
+          exec /opt/benchmark/bin/benchmark-worker
         ports:
         - containerPort: 8080
           name: http
