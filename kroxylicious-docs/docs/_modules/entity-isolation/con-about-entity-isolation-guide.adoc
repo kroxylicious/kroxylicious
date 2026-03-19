@@ -6,7 +6,7 @@
 
 
 [discrete]
-[id='con-about-record-validation-guide-{context}']
+[id='con-about-entity-isolation-guide-{context}']
 = About this guide
 
 [role="_abstract"]
