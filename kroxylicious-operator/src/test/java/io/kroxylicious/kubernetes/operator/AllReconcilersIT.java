@@ -181,7 +181,7 @@ class AllReconcilersIT {
         // so we wait explicitly for the ingresses to be populated rather than checking the
         // snapshot returned when the accepted condition first became true.
         AWAIT.alias("cluster %s has ingresses with bootstrap servers".formatted(CLUSTER_FOO))
-                .untilAsserted(() -> assertThat(testActor.get(VirtualKafkaCluster.class, CLUSTER_FOO))
+                .untilAsserted(() -> assertThat(operator.get(VirtualKafkaCluster.class, CLUSTER_FOO))
                         .isNotNull()
                         .extracting(VirtualKafkaCluster::getStatus)
                         .satisfies(vcs -> assertThat(vcs)
