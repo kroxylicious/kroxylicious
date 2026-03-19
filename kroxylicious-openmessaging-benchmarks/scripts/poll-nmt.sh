@@ -60,7 +60,7 @@ while [[ -z "${JVM_PID}" ]]; do
         exit 1
     fi
     JVM_PID=$(kubectl exec "${TARGET}" -n "${NAMESPACE}" -- \
-        sh -c 'JAVA_TOOL_OPTIONS="" jcmd 2>/dev/null | awk "/^[0-9]+[[:space:]]/ && !/jdk\.jcmd/{print \$1; exit}"') 2>/dev/null || true
+        sh -c 'JAVA_TOOL_OPTIONS="" jcmd 2>/dev/null | awk "/^[0-9]+[[:space:]]/ && !/jdk\.jcmd/{print \$1; exit}"' 2>/dev/null) || true
     [[ -z "${JVM_PID}" ]] && sleep 2
 done
 
