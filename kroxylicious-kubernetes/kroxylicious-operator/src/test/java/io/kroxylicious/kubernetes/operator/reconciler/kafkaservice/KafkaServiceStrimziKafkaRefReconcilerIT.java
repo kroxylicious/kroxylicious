@@ -13,6 +13,7 @@ import java.util.Set;
 
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -33,6 +34,7 @@ import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
+import io.kroxylicious.testing.operator.ClusterUser;
 import io.kroxylicious.testing.operator.OperatorTestUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
@@ -71,10 +73,17 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
             .withAdditionalCleanupTypes(Kafka.class)
             .build();
 
+    private ClusterUser clusterUser;
+
+    @BeforeEach
+    void setUp() {
+        clusterUser = operator.clusterUser();
+    }
+
     @Test
     void shouldResolveStrimziKafka() {
         // Given
-        var kafka = operator.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        var kafka = clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME));
         String listenerHost = "foo.bootstrap";
         int listenerPort = 9090;
         Kafka withStatus = new KafkaBuilder(kafka)
@@ -92,7 +101,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
         operator.patchStatus(withStatus);
 
         // When
-        KafkaService service = operator.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
 
         // Then
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
@@ -127,10 +136,10 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                 .endStatus()
                 .build();
 
-        operator.create(withTlsListener);
+        clusterUser.create(withTlsListener);
 
         // When
-        KafkaService service = operator.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "tls", KAFKA_RESOURCE_NAME));
+        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "tls", KAFKA_RESOURCE_NAME));
 
         // Then
         assertResolvedRefsFalse(service, Condition.REASON_INVALID_REFERENCED_RESOURCE, "Referenced resource should have listener as `plain`");
@@ -139,7 +148,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoListeners() {
         // Given
-        var kafka = operator.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        var kafka = clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME));
 
         Kafka withNoListener = new KafkaBuilder(kafka)
                 .withNewStatus()
@@ -149,7 +158,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
         operator.patchStatus(withNoListener);
 
         // When
-        KafkaService service = operator.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
 
         // Then
         assertResolvedRefsFalse(service, Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED, "Referenced resource has not yet reconciled listener name: plain");
@@ -158,11 +167,11 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoStatus() {
         // Given
-        operator.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME));
 
         // When
 
-        KafkaService service = operator.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
 
         // Then
         assertResolvedRefsFalse(service, Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED, "Referenced resource has not yet reconciled listener name: plain");
@@ -171,7 +180,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldUpdateStatusOnceStrimziKafkaResourceDeleted() {
         // Given
-        var kafka = operator.create(kafkaResource(KAFKA_RESOURCE_NAME));
+        var kafka = clusterUser.create(kafkaResource(KAFKA_RESOURCE_NAME));
         String listenerHost = "foo.bootstrap";
         int listenerPort = 9090;
         Kafka withListeners = new KafkaBuilder(kafka)
@@ -189,7 +198,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
         operator.patchStatus(withListeners);
 
         // When
-        KafkaService updated = operator.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
+        KafkaService updated = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
         assertResolvedRefsTrue(updated, FOO_BOOTSTRAP_9090, true);
 
         // When
@@ -237,7 +246,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
 
     private void assertResolvedRefsTrue(KafkaService cr, String expectedBootstrap, boolean hasReferents) {
         AWAIT.untilAsserted(() -> {
-            final KafkaService kafkaService = operator.get(KafkaService.class, ResourcesUtil.name(cr));
+            final KafkaService kafkaService = clusterUser.get(KafkaService.class, ResourcesUtil.name(cr));
             Assertions.assertThat(kafkaService).isNotNull();
             Assertions.assertThat(kafkaService.getStatus().getBootstrapServers()).isEqualTo(expectedBootstrap);
             assertThat(kafkaService.getStatus())
@@ -264,7 +273,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                                          String reason,
                                          String message) {
         AWAIT.alias("KafkaServiceStatusResolvedRefs").untilAsserted(() -> {
-            var kafkaService = operator.resources(KafkaService.class)
+            var kafkaService = clusterUser.resources(KafkaService.class)
                     .withName(ResourcesUtil.name(cr)).get();
             Assertions.assertThat(kafkaService.getStatus()).isNotNull();
             OperatorAssertions
