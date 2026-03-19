@@ -29,8 +29,7 @@ If a client authenticates with a principal that contains the separator, the prox
 [IMPORTANT]
 ====
 The filter can only guarantee non-collision for clients that connect through the proxy.
-If you have clients that connect straight to the broker, there is nothing to prevent them creating
-resources that will collide with the cluster-visible names that will be chosen by this filter.
+If clients connect straight to the broker, there is nothing to prevent them from creating resources that collide with the cluster-visible names chosen by this filter.
 ====
 
 == Request path
