@@ -108,8 +108,8 @@ if [[ -z "${MAX_RATE}" ]]; then
     usage
 fi
 
-if [[ "${MAX_RATE}" -le "${MIN_RATE}" ]]; then
-    echo "Error: --max-rate (${MAX_RATE}) must be greater than --min-rate (${MIN_RATE})" >&2
+if [[ "${MAX_RATE}" -lt "${MIN_RATE}" ]]; then
+    echo "Error: --max-rate (${MAX_RATE}) must be >= --min-rate (${MIN_RATE})" >&2
     exit 1
 fi
 
