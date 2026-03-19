@@ -60,9 +60,13 @@ public class AvroSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     }
 
     private static Schema resolveAvroSchema(Map<String, Object> schemaResolverConfig, Long schemaId) {
-        SchemaResolver<Schema, GenericRecord> resolver = new DefaultSchemaResolver<>();
-        resolver.configure(schemaResolverConfig, new AvroSchemaParser());
-        var schemaLookupResult = resolver.resolveSchemaByArtifactReference(ArtifactReference.fromContentId(schemaId));
-        return schemaLookupResult.getParsedSchema().getParsedSchema();
+        try (SchemaResolver<Schema, GenericRecord> resolver = new DefaultSchemaResolver<>()) {
+            resolver.configure(schemaResolverConfig, new AvroSchemaParser());
+            var schemaLookupResult = resolver.resolveSchemaByArtifactReference(ArtifactReference.fromContentId(schemaId));
+            return schemaLookupResult.getParsedSchema().getParsedSchema();
+        }
+        catch (IOException e) {
+            throw new RuntimeException("Failed to resolve Avro schema", e);
+        }
     }
 }
