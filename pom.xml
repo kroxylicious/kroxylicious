@@ -71,7 +71,8 @@
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.1.4</apicurio-schema-validation.version>
-        <apicurio-registry.version>3.1.6</apicurio-registry.version>
+        <apicurio-registry.version>3.2.0</apicurio-registry.version>
+        <kiota.version>0.0.31</kiota.version>
         <avro.version>1.12.0</avro.version>
         <protobuf-java.version>4.34.0</protobuf-java.version>
         <jose4j.version>0.9.6</jose4j.version>
@@ -338,6 +339,11 @@
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-schema-resolver</artifactId>
                 <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.kiota</groupId>
+                <artifactId>kiota-http-jdk</artifactId>
+                <version>${kiota.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
