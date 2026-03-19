@@ -204,7 +204,7 @@ print_summary() {
     if [[ -n "${baseline_dir}" ]]; then
         printf "  %-20s  %-14s" "Baseline achieved" "Baseline p99"
     fi
-    for s in "${other_scenarios[@]}"; do
+    for s in "${other_scenarios[@]+"${other_scenarios[@]}"}"; do
         printf "  %-20s  %-14s" "${s} achieved" "${s} p99"
         [[ -n "${baseline_dir}" ]] && printf "  %-14s" "Overhead"
     done
@@ -238,7 +238,7 @@ print_summary() {
             fi
         fi
 
-        for s in "${other_scenarios[@]}"; do
+        for s in "${other_scenarios[@]+"${other_scenarios[@]}"}"; do
             local sf="${OUTPUT_DIR}/${s}/rate-${rate}/result.json"
             local sd="${OUTPUT_DIR}/${s}/rate-${rate}"
             if [[ ! -f "${sf}" ]]; then

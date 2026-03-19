@@ -19,6 +19,7 @@ METRICS_INTERVAL="${METRICS_INTERVAL:-30}"
 # Maximum time to wait for a single benchmark to complete (seconds).
 # Should exceed testDurationMinutes + warmupDurationMinutes + setup overhead.
 PROBE_TIMEOUT="${PROBE_TIMEOUT:-3600}"
+RESULTS_PVC_NAME="${RESULTS_PVC_NAME:-omb-sweep-results}"
 
 PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
 
@@ -170,6 +171,8 @@ teardown() {
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     # Delete JFR PVC if one was created
     kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
+    # Delete the benchmark Job (not Helm-managed so helm uninstall won't remove it)
+    kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     echo "Teardown complete."
 }
 
@@ -249,6 +252,84 @@ stop_metrics_poller() {
     fi
 }
 
+# Creates the results PVC if it does not already exist.
+# The PVC is not managed by Helm — it persists across probes and Helm installs.
+ensure_results_pvc() {
+    if kubectl get pvc "${RESULTS_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
+        return
+    fi
+    echo "Creating results PVC ${RESULTS_PVC_NAME}..."
+    kubectl apply -n "${NAMESPACE}" -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${RESULTS_PVC_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+EOF
+}
+
+# Deletes any existing benchmark Job then creates a fresh one using helm template,
+# so the Job inherits all chart config (image, resources, ConfigMap names, etc.).
+# HELM_ARGS must be set before calling this function.
+create_benchmark_job() {
+    echo "Creating benchmark Job (rate=${PRODUCER_RATE:-workload default})..."
+    kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --wait --timeout=60s
+    helm template "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" \
+        --set omb.createBenchmarkJob=true \
+        --set "omb.coordinatorProducerRate=${PRODUCER_RATE:-}" \
+        --show-only templates/omb-benchmark-job.yaml \
+        | kubectl apply -n "${NAMESPACE}" -f -
+}
+
+# Spins up a temporary pod to mount the results PVC and copy result.json to OUTPUT_DIR.
+# Used because exec into a completed/failed Job pod is not possible.
+collect_result_from_pvc() {
+    local reader_pod="omb-results-reader-$$"
+    echo "Collecting result JSON from PVC ${RESULTS_PVC_NAME}..."
+    kubectl apply -n "${NAMESPACE}" -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${reader_pod}
+  namespace: ${NAMESPACE}
+  labels:
+    app: omb-results-reader
+spec:
+  restartPolicy: Never
+  volumes:
+  - name: results
+    persistentVolumeClaim:
+      claimName: ${RESULTS_PVC_NAME}
+  containers:
+  - name: reader
+    image: busybox:1.37.0@sha256:b3255e7dfbcd10cb367af0d409747d511aeb66dfac98cf30e97e87e4207dd76f
+    command: ["sleep", "infinity"]
+    volumeMounts:
+    - name: results
+      mountPath: /results
+      readOnly: true
+EOF
+    local collected=false
+    if kubectl wait pod "${reader_pod}" -n "${NAMESPACE}" \
+            --for=condition=ready --timeout=120s 2>/dev/null; then
+        mkdir -p "${OUTPUT_DIR}"
+        if kubectl cp "${NAMESPACE}/${reader_pod}:/results/result.json" "${OUTPUT_DIR}/result.json" 2>/dev/null; then
+            echo "  result.json"
+            collected=true
+        fi
+    fi
+    kubectl delete pod "${reader_pod}" -n "${NAMESPACE}" --ignore-not-found --wait=false 2>/dev/null || true
+    if [[ "${collected}" != "true" ]]; then
+        echo "Error: failed to collect result JSON from PVC ${RESULTS_PVC_NAME}" >&2
+        return 1
+    fi
+}
+
 echo "=== Benchmark run: ${SCENARIO} / ${WORKLOAD} ==="
 echo "Namespace:  ${NAMESPACE}"
 echo "Output dir: ${OUTPUT_DIR}"
@@ -263,6 +344,13 @@ if [[ ${#HELM_SET_ARGS[@]} -gt 0 ]]; then
 fi
 echo ""
 
+# HELM_ARGS is used for both helm install (first probe) and helm template (all probes
+# via create_benchmark_job), so it is built once here outside the deploy conditional.
+HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
+[[ -n "${PROFILE_VALUES}" ]] && HELM_ARGS+=(-f "${PROFILE_VALUES}")
+HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
+for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do HELM_ARGS+=(--set "${set_arg}"); done
+
 if [[ "${SKIP_DEPLOY}" == "false" ]]; then
     # Ensure previous run is cleaned up before starting
     if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
@@ -273,11 +361,6 @@ if [[ "${SKIP_DEPLOY}" == "false" ]]; then
     # --- Deploy ---
 
     echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
-    HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
-    [[ -n "${PROFILE_VALUES}" ]] && HELM_ARGS+=(-f "${PROFILE_VALUES}")
-    HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
-    for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do HELM_ARGS+=(--set "${set_arg}"); done
-
     helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" --timeout 300s
 
     # Register teardown to run on exit (success or failure) so we always clean up.
@@ -295,23 +378,21 @@ if [[ "${SKIP_DEPLOY}" == "false" ]]; then
         -n "${NAMESPACE}"
     echo "Kafka is ready."
 
-    # --- Wait for OMB pods ---
+    # --- Wait for OMB workers ---
 
     echo "Waiting for OMB workers to be ready..."
     kubectl rollout status statefulset/omb-worker -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
+    echo "OMB workers are ready."
 
-    echo "Waiting for OMB benchmark pod to be ready..."
-    kubectl wait --for=condition=ready pod \
-        -l app=omb-benchmark \
-        -n "${NAMESPACE}" \
-        --timeout="${POD_READY_TIMEOUT}"
-    echo "OMB pods are ready."
+    ensure_results_pvc
 else
-    # Infrastructure already up — restart workers for a clean probe, then reset topics.
-    # OMB workers do not recover after a benchmark run ends (the HTTP handler stops
-    # serving while the JVM stays alive), so we delete the pods and let the StatefulSet
-    # recreate them fresh before each subsequent probe.
+    # Infrastructure already up — delete the previous benchmark Job, restart workers for
+    # a clean probe, then reset topics.  Workers do not recover after a benchmark run ends
+    # (the HTTP handler stops while the JVM stays alive), so we delete the pods and let the
+    # StatefulSet recreate them fresh.
     echo "--- Skipping deploy (--skip-deploy) ---"
+    echo "Removing previous benchmark Job..."
+    kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --wait --timeout=60s
     echo "Restarting OMB workers for clean probe..."
     kubectl delete pod -l app=omb-worker -n "${NAMESPACE}" --wait --timeout=60s
     check_workers_healthy
@@ -402,42 +483,54 @@ fi
 
 # --- Run benchmark ---
 
+# Create the benchmark Job now — after JFR is set up on the proxy so profiling starts
+# before load begins.  The Job is the entrypoint for the benchmark binary; it writes
+# result JSON to the results PVC on exit.
+create_benchmark_job
+
 start_metrics_poller
 
 echo ""
 echo "--- Running benchmark (${SCENARIO} / ${WORKLOAD}) ---"
-
 mkdir -p "${OUTPUT_DIR}"
-BENCHMARK_POD=$(kubectl get pod -n "${NAMESPACE}" -l app=omb-benchmark \
-    -o jsonpath='{.items[0].metadata.name}')
-echo "Benchmark pod: ${BENCHMARK_POD}"
 echo "  OMB log: ${OUTPUT_DIR}/omb.log"
 
-# Clear any result files left by a previous probe
-kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
-    sh -c 'rm -f /var/lib/omb/results/*.json' 2>/dev/null || true
+# Stream Job logs to file in the background (best-effort; survives brief disconnects).
+# The benchmark process runs as the Job entrypoint and is NOT killed if the stream drops.
+kubectl logs -f -n "${NAMESPACE}" -l app=omb-benchmark \
+    >> "${OUTPUT_DIR}/omb.log" 2>/dev/null &
+LOGS_PID=$!
 
-# Build workload command: optionally override producerRate via sed
-if [[ -n "${PRODUCER_RATE}" ]]; then
-    WORKLOAD_CMD="sed 's/^producerRate:.*/producerRate: ${PRODUCER_RATE}/' /etc/omb/workloads/workload.yaml > /tmp/workload.yaml"
-else
-    WORKLOAD_CMD="cp /etc/omb/workloads/workload.yaml /tmp/workload.yaml"
-fi
-
+# Poll for Job completion (Complete) or failure (Failed) every 10s.
+# kubectl wait --for=condition=complete alone would block indefinitely on failure.
 BENCHMARK_EXIT=0
-timeout "${PROBE_TIMEOUT}" kubectl exec "${BENCHMARK_POD}" -n "${NAMESPACE}" -- \
-    sh -c "${WORKLOAD_CMD}"' && /opt/benchmark/bin/benchmark \
-        --drivers /etc/omb/driver/driver-kafka.yaml \
-        --workers "${WORKERS}" \
-        /tmp/workload.yaml' \
-    > "${OUTPUT_DIR}/omb.log" 2>&1 || BENCHMARK_EXIT=$?
+PROBE_START=${SECONDS}
+while true; do
+    if kubectl wait job/omb-benchmark -n "${NAMESPACE}" \
+            --for=condition=complete --timeout=10s 2>/dev/null; then
+        break
+    fi
+    job_failed=$(kubectl get job omb-benchmark -n "${NAMESPACE}" \
+        -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}' 2>/dev/null) || true
+    if [[ "${job_failed}" == "True" ]]; then
+        BENCHMARK_EXIT=1
+        break
+    fi
+    if [[ $((SECONDS - PROBE_START)) -ge ${PROBE_TIMEOUT} ]]; then
+        BENCHMARK_EXIT=124
+        break
+    fi
+done
+
+kill "${LOGS_PID}" 2>/dev/null || true
+wait "${LOGS_PID}" 2>/dev/null || true
 
 if [[ "${BENCHMARK_EXIT}" -eq 124 ]]; then
-    echo "TIMED OUT after ${PROBE_TIMEOUT}s — OMB may be stuck in shutdown" >&2
+    echo "TIMED OUT after ${PROBE_TIMEOUT}s" >&2
     echo "Last lines of OMB log:" >&2
     tail -10 "${OUTPUT_DIR}/omb.log" >&2 || true
 elif [[ "${BENCHMARK_EXIT}" -ne 0 ]]; then
-    echo "Benchmark failed with exit code ${BENCHMARK_EXIT}" >&2
+    echo "Benchmark failed (exit ${BENCHMARK_EXIT})" >&2
     echo "Last lines of OMB log:" >&2
     tail -10 "${OUTPUT_DIR}/omb.log" >&2 || true
 fi
@@ -501,25 +594,18 @@ echo ""
 echo "--- Collecting results ---"
 mkdir -p "${OUTPUT_DIR}"
 
+# Result JSON always comes from the results PVC — the benchmark Job writes it there
+# before exiting, and exec into a completed/failed pod is not possible.
+collect_result_from_pvc
+
 if [[ "${SKIP_DEPLOY}" == "false" ]]; then
-    # Full collection: result JSON + JFR dump + flamegraph + run metadata
-    JFR_PVC_NAME="${JFR_PVC_NAME}" PROXY_POD="${PROXY_POD:-}" "${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
+    # Full collection: JFR dump + flamegraph + run metadata (JSON already collected above)
+    JFR_PVC_NAME="${JFR_PVC_NAME}" PROXY_POD="${PROXY_POD:-}" \
+        "${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
     [[ -f "${OUTPUT_DIR}/benchmark.jfr" ]] && mv "${OUTPUT_DIR}/benchmark.jfr" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
     [[ -f "${OUTPUT_DIR}/flamegraph.html" ]] && mv "${OUTPUT_DIR}/flamegraph.html" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-flamegraph.html"
-    # Normalise the OMB result filename to result.json so rate-sweep.sh summary finds it
-    omg_result=$(find "${OUTPUT_DIR}" -maxdepth 1 -name "*.json" ! -name "run-metadata.json" ! -name "result.json" | head -1)
-    [[ -n "${omg_result}" ]] && cp "${omg_result}" "${OUTPUT_DIR}/result.json"
 else
-    # Lightweight collection: result JSON + JFR/flamegraph already dumped above
-    result_file=$(kubectl exec -n "${NAMESPACE}" "${BENCHMARK_POD}" -- \
-        sh -c 'ls -t /var/lib/omb/results/*.json 2>/dev/null | head -1') || true
-    if [[ -z "${result_file}" ]]; then
-        echo "No result file found — benchmark may not have written output" >&2
-    else
-        kubectl cp "${NAMESPACE}/${BENCHMARK_POD}:${result_file}" "${OUTPUT_DIR}/result.json"
-        echo "  result.json"
-    fi
-
+    # Lightweight collection: JFR/flamegraph only (JSON already collected above)
     if [[ -n "${PROXY_POD}" ]]; then
         local_jfr="${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
         local_fg="${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-flamegraph.html"
