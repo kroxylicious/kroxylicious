@@ -264,6 +264,19 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         return localOperatorExtension.getNamespace();
     }
 
+    /**
+     * Returns a {@link ClusterUser} backed by the admin Kubernetes client, scoped to the test namespace.
+     * <p>
+     * Use this to represent user-side interactions (creating CRs, reading state) as opposed to
+     * operator reactions. The operator is the system-under-test; the {@code ClusterUser} is the actor.
+     * <p>
+     * Must be called after {@code beforeAll}.
+     */
+    @NonNull
+    public ClusterUser clusterUser() {
+        return new ClusterUser(rbacHandler.userClient(), localOperatorExtension.getNamespace());
+    }
+
     // ---- resource operations ----
 
     @NonNull
