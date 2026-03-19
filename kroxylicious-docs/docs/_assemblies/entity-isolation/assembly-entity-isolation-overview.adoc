@@ -37,7 +37,7 @@ Consumer group identifiers used in all consumer group RPCs (e.g. `JoinGroup`, `O
 `TRANSACTIONAL_ID`::
 Transactional producer identifiers used in transactional RPCs (e.g. `InitProducerId`, `AddPartitionsToTxn`, `EndTxn`).
 
-NOTE: Topic name isolation is not yet supported.
+NOTE: Topic name isolation is not yet supported. For more information, see the {github-issues}/3504[related issue^].
 
 == How it works
 
