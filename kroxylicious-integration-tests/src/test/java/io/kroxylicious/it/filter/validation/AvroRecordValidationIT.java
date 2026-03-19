@@ -26,12 +26,15 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -49,11 +52,15 @@ import io.apicurio.registry.rest.client.models.CreateArtifact;
 import io.apicurio.registry.rest.client.models.CreateVersion;
 import io.apicurio.registry.rest.client.models.VersionContent;
 import io.apicurio.registry.rest.client.models.VersionMetaData;
+import io.apicurio.registry.serde.avro.AvroSerde;
+import io.apicurio.registry.serde.config.SerdeConfig;
+import io.apicurio.registry.serde.kafka.config.KafkaSerdeConfig;
 
 import io.kroxylicious.filter.validation.RecordValidation;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -86,6 +93,7 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
     private static final String APICURIO_REGISTRY_API = "/apis/registry/v3";
     private static final String APICURIO_REGISTRY_URL = APICURIO_REGISTRY_HOST + ":" + APICURIO_REGISTRY_PORT + APICURIO_REGISTRY_API;
 
+    private static String artifactId;
     private static int contentId;
     private static GenericContainer<?> registryContainer;
     private static Schema parsedSchema;
@@ -119,6 +127,7 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
         createArtifact.setFirstVersion(version);
 
         VersionMetaData artifact = client.groups().byGroupId("default").artifacts().post(createArtifact).getVersion();
+        artifactId = artifact.getArtifactId();
         contentId = artifact.getContentId().intValue();
 
         parsedSchema = new Schema.Parser().parse(AVRO_SCHEMA);
@@ -179,6 +188,89 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
             var future = producer.send(new ProducerRecord<>(validatedTopic.name(), "my-key", invalidData));
             assertThatFutureFails(future, InvalidRecordException.class, "Failed to deserialize Avro record");
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void clientSideAvroSerdePassesValidation(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
+        var config = createAvroValidationConfig(cluster, topic, contentId);
+
+        var keySerde = new Serdes.StringSerde();
+        var producerValueSerde = createAvroProducerSerde(schemaIdInHeader);
+        var consumerValueSerde = createAvroConsumerSerde(schemaIdInHeader);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(keySerde, producerValueSerde, Map.of());
+                var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
+            GenericRecord person = new GenericData.Record(parsedSchema);
+            person.put("firstName", "John");
+            person.put("lastName", "Doe");
+            person.put("age", 30);
+
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", person)))
+                    .succeedsWithin(Duration.ofSeconds(10));
+            consumer.subscribe(Set.of(topic.name()));
+
+            var records = consumer.poll(Duration.ofSeconds(10));
+            assertThat(records.records(topic.name()))
+                    .hasSize(1)
+                    .extracting(ConsumerRecord::value)
+                    .first()
+                    .satisfies(value -> {
+                        GenericRecord received = (GenericRecord) value;
+                        assertThat(received.get("firstName").toString()).isEqualTo("John");
+                        assertThat(received.get("lastName").toString()).isEqualTo("Doe");
+                        assertThat(received.get("age")).isEqualTo(30);
+                    });
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void detectsClientProducingWithWrongAvroSchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
+        // Configure filter to expect a different contentId than the client sends
+        var config = createAvroValidationConfig(cluster, topic, contentId + 1);
+
+        var keySerde = new Serdes.StringSerde();
+        var valueSerde = createAvroProducerSerde(schemaIdInHeader);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(keySerde, valueSerde, Map.of())) {
+            GenericRecord person = new GenericData.Record(parsedSchema);
+            person.put("firstName", "John");
+            person.put("lastName", "Doe");
+            person.put("age", 30);
+
+            var future = producer.send(new ProducerRecord<>(topic.name(), "my-key", person));
+            assertThatFutureFails(future, InvalidRecordException.class, "Unexpected schema id in record");
+        }
+    }
+
+    private static AvroSerde<GenericRecord> createAvroProducerSerde(boolean schemaIdInHeader) {
+        var serde = new AvroSerde<GenericRecord>();
+        serde.configure(Map.of(
+                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
+                SerdeConfig.EXPLICIT_ARTIFACT_ID, artifactId,
+                SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
+                KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
+        return serde;
+    }
+
+    private static AvroSerde<GenericRecord> createAvroConsumerSerde(boolean schemaIdInHeader) {
+        var serde = new AvroSerde<GenericRecord>();
+        serde.configure(Map.of(
+                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
+                SerdeConfig.EXPLICIT_ARTIFACT_ID, artifactId,
+                SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
+                KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
+        return serde;
+    }
+
+    private static <T, S> org.apache.kafka.clients.consumer.Consumer<T, S> consumeFromEarliestOffsets(KroxyliciousTester tester, Serde<T> keySerde,
+                                                                                                      Serde<S> valueSerde) {
+        return tester.consumer(keySerde, valueSerde, Map.of(
+                GROUP_ID_CONFIG, UUID.randomUUID().toString(),
+                AUTO_OFFSET_RESET_CONFIG, "earliest"));
     }
 
     private static ConfigurationBuilder createAvroValidationConfig(KafkaCluster cluster, Topic topic, int avroContentId) {
