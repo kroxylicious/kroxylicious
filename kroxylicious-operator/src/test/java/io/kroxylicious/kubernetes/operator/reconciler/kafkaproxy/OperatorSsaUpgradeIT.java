@@ -67,6 +67,10 @@ import static org.awaitility.Awaitility.await;
  * <p>
  * This test has a short shelf life: once all users have migrated past the
  * non-SSA operator, the upgrade scenario no longer applies.
+ * <p>
+ * Not migrated to {@link io.kroxylicious.kubernetes.operator.LocalKroxyliciousOperatorExtension}:
+ * this test requires a dual-operator lifecycle (two operator instances started and stopped
+ * independently within a single test) which the extension does not support.
  */
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class OperatorSsaUpgradeIT {
