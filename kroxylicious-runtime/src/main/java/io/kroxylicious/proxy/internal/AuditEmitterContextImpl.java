@@ -160,7 +160,9 @@ class AuditEmitterContextImpl implements AuditEmitter.Context {
 
     private static void writePrincipal(JsonGenerator generator, Principal principal) throws IOException {
         generator.writeStartObject();
-        generator.writeFieldName(principal.getClass().getName());
+        generator.writeFieldName("type");
+        generator.writeString(principal.type());
+        generator.writeFieldName("name");
         generator.writeString(principal.name());
         generator.writeEndObject();
     }

@@ -43,14 +43,17 @@
           "format": "uuid"
         },
         "principals": {
-          "description": "The principals of the authenticated client",
-          "type": "array",
+          "description": "The principals of the authenticated client, or null if the client is not authenticated.",
+          "type": ["array", "null"],
           "items": {
             "type": "object",
-            "maxProperties": 1,
-            "minProperties": 1,
-            "additionalProperties": {
-              "type": "string"
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
             }
           }
         }
