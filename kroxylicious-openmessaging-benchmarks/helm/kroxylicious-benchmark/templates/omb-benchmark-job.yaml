@@ -4,10 +4,12 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+{{- if .Values.omb.createBenchmarkJob }}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: omb-benchmark
+  namespace: {{ .Release.Namespace }}
   labels:
     app: omb-benchmark
 spec:
@@ -26,17 +28,21 @@ spec:
         env:
         - name: WORKERS
           value: {{ include "kroxylicious-benchmark.workerList" . | quote }}
+        - name: PRODUCER_RATE
+          value: {{ .Values.omb.coordinatorProducerRate | quote }}
         - name: JAVA_TOOL_OPTIONS
-          value: "-XX:MaxRAMPercentage=50 -XX:NativeMemoryTracking=summary -Dorg.slf4j.simpleLogger.defaultLogLevel={{ .Values.omb.logLevel }}"
+          value: "{{ .Values.omb.coordinatorJavaOpts }} -Dorg.slf4j.simpleLogger.defaultLogLevel={{ .Values.omb.logLevel }}"
         command:
         - /bin/bash
         - -c
         - |
+          set -euo pipefail
+
           # Symlink OMB lib and payload so bin/benchmark resolves both from this workingDir
           ln -sf /opt/benchmark/lib /var/lib/omb/results/lib
           ln -sf /opt/benchmark/payload /var/lib/omb/results/payload
 
-          # Wait for workers to be ready
+          # Wait for workers to be ready (curl without -f exits 0 on any HTTP response)
           for i in $(seq 0 $(({{ .Values.omb.workerReplicas }} - 1))); do
             while ! curl -s http://omb-worker-${i}.omb-worker:8080 > /dev/null 2>&1; do
               echo "Waiting for omb-worker-${i}..."
@@ -54,15 +60,39 @@ spec:
           done
           echo "Kafka is ready"
 
-          # Hold pod open — benchmark is triggered on demand via kubectl exec from run-benchmark.sh
-          sleep infinity
+          # Apply producer rate override if specified
+          if [[ -n "${PRODUCER_RATE}" ]]; then
+            sed "s/^producerRate:.*/producerRate: ${PRODUCER_RATE}/" \
+              /etc/omb/workloads/workload.yaml > /tmp/workload.yaml
+          else
+            cp /etc/omb/workloads/workload.yaml /tmp/workload.yaml
+          fi
+
+          # Run the benchmark — this is the Job's primary work
+          /opt/benchmark/bin/benchmark \
+            --drivers /etc/omb/driver/driver-kafka.yaml \
+            --workers "${WORKERS}" \
+            /tmp/workload.yaml
+
+          # Copy result JSON to the results PVC so run-benchmark.sh can collect it
+          # after the Job exits (exec into a completed pod is not possible)
+          result=$(ls -t /var/lib/omb/results/*.json 2>/dev/null | head -1) || true
+          if [[ -n "${result}" ]]; then
+            cp "${result}" /results/result.json
+            echo "Result written to /results/result.json ($(du -h /results/result.json | cut -f1))"
+          else
+            echo "Error: no result JSON found in /var/lib/omb/results/" >&2
+            exit 1
+          fi
         volumeMounts:
         - name: driver-config
           mountPath: /etc/omb/driver
         - name: workload-config
           mountPath: /etc/omb/workloads
-        - name: results
+        - name: results-workdir
           mountPath: /var/lib/omb/results
+        - name: results-out
+          mountPath: /results
         resources:
           {{- toYaml .Values.omb.coordinator.resources | nindent 10 }}
       volumes:
@@ -72,5 +102,9 @@ spec:
       - name: workload-config
         configMap:
           name: omb-workload-{{ .Values.omb.workload }}
-      - name: results
+      - name: results-workdir
         emptyDir: {}
+      - name: results-out
+        persistentVolumeClaim:
+          claimName: {{ .Values.omb.sweepResultsPvcName }}
+{{- end }}

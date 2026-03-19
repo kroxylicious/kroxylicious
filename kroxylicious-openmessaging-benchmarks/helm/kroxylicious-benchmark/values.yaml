@@ -62,6 +62,11 @@ omb:
   workload: 1topic-1kb  # Workload name to run
   workerJavaOpts: "-XX:MaxRAMPercentage=50 -XX:NativeMemoryTracking=summary"  # JVM opts for OMB workers
   logLevel: warn  # SLF4J SimpleLogger log level (debug, info, warn, error)
+  createBenchmarkJob: false  # Job is created explicitly by run-benchmark.sh; not managed by Helm install
+  coordinatorProducerRate: ""  # Producer rate override injected per-probe; empty uses workload default
+  # Coordinator JVM opts — explicit Xmx avoids cgroup misdetection where MaxRAMPercentage reads node RAM
+  coordinatorJavaOpts: "-Xmx1g -XX:NativeMemoryTracking=summary"
+  sweepResultsPvcName: "omb-sweep-results"  # PVC for result JSON; not Helm-managed, persists across probes
   # Resources for the OMB coordinator (Job pod).
   # Needs more headroom than workers.
   coordinator:
