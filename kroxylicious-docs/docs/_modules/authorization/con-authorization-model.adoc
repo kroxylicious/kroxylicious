@@ -1,6 +1,5 @@
 :_mod-docs-content-type: CONCEPT
 
-
 [id='con-authorization-model-{context}']
 = Authorization Model
 
@@ -10,12 +9,13 @@ The following tables list the resource types and the operations that apply to th
 
 == Resource types and operations
 
-This table lists the resource types and operations enforced by the authorization filter:
+=== Topic Operations
+
+This table lists the topic operations enforced by the authorization filter:
 
 |===
-|Resource type|Operations|Typical use-case
+|Operations|Typical use-case
 
-.8+|Topic
 |READ
 |Required for a consuming client to fetch records.
 
@@ -37,10 +37,44 @@ This table lists the resource types and operations enforced by the authorization
 |ALTER_CONFIGS
 |Required for an admin client to perform alter config operations that relate to topic configuration.
 
-// |Cluster
-// |CREATE, ALTER, DESCRIBE, CLUSTER_ACTION, DESCRIBE_CONFIGS, ALTER_CONFIGS
+|===
 
-NOTE: Other Kafka resource types will be included in a future release.
+=== Group Operations
+
+This table lists the operations enforced by the authorization filter for the group resource type:
+
+|===
+|Operations|Typical use-case
+
+|READ
+|Required for a consuming client to join a group
+
+|DELETE
+|Required for an admin client to delete a group, or offsets within a group
+
+|DESCRIBE
+|Required for a consumer and admin client to find and describe a group and its offsets
+
+|DESCRIBE_CONFIGS
+|Required for an admin client to perform describe config operations that refer to group configuration.
+
+|ALTER_CONFIGS
+|Required for an admin client to perform alter config operations that relate to group configuration.
+
+|===
+
+=== Transactional Id Operations
+
+This table lists the operations enforced by the authorization filter for the transactional id resource type:
+
+|===
+|Operations|Typical use-case
+
+|WRITE
+|Required for a producer or consumer client to participate in a transaction
+
+|DESCRIBE
+|Required for a producer or consumer or admin client to find and describe transactions
 
 |===
 
@@ -52,17 +86,40 @@ This table lists the higher-level operations and the implied lower-level operati
 |===
 |Resource type|Operation|Implied Operation
 
-.5+|Topic
+|Topic
 |READ
-.4+|DESCRIBE
+|DESCRIBE
 
+|Topic
 |WRITE
+|DESCRIBE
 
+|Topic
 |DELETE
+|DESCRIBE
 
+|Topic
 |ALTER
+|DESCRIBE
 
+|Topic
 |ALTER_CONFIGS
 |DESCRIBE_CONFIG
+
+|Group
+|READ
+|DESCRIBE
+
+|Group
+|DELETE
+|DESCRIBE
+
+|Group
+|ALTER_CONFIGS
+|DESCRIBE_CONFIG
+
+|TransactionalId
+|WRITE
+|DESCRIBE
 
 |===

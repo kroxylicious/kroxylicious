@@ -16,9 +16,11 @@ The following example shows an ACL rules file referenced as `acl-rules.txt`:
 
 [source]
 ----
-from io.kroxylicious.filter.authorization import TopicResource as Topic;
+from io.kroxylicious.filter.authorization import TopicResource as Topic, GroupResource as Group, TransactionalIdResource as TransactionalId;
 deny User with name = "alice" to * Topic with name = "payments-received";
 allow User with name = "alice" to * Topic with name like "payments-*";
 allow User with name = "bob" to * Topic with name = "payments-received";
+allow User with name = "bob" to READ Group with name = "payment-consumer-group";
+allow User with name = "alice" to * TransactionalId with name like "alice-transaction-*";
 otherwise deny;
 ----
