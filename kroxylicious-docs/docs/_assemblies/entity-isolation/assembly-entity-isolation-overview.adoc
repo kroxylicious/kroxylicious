@@ -57,7 +57,14 @@ For a principal `alice`, a consumer group called `my-consumer-group` is stored o
 ====
 The default separator between the principal and the resource name is a hyphen (`-`).
 Principals that already contain the separator are not supported.
-If a client uses a principal containing a separator, the client will be disconnected with an error.
+If a client authenticates with a principal that contains the separator, the client will be disconnected with an error.
+====
+
+[IMPORTANT]
+====
+The filter can only guarantee non-collision for clients that connect through the proxy.
+If you have clients that connect straight to the broker, there is nothing to prevent them creating
+resources that will collide with the cluster-visible names that will be chosen by this filter.
 ====
 
 === Request path
