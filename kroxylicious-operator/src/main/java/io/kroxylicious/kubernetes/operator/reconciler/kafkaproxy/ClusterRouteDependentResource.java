@@ -14,6 +14,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
+import io.javaoperatorsdk.operator.processing.event.NoEventSourceForClassException;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -65,9 +66,14 @@ public class ClusterRouteDependentResource
     public Map<String, Route> getSecondaryResources(
                                                     KafkaProxy primary,
                                                     Context<KafkaProxy> context) {
-        Set<Route> secondaryResources = context.eventSourceRetriever().getEventSourceFor(Route.class)
-                .getSecondaryResources(primary);
-        return secondaryResources.stream().collect(toByNameMap());
+        try {
+            Set<Route> secondaryResources = context.eventSourceRetriever().getEventSourceFor(Route.class)
+                    .getSecondaryResources(primary);
+            return secondaryResources.stream().collect(toByNameMap());
+        }
+        catch (NoEventSourceForClassException e) {
+            return Map.of();
+        }
     }
 
     @Override
