@@ -132,6 +132,7 @@ fi
 rate_sequence() {
     awk -v min="${MIN_RATE}" -v max="${MAX_RATE}" -v step="${STEP_PERCENT}" 'BEGIN {
         increment = (max - min) * step / 100
+        if (min == max) { printf "%d\n", min; exit }
         if (increment <= 0) {
             print "Error: step percent too small or range too narrow" > "/dev/stderr"
             exit 1
