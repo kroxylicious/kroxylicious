@@ -266,6 +266,80 @@ public class KafkaProxyReconcilerIT {
                 .isEqualTo(expectedNetwork));
     }
 
+    @Test
+    void shouldPropagateProxyOnlyNetworkSettingsToProxyConfig() {
+        // given
+        KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+
+        // @formatter:off
+        KafkaProxy kafkaProxy = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withName(PROXY_A)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewNetwork()
+                        .withNewProxy()
+                            .withWorkerThreadCount(4)
+                            .withShutdownQuietPeriod("2s")
+                        .endProxy()
+                    .endNetwork()
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        var expectedProxyNettySettings = new NettySettings(
+                Optional.of(4),
+                Optional.of(2),
+                Optional.empty(),
+                Optional.empty());
+        var expectedNetwork = new NetworkDefinition(null, expectedProxyNettySettings);
+
+        // when
+        var created = doCreate(kafkaService, kafkaProxy);
+
+        // then
+        AWAIT.untilAsserted(() -> assertProxyConfigInConfigMap(created.proxy())
+                .extracting(Configuration::network)
+                .isEqualTo(expectedNetwork));
+    }
+
+    @Test
+    void shouldPropagateManagementOnlyNetworkSettingsToProxyConfig() {
+        // given
+        KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+
+        // @formatter:off
+        KafkaProxy kafkaProxy = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withName(PROXY_A)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewNetwork()
+                        .withNewManagement()
+                            .withWorkerThreadCount(2)
+                            .withShutdownQuietPeriod("5s")
+                        .endManagement()
+                    .endNetwork()
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        var expectedManagementNettySettings = new NettySettings(
+                Optional.of(2),
+                Optional.of(5),
+                Optional.empty(),
+                Optional.empty());
+        var expectedNetwork = new NetworkDefinition(expectedManagementNettySettings, null);
+
+        // when
+        var created = doCreate(kafkaService, kafkaProxy);
+
+        // then
+        AWAIT.untilAsserted(() -> assertProxyConfigInConfigMap(created.proxy())
+                .extracting(Configuration::network)
+                .isEqualTo(expectedNetwork));
+    }
+
     @ParameterizedTest
     @MethodSource("dependentResourceSsaTestCases")
     void externalSsaPatchSurvivesOperatorReconcile(
