@@ -224,7 +224,6 @@ public class KafkaProxyReconcilerIT {
         // given
         KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
 
-        // when
         // @formatter:off
         KafkaProxy kafkaProxy = new KafkaProxyBuilder()
                 .withNewMetadata()
@@ -245,6 +244,8 @@ public class KafkaProxyReconcilerIT {
                 .endSpec()
                 .build();
         // @formatter:on
+
+        // when
         var created = doCreate(kafkaService, kafkaProxy);
 
         // then
