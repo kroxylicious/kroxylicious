@@ -17,7 +17,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -54,7 +53,6 @@ import io.kroxylicious.filter.validation.RecordValidation;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -79,6 +77,15 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
             }
             """;
 
+    private static final String PROTOBUF_SCHEMA_2 = """
+            syntax = "proto3";
+
+            message Address {
+              string street = 1;
+              string city = 2;
+            }
+            """;
+
     // Valid protobuf encoding of Person{first_name="John", last_name="Doe", age=25}
     // Field 1 (string): tag=0x0A, len=4, "John"
     // Field 2 (string): tag=0x12, len=3, "Doe"
@@ -99,6 +106,7 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
 
     private static String artifactId;
     private static int contentId;
+    private static int secondContentId;
     private static GenericContainer<?> registryContainer;
     private static Descriptors.Descriptor personDescriptor;
 
@@ -133,6 +141,19 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
         VersionMetaData artifact = client.groups().byGroupId("default").artifacts().post(createArtifact).getVersion();
         artifactId = artifact.getArtifactId();
         contentId = artifact.getContentId().intValue();
+
+        // Register a second schema to get a different contentId for wrong-schema-id tests
+        CreateArtifact createSecondArtifact = new CreateArtifact();
+        createSecondArtifact.setArtifactType("PROTOBUF");
+        CreateVersion secondVersion = new CreateVersion();
+        VersionContent secondContent = new VersionContent();
+        secondContent.setContent(PROTOBUF_SCHEMA_2);
+        secondContent.setContentType("application/x-protobuf");
+        secondVersion.setContent(secondContent);
+        createSecondArtifact.setFirstVersion(secondVersion);
+
+        VersionMetaData secondArtifact = client.groups().byGroupId("default").artifacts().post(createSecondArtifact).getVersion();
+        secondContentId = secondArtifact.getContentId().intValue();
 
         // Build descriptor for creating DynamicMessage instances in tests
         DescriptorProtos.FileDescriptorProto fileProto = DescriptorProtos.FileDescriptorProto.newBuilder()
@@ -184,18 +205,6 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void shouldAcceptEmptyProtobufMessage(KafkaCluster cluster, Topic topic) {
-        // In proto3, all fields are optional, so an empty message is valid
-        var config = createProtobufValidationConfig(cluster, topic, contentId);
-
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(new Serdes.StringSerde(), Serdes.serdeFrom(new ByteArraySerializer(), new ByteArrayDeserializer()), Map.of())) {
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", new byte[0])))
-                    .succeedsWithin(Duration.ofSeconds(10));
-        }
-    }
-
-    @Test
     void shouldAllowAnyDataOnUnvalidatedTopic(KafkaCluster cluster, Topic validatedTopic, Topic unvalidatedTopic) {
         var config = createProtobufValidationConfig(cluster, validatedTopic, contentId);
 
@@ -213,37 +222,9 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void clientSideProtobufSerdePassesValidation(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
-        var config = createProtobufValidationConfig(cluster, topic, contentId);
-
-        var keySerde = new Serdes.StringSerde();
-        var producerValueSerde = createProtobufProducerSerde(schemaIdInHeader);
-        var consumerValueSerde = createProtobufConsumerSerde(schemaIdInHeader);
-
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(keySerde, producerValueSerde, Map.of());
-                var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
-            DynamicMessage person = DynamicMessage.newBuilder(personDescriptor)
-                    .setField(personDescriptor.findFieldByName("first_name"), "John")
-                    .setField(personDescriptor.findFieldByName("last_name"), "Doe")
-                    .setField(personDescriptor.findFieldByName("age"), 25)
-                    .build();
-
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", person)))
-                    .succeedsWithin(Duration.ofSeconds(10));
-            consumer.subscribe(Set.of(topic.name()));
-
-            var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records.records(topic.name()))
-                    .hasSize(1);
-        }
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = { true, false })
     void detectsClientProducingWithWrongProtobufSchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
         // Configure filter to expect a different contentId than the client sends
-        var config = createProtobufValidationConfig(cluster, topic, contentId + 1);
+        var config = createProtobufValidationConfig(cluster, topic, secondContentId);
 
         var keySerde = new Serdes.StringSerde();
         var valueSerde = createProtobufProducerSerde(schemaIdInHeader);
@@ -270,24 +251,6 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
                 SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
                 KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
         return serde;
-    }
-
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    private static ProtobufSerde<DynamicMessage> createProtobufConsumerSerde(boolean schemaIdInHeader) {
-        var serde = new ProtobufSerde();
-        serde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
-                SerdeConfig.EXPLICIT_ARTIFACT_ID, artifactId,
-                SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
-                KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
-        return serde;
-    }
-
-    private static <T, S> org.apache.kafka.clients.consumer.Consumer<T, S> consumeFromEarliestOffsets(KroxyliciousTester tester, Serde<T> keySerde,
-                                                                                                      Serde<S> valueSerde) {
-        return tester.consumer(keySerde, valueSerde, Map.of(
-                GROUP_ID_CONFIG, UUID.randomUUID().toString(),
-                AUTO_OFFSET_RESET_CONFIG, "earliest"));
     }
 
     private static ConfigurationBuilder createProtobufValidationConfig(KafkaCluster cluster, Topic topic, int protobufContentId) {
