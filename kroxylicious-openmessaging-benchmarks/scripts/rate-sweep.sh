@@ -198,7 +198,7 @@ print_summary() {
     done
 
     echo "=== Summary ==="
-    echo "(achieved = mean publish rate; p99 = mean end-to-end latency p99; ✗ = saturated)"
+    echo "(achieved = mean publish rate; p99 = mean end-to-end latency p99; sat@N(-D) = saturated at N msg/s, D short of target)"
     echo ""
 
     printf "%-14s" "Target (msg/s)"
@@ -207,7 +207,7 @@ print_summary() {
     fi
     for s in "${other_scenarios[@]+"${other_scenarios[@]}"}"; do
         printf "  %-20s  %-14s" "${s} achieved" "${s} p99"
-        [[ -n "${baseline_dir}" ]] && printf "  %-14s" "Overhead"
+        [[ -n "${baseline_dir}" ]] && printf "  %-20s" "Overhead (abs/rel)"
     done
     printf "\n"
     printf '%s\n' "$(printf '%*s' 100 '' | tr ' ' '-')"
@@ -224,7 +224,9 @@ print_summary() {
                 b_achieved=$(jq '[.publishRate[]] | add / length' "${bf}")
                 b_sat=$(awk "BEGIN { print (${b_achieved} < ${rate} * 0.95) ? 1 : 0 }")
                 if [[ "${b_sat}" == "1" ]]; then
-                    printf "  %-20s  %-14s" "✗ saturated" "—"
+                    local b_delta
+                    b_delta=$(awk "BEGIN { printf "%\047d", ${rate} - ${b_achieved} }")
+                    printf "  %-20s  %-14s" "sat@$(printf '%\'\''d' "$(printf '%.0f' "${b_achieved}")")(-${b_delta})" "—"
                 else
                     b_p99=$(jq '[.endToEndLatency99pct[]] | add / length' "${bf}")
                     baseline_p99="${b_p99}"
@@ -255,8 +257,10 @@ print_summary() {
             s_achieved=$(jq '[.publishRate[]] | add / length' "${sf}")
             s_sat=$(awk "BEGIN { print (${s_achieved} < ${rate} * 0.95) ? 1 : 0 }")
             if [[ "${s_sat}" == "1" ]]; then
-                printf "  %-20s  %-14s" "✗ saturated" "—"
-                [[ -n "${baseline_dir}" ]] && printf "  %-14s" "—"
+                local s_delta
+                s_delta=$(awk "BEGIN { printf "%\047d", ${rate} - ${s_achieved} }")
+                printf "  %-20s  %-14s" "sat@$(printf '%\'\''d' "$(printf '%.0f' "${s_achieved}")")(-${s_delta})" "—"
+                [[ -n "${baseline_dir}" ]] && printf "  %-20s" "—"
             else
                 s_p99=$(jq '[.endToEndLatency99pct[]] | add / length' "${sf}")
                 printf "  %-20s  %-14s" \
@@ -265,10 +269,10 @@ print_summary() {
                 if [[ -n "${baseline_dir}" ]]; then
                     if [[ -n "${baseline_p99}" ]]; then
                         local overhead
-                        overhead=$(awk "BEGIN { printf \"+%.2f ms\", ${s_p99} - ${baseline_p99} }")
-                        printf "  %-14s" "${overhead}"
+                        overhead=$(awk -v s="${s_p99}" -v b="${baseline_p99}" 'BEGIN { abs = s - b; rel = (b > 0) ? (abs / b * 100) : 0; printf "+%.2f ms (+%.0f%%)", abs, rel }')
+                        printf "  %-20s" "${overhead}"
                     else
-                        printf "  %-14s" "—"
+                        printf "  %-20s" "—"
                     fi
                 fi
             fi
