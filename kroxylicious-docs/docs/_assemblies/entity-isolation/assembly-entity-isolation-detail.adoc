@@ -16,7 +16,11 @@ The mapper is given the authenticated subject of the current connection and the 
 * Translating a cluster-visible name back to a client-visible name (unmapping).
 * Deciding whether a cluster-visible name falls within the current client's namespace.
 
-The built-in mapper, `PrincipalEntityNameMapper`, prefixes resource names with the authenticated Kafka principal.
+The built-in mapper, `PrincipalEntityNameMapper`, prefixes resource names with the name of a principal from the authenticated
+subject.
+By default, the mapper extracts the `io.kroxylicious.proxy.authentication.User` principal from the subject, but that may be overridden in the configuration.
+The mapper requires that the authenticated subject provides exactly one principal of the expected type otherwise the connection will be closed with an error.
+
 For a principal `alice`, a consumer group called `my-consumer-group` is stored on the broker as `alice-my-consumer-group`.
 
 [NOTE]
