@@ -48,16 +48,16 @@ import io.kroxylicious.filter.authorization.AuthorizationFilter;
 import io.kroxylicious.testing.kafka.common.ClientConfig;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static java.util.stream.Stream.concat;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
+public class ConsumerGroupDescribeGroupAuthzIT extends AuthzIT {
 
-    private static final String ALICE_TOPIC_NAME = "alice-topic";
-    private static final String BOB_TOPIC_NAME = "bob-topic";
+    private static final String TOPIC_NAME = "my-topic";
     public static final List<String> ALL_TOPIC_NAMES_IN_TEST = List.of(
-            ALICE_TOPIC_NAME,
-            BOB_TOPIC_NAME);
+            TOPIC_NAME);
     public static final String ALICE_GROUP = "alice-group";
     public static final String BOB_GROUP = "bob-group";
 
@@ -105,11 +105,11 @@ public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
     void beforeAll() throws IOException {
         rulesFile = Files.createTempFile(getClass().getName(), ".aclRules");
         Files.writeString(rulesFile, """
-                from io.kroxylicious.filter.authorization import TopicResource as Topic;
-                allow User with name = "alice" to * Topic with name = "%s";
-                allow User with name = "bob" to DESCRIBE Topic with name = "%s";
+                from io.kroxylicious.filter.authorization import GroupResource as Group;
+                allow User with name = "alice" to * Group with name = "%s";
+                allow User with name = "bob" to DESCRIBE Group with name = "%s";
                 otherwise deny;
-                """.formatted(ALICE_TOPIC_NAME, BOB_TOPIC_NAME));
+                """.formatted(ALICE_GROUP, BOB_GROUP));
         /*
          * The correctness of this test is predicated on the equivalence of the Proxy ACLs (above) and the Kafka ACLs (below)
          * If you add a rule to one you'll need to add an equivalent rule to the other
@@ -117,19 +117,25 @@ public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
         aclBindings = List.of(
                 // topic permissions
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TOPIC, ALICE_TOPIC_NAME, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.GROUP, ALICE_GROUP, PatternType.LITERAL),
                         new AccessControlEntry("User:" + ALICE, "*",
                                 AclOperation.ALL, AclPermissionType.ALLOW)),
                 new AclBinding(
-                        new ResourcePattern(ResourceType.TOPIC, BOB_TOPIC_NAME, PatternType.LITERAL),
+                        new ResourcePattern(ResourceType.GROUP, BOB_GROUP, PatternType.LITERAL),
                         new AccessControlEntry("User:" + BOB, "*",
                                 AclOperation.DESCRIBE, AclPermissionType.ALLOW)),
-                allowAllOnGroup(ALICE, ALICE_GROUP),
-                allowAllOnGroup(ALICE, BOB_GROUP),
-                allowAllOnGroup(BOB, ALICE_GROUP),
-                allowAllOnGroup(BOB, BOB_GROUP),
-                allowAllOnGroup(EVE, ALICE_GROUP),
-                allowAllOnGroup(EVE, BOB_GROUP));
+                new AclBinding(
+                        new ResourcePattern(ResourceType.TOPIC, TOPIC_NAME, PatternType.LITERAL),
+                        new AccessControlEntry("User:" + ALICE, "*",
+                                AclOperation.ALL, AclPermissionType.ALLOW)),
+                new AclBinding(
+                        new ResourcePattern(ResourceType.TOPIC, TOPIC_NAME, PatternType.LITERAL),
+                        new AccessControlEntry("User:" + BOB, "*",
+                                AclOperation.ALL, AclPermissionType.ALLOW)),
+                new AclBinding(
+                        new ResourcePattern(ResourceType.TOPIC, TOPIC_NAME, PatternType.LITERAL),
+                        new AccessControlEntry("User:" + EVE, "*",
+                                AclOperation.ALL, AclPermissionType.ALLOW)));
     }
 
     @BeforeEach
@@ -137,11 +143,11 @@ public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
         this.topicIdsInUnproxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterWithAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, aclBindings);
         this.topicIdsInProxiedCluster = ClusterPrepUtils.createTopicsAndAcls(kafkaClusterNoAuthzAdmin, ALL_TOPIC_NAMES_IN_TEST, List.of());
         produceToAll(kafkaClusterWithAuthzProducer, ALL_TOPIC_NAMES_IN_TEST);
-        establishConsumerGroup(aliceKafkaClusterWithAuthzConsumer, List.of(ALICE_TOPIC_NAME));
-        establishConsumerGroup(bobKafkaClusterWithAuthzConsumer, List.of(BOB_TOPIC_NAME));
+        establishConsumerGroup(aliceKafkaClusterWithAuthzConsumer, ALL_TOPIC_NAMES_IN_TEST);
+        establishConsumerGroup(bobKafkaClusterWithAuthzConsumer, ALL_TOPIC_NAMES_IN_TEST);
         produceToAll(kafkaClusterNoAuthzProducer, ALL_TOPIC_NAMES_IN_TEST);
-        establishConsumerGroup(aliceKafkaClusterNoAuthzConsumer, List.of(ALICE_TOPIC_NAME));
-        establishConsumerGroup(bobKafkaClusterNoAuthzConsumer, List.of(BOB_TOPIC_NAME));
+        establishConsumerGroup(aliceKafkaClusterNoAuthzConsumer, ALL_TOPIC_NAMES_IN_TEST);
+        establishConsumerGroup(bobKafkaClusterNoAuthzConsumer, ALL_TOPIC_NAMES_IN_TEST);
     }
 
     private static void establishConsumerGroup(Consumer<byte[], byte[]> consumer, List<String> topicsToPoll) {
@@ -200,6 +206,7 @@ public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
         @Override
         public String clobberResponse(BaseClusterFixture cluster, ObjectNode jsonNodes) {
             clobber(jsonNodes);
+            sortArray(jsonNodes, "groups", "groupId");
             return prettyJsonString(jsonNodes);
         }
 
@@ -219,20 +226,10 @@ public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
 
     }
 
-    List<Arguments> shouldEnforceAccessToTopics() {
-        ConsumerGroupDescribeRequestData aliceGroupRequest = new ConsumerGroupDescribeRequestData();
-        aliceGroupRequest.setGroupIds(List.of(ALICE_GROUP));
-        aliceGroupRequest.setIncludeAuthorizedOperations(false);
-        ConsumerGroupDescribeRequestData bobGroupRequest = new ConsumerGroupDescribeRequestData();
-        bobGroupRequest.setGroupIds(List.of(BOB_GROUP));
-        bobGroupRequest.setIncludeAuthorizedOperations(false);
+    List<Arguments> shouldEnforceAccessToGroups() {
         Stream<Arguments> supportedVersions = IntStream.rangeClosed(AuthorizationFilter.minSupportedApiVersion(ApiKeys.CONSUMER_GROUP_DESCRIBE),
                 AuthorizationFilter.maxSupportedApiVersion(ApiKeys.CONSUMER_GROUP_DESCRIBE))
-                .boxed().flatMap(apiVersion -> Stream.of(
-                        Arguments.argumentSet("api version " + apiVersion + " " + ALICE_GROUP + " request",
-                                new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, aliceGroupRequest)),
-                        Arguments.argumentSet("api version " + apiVersion + " " + BOB_GROUP + " request",
-                                new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, bobGroupRequest))));
+                .boxed().flatMap(apiVersion -> Stream.concat(testCases(apiVersion, false), testCases(apiVersion, true)));
         Stream<Arguments> unsupportedVersions = IntStream
                 .rangeClosed(ApiKeys.CONSUMER_GROUP_DESCRIBE.oldestVersion(), ApiKeys.CONSUMER_GROUP_DESCRIBE.latestVersion(true))
                 .filter(version -> !AuthorizationFilter.isApiVersionSupported(ApiKeys.CONSUMER_GROUP_DESCRIBE, (short) version))
@@ -242,9 +239,28 @@ public class ConsumerGroupDescribeAuthzIT extends AuthzIT {
         return concat(supportedVersions, unsupportedVersions).toList();
     }
 
+    private Stream<Arguments.ArgumentSet> testCases(Integer apiVersion, boolean includeAuthorizedOperations) {
+        String includeAuthorizedOps = includeAuthorizedOperations ? "including authorized ops" : "not including authorized ops";
+        return Stream.of(
+                Arguments.argumentSet("api version " + apiVersion + " " + ALICE_GROUP + " request " + includeAuthorizedOps,
+                        new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, groupRequest(List.of(ALICE_GROUP), includeAuthorizedOperations))),
+                Arguments.argumentSet("api version " + apiVersion + " " + BOB_GROUP + " request" + includeAuthorizedOps,
+                        new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, groupRequest(List.of(BOB_GROUP), includeAuthorizedOperations))),
+                Arguments.argumentSet("api version " + apiVersion + " " + ALICE_GROUP + "," + BOB_GROUP + " request" + includeAuthorizedOps,
+                        new ConsumerGroupDescribeEquivalence((short) (int) apiVersion, groupRequest(List.of(ALICE_GROUP, BOB_GROUP), includeAuthorizedOperations))));
+    }
+
+    @NonNull
+    private static ConsumerGroupDescribeRequestData groupRequest(List<String> groups, boolean includeAuthorizedOperations) {
+        ConsumerGroupDescribeRequestData aliceGroupRequest = new ConsumerGroupDescribeRequestData();
+        aliceGroupRequest.setGroupIds(groups);
+        aliceGroupRequest.setIncludeAuthorizedOperations(includeAuthorizedOperations);
+        return aliceGroupRequest;
+    }
+
     @ParameterizedTest
     @MethodSource
-    void shouldEnforceAccessToTopics(VersionSpecificVerification<ConsumerGroupDescribeRequestData, ConsumerGroupDescribeResponseData> test) {
+    void shouldEnforceAccessToGroups(VersionSpecificVerification<ConsumerGroupDescribeRequestData, ConsumerGroupDescribeResponseData> test) {
         try (var referenceCluster = new ReferenceCluster(kafkaClusterWithAuthz, this.topicIdsInUnproxiedCluster);
                 var proxiedCluster = new ProxiedCluster(kafkaClusterNoAuthz, this.topicIdsInProxiedCluster, rulesFile)) {
             test.verifyBehaviour(referenceCluster, proxiedCluster);

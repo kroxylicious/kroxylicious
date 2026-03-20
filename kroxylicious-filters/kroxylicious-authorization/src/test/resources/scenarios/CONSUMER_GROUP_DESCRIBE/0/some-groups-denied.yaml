@@ -8,7 +8,10 @@
 metadata:
   apiKeys: "CONSUMER_GROUP_DESCRIBE"
   apiVersion: 0
-  scenario: "topic partitions for allowed topics passed through"
+  scenario: |
+    when some groups in the request do not have DESCRIBE authorized
+    then we forward on the authorized groups
+    then we augment errors into the response for denied groups
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "CONSUMER_GROUP_DESCRIBE"
@@ -78,6 +81,7 @@ when:
   request:
     groupIds:
       - "my-group"
+      - "unauthorized"
     includeAuthorizedOperations: false
 then:
   expectedResponseHeader:
@@ -115,3 +119,12 @@ then:
                   partitions:
                     - 201
         authorizedOperations: 940
+      - errorCode: 30
+        errorMessage: null
+        groupId: "unauthorized"
+        groupState: ""
+        groupEpoch: 0
+        assignmentEpoch: 0
+        assignorName: ""
+        members: [ ]
+        authorizedOperations: -2147483648

@@ -8,9 +8,10 @@
 metadata:
   apiKeys: "CONSUMER_GROUP_DESCRIBE"
   apiVersion: 1
-  scenario: >
-    topic partitions for allowed topics passed through, groups containing denied topics have an
-    error response substituted
+  scenario: |
+    given proxy allows fewer operations on a group than upstream
+    when authz filter calculates authorizedOps for group
+    then only operations allowed at proxy and upstream are in authorizedOps
 given:
   mockedUpstreamResponses:
     - expectedRequestKey: "CONSUMER_GROUP_DESCRIBE"
@@ -22,9 +23,8 @@ given:
         clientId: "client-id"
       expectedRequest:
         groupIds:
-          - "group1"
-          - "group2"
-        includeAuthorizedOperations: false
+          - "my-group"
+        includeAuthorizedOperations: true
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
@@ -32,7 +32,7 @@ given:
         groups:
           - errorCode: 350
             errorMessage: "random-string-288"
-            groupId: "group1"
+            groupId: "my-group"
             groupState: "random-string-366"
             groupEpoch: 818
             assignmentEpoch: 755
@@ -60,38 +60,8 @@ given:
                       partitions:
                         - 42
                 memberType: 20
-            authorizedOperations: 246
-          - errorCode: 350
-            errorMessage: "random-string-288"
-            groupId: "group2"
-            groupState: "random-string-366"
-            groupEpoch: 818
-            assignmentEpoch: 755
-            assignorName: "random-string-628"
-            members:
-              - memberId: "random-string-943"
-                instanceId: "random-string-273"
-                rackId: "random-string-872"
-                memberEpoch: 237
-                clientId: "random-string-975"
-                clientHost: "random-string-689"
-                subscribedTopicNames:
-                  - "unauthorized"
-                subscribedTopicRegex: "random-string-71"
-                assignment:
-                  topicPartitions:
-                    - topicId: "hu65vSlOS1G1ZqWhPPXQaQ"
-                      topicName: "unauthorized"
-                      partitions:
-                        - 42
-                targetAssignment:
-                  topicPartitions:
-                    - topicId: "hu65vSlOS1G1ZqWhPPXQaQ"
-                      topicName: "unauthorized"
-                      partitions:
-                        - 42
-                memberType: 20
-            authorizedOperations: 246
+            # READ+DESCRIBE+DELETE+ALTER_CONFIGS+DESCRIBE_CONFIGS bitset
+            authorizedOperations: 3400
   authorizerRules:
     allowed:
       - subject: "alice"
@@ -99,14 +69,10 @@ given:
         resourceClass: "TOPIC"
         resourceType: "DESCRIBE"
       - subject: "alice"
-        resourceName: "group1"
+        resourceName: "my-group"
         resourceClass: "GROUP"
         resourceType: "DESCRIBE"
-      - subject: "alice"
-        resourceName: "group2"
-        resourceClass: "GROUP"
-        resourceType: "DESCRIBE"
-  topicNames: { }
+  topicNames: {}
 when:
   subject: "alice"
   requestHeader:
@@ -116,9 +82,8 @@ when:
     clientId: "client-id"
   request:
     groupIds:
-      - "group1"
-      - "group2"
-    includeAuthorizedOperations: false
+      - "my-group"
+    includeAuthorizedOperations: true
 then:
   expectedResponseHeader:
     correlationId: 1
@@ -127,7 +92,7 @@ then:
     groups:
       - errorCode: 350
         errorMessage: "random-string-288"
-        groupId: "group1"
+        groupId: "my-group"
         groupState: "random-string-366"
         groupEpoch: 818
         assignmentEpoch: 755
@@ -155,13 +120,4 @@ then:
                   partitions:
                     - 42
             memberType: 20
-        authorizedOperations: 246
-      - errorCode: 29
-        errorMessage: "The group has described topic(s) that the client is not authorized to describe."
-        groupId: "group2"
-        groupState: ""
-        groupEpoch: 0
-        assignmentEpoch: 0
-        assignorName: ""
-        members: [ ]
-        authorizedOperations: -2147483648
+        authorizedOperations: 256 # only DESCRIBE allowed in bitset
