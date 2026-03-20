@@ -88,6 +88,18 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
             }
             """;
 
+    private static final String AVRO_SCHEMA_2 = """
+            {
+              "type": "record",
+              "name": "Person2",
+              "namespace": "io.kroxylicious.test",
+              "fields": [
+                {"name": "firstName", "type": "string"},
+                {"name": "lastName", "type": "string"}
+              ]
+            }
+            """;
+
     private static final String APICURIO_REGISTRY_HOST = "http://localhost";
     private static final Integer APICURIO_REGISTRY_PORT = 8082;
     private static final String APICURIO_REGISTRY_API = "/apis/registry/v3";
@@ -95,6 +107,7 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
 
     private static String artifactId;
     private static int contentId;
+    private static int secondContentId;
     private static GenericContainer<?> registryContainer;
     private static Schema parsedSchema;
 
@@ -129,6 +142,19 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
         VersionMetaData artifact = client.groups().byGroupId("default").artifacts().post(createArtifact).getVersion();
         artifactId = artifact.getArtifactId();
         contentId = artifact.getContentId().intValue();
+
+        // Register a second schema to get a different contentId for wrong-schema-id tests
+        CreateArtifact createSecondArtifact = new CreateArtifact();
+        createSecondArtifact.setArtifactType("AVRO");
+        CreateVersion secondVersion = new CreateVersion();
+        VersionContent secondContent = new VersionContent();
+        secondContent.setContent(AVRO_SCHEMA_2);
+        secondContent.setContentType("application/json");
+        secondVersion.setContent(secondContent);
+        createSecondArtifact.setFirstVersion(secondVersion);
+
+        VersionMetaData secondArtifact = client.groups().byGroupId("default").artifacts().post(createSecondArtifact).getVersion();
+        secondContentId = secondArtifact.getContentId().intValue();
 
         parsedSchema = new Schema.Parser().parse(AVRO_SCHEMA);
     }
@@ -229,7 +255,7 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
     @ValueSource(booleans = { true, false })
     void detectsClientProducingWithWrongAvroSchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
         // Configure filter to expect a different contentId than the client sends
-        var config = createAvroValidationConfig(cluster, topic, contentId + 1);
+        var config = createAvroValidationConfig(cluster, topic, secondContentId);
 
         var keySerde = new Serdes.StringSerde();
         var valueSerde = createAvroProducerSerde(schemaIdInHeader);
