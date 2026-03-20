@@ -19,6 +19,7 @@ import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.openshift.api.model.RouteBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -87,6 +88,11 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                     .endPort();
         }
         return Stream.of(serviceSpecBuilder.endSpec());
+    }
+
+    @Override
+    public Stream<RouteBuilder> routes() {
+        return Stream.empty();
     }
 
     @NonNull

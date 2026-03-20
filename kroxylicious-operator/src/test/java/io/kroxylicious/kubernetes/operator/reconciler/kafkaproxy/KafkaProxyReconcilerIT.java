@@ -56,6 +56,8 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.readiness.Readiness;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
@@ -95,7 +97,9 @@ import io.kroxylicious.kubernetes.operator.TestKeyMaterial;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.kubernetes.operator.assertj.ProxyConfigAssert;
+import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
+import io.kroxylicious.kubernetes.operator.model.networking.RouteClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.model.networking.TlsClusterIPClusterIngressNetworkingModel;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
@@ -768,6 +772,104 @@ public class KafkaProxyReconcilerIT {
         });
     }
 
+    @Test
+    void virtualClusterWithOpenshiftRouteIngressWithTrustAnchor() {
+        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
+        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
+
+        int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
+
+        String ingressControllerName = "default";
+        String ingressControllerNamespace = "openshift-ingress-operator";
+        String ingressName = "openshiftroute";
+
+        var defaultIngressController = testActor.getInNamespace(IngressController.class, ingressControllerName, ingressControllerNamespace);
+        assertThat(defaultIngressController).isNotNull();
+        var domain = defaultIngressController.getStatus().getDomain();
+        assertThat(domain).isNotNull();
+
+        String routeBootstrap = "$(virtualClusterName)-bootstrap." + domain;
+        String routeBrokerAddressPattern = "$(virtualClusterName)-$(nodeId)." + domain;
+        KafkaProxyIngress openshiftRouteIngress = updateStatusObservedGeneration(
+                testActor.create(openshiftRouteIngress(ingressName, proxy)));
+
+        Secret tlsServerCert = testActor.create(tlsKeyAndCertSecret("downstream-tls-certificate"));
+        String downstreamTrustAnchorName = "downstream-tls-trust-anchor";
+        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName));
+
+        Ingresses clusterIngress = new IngressesBuilder()
+                .withIngressRef(toIngressRef(openshiftRouteIngress))
+                .withNewTls()
+                .withCertificateRef(toCertificateRef(tlsServerCert))
+                .withTrustAnchorRef(toTrustAnchorRef(trustAnchor))
+                .endTls()
+                .build();
+        VirtualKafkaCluster cluster = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, List.of(clusterIngress), Optional.empty());
+
+        // when
+        updateStatusObservedGeneration(testActor.create(cluster));
+
+        String serviceName = name(cluster) + "-" + name(openshiftRouteIngress) + "-service";
+        AWAIT.alias("shared sni service manifested").untilAsserted(() -> {
+            var service = testActor.get(Service.class, serviceName);
+            assertThat(service).isNotNull()
+                    .describedAs(
+                            "Expect shared SNI Service for proxy '" + name(proxy) + " to exist")
+                    .extracting(svc -> svc.getSpec().getSelector())
+                    .describedAs("Service's selector should select proxy pods")
+                    .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
+            assertThat(service.getSpec().getType()).isEqualTo("ClusterIP");
+
+            assertThat(service.getSpec().getPorts()).singleElement().satisfies(onlyPort -> {
+                String expectedName = name(cluster) + "-" + proxyListenPort;
+                assertThat(onlyPort.getName()).isEqualTo(expectedName);
+                assertThat(onlyPort.getProtocol()).isEqualTo("TCP");
+                assertThat(onlyPort.getPort()).isEqualTo(proxyListenPort);
+                assertThat(onlyPort.getTargetPort()).isEqualTo(new IntOrString(proxyListenPort));
+            });
+        });
+
+        assertSharedSniPortExposedOnProxyDeployment(proxy, proxyListenPort);
+
+        AWAIT.alias("openshift routes created").untilAsserted(() -> {
+            assertRouteManifested(name(cluster) + "-bootstrap", true, proxy, serviceName, proxyListenPort);
+            assertRouteManifested(name(cluster) + "-0", false, proxy, serviceName, proxyListenPort);
+            assertRouteManifested(name(cluster) + "-1", false, proxy, serviceName, proxyListenPort);
+            assertRouteManifested(name(cluster) + "-2", false, proxy, serviceName, proxyListenPort);
+        });
+
+        int clientFacingPort = RouteClusterIngressNetworkingModel.CLIENT_FACING_ROUTE_PORT;
+
+        AWAIT.alias("proxy config - gateway configured for SNI loadbalancer ingress").untilAsserted(() -> assertProxyConfigInConfigMap(proxy)
+                .cluster(name(cluster))
+                .gateway(name(openshiftRouteIngress))
+                .sniHostIdentifiesNode()
+                .hasBootstrapAddress(new HostPort(routeBootstrap, proxyListenPort).toString())
+                .hasAdvertisedBrokerAddressPattern(new HostPort(routeBrokerAddressPattern, clientFacingPort).toString()));
+    }
+
+    private void assertRouteManifested(String routeName, boolean isBootstrap, KafkaProxy proxy, String serviceName, int targetPort) {
+        var openshiftRoute = testActor.get(Route.class, routeName);
+        assertThat(openshiftRoute).isNotNull()
+                .describedAs(
+                        "Expect Route for proxy '" + name(proxy) + " to exist")
+                .extracting(route -> route.getSpec().getTo().getName())
+                .describedAs("Route's spec.to should select proxy shared SNI service")
+                .isEqualTo(serviceName);
+        var routeForLabelValue = openshiftRoute.getMetadata().getLabels().get(RouteHostDetails.RouteFor.LABEL_KEY);
+        assertThat(routeForLabelValue).isNotNull();
+        if (isBootstrap) {
+            assertThat(routeForLabelValue).isEqualTo(RouteHostDetails.RouteFor.BOOTSTRAP.toString());
+        }
+        else {
+            assertThat(routeForLabelValue).isEqualTo(RouteHostDetails.RouteFor.NODE.toString());
+        }
+        assertThat(openshiftRoute.getSpec().getSubdomain()).isEqualTo(routeName);
+        assertThat(openshiftRoute.getSpec().getPort().getTargetPort()).isEqualTo(new IntOrString(targetPort));
+        assertThat(openshiftRoute.getSpec().getTls().getTermination()).isEqualTo("passthrough");
+        assertThat(openshiftRoute.getSpec().getWildcardPolicy()).isEqualTo("None");
+    }
+
     private static @NonNull ContainerPort createNodeContainerPort(int node1Port) {
         return createContainerPort(node1Port, node1Port + "-node");
     }
@@ -900,6 +1002,24 @@ public class KafkaProxyReconcilerIT {
                         .withBootstrapAddress(bootstrapAddress)
                         .withAdvertisedBrokerAddressPattern(advertisedBrokerAddressPattern)
                     .endLoadBalancer()
+                    .withNewProxyRef()
+                        .withName(name(proxy))
+                    .endProxyRef()
+                .endSpec()
+                .build();
+        // @formatter:on
+    }
+
+    private KafkaProxyIngress openshiftRouteIngress(String ingressName,
+                                                    KafkaProxy proxy) {
+        // @formatter:off
+        return new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                    .withName(ingressName)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewOpenShiftRoute()
+                    .endOpenShiftRoute()
                     .withNewProxyRef()
                         .withName(name(proxy))
                     .endProxyRef()

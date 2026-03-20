@@ -120,6 +120,26 @@
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-apps</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>openshift-client</artifactId>
+            <scope>runtime</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>kubernetes-httpclient-vertx</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>openshift-model</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>openshift-model-operator</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -293,6 +313,11 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
                     <runOrder>random</runOrder>
+                    <argLine>
+                        <!-- https://junit-pioneer.org/docs/environment-variables/#warnings-for-reflective-access -->
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                    </argLine>
                 </configuration>
                 <executions>
                     <execution>
