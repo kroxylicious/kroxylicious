@@ -165,18 +165,6 @@ spec:
                           description: |
                             The quiet period used during graceful shutdown of the management
                             channel's event loop. Go-style duration (e.g. "2s").
-                        authenticatedIdleTimeout:
-                          type: string
-                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
-                          description: |
-                            Maximum time a management connection may remain idle after
-                            authentication before being closed. Go-style duration (e.g. "10m").
-                        unauthenticatedIdleTimeout:
-                          type: string
-                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
-                          description: |
-                            Maximum time a management connection may remain idle without
-                            completing authentication before being closed. Go-style duration (e.g. "10s").
                 replicas:
                   description: "The number of pods to deploy."
                   type: integer
