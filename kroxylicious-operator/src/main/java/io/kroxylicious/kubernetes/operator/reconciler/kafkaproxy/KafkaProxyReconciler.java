@@ -235,8 +235,7 @@ public class KafkaProxyReconciler implements
         var prxy = network.getProxy();
         return new NetworkDefinition(
                 mgmt == null ? null
-                        : buildNettySettings(mgmt.getWorkerThreadCount(), mgmt.getShutdownQuietPeriod(),
-                                mgmt.getAuthenticatedIdleTimeout(), mgmt.getUnauthenticatedIdleTimeout()),
+                        : buildNettySettings(mgmt.getWorkerThreadCount(), mgmt.getShutdownQuietPeriod(), null, null),
                 prxy == null ? null
                         : buildNettySettings(prxy.getWorkerThreadCount(), prxy.getShutdownQuietPeriod(),
                                 prxy.getAuthenticatedIdleTimeout(), prxy.getUnauthenticatedIdleTimeout()));
