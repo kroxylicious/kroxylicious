@@ -171,7 +171,7 @@ public class KafkaProxyReconciler implements
         boolean hasClusters = !model.clustersWithValidNetworking().isEmpty();
         ConfigurationFragment<Configuration> fragment = null;
         if (hasClusters) {
-            fragment = generateProxyConfig(model);
+            fragment = generateProxyConfig(model, proxy);
         }
         KafkaProxyContext.init(context,
                 new VirtualKafkaClusterStatusFactory(clock),
@@ -179,7 +179,7 @@ public class KafkaProxyReconciler implements
                 fragment);
     }
 
-    private ConfigurationFragment<Configuration> generateProxyConfig(ProxyModel model) {
+    private ConfigurationFragment<Configuration> generateProxyConfig(ProxyModel model, KafkaProxy proxy) {
 
         var allFilterDefinitions = buildFilterDefinitions(model);
         Map<String, ConfigurationFragment<NamedFilterDefinition>> namedDefinitions = allFilterDefinitions.stream()
@@ -212,7 +212,7 @@ public class KafkaProxyReconciler implements
                         false,
                         // micrometer
                         Optional.empty(),
-                        null),
+                        NetworkDefinitionBuilder.build(proxy)),
                 allVolumes,
                 allMounts);
     }
