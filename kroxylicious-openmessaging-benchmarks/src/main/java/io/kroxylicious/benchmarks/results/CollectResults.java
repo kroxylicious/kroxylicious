@@ -15,6 +15,8 @@ package io.kroxylicious.benchmarks.results;
 //DEPS com.github.spotbugs:spotbugs-annotations:${spotbugs-annotations.version}
 //SOURCES RunMetadata.java
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 import picocli.CommandLine;
@@ -34,6 +36,15 @@ public class CollectResults implements Callable<Integer> {
     @Option(names = "--generate-run-metadata", description = "Generate run-metadata.json in the given directory")
     private Path metadataDir;
 
+    @Option(names = "--scenario", description = "Benchmark scenario name (e.g. baseline, proxy-no-filters)")
+    private String scenario;
+
+    @Option(names = "--workload", description = "OMB workload name (e.g. 1topic-1kb)")
+    private String workload;
+
+    @Option(names = "--target-rate", description = "Target producer rate in msg/sec for this probe")
+    private Integer targetRate;
+
     public static void main(String... args) {
         int exitCode = execute(args);
         System.exit(exitCode);
@@ -46,7 +57,14 @@ public class CollectResults implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         if (metadataDir != null) {
-            RunMetadata.generate(metadataDir);
+            Map<String, Object> probeContext = new LinkedHashMap<>();
+            if (scenario != null)
+                probeContext.put("scenario", scenario);
+            if (workload != null)
+                probeContext.put("workload", workload);
+            if (targetRate != null)
+                probeContext.put("targetRate", targetRate);
+            RunMetadata.generate(metadataDir, probeContext);
             System.out.println("Generated " + metadataDir.resolve("run-metadata.json"));
             return 0;
         }

@@ -601,7 +601,9 @@ collect_result_from_pvc
 if [[ "${SKIP_DEPLOY}" == "false" ]]; then
     # Full collection: JFR dump + flamegraph + run metadata (JSON already collected above)
     JFR_PVC_NAME="${JFR_PVC_NAME}" PROXY_POD="${PROXY_POD:-}" \
-        "${SCRIPT_DIR}/collect-results.sh" "${OUTPUT_DIR}"
+        "${SCRIPT_DIR}/collect-results.sh" \
+        --scenario "${SCENARIO}" --workload "${WORKLOAD}" --target-rate "${PRODUCER_RATE:-0}" \
+        "${OUTPUT_DIR}"
     [[ -f "${OUTPUT_DIR}/benchmark.jfr" ]] && mv "${OUTPUT_DIR}/benchmark.jfr" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
     [[ -f "${OUTPUT_DIR}/flamegraph.html" ]] && mv "${OUTPUT_DIR}/flamegraph.html" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-flamegraph.html"
 else
