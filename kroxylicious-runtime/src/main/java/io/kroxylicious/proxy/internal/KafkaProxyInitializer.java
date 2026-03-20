@@ -27,7 +27,6 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 
-import io.kroxylicious.proxy.audit.AuditLogger;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
@@ -56,7 +55,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
     public static final String PRE_SESSION_IDLE_HANDLER = "preSessionIdleHandler";
 
-    private final AuditLogger auditLogger;
+    private final ProxyAuditLogger auditLogger;
     private final boolean haproxyProtocol;
     private final boolean tls;
     private final EndpointBindingResolver bindingResolver;
@@ -71,7 +70,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Long unauthenticatedIdleMillis;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public KafkaProxyInitializer(AuditLogger auditLogger,
+    public KafkaProxyInitializer(ProxyAuditLogger auditLogger,
                                  FilterChainFactory filterChainFactory,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,

@@ -171,6 +171,8 @@ class AuditEmitterContextImpl implements AuditEmitter.Context {
     private static void writeActor(JsonGenerator generator, Actor actor) throws IOException {
         generator.writeStartObject();
         if (actor instanceof ClientActor clientActor) {
+            generator.writeFieldName("type");
+            generator.writeString("Client");
             generator.writeFieldName("srcAddr");
             generator.writeString(clientActor.srcAddr().toString());
             generator.writeFieldName("session");
@@ -186,6 +188,8 @@ class AuditEmitterContextImpl implements AuditEmitter.Context {
             }
         }
         else if (actor instanceof ServerActor serverActor) {
+            generator.writeFieldName("type");
+            generator.writeString("Server");
             generator.writeFieldName("tgtAddr");
             generator.writeString(serverActor.tgtAddr().toString());
             generator.writeFieldName("hostname");
@@ -197,6 +201,8 @@ class AuditEmitterContextImpl implements AuditEmitter.Context {
             }
         }
         else if (actor instanceof ProxyActor selfActor) {
+            generator.writeFieldName("type");
+            generator.writeString("Proxy");
             generator.writeFieldName("executionId");
             generator.writeString(selfActor.executionId());
         }

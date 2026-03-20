@@ -33,31 +33,78 @@
       "description": "Who caused the action to be taken.",
       "type": "object",
       "properties": {
-        "srcAddr": {
-          "description": "The client IP address",
+        "type": {
+          "description": "The type of actor",
           "type": "string"
-        },
-        "session": {
-          "description": "The sessionId",
-          "type": "string",
-          "format": "uuid"
-        },
-        "principals": {
-          "description": "The principals of the authenticated client, or null if the client is not authenticated.",
-          "type": ["array", "null"],
-          "items": {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "Client"
+            },
+            "srcAddr": {
+              "description": "The client IP address",
+              "type": "string"
+            },
+            "session": {
+              "description": "The sessionId",
+              "type": "string",
+              "format": "uuid"
+            },
+            "principals": {
+              "description": "The principals of the authenticated client, or null if the client is not authenticated.",
+              "type": ["array", "null"],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "Server"
+            },
+            "tgtAddr": {
+              "description": "The client IP address",
+              "type": "string"
+            },
+            "nodeId": {
+              "description": "The server's node id",
+              "type": "integer"
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "Proxy"
+            },
+            "executionId": {
+              "description": "The client IP address",
+              "type": "string"
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "pattern": "([a-z][a-z0-9]*.)+[A-Z][A-Za-z0-9]*"
+            }
+          }
         }
-      }
+      ]
+
     },
     "objectRef": {
       "description": "Identifies the object which the action was performed on",

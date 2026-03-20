@@ -20,8 +20,6 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.audit.Actor;
 import io.kroxylicious.proxy.audit.AuditEmitter;
-import io.kroxylicious.proxy.audit.AuditLogger;
-import io.kroxylicious.proxy.audit.AuditableAction;
 import io.kroxylicious.proxy.audit.AuditableActionBuilder;
 import io.kroxylicious.proxy.audit.Correlation;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -30,7 +28,7 @@ import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class AuditLoggerImpl implements AuditLogger, AutoCloseable {
+public class AuditLoggerImpl implements ProxyAuditLogger {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AuditLoggerImpl.class);
 
@@ -96,7 +94,7 @@ public class AuditLoggerImpl implements AuditLogger, AutoCloseable {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         for (var emitter : emitters) {
             try {
                 emitter.close();
@@ -309,22 +307,30 @@ public class AuditLoggerImpl implements AuditLogger, AutoCloseable {
         @Override
         public void log() {
             Objects.requireNonNull(objectRef, "objectRef is null");
-            doLog(new AuditableActionImpl(instantSupplier.get(),
-                    action,
+            doLog(action,
                     status,
                     reason,
-                    actorSupplier.get(), // TODO can throw
                     objectRef,
                     new Correlation(null, null), // TODO get this from somewhere
-                    context));
+                    context);
         }
     }
 
-    private void doLog(AuditableAction action) {
+    private void doLog(String action,
+                       String status,
+                       String reason,
+                       SortedMap<String, String> objectRef,
+                       Correlation correlation,
+                       SortedMap<String, AuditableActionBuilderImpl.Value<?>> context) {
+        AuditableActionImpl event = null;
         for (var emitter : emitters) {
             try {
-                if (emitter.isInterested(action.action(), action.status())) {
-                    emitter.emitAction(action, new AuditEmitterContextImpl());
+                if (emitter.isInterested(action, status)) {
+                    if (event == null) {
+                        event = new AuditableActionImpl(instantSupplier.get(),
+                                action, status, reason, actorSupplier.get(), objectRef, correlation, context);
+                    }
+                    emitter.emitAction(event, new AuditEmitterContextImpl());
                 }
             }
             catch (Exception e) {

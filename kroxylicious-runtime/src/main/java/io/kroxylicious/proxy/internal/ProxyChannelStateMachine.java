@@ -572,7 +572,6 @@ public class ProxyChannelStateMachine {
                     subject));
         }
         else {
-            LOGGER.warn("AuditLogger is not an AuditLoggerImpl, client audit logging will not include principal information");
             this.clientAuditLogger = auditLogger;
         }
     }

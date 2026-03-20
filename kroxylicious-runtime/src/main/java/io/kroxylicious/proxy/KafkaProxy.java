@@ -47,7 +47,6 @@ import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.audit.AuditEmitter;
 import io.kroxylicious.proxy.audit.AuditEmitterFactory;
-import io.kroxylicious.proxy.audit.AuditLogger;
 import io.kroxylicious.proxy.audit.AuditableActionBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.AuditEmitterConfig;
@@ -66,6 +65,7 @@ import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.NoopAuditLogger;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.ProxyActorImpl;
+import io.kroxylicious.proxy.internal.ProxyAuditLogger;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
@@ -87,7 +87,7 @@ public final class KafkaProxy implements AutoCloseable {
 
     private static final int JRE_FEATURE_VERSION = Runtime.version().feature();
     private static final TreeSet<Integer> TESTED_JRE_VERSIONS = new TreeSet<>(Set.of(21, 25));
-    private final AuditLogger auditLogger;
+    private final ProxyAuditLogger auditLogger;
 
     @VisibleForTesting
     record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
@@ -408,12 +408,7 @@ public final class KafkaProxy implements AutoCloseable {
             if (meterRegistries != null) {
                 meterRegistries.close();
             }
-            try {
-                ((AutoCloseable) auditLogger).close();
-            }
-            catch (Exception e) {
-
-            }
+            auditLogger.close();
         }
         finally {
             managementEventGroup = null;
