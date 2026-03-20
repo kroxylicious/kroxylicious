@@ -14,7 +14,7 @@ import edu.umd.cs.findbugs.annotations.CheckReturnValue;
  * A builder for completing the recording of an auditable action that was started by a call to
  * {@link AuditLogger#action(String)} or {@link AuditLogger#actionWithOutcome(String, String, String)}.
  */
-public interface AuditableActionBuilder {
+public interface AuditableActionBuilder extends Loggable {
 
     /**
      * <p>Add the target of the action as a set of coordinates.

@@ -6,63 +6,41 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.Map;
+import io.kroxylicious.proxy.audit.Actorable;
+import io.kroxylicious.proxy.audit.Contextual;
+import io.kroxylicious.proxy.audit.Correlatable;
+import io.kroxylicious.proxy.audit.Loggable;
+import io.kroxylicious.proxy.audit.Referenceable;
 
-import io.kroxylicious.proxy.audit.AuditableActionBuilder;
-
-class NoopAuditableActionBuilder implements AuditableActionBuilder {
+class NoopAuditableActionBuilder implements Actorable<NoopAuditableActionBuilder>, Contextual<NoopAuditableActionBuilder>, Correlatable<NoopAuditableActionBuilder>, Referenceable<NoopAuditableActionBuilder>,
+        Loggable {
     static final NoopAuditableActionBuilder INSTANCE = new NoopAuditableActionBuilder();
 
     private NoopAuditableActionBuilder() {
     }
 
     @Override
-    public AuditableActionBuilder withObjectRef(Map<String, String> objectRef) {
-        return this;
-    }
-
-    @Override
-    public AuditableActionBuilder addToContext(String key, boolean value) {
-        return this;
-    }
-
-    @Override
-    public AuditableActionBuilder addToContext(String key, long value) {
-        return this;
-    }
-
-    @Override
-    public AuditableActionBuilder addToContext(String key, double value) {
-        return this;
-    }
-
-    @Override
-    public AuditableActionBuilder addToContext(String key, String value) {
-        return this;
-    }
-
-    @Override
-    public AuditableActionBuilder addToContext(String key, boolean[] value) {
-        return this;
-    }
-
-    @Override
-    public AuditableActionBuilder addToContext(String key, long[] value) {
-        return this;
-    }
-
-    @Override
-    public AuditableActionBuilder addToContext(String key, double[] value) {
-        return this;
-    }
-
-    @Override
-    public AuditableActionBuilder addToContext(String key, String[] value) {
-        return this;
-    }
-
-    @Override
     public void log() {
         // do nothing
+    }
+
+    @Override
+    public NoopAuditableActionBuilder addActor(String scope, String identifier) {
+        return this;
+    }
+
+    @Override
+    public NoopAuditableActionBuilder addToContext(String key, String value) {
+        return this;
+    }
+
+    @Override
+    public NoopAuditableActionBuilder addCorrelation(String scope, String identifier) {
+        return this;
+    }
+
+    @Override
+    public NoopAuditableActionBuilder addCoordinate(String scope, String identifier) {
+        return this;
     }
 }

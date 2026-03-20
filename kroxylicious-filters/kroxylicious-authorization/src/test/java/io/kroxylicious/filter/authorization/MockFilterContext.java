@@ -309,7 +309,7 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
                       Map<String, String> objectRef,
                       @Nullable Map<String, Object> context) {}
 
-    public static class MockAuditLogger implements AuditLogger {
+    public static class MockAuditLogger implements AuditLogger<AuditableActionBuilder> {
         private final List<AuditEvent> events = new java.util.ArrayList<>();
 
         public List<AuditEvent> getEvents() {

@@ -7,8 +7,9 @@
 package io.kroxylicious.proxy.internal;
 
 import io.kroxylicious.proxy.audit.AuditLogger;
+import io.kroxylicious.proxy.audit.Loggable;
 
-public interface ProxyAuditLogger extends AuditLogger, AutoCloseable {
+public interface ProxyAuditLogger<B extends Loggable> extends AuditLogger<B>, AutoCloseable {
     @Override
     void close();
 }
