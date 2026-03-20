@@ -67,6 +67,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.operator.DeploymentReadyCondition;
+import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
@@ -77,7 +78,6 @@ import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel
 import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterStatusFactory;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
-import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NettySettings;
@@ -136,10 +136,6 @@ public class KafkaProxyReconciler implements
         ContextInitializer<KafkaProxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyReconciler.class);
-    // ConfigParser.createObjectMapper() registers DurationSerde for Go-style durations (e.g. "30s").
-    // ProxyConfigStateData.CONFIG_OBJECT_MAPPER must NOT be used here: it re-registers JavaTimeModule
-    // after DurationSerde, which overrides our deserializer with the ISO-8601-only JSR310 one.
-    private static final com.fasterxml.jackson.databind.ObjectMapper DURATION_MAPPER = ConfigParser.createObjectMapper();
 
     public static final String CONFIG_STATE_DEP = "config-state";
     public static final String CONFIG_DEP = "config";
@@ -259,7 +255,7 @@ public class KafkaProxyReconciler implements
 
     private static Duration parseDuration(String value) {
         try {
-            return DURATION_MAPPER.readValue('"' + value + '"', Duration.class);
+            return ProxyConfigStateData.CONFIG_OBJECT_MAPPER.readValue('"' + value + '"', Duration.class);
         }
         catch (JsonProcessingException e) {
             // The CRD schema pattern validation should prevent invalid values reaching here

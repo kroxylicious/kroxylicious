@@ -14,6 +14,7 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -22,6 +23,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.config.DurationSerde;
 
 /**
  * Encapsulates the reading and writing of the {@code data} section of the Proxy Config State {@code ConfigMap}.
@@ -29,8 +31,14 @@ import io.kroxylicious.proxy.config.ConfigParser;
 public class ProxyConfigStateData {
 
     public static final String CLUSTER_KEY_PREFIX = "cluster-";
+    // JavaTimeModule is required for java.time.Instant (used in Condition.lastTransitionTime).
+    // DurationSerde must be registered after JavaTimeModule so it takes precedence for Duration,
+    // overriding JavaTimeModule's ISO-8601-only DurationDeserializer with our Go-style one.
     public static final ObjectMapper CONFIG_OBJECT_MAPPER = ConfigParser.createObjectMapper()
-            .registerModule(new JavaTimeModule());
+            .registerModule(new JavaTimeModule())
+            .registerModule(new SimpleModule()
+                    .addDeserializer(java.time.Duration.class, new DurationSerde.Deserializer())
+                    .addSerializer(java.time.Duration.class, new DurationSerde.Serializer()));
 
     private static String toYaml(Object filterDefs) {
         try {
