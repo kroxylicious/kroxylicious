@@ -245,10 +245,6 @@ public class KafkaProxyReconcilerIT {
                 .build();
         // @formatter:on
 
-        // when
-        var created = doCreate(kafkaService, kafkaProxy);
-
-        // then
         var expectedProxyNettySettings = new NettySettings(
                 Optional.of(4),
                 Optional.of(2),
@@ -260,6 +256,11 @@ public class KafkaProxyReconcilerIT {
                 Optional.empty(),
                 Optional.empty());
         var expectedNetwork = new NetworkDefinition(expectedManagementNettySettings, expectedProxyNettySettings);
+
+        // when
+        var created = doCreate(kafkaService, kafkaProxy);
+
+        // then
         AWAIT.untilAsserted(() -> assertProxyConfigInConfigMap(created.proxy())
                 .extracting(Configuration::network)
                 .isEqualTo(expectedNetwork));
