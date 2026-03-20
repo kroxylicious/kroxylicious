@@ -1,0 +1,35 @@
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-entity-isolation-filter.adoc
+
+[id='con-example-kafkaprotocolfilter-resource-{context}']
+= Example `KafkaProtocolFilter` resource
+
+[role="_abstract"]
+If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProtocolFilter` resource to contain the filter configuration.
+
+Here's a complete example of a `KafkaProtocolFilter` resource configured for entity isolation:
+
+[source,yaml]
+----
+kind: KafkaProtocolFilter
+metadata:
+  name: my-entity-isolation
+spec:
+  type: EntityIsolation
+  configTemplate:
+    entityTypes:
+      - GROUP_ID
+      - TRANSACTIONAL_ID
+    mapper: PrincipalEntityNameMapperService
+    mapperConfig:
+      separator: "-"
+      principalType: <principal implementation>
+----
+* `entityTypes` is an array of entity types to isolate. Allowed values are `GROUP_ID` and `TRANSACTIONAL_ID`.
+* `mapper` is the name of the naming mapping service implementation.  Currently, this must be `PrincipalEntityNameMapperService`.
+* `separator` is the string that the mapper uses to separate the principal from the resource name.
+* `principalType` identifies the principal type within the subject that will be used to form the cluster-visible entity names.
+  Use a fully-qualified class name of the principal. Defaults to `io.kroxylicious.proxy.authentication.User` if not specified.

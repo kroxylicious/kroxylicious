@@ -1,0 +1,40 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// index.adoc
+
+[id='assembly-entity-isolation-overview-{context}']
+= Entity Isolation overview
+
+[role="_abstract"]
+The Kroxylicious Entity Isolation filter gives each authenticated client a private, isolated view of certain Kafka entity types within a shared cluster.
+When entity isolation is enabled for a resource type, each client connecting through the proxy operates as if it owns that namespace entirely — it cannot see, interfere with, or accidentally collide with the same-named resources belonging to other clients.
+
+The filter achieves this by intercepting Kafka RPCs on the request and response paths:
+
+* On the *request path*, resource names are transparently mapped from the client's isolated view to a cluster-wide name that includes a client-specific prefix or transformation.
+* On the *response path*, the cluster-wide name is mapped back to the client's view.
+Resources that do not belong to the current client's namespace are filtered out of list and describe responses.
+
+.Entity Isolation filter — request and response path
+image::{realimagesdir}/entity-isolation-seq.svg["Diagram showing how the entity isolation re-writes requests and responses."]
+
+To use the Entity Isolation filter, the proxy must determine the authenticated subject. The authenticated subject is the verified identity of the client, derived from successful authentication.
+
+ifndef::OpenShiftOnly[]
+* If your applications use TLS client authentication, configure the link:{ProxyGuideUrl}[transport subject builder within the virtual cluster] to build a subject based on the client certificate.
+endif::OpenShiftOnly[]
+* If your applications use SASL authentication, configure the link:{SASLInspectionGuideUrl}[SASL inspection filter] to build the authenticated subject from the successful SASL exchange between the client and the broker.
+
+== Supported entity types
+
+The current implementation supports isolation for the following Kafka entity types:
+
+`GROUP_ID`::
+Consumer group identifiers used in all consumer group RPCs (e.g. `JoinGroup`, `OffsetFetch`, `DeleteGroups`).
+
+`TRANSACTIONAL_ID`::
+Transactional producer identifiers used in transactional RPCs (e.g. `InitProducerId`, `AddPartitionsToTxn`, `EndTxn`).
+
+NOTE: Topic name isolation is not yet supported. For more information, see the {github-issues}/3504[related issue^].

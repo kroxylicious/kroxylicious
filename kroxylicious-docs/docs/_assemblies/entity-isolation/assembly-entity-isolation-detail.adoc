@@ -1,0 +1,56 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// index.adoc
+
+[id='assembly-entity-isolation-detail-{context}']
+= How entity isolation works
+
+== Name mapping
+
+The filter delegates all resource name transformations to a pluggable `EntityNameMapper`.
+The mapper is given the authenticated subject of the current connection and the entity type being mapped, and is responsible for:
+
+* Translating a client-visible name to a cluster-visible name (mapping).
+* Translating a cluster-visible name back to a client-visible name (unmapping).
+* Deciding whether a cluster-visible name falls within the current client's namespace.
+
+The built-in mapper, `PrincipalEntityNameMapper`, prefixes resource names with the name of a principal from the authenticated
+subject.
+By default, the mapper extracts the `io.kroxylicious.proxy.authentication.User` principal from the subject, but that may be overridden in the configuration.
+The mapper requires that the authenticated subject provides exactly one principal of the expected type otherwise the connection will be closed with an error.
+
+For a principal `alice`, a consumer group called `my-consumer-group` is stored on the broker as `alice-my-consumer-group`.
+
+[NOTE]
+====
+The default separator between the principal and the resource name is a hyphen (`-`).
+Principals that already contain the separator are not supported.
+If a client authenticates with a principal that contains the separator, the proxy disconnects the client with an error.
+====
+
+[IMPORTANT]
+====
+The filter can only guarantee non-collision for clients that connect through the proxy.
+If clients connect straight to the broker, there is nothing to prevent them from creating resources that collide with the cluster-visible names chosen by this filter.
+====
+
+== Request path
+
+When a Kafka request arrives at the proxy:
+
+. The filter identifies fields in the request that reference entity types for which isolation is enabled.
+. Each matching field value is passed to the `EntityNameMapper` which returns the cluster-visible name.
+. The mutated request is forwarded to the broker.
+
+== Response path
+
+When the broker's response arrives at the proxy:
+
+. The filter identifies fields in the response that reference entity types for which isolation is enabled.
+. For each such field, the `EntityNameMapper` checks whether the value belongs to the current client's namespace.
+** If it does, the value is unmapped to the client-visible name and passed through.
+** If it does not, the filter removes the containing record from the response.
+. The mutated response is returned to the client.
+
