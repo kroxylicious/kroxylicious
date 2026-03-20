@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
@@ -66,6 +67,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.operator.DeploymentReadyCondition;
+import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
@@ -78,6 +80,8 @@ import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NettySettings;
+import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
@@ -171,7 +175,7 @@ public class KafkaProxyReconciler implements
         boolean hasClusters = !model.clustersWithValidNetworking().isEmpty();
         ConfigurationFragment<Configuration> fragment = null;
         if (hasClusters) {
-            fragment = generateProxyConfig(model);
+            fragment = generateProxyConfig(model, proxy);
         }
         KafkaProxyContext.init(context,
                 new VirtualKafkaClusterStatusFactory(clock),
@@ -179,7 +183,7 @@ public class KafkaProxyReconciler implements
                 fragment);
     }
 
-    private ConfigurationFragment<Configuration> generateProxyConfig(ProxyModel model) {
+    private ConfigurationFragment<Configuration> generateProxyConfig(ProxyModel model, KafkaProxy proxy) {
 
         var allFilterDefinitions = buildFilterDefinitions(model);
         Map<String, ConfigurationFragment<NamedFilterDefinition>> namedDefinitions = allFilterDefinitions.stream()
@@ -212,9 +216,51 @@ public class KafkaProxyReconciler implements
                         false,
                         // micrometer
                         Optional.empty(),
-                        null),
+                        buildNetworkDefinition(proxy)),
                 allVolumes,
                 allMounts);
+    }
+
+    @Nullable
+    private static NetworkDefinition buildNetworkDefinition(KafkaProxy proxy) {
+        var spec = proxy.getSpec();
+        if (spec == null) {
+            return null;
+        }
+        var network = spec.getNetwork();
+        if (network == null) {
+            return null;
+        }
+        var mgmt = network.getManagement();
+        var prxy = network.getProxy();
+        return new NetworkDefinition(
+                mgmt == null ? null
+                        : buildNettySettings(mgmt.getWorkerThreadCount(), mgmt.getShutdownQuietPeriod(),
+                                mgmt.getAuthenticatedIdleTimeout(), mgmt.getUnauthenticatedIdleTimeout()),
+                prxy == null ? null
+                        : buildNettySettings(prxy.getWorkerThreadCount(), prxy.getShutdownQuietPeriod(),
+                                prxy.getAuthenticatedIdleTimeout(), prxy.getUnauthenticatedIdleTimeout()));
+    }
+
+    private static NettySettings buildNettySettings(@Nullable Integer workerThreadCount,
+                                                    @Nullable String shutdownQuietPeriod,
+                                                    @Nullable String authenticatedIdleTimeout,
+                                                    @Nullable String unauthenticatedIdleTimeout) {
+        return new NettySettings(
+                Optional.ofNullable(workerThreadCount),
+                Optional.ofNullable(shutdownQuietPeriod).map(s -> (int) parseDuration(s).toSeconds()),
+                Optional.ofNullable(authenticatedIdleTimeout).map(KafkaProxyReconciler::parseDuration),
+                Optional.ofNullable(unauthenticatedIdleTimeout).map(KafkaProxyReconciler::parseDuration));
+    }
+
+    private static Duration parseDuration(String value) {
+        try {
+            return ProxyConfigStateData.CONFIG_OBJECT_MAPPER.readValue('"' + value + '"', Duration.class);
+        }
+        catch (JsonProcessingException e) {
+            // The CRD schema pattern validation should prevent invalid values reaching here
+            throw new IllegalStateException("Invalid duration in KafkaProxy spec: '" + value + "'", e);
+        }
     }
 
     private static List<ConfigurationFragment<VirtualCluster>> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
