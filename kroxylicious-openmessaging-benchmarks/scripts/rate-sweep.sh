@@ -224,9 +224,10 @@ print_summary() {
                 b_achieved=$(jq '[.publishRate[]] | add / length' "${bf}")
                 b_sat=$(awk "BEGIN { print (${b_achieved} < ${rate} * 0.95) ? 1 : 0 }")
                 if [[ "${b_sat}" == "1" ]]; then
-                    local b_delta
-                    b_delta=$(awk "BEGIN { printf "%\047d", ${rate} - ${b_achieved} }")
-                    printf "  %-20s  %-14s" "sat@$(printf '%\'\''d' "$(printf '%.0f' "${b_achieved}")")(-${b_delta})" "—"
+                    local b_achieved_int b_delta
+                    b_achieved_int=$(printf '%.0f' "${b_achieved}")
+                    b_delta=$(printf "%'d" $(( rate - b_achieved_int )))
+                    printf "  %-20s  %-14s" "sat@$(printf "%'d" "${b_achieved_int}")(-${b_delta})" "—"
                 else
                     b_p99=$(jq '[.endToEndLatency99pct[]] | add / length' "${bf}")
                     baseline_p99="${b_p99}"
@@ -257,9 +258,10 @@ print_summary() {
             s_achieved=$(jq '[.publishRate[]] | add / length' "${sf}")
             s_sat=$(awk "BEGIN { print (${s_achieved} < ${rate} * 0.95) ? 1 : 0 }")
             if [[ "${s_sat}" == "1" ]]; then
-                local s_delta
-                s_delta=$(awk "BEGIN { printf "%\047d", ${rate} - ${s_achieved} }")
-                printf "  %-20s  %-14s" "sat@$(printf '%\'\''d' "$(printf '%.0f' "${s_achieved}")")(-${s_delta})" "—"
+                local s_achieved_int s_delta
+                s_achieved_int=$(printf '%.0f' "${s_achieved}")
+                s_delta=$(printf "%'d" $(( rate - s_achieved_int )))
+                printf "  %-20s  %-14s" "sat@$(printf "%'d" "${s_achieved_int}")(-${s_delta})" "—"
                 [[ -n "${baseline_dir}" ]] && printf "  %-20s" "—"
             else
                 s_p99=$(jq '[.endToEndLatency99pct[]] | add / length' "${sf}")
