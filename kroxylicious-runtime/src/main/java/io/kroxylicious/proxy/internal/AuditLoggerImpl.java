@@ -19,21 +19,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.audit.Actor;
-import io.kroxylicious.proxy.audit.Actorable;
 import io.kroxylicious.proxy.audit.AuditEmitter;
 import io.kroxylicious.proxy.audit.AuditableActionBuilder;
-import io.kroxylicious.proxy.audit.Contextual;
-import io.kroxylicious.proxy.audit.Correlatable;
 import io.kroxylicious.proxy.audit.Correlation;
-import io.kroxylicious.proxy.audit.Loggable;
-import io.kroxylicious.proxy.audit.Referenceable;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class AuditLoggerImpl<B extends Loggable> implements ProxyAuditLogger<B> {
+public class AuditLoggerImpl implements ProxyAuditLogger {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AuditLoggerImpl.class);
 
@@ -65,21 +60,21 @@ public class AuditLoggerImpl<B extends Loggable> implements ProxyAuditLogger<B> 
 
     @Override
     @CheckReturnValue(explanation = "log() must be called on the result of this method")
-    public B action(String action) {
+    public AuditableActionBuilder action(String action) {
         return action(Objects.requireNonNull(action), null, null);
     }
 
     @Override
     @CheckReturnValue(explanation = "log() must be called on the result of this method")
-    public B actionWithOutcome(String action, String status, @Nullable String reason) {
+    public AuditableActionBuilder actionWithOutcome(String action, String status, @Nullable String reason) {
         return action(Objects.requireNonNull(action), Objects.requireNonNull(status), reason);
     }
 
-    private B action(String action, @Nullable String status, @Nullable String reason) {
+    private AuditableActionBuilder action(String action, @Nullable String status, @Nullable String reason) {
         if (anyEmitterHasInterest(action, status)) {
-            return (B) new AuditableActionBuilderImpl(action, status, reason);
+            return new AuditableActionBuilderImpl(action, status, reason);
         }
-        return (B) noopBuilder;
+        return noopBuilder;
     }
 
     private boolean anyEmitterHasInterest(String action, @Nullable String status) {
@@ -110,22 +105,7 @@ public class AuditLoggerImpl<B extends Loggable> implements ProxyAuditLogger<B> 
         }
     }
 
-    class AuditableActionBuilderImpl implements Actorable<AuditableActionBuilderImpl>, Contextual<AuditableActionBuilderImpl>, Correlatable<AuditableActionBuilderImpl>, Referenceable<AuditableActionBuilderImpl>, Loggable {
-
-        @Override
-        public AuditableActionBuilderImpl addActor(String scope, String identifier) {
-            return this;
-        }
-
-        @Override
-        public AuditableActionBuilderImpl addCorrelation(String scope, String identifier) {
-            return this;
-        }
-
-        @Override
-        public AuditableActionBuilderImpl addCoordinate(String scope, String identifier) {
-            return this;
-        }
+    class AuditableActionBuilderImpl implements AuditableActionBuilder {
 
         sealed interface Value<T> extends io.kroxylicious.proxy.audit.Value<T>
                 permits BooleanValue, BooleansValue, DoubleValue, DoublesValue, LongValue, LongsValue, StringValue, StringsValue {

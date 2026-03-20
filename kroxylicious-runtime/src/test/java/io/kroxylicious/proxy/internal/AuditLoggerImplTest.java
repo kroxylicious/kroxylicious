@@ -173,7 +173,7 @@ class AuditLoggerImplTest {
 
     static List<Arguments> shouldRenderActionAsJson() {
         return List.of(
-                Arguments.argumentSet("successful", (Function<AuditLogger<AuditableActionBuilder>, AuditableActionBuilder>) (AuditLogger<AuditableActionBuilder> logger) -> logger.action("Foo"),
+                Arguments.argumentSet("successful", (Function<AuditLogger, AuditableActionBuilder>) (AuditLogger logger) -> logger.action("Foo"),
                         """
                                 {
                                   "time" : "1970-01-01T00:00:00Z",
@@ -203,7 +203,7 @@ class AuditLoggerImplTest {
                                   }
                                 }"""),
                 Arguments.argumentSet("unsuccessful",
-                        (Function<AuditLogger<AuditableActionBuilder>, AuditableActionBuilder>) (AuditLogger<AuditableActionBuilder> logger) -> logger.actionWithOutcome("Foo", "Bad", "Oh dear!"),
+                        (Function<AuditLogger, AuditableActionBuilder>) (AuditLogger logger) -> logger.actionWithOutcome("Foo", "Bad", "Oh dear!"),
                         """
                                 {
                                   "time" : "1970-01-01T00:00:00Z",
