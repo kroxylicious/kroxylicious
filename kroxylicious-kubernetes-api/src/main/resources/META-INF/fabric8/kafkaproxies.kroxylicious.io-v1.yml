@@ -110,6 +110,73 @@ spec:
                                     - type: string
                                   pattern: "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
                                   x-kubernetes-int-or-string: true
+                network:
+                  type: object
+                  description: |
+                    Controls Netty-level network settings for the proxy. All fields are optional;
+                    omitting a field leaves the proxy default in effect.
+                    Durations use Go-style format: e.g. "30s", "5m", "1h30m".
+                  properties:
+                    proxy:
+                      type: object
+                      description: Netty settings for the proxy (client-facing) channel.
+                      properties:
+                        workerThreadCount:
+                          type: integer
+                          format: int32
+                          minimum: 1
+                          description: |
+                            Number of Netty worker threads for the proxy channel.
+                            Defaults to 2 * available processors.
+                        shutdownQuietPeriod:
+                          type: string
+                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          description: |
+                            The quiet period used during graceful shutdown of the proxy channel's
+                            event loop. During this period the event loop continues to accept and
+                            process tasks; if no tasks arrive within this period, shutdown proceeds.
+                            Go-style duration (e.g. "2s").
+                        authenticatedIdleTimeout:
+                          type: string
+                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          description: |
+                            Maximum time a connection may remain idle after authentication
+                            before being closed by the proxy. Go-style duration (e.g. "10m", "1h").
+                        unauthenticatedIdleTimeout:
+                          type: string
+                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          description: |
+                            Maximum time a connection may remain idle without completing
+                            authentication before being closed. Go-style duration (e.g. "10s").
+                    management:
+                      type: object
+                      description: Netty settings for the management (admin/metrics) channel.
+                      properties:
+                        workerThreadCount:
+                          type: integer
+                          format: int32
+                          minimum: 1
+                          description: |
+                            Number of Netty worker threads for the management channel.
+                            Defaults to 2 * available processors.
+                        shutdownQuietPeriod:
+                          type: string
+                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          description: |
+                            The quiet period used during graceful shutdown of the management
+                            channel's event loop. Go-style duration (e.g. "2s").
+                        authenticatedIdleTimeout:
+                          type: string
+                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          description: |
+                            Maximum time a management connection may remain idle after
+                            authentication before being closed. Go-style duration (e.g. "10m").
+                        unauthenticatedIdleTimeout:
+                          type: string
+                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          description: |
+                            Maximum time a management connection may remain idle without
+                            completing authentication before being closed. Go-style duration (e.g. "10s").
                 replicas:
                   description: "The number of pods to deploy."
                   type: integer

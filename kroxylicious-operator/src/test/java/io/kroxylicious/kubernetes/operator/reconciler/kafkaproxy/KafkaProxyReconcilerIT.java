@@ -99,6 +99,8 @@ import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterI
 import io.kroxylicious.kubernetes.operator.model.networking.TlsClusterIPClusterIngressNetworkingModel;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.NettySettings;
+import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -215,6 +217,51 @@ public class KafkaProxyReconcilerIT {
 
         // then
         assertDeploymentReplicaCount(created.proxy(), 3);
+    }
+
+    @Test
+    void shouldPropagateNetworkSettingsToProxyConfig() {
+        // given
+        KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+
+        // when
+        // @formatter:off
+        KafkaProxy kafkaProxy = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withName(PROXY_A)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewNetwork()
+                        .withNewProxy()
+                            .withWorkerThreadCount(4)
+                            .withAuthenticatedIdleTimeout("10m")
+                            .withUnauthenticatedIdleTimeout("30s")
+                            .withShutdownQuietPeriod("2s")
+                        .endProxy()
+                        .withNewManagement()
+                            .withWorkerThreadCount(2)
+                        .endManagement()
+                    .endNetwork()
+                .endSpec()
+                .build();
+        // @formatter:on
+        var created = doCreate(kafkaService, kafkaProxy);
+
+        // then
+        var expectedProxyNettySettings = new NettySettings(
+                Optional.of(4),
+                Optional.of(2),
+                Optional.of(Duration.ofMinutes(10)),
+                Optional.of(Duration.ofSeconds(30)));
+        var expectedManagementNettySettings = new NettySettings(
+                Optional.of(2),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+        var expectedNetwork = new NetworkDefinition(expectedManagementNettySettings, expectedProxyNettySettings);
+        AWAIT.untilAsserted(() -> assertProxyConfigInConfigMap(created.proxy())
+                .extracting(Configuration::network)
+                .isEqualTo(expectedNetwork));
     }
 
     @ParameterizedTest
