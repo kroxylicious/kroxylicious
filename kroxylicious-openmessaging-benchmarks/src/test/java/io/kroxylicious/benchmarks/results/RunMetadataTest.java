@@ -11,6 +11,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -207,5 +208,40 @@ class RunMetadataTest {
         URL fixtureUrl = RunMetadataTest.class.getResource("/fixtures/" + name);
         Assumptions.assumeTrue(fixtureUrl != null);
         return Path.of(fixtureUrl.toURI());
+    }
+
+    // --- Probe context tests ---
+
+    @Test
+    void probeContextFieldsWrittenToMetadata(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+
+        Map<String, Object> probeContext = Map.of(
+                "scenario", "proxy-no-filters",
+                "workload", "1topic-1kb",
+                "targetRate", 50000);
+
+        RunMetadata.generate(tempDir, probeContext, runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.get("scenario").asText()).isEqualTo("proxy-no-filters");
+        assertThat(metadata.get("workload").asText()).isEqualTo("1topic-1kb");
+        assertThat(metadata.get("targetRate").asInt()).isEqualTo(50000);
+    }
+
+    @Test
+    void generateWithoutProbeContextOmitsProbeFields(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+
+        RunMetadata.generate(tempDir, runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.has("scenario")).isFalse();
+        assertThat(metadata.has("workload")).isFalse();
+        assertThat(metadata.has("targetRate")).isFalse();
     }
 }

@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,10 +54,18 @@ public class RunMetadata {
      * @throws IOException if writing fails or git commands fail
      */
     public static void generate(Path outputDir) throws IOException {
-        generate(outputDir, RunMetadata::execCommand);
+        generate(outputDir, Collections.emptyMap(), RunMetadata::execCommand);
+    }
+
+    public static void generate(Path outputDir, Map<String, Object> probeContext) throws IOException {
+        generate(outputDir, probeContext, RunMetadata::execCommand);
     }
 
     static void generate(Path outputDir, CommandRunner runner) throws IOException {
+        generate(outputDir, Collections.emptyMap(), runner);
+    }
+
+    static void generate(Path outputDir, Map<String, Object> probeContext, CommandRunner runner) throws IOException {
         Files.createDirectories(outputDir);
 
         String gitCommit = runner.run("git", "rev-parse", "HEAD");
@@ -67,6 +76,7 @@ public class RunMetadata {
         metadata.put("gitCommit", gitCommit);
         metadata.put("gitBranch", gitBranch);
         metadata.put("timestamp", timestamp);
+        metadata.putAll(probeContext);
 
         Map<String, Object> minikubeProfile = minikubeProfileConfig(runner);
         if (!minikubeProfile.isEmpty()) {

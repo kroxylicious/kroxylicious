@@ -15,7 +15,7 @@ NAMESPACE="${NAMESPACE:-kafka}"
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") <output-dir>
+Usage: $(basename "$0") [options] <output-dir>
 
 Collects JFR recording and flamegraph from the proxy pod and generates run metadata.
 Result JSON (result.json) must already be present in output-dir — use collect_result_from_pvc
@@ -23,6 +23,11 @@ in run-benchmark.sh or retrieve it from the results PVC directly.
 
 Arguments:
   output-dir                Directory containing result.json, to write JFR/flamegraph into
+
+Options:
+  --scenario <name>         Benchmark scenario name written into run-metadata.json
+  --workload <name>         OMB workload name written into run-metadata.json
+  --target-rate <n>         Target producer rate (msg/sec) written into run-metadata.json
 
 Environment:
   NAMESPACE                 Kubernetes namespace (default: kafka)
@@ -37,11 +42,21 @@ EOF
     exit 1
 }
 
+SCENARIO=""
+WORKLOAD=""
+TARGET_RATE=""
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help)
             usage
             ;;
+        --scenario)
+            SCENARIO="$2"; shift 2 ;;
+        --workload)
+            WORKLOAD="$2"; shift 2 ;;
+        --target-rate)
+            TARGET_RATE="$2"; shift 2 ;;
         -*)
             echo "Error: unknown option $1" >&2
             usage
@@ -138,6 +153,10 @@ fi
 
 # Generate run metadata
 echo "Generating run metadata..."
-jbang "$FILTERED" --generate-run-metadata "$OUTPUT_DIR"
+JBANG_ARGS=(--generate-run-metadata "$OUTPUT_DIR")
+[[ -n "${SCENARIO}" ]]    && JBANG_ARGS+=(--scenario "${SCENARIO}")
+[[ -n "${WORKLOAD}" ]]    && JBANG_ARGS+=(--workload "${WORKLOAD}")
+[[ -n "${TARGET_RATE}" ]] && JBANG_ARGS+=(--target-rate "${TARGET_RATE}")
+jbang "$FILTERED" "${JBANG_ARGS[@]}"
 
 echo "Done. Results collected in $OUTPUT_DIR/"
