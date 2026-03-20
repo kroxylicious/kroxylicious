@@ -40,6 +40,30 @@
         "/localstack/"
       ],
       "groupName": "localstack packages"
+    },
+    {
+      "matchPackageNames": [
+        "/python-kafka-test-client/"
+      ],
+      "addLabels": [
+        "test/system-test/python_test_client"
+      ]
+    },
+    {
+      "matchPackageNames": [
+        "/quay.io/kroxylicious/kcat/"
+      ],
+      "addLabels": [
+        "test/system-test/kcat"
+      ]
+    },
+    {
+      "matchPackageNames": [
+        "/quay.io/kroxylicious/kaf/"
+      ],
+      "addLabels": [
+        "test/system-test/kaf"
+      ]
     }
   ],
   "enabledManagers": [
