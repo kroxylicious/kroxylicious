@@ -58,7 +58,7 @@ The following resource types are available within the `io.kroxylicious.filter.au
 
 | TransactionalId
 | TransactionalIdResource
-| Represents Kafka transactional IDs used for EOS (Exactly Once Semantics).
+| Represents Kafka transactional IDs.
 |===
 
 For example, `TopicResource` is the implementation that represents Kafka topics.
