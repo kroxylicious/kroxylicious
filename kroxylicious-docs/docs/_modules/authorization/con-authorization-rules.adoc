@@ -44,8 +44,9 @@ where:
 
 The following resource types are available within the `io.kroxylicious.filter.authorization` package:
 
+[cols="1m,1m,1", options="header"]
 |===
-| Resource Type | Implementation Name | Description
+| Resource type | Implementation name | Description
 
 | Topic
 | TopicResource
@@ -55,7 +56,7 @@ The following resource types are available within the `io.kroxylicious.filter.au
 | GroupResource
 | Represents Kafka consumer groups.
 
-| Transactional ID
+| TransactionalId
 | TransactionalIdResource
 | Represents Kafka transactional IDs used for EOS (Exactly Once Semantics).
 |===
