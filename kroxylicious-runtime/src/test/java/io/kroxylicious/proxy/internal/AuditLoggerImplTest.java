@@ -181,6 +181,7 @@ class AuditLoggerImplTest {
                                   "status" : null,
                                   "reason" : null,
                                   "actor" : {
+                                    "type" : "Client",
                                     "srcAddr" : "127.0.0.1/<unresolved>:12345",
                                     "session" : "ABC-1234",
                                     "principals" : [ {
@@ -211,6 +212,7 @@ class AuditLoggerImplTest {
                                   "status" : "Bad",
                                   "reason" : "Oh dear!",
                                   "actor" : {
+                                    "type" : "Client",
                                     "srcAddr" : "127.0.0.1/<unresolved>:12345",
                                     "session" : "ABC-1234",
                                     "principals" : [ {

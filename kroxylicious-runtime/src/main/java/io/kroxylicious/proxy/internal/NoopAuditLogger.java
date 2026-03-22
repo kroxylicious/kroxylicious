@@ -6,6 +6,9 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.function.Supplier;
+
+import io.kroxylicious.proxy.audit.Actor;
 import io.kroxylicious.proxy.audit.AuditableActionBuilder;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -24,5 +27,10 @@ public class NoopAuditLogger implements ProxyAuditLogger {
     @Override
     public void close() {
         // Nothing to do
+    }
+
+    @Override
+    public ProxyAuditLogger derive(Supplier<Actor> actorSupplier) {
+        return this;
     }
 }

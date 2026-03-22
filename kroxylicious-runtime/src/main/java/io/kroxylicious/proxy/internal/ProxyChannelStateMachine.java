@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.net.SocketAddress;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -148,7 +149,7 @@ public class ProxyChannelStateMachine {
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
-    private final AuditLogger auditLogger;
+    private final ProxyAuditLogger auditLogger;
 
     /**
      * Client-specific audit logger that captures the authenticated client's identity.
@@ -194,7 +195,7 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
-    public ProxyChannelStateMachine(AuditLogger auditLogger,
+    public ProxyChannelStateMachine(ProxyAuditLogger auditLogger,
                                     EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder) {
         this.auditLogger = auditLogger;
@@ -334,6 +335,13 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
+            this.clientAuditLogger = auditLogger.derive(() -> ClientActorImpl.of(
+                    clientAddress(),
+                    sessionId(),
+                    null));
+            clientAuditLogger.action("ClientConnect")
+                    .withObjectRef(Map.of("vc", clusterName()))
+                    .log();
             LOGGER.atDebug()
                     .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
                     .addArgument(kafkaSession.sessionId())
@@ -554,7 +562,7 @@ public class ProxyChannelStateMachine {
 
     public void onSessionTransportAuthenticated() {
         this.kafkaSession.transitionTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
-        createClientAuditLogger();
+        createClientAuditLogger(null, null);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
@@ -563,13 +571,16 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
-    private void createClientAuditLogger() {
+    private void createClientAuditLogger(@Nullable String status, @Nullable String reason) {
         Subject subject = authenticatedSubject();
         if (auditLogger instanceof AuditLoggerImpl auditLoggerImpl) {
             this.clientAuditLogger = auditLoggerImpl.derive(() -> ClientActorImpl.of(
                     clientAddress(),
                     sessionId(),
                     subject));
+            clientAuditLogger.action("ClientAuthenticate")
+                    .withObjectRef(Map.of("vc", clusterName()))
+                    .log();
         }
         else {
             this.clientAuditLogger = auditLogger;
@@ -582,7 +593,7 @@ public class ProxyChannelStateMachine {
 
     public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
         clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
-        createClientAuditLogger();
+        createClientAuditLogger(null, null);
     }
 
     public Optional<ClientSaslContext> clientSaslContext() {
@@ -593,10 +604,15 @@ public class ProxyChannelStateMachine {
                                                 @Nullable String authorizedId,
                                                 Exception exception) {
         clientSubjectManager.clientSaslAuthenticationFailure();
+        createClientAuditLogger(exception.getClass().getName(), exception.getMessage());
     }
 
     public void onClientTlsHandshakeSuccess(SSLSession sslSession) {
         this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder, this::onTransportSubjectBuilt);
+    }
+
+    public void onClientTlsHandshakeFailure(String status, @Nullable String reason) {
+        createClientAuditLogger(status, reason);
     }
 
     @SuppressWarnings("java:S5738")
