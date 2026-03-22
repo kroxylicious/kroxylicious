@@ -229,6 +229,68 @@ public class AuditLoggingTestSupport {
     }
 
     /**
+     * Returns a condition that matches audit events where the actor has no principals.
+     * This is true when the principals field is null or missing.
+     */
+    public static Condition<JsonNode> hasNoPrincipals() {
+        return new Condition<>(json -> {
+            JsonNode actorNode = json.get("actor");
+            if (actorNode == null || !actorNode.isObject()) {
+                return false;
+            }
+            JsonNode principalsNode = actorNode.get("principals");
+            return principalsNode == null || principalsNode.isNull();
+        }, "has no principals (null or missing)");
+    }
+
+    /**
+     * Returns a condition that matches audit events where the actor has principals.
+     * This is true when the principals field is a non-empty array.
+     */
+    public static Condition<JsonNode> hasPrincipals() {
+        return new Condition<>(json -> {
+            JsonNode actorNode = json.get("actor");
+            if (actorNode == null || !actorNode.isObject()) {
+                return false;
+            }
+            JsonNode principalsNode = actorNode.get("principals");
+            return principalsNode != null && principalsNode.isArray() && principalsNode.size() > 0;
+        }, "has non-empty principals array");
+    }
+
+    /**
+     * Returns a condition that matches audit events where the actor has the specified session ID.
+     */
+    public static Condition<JsonNode> hasSessionId(String sessionId) {
+        return new Condition<>(json -> {
+            JsonNode actorNode = json.get("actor");
+            if (actorNode == null || !actorNode.isObject()) {
+                return false;
+            }
+            JsonNode sessionNode = actorNode.get("session");
+            return sessionNode != null &&
+                    sessionNode.isTextual() &&
+                    sessionId.equals(sessionNode.asText());
+        }, "has session=" + sessionId);
+    }
+
+    /**
+     * Returns a condition that matches audit events where the actor type is "Client".
+     */
+    public static Condition<JsonNode> hasClientActorType() {
+        return new Condition<>(json -> {
+            JsonNode actorNode = json.get("actor");
+            if (actorNode == null || !actorNode.isObject()) {
+                return false;
+            }
+            JsonNode typeNode = actorNode.get("type");
+            return typeNode != null &&
+                    typeNode.isTextual() &&
+                    "Client".equals(typeNode.asText());
+        }, "has actor type=Client");
+    }
+
+    /**
      * Adds only Slf4j audit logging emitter to the configuration.
      * Use this for tests that focus purely on audit logging without metrics.
      *
