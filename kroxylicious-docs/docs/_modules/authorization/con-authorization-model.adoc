@@ -18,10 +18,10 @@ This table lists the topic operations enforced by the authorization filter:
 |Operation|Typical use case
 
 |READ
-|Required for a consuming client to fetch records.
+|Required for a consumer to fetch records.
 
 |WRITE
-|Required for a producing client to send records.
+|Required for a producer to send records.
 |CREATE
 .3+|Required for an admin client to create, delete, or alter topics.
 
@@ -49,7 +49,7 @@ This table lists the operations enforced by the authorization filter for the gro
 |Operations|Typical use case
 
 |READ
-|Required for a consuming client to join a group.
+|Required for a consumer to join a group.
 
 |DELETE
 |Required for an admin client to delete a group or offsets within a group.
@@ -74,7 +74,7 @@ This table lists the operations enforced by the authorization filter for the tra
 |Operations|Typical use case
 
 |WRITE
-|Required for a producer or consumer client to participate in a transaction.
+|Required for a producer or consumer to participate in a transaction.
 
 |DESCRIBE
 |Required for a producer, consumer, or admin client to find and describe transactions.
