@@ -201,19 +201,20 @@ class ProduceAuthzIT extends AuthzIT {
     private static List<ProduceRequestData.PartitionProduceData> partitionData(String key, String value) {
         // It's important to use different pid different client instances, else ProduceReequests will get fenced out
         long producerId = pid++;
+        long currentTimeMillis = System.currentTimeMillis();
         var mr = RecordTestUtils.memoryRecords(RecordTestUtils.singleElementRecordBatch(
                 RecordTestUtils.DEFAULT_MAGIC_VALUE,
                 RecordTestUtils.DEFAULT_OFFSET,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
-                156543L, // logAppendTime
+                currentTimeMillis, // logAppendTime
                 producerId, // producerId
                 (short) 0, // producerEpoch
                 4, // baseSequence
                 false, // isTransactional
                 false, // isControlBatch
                 0, // partitionLeaderEpoch
-                key.getBytes(StandardCharsets.UTF_8), value.getBytes(StandardCharsets.UTF_8)));
+                key.getBytes(StandardCharsets.UTF_8), value.getBytes(StandardCharsets.UTF_8), currentTimeMillis));
         assertThat(mr.firstBatchSize()).isGreaterThan(0);
         assertThat(mr.batches().iterator().next().iterator().hasNext()).isTrue();
         return List.of(new ProduceRequestData.PartitionProduceData()
