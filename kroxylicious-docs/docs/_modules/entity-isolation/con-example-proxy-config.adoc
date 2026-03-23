@@ -31,7 +31,7 @@ filterDefinitions:
 * `mapper` is the name of the naming mapping service implementation.  Currently, this must be `PrincipalEntityNameMapperService`.
 * `separator` is the string that the mapper uses to separate the principal from the resource name.
 * `principalType` identifies the principal type within the subject that will be used to form the cluster-visible entity names.
-Use a fully-qualified class name of the principal. Defaults to `io.kroxylicious.proxy.authentication.User` if not specified.
+Use the fully-qualified class name of the principal. Defaults to `io.kroxylicious.proxy.authentication.User` if not specified.
 
 
 Refer to the {ProxyGuide} for more information about configuring the proxy.

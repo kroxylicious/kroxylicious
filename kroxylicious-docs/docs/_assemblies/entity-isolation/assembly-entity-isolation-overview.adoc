@@ -18,7 +18,7 @@ The filter achieves this by intercepting Kafka RPCs on the request and response 
 Resources that do not belong to the current client's namespace are filtered out of list and describe responses.
 
 .Entity Isolation filter — request and response path
-image::{realimagesdir}/entity-isolation-seq.svg["Diagram showing how the entity isolation re-writes requests and responses."]
+image::{realimagesdir}/entity-isolation-seq.svg["Diagram showing how the entity isolation rewrites requests and responses."]
 
 To use the Entity Isolation filter, the proxy must determine the authenticated subject. The authenticated subject is the verified identity of the client, derived from successful authentication.
 
