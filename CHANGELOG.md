@@ -14,6 +14,7 @@ Format `<github issue/pr number>: <short description>`.
 * [#3444](https://github.com/kroxylicious/kroxylicious/pull/3444): feat(authorization): support v13 Produce with topicIds
 * [#3444](https://github.com/kroxylicious/kroxylicious/pull/3444): feat(authorization): support v13-v18 Fetch with topicIds
 * [#3506](https://github.com/kroxylicious/kroxylicious/pull/3506): feat(validation): support v13+ Produce with topicIds
+* [#3448](https://github.com/kroxylicious/kroxylicious/pull/3448): feat(authorization): support authorization of group new consumer protocol group
 
 ### Changes, deprecations and removals
 
