@@ -6,10 +6,9 @@
 
 package io.kroxylicious.systemtests;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -143,18 +142,12 @@ class NonJVMClientsST extends AbstractSystemTests {
     }
 
     private void preloadImages() {
-        Method[] methods = KafkaClients.class.getDeclaredMethods();
-        for (Method method : methods) {
-            if (!method.getName().startsWith("get")) {
-                try {
-                    KafkaClient client = (KafkaClient) method.invoke(KafkaClients.class);
-                    client.preloadImage();
-                }
-                catch (IllegalAccessException | InvocationTargetException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
+        clientCombinations()
+                .flatMap(args -> Arrays.stream(args.get()))
+                .filter(KafkaClient.class::isInstance)
+                .map(KafkaClient.class::cast)
+                .distinct()
+                .forEach(KafkaClient::preloadImage);
     }
 
     @AfterAll
