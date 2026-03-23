@@ -1,6 +1,7 @@
 :experimental:
 :vault-chart-version: 0.32.0
 :localstack-chart-version: 0.6.27
+:localstack-tag: 4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a
 // A Renovate rule will update the strimzi-version but not kafka-version. Update the kafka-version to the point
 // at the latest kafka version supported by that strimzi.
 :strimzi-version: 0.51.0
@@ -79,7 +80,7 @@ It's intended for developing and testing cloud & Serverless apps offline.
 [source,terminal,subs="attributes",kms="localstack"]
 ----
 $ helm repo add --force-update localstack-repo https://helm.localstack.cloud
-$ helm upgrade --install localstack localstack-repo/localstack --namespace kms --create-namespace --version {localstack-chart-version} --set service.type=ClusterIP --wait
+$ helm upgrade --install localstack localstack-repo/localstack --namespace kms --create-namespace --version {localstack-chart-version} --set image.tag={localstack-tag} --set service.type=ClusterIP --wait
 ----
 
 NOTE: After installation, the LocalStack Helm chart prompts you to "Get the application URL". For this Quickstart, you can ignore these steps.

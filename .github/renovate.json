@@ -91,11 +91,13 @@
       "customType": "regex",
       "managerFilePatterns": [
         "/kroxylicious-kms-providers/kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java/",
-        "/kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml/"
+        "/kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml/",
+        "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
       ],
       "matchStrings": [
         "(?<depName>localstack/localstack):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
-        "tag:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)"
+        "tag:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)",
+        ":localstack-tag: *(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)"
       ],
       "depNameTemplate": "localstack/localstack",
       "datasourceTemplate": "docker"
@@ -210,18 +212,6 @@
         ":vault-chart-version:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "hashicorp/vault-helm",
-      "datasourceTemplate": "github-releases"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
-      ],
-      "matchStrings": [
-        ":localstack-chart-version:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
-      ],
-      "depNameTemplate": "localstack/helm-charts",
-      "extractVersionTemplate": "^localstack-(?<version>.*)$",
       "datasourceTemplate": "github-releases"
     },
     {
