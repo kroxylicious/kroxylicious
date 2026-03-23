@@ -18,6 +18,9 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
+* [#3496](https://github.com/kroxylicious/kroxylicious/issues/3496): The `shutdownQuietPeriodSeconds` field under `network.proxy` and `network.management` is deprecated.
+  Use the new `shutdownQuietPeriod` field instead, which accepts Go-style durations (e.g. `"2s"`, `"500ms"`) and adds support sub-second precision.
+  A new `shutdownTimeout` field is also available to configure the previously hardcoded 15-second Netty shutdown timeout.
 * Apicurio v3 has changed the default way schemas are identified. They are now referred to using `contentId` rather than `globalId`.
   The reason for this change was to allow interop with Confluent based kafka clients.
   Unfortunately, this causes breaking changes for users of `schemaValidation` rules of the record-validation feature.
