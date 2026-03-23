@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.validation.validators.bytebuf;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
@@ -75,7 +76,7 @@ public class AvroSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
             return schemaLookupResult.getParsedSchema().getParsedSchema();
         }
         catch (IOException e) {
-            throw new RuntimeException("Failed to resolve Avro schema", e);
+            throw new UncheckedIOException("Failed to resolve Avro schema", e);
         }
     }
 }

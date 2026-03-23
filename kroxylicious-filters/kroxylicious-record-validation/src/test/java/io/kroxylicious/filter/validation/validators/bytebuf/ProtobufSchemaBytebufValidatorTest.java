@@ -52,10 +52,7 @@ class ProtobufSchemaBytebufValidatorTest {
             }
             """;
 
-    // Valid protobuf encoding of Person{first_name="John", last_name="Doe", age=25}
-    // Field 1 (string): tag=0x0A, len=4, "John"
-    // Field 2 (string): tag=0x12, len=3, "Doe"
-    // Field 3 (int32): tag=0x18, varint=25
+    // Valid protobuf encoding of Person with first_name="John", last_name="Doe", age=25
     private static final byte[] VALID_PROTOBUF = new byte[]{
             0x0A, 0x04, 'J', 'o', 'h', 'n',
             0x12, 0x03, 'D', 'o', 'e',
@@ -223,9 +220,8 @@ class ProtobufSchemaBytebufValidatorTest {
     }
 
     private byte[] withRefPrefix(String messageTypeName, byte[] protobufData) {
-        // Apicurio ProtobufSerde writes a delimited Ref message before protobuf data in headers mode.
-        // Ref proto: message Ref { string name = 1; }
-        // Encoded: tag(0x0A) + length + name_bytes
+        // Apicurio ProtobufSerde writes a delimited Ref message (containing the message type name)
+        // before protobuf data. The Ref is encoded as: tag(0x0A) + length + name_bytes
         byte[] nameBytes = messageTypeName.getBytes(StandardCharsets.UTF_8);
         byte[] refMessage = new byte[2 + nameBytes.length];
         refMessage[0] = 0x0A; // field 1, wire type 2 (length-delimited)
