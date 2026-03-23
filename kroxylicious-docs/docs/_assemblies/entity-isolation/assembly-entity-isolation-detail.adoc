@@ -16,19 +16,18 @@ The mapper is given the authenticated subject of the current connection and the 
 * Translating a cluster-visible name back to a client-visible name (unmapping).
 * Deciding whether a cluster-visible name falls within the current client's namespace.
 
-The built-in mapper, `PrincipalEntityNameMapper`, prefixes resource names with the name of a principal from the authenticated
-subject.
-By default, the mapper extracts the `io.kroxylicious.proxy.authentication.User` principal from the subject, but that may be overridden in the configuration.
+The built-in mapper, `PrincipalEntityNameMapper`, prefixes resource names with the name of a principal from the authenticated subject.
+By default, the mapper extracts the `io.kroxylicious.proxy.authentication.User` principal type from the subject.
+This can be overridden to any other class that implements the `io.kroxylicious.proxy.authentication.Principal` interface that has the `io.kroxylicious.proxy.authentication.Unique` class level annotation.
 The mapper requires that the authenticated subject provides exactly one principal of the expected type otherwise the connection will be closed with an error.
 
-For a principal `alice`, a consumer group called `my-consumer-group` is stored on the broker as `alice-my-consumer-group`.
+When forming the cluster-visible name, the mapper separates the principal name from the resource name using a separator.
+The separator defaults to a hyphen (`-`) but this can also be overridden in configuration.
+If a client authenticates with a principal that contains the separator, the filter will disconnect the client with an error.
 
-[NOTE]
-====
-The default separator between the principal and the resource name is a hyphen (`-`).
-Principals that already contain the separator are not supported.
-If a client authenticates with a principal that contains the separator, the proxy disconnects the client with an error.
-====
+Both principal name and the separator must contain only ASCII alphanumerics, '.', '_' and '-'.  This restriction comes from Kafka itself.
+
+To illustrate the default behavior of the mapper, given a principal name `alice` and a consumer group called `my-consumer-group`, the group will be stored on the broker as `alice-my-consumer-group`.
 
 [IMPORTANT]
 ====
