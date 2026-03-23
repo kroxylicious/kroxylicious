@@ -49,7 +49,9 @@ final class NetworkDefinitionBuilder {
                                                     @Nullable String unauthenticatedIdleTimeout) {
         return new NettySettings(
                 Optional.ofNullable(workerThreadCount),
-                Optional.ofNullable(shutdownQuietPeriod).map(s -> (int) parseDuration(s).toSeconds()),
+                Optional.empty(),
+                Optional.ofNullable(shutdownQuietPeriod).map(NetworkDefinitionBuilder::parseDuration),
+                Optional.empty(),
                 Optional.ofNullable(authenticatedIdleTimeout).map(NetworkDefinitionBuilder::parseDuration),
                 Optional.ofNullable(unauthenticatedIdleTimeout).map(NetworkDefinitionBuilder::parseDuration));
     }
