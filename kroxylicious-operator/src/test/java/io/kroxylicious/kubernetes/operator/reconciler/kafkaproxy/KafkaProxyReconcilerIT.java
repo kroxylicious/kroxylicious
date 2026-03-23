@@ -901,7 +901,7 @@ public class KafkaProxyReconcilerIT {
     }
 
     @Test
-    void virtualClusterWithOpenshiftRouteIngressWithTrustAnchor() {
+    void virtualClusterWithOpenshiftRouteIngress() {
         assumeThat(testActor.supports(Route.class)).withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
 
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
@@ -923,15 +923,13 @@ public class KafkaProxyReconcilerIT {
         KafkaProxyIngress openshiftRouteIngress = updateStatusObservedGeneration(
                 testActor.create(openshiftRouteIngress(ingressName, proxy)));
 
-        Secret tlsServerCert = testActor.create(tlsKeyAndCertSecret("downstream-tls-certificate"));
-        String downstreamTrustAnchorName = "downstream-tls-trust-anchor";
-        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName));
+        String downstreamCertSecretName = "downstream-tls-certificate";
+        Secret tlsCert = testActor.create(tlsKeyAndCertSecret(downstreamCertSecretName));
 
         Ingresses clusterIngress = new IngressesBuilder()
                 .withIngressRef(toIngressRef(openshiftRouteIngress))
                 .withNewTls()
-                .withCertificateRef(toCertificateRef(tlsServerCert))
-                .withTrustAnchorRef(toTrustAnchorRef(trustAnchor))
+                .withCertificateRef(toCertificateRef(tlsCert))
                 .endTls()
                 .build();
         VirtualKafkaCluster cluster = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, List.of(clusterIngress), Optional.empty());
