@@ -156,8 +156,8 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
         var config = createAvroValidationConfig(cluster, topic, contentId);
 
         var keySerde = new Serdes.StringSerde();
-        var producerValueSerde = createAvroProducerSerde(false);
-        var consumerValueSerde = createAvroConsumerSerde(false);
+        var producerValueSerde = createAvroSerde(false);
+        var consumerValueSerde = createAvroSerde(false);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(keySerde, producerValueSerde, Map.of());
@@ -178,8 +178,8 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
                     .first()
                     .satisfies(value -> {
                         GenericRecord received = (GenericRecord) value;
-                        assertThat(received.get("firstName").toString()).isEqualTo("John");
-                        assertThat(received.get("lastName").toString()).isEqualTo("Doe");
+                        assertThat(received.get("firstName")).hasToString("John");
+                        assertThat(received.get("lastName")).hasToString("Doe");
                         assertThat(received.get("age")).isEqualTo(25);
                     });
         }
@@ -218,8 +218,8 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
         var config = createAvroValidationConfig(cluster, topic, contentId);
 
         var keySerde = new Serdes.StringSerde();
-        var producerValueSerde = createAvroProducerSerde(schemaIdInHeader);
-        var consumerValueSerde = createAvroConsumerSerde(schemaIdInHeader);
+        var producerValueSerde = createAvroSerde(schemaIdInHeader);
+        var consumerValueSerde = createAvroSerde(schemaIdInHeader);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(keySerde, producerValueSerde, Map.of());
@@ -240,8 +240,8 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
                     .first()
                     .satisfies(value -> {
                         GenericRecord received = (GenericRecord) value;
-                        assertThat(received.get("firstName").toString()).isEqualTo("John");
-                        assertThat(received.get("lastName").toString()).isEqualTo("Doe");
+                        assertThat(received.get("firstName")).hasToString("John");
+                        assertThat(received.get("lastName")).hasToString("Doe");
                         assertThat(received.get("age")).isEqualTo(30);
                     });
         }
@@ -254,7 +254,7 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
         var config = createAvroValidationConfig(cluster, topic, secondContentId);
 
         var keySerde = new Serdes.StringSerde();
-        var valueSerde = createAvroProducerSerde(schemaIdInHeader);
+        var valueSerde = createAvroSerde(schemaIdInHeader);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(keySerde, valueSerde, Map.of())) {
@@ -268,17 +268,7 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
         }
     }
 
-    private static AvroSerde<GenericRecord> createAvroProducerSerde(boolean schemaIdInHeader) {
-        var serde = new AvroSerde<GenericRecord>();
-        serde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
-                SerdeConfig.EXPLICIT_ARTIFACT_ID, artifactId,
-                SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
-                KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
-        return serde;
-    }
-
-    private static AvroSerde<GenericRecord> createAvroConsumerSerde(boolean schemaIdInHeader) {
+    private static AvroSerde<GenericRecord> createAvroSerde(boolean schemaIdInHeader) {
         var serde = new AvroSerde<GenericRecord>();
         serde.configure(Map.of(
                 SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,

@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.validation.validators.bytebuf;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
@@ -98,7 +99,7 @@ public class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidat
             return protobufSchema.getFileDescriptor().getMessageTypes().get(0);
         }
         catch (IOException e) {
-            throw new RuntimeException("Failed to resolve Protobuf schema", e);
+            throw new UncheckedIOException("Failed to resolve Protobuf schema", e);
         }
     }
 }
