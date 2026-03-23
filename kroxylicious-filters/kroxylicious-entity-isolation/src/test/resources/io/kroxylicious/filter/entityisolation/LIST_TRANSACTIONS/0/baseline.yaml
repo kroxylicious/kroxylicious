@@ -1,0 +1,58 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "LIST_TRANSACTIONS"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_TRANSACTIONS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 66
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        stateFilters: []
+        producerIdFilters: []
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        unknownStateFilters: []
+        transactionStates:
+          - transactionalId: alice-mytxn
+            producerId: 0
+            transactionState: Unknown
+          - transactionalId: bob-mytxn
+            producerId: 1
+            transactionState: Ongoing
+  entityTypes: ["TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 66
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    stateFilters: []
+    producerIdFilters: []
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    unknownStateFilters: []
+    transactionStates:
+      - transactionalId: mytxn
+        producerId: 0
+        transactionState: Unknown

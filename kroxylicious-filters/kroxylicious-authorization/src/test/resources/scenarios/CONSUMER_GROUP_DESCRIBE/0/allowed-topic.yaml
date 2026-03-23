@@ -20,7 +20,7 @@ given:
         clientId: "client-id"
       expectedRequest:
         groupIds:
-          - "random-string-814"
+          - "my-group"
         includeAuthorizedOperations: false
       upstreamResponseHeader:
         correlationId: 1
@@ -29,7 +29,7 @@ given:
         groups:
           - errorCode: 222
             errorMessage: "random-string-996"
-            groupId: "random-string-68"
+            groupId: "my-group"
             groupState: "random-string-386"
             groupEpoch: 391
             assignmentEpoch: 657
@@ -63,6 +63,10 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
   topicNames: { }
 when:
   subject: "alice"
@@ -73,7 +77,7 @@ when:
     clientId: "client-id"
   request:
     groupIds:
-      - "random-string-814"
+      - "my-group"
     includeAuthorizedOperations: false
 then:
   expectedResponseHeader:
@@ -83,7 +87,7 @@ then:
     groups:
       - errorCode: 222
         errorMessage: "random-string-996"
-        groupId: "random-string-68"
+        groupId: "my-group"
         groupState: "random-string-386"
         groupEpoch: 391
         assignmentEpoch: 657

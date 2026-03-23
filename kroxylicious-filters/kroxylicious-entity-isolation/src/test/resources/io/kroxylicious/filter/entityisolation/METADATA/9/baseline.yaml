@@ -1,0 +1,91 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "METADATA"
+  apiVersion: 9
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "METADATA"
+      expectedRequestVersion: 9
+      expectedRequestHeader:
+        requestApiKey: 3
+        requestApiVersion: 9
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - name: foo
+        allowAutoTopicCreation: true
+        includeClusterAuthorizedOperations: true
+        includeTopicAuthorizedOperations: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        brokers:
+          - nodeId: 1
+            host: localhost
+            port: 9999
+            rack: us-east1
+        clusterId: AAAAAAAAAAAAAAAAAAAAAA
+        controllerId: 1
+        topics:
+          - errorCode: 0
+            name: foo
+            isInternal: false
+            partitions:
+              - errorCode: 0
+                partitionIndex: 0
+                leaderId: 1
+                leaderEpoch: 1
+                replicaNodes: []
+                isrNodes: []
+                offlineReplicas: []
+            topicAuthorizedOperations: 0
+        clusterAuthorizedOperations: 0
+  entityTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 3
+    requestApiVersion: 9
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - name: foo
+    allowAutoTopicCreation: true
+    includeClusterAuthorizedOperations: true
+    includeTopicAuthorizedOperations: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    brokers:
+      - nodeId: 1
+        host: localhost
+        port: 9999
+        rack: us-east1
+    clusterId: AAAAAAAAAAAAAAAAAAAAAA
+    controllerId: 1
+    topics:
+      - errorCode: 0
+        name: foo
+        isInternal: false
+        partitions:
+          - errorCode: 0
+            partitionIndex: 0
+            leaderId: 1
+            leaderEpoch: 1
+            replicaNodes: []
+            isrNodes: []
+            offlineReplicas: []
+        topicAuthorizedOperations: 0
+    clusterAuthorizedOperations: 0

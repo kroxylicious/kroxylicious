@@ -1,0 +1,49 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "HEARTBEAT"
+  apiVersion: 4
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "HEARTBEAT"
+      expectedRequestVersion: 4
+      expectedRequestHeader:
+        requestApiKey: 12
+        requestApiVersion: 4
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "alice-mygroup"
+        generationId: 0
+        memberId: "mymemberid"
+        groupInstanceId: "mygroupinstanceid"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1016
+        errorCode: 1
+  entityTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 12
+    requestApiVersion: 4
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: mygroup
+    generationId: 0
+    memberId: mymemberid
+    groupInstanceId: mygroupinstanceid
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1016
+    errorCode: 1
