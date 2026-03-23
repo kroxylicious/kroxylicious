@@ -179,7 +179,7 @@ class RecordBatchAssertTest {
                 false, 1,
                 "KEY".getBytes(
                         StandardCharsets.UTF_8),
-                "VALUE".getBytes(StandardCharsets.UTF_8), new RecordHeader[]{});
+                "VALUE".getBytes(StandardCharsets.UTF_8), 0L, new RecordHeader[]{});
         RecordBatchAssert batchAssert = KafkaAssertions.assertThat(batch);
         batchAssert.hasMetadataMatching(batch);
         batchAssert.hasMetadataMatching(batchSameMetadata);
