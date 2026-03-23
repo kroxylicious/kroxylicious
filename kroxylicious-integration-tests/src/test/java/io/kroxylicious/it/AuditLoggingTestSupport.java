@@ -27,6 +27,8 @@ import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
 
+import io.kroxylicious.audit.emitter.metrics.MetricsEmitterFactory;
+import io.kroxylicious.audit.emitter.slf4j.Slf4jEmitterFactory;
 import io.kroxylicious.proxy.config.AuditEmitterConfigBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 
@@ -299,7 +301,7 @@ public class AuditLoggingTestSupport {
      */
     public static ConfigurationBuilder addAuditLogging(ConfigurationBuilder builder) {
         builder.withNewAudit()
-                .addToEmitters(new AuditEmitterConfigBuilder("logging-emitter", "io.kroxylicious.audit.emitter.slf4j.Slf4jEmitterFactory").build())
+                .addToEmitters(new AuditEmitterConfigBuilder("logging-emitter", Slf4jEmitterFactory.class.getName()).build())
                 .endAudit();
         return builder;
     }
@@ -313,8 +315,8 @@ public class AuditLoggingTestSupport {
      */
     public static ConfigurationBuilder addAuditMetricsAndLogging(ConfigurationBuilder builder) {
         builder.withNewAudit()
-                .addToEmitters(new AuditEmitterConfigBuilder("metric-emitter", "io.kroxylicious.audit.emitter.metrics.MetricsEmitterFactory").build())
-                .addToEmitters(new AuditEmitterConfigBuilder("logging-emitter", "io.kroxylicious.audit.emitter.slf4j.Slf4jEmitterFactory").build())
+                .addToEmitters(new AuditEmitterConfigBuilder("metric-emitter", MetricsEmitterFactory.class.getName()).build())
+                .addToEmitters(new AuditEmitterConfigBuilder("logging-emitter", Slf4jEmitterFactory.class.getName()).build())
                 .endAudit();
         return builder;
     }
