@@ -25,6 +25,23 @@ import io.apicurio.registry.serde.kafka.headers.HeadersHandler;
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
 
+/**
+ * Base class for schema-based record validators that validate Kafka record values (or keys)
+ * against a schema stored in Apicurio Registry.
+ * <p>
+ * This class handles the Apicurio serde wire format, extracting the schema identifier from
+ * the record (either from Kafka headers or from a magic-byte prefix in the record body) and
+ * verifying it matches the expected schema. After stripping the serde envelope, it delegates
+ * actual schema validation to the subclass via {@link #doValidate(ByteBuffer)}.
+ * </p>
+ * <p>
+ * Subclasses must implement {@link #doValidate(ByteBuffer)} to perform schema-specific
+ * validation (e.g. JSON Schema, Avro, Protobuf). Subclasses may also override
+ * {@link #skipExtraSerdeBytes(ByteBuffer)} if the serde writes additional framing bytes
+ * between the schema identifier and the payload (e.g. the Protobuf serde writes a
+ * delimited Ref message).
+ * </p>
+ */
 abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
     private final Long schemaId;
     private final WireFormatVersion wireFormatVersion;
@@ -79,18 +96,9 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
     @SuppressWarnings("removal")
     private Optional<Long> extractSchemaIdFromRecord(ByteBuffer buffer, Record kafkaRecord, boolean isKey) {
         // Try headers first
-        if (kafkaRecord.headers().length > 0) {
-            var recordHeaders = new RecordHeaders(kafkaRecord.headers());
-            var headerHandler = isKey ? keyHeaderHandler : valueHeaderHandler;
-            var ref = headerHandler.readHeaders(recordHeaders);
-
-            Long id = switch (wireFormatVersion) {
-                case V2 -> ref.getGlobalId();
-                case V3 -> ref.getContentId();
-            };
-            if (id != null) {
-                return Optional.of(id);
-            }
+        var headerId = extractSchemaIdFromHeaders(kafkaRecord, isKey);
+        if (headerId.isPresent()) {
+            return headerId;
         }
 
         // Fall back to body prefix
@@ -104,6 +112,24 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
                 case V3 -> ref.getContentId();
             };
             return Optional.ofNullable(id);
+        }
+        return Optional.empty();
+    }
+
+    @SuppressWarnings("removal")
+    private Optional<Long> extractSchemaIdFromHeaders(Record kafkaRecord, boolean isKey) {
+        if (kafkaRecord.headers().length > 0) {
+            var recordHeaders = new RecordHeaders(kafkaRecord.headers());
+            var headerHandler = isKey ? keyHeaderHandler : valueHeaderHandler;
+            var ref = headerHandler.readHeaders(recordHeaders);
+
+            Long id = switch (wireFormatVersion) {
+                case V2 -> ref.getGlobalId();
+                case V3 -> ref.getContentId();
+            };
+            if (id != null) {
+                return Optional.of(id);
+            }
         }
         return Optional.empty();
     }
