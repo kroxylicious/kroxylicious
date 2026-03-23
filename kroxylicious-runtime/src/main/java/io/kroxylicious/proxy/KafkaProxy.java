@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -81,10 +82,20 @@ public final class KafkaProxy implements AutoCloseable {
     @VisibleForTesting
     record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
 
-        @SuppressWarnings("java:S1452") // wildcard generics expected, shutdownGracefully returns wildcard
-        public List<Future<?>> shutdownGracefully(int shutdownQuietPeriodSeconds) {
-            return List.of(bossGroup.shutdownGracefully(shutdownQuietPeriodSeconds, 15, TimeUnit.SECONDS),
-                    workerGroup.shutdownGracefully(shutdownQuietPeriodSeconds, 15, TimeUnit.SECONDS));
+        @SuppressWarnings({ "java:S1452", "java:S3553", "deprecation" }) // wildcard generics expected; Optional param intentional; accessing deprecated field for migration
+        public List<Future<?>> shutdownGracefully(Optional<NettySettings> nettySettings) {
+            var quietPeriod = nettySettings.flatMap(NettySettings::shutdownQuietPeriod)
+                    .or(() -> nettySettings.flatMap(NettySettings::shutdownQuietPeriodSeconds)
+                            .map(seconds -> {
+                                STARTUP_SHUTDOWN_LOGGER.warn(
+                                        "shutdownQuietPeriodSeconds is deprecated, use shutdownQuietPeriod (Go-style duration e.g. \"2s\") instead");
+                                return Duration.ofSeconds(seconds);
+                            }))
+                    .orElse(Duration.ofSeconds(2));
+            var timeout = nettySettings.flatMap(NettySettings::shutdownTimeout)
+                    .orElse(Duration.ofSeconds(15));
+            return List.of(bossGroup.shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS),
+                    workerGroup.shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS));
         }
 
         public static EventGroupConfig build(String name, Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier, boolean useIoUring) {
@@ -336,12 +347,10 @@ public final class KafkaProxy implements AutoCloseable {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
                 if (proxyEventGroup != null) {
-                    Integer shutdownQuietPeriodSeconds = getShutdownQuietPeriodSeconds(NetworkDefinition::proxy);
-                    closeFutures.addAll(proxyEventGroup.shutdownGracefully(shutdownQuietPeriodSeconds));
+                    closeFutures.addAll(proxyEventGroup.shutdownGracefully(getNettySettings(config, NetworkDefinition::proxy)));
                 }
                 if (managementEventGroup != null) {
-                    Integer shutdownQuietPeriodSeconds = getShutdownQuietPeriodSeconds(NetworkDefinition::management);
-                    closeFutures.addAll(managementEventGroup.shutdownGracefully(shutdownQuietPeriodSeconds));
+                    closeFutures.addAll(managementEventGroup.shutdownGracefully(getNettySettings(config, NetworkDefinition::management)));
                 }
                 closeFutures.forEach(Future::syncUninterruptibly);
                 if (filterChainFactory != null) {
@@ -366,11 +375,6 @@ public final class KafkaProxy implements AutoCloseable {
             LOGGER.info("Shut down completed.");
 
         }
-    }
-
-    private Integer getShutdownQuietPeriodSeconds(Function<NetworkDefinition, NettySettings> nettySettingsFunction) {
-        return Optional.ofNullable(config.network()).flatMap(networkDefinition -> Optional.ofNullable(nettySettingsFunction.apply(networkDefinition)))
-                .flatMap(NettySettings::shutdownQuietPeriodSeconds).orElse(2);
     }
 
     @Override
