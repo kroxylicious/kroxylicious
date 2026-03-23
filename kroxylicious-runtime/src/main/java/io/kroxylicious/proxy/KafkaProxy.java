@@ -80,22 +80,13 @@ public final class KafkaProxy implements AutoCloseable {
     private static final TreeSet<Integer> TESTED_JRE_VERSIONS = new TreeSet<>(Set.of(21, 25));
 
     @VisibleForTesting
-    record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
+    record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz,
+                            Duration shutdownQuietPeriod, Duration shutdownTimeout) {
 
-        @SuppressWarnings({ "java:S1452", "java:S3553", "deprecation" }) // wildcard generics expected; Optional param intentional; accessing deprecated field for migration
-        public List<Future<?>> shutdownGracefully(Optional<NettySettings> nettySettings) {
-            var quietPeriod = nettySettings.flatMap(NettySettings::shutdownQuietPeriod)
-                    .or(() -> nettySettings.flatMap(NettySettings::shutdownQuietPeriodSeconds)
-                            .map(seconds -> {
-                                STARTUP_SHUTDOWN_LOGGER.warn(
-                                        "shutdownQuietPeriodSeconds is deprecated, use shutdownQuietPeriod (Go-style duration e.g. \"2s\") instead");
-                                return Duration.ofSeconds(seconds);
-                            }))
-                    .orElse(Duration.ofSeconds(2));
-            var timeout = nettySettings.flatMap(NettySettings::shutdownTimeout)
-                    .orElse(Duration.ofSeconds(15));
-            return List.of(bossGroup.shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS),
-                    workerGroup.shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS));
+        @SuppressWarnings("java:S1452")
+        public List<Future<?>> shutdownGracefully() {
+            return List.of(bossGroup.shutdownGracefully(shutdownQuietPeriod.toNanos(), shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS),
+                    workerGroup.shutdownGracefully(shutdownQuietPeriod.toNanos(), shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS));
         }
 
         public static EventGroupConfig build(String name, Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier, boolean useIoUring) {
@@ -129,7 +120,22 @@ public final class KafkaProxy implements AutoCloseable {
             bossGroup = new MultiThreadIoEventLoopGroup(workerThreadCount, ioHandlerFactory);
             workerGroup = new MultiThreadIoEventLoopGroup(workerThreadCount, ioHandlerFactory);
 
-            return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
+            var nettySettings = getNettySettings(configuration, settingsSupplier);
+            var quietPeriod = resolveQuietPeriod(nettySettings);
+            var timeout = nettySettings.flatMap(NettySettings::shutdownTimeout).orElse(Duration.ofSeconds(15));
+
+            return new EventGroupConfig(name, bossGroup, workerGroup, channelClass, quietPeriod, timeout);
+        }
+
+        @SuppressWarnings({ "deprecation", "OptionalUsedAsFieldOrParameterType" })
+        private static Duration resolveQuietPeriod(Optional<NettySettings> nettySettings) {
+            return nettySettings.flatMap(NettySettings::shutdownQuietPeriod)
+                    .or(() -> nettySettings.flatMap(NettySettings::shutdownQuietPeriodSeconds).map(seconds -> {
+                        STARTUP_SHUTDOWN_LOGGER.warn(
+                                "shutdownQuietPeriodSeconds is deprecated, use shutdownQuietPeriod (Go-style duration e.g. \"2s\") instead");
+                        return Duration.ofSeconds(seconds);
+                    }))
+                    .orElse(Duration.ofSeconds(2));
         }
 
         private static int resolveThreadCount(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
@@ -347,10 +353,10 @@ public final class KafkaProxy implements AutoCloseable {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
                 if (proxyEventGroup != null) {
-                    closeFutures.addAll(proxyEventGroup.shutdownGracefully(getNettySettings(config, NetworkDefinition::proxy)));
+                    closeFutures.addAll(proxyEventGroup.shutdownGracefully());
                 }
                 if (managementEventGroup != null) {
-                    closeFutures.addAll(managementEventGroup.shutdownGracefully(getNettySettings(config, NetworkDefinition::management)));
+                    closeFutures.addAll(managementEventGroup.shutdownGracefully());
                 }
                 closeFutures.forEach(Future::syncUninterruptibly);
                 if (filterChainFactory != null) {

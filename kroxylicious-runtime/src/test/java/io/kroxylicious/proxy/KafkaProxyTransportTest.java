@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy;
 
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +30,6 @@ import io.netty.channel.uring.IoUringServerSocketChannel;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.NetworkDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,14 +43,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class KafkaProxyTransportTest {
 
     private static final String MINIMUM_VIABLE_CONFIG_YAML = """
-               virtualClusters:
-                 - name: demo1
-                   targetCluster:
-                     bootstrapServers: kafka.example:1234
-                   gateways:
-                   - name: default
-                     portIdentifiesNode:
-                       bootstrapAddress: localhost:9192
+            virtualClusters:
+              - name: demo1
+                targetCluster:
+                  bootstrapServers: kafka.example:1234
+                gateways:
+                - name: default
+                  portIdentifiesNode:
+                    bootstrapAddress: localhost:9192
             """;
     private Configuration configuration;
 
@@ -139,72 +137,84 @@ class KafkaProxyTransportTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void shutdownGracefully_shouldUseDefaultQuietPeriodAndTimeout_whenNettySettingsAbsent() {
-        var eventGroupConfig = eventGroupConfigWithMockedGroups();
+    void build_shouldResolveDefaultShutdownDurations_whenNoNetworkConfig() {
+        try (var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+            var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, false);
+            assertThat(config.shutdownQuietPeriod()).isEqualTo(Duration.ofSeconds(2));
+            assertThat(config.shutdownTimeout()).isEqualTo(Duration.ofSeconds(15));
+        }
+    }
 
-        eventGroupConfig.shutdownGracefully(Optional.empty());
+    @Test
+    void build_shouldResolveShutdownQuietPeriod_whenSet() {
+        // sub-second proves no truncation to whole seconds
+        var config = new ConfigParser().parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML + """
+                network:
+                  proxy:
+                    shutdownQuietPeriod: 500ms
+                """);
+        try (var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+            var eventGroupConfig = KafkaProxy.EventGroupConfig.build("test", config, NetworkDefinition::proxy, false);
+            assertThat(eventGroupConfig.shutdownQuietPeriod()).isEqualTo(Duration.ofMillis(500));
+        }
+    }
 
-        verifyShutdownGracefully(eventGroupConfig, Duration.ofSeconds(2), Duration.ofSeconds(15));
+    @Test
+    void build_shouldResolveShutdownTimeout_whenSet() {
+        var config = new ConfigParser().parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML + """
+                network:
+                  proxy:
+                    shutdownTimeout: 45s
+                """);
+        try (var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+            var eventGroupConfig = KafkaProxy.EventGroupConfig.build("test", config, NetworkDefinition::proxy, false);
+            assertThat(eventGroupConfig.shutdownTimeout()).isEqualTo(Duration.ofSeconds(45));
+        }
+    }
+
+    @Test
+    void build_shouldFallBackToDeprecatedShutdownQuietPeriodSeconds_whenShutdownQuietPeriodNotSet() {
+        var config = new ConfigParser().parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML + """
+                network:
+                  proxy:
+                    shutdownQuietPeriodSeconds: 7
+                """);
+        try (var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+            var eventGroupConfig = KafkaProxy.EventGroupConfig.build("test", config, NetworkDefinition::proxy, false);
+            assertThat(eventGroupConfig.shutdownQuietPeriod()).isEqualTo(Duration.ofSeconds(7));
+        }
+    }
+
+    @Test
+    void build_shouldPreferShutdownQuietPeriod_overDeprecatedShutdownQuietPeriodSeconds() {
+        var config = new ConfigParser().parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML + """
+                network:
+                  proxy:
+                    shutdownQuietPeriodSeconds: 7
+                    shutdownQuietPeriod: 500ms
+                """);
+        try (var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+            var eventGroupConfig = KafkaProxy.EventGroupConfig.build("test", config, NetworkDefinition::proxy, false);
+            assertThat(eventGroupConfig.shutdownQuietPeriod()).isEqualTo(Duration.ofMillis(500));
+        }
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void shutdownGracefully_shouldUseShutdownQuietPeriod_whenSet() {
-        // sub-second value proves no truncation to whole seconds
-        var settings = new NettySettings(Optional.empty(), Optional.empty(), Optional.of(Duration.ofMillis(500)), Optional.empty(), Optional.empty(), Optional.empty());
-        var eventGroupConfig = eventGroupConfigWithMockedGroups();
-
-        eventGroupConfig.shutdownGracefully(Optional.of(settings));
-
-        verifyShutdownGracefully(eventGroupConfig, Duration.ofMillis(500), Duration.ofSeconds(15));
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void shutdownGracefully_shouldUseShutdownTimeout_whenSet() {
-        var settings = new NettySettings(Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(Duration.ofSeconds(45)), Optional.empty(), Optional.empty());
-        var eventGroupConfig = eventGroupConfigWithMockedGroups();
-
-        eventGroupConfig.shutdownGracefully(Optional.of(settings));
-
-        verifyShutdownGracefully(eventGroupConfig, Duration.ofSeconds(2), Duration.ofSeconds(45));
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void shutdownGracefully_shouldFallBackToDeprecatedShutdownQuietPeriodSeconds_whenShutdownQuietPeriodNotSet() {
-        var settings = new NettySettings(Optional.empty(), Optional.of(7), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
-        var eventGroupConfig = eventGroupConfigWithMockedGroups();
-
-        eventGroupConfig.shutdownGracefully(Optional.of(settings));
-
-        verifyShutdownGracefully(eventGroupConfig, Duration.ofSeconds(7), Duration.ofSeconds(15));
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void shutdownGracefully_shouldPreferShutdownQuietPeriod_overDeprecatedShutdownQuietPeriodSeconds() {
-        var settings = new NettySettings(Optional.empty(), Optional.of(7), Optional.of(Duration.ofMillis(500)), Optional.empty(), Optional.empty(), Optional.empty());
-        var eventGroupConfig = eventGroupConfigWithMockedGroups();
-
-        eventGroupConfig.shutdownGracefully(Optional.of(settings));
-
-        verifyShutdownGracefully(eventGroupConfig, Duration.ofMillis(500), Duration.ofSeconds(15));
-    }
-
-    @SuppressWarnings("unchecked")
-    private KafkaProxy.EventGroupConfig eventGroupConfigWithMockedGroups() {
+    void shutdownGracefully_shouldCallNettyWithStoredDurationsAsNanos() {
         var future = Mockito.mock(io.netty.util.concurrent.Future.class);
         var bossGroup = Mockito.mock(EventLoopGroup.class);
         var workerGroup = Mockito.mock(EventLoopGroup.class);
         Mockito.when(bossGroup.shutdownGracefully(Mockito.anyLong(), Mockito.anyLong(), Mockito.any())).thenReturn(future);
         Mockito.when(workerGroup.shutdownGracefully(Mockito.anyLong(), Mockito.anyLong(), Mockito.any())).thenReturn(future);
-        return new KafkaProxy.EventGroupConfig("test", bossGroup, workerGroup, NioServerSocketChannel.class);
-    }
 
-    private static void verifyShutdownGracefully(KafkaProxy.EventGroupConfig eventGroupConfig, Duration quietPeriod, Duration timeout) {
-        Mockito.verify(eventGroupConfig.bossGroup()).shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS);
-        Mockito.verify(eventGroupConfig.workerGroup()).shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS);
+        var quietPeriod = Duration.ofMillis(500);
+        var timeout = Duration.ofSeconds(30);
+        var eventGroupConfig = new KafkaProxy.EventGroupConfig("test", bossGroup, workerGroup, NioServerSocketChannel.class, quietPeriod, timeout);
+
+        eventGroupConfig.shutdownGracefully();
+
+        Mockito.verify(bossGroup).shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS);
+        Mockito.verify(workerGroup).shutdownGracefully(quietPeriod.toNanos(), timeout.toNanos(), TimeUnit.NANOSECONDS);
     }
 }
