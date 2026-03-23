@@ -1,35 +1,36 @@
 :_mod-docs-content-type: CONCEPT
 
-
 [id='con-authorization-model-{context}']
 = Authorization Model
 
-In Kafka, clients perform operations on resources in Kafka.
+In Kafka, clients perform operations on resources.
 
 The following tables list the resource types and the operations that apply to them.
 
 == Resource types and operations
 
-This table lists the resource types and operations enforced by the authorization filter:
+=== Topic operations
 
+This table lists the topic operations enforced by the authorization filter:
+
+[cols="1m,1", options="header"]
 |===
-|Resource type|Operations|Typical use-case
+|Operation|Typical use case
 
-.8+|Topic
 |READ
-|Required for a consuming client to fetch records.
+|Required for a consumer to fetch records.
 
 |WRITE
-|Required for a producing client to produce records.
+|Required for a producer to send records.
 |CREATE
-.3+|Required for an admin client to create, delete or alter topics.
+.3+|Required for an admin client to create, delete, or alter topics.
 
 |DELETE
 
 |ALTER
 
 |DESCRIBE
-|Required for an admin client to perform the describe operations that refer to topic resources.
+|Required for an admin client to perform describe operations that refer to topic resources.
 
 |DESCRIBE_CONFIGS
 |Required for an admin client to perform describe config operations that refer to topic configuration.
@@ -37,10 +38,46 @@ This table lists the resource types and operations enforced by the authorization
 |ALTER_CONFIGS
 |Required for an admin client to perform alter config operations that relate to topic configuration.
 
-// |Cluster
-// |CREATE, ALTER, DESCRIBE, CLUSTER_ACTION, DESCRIBE_CONFIGS, ALTER_CONFIGS
+|===
 
-NOTE: Other Kafka resource types will be included in a future release.
+=== Group operations
+
+This table lists the operations enforced by the authorization filter for the group resource type:
+
+[cols="1m,1", options="header"]
+|===
+|Operations|Typical use case
+
+|READ
+|Required for a consumer to join a group.
+
+|DELETE
+|Required for an admin client to delete a group or offsets within a group.
+
+|DESCRIBE
+|Required for a consumer and admin client to find and describe a group and its offsets.
+
+|DESCRIBE_CONFIGS
+|Required for an admin client to perform describe operations that refer to group configuration.
+
+|ALTER_CONFIGS
+|Required for an admin client to perform operations that alter group configuration.
+
+|===
+
+=== Transactional ID operations
+
+This table lists the operations enforced by the authorization filter for the transactional ID resource type:
+
+[cols="1m,1", options="header"]
+|===
+|Operations|Typical use case
+
+|WRITE
+|Required for a producer or consumer to participate in a transaction.
+
+|DESCRIBE
+|Required for a producer, consumer, or admin client to find and describe transactions.
 
 |===
 
@@ -49,20 +86,44 @@ NOTE: Other Kafka resource types will be included in a future release.
 In the authorization model, some operations imply permission to perform other operations.
 This table lists the higher-level operations and the implied lower-level operations they include.
 
+[cols="1m,1m,1m", options="header"]
 |===
-|Resource type|Operation|Implied Operation
+|Resource type|Operation|Implied operation
 
-.5+|Topic
+|Topic
 |READ
-.4+|DESCRIBE
+|DESCRIBE
 
+|Topic
 |WRITE
+|DESCRIBE
 
+|Topic
 |DELETE
+|DESCRIBE
 
+|Topic
 |ALTER
+|DESCRIBE
 
+|Topic
 |ALTER_CONFIGS
-|DESCRIBE_CONFIG
+|DESCRIBE_CONFIGS
+
+|Group
+|READ
+|DESCRIBE
+
+|Group
+|DELETE
+|DESCRIBE
+
+|Group
+|ALTER_CONFIGS
+|DESCRIBE_CONFIGS
+
+|TransactionalId
+|WRITE
+|DESCRIBE
 
 |===
