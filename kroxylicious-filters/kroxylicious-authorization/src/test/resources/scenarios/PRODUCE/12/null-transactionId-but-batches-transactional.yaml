@@ -37,3 +37,4 @@ when:
 then:
   expectAuthorizationOutcomeLog: false # we did not attempt to authorize any transactionalId, this is a kind of malformed request
   expectedErrorResponse: "TRANSACTIONAL_ID_AUTHORIZATION_FAILED"
+  expectedAuditActions: []

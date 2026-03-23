@@ -98,3 +98,16 @@ then:
       - groupId: "denied-group"
         topics: []
         errorCode: 30 # group authorization failed
+  expectedAuditActions:
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource" : "my-topic"
+      status: null
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource" : "my-group"
+      status: null
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource" : "denied-group"
+      status: "denied"

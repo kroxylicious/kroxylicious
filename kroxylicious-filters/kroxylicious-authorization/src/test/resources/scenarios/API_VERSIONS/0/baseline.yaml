@@ -51,3 +51,5 @@ then:
       - apiKey: 3
         minVersion: 0
         maxVersion: 13
+
+  expectedAuditActions: []

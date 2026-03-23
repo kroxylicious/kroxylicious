@@ -50,3 +50,4 @@ then:
   expectedResponse:
     throttleTimeMs: 953
     topics: []
+  expectedAuditActions: []

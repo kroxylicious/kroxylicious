@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.net.SocketAddress;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -24,6 +26,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
+import io.kroxylicious.proxy.audit.AuditLogger;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
@@ -43,7 +46,6 @@ import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
@@ -147,9 +149,17 @@ public class ProxyChannelStateMachine {
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
+    private final ProxyAuditLogger auditLogger;
+
+    /**
+     * Client-specific audit logger that captures the authenticated client's identity.
+     * Null until authentication completes. Falls back to {@link #auditLogger} before authentication.
+     */
+    @Nullable
+    private AuditLogger clientAuditLogger;
+
     private final EndpointBinding endpointBinding;
 
-    @NonNull
     // Ideally this would be final, however that breaks forceState which is used heavily in testing.
     private KafkaSession kafkaSession;
 
@@ -185,8 +195,10 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
-    public ProxyChannelStateMachine(EndpointBinding endpointBinding,
+    public ProxyChannelStateMachine(ProxyAuditLogger auditLogger,
+                                    EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder) {
+        this.auditLogger = auditLogger;
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
@@ -323,6 +335,13 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
+            this.clientAuditLogger = auditLogger.derive(() -> ClientActorImpl.of(
+                    clientAddress(),
+                    sessionId(),
+                    null));
+            clientAuditLogger.action("ClientConnect")
+                    .withObjectRef(Map.of("vc", clusterName()))
+                    .log();
             LOGGER.atDebug()
                     .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
                     .addArgument(kafkaSession.sessionId())
@@ -530,6 +549,10 @@ public class ProxyChannelStateMachine {
         return kafkaSession.sessionId();
     }
 
+    SocketAddress clientAddress() {
+        return frontendHandler.remoteAddress();
+    }
+
     /**
      * @return Return the session for this connection.
      */
@@ -539,6 +562,7 @@ public class ProxyChannelStateMachine {
 
     public void onSessionTransportAuthenticated() {
         this.kafkaSession.transitionTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
+        createClientAuditLogger(null, null);
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
@@ -547,24 +571,48 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).onSessionAuthenticated();
     }
 
+    private void createClientAuditLogger(@Nullable String status, @Nullable String reason) {
+        Subject subject = authenticatedSubject();
+        if (auditLogger instanceof AuditLoggerImpl auditLoggerImpl) {
+            this.clientAuditLogger = auditLoggerImpl.derive(() -> ClientActorImpl.of(
+                    clientAddress(),
+                    sessionId(),
+                    subject));
+            clientAuditLogger.action("ClientAuthenticate")
+                    .withObjectRef(Map.of("vc", clusterName()))
+                    .log();
+        }
+        else {
+            this.clientAuditLogger = auditLogger;
+        }
+    }
+
     public Optional<ClientTlsContext> clientTlsContext() {
         return clientSubjectManager.clientTlsContext();
     }
 
     public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
         clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
+        createClientAuditLogger(null, null);
     }
 
     public Optional<ClientSaslContext> clientSaslContext() {
         return clientSubjectManager.clientSaslContext();
     }
 
-    public void clientSaslAuthenticationFailure() {
+    public void clientSaslAuthenticationFailure(@Nullable String mechanism,
+                                                @Nullable String authorizedId,
+                                                Exception exception) {
         clientSubjectManager.clientSaslAuthenticationFailure();
+        createClientAuditLogger(exception.getClass().getName(), exception.getMessage());
     }
 
     public void onClientTlsHandshakeSuccess(SSLSession sslSession) {
         this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder, this::onTransportSubjectBuilt);
+    }
+
+    public void onClientTlsHandshakeFailure(String status, @Nullable String reason) {
+        createClientAuditLogger(status, reason);
     }
 
     @SuppressWarnings("java:S5738")
@@ -743,6 +791,20 @@ public class ProxyChannelStateMachine {
     private static boolean isMessageApiVersionsRequest(Object msg) {
         return msg instanceof DecodedRequestFrame
                 && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS;
+    }
+
+    AuditLogger auditLogger() {
+        return auditLogger;
+    }
+
+    /**
+     * Returns the client-specific audit logger that includes the authenticated client's identity.
+     * Falls back to the proxy audit logger if the client has not yet authenticated.
+     *
+     * @return audit logger with client actor information when available
+     */
+    AuditLogger clientAuditLogger() {
+        return clientAuditLogger != null ? clientAuditLogger : auditLogger;
     }
 
 }

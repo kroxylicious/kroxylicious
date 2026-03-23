@@ -561,6 +561,7 @@
         <module>kroxylicious-docs</module>
         <module>kroxylicious-authorizer-api</module>
         <module>kroxylicious-authorizer-providers</module>
+        <module>kroxylicious-audit-emitter-providers</module>
         <module>kroxylicious-openmessaging-benchmarks</module>
     </modules>
 

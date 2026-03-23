@@ -37,7 +37,7 @@ given:
         controllerId: 892
         topics:
           - errorCode: 100
-            name: null
+            name: "my-topic"
             topicId: "e8MvPJPGSteB1fKbMEji0w"
             isInternal: false
             topicAuthorizedOperations: 760
@@ -91,7 +91,7 @@ then:
     controllerId: 892
     topics:
       - errorCode: 100
-        name: null
+        name: "my-topic"
         topicId: "e8MvPJPGSteB1fKbMEji0w"
         isInternal: false
         partitions:
@@ -107,3 +107,8 @@ then:
               - 421
         topicAuthorizedOperations: 760
     errorCode: 1003
+  expectedAuditActions:
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

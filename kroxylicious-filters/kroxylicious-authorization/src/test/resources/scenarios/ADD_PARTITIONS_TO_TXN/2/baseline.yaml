@@ -71,3 +71,12 @@ then:
         resultsByPartition:
           - partitionIndex: 527
             partitionErrorCode: 241
+  expectedAuditActions:
+    - action: "Write"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null
+    - action: "Write"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

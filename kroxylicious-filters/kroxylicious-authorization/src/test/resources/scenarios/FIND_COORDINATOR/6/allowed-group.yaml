@@ -63,3 +63,8 @@ then:
         port: 927
         errorCode: 368
         errorMessage: "random-string-1003"
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

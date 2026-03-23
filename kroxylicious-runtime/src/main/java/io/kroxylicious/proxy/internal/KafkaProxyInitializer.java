@@ -55,6 +55,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
     public static final String PRE_SESSION_IDLE_HANDLER = "preSessionIdleHandler";
 
+    private final ProxyAuditLogger auditLogger;
     private final boolean haproxyProtocol;
     private final boolean tls;
     private final EndpointBindingResolver bindingResolver;
@@ -69,7 +70,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Long unauthenticatedIdleMillis;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
+    public KafkaProxyInitializer(ProxyAuditLogger auditLogger,
+                                 FilterChainFactory filterChainFactory,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
@@ -77,6 +79,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  boolean haproxyProtocol,
                                  ApiVersionsServiceImpl apiVersionsService,
                                  Optional<NettySettings> proxyNettySettings) {
+        this.auditLogger = Objects.requireNonNull(auditLogger);
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
@@ -197,7 +200,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         }
 
         TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder);
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(auditLogger,
+                binding,
+                subjectBuilder);
 
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {

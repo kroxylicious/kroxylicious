@@ -36,6 +36,7 @@ import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.assertj.core.api.Assertions;
+import org.assertj.core.condition.AllOf;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -70,6 +71,9 @@ import io.kroxylicious.testing.kafka.junit5ext.TopicPartitions;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.it.AuditLoggingTestSupport.addAuditMetricsAndLogging;
+import static io.kroxylicious.it.AuditLoggingTestSupport.auditAction;
+import static io.kroxylicious.it.AuditLoggingTestSupport.isSuccess;
 import static io.kroxylicious.proxy.internal.util.Metrics.API_KEY_LABEL;
 import static io.kroxylicious.proxy.internal.util.Metrics.DECODED_LABEL;
 import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
@@ -580,6 +584,38 @@ class MetricsIT {
                                         NODE_ID_LABEL, "0"))
                                 .value()
                                 .isGreaterThanOrEqualTo(1.0)));
+    }
+
+    @Test
+    void shouldIncrementProxyStart(KafkaCluster cluster) {
+        try (var captor = new AuditLoggingTestSupport.LogCaptor()) {
+            var builder = configWithMetrics(cluster);
+            addAuditMetricsAndLogging(builder);
+
+            try (var tester = kroxyliciousTester(builder);
+                    var managementClient = tester.getManagementClient();) {
+
+                var metricList = managementClient.scrapeMetrics();
+                var metrics = metricList.stream()
+                        .filter(metric -> metric.name().equals("kroxylicious_audit_total")
+                                && "ProxyStart".equals(metric.labels().get("action"))
+                                && "success".equals(metric.labels().get("outcome")))
+                        .toList();
+                assertThat(metrics)
+                        .singleElement()
+                        .value().isEqualTo(1);
+
+                // Difficult to assert on the metric for the ProxyStop action, because we need to scrap to observe it
+                // but it's only emitted when the proxy stops and the tester binds together the lifecycle of the
+                // managementClient and the proxy.
+            }
+
+            // Regression check: verify logging still works alongside metrics
+            assertThat(captor.capturedEvents())
+                    .haveExactly(1, AllOf.allOf(auditAction("ProxyStart"), isSuccess()));
+            assertThat(captor.capturedEvents())
+                    .haveExactly(1, AllOf.allOf(auditAction("ProxyStop"), isSuccess()));
+        }
     }
 
     @ParameterizedTest

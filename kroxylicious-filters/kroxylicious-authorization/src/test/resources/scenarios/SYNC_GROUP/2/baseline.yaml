@@ -63,3 +63,8 @@ then:
     errorCode: 21
     assignment: !!binary |-
       O7Bzuoo=
+  expectedAuditActions:
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

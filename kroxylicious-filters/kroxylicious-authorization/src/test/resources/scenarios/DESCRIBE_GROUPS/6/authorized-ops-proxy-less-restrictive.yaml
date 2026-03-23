@@ -75,3 +75,8 @@ then:
         protocolData: "consumer"
         members: [ ]
         authorizedOperations: 8 # only READ(8) allowed by proxy and upstream
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

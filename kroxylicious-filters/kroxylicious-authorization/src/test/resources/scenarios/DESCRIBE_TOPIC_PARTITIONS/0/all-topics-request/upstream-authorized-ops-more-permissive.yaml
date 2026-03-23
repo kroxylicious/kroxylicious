@@ -101,3 +101,8 @@ then:
     nextCursor:
       topicName: ""
       partitionIndex: -1
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

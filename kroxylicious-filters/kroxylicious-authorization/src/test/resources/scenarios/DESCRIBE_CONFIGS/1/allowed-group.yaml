@@ -85,3 +85,8 @@ then:
               - name: "random-string-702"
                 value: "random-string-952"
                 source: 0
+  expectedAuditActions:
+    - action: "DescribeConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

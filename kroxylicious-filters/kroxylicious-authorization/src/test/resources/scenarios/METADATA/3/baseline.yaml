@@ -136,3 +136,9 @@ then:
               - 387
             isrNodes:
               - 647
+
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

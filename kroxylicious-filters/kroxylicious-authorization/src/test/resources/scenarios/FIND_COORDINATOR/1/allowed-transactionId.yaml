@@ -57,3 +57,8 @@ then:
     nodeId: 511
     host: "random-string-938"
     port: 769
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null

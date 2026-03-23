@@ -56,3 +56,9 @@ then:
         numPartitions: -1
         replicationFactor: -1
         configs: [ ]
+
+  expectedAuditActions:
+    - action: "Create"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

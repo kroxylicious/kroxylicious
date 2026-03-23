@@ -89,13 +89,15 @@ public abstract class FilterHarness {
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new CorrelationIdIssuer(), new InternalRequestTracker());
 
+        var auditLogger = new NoopAuditLogger();
+
         var endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.nodeId()).thenReturn(0);
         var gw = mock(EndpointGateway.class);
         when(gw.virtualCluster()).thenReturn(testVirtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(gw);
 
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
+        proxyChannelStateMachine = new ProxyChannelStateMachine(auditLogger, endpointBinding, new DefaultSubjectBuilder(List.of()));
         var forwarding = new ProxyChannelState.Forwarding(null, null, null);
         proxyChannelStateMachine.forceState(
                 forwarding,

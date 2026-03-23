@@ -57,3 +57,9 @@ then:
     errorCode: 838
     producerId: 980
     producerEpoch: 629
+
+  expectedAuditActions:
+    - action: "Write"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null

@@ -106,7 +106,7 @@ class ProxyChannelStateMachineEndToEndTest {
     private boolean activateOutboundChannelAutomatically = true;
 
     ProxyChannelStateMachine proxyChannelStateMachine(EndpointBinding binding) {
-        return new ProxyChannelStateMachine(binding, new DefaultSubjectBuilder(List.of()));
+        return new ProxyChannelStateMachine(new NoopAuditLogger(), binding, new DefaultSubjectBuilder(List.of()));
     }
 
     @AfterEach

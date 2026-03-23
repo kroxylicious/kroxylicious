@@ -43,7 +43,7 @@ when:
   request:
     resources:
       - resourceType: 32
-        resourceName: "my-topic2"
+        resourceName: "denied-group"
         configs:
           - name: "random-string-433"
             value: "random-string-250"
@@ -57,4 +57,9 @@ then:
       - errorCode: 30
         errorMessage: "Group authorization failed."
         resourceType: 32
-        resourceName: "my-topic2"
+        resourceName: "denied-group"
+  expectedAuditActions:
+    - action: "AlterConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "denied-group"
+      status: "denied"

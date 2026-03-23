@@ -1,0 +1,22 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+$schema: ../../../../../resources/schemas/audit_action_v1.json
+action: org.Foo
+time: 20260101T12:30:00.00000
+status: "42"
+reason: f3egrt trebreb
+actor:
+  srcAddr: 127.0.0.1:9092
+  session: "1bd07921-c2b6-43a3-95f0-1c2244933aee"
+  principals:
+    - User: alice
+objectRef:
+  vc: "my-vc"
+  topicName: "my-topic"
+context:
+  executionId: ""

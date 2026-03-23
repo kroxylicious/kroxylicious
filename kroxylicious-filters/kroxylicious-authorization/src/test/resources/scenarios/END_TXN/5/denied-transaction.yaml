@@ -35,3 +35,8 @@ then:
     errorCode: 53
     producerId: -1
     producerEpoch: -1
+  expectedAuditActions:
+    - action: "Write"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: "denied"

@@ -49,3 +49,5 @@ then:
     errorCode: 525
     mechanisms:
       - "random-string-308"
+
+  expectedAuditActions: []

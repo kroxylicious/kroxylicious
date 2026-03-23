@@ -48,3 +48,9 @@ then:
             timestamp: -1
             offset: -1
             leaderEpoch: -1
+
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

@@ -48,4 +48,8 @@ then:
   expectedResponseHeader:
     correlationId: 1
   expectedErrorResponse: "UNKNOWN_TOPIC_ID"
-
+  expectedAuditActions:
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

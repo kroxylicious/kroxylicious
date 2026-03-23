@@ -41,3 +41,8 @@ then:
         port: -1
         errorCode: 53
         errorMessage: ""
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "unauthorized"
+      status: "denied"

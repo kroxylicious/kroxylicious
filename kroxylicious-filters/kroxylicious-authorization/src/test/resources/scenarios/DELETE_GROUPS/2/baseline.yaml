@@ -53,3 +53,8 @@ then:
     results:
       - groupId: "my-group"
         errorCode: 648
+  expectedAuditActions:
+    - action: "Delete"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

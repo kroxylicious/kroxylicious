@@ -79,3 +79,13 @@ then:
       - name: "unauthorized"
         errorCode: 29
         errorMessage: null
+
+  expectedAuditActions:
+    - action: "Alter"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "Alter"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

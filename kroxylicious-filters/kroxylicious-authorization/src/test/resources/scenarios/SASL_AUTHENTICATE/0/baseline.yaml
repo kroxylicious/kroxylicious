@@ -53,3 +53,5 @@ then:
     errorMessage: "random-string-429"
     authBytes: !!binary |-
       9egagDw=
+
+  expectedAuditActions: []

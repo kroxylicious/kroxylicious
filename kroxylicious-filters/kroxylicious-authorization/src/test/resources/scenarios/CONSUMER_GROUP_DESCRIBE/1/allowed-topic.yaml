@@ -117,3 +117,8 @@ then:
                     - 42
             memberType: 20
         authorizedOperations: 246
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

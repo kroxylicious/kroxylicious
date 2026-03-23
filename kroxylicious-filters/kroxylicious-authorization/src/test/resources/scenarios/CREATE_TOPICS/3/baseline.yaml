@@ -77,3 +77,9 @@ then:
       - name: "random-string-517"
         errorCode: 852
         errorMessage: "random-string-875"
+
+  expectedAuditActions:
+    - action: "Create"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

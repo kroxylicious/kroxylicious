@@ -86,3 +86,12 @@ then:
                 lastTimestamp: 111
                 coordinatorEpoch: 602
                 currentTxnStartOffset: 172
+  expectedAuditActions:
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

@@ -57,3 +57,5 @@ then:
         minVersion: 0
         maxVersion: 13
     throttleTimeMs: 315
+
+  expectedAuditActions: []

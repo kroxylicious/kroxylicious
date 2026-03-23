@@ -51,3 +51,8 @@ then:
     groups:
       - groupId: "my-group"
         protocolType: "consumer"
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

@@ -3,13 +3,20 @@
   <component name="JsonSchemaMappingsProjectConfiguration">
     <state>
       <map>
-        <entry key="doc-schema">
+        <entry key="Audit action">
           <value>
             <SchemaInfo>
-              <option name="generatedName" value="New Schema" />
-              <option name="name" value="doc-schema" />
-              <option name="relativePathToSchema" value="docs/doc-schema.yaml" />
+              <option name="name" value="Audit action" />
+              <option name="relativePathToSchema" value="https://json-schema.org/draft-07/schema" />
               <option name="schemaVersion" value="JSON Schema 202,012" />
+              <option name="applicationDefined" value="true" />
+              <option name="patterns">
+                <list>
+                  <Item>
+                    <option name="path" value="kroxylicious-api/src/main/java/io/kroxylicious/proxy/audit/audit-action.yaml" />
+                  </Item>
+                </list>
+              </option>
             </SchemaInfo>
           </value>
         </entry>

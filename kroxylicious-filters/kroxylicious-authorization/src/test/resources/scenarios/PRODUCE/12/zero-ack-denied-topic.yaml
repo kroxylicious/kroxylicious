@@ -26,7 +26,7 @@ when:
     correlationId: 1
     clientId: "clientId"
   request:
-    transactionalId: "random-string-292"
+    transactionalId: "my-transactional-id"
     acks: 0
     timeoutMs: 141
     topicData:
@@ -37,3 +37,12 @@ when:
 then:
   hasResponse: false
   expectRequestDropped: true
+  expectedAuditActions:
+    - action: "Write"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"
+    - action: "Write"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: "denied"

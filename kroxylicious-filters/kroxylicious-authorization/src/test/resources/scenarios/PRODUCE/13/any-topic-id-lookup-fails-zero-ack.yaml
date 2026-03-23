@@ -37,3 +37,4 @@ when:
 then:
   expectAuthorizationOutcomeLog: false # no authorization performed when topicName lookup fails
   expectRequestDropped: true
+  expectedAuditActions: []

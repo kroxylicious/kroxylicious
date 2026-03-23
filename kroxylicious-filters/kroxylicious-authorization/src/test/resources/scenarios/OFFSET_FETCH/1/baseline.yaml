@@ -69,3 +69,12 @@ then:
             committedOffset: 836
             metadata: "random-string-135"
             errorCode: 283
+  expectedAuditActions:
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource" : "my-topic"
+      status: null
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource" : "my-group"
+      status: null

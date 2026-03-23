@@ -61,3 +61,8 @@ then:
         protocolType: "consumer"
         protocolData: "consumer"
         members: [ ]
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

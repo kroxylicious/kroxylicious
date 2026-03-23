@@ -67,3 +67,8 @@ then:
           - partitionIndex: 388
             lowWatermark: 793
             errorCode: 421
+  expectedAuditActions:
+    - action: "Delete"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

@@ -17,6 +17,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
+import io.kroxylicious.proxy.audit.AuditLogger;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
@@ -264,5 +265,11 @@ public interface FilterContext {
      * @see #clientSaslAuthenticationSuccess(String, Subject)
      */
     Subject authenticatedSubject();
+
+    /**
+     * Returns the {@link AuditLogger} for this filter.
+     * @return the {@link AuditLogger} for this filter.
+     */
+    AuditLogger auditLogger();
 
 }

@@ -60,11 +60,20 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
     }
 
     /**
+     * Expected audit action definition matching AuditLogger terminology
+     * @param action the action name (e.g., "DESCRIBE", "CREATE")
+     * @param objectRef the object reference map (e.g., {"io.kroxylicious.filter.authorization.TopicResource": "my-topic"})
+     * @param status the expected status ("denied" for DENY, null for ALLOW)
+     */
+    public record ExpectedAuditAction(String action, Map<String, String> objectRef, @Nullable String status) {}
+
+    /**
      * @param expectedResponseHeader
      * @param expectedResponse
      * @param expectedErrorResponse in the case that we expect an error response (the message generation is a framework responsibility)
      * @param hasResponse true if we expect a response (zero-ack produce request is the only case known with no response). default true
      * @param expectRequestDropped true if we expect the request to be dropped. default false
+     * @param expectedAuditActions actions that SHOULD appear in the audit log with their expected status
      */
     public record Then(@Nullable JsonNode expectedResponseHeader,
                        @Nullable JsonNode expectedResponse,
@@ -72,7 +81,8 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
                        @Nullable Boolean hasResponse,
                        @Nullable Boolean expectRequestDropped,
                        @Nullable RequestError expectedRequestError,
-                       @Nullable Boolean expectAuthorizationOutcomeLog) {
+                       @Nullable Boolean expectAuthorizationOutcomeLog,
+                       @Nullable List<ExpectedAuditAction> expectedAuditActions) {
 
         boolean getHasResponse() {
             return hasResponse == null || hasResponse;

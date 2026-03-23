@@ -140,3 +140,9 @@ then:
               - 647
             offlineReplicas:
               - 421
+
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

@@ -67,3 +67,9 @@ then:
             errorCode: 947
             timestamp: 202
             offset: 863
+
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

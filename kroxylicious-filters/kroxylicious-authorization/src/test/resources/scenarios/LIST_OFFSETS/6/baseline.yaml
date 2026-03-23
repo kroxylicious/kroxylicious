@@ -75,3 +75,9 @@ then:
             timestamp: 195
             offset: 491
             leaderEpoch: 938
+
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

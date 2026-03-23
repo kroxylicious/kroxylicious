@@ -28,6 +28,8 @@ import org.assertj.core.util.Lists;
 
 import com.google.common.collect.Maps;
 
+import io.kroxylicious.proxy.audit.AuditLogger;
+import io.kroxylicious.proxy.audit.AuditableActionBuilder;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -396,6 +398,77 @@ public class MockFilterContext implements FilterContext {
     @Override
     public Subject authenticatedSubject() {
         return authenticatedSubject;
+    }
+
+    @Override
+    public AuditLogger auditLogger() {
+        return new MockAuditLogger();
+    }
+
+    static class MockAuditLogger implements AuditLogger {
+
+        @Override
+        public AuditableActionBuilder action(String action) {
+            return new MockAuditableActionBuilder();
+        }
+
+        @Override
+        public AuditableActionBuilder actionWithOutcome(String action, String status, @Nullable String reason) {
+            return new MockAuditableActionBuilder();
+        }
+    }
+
+    static class MockAuditableActionBuilder implements AuditableActionBuilder {
+
+        @Override
+        public AuditableActionBuilder withObjectRef(Map<String, String> objectRef) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, boolean value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, long value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, double value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, String value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, boolean[] value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, long[] value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, double[] value) {
+            return this;
+        }
+
+        @Override
+        public AuditableActionBuilder addToContext(String key, String[] value) {
+            return this;
+        }
+
+        @Override
+        public void log() {
+            // do nothing
+        }
     }
 
     private record MockRequestFilterResultBuilder(ApiMessage header, ApiMessage message) implements RequestFilterResultBuilder {

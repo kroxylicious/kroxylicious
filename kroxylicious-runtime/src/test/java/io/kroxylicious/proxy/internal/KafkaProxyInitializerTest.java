@@ -339,7 +339,8 @@ class KafkaProxyInitializerTest {
     @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
-        return new KafkaProxyInitializer(filterChainFactory,
+        return new KafkaProxyInitializer(new NoopAuditLogger(),
+                filterChainFactory,
                 pfr,
                 tls,
                 bindingResolver,

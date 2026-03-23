@@ -70,3 +70,12 @@ then:
         port: -1
         errorCode: 30
         errorMessage: ""
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "denied-group"
+      status: "denied"

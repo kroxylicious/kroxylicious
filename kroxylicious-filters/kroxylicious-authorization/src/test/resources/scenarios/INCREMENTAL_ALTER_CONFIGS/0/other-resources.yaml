@@ -70,3 +70,4 @@ then:
         errorMessage: "random-string-916"
         resourceType: 3
         resourceName: "my-group"
+  expectedAuditActions: []

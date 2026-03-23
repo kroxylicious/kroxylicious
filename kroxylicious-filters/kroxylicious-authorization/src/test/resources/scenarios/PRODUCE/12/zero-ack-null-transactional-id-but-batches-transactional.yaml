@@ -15,6 +15,7 @@ metadata:
       - and records containing transactional record batch
     then:
       - the request is not forwarded, it is dropped at the proxy
+      expectedAuditActions: []
 given:
   mockedUpstreamResponses: [ ]
   authorizerRules:

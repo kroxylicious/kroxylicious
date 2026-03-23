@@ -84,3 +84,20 @@ then:
         producerId: 0
         producerEpoch: 0
         topics: [ ]
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "my-transactional-id"
+      status: null
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "denied-transactional-id"
+      status: "denied"
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "denied-topic"
+      status: "denied"

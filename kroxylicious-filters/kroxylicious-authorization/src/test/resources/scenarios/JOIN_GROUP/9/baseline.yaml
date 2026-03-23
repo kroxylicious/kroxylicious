@@ -89,3 +89,8 @@ then:
         groupInstanceId: "random-string-895"
         metadata: !!binary |-
           97dM46k=
+  expectedAuditActions:
+    - action: Read
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

@@ -71,3 +71,12 @@ then:
             metadata: "random-string-988"
             errorCode: 511
     errorCode: 173
+  expectedAuditActions:
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource" : "my-topic"
+      status: null
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource" : "my-group"
+      status: null

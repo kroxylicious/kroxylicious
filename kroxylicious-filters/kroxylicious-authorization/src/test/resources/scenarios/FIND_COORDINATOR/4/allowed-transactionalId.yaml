@@ -63,3 +63,8 @@ then:
         port: 432
         errorCode: 220
         errorMessage: "random-string-990"
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "alice-transactional-id"
+      status: null

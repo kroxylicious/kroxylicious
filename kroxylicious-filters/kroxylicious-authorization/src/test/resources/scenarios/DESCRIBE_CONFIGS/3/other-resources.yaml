@@ -92,3 +92,4 @@ then:
                 source: 117
             configType: 61
             documentation: "random-string-127"
+  expectedAuditActions: []

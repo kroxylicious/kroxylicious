@@ -71,3 +71,12 @@ then:
         topicId: "ZVa4q4iBSXSGQewb2tFCJA"
         errorCode: 29
         errorMessage: "Topic authorization failed."
+  expectedAuditActions:
+    - action: "Delete"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "Delete"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "unauthorized"
+      status: "denied"

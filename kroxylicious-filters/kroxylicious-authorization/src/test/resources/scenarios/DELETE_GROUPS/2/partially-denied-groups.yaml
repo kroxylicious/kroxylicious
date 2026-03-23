@@ -61,3 +61,12 @@ then:
         errorCode: 648
       - groupId: "denied-group"
         errorCode: 30
+  expectedAuditActions:
+    - action: "Delete"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null
+    - action: "Delete"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "denied-group"
+      status: "denied"

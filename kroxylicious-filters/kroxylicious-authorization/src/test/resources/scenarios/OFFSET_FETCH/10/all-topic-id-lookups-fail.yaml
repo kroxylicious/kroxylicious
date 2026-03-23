@@ -87,3 +87,8 @@ then:
                 metadata: ""
                 errorCode: 100
         errorCode: 162
+  expectedAuditActions:
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource" : "my-group"
+      status: null

@@ -79,3 +79,12 @@ then:
         errorMessage: "Topic authorization failed."
         resourceType: 2
         resourceName: "my-topic2"
+  expectedAuditActions:
+    - action: "AlterConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null
+    - action: "AlterConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic2"
+      status: "denied"

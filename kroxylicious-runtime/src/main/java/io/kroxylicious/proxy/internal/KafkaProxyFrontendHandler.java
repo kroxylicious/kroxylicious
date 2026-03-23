@@ -183,9 +183,14 @@ public class KafkaProxyFrontendHandler
                 throw new IllegalStateException("SNI failed", sniCompletionEvent.cause());
             }
         }
-        else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent
-                && handshakeCompletionEvent.isSuccess()) {
-            this.proxyChannelStateMachine.onClientTlsHandshakeSuccess(sslSession());
+        else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent) {
+            if (handshakeCompletionEvent.isSuccess()) {
+                this.proxyChannelStateMachine.onClientTlsHandshakeSuccess(sslSession());
+            }
+            else {
+                Throwable cause = handshakeCompletionEvent.cause();
+                this.proxyChannelStateMachine.onClientTlsHandshakeFailure(cause.getClass().getName(), cause.getMessage());
+            }
         }
         else if (event instanceof IdleStateEvent idleStateEvent && idleStateEvent.state() == IdleState.ALL_IDLE) {
             // No traffic has been observed on the channel for the configured period
@@ -603,6 +608,10 @@ public class KafkaProxyFrontendHandler
             channelPipeline.addFirst(AUTH_IDLE_HANDLER_NAME,
                     new IdleStateHandler(0, 0, authenticatedIdleTimeMillis, TimeUnit.MILLISECONDS));
         }
+    }
+
+    SocketAddress remoteAddress() {
+        return clientCtx().channel().remoteAddress();
     }
 
     protected String remoteHost() {

@@ -71,3 +71,9 @@ then:
             partition: 332
             leaderEpoch: 888
             endOffset: 1005
+
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

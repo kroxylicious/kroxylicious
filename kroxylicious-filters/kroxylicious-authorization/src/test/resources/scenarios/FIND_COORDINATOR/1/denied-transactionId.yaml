@@ -38,3 +38,8 @@ then:
     nodeId: -1
     host: ""
     port: -1
+  expectedAuditActions:
+    - action: "Describe"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TransactionalIdResource": "unauthorized"
+      status: "denied"

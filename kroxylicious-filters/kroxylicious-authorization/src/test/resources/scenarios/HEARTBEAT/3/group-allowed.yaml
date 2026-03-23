@@ -53,3 +53,8 @@ then:
   expectedResponse:
     throttleTimeMs: 100
     errorCode: 402
+  expectedAuditActions:
+    - action: Read
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null

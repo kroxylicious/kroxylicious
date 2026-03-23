@@ -36,6 +36,7 @@ import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter0;
 import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter1;
 import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter2;
 import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter3;
+import io.kroxylicious.proxy.audit.AuditLogger;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
@@ -218,6 +219,11 @@ public class InvokerDispatchBenchmark {
         @Override
         public Subject authenticatedSubject() {
             return Subject.anonymous();
+        }
+
+        @Override
+        public AuditLogger auditLogger() {
+            return null;
         }
 
         @Override

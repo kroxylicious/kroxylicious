@@ -61,3 +61,8 @@ then:
         topicId: "iIEpdMZBTBua0UIkDIeF7w"
         errorCode: 268
         errorMessage: "my-topic"
+  expectedAuditActions:
+    - action: "Delete"
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

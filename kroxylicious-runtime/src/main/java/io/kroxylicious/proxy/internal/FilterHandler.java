@@ -31,6 +31,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.proxy.audit.AuditLogger;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
@@ -614,6 +615,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             return proxyChannelStateMachine.authenticatedSubject();
         }
 
+        @Override
+        public AuditLogger auditLogger() {
+            return proxyChannelStateMachine.clientAuditLogger();
+        }
+
         InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
             this.decodedFrame = decodedFrame;
         }
@@ -693,7 +699,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(authorizedId)
                     .addArgument(exception.toString())
                     .log();
-            proxyChannelStateMachine.clientSaslAuthenticationFailure();
+            proxyChannelStateMachine.clientSaslAuthenticationFailure(mechanism, authorizedId, exception);
         }
 
         @Override

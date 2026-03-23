@@ -120,3 +120,8 @@ then:
               - 421
         topicAuthorizedOperations: 760
     clusterAuthorizedOperations: 4
+  expectedAuditActions:
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.TopicResource": "my-topic"
+      status: null

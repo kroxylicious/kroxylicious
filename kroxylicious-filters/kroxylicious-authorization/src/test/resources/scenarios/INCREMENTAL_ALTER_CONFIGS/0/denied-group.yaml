@@ -55,3 +55,8 @@ then:
         errorMessage: "Group authorization failed."
         resourceType: 32
         resourceName: "my-group"
+  expectedAuditActions:
+    - action: "AlterConfigs"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: "denied"

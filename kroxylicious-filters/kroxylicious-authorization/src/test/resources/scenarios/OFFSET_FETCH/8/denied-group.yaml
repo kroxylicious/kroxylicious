@@ -42,3 +42,8 @@ then:
       - groupId: "my-group"
         topics: []
         errorCode: 30
+  expectedAuditActions:
+    - action: Describe
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource" : "my-group"
+      status: "denied"

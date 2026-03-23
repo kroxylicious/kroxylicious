@@ -73,3 +73,8 @@ then:
     protocolName: "random-string-374"
     assignment: !!binary |-
       V3FtJR0=
+  expectedAuditActions:
+    - action: "Read"
+      objectRef:
+        "io.kroxylicious.filter.authorization.GroupResource": "my-group"
+      status: null
