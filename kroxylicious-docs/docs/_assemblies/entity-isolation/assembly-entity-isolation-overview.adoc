@@ -5,7 +5,7 @@
 // index.adoc
 
 [id='assembly-entity-isolation-overview-{context}']
-= Entity Isolation overview
+= Entity isolation overview
 
 [role="_abstract"]
 The Kroxylicious Entity Isolation filter gives each authenticated client a private, isolated view of certain Kafka entity types within a shared cluster.
