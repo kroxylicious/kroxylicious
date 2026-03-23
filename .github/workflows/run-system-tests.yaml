@@ -79,13 +79,13 @@ jobs:
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
       - name: Download kroxylicious proxy artifact
-        uses: dawidd6/action-download-artifact@1f8785ff7a5130826f848e7f72725c85d241860f
+        uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927
         with:
           workflow: build_kroxylicious_images
           name: kroxylicious-proxy
           run_id: ${{github.run_id}}
       - name: Download kroxylicious proxy artifact
-        uses: dawidd6/action-download-artifact@1f8785ff7a5130826f848e7f72725c85d241860f
+        uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927
         with:
           workflow: build_kroxylicious_images
           name: kroxylicious-operator
