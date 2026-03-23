@@ -40,6 +40,30 @@ public class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidat
     }
 
     @Override
+    protected void skipExtraSerdeBytes(ByteBuffer buffer) {
+        // The Apicurio ProtobufSerde writes a delimited Ref message (containing the protobuf
+        // message type name) before the actual protobuf payload in both header and body modes.
+        if (buffer.hasRemaining()) {
+            int refSize = readVarint(buffer);
+            for (int i = 0; i < refSize && buffer.hasRemaining(); i++) {
+                buffer.get();
+            }
+        }
+    }
+
+    private static int readVarint(ByteBuffer buffer) {
+        int value = 0;
+        int shift = 0;
+        byte b;
+        do {
+            b = buffer.get();
+            value |= (b & 0x7F) << shift;
+            shift += 7;
+        } while ((b & 0x80) != 0);
+        return value;
+    }
+
+    @Override
     protected CompletionStage<Result> doValidate(ByteBuffer buffer) {
         try {
             byte[] bytes = new byte[buffer.remaining()];

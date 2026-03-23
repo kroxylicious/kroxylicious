@@ -48,7 +48,12 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
             Optional<Long> extractedSchemaId = extractSchemaIdFromRecord(buffer, record, isKey);
             if (extractedSchemaId.filter(e -> !e.equals(schemaId)).isPresent()) {
                 return CompletableFuture
-                        .completedStage(new Result(false, "Unexpected schema id in record (%d), expecting %d".formatted(extractedSchemaId.get(), schemaId)));
+                        .completedStage(new Result(false,
+                                "Unexpected schema id in record (%d), expecting %d".formatted(extractedSchemaId.get(), schemaId)));
+            }
+
+            if (extractedSchemaId.isPresent()) {
+                skipExtraSerdeBytes(buffer);
             }
 
             return doValidate(buffer);
@@ -60,8 +65,20 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
 
     protected abstract CompletionStage<Result> doValidate(ByteBuffer buffer);
 
+    /**
+     * Called when schema ID was found in the record (either in headers or body prefix).
+     * The body may contain serde-specific prefix bytes that need to be skipped before the
+     * actual schema data. For example, the Protobuf serde writes a Ref message before
+     * the protobuf payload in both header and body modes.
+     * Default implementation does nothing (JSON and Avro serdes have no extra prefix).
+     */
+    protected void skipExtraSerdeBytes(ByteBuffer buffer) {
+        // default: no extra bytes to skip
+    }
+
     @SuppressWarnings("removal")
     private Optional<Long> extractSchemaIdFromRecord(ByteBuffer buffer, Record kafkaRecord, boolean isKey) {
+        // Try headers first
         if (kafkaRecord.headers().length > 0) {
             var recordHeaders = new RecordHeaders(kafkaRecord.headers());
             var headerHandler = isKey ? keyHeaderHandler : valueHeaderHandler;
@@ -76,6 +93,7 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
             }
         }
 
+        // Fall back to body prefix
         var idHandler = isKey ? keyIdHandler : valueIdHandler;
         var minBytes = 1 + idHandler.idSize();
         if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == BaseSerde.MAGIC_BYTE) {

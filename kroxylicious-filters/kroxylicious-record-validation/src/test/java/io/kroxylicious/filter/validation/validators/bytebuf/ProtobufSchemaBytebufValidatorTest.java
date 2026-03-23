@@ -133,7 +133,9 @@ class ProtobufSchemaBytebufValidatorTest {
     @Test
     void valueWithCorrectSchemaIdInHeaderPassesValidation() {
         Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_CONTENT_ID, toByteArray(CONTENT_ID)) };
-        Record record = record(RECORD_KEY, VALID_PROTOBUF, headers);
+        // When schema ID is in headers, the Apicurio ProtobufSerde writes a Ref delimited message
+        // before the protobuf payload in the body.
+        Record record = record(RECORD_KEY, withRefPrefix("Person", VALID_PROTOBUF), headers);
         BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
         var future = validator.validate(record.value(), record, false);
 
@@ -156,7 +158,8 @@ class ProtobufSchemaBytebufValidatorTest {
 
     @Test
     void valueWithCorrectSchemaIdInBodyPassesValidation() {
-        var value = asV3SchemaIdPrefixBuf(CONTENT_ID, VALID_PROTOBUF);
+        // Apicurio protobuf body wire format: magic + contentId + Ref + protobuf
+        var value = asV3SchemaIdPrefixBuf(CONTENT_ID, withRefPrefix("Person", VALID_PROTOBUF));
         Record record = record(RECORD_KEY, value);
         BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
         var future = validator.validate(record.value(), record, false);
@@ -168,7 +171,7 @@ class ProtobufSchemaBytebufValidatorTest {
 
     @Test
     void valueWithUnexpectedSchemaIdInBodyRejected() {
-        var value = asV3SchemaIdPrefixBuf(CONTENT_ID + 1, VALID_PROTOBUF);
+        var value = asV3SchemaIdPrefixBuf(CONTENT_ID + 1, withRefPrefix("Person", VALID_PROTOBUF));
         Record record = record(RECORD_KEY, value);
         BytebufValidator validator = BytebufValidators.protobufSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
         var future = validator.validate(record.value(), record, false);
@@ -216,6 +219,23 @@ class ProtobufSchemaBytebufValidatorTest {
         buf.put(BaseSerde.MAGIC_BYTE);
         buf.putInt((int) contentId);
         buf.put(content);
+        return buf.array();
+    }
+
+    private byte[] withRefPrefix(String messageTypeName, byte[] protobufData) {
+        // Apicurio ProtobufSerde writes a delimited Ref message before protobuf data in headers mode.
+        // Ref proto: message Ref { string name = 1; }
+        // Encoded: tag(0x0A) + length + name_bytes
+        byte[] nameBytes = messageTypeName.getBytes(StandardCharsets.UTF_8);
+        byte[] refMessage = new byte[2 + nameBytes.length];
+        refMessage[0] = 0x0A; // field 1, wire type 2 (length-delimited)
+        refMessage[1] = (byte) nameBytes.length;
+        System.arraycopy(nameBytes, 0, refMessage, 2, nameBytes.length);
+        // Delimited format: varint size + ref message bytes
+        ByteBuffer buf = ByteBuffer.allocate(1 + refMessage.length + protobufData.length);
+        buf.put((byte) refMessage.length);
+        buf.put(refMessage);
+        buf.put(protobufData);
         return buf.array();
     }
 }

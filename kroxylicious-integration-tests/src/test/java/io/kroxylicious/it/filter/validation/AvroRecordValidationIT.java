@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.it.filter.validation;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -16,16 +14,10 @@ import java.util.function.Consumer;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.io.EncoderFactory;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.InvalidRecordException;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.AfterAll;
@@ -160,58 +152,62 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void shouldAcceptValidAvroInProduceRequest(KafkaCluster cluster, Topic topic) throws IOException {
+    void shouldAcceptValidAvroInProduceRequest(KafkaCluster cluster, Topic topic) {
         var config = createAvroValidationConfig(cluster, topic, contentId);
-        byte[] validAvro = serializeAvro(parsedSchema, "John", "Doe", 25);
+
+        var keySerde = new Serdes.StringSerde();
+        var producerValueSerde = createAvroProducerSerde(false);
+        var consumerValueSerde = createAvroConsumerSerde(false);
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(new Serdes.StringSerde(), Serdes.serdeFrom(new ByteArraySerializer(), new ByteArrayDeserializer()), Map.of())) {
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", validAvro)))
+                var producer = tester.producer(keySerde, producerValueSerde, Map.of());
+                var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
+            GenericRecord person = new GenericData.Record(parsedSchema);
+            person.put("firstName", "John");
+            person.put("lastName", "Doe");
+            person.put("age", 25);
+
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", person)))
                     .succeedsWithin(Duration.ofSeconds(10));
 
-            try (var consumer = tester.consumer(new Serdes.StringSerde(), Serdes.serdeFrom(new ByteArraySerializer(), new ByteArrayDeserializer()),
-                    Map.of(GROUP_ID_CONFIG, UUID.randomUUID().toString(), AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-                consumer.subscribe(Set.of(topic.name()));
-                var records = consumer.poll(Duration.ofSeconds(10));
-                assertThat(records.records(topic.name()))
-                        .hasSize(1)
-                        .extracting(ConsumerRecord::value)
-                        .first()
-                        .satisfies(bytes -> {
-                            GenericRecord deserialized = deserializeAvro(parsedSchema, (byte[]) bytes);
-                            assertThat(deserialized.get("firstName").toString()).isEqualTo("John");
-                            assertThat(deserialized.get("lastName").toString()).isEqualTo("Doe");
-                            assertThat(deserialized.get("age")).isEqualTo(25);
-                        });
-            }
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            assertThat(records.records(topic.name()))
+                    .hasSize(1)
+                    .extracting(ConsumerRecord::value)
+                    .first()
+                    .satisfies(value -> {
+                        GenericRecord received = (GenericRecord) value;
+                        assertThat(received.get("firstName").toString()).isEqualTo("John");
+                        assertThat(received.get("lastName").toString()).isEqualTo("Doe");
+                        assertThat(received.get("age")).isEqualTo(25);
+                    });
         }
     }
 
     @Test
     void shouldRejectInvalidAvroInProduceRequest(KafkaCluster cluster, Topic topic) {
         var config = createAvroValidationConfig(cluster, topic, contentId);
-        byte[] invalidData = "not avro data".getBytes();
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(new Serdes.StringSerde(), Serdes.serdeFrom(new ByteArraySerializer(), new ByteArrayDeserializer()), Map.of())) {
-            var future = producer.send(new ProducerRecord<>(topic.name(), "my-key", invalidData));
+                var producer = tester.producer()) {
+            var future = producer.send(new ProducerRecord<>(topic.name(), "my-key", "not avro data"));
             assertThatFutureFails(future, InvalidRecordException.class, "Failed to deserialize Avro record");
         }
     }
 
     @Test
-    void shouldAllowValidAvroOnUnvalidatedTopic(KafkaCluster cluster, Topic validatedTopic, Topic unvalidatedTopic) throws IOException {
+    void shouldAllowValidAvroOnUnvalidatedTopic(KafkaCluster cluster, Topic validatedTopic, Topic unvalidatedTopic) {
         var config = createAvroValidationConfig(cluster, validatedTopic, contentId);
-        byte[] invalidData = "not avro data".getBytes();
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(new Serdes.StringSerde(), Serdes.serdeFrom(new ByteArraySerializer(), new ByteArrayDeserializer()), Map.of())) {
+                var producer = tester.producer()) {
             // Invalid data on unvalidated topic should succeed
-            assertThat(producer.send(new ProducerRecord<>(unvalidatedTopic.name(), "my-key", invalidData)))
+            assertThat(producer.send(new ProducerRecord<>(unvalidatedTopic.name(), "my-key", "not avro data")))
                     .succeedsWithin(Duration.ofSeconds(10));
 
             // Invalid data on validated topic should fail
-            var future = producer.send(new ProducerRecord<>(validatedTopic.name(), "my-key", invalidData));
+            var future = producer.send(new ProducerRecord<>(validatedTopic.name(), "my-key", "not avro data"));
             assertThatFutureFails(future, InvalidRecordException.class, "Failed to deserialize Avro record");
         }
     }
@@ -309,30 +305,6 @@ class AvroRecordValidationIT extends RecordValidationBaseIT {
         return proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)
                 .addToDefaultFilters(namedFilterDefinition.name());
-    }
-
-    private static byte[] serializeAvro(Schema schema, String firstName, String lastName, int age) throws IOException {
-        GenericRecord record = new GenericData.Record(schema);
-        record.put("firstName", firstName);
-        record.put("lastName", lastName);
-        record.put("age", age);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        GenericDatumWriter<GenericRecord> writer = new GenericDatumWriter<>(schema);
-        var encoder = EncoderFactory.get().binaryEncoder(out, null);
-        writer.write(record, encoder);
-        encoder.flush();
-        return out.toByteArray();
-    }
-
-    private static GenericRecord deserializeAvro(Schema schema, byte[] bytes) {
-        try {
-            var decoder = DecoderFactory.get().binaryDecoder(bytes, null);
-            var reader = new GenericDatumReader<GenericRecord>(schema);
-            return reader.read(null, decoder);
-        }
-        catch (IOException e) {
-            throw new RuntimeException("Failed to deserialize Avro", e);
-        }
     }
 
     @AfterAll
