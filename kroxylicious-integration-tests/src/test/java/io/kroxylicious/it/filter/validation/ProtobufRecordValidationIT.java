@@ -15,8 +15,7 @@ import java.util.function.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.InvalidRecordException;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -53,6 +52,7 @@ import io.kroxylicious.filter.validation.RecordValidation;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -85,19 +85,6 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
               string city = 2;
             }
             """;
-
-    // Valid protobuf encoding of Person{first_name="John", last_name="Doe", age=25}
-    // Field 1 (string): tag=0x0A, len=4, "John"
-    // Field 2 (string): tag=0x12, len=3, "Doe"
-    // Field 3 (int32): tag=0x18, varint=25
-    private static final byte[] VALID_PROTOBUF = new byte[]{
-            0x0A, 0x04, 'J', 'o', 'h', 'n',
-            0x12, 0x03, 'D', 'o', 'e',
-            0x18, 25
-    };
-
-    // Corrupt protobuf: length-delimited field claims length 16 but only 1 byte follows
-    private static final byte[] CORRUPT_PROTOBUF = new byte[]{ 0x0A, 0x10, 0x01 };
 
     private static final String APICURIO_REGISTRY_HOST = "http://localhost";
     private static final Integer APICURIO_REGISTRY_PORT = 8083;
@@ -175,21 +162,35 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
     void shouldAcceptValidProtobufInProduceRequest(KafkaCluster cluster, Topic topic) {
         var config = createProtobufValidationConfig(cluster, topic, contentId);
 
+        var keySerde = new Serdes.StringSerde();
+        var producerValueSerde = createProtobufProducerSerde(false);
+        var consumerValueSerde = createProtobufConsumerSerde(false);
+
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(new Serdes.StringSerde(), Serdes.serdeFrom(new ByteArraySerializer(), new ByteArrayDeserializer()), Map.of())) {
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", VALID_PROTOBUF)))
+                var producer = tester.producer(keySerde, producerValueSerde, Map.of());
+                var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
+            DynamicMessage person = DynamicMessage.newBuilder(personDescriptor)
+                    .setField(personDescriptor.findFieldByName("first_name"), "John")
+                    .setField(personDescriptor.findFieldByName("last_name"), "Doe")
+                    .setField(personDescriptor.findFieldByName("age"), 25)
+                    .build();
+
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", person)))
                     .succeedsWithin(Duration.ofSeconds(10));
 
-            try (var consumer = tester.consumer(new Serdes.StringSerde(), Serdes.serdeFrom(new ByteArraySerializer(), new ByteArrayDeserializer()),
-                    Map.of(GROUP_ID_CONFIG, UUID.randomUUID().toString(), AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-                consumer.subscribe(Set.of(topic.name()));
-                var records = consumer.poll(Duration.ofSeconds(10));
-                assertThat(records.records(topic.name()))
-                        .hasSize(1)
-                        .extracting(ConsumerRecord::value)
-                        .first()
-                        .isEqualTo(VALID_PROTOBUF);
-            }
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            assertThat(records.records(topic.name()))
+                    .hasSize(1)
+                    .extracting(ConsumerRecord::value)
+                    .first()
+                    .satisfies(value -> {
+                        DynamicMessage received = (DynamicMessage) value;
+                        var desc = received.getDescriptorForType();
+                        assertThat(received.getField(desc.findFieldByName("first_name"))).isEqualTo("John");
+                        assertThat(received.getField(desc.findFieldByName("last_name"))).isEqualTo("Doe");
+                        assertThat(received.getField(desc.findFieldByName("age"))).isEqualTo(25);
+                    });
         }
     }
 
@@ -198,8 +199,8 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
         var config = createProtobufValidationConfig(cluster, topic, contentId);
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(new Serdes.StringSerde(), Serdes.serdeFrom(new ByteArraySerializer(), new ByteArrayDeserializer()), Map.of())) {
-            var future = producer.send(new ProducerRecord<>(topic.name(), "my-key", CORRUPT_PROTOBUF));
+                var producer = tester.producer()) {
+            var future = producer.send(new ProducerRecord<>(topic.name(), "my-key", "corrupt protobuf data"));
             assertThatFutureFails(future, InvalidRecordException.class, "Failed to parse Protobuf message");
         }
     }
@@ -209,14 +210,51 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
         var config = createProtobufValidationConfig(cluster, validatedTopic, contentId);
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(new Serdes.StringSerde(), Serdes.serdeFrom(new ByteArraySerializer(), new ByteArrayDeserializer()), Map.of())) {
+                var producer = tester.producer()) {
             // Corrupt data on unvalidated topic should succeed
-            assertThat(producer.send(new ProducerRecord<>(unvalidatedTopic.name(), "my-key", CORRUPT_PROTOBUF)))
+            assertThat(producer.send(new ProducerRecord<>(unvalidatedTopic.name(), "my-key", "corrupt protobuf data")))
                     .succeedsWithin(Duration.ofSeconds(10));
 
             // Corrupt data on validated topic should fail
-            var future = producer.send(new ProducerRecord<>(validatedTopic.name(), "my-key", CORRUPT_PROTOBUF));
+            var future = producer.send(new ProducerRecord<>(validatedTopic.name(), "my-key", "corrupt protobuf data"));
             assertThatFutureFails(future, InvalidRecordException.class, "Failed to parse Protobuf message");
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void clientSideProtobufSerdePassesValidation(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
+        var config = createProtobufValidationConfig(cluster, topic, contentId);
+
+        var keySerde = new Serdes.StringSerde();
+        var producerValueSerde = createProtobufProducerSerde(schemaIdInHeader);
+        var consumerValueSerde = createProtobufConsumerSerde(schemaIdInHeader);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(keySerde, producerValueSerde, Map.of());
+                var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
+            DynamicMessage person = DynamicMessage.newBuilder(personDescriptor)
+                    .setField(personDescriptor.findFieldByName("first_name"), "John")
+                    .setField(personDescriptor.findFieldByName("last_name"), "Doe")
+                    .setField(personDescriptor.findFieldByName("age"), 25)
+                    .build();
+
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", person)))
+                    .succeedsWithin(Duration.ofSeconds(10));
+            consumer.subscribe(Set.of(topic.name()));
+
+            var records = consumer.poll(Duration.ofSeconds(10));
+            assertThat(records.records(topic.name()))
+                    .hasSize(1)
+                    .extracting(ConsumerRecord::value)
+                    .first()
+                    .satisfies(value -> {
+                        DynamicMessage received = (DynamicMessage) value;
+                        var desc = received.getDescriptorForType();
+                        assertThat(received.getField(desc.findFieldByName("first_name"))).isEqualTo("John");
+                        assertThat(received.getField(desc.findFieldByName("last_name"))).isEqualTo("Doe");
+                        assertThat(received.getField(desc.findFieldByName("age"))).isEqualTo(25);
+                    });
         }
     }
 
@@ -251,6 +289,28 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
                 SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
                 KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
         return serde;
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private static ProtobufSerde<DynamicMessage> createProtobufConsumerSerde(boolean schemaIdInHeader) {
+        // Override the message type header name to prevent the deserializer from using the
+        // Java class name header (which causes reflection failures with DynamicMessage).
+        // The deserializer falls back to Ref-based type detection in the body instead.
+        var serde = new ProtobufSerde();
+        serde.configure(Map.of(
+                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
+                SerdeConfig.EXPLICIT_ARTIFACT_ID, artifactId,
+                SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
+                KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader,
+                KafkaSerdeConfig.HEADER_VALUE_MESSAGE_TYPE_OVERRIDE_NAME, "x-ignore-msg-type"), false);
+        return serde;
+    }
+
+    private static <T, S> org.apache.kafka.clients.consumer.Consumer<T, S> consumeFromEarliestOffsets(KroxyliciousTester tester, Serde<T> keySerde,
+                                                                                                      Serde<S> valueSerde) {
+        return tester.consumer(keySerde, valueSerde, Map.of(
+                GROUP_ID_CONFIG, UUID.randomUUID().toString(),
+                AUTO_OFFSET_RESET_CONFIG, "earliest"));
     }
 
     private static ConfigurationBuilder createProtobufValidationConfig(KafkaCluster cluster, Topic topic, int protobufContentId) {
