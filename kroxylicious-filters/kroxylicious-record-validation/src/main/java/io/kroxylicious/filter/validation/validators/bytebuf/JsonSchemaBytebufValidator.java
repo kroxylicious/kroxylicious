@@ -19,6 +19,14 @@ import io.apicurio.schema.validation.json.JsonValidator;
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
 
+/**
+ * Validates Kafka record values against a JSON Schema stored in Apicurio Registry.
+ * <p>
+ * Supports JSON Schema drafts as accepted by Apicurio Registry (Draft-04 through Draft 2020-12).
+ * The JSON payload is validated after stripping any Apicurio serde envelope (schema ID in
+ * headers or magic-byte body prefix).
+ * </p>
+ */
 public class JsonSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final JsonValidator jsonValidator;
 

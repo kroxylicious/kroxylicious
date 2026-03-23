@@ -78,9 +78,9 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioId, W
     @JsonCreator
     public SchemaValidationConfig(@JsonProperty(value = "apicurioRegistryUrl", required = true) URL apicurioRegistryUrl,
                                   @JsonProperty(value = "apicurioId", required = true) long apicurioId,
-                                  @Nullable @JsonProperty(value = "wireFormatVersion", required = false) WireFormatVersion wireFormatVersion,
-                                  @JsonProperty(value = "tls", required = false) @Nullable Tls tls,
-                                  @Nullable @JsonProperty(value = "schemaType", required = false) SchemaType schemaType) {
+                                  @Nullable @JsonProperty(value = "wireFormatVersion") WireFormatVersion wireFormatVersion,
+                                  @JsonProperty(value = "tls") @Nullable Tls tls,
+                                  @Nullable @JsonProperty(value = "schemaType") SchemaType schemaType) {
         this.apicurioId = apicurioId;
         this.apicurioRegistryUrl = apicurioRegistryUrl;
         this.wireFormatVersion = wireFormatVersion != null ? wireFormatVersion : WireFormatVersion.V3;

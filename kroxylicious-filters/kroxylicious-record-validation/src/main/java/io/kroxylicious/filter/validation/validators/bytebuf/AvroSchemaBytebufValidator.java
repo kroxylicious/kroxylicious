@@ -28,6 +28,15 @@ import io.apicurio.schema.validation.avro.AvroValidator;
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
 
+/**
+ * Validates Kafka record values against an Apache Avro schema stored in Apicurio Registry.
+ * <p>
+ * Supports Avro Schema (JSON-based {@code .avsc}) format. Avro IDL ({@code .avdl}) is not
+ * directly supported; IDL must be compiled to Avro Schema before registration in the registry.
+ * The binary Avro payload is deserialized and validated after stripping any Apicurio serde
+ * envelope (schema ID in headers or magic-byte body prefix).
+ * </p>
+ */
 public class AvroSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final AvroValidator avroValidator;
     private final Schema avroSchema;

@@ -29,6 +29,18 @@ import io.apicurio.schema.validation.protobuf.ProtobufValidator;
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
 
+/**
+ * Validates Kafka record values against a Protocol Buffers schema stored in Apicurio Registry.
+ * <p>
+ * Supports proto2 and proto3 syntax. The proto editions syntax (introduced in protobuf v27)
+ * is not currently supported by Apicurio Registry.
+ * </p>
+ * <p>
+ * The Apicurio ProtobufSerde writes a delimited Ref message (containing the protobuf message
+ * type name) before the actual protobuf payload in both header and body modes. This class
+ * overrides {@link #skipExtraSerdeBytes(ByteBuffer)} to skip that Ref prefix before validation.
+ * </p>
+ */
 public class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final ProtobufValidator protobufValidator;
     private final Descriptors.Descriptor messageDescriptor;

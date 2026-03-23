@@ -60,6 +60,7 @@ Example schema validation rule:
 schemaValidationConfig:
   apicurioId: 1001
   apicurioRegistryUrl: http://registry.local:8080
+  schemaType: JSON_SCHEMA
   tls:
     trust:
       storeFile: /opt/proxy/trust/ca.p12
@@ -75,6 +76,10 @@ allowEmpty: true
   If the record key or value does not conform to the schema identified by this ID, the record is rejected.
   If a Kafka producer embeds a schema ID in the record (either in a header or _magic_ bytes at the start of the record's key or value), the filter validates it against this value. The record is rejected if the IDs do not match.
 * `apicurioRegistryUrl` specifies the endpoint URL for the Apicurio Registry.
+* `schemaType` specifies the type of schema to validate against. Supported values are:
+** `JSON_SCHEMA` — validates against a JSON Schema (default if not specified).
+** `AVRO` — validates against an Apache Avro schema.
+** `PROTOBUF` — validates against a Protocol Buffers schema.
 * `tls` specifies the optional TLS configuration used when connecting securely to the Apicurio Registry.
 ** `storeFile` path to the truststore file that contains the trust anchors used to validate the server connection.
 ** `storePassword` (Optional) password used to protect the truststore.
@@ -89,8 +94,6 @@ allowEmpty: true
 For more information about embedding the ID in a record, see the
   {apicurio-docs}/getting-started/assembly-using-kafka-client-serdes.html#_consumer_schema_configuration[Apicurio documentation^].
 --
-+
-NOTE: Schema validation currently supports enforcing JSON schemas only ({github-issues}/1431[issue]).
 +
 Example JSON syntax validation rule:
 +

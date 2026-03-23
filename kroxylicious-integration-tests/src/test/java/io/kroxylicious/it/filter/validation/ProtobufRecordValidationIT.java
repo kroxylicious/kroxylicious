@@ -86,6 +86,8 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
             }
             """;
 
+    private static final String PROTOBUF_CONTENT_TYPE = "application/x-protobuf";
+
     private static final String APICURIO_REGISTRY_HOST = "http://localhost";
     private static final Integer APICURIO_REGISTRY_PORT = 8083;
     private static final String APICURIO_REGISTRY_API = "/apis/registry/v3";
@@ -121,7 +123,7 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
         CreateVersion version = new CreateVersion();
         VersionContent content = new VersionContent();
         content.setContent(PROTOBUF_SCHEMA);
-        content.setContentType("application/x-protobuf");
+        content.setContentType(PROTOBUF_CONTENT_TYPE);
         version.setContent(content);
         createArtifact.setFirstVersion(version);
 
