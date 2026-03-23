@@ -210,4 +210,12 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
         assertThatThrownBy(() -> strategy.getBrokerAddress(-1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void containsOpenshiftRoutePlaceholderToken() {
+        var strategy = new SniHostIdentifiesNodeIdentificationStrategy("one-bootstrap.$(host):9291", "one-$(nodeId).$(host):443");
+
+        assertThatThrownBy(() -> strategy.buildStrategy("cluster"))
+                .isInstanceOf(SniHostIdentifiesNodeIdentificationStrategy.UnresolvedHostException.class);
+    }
 }
