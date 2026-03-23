@@ -117,6 +117,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResource
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.list;
 import static org.awaitility.Awaitility.await;
 
@@ -901,6 +902,8 @@ public class KafkaProxyReconcilerIT {
 
     @Test
     void virtualClusterWithOpenshiftRouteIngressWithTrustAnchor() {
+        assumeThat(testActor.supports(Route.class)).withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
+
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
         KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
 
