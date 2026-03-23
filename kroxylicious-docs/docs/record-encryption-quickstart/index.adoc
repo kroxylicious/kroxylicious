@@ -60,7 +60,7 @@ Let's get the Kubernetes Cluster up and running.  Minikube defaults work just fi
 
 [source,terminal]
 ----
-$ minikube start
+$ minikube start --memory=4096 --cpus=4
 ----
 
 == Install the software
