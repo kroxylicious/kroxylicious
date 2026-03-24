@@ -21,12 +21,18 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.model.networking.RouteClusterIngressNetworkingModel;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 
 import static io.kroxylicious.kubernetes.operator.Annotations.readBootstrapServersFrom;
 
 /**
  * Record used for efficiently storing identifying information about a {@link Route}, along with its subdomain-less host.
  * Used to substitute a resolved {@link RouteIngress#getHost()} host in to {@link RouteClusterIngressNetworkingModel#nodeIdentificationStrategy()}.
+ *
+ * <p>
+ * Note that because {@link SniHostIdentifiesNodeIdentificationStrategy#getAdvertisedBrokerAddressPattern()} is shared across nodes, all of them are
+ * assumed to be under the same domain.
+ * </p>
  *
  * @param routeNamespace Namespace of the {@link Route}
  * @param clusterName Name of the {@link VirtualKafkaCluster}
