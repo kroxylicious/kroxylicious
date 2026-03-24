@@ -6,7 +6,6 @@
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import io.fabric8.openshift.api.model.Route;
@@ -17,8 +16,6 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.javaoperatorsdk.operator.processing.event.NoEventSourceForClassException;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
@@ -34,14 +31,6 @@ public class ClusterRouteDependentResource
 
     public ClusterRouteDependentResource() {
         super(Route.class);
-    }
-
-    /**
-     * @return The {@code metadata.name} of the desired {@code Route}.
-     */
-    static String routeName(VirtualKafkaCluster cluster) {
-        Objects.requireNonNull(cluster);
-        return ResourcesUtil.name(cluster);
     }
 
     @Override
