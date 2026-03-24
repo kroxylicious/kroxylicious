@@ -43,25 +43,15 @@ public record NettySettings(Optional<Integer> workerThreadCount,
     }
 
     public NettySettings {
-        shutdownQuietPeriod.ifPresent(d -> {
-            if (d.isNegative()) {
-                throw new IllegalArgumentException("shutdownQuietPeriod must not be negative: " + d);
-            }
-        });
-        shutdownTimeout.ifPresent(d -> {
-            if (d.isNegative()) {
-                throw new IllegalArgumentException("shutdownTimeout must not be negative: " + d);
-            }
-        });
-        authenticatedIdleTimeout.ifPresent(d -> {
-            if (d.isNegative()) {
-                throw new IllegalArgumentException("authenticatedIdleTimeout must not be negative: " + d);
-            }
-        });
-        unauthenticatedIdleTimeout.ifPresent(d -> {
-            if (d.isNegative()) {
-                throw new IllegalArgumentException("unauthenticatedIdleTimeout must not be negative: " + d);
-            }
-        });
+        requireNonNegative(shutdownQuietPeriod, "shutdownQuietPeriod");
+        requireNonNegative(shutdownTimeout, "shutdownTimeout");
+        requireNonNegative(authenticatedIdleTimeout, "authenticatedIdleTimeout");
+        requireNonNegative(unauthenticatedIdleTimeout, "unauthenticatedIdleTimeout");
+    }
+
+    private static void requireNonNegative(Optional<Duration> value, String fieldName) {
+        if (value.filter(Duration::isNegative).isPresent()) {
+            throw new IllegalArgumentException(fieldName + " must not be negative: " + value.get());
+        }
     }
 }
