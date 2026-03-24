@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowableAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -35,6 +36,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder;
+import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
@@ -43,6 +45,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
@@ -192,6 +195,12 @@ class RouteClusterIngressNetworkingModelTest {
             assertThat(build.getMetadata()).isNotNull().satisfies(metadata -> {
                 assertThat(metadata.getNamespace()).isEqualTo(NAMESPACE);
                 assertThat(metadata.getLabels()).containsExactlyEntriesOf(orderedServiceLabels);
+                assertThat(metadata.getAnnotations()).satisfies(am -> {
+                    assertThat(am)
+                            .containsOnlyKeys(Annotations.BOOTSTRAP_SERVERS_ANNOTATION_KEY)
+                            .extractingByKey(Annotations.BOOTSTRAP_SERVERS_ANNOTATION_KEY, as(InstanceOfAssertFactories.STRING))
+                            .contains("my-cluster-bootstrap.$(unresolvedRouteHost):443");
+                });
                 assertThat(metadata.getOwnerReferences())
                         .satisfiesExactlyInAnyOrder(
                                 ownerRef -> {

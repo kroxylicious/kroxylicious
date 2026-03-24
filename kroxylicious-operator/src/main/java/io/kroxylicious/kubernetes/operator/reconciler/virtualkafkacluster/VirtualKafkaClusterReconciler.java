@@ -434,7 +434,7 @@ public final class VirtualKafkaClusterReconciler implements
                 Service.class,
                 VirtualKafkaCluster.class)
                 .withName(KUBERNETES_SERVICES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKubernetesServicesSecondaryMapper())
+                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapper())
                 .withSecondaryToPrimaryMapper(new KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
