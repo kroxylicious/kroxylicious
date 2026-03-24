@@ -71,7 +71,6 @@ class KafkaProxyIngressReconcilerTest {
 
         var kubernetesClient = mock(KubernetesClient.class);
         when(context.getClient()).thenReturn(kubernetesClient);
-        when(kubernetesClient.supports(Route.class)).thenReturn(true);
     }
 
     @Test
@@ -91,7 +90,8 @@ class KafkaProxyIngressReconcilerTest {
         assertThat(update.getResource()).isPresent();
         assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
-                .singleCondition()
+                .conditionList()
+                .singleOfType(Condition.Type.ResolvedRefs)
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
                 .isResolvedRefsFalse(Condition.REASON_REFS_NOT_FOUND, "KafkaProxy spec.proxyRef.name not found")
                 .hasLastTransitionTime(TEST_CLOCK.instant());
@@ -99,7 +99,7 @@ class KafkaProxyIngressReconcilerTest {
     }
 
     @Test
-    void shouldSetResolvedRefsToTrueWhenProxyFound() throws Exception {
+    void shouldSetResolvedRefsAndAcceptedToTrueWhenProxyFoundAndIngressTypeSupported() throws Exception {
         // given
         var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
@@ -113,12 +113,79 @@ class KafkaProxyIngressReconcilerTest {
         assertThat(update.isPatchStatus()).isTrue();
         assertThat(update.isPatchResource()).isTrue();
         assertThat(update.getResource()).isPresent();
-        KafkaProxyIngressStatusAssert.assertThat(update.getResource().get().getStatus())
+        var conditionListAssert = KafkaProxyIngressStatusAssert.assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
-                .conditionList()
-                .singleElement()
-                .isResolvedRefsTrue(INGRESS);
+                .conditionList();
 
+        conditionListAssert.singleOfType(Condition.Type.ResolvedRefs).isResolvedRefsTrue();
+        conditionListAssert.singleOfType(Condition.Type.Accepted).isAcceptedTrue();
+    }
+
+    @Test
+    void shouldSetAcceptedToFalseWhenOpenShiftRequestedButNotSupportedByPlatform() throws Exception {
+        // given
+        when(context.getClient().supports(Route.class)).thenReturn(false);
+
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
+
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
+
+        var ingress = INGRESS.edit()
+                .editOrNewSpec()
+                .withNewOpenShiftRoute()
+                .endOpenShiftRoute()
+                .endSpec()
+                .build();
+
+        // when
+        var update = reconciler.reconcile(ingress, context);
+
+        // then
+        assertThat(update).isNotNull();
+        assertThat(update.isPatchStatus()).isTrue();
+        assertThat(update.isPatchResource()).isFalse();
+        assertThat(update.getResource()).isPresent();
+
+        KafkaProxyIngressStatusAssert
+                .assertThat(update.getResource().get().getStatus())
+                .hasObservedGenerationInSyncWithMetadataOf(ingress)
+                .conditionList()
+                .singleOfType(Condition.Type.Accepted)
+                .isAcceptedFalse(Condition.REASON_REQUESTED_RESOURCE_KIND_NOT_SUPPORTED,
+                        "Kubernetes server is missing support for resource kind Route. spec.openShiftRoute is only supported on OpenShift.");
+    }
+
+    @Test
+    void shouldSetAcceptedToTrueWhenOpenShiftRequestedAndSupportedByPlatform() throws Exception {
+        // given
+        when(context.getClient().supports(Route.class)).thenReturn(true);
+
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
+
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
+
+        var ingress = INGRESS.edit()
+                .editOrNewSpec()
+                .withNewOpenShiftRoute()
+                .endOpenShiftRoute()
+                .endSpec()
+                .build();
+
+        // when
+        var update = reconciler.reconcile(ingress, context);
+
+        // then
+        assertThat(update).isNotNull();
+        assertThat(update.isPatchStatus()).isTrue();
+        assertThat(update.isPatchResource()).isTrue();
+        assertThat(update.getResource()).isPresent();
+
+        KafkaProxyIngressStatusAssert
+                .assertThat(update.getResource().get().getStatus())
+                .hasObservedGenerationInSyncWithMetadataOf(ingress)
+                .conditionList()
+                .singleOfType(Condition.Type.Accepted)
+                .isAcceptedTrue();
     }
 
     @Test
@@ -138,7 +205,6 @@ class KafkaProxyIngressReconcilerTest {
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
                 .isResolvedRefsUnknown("java.lang.RuntimeException", "Boom!")
                 .hasLastTransitionTime(TEST_CLOCK.instant());
-
     }
 
     @Test
@@ -157,7 +223,8 @@ class KafkaProxyIngressReconcilerTest {
         assertThat(update.getResource()).isPresent();
         assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
-                .singleCondition()
+                .conditionList()
+                .singleOfType(Condition.Type.ResolvedRefs)
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
                 .hasLastTransitionTime(TEST_CLOCK.instant());
 

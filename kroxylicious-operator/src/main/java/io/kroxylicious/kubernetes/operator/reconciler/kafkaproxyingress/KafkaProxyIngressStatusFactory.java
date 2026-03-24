@@ -26,16 +26,19 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
         super(clock);
     }
 
-    private KafkaProxyIngress ingressStatusPatch(KafkaProxyIngress observedIngress,
-                                                 Condition condition,
-                                                 String checksum) {
+    public KafkaProxyIngress ingressStatusPatch(KafkaProxyIngress observedIngress,
+                                                ResourceState condition,
+                                                String checksum) {
+
+        var conds = ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaProxyIngressStatus::getConditions).orElse(List.of()),
+                condition);
 
         // @formatter:off
         var metadataBuilder = new KafkaProxyIngressBuilder()
                 .withNewMetadata()
-                    .withUid(ResourcesUtil.uid(observedIngress))
-                    .withName(ResourcesUtil.name(observedIngress))
-                    .withNamespace(ResourcesUtil.namespace(observedIngress));
+                .withUid(ResourcesUtil.uid(observedIngress))
+                .withName(ResourcesUtil.name(observedIngress))
+                .withNamespace(ResourcesUtil.namespace(observedIngress));
         if (!checksum.isBlank()) {
             // In practice this condition means that the existing annotation will be left alone.
             Annotations.annotateWithReferentChecksum(metadataBuilder, checksum);
@@ -44,10 +47,17 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
                 .endMetadata()
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedIngress))
-                    .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaProxyIngressStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
+                    .withConditions(conds)
                 .endStatus()
                 .build();
         // @formatter:on
+
+    }
+
+    private KafkaProxyIngress ingressStatusPatch(KafkaProxyIngress observedIngress,
+                                                 Condition condition,
+                                                 String checksum) {
+        return ingressStatusPatch(observedIngress, ResourceState.of(condition), checksum);
     }
 
     @Override
