@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,8 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.RouteBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
 
@@ -41,6 +44,7 @@ import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.resolver.DependencyResolver.EMPTY_RESOLUTION_RESULT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -116,6 +120,76 @@ class ProxyDeploymentDependentResourceTest {
 
         // Then
         verify(metadataChecksumGenerator, times(clusterResolutionResults.size())).appendMetadata(ArgumentMatchers.any(VirtualKafkaCluster.class));
+    }
+
+    @Test
+    void shouldIncludeRouteNameAndHostInChecksum() {
+        // Given
+        Route route = new RouteBuilder()
+                .withNewMetadata().withName("test-route").endMetadata()
+                .withNewStatus().addNewIngress().withHost("test-route.apps-crc.testing").endIngress().endStatus()
+                .build();
+        when(kubernetesContext.getSecondaryResources(Route.class)).thenReturn(Set.of(route));
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext, proxyModel);
+
+        // Then - the route name and ingress host are hashed, not the full metadata
+        verify(metadataChecksumGenerator).appendString("test-route");
+        verify(metadataChecksumGenerator).appendString("test-route.apps-crc.testing");
+    }
+
+    @Test
+    void shouldProduceDifferentChecksumWhenRouteHostAssigned() {
+        // Given - use a real checksum generator (no mock in context)
+        when(kubernetesContext.managedWorkflowAndDependentResourceContext())
+                .thenReturn(new DefaultManagedWorkflowAndDependentResourceContext<>(null, kafkaProxy, kubernetesContext));
+        // Use a model with no clusters to avoid UID requirements from VKC metadata hashing
+        ProxyModel emptyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of());
+        ProxyDeploymentDependentResource resource = new ProxyDeploymentDependentResource();
+
+        Route routeWithoutHost = new RouteBuilder()
+                .withNewMetadata().withName("test-route").endMetadata()
+                .build();
+        Route routeWithHost = new RouteBuilder()
+                .withNewMetadata().withName("test-route").endMetadata()
+                .withNewStatus().addNewIngress().withHost("test-route.apps-crc.testing").endIngress().endStatus()
+                .build();
+
+        when(kubernetesContext.getSecondaryResources(Route.class)).thenReturn(Set.of(routeWithoutHost));
+        String checksumBefore = resource.checksumFor(kafkaProxy, kubernetesContext, emptyModel);
+
+        // When - OpenShift assigns a host to the route
+        when(kubernetesContext.getSecondaryResources(Route.class)).thenReturn(Set.of(routeWithHost));
+        String checksumAfter = resource.checksumFor(kafkaProxy, kubernetesContext, emptyModel);
+
+        // Then - host assignment should produce a different checksum
+        assertThat(checksumBefore).isNotEqualTo(checksumAfter);
+    }
+
+    @Test
+    void shouldProduceDifferentChecksumWhenRouteAdded() {
+        // Given - use a real checksum generator (no mock in context)
+        when(kubernetesContext.managedWorkflowAndDependentResourceContext())
+                .thenReturn(new DefaultManagedWorkflowAndDependentResourceContext<>(null, kafkaProxy, kubernetesContext));
+        ProxyModel emptyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of());
+        ProxyDeploymentDependentResource resource = new ProxyDeploymentDependentResource();
+
+        Route route = new RouteBuilder()
+                .withNewMetadata().withName("test-route").endMetadata()
+                .withNewStatus().addNewIngress().withHost("test-route.apps-crc.testing").endIngress().endStatus()
+                .build();
+
+        when(kubernetesContext.getSecondaryResources(Route.class)).thenReturn(Set.of());
+        String checksumWithoutRoute = resource.checksumFor(kafkaProxy, kubernetesContext, emptyModel);
+
+        // When - a route is added
+        when(kubernetesContext.getSecondaryResources(Route.class)).thenReturn(Set.of(route));
+        String checksumWithRoute = resource.checksumFor(kafkaProxy, kubernetesContext, emptyModel);
+
+        // Then - adding a route should produce a different checksum
+        assertThat(checksumWithoutRoute).isNotEqualTo(checksumWithRoute);
     }
 
     @Test

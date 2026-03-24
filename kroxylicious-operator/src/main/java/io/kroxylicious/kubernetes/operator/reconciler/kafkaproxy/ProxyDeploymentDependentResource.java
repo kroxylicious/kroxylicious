@@ -6,6 +6,7 @@
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,6 +26,9 @@ import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.RouteIngress;
+import io.fabric8.openshift.api.model.RouteStatus;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.BooleanWithUndefined;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
@@ -117,12 +121,25 @@ public class ProxyDeploymentDependentResource
                 .orElse(new Crc32ChecksumGenerator());
 
         model.clustersWithValidNetworking().stream().map(ClusterResolutionResult::cluster).forEach(checksumGenerator::appendMetadata);
+        context.getSecondaryResources(Route.class).stream()
+                .sorted(Comparator.comparing(r -> r.getMetadata().getName()))
+                .forEach(route -> appendRouteHostsToChecksum(checksumGenerator, route));
         String encoded = checksumGenerator.encode();
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Checksum: {} generated for KafkaProxy: {}", encoded, KubernetesResourceUtil.getName(primary));
         }
         return encoded;
+    }
+
+    private static void appendRouteHostsToChecksum(MetadataChecksumGenerator checksumGenerator, Route route) {
+        checksumGenerator.appendString(route.getMetadata().getName());
+        Optional.ofNullable(route.getStatus())
+                .map(RouteStatus::getIngress)
+                .orElse(List.of()).stream()
+                .map(RouteIngress::getHost)
+                .sorted()
+                .forEach(checksumGenerator::appendString);
     }
 
     private static Map<String, String> deploymentSelector(KafkaProxy primary) {
