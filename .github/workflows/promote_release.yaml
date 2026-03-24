@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: 'Check out repository'
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
           fetch-tags: true
@@ -97,7 +97,7 @@ jobs:
           echo "RELCAND_ID=${RELCAND_ID}" >> $GITHUB_ENV
 
       - name: Download release state artefact
-        uses: dawidd6/action-download-artifact@1f8785ff7a5130826f848e7f72725c85d241860f
+        uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927
         with:
           workflow: stage-release
           run_id: ${{ env.RELCAND_ID }}

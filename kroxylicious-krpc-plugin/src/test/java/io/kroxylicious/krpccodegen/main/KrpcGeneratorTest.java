@@ -183,7 +183,7 @@ class KrpcGeneratorTest {
         gen.generate();
 
         File file = join(tempDir, "com", "foo", "ApiSpecs.txt");
-        assertFileHasExpectedContents(file, "Kproxy/MessageSpecPairs-expected.txt");
+        assertFileHasExpectedContents(file, "Kproxy/ApiSpecPairs-expected.txt");
     }
 
     @Test
@@ -204,7 +204,7 @@ class KrpcGeneratorTest {
         gen.generate();
 
         File file = join(tempDir, "com", "foo", "ApiSpecs.txt");
-        assertFileHasExpectedContents(file, "Kproxy/MessageSpecPairsFiltered-expected.txt");
+        assertFileHasExpectedContents(file, "Kproxy/ApiSpecPairsFiltered-expected.txt");
     }
 
     @SuppressWarnings("java:S2925") // sleep justified for testing logic that depends on filesystem modtimes

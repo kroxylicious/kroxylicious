@@ -20,7 +20,7 @@ jobs:
         run: |
           echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> $GITHUB_ENV
       - name: Download PR number artifact
-        uses: dawidd6/action-download-artifact@1f8785ff7a5130826f848e7f72725c85d241860f
+        uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927
         if: env.SONAR_TOKEN_SET == 'true'
         with:
           workflow: Build
@@ -33,7 +33,7 @@ jobs:
         with:
           path: ./PR_NUMBER.txt
       - name: Request GitHub API for PR data
-        uses: octokit/request-action@05a2312de9f8207044c4c9e41fe19703986acc13
+        uses: octokit/request-action@fceefc326610e57c85d863dd44ac27fbd90f25e3
         if: env.SONAR_TOKEN_SET == 'true'
         id: get_pr_data
         with:
@@ -55,7 +55,7 @@ jobs:
             echo "SANITIZED_HEAD_REF=${HEAD_BRANCH}" >> $GITHUB_ENV
           fi
         shell: bash
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         if: env.SONAR_TOKEN_SET == 'true'
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}

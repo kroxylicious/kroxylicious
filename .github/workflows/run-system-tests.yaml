@@ -48,7 +48,7 @@ jobs:
       test_chunks: ${{ steps.discover.outputs.test_chunks }}
     steps:
       - name: 'Check out repository'
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
       - name: 'Discover STs'
@@ -70,7 +70,7 @@ jobs:
       - name: Log tests to run
         run: echo "Running tests on classes '${{ matrix.tests }}'"
       - name: 'Check out repository'
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
       - name: Set up QEMU
@@ -84,13 +84,13 @@ jobs:
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
       - name: Download kroxylicious proxy artifact
-        uses: dawidd6/action-download-artifact@1f8785ff7a5130826f848e7f72725c85d241860f
+        uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927
         with:
           workflow: build_kroxylicious_images
           name: kroxylicious-proxy
           run_id: ${{github.run_id}}
       - name: Download kroxylicious proxy artifact
-        uses: dawidd6/action-download-artifact@1f8785ff7a5130826f848e7f72725c85d241860f
+        uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927
         with:
           workflow: build_kroxylicious_images
           name: kroxylicious-operator
@@ -124,7 +124,7 @@ jobs:
 
       - name: Archive JUnit test results
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: junit-results-${{ matrix.tests }}-${{ inputs.kafkaClient }}
           path: kroxylicious-systemtests/target/surefire-reports/**/TEST-*.xml
@@ -132,13 +132,13 @@ jobs:
 
       - name: Archive systemtest logs
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: systemtest-logs-${{ matrix.tests }}-${{ inputs.kafkaClient }}
           path: kroxylicious-systemtests/target/logs
 
       - name: Test Reporter
-        uses: dorny/test-reporter@3d76b34a4535afbd0600d347b09a6ee5deb3ed7f
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2
         if: ${{ !cancelled() }}
         with:
           artifact: junit-results-${{ matrix.tests }}-${{ inputs.kafkaClient }}

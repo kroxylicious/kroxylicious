@@ -1,0 +1,129 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "FETCH"
+  apiVersion: 12
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "FETCH"
+      expectedRequestVersion: 12
+      expectedRequestHeader:
+        requestApiKey: 1
+        requestApiVersion: 12
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        clusterId: "0"
+        replicaId: 0
+        maxWaitMs: 0
+        minBytes: 0
+        maxBytes: 0
+        isolationLevel: 0
+        sessionId: 0
+        sessionEpoch: 0
+        topics:
+          - topic: foo
+            partitions:
+              - partition: 0
+                currentLeaderEpoch: 0
+                fetchOffset: 0
+                lastFetchedEpoch: 0
+                logStartOffset: 0
+                partitionMaxBytes: 0
+        forgottenTopicsData:
+          - topic: foo
+            partitions: [0]
+        rackId: us-east1
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        sessionId: 0
+        responses:
+          - topic: foo
+            partitions:
+              - partitionIndex: 0
+                errorCode: 0
+                highWatermark: 0
+                lastStableOffset: 0
+                logStartOffset: 0
+                divergingEpoch:
+                  epoch: 0
+                  endOffset: 0
+                currentLeader:
+                  leaderId: 0
+                  leaderEpoch: 0
+                snapshotId:
+                  endOffset: 0
+                  epoch: 0
+                abortedTransactions:
+                  - producerId: 0
+                    firstOffset: 0
+                preferredReadReplica: 0
+                records: null
+  entityTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 1
+    requestApiVersion: 12
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    clusterId: "0"
+    replicaId: 0
+    maxWaitMs: 0
+    minBytes: 0
+    maxBytes: 0
+    isolationLevel: 0
+    sessionId: 0
+    sessionEpoch: 0
+    topics:
+      - topic: foo
+        partitions:
+          - partition: 0
+            currentLeaderEpoch: 0
+            fetchOffset: 0
+            lastFetchedEpoch: 0
+            logStartOffset: 0
+            partitionMaxBytes: 0
+    forgottenTopicsData:
+      - topic: foo
+        partitions: [0]
+    rackId: us-east1
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    sessionId: 0
+    responses:
+      - topic: foo
+        partitions:
+          - partitionIndex: 0
+            errorCode: 0
+            highWatermark: 0
+            lastStableOffset: 0
+            logStartOffset: 0
+            divergingEpoch:
+              epoch: 0
+              endOffset: 0
+            currentLeader:
+              leaderId: 0
+              leaderEpoch: 0
+            snapshotId:
+              endOffset: 0
+              epoch: 0
+            abortedTransactions:
+              - producerId: 0
+                firstOffset: 0
+            preferredReadReplica: 0
+            records: null

@@ -1,0 +1,86 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "JOIN_GROUP"
+  apiVersion: 9
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "JOIN_GROUP"
+      expectedRequestVersion: 9
+      expectedRequestHeader:
+        requestApiKey: 11
+        requestApiVersion: 9
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: alice-mygroup
+        sessionTimeoutMs: 0
+        rebalanceTimeoutMs: 0
+        memberId: mymemberid
+        groupInstanceId: mygroupinstanceid
+        protocolType: consumer
+        protocols:
+          - name: ""
+            metadata: !!binary |-
+              aGVsbG8K
+        reason: ""
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1016
+        errorCode: 0
+        generationId: 0
+        protocolType: consumer
+        protocolName: ""
+        leader: ""
+        skipAssignment: false
+        memberId: "mymember"
+        members:
+          - memberId: other
+            groupInstanceId: ""
+            metadata: !!binary |-
+               aGVsbG8K
+  entityTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 11
+    requestApiVersion: 9
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: mygroup
+    sessionTimeoutMs: 0
+    rebalanceTimeoutMs: 0
+    memberId: mymemberid
+    groupInstanceId: mygroupinstanceid
+    protocolType: consumer
+    protocols:
+      - name: ""
+        metadata: !!binary |-
+         aGVsbG8K
+    reason: ""
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1016
+    errorCode: 0
+    generationId: 0
+    protocolType: consumer
+    protocolName: ""
+    leader: ""
+    skipAssignment: false
+    memberId: "mymember"
+    members:
+      - memberId: other
+        groupInstanceId: ""
+        metadata: !!binary |-
+          aGVsbG8K
+

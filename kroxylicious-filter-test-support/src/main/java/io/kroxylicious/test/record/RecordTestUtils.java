@@ -302,6 +302,8 @@ public class RecordTestUtils {
      * Return a singleton RecordBatch containing a single Record with the given key, value and headers.
      * The batch will use the current magic.
      *
+     * @param recordTimestamp timestamp of the record, note that this can determine whether a segment
+     * is eligible for deletion, relative to the current system time. This depends on the TimestampType.
      * @param baseOffset baseOffset of the single batch and offset of the single record within it
      * @param compression
      * @return The record batch
@@ -319,9 +321,10 @@ public class RecordTestUtils {
                                                               int partitionLeaderEpoch,
                                                               byte[] key,
                                                               byte[] value,
+                                                              long recordTimestamp,
                                                               Header... headers) {
         MemoryRecords records = memoryRecordsWithoutCopy(magic, baseOffset, compression, timestampType, logAppendTime, producerId, producerEpoch, baseSequence,
-                isTransactional, isControlBatch, partitionLeaderEpoch, 0L, key, value, headers);
+                isTransactional, isControlBatch, partitionLeaderEpoch, recordTimestamp, key, value, headers);
         return records.batches().iterator().next();
     }
 

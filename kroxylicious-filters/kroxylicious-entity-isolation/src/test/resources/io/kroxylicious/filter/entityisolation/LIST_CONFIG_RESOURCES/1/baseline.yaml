@@ -1,0 +1,55 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "LIST_CONFIG_RESOURCES"
+  apiVersion: 1
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_CONFIG_RESOURCES"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 74
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        resourceTypes: [ 2, 32 ]
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        configResources:
+          - resourceName: "alice-mygroup"
+            resourceType: 32
+          - resourceName: "bob-mygroup"
+            resourceType: 32
+          - resourceName: "mytopic"
+            resourceType: 2
+  entityTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 74
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    resourceTypes: [2, 32]
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    configResources:
+      - resourceName: "mygroup"
+        resourceType: 32
+      - resourceName: "mytopic"
+        resourceType: 2

@@ -17,6 +17,10 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
   topicNames: {}
 when:
   subject: "alice"
@@ -26,7 +30,7 @@ when:
     correlationId: 1
     clientId: "client-id"
   request:
-    groupId: "random-string-704"
+    groupId: "my-group"
     memberId: "random-string-896"
     memberEpoch: 926
     instanceId: "random-string-667"

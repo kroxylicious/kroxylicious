@@ -7,11 +7,14 @@
 package io.kroxylicious.kms.provider.azure.kms;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
+import org.testcontainers.DockerClientFactory;
 
 import com.github.nagyesta.lowkeyvault.testcontainers.LowkeyVaultContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 class AzureKeyVaultKmsTestKmsFacadeTest {
 
     @Test
@@ -21,4 +24,7 @@ class AzureKeyVaultKmsTestKmsFacadeTest {
         }
     }
 
+    static boolean isDockerAvailable() {
+        return DockerClientFactory.instance().isDockerAvailable();
+    }
 }

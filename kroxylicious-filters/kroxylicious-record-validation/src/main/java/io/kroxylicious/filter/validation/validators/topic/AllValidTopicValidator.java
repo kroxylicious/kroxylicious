@@ -13,7 +13,7 @@ import org.apache.kafka.common.message.ProduceRequestData;
 
 class AllValidTopicValidator implements TopicValidator {
     @Override
-    public CompletionStage<TopicValidationResult> validateTopicData(ProduceRequestData.TopicProduceData request) {
-        return CompletableFuture.completedFuture(new AllValidTopicValidationResult(request.name()));
+    public CompletionStage<TopicValidationResult> validateTopicData(ProduceRequestData.TopicProduceData request, String topicName) {
+        return CompletableFuture.completedFuture(new AllValidTopicValidationResult(topicName));
     }
 }

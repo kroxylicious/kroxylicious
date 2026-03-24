@@ -1,0 +1,61 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "INIT_PRODUCER_ID"
+  apiVersion: 6
+  scenario: "The transactional id is null the producer is not transactional."
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "INIT_PRODUCER_ID"
+      expectedRequestVersion: 6
+      expectedRequestHeader:
+        requestApiKey: 22
+        requestApiVersion: 6
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: null
+        transactionTimeoutMs: 30000
+        producerId: 0
+        producerEpoch: 0
+        enable2Pc: false
+        keepPreparedTxn: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1016
+        errorCode: 0
+        producerId: 0
+        producerEpoch: 0
+        ongoingTxnProducerId: 0
+        ongoingTxnProducerEpoch: 0
+  entityTypes: ["TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 22
+    requestApiVersion: 6
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: null
+    transactionTimeoutMs: 30000
+    producerId: 0
+    producerEpoch: 0
+    enable2Pc: false
+    keepPreparedTxn: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1016
+    errorCode: 0
+    producerId: 0
+    producerEpoch: 0
+    ongoingTxnProducerId: 0
+    ongoingTxnProducerEpoch: 0

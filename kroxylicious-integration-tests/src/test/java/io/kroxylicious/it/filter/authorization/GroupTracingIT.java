@@ -418,9 +418,15 @@ class GroupTracingIT extends AbstractTracingIT {
         var alice = new Actor(ALICE, PASSWORDS.get(ALICE), Map.of(), Map.of(), Map.of());
         var eve = new Actor(EVE, PASSWORDS.get(EVE), Map.of(), Map.of(), Map.of());
         var bob = new Actor(BOB, PASSWORDS.get(BOB), Map.of(), Map.of(), Map.of());
+        Actor aliceWithNewConsumerGroupProtocol = alice.withConsumerConfigOverrides(Map.of(ConsumerConfig.GROUP_PROTOCOL_CONFIG, "consumer"));
+        Actor eveWithNewConsumerGroupProtocol = eve.withConsumerConfigOverrides(Map.of(ConsumerConfig.GROUP_PROTOCOL_CONFIG, "consumer"));
         return List.of(argumentSet("alice can consume from group " + GROUP_1, new GroupConsumerProg(GROUP_1, ALICE), List.of(alice)),
+                argumentSet("alice can consume from group " + GROUP_1 + " using new consumer group protocol", new GroupConsumerProg(GROUP_1, ALICE),
+                        List.of(aliceWithNewConsumerGroupProtocol)),
                 argumentSet("alice can consume from group " + GROUP_2, new GroupConsumerProg(GROUP_2, ALICE), List.of(alice)),
                 argumentSet("eve can not consume from group " + GROUP_1, new DeniedGroupConsumerProg(GROUP_1, EVE), List.of(alice, eve)),
+                argumentSet("eve can not consume from group " + GROUP_1 + " using new consumer group protocol", new DeniedGroupConsumerProg(GROUP_1, EVE),
+                        List.of(alice, eveWithNewConsumerGroupProtocol)),
                 argumentSet("eve can not consume from group " + GROUP_2, new DeniedGroupConsumerProg(GROUP_1, EVE), List.of(alice, eve)),
                 argumentSet("bob can not consume from group " + GROUP_1, new DeniedGroupConsumerProg(GROUP_1, BOB), List.of(alice, bob)),
                 argumentSet("bob can not consume from group " + GROUP_2, new DeniedGroupConsumerProg(GROUP_1, BOB), List.of(alice, bob)),

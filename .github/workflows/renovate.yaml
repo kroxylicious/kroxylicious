@@ -54,11 +54,11 @@ jobs:
         run: |
           echo "RENOVATE_GIT_AUTHOR=${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>" >> $GITHUB_ENV
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Setup node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
       - name: Renovate
-        uses: renovatebot/github-action@abd08c7549b2a864af5df4a2e369c43f035a6a9d
+        uses: renovatebot/github-action@68a3ea99af6ad249940b5a9fdf44fc6d7f14378b
         with:
           configurationFile: .github/renovate.json
           token: ${{ env.EFFECTIVE_TOKEN }}
