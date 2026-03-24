@@ -18,6 +18,11 @@ import io.kroxylicious.proxy.config.NetworkDefinition;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Builds a {@link NetworkDefinition} from the {@code spec.network} section of a
+ * {@link KafkaProxy} custom resource, mapping Go-style duration strings from the CRD
+ * into the proxy configuration model.
+ */
 final class NetworkDefinitionBuilder {
 
     private NetworkDefinitionBuilder() {
