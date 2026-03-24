@@ -66,6 +66,7 @@ public class ClusterRouteDependentResource
     public Map<String, Route> getSecondaryResources(
                                                     KafkaProxy primary,
                                                     Context<KafkaProxy> context) {
+        // This try/catch is a temporary workaround until the following bug is fixed: https://github.com/operator-framework/java-operator-sdk/issues/3249
         try {
             Set<Route> secondaryResources = context.eventSourceRetriever().getEventSourceFor(Route.class)
                     .getSecondaryResources(primary);
