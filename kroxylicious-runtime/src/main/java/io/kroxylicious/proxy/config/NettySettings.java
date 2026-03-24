@@ -10,7 +10,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 public record NettySettings(Optional<Integer> workerThreadCount,
-                            @Deprecated Optional<Integer> shutdownQuietPeriodSeconds,
+                            @Deprecated(since = "0.20.0", forRemoval = true) Optional<Integer> shutdownQuietPeriodSeconds,
                             Optional<Duration> shutdownQuietPeriod,
                             Optional<Duration> shutdownTimeout,
                             Optional<Duration> authenticatedIdleTimeout,
