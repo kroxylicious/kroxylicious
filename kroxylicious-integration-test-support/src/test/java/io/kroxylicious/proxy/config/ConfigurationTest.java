@@ -124,8 +124,8 @@ class ConfigurationTest {
                           gateways:
                           - name: default
                             sniHostIdentifiesNode:
-                                bootstrapAddress: one-bootstrap.$(host):9192
-                                advertisedBrokerAddressPattern: one-$(nodeId).$(host):443
+                                bootstrapAddress: one-bootstrap.$(unresolvedRouteHost):9192
+                                advertisedBrokerAddressPattern: one-$(nodeId).$(unresolvedRouteHost):443
                             tls:
                               key:
                                 certificateFile: /tmp/cert
