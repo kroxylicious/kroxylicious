@@ -110,6 +110,7 @@ import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
 import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
@@ -487,8 +488,7 @@ public class KafkaProxyReconcilerIT {
         String downstreamCertSecretName = "downstream-tls-certificate";
         Secret tlsCert = testActor.create(tlsKeyAndCertSecret(downstreamCertSecretName));
 
-        Ingresses build = new IngressesBuilder().withIngressRef(toIngressRef(ingress)).withNewTls().withCertificateRef(
-                toCertificateRef(tlsCert)).endTls().build();
+        Ingresses build = createIngressForCluster(ingress, tlsCert);
         VirtualKafkaCluster resource = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, List.of(build), Optional.empty());
 
         // When
@@ -725,23 +725,13 @@ public class KafkaProxyReconcilerIT {
 
         Secret loadBalancerTlsServerCert = testActor.create(tlsKeyAndCertSecret("loadbalancer-tls-certificate"));
 
-        Ingresses lbIngress = new IngressesBuilder()
-                .withIngressRef(toIngressRef(loadBalancerIngress))
-                .withNewTls()
-                .withCertificateRef(toCertificateRef(loadBalancerTlsServerCert))
-                .endTls()
-                .build();
+        Ingresses lbIngress = createIngressForCluster(loadBalancerIngress, loadBalancerTlsServerCert);
 
         Secret clusterIpTlsServerCert = testActor.create(tlsKeyAndCertSecret("clusterip-tls-certificate"));
 
         KafkaProxyIngress clusterIpIngress = updateStatusObservedGeneration(testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TLS)));
 
-        Ingresses cipIngress = new IngressesBuilder()
-                .withIngressRef(toIngressRef(clusterIpIngress))
-                .withNewTls()
-                .withCertificateRef(toCertificateRef(clusterIpTlsServerCert))
-                .endTls()
-                .build();
+        Ingresses cipIngress = createIngressForCluster(clusterIpIngress, clusterIpTlsServerCert);
 
         VirtualKafkaCluster cluster = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, List.of(lbIngress, cipIngress), Optional.empty());
 
@@ -781,19 +771,9 @@ public class KafkaProxyReconcilerIT {
         Secret loadBalancerTlsServerCertFoo = testActor.create(tlsKeyAndCertSecret("loadbalancer-tls-certificate-foo"));
         Secret loadBalancerTlsServerCertBar = testActor.create(tlsKeyAndCertSecret("loadbalancer-tls-certificate-bar"));
 
-        Ingresses lbIngressFoo = new IngressesBuilder()
-                .withIngressRef(toIngressRef(loadBalancerIngressFoo))
-                .withNewTls()
-                .withCertificateRef(toCertificateRef(loadBalancerTlsServerCertFoo))
-                .endTls()
-                .build();
+        Ingresses lbIngressFoo = createIngressForCluster(loadBalancerIngressFoo, loadBalancerTlsServerCertFoo);
 
-        Ingresses lbIngressBar = new IngressesBuilder()
-                .withIngressRef(toIngressRef(loadBalancerIngressBar))
-                .withNewTls()
-                .withCertificateRef(toCertificateRef(loadBalancerTlsServerCertBar))
-                .endTls()
-                .build();
+        Ingresses lbIngressBar = createIngressForCluster(loadBalancerIngressBar, loadBalancerTlsServerCertBar);
 
         VirtualKafkaCluster fooCluster = testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxy, kafkaService, List.of(lbIngressFoo), Optional.empty()));
         VirtualKafkaCluster barCluster = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, List.of(lbIngressBar), Optional.empty()));
@@ -902,23 +882,17 @@ public class KafkaProxyReconcilerIT {
 
     @Test
     void virtualClusterWithOpenshiftRouteIngress() {
-        // given
         assumeThat(testActor.supports(Route.class)).withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
 
+        // Given
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
         KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
 
         int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 
-        String ingressControllerName = "default";
-        String ingressControllerNamespace = "openshift-ingress-operator";
+        var domain = getDefaultOpenShiftIngressControllerDomain();
+
         String ingressName = "openshiftroute";
-
-        var defaultIngressController = testActor.getInNamespace(IngressController.class, ingressControllerName, ingressControllerNamespace);
-        assertThat(defaultIngressController).isNotNull();
-        var domain = defaultIngressController.getStatus().getDomain();
-        assertThat(domain).isNotNull();
-
         String routeBootstrap = "$(virtualClusterName)-bootstrap." + domain;
         String routeBrokerAddressPattern = "$(virtualClusterName)-$(nodeId)." + domain;
         KafkaProxyIngress openshiftRouteIngress = updateStatusObservedGeneration(
@@ -927,19 +901,14 @@ public class KafkaProxyReconcilerIT {
         String downstreamCertSecretName = "downstream-tls-certificate";
         Secret tlsCert = testActor.create(tlsKeyAndCertSecret(downstreamCertSecretName));
 
-        Ingresses clusterIngress = new IngressesBuilder()
-                .withIngressRef(toIngressRef(openshiftRouteIngress))
-                .withNewTls()
-                .withCertificateRef(toCertificateRef(tlsCert))
-                .endTls()
-                .build();
+        Ingresses clusterIngress = createIngressForCluster(openshiftRouteIngress, tlsCert);
         VirtualKafkaCluster cluster = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, List.of(clusterIngress), Optional.empty());
 
-        // when
+        // When
         updateStatusObservedGeneration(testActor.create(cluster));
-        String serviceName = name(cluster) + "-" + name(openshiftRouteIngress) + "-service";
 
-        // then
+        // Then
+        String serviceName = name(cluster) + "-" + name(openshiftRouteIngress) + "-service";
         AWAIT.alias("shared sni service manifested").untilAsserted(() -> {
             var service = testActor.get(Service.class, serviceName);
             assertThat(service).isNotNull()
@@ -1156,6 +1125,31 @@ public class KafkaProxyReconcilerIT {
                 .endSpec()
                 .build();
         // @formatter:on
+    }
+
+    private Ingresses createIngressForCluster(KafkaProxyIngress kafkaProxyIngress, @Nullable Secret serverCert) {
+        var builder = new IngressesBuilder()
+                .withIngressRef(toIngressRef(kafkaProxyIngress));
+        Optional.ofNullable(serverCert).ifPresent(sc -> builder.withNewTls().withCertificateRef(toCertificateRef(sc)).endTls());
+        return builder.build();
+    }
+
+    /**
+     * Gets the domain for the default openshift ingress controller.
+     * Assumes that tests are running on openshift and the cluster is running in the default state (single openshift ingress
+     * controller serving the entire cluster).
+     *
+     * @return ingress controller domain
+     */
+    private String getDefaultOpenShiftIngressControllerDomain() {
+        String ingressControllerName = "default";
+        String ingressControllerNamespace = "openshift-ingress-operator";
+
+        var defaultIngressController = testActor.getInNamespace(IngressController.class, ingressControllerName, ingressControllerNamespace);
+        assertThat(defaultIngressController).isNotNull();
+        var domain = defaultIngressController.getStatus().getDomain();
+        assertThat(domain).isNotNull();
+        return domain;
     }
 
     private void assertDeploymentBecomesReady(KafkaProxy proxy) {
