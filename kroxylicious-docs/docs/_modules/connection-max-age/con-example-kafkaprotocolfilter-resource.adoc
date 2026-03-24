@@ -20,12 +20,12 @@ metadata:
 spec:
   type: ConnectionMaxAge
   configTemplate:
-    maxAgeSeconds: 3600
-    jitterSeconds: 300
+    maxAge: "1h"
+    jitter: "5m"
 ----
 where:
 
-* `maxAgeSeconds` (required) is the maximum age of a connection in seconds before it will be closed. Must be a positive value.
-* `jitterSeconds` (optional) is the jitter in seconds to apply to the max age, randomizing the effective deadline within `[maxAge - jitter, maxAge + jitter]` per connection. Must be non-negative and not greater than `maxAgeSeconds`. If omitted, no jitter is applied.
+* `maxAge` (required) is the maximum age of a connection before it will be closed. Must be a positive duration (for example, `"1h"`, `"30m"`, `"3600s"`).
+* `jitter` (optional) is the jitter to apply to the max age, randomizing the effective deadline within `[maxAge - jitter, maxAge + jitter]` per connection. Must be non-negative and not greater than `maxAge`. If omitted, no jitter is applied.
 
 Refer to the {OperatorGuide} for more information about configuration on Kubernetes.

@@ -16,40 +16,24 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * Configuration for the {@link ConnectionMaxAgeFilter}.
  *
- * @param maxAgeSeconds the maximum age of a connection in seconds before it will be closed
- * @param jitterSeconds optional jitter in seconds to apply to the max age, randomizing the effective deadline within
- *                      {@code [maxAge - jitter, maxAge + jitter]} per connection
+ * @param maxAge the maximum age of a connection before it will be closed; must be positive
+ * @param jitter optional jitter to apply to the max age, randomizing the effective deadline within
+ *               {@code [maxAge - jitter, maxAge + jitter]} per connection; must be non-negative and not greater than {@code maxAge}
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ConnectionMaxAgeFilterConfig(
-                                           @JsonProperty(required = true) long maxAgeSeconds,
-                                           @JsonProperty @Nullable Long jitterSeconds) {
+                                           @JsonProperty(required = true) Duration maxAge,
+                                           @JsonProperty @Nullable Duration jitter) {
 
     public ConnectionMaxAgeFilterConfig {
-        if (maxAgeSeconds <= 0) {
-            throw new IllegalArgumentException("maxAgeSeconds must be positive");
+        if (maxAge.isNegative() || maxAge.isZero()) {
+            throw new IllegalArgumentException("maxAge must be positive");
         }
-        if (jitterSeconds != null && jitterSeconds < 0) {
-            throw new IllegalArgumentException("jitterSeconds must not be negative");
+        if (jitter != null && jitter.isNegative()) {
+            throw new IllegalArgumentException("jitter must not be negative");
         }
-        if (jitterSeconds != null && jitterSeconds > maxAgeSeconds) {
-            throw new IllegalArgumentException("jitterSeconds must not be greater than maxAgeSeconds");
+        if (jitter != null && jitter.compareTo(maxAge) > 0) {
+            throw new IllegalArgumentException("jitter must not be greater than maxAge");
         }
-    }
-
-    /**
-     * Returns the max age as a {@link Duration}.
-     * @return duration representing the max age
-     */
-    public Duration maxAgeDuration() {
-        return Duration.ofSeconds(maxAgeSeconds);
-    }
-
-    /**
-     * Returns the jitter as a {@link Duration}, or {@link Duration#ZERO} if not configured.
-     * @return duration representing the jitter
-     */
-    public Duration jitterDuration() {
-        return jitterSeconds == null ? Duration.ZERO : Duration.ofSeconds(jitterSeconds);
     }
 }

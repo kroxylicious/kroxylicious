@@ -17,53 +17,49 @@ class ConnectionMaxAgeFilterConfigTest {
 
     @Test
     void shouldAcceptValidMaxAgeWithoutJitter() {
-        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(300, null);
-        assertThat(config.maxAgeSeconds()).isEqualTo(300);
-        assertThat(config.jitterSeconds()).isNull();
-        assertThat(config.maxAgeDuration()).isEqualTo(Duration.ofMinutes(5));
-        assertThat(config.jitterDuration()).isEqualTo(Duration.ZERO);
+        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(Duration.ofSeconds(300), null);
+        assertThat(config.maxAge()).isEqualTo(Duration.ofMinutes(5));
+        assertThat(config.jitter()).isNull();
     }
 
     @Test
     void shouldAcceptValidMaxAgeWithJitter() {
-        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(300, 30L);
-        assertThat(config.maxAgeSeconds()).isEqualTo(300);
-        assertThat(config.jitterSeconds()).isEqualTo(30L);
-        assertThat(config.maxAgeDuration()).isEqualTo(Duration.ofMinutes(5));
-        assertThat(config.jitterDuration()).isEqualTo(Duration.ofSeconds(30));
+        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(Duration.ofSeconds(300), Duration.ofSeconds(30));
+        assertThat(config.maxAge()).isEqualTo(Duration.ofMinutes(5));
+        assertThat(config.jitter()).isEqualTo(Duration.ofSeconds(30));
     }
 
     @Test
     void shouldAcceptZeroJitter() {
-        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(300, 0L);
-        assertThat(config.jitterDuration()).isEqualTo(Duration.ZERO);
+        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(Duration.ofSeconds(300), Duration.ZERO);
+        assertThat(config.jitter()).isEqualTo(Duration.ZERO);
     }
 
     @Test
     void shouldRejectNegativeMaxAge() {
-        assertThatThrownBy(() -> new ConnectionMaxAgeFilterConfig(-60, null))
+        assertThatThrownBy(() -> new ConnectionMaxAgeFilterConfig(Duration.ofSeconds(-60), null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("maxAgeSeconds must be positive");
+                .hasMessageContaining("maxAge must be positive");
     }
 
     @Test
     void shouldRejectZeroMaxAge() {
-        assertThatThrownBy(() -> new ConnectionMaxAgeFilterConfig(0, null))
+        assertThatThrownBy(() -> new ConnectionMaxAgeFilterConfig(Duration.ZERO, null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("maxAgeSeconds must be positive");
+                .hasMessageContaining("maxAge must be positive");
     }
 
     @Test
     void shouldRejectNegativeJitter() {
-        assertThatThrownBy(() -> new ConnectionMaxAgeFilterConfig(300, -1L))
+        assertThatThrownBy(() -> new ConnectionMaxAgeFilterConfig(Duration.ofSeconds(300), Duration.ofSeconds(-1)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("jitterSeconds must not be negative");
+                .hasMessageContaining("jitter must not be negative");
     }
 
     @Test
     void shouldRejectJitterGreaterThanMaxAge() {
-        assertThatThrownBy(() -> new ConnectionMaxAgeFilterConfig(60, 120L))
+        assertThatThrownBy(() -> new ConnectionMaxAgeFilterConfig(Duration.ofSeconds(60), Duration.ofSeconds(120)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("jitterSeconds must not be greater than maxAgeSeconds");
+                .hasMessageContaining("jitter must not be greater than maxAge");
     }
 }

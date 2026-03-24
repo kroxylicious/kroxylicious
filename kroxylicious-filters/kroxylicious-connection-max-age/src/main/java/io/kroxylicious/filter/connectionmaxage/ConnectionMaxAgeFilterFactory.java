@@ -62,8 +62,8 @@ public class ConnectionMaxAgeFilterFactory
 
     @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating jitter; not security relevant
     private Duration computeEffectiveMaxAge(ConnectionMaxAgeFilterConfig config) {
-        Duration maxAge = config.maxAgeDuration();
-        Duration jitter = config.jitterDuration();
+        Duration maxAge = config.maxAge();
+        Duration jitter = config.jitter() == null ? Duration.ZERO : config.jitter();
         if (jitter.isZero()) {
             return maxAge;
         }
