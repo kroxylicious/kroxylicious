@@ -9,12 +9,14 @@ package io.kroxylicious.filter.connectionmaxage;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.LongBinaryOperator;
 
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -31,6 +33,9 @@ public class ConnectionMaxAgeFilterFactory
 
     private final Clock clock;
 
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating jitter; not security relevant
+    private final LongBinaryOperator randomSource;
+
     /**
      * Default constructor used by the runtime.
      */
@@ -43,8 +48,21 @@ public class ConnectionMaxAgeFilterFactory
      *
      * @param clock the clock to use
      */
+    @VisibleForTesting
     ConnectionMaxAgeFilterFactory(Clock clock) {
+        this(clock, ThreadLocalRandom.current()::nextLong);
+    }
+
+    /**
+     * Constructor allowing injection of a clock and random source for testability.
+     *
+     * @param clock the clock to use
+     * @param randomSource a function returning a random long in [origin, bound)
+     */
+    @VisibleForTesting
+    ConnectionMaxAgeFilterFactory(Clock clock, LongBinaryOperator randomSource) {
         this.clock = clock;
+        this.randomSource = randomSource;
     }
 
     @Override
@@ -60,7 +78,6 @@ public class ConnectionMaxAgeFilterFactory
         return new ConnectionMaxAgeFilter(effectiveMaxAge, clock);
     }
 
-    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating jitter; not security relevant
     private Duration computeEffectiveMaxAge(ConnectionMaxAgeFilterConfig config) {
         Duration maxAge = config.maxAge();
         Duration jitter = config.jitter() == null ? Duration.ZERO : config.jitter();
@@ -68,7 +85,7 @@ public class ConnectionMaxAgeFilterFactory
             return maxAge;
         }
         long jitterMillis = jitter.toMillis();
-        long offsetMillis = ThreadLocalRandom.current().nextLong(-jitterMillis, jitterMillis + 1);
+        long offsetMillis = randomSource.applyAsLong(-jitterMillis, jitterMillis + 1);
         Duration effective = maxAge.plusMillis(offsetMillis);
         // ensure the effective max age is at least 1ms
         if (effective.isNegative() || effective.isZero()) {

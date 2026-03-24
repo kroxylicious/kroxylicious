@@ -535,6 +535,12 @@
                 <version>${logcaptor.version}</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>org.threeten</groupId>
+                <artifactId>threeten-extra</artifactId>
+                <version>1.8.0</version>
+                <scope>test</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

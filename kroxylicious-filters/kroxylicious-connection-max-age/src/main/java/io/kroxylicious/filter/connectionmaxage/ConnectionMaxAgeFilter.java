@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * A filter that closes client connections after a configurable maximum age.
@@ -43,6 +44,7 @@ public class ConnectionMaxAgeFilter implements RequestFilter {
     private final Instant deadline;
     private final Clock clock;
 
+    @VisibleForTesting
     ConnectionMaxAgeFilter(Duration effectiveMaxAge, Clock clock) {
         this.clock = clock;
         this.deadline = clock.instant().plus(effectiveMaxAge);
