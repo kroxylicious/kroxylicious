@@ -62,7 +62,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     public static final int CLIENT_FACING_ROUTE_PORT = 443;
-    public static final String HOST_TOKEN = "$(host)";
+    public static final String UNRESOLVED_ROUTE_HOST_TOKEN = "$(unresolvedRouteHost)";
 
     @Override
     public Stream<ServiceBuilder> services() {
@@ -144,8 +144,10 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
         // The domain a generated route cannot be determined up-front because of Ingress Controller sharding. Instead, we initially use a temporary placeholder token.
         // Once the route is created and assigned a hostname, we extract the domain from it and use that instead of the token upon reconciliation.
-        HostPort bootstrapAddress = new HostPort("$(virtualClusterName)-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(HOST_TOKEN), sharedSniPort);
-        HostPort advertisedBrokerAddressPattern = new HostPort("$(virtualClusterName)-$(nodeId)." + getDomain(RouteHostDetails.RouteFor.NODE).orElse(HOST_TOKEN),
+        HostPort bootstrapAddress = new HostPort("$(virtualClusterName)-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(UNRESOLVED_ROUTE_HOST_TOKEN),
+                sharedSniPort);
+        HostPort advertisedBrokerAddressPattern = new HostPort("$(virtualClusterName)-$(nodeId)." + getDomain(RouteHostDetails.RouteFor.NODE).orElse(
+                UNRESOLVED_ROUTE_HOST_TOKEN),
                 CLIENT_FACING_ROUTE_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress.toString(),
                 advertisedBrokerAddressPattern.toString());
@@ -162,7 +164,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     private String bootstrapServers() {
-        return ResourcesUtil.name(cluster) + "-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(HOST_TOKEN) + ":" + sharedSniPort;
+        return ResourcesUtil.name(cluster) + "-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(UNRESOLVED_ROUTE_HOST_TOKEN) + ":" + sharedSniPort;
     }
 
     private String suffixedRouteName(String suffix) {

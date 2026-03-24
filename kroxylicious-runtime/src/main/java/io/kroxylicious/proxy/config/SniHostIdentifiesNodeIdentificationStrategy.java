@@ -21,8 +21,8 @@ import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_HOST;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_NODE_ID;
+import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_UNRESOLVED_ROUTE_HOST;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_VIRTUAL_CLUSTER_NAME;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.validatePortSpecifier;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.validateStringContainsOnlyExpectedTokens;
@@ -53,7 +53,7 @@ public class SniHostIdentifiesNodeIdentificationStrategy
     private final String advertisedBrokerAddressPattern;
 
     private static final Set<String> REQUIRED_TOKEN_SET = Set.of(LITERAL_NODE_ID);
-    private static final Set<String> ALLOWED_TOKEN_SET = Set.of(LITERAL_NODE_ID, LITERAL_VIRTUAL_CLUSTER_NAME, LITERAL_HOST);
+    private static final Set<String> ALLOWED_TOKEN_SET = Set.of(LITERAL_NODE_ID, LITERAL_VIRTUAL_CLUSTER_NAME, LITERAL_UNRESOLVED_ROUTE_HOST);
 
     @JsonIgnore
     private final String parsedBootstrapAddressPattern;
@@ -180,7 +180,7 @@ public class SniHostIdentifiesNodeIdentificationStrategy
                     BrokerAddressPatternUtils.replaceVirtualClusterName(parsedBootstrapAddressPattern, clusterName),
                     getBootstrapPort());
 
-            if (bootstrapAddress.host().contains(LITERAL_HOST)) {
+            if (bootstrapAddress.host().contains(LITERAL_UNRESOLVED_ROUTE_HOST)) {
                 throw new UnresolvedHostException("Parsed bootstrap address host '" + parsedBootstrapAddressPattern + "' contains placeholder host token.");
             }
 
