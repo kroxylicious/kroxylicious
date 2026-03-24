@@ -115,7 +115,7 @@ spec:
                   description: |
                     Controls Netty-level network settings for the proxy. All fields are optional;
                     omitting a field leaves the proxy default in effect.
-                    Durations use Go-style format: e.g. "30s", "5m", "1h30m".
+                    Durations use Go-style format: e.g. "30s", "5m".
                   properties:
                     proxy:
                       type: object
@@ -130,7 +130,7 @@ spec:
                             Defaults to 2 * available processors.
                         shutdownQuietPeriod:
                           type: string
-                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          pattern: "^([0-9]+(m|s|ms|us|\u03bcs|ns))+$"
                           description: |
                             The quiet period used during graceful shutdown of the proxy channel's
                             event loop. During this period the event loop continues to accept and
@@ -138,20 +138,20 @@ spec:
                             Go-style duration (e.g. "2s").
                         shutdownTimeout:
                           type: string
-                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          pattern: "^([0-9]+(m|s|ms|us|\u03bcs|ns))+$"
                           description: |
                             The maximum time to wait for the proxy channel's event loop to shut
                             down gracefully. If shutdown does not complete within this period,
                             it is forced. Go-style duration (e.g. "15s"). Defaults to 15s.
                         authenticatedIdleTimeout:
                           type: string
-                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          pattern: "^([0-9]+(m|s|ms|us|\u03bcs|ns))+$"
                           description: |
                             Maximum time a connection may remain idle after authentication
-                            before being closed by the proxy. Go-style duration (e.g. "10m", "1h").
+                            before being closed by the proxy. Go-style duration (e.g. "10m").
                         unauthenticatedIdleTimeout:
                           type: string
-                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          pattern: "^([0-9]+(m|s|ms|us|\u03bcs|ns))+$"
                           description: |
                             Maximum time a connection may remain idle without completing
                             authentication before being closed. Go-style duration (e.g. "10s").
@@ -168,13 +168,13 @@ spec:
                             Defaults to 2 * available processors.
                         shutdownQuietPeriod:
                           type: string
-                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          pattern: "^([0-9]+(m|s|ms|us|\u03bcs|ns))+$"
                           description: |
                             The quiet period used during graceful shutdown of the management
                             channel's event loop. Go-style duration (e.g. "2s").
                         shutdownTimeout:
                           type: string
-                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          pattern: "^([0-9]+(m|s|ms|us|\u03bcs|ns))+$"
                           description: |
                             The maximum time to wait for the management channel's event loop to
                             shut down gracefully. If shutdown does not complete within this

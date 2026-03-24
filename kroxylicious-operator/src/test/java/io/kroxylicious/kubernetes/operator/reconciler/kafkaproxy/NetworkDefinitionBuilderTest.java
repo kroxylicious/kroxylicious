@@ -182,8 +182,7 @@ class NetworkDefinitionBuilderTest {
             "2s,    PT2S",
             "90s,   PT1M30S",
             "1m,    PT1M",
-            "1h,    PT1H",
-            "1h30m, PT1H30M"
+            "90m,   PT1H30M"
     })
     void shouldParseShutdownQuietPeriodToDuration(String durationStr, String expectedIso) {
         // given
