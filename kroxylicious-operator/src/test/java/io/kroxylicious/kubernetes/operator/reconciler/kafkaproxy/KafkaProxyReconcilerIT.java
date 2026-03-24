@@ -902,6 +902,7 @@ public class KafkaProxyReconcilerIT {
 
     @Test
     void virtualClusterWithOpenshiftRouteIngress() {
+        // given
         assumeThat(testActor.supports(Route.class)).withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
 
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
@@ -936,8 +937,9 @@ public class KafkaProxyReconcilerIT {
 
         // when
         updateStatusObservedGeneration(testActor.create(cluster));
-
         String serviceName = name(cluster) + "-" + name(openshiftRouteIngress) + "-service";
+
+        // then
         AWAIT.alias("shared sni service manifested").untilAsserted(() -> {
             var service = testActor.get(Service.class, serviceName);
             assertThat(service).isNotNull()
