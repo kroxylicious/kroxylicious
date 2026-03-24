@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record NettySettings(Optional<Integer> workerThreadCount,
                             Optional<Duration> shutdownQuietPeriod,
                             Optional<Duration> shutdownTimeout,
@@ -34,7 +35,7 @@ public record NettySettings(Optional<Integer> workerThreadCount,
                                          @JsonProperty("shutdownTimeout") Optional<Duration> shutdownTimeout,
                                          @JsonProperty("authenticatedIdleTimeout") Optional<Duration> authenticatedIdleTimeout,
                                          @JsonProperty("unauthenticatedIdleTimeout") Optional<Duration> unauthenticatedIdleTimeout,
-                                         @JsonProperty("shutdownQuietPeriodSeconds") Optional<Integer> shutdownQuietPeriodSeconds) {
+                                         @Deprecated(since = "0.20.0", forRemoval = true) @JsonProperty("shutdownQuietPeriodSeconds") Optional<Integer> shutdownQuietPeriodSeconds) {
         var resolvedQuietPeriod = shutdownQuietPeriod.or(() -> shutdownQuietPeriodSeconds.map(seconds -> {
             LOGGER.warn("shutdownQuietPeriodSeconds is deprecated, use shutdownQuietPeriod (Go-style duration e.g. \"2s\") instead");
             return Duration.ofSeconds(seconds);
