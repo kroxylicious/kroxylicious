@@ -70,7 +70,6 @@ class NetworkDefinitionBuilderTest {
 
         var expectedProxySettings = new NettySettings(
                 Optional.of(4),
-                Optional.empty(),
                 Optional.of(Duration.ofSeconds(2)),
                 Optional.empty(),
                 Optional.of(Duration.ofMinutes(10)),
@@ -102,7 +101,6 @@ class NetworkDefinitionBuilderTest {
 
         var expectedMgmtSettings = new NettySettings(
                 Optional.of(2),
-                Optional.empty(),
                 Optional.of(Duration.ofSeconds(5)),
                 Optional.empty(),
                 Optional.empty(),
@@ -140,14 +138,12 @@ class NetworkDefinitionBuilderTest {
 
         var expectedProxySettings = new NettySettings(
                 Optional.of(4),
-                Optional.empty(),
                 Optional.of(Duration.ofSeconds(2)),
                 Optional.empty(),
                 Optional.of(Duration.ofMinutes(10)),
                 Optional.of(Duration.ofSeconds(30)));
         var expectedMgmtSettings = new NettySettings(
                 Optional.of(2),
-                Optional.empty(),
                 Optional.of(Duration.ofSeconds(5)),
                 Optional.empty(),
                 Optional.empty(),
@@ -177,7 +173,7 @@ class NetworkDefinitionBuilderTest {
         // when / then
         assertThat(NetworkDefinitionBuilder.build(proxy))
                 .isEqualTo(new NetworkDefinition(null, new NettySettings(
-                        Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty())));
+                        Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty())));
     }
 
     @ParameterizedTest

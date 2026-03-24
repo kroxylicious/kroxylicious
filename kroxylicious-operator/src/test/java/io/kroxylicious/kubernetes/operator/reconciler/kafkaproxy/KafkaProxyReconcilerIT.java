@@ -247,14 +247,12 @@ public class KafkaProxyReconcilerIT {
 
         var expectedProxyNettySettings = new NettySettings(
                 Optional.of(4),
-                Optional.empty(),
                 Optional.of(Duration.ofSeconds(2)),
                 Optional.empty(),
                 Optional.of(Duration.ofMinutes(10)),
                 Optional.of(Duration.ofSeconds(30)));
         var expectedManagementNettySettings = new NettySettings(
                 Optional.of(2),
-                Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
@@ -293,7 +291,6 @@ public class KafkaProxyReconcilerIT {
 
         var expectedProxyNettySettings = new NettySettings(
                 Optional.of(4),
-                Optional.empty(),
                 Optional.of(Duration.ofSeconds(2)),
                 Optional.empty(),
                 Optional.empty(),
@@ -332,7 +329,6 @@ public class KafkaProxyReconcilerIT {
 
         var expectedManagementNettySettings = new NettySettings(
                 Optional.of(2),
-                Optional.empty(),
                 Optional.of(Duration.ofSeconds(5)),
                 Optional.empty(),
                 Optional.empty(),

@@ -121,21 +121,15 @@ public final class KafkaProxy implements AutoCloseable {
             workerGroup = new MultiThreadIoEventLoopGroup(workerThreadCount, ioHandlerFactory);
 
             var nettySettings = getNettySettings(configuration, settingsSupplier);
-            var quietPeriod = resolveQuietPeriod(name, nettySettings);
+            var quietPeriod = resolveQuietPeriod(nettySettings);
             var timeout = nettySettings.flatMap(NettySettings::shutdownTimeout).orElse(Duration.ofSeconds(15));
 
             return new EventGroupConfig(name, bossGroup, workerGroup, channelClass, quietPeriod, timeout);
         }
 
-        @SuppressWarnings({ "deprecation", "OptionalUsedAsFieldOrParameterType" })
-        private static Duration resolveQuietPeriod(String groupName, Optional<NettySettings> nettySettings) {
+        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+        private static Duration resolveQuietPeriod(Optional<NettySettings> nettySettings) {
             return nettySettings.flatMap(NettySettings::shutdownQuietPeriod)
-                    .or(() -> nettySettings.flatMap(NettySettings::shutdownQuietPeriodSeconds).map(seconds -> {
-                        STARTUP_SHUTDOWN_LOGGER.warn(
-                                "shutdownQuietPeriodSeconds is deprecated in {} network settings, use shutdownQuietPeriod (Go-style duration e.g. \"2s\") instead",
-                                groupName);
-                        return Duration.ofSeconds(seconds);
-                    }))
                     .orElse(Duration.ofSeconds(2));
         }
 

@@ -20,28 +20,28 @@ class NettySettingsTest {
 
     @Test
     void shouldRejectNegativeShutdownQuietPeriod() {
-        assertThatThrownBy(() -> new NettySettings(Optional.empty(), Optional.empty(), NEGATIVE, EMPTY, EMPTY, EMPTY))
+        assertThatThrownBy(() -> new NettySettings(Optional.empty(), NEGATIVE, EMPTY, EMPTY, EMPTY))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("shutdownQuietPeriod");
     }
 
     @Test
     void shouldRejectNegativeShutdownTimeout() {
-        assertThatThrownBy(() -> new NettySettings(Optional.empty(), Optional.empty(), EMPTY, NEGATIVE, EMPTY, EMPTY))
+        assertThatThrownBy(() -> new NettySettings(Optional.empty(), EMPTY, NEGATIVE, EMPTY, EMPTY))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("shutdownTimeout");
     }
 
     @Test
     void shouldRejectNegativeAuthenticatedIdleTimeout() {
-        assertThatThrownBy(() -> new NettySettings(Optional.empty(), Optional.empty(), EMPTY, EMPTY, NEGATIVE, EMPTY))
+        assertThatThrownBy(() -> new NettySettings(Optional.empty(), EMPTY, EMPTY, NEGATIVE, EMPTY))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("authenticatedIdleTimeout");
     }
 
     @Test
     void shouldRejectNegativeUnauthenticatedIdleTimeout() {
-        assertThatThrownBy(() -> new NettySettings(Optional.empty(), Optional.empty(), EMPTY, EMPTY, EMPTY, NEGATIVE))
+        assertThatThrownBy(() -> new NettySettings(Optional.empty(), EMPTY, EMPTY, EMPTY, NEGATIVE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("unauthenticatedIdleTimeout");
     }
