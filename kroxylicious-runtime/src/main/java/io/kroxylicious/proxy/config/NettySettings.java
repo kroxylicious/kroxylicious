@@ -16,4 +16,26 @@ public record NettySettings(Optional<Integer> workerThreadCount,
                             Optional<Duration> authenticatedIdleTimeout,
                             Optional<Duration> unauthenticatedIdleTimeout) {
 
+    public NettySettings {
+        shutdownQuietPeriod.ifPresent(d -> {
+            if (d.isNegative()) {
+                throw new IllegalArgumentException("shutdownQuietPeriod must not be negative: " + d);
+            }
+        });
+        shutdownTimeout.ifPresent(d -> {
+            if (d.isNegative()) {
+                throw new IllegalArgumentException("shutdownTimeout must not be negative: " + d);
+            }
+        });
+        authenticatedIdleTimeout.ifPresent(d -> {
+            if (d.isNegative()) {
+                throw new IllegalArgumentException("authenticatedIdleTimeout must not be negative: " + d);
+            }
+        });
+        unauthenticatedIdleTimeout.ifPresent(d -> {
+            if (d.isNegative()) {
+                throw new IllegalArgumentException("unauthenticatedIdleTimeout must not be negative: " + d);
+            }
+        });
+    }
 }
