@@ -213,7 +213,7 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
 
     @Test
     void containsOpenshiftRoutePlaceholderToken() {
-        var strategy = new SniHostIdentifiesNodeIdentificationStrategy("one-bootstrap.$(host):9291", "one-$(nodeId).$(host):443");
+        var strategy = new SniHostIdentifiesNodeIdentificationStrategy("one-bootstrap.$(unresolvedRouteHost):9291", "one-$(nodeId).$(unresolvedRouteHost):443");
 
         assertThatThrownBy(() -> strategy.buildStrategy("cluster"))
                 .isInstanceOf(SniHostIdentifiesNodeIdentificationStrategy.UnresolvedHostException.class);
