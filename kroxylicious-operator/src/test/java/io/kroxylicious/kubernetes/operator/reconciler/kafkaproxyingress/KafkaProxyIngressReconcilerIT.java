@@ -116,16 +116,22 @@ class KafkaProxyIngressReconcilerIT {
     }
 
     private void assertAllConditionsTrue(KafkaProxyIngress ingressBar) {
-        AWAIT.alias("IngressStatusResolvedRefs").untilAsserted(() -> {
+        AWAIT.alias("IngressStatusConditionsAllTrue").untilAsserted(() -> {
             var kpi = testActor.resources(KafkaProxyIngress.class)
                     .withName(ResourcesUtil.name(ingressBar)).get();
             assertThat(kpi.getStatus()).isNotNull();
-            KafkaProxyIngressStatusAssert
+            var conditionListAssert = KafkaProxyIngressStatusAssert
                     .assertThat(kpi.getStatus())
                     .hasObservedGenerationInSyncWithMetadataOf(kpi)
                     .conditionList()
-                    .singleElement()
+                    .hasSize(2);
+
+            conditionListAssert
+                    .singleOfType(Condition.Type.ResolvedRefs)
                     .isResolvedRefsTrue(kpi);
+            conditionListAssert
+                    .singleOfType(Condition.Type.Accepted)
+                    .isAcceptedTrue();
         });
     }
 
@@ -137,8 +143,8 @@ class KafkaProxyIngressReconcilerIT {
             KafkaProxyIngressStatusAssert
                     .assertThat(kpi.getStatus())
                     .hasObservedGenerationInSyncWithMetadataOf(kpi)
-                    .singleCondition()
-                    .hasType(Condition.Type.ResolvedRefs)
+                    .conditionList()
+                    .singleOfType(Condition.Type.ResolvedRefs)
                     .hasStatus(Condition.Status.FALSE)
                     .hasObservedGenerationInSyncWithMetadataOf(kpi);
         });
