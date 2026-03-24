@@ -164,8 +164,13 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
         return true;
     }
 
+    /**
+     * Returns the bootstrap address.
+     * Note that the public facing port is always 443, regardless of any port used by the service.
+     * @return bootstrap address
+     */
     private String bootstrapServers() {
-        return ResourcesUtil.name(cluster) + "-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(UNRESOLVED_ROUTE_HOST_TOKEN) + ":" + sharedSniPort;
+        return ResourcesUtil.name(cluster) + "-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(UNRESOLVED_ROUTE_HOST_TOKEN) + ":" + 443;
     }
 
     private String suffixedRouteName(String suffix) {
@@ -173,6 +178,20 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     private String bootstrapServiceName() {
-        return name(cluster) + "-" + name(ingress) + "-" + "service";
+        return bootstrapServiceName(cluster, name(ingress));
     }
+
+    /**
+     * Returns the service name used by this networking model.
+     *
+     * @param cluster virtual cluster
+     * @param ingressName ingress name
+     * @return service name
+     */
+    public static String bootstrapServiceName(VirtualKafkaCluster cluster, String ingressName) {
+        Objects.requireNonNull(cluster);
+        Objects.requireNonNull(ingressName);
+        return name(cluster) + "-" + ingressName + "-service";
+    }
+
 }

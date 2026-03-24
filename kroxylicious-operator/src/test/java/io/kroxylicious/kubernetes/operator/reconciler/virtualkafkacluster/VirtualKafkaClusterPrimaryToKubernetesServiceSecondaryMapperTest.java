@@ -31,12 +31,13 @@ class VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapperTest {
                 .endSpec().build();
 
         // when
-        Set<ResourceID> secondaryResourceIDs = new VirtualKafkaClusterPrimaryToKubernetesServicesSecondaryMapper().toSecondaryResourceIDs(cluster);
+        Set<ResourceID> secondaryResourceIDs = new VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapper().toSecondaryResourceIDs(cluster);
 
         // then
         ResourceID clusterIpBootstrapServiceId = new ResourceID("cluster-ingress-bootstrap", "namespace");
+        ResourceID openShiftRouteServiceId = new ResourceID("cluster-ingress-service", "namespace");
         ResourceID proxyLoadbalancerServiceId = new ResourceID("proxy-sni", "namespace");
-        assertThat(secondaryResourceIDs).containsExactlyInAnyOrder(clusterIpBootstrapServiceId, proxyLoadbalancerServiceId);
+        assertThat(secondaryResourceIDs).containsExactlyInAnyOrder(clusterIpBootstrapServiceId, proxyLoadbalancerServiceId, openShiftRouteServiceId);
     }
 
     @Test
@@ -57,12 +58,15 @@ class VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapperTest {
                 .endSpec().build();
 
         // when
-        Set<ResourceID> secondaryResourceIDs = new VirtualKafkaClusterPrimaryToKubernetesServicesSecondaryMapper().toSecondaryResourceIDs(cluster);
+        Set<ResourceID> secondaryResourceIDs = new VirtualKafkaClusterPrimaryToKubernetesServiceSecondaryMapper().toSecondaryResourceIDs(cluster);
 
         // then
         ResourceID clusterIpBootstrapServiceId = new ResourceID(clusterName + "-" + ingressName + "-bootstrap", namespace);
         ResourceID clusterIpBootstrapServiceId2 = new ResourceID(clusterName + "-" + ingressName2 + "-bootstrap", namespace);
+        ResourceID openShiftRouteServiceId = new ResourceID(clusterName + "-" + ingressName + "-service", namespace);
+        ResourceID openShiftRouteServiceId2 = new ResourceID(clusterName + "-" + ingressName2 + "-service", namespace);
         ResourceID proxyLoadbalancerServiceId = new ResourceID(proxyName + "-sni", namespace);
-        assertThat(secondaryResourceIDs).containsExactlyInAnyOrder(clusterIpBootstrapServiceId, clusterIpBootstrapServiceId2, proxyLoadbalancerServiceId);
+        assertThat(secondaryResourceIDs).containsExactlyInAnyOrder(clusterIpBootstrapServiceId, clusterIpBootstrapServiceId2, proxyLoadbalancerServiceId,
+                openShiftRouteServiceId, openShiftRouteServiceId2);
     }
 }

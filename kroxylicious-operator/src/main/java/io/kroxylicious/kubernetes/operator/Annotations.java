@@ -35,7 +35,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class Annotations {
 
     @VisibleForTesting
-    static final String BOOTSTRAP_SERVERS_ANNOTATION_KEY = "kroxylicious.io/bootstrap-servers";
+    public static final String BOOTSTRAP_SERVERS_ANNOTATION_KEY = "kroxylicious.io/bootstrap-servers";
 
     @VisibleForTesting
     public static final String REFERENT_CHECKSUM_ANNOTATION_KEY = "kroxylicious.io/referent-checksum";
