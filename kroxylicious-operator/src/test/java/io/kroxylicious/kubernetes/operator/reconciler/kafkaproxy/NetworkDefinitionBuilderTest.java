@@ -24,37 +24,49 @@ class NetworkDefinitionBuilderTest {
 
     @Test
     void shouldReturnNullWhenSpecIsNull() {
+        // @formatter:off
         var proxy = new KafkaProxyBuilder()
-                .withNewMetadata().withName("test").endMetadata()
+                .withNewMetadata()
+                    .withName("test")
+                .endMetadata()
                 .build();
+        // @formatter:on
         assertThat(NetworkDefinitionBuilder.build(proxy)).isNull();
     }
 
     @Test
     void shouldReturnNullWhenNetworkIsNull() {
+        // @formatter:off
         var proxy = new KafkaProxyBuilder()
-                .withNewMetadata().withName("test").endMetadata()
+                .withNewMetadata()
+                    .withName("test")
+                .endMetadata()
                 .withNewSpec().endSpec()
                 .build();
+        // @formatter:on
         assertThat(NetworkDefinitionBuilder.build(proxy)).isNull();
     }
 
     @Test
     void shouldBuildNetworkDefinitionWithProxySettingsOnly() {
         // given
+        // @formatter:off
         var proxy = new KafkaProxyBuilder()
-                .withNewMetadata().withName("test").endMetadata()
+                .withNewMetadata()
+                    .withName("test")
+                .endMetadata()
                 .withNewSpec()
-                .withNewNetwork()
-                .withNewProxy()
-                .withWorkerThreadCount(4)
-                .withShutdownQuietPeriod("2s")
-                .withAuthenticatedIdleTimeout("10m")
-                .withUnauthenticatedIdleTimeout("30s")
-                .endProxy()
-                .endNetwork()
+                    .withNewNetwork()
+                        .withNewProxy()
+                            .withWorkerThreadCount(4)
+                            .withShutdownQuietPeriod("2s")
+                            .withAuthenticatedIdleTimeout("10m")
+                            .withUnauthenticatedIdleTimeout("30s")
+                        .endProxy()
+                    .endNetwork()
                 .endSpec()
                 .build();
+        // @formatter:on
 
         var expectedProxySettings = new NettySettings(
                 Optional.of(4),
@@ -72,17 +84,21 @@ class NetworkDefinitionBuilderTest {
     @Test
     void shouldBuildNetworkDefinitionWithManagementSettingsOnly() {
         // given
+        // @formatter:off
         var proxy = new KafkaProxyBuilder()
-                .withNewMetadata().withName("test").endMetadata()
+                .withNewMetadata()
+                    .withName("test")
+                .endMetadata()
                 .withNewSpec()
-                .withNewNetwork()
-                .withNewManagement()
-                .withWorkerThreadCount(2)
-                .withShutdownQuietPeriod("5s")
-                .endManagement()
-                .endNetwork()
+                    .withNewNetwork()
+                        .withNewManagement()
+                            .withWorkerThreadCount(2)
+                            .withShutdownQuietPeriod("5s")
+                        .endManagement()
+                    .endNetwork()
                 .endSpec()
                 .build();
+        // @formatter:on
 
         var expectedMgmtSettings = new NettySettings(
                 Optional.of(2),
@@ -100,23 +116,27 @@ class NetworkDefinitionBuilderTest {
     @Test
     void shouldBuildNetworkDefinitionWithBothManagementAndProxySettings() {
         // given
+        // @formatter:off
         var proxy = new KafkaProxyBuilder()
-                .withNewMetadata().withName("test").endMetadata()
+                .withNewMetadata()
+                    .withName("test")
+                .endMetadata()
                 .withNewSpec()
-                .withNewNetwork()
-                .withNewProxy()
-                .withWorkerThreadCount(4)
-                .withShutdownQuietPeriod("2s")
-                .withAuthenticatedIdleTimeout("10m")
-                .withUnauthenticatedIdleTimeout("30s")
-                .endProxy()
-                .withNewManagement()
-                .withWorkerThreadCount(2)
-                .withShutdownQuietPeriod("5s")
-                .endManagement()
-                .endNetwork()
+                    .withNewNetwork()
+                        .withNewProxy()
+                            .withWorkerThreadCount(4)
+                            .withShutdownQuietPeriod("2s")
+                            .withAuthenticatedIdleTimeout("10m")
+                            .withUnauthenticatedIdleTimeout("30s")
+                        .endProxy()
+                        .withNewManagement()
+                            .withWorkerThreadCount(2)
+                            .withShutdownQuietPeriod("5s")
+                        .endManagement()
+                    .endNetwork()
                 .endSpec()
                 .build();
+        // @formatter:on
 
         var expectedProxySettings = new NettySettings(
                 Optional.of(4),
@@ -141,14 +161,18 @@ class NetworkDefinitionBuilderTest {
     @Test
     void shouldReturnEmptyOptionalsWhenNettySettingsFieldsAreAbsent() {
         // given
+        // @formatter:off
         var proxy = new KafkaProxyBuilder()
-                .withNewMetadata().withName("test").endMetadata()
+                .withNewMetadata()
+                    .withName("test")
+                .endMetadata()
                 .withNewSpec()
-                .withNewNetwork()
-                .withNewProxy().endProxy()
-                .endNetwork()
+                    .withNewNetwork()
+                        .withNewProxy().endProxy()
+                    .endNetwork()
                 .endSpec()
                 .build();
+        // @formatter:on
 
         // when / then
         assertThat(NetworkDefinitionBuilder.build(proxy))
@@ -166,16 +190,20 @@ class NetworkDefinitionBuilderTest {
     })
     void shouldParseShutdownQuietPeriodToDuration(String durationStr, String expectedIso) {
         // given
+        // @formatter:off
         var proxy = new KafkaProxyBuilder()
-                .withNewMetadata().withName("test").endMetadata()
+                .withNewMetadata()
+                    .withName("test")
+                .endMetadata()
                 .withNewSpec()
-                .withNewNetwork()
-                .withNewProxy()
-                .withShutdownQuietPeriod(durationStr)
-                .endProxy()
-                .endNetwork()
+                    .withNewNetwork()
+                        .withNewProxy()
+                            .withShutdownQuietPeriod(durationStr)
+                        .endProxy()
+                    .endNetwork()
                 .endSpec()
                 .build();
+        // @formatter:on
 
         // when
         NetworkDefinition result = NetworkDefinitionBuilder.build(proxy);
@@ -190,16 +218,20 @@ class NetworkDefinitionBuilderTest {
     @Test
     void shouldThrowIllegalStateExceptionForInvalidDuration() {
         // given
+        // @formatter:off
         var proxy = new KafkaProxyBuilder()
-                .withNewMetadata().withName("test").endMetadata()
+                .withNewMetadata()
+                    .withName("test")
+                .endMetadata()
                 .withNewSpec()
-                .withNewNetwork()
-                .withNewProxy()
-                .withShutdownQuietPeriod("not-a-duration")
-                .endProxy()
-                .endNetwork()
+                    .withNewNetwork()
+                        .withNewProxy()
+                            .withShutdownQuietPeriod("not-a-duration")
+                        .endProxy()
+                    .endNetwork()
                 .endSpec()
                 .build();
+        // @formatter:on
 
         // when / then
         assertThatThrownBy(() -> NetworkDefinitionBuilder.build(proxy))
