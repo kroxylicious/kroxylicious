@@ -49,6 +49,7 @@ public class ConnectionMaxAgeFilterFactory
      */
     @VisibleForTesting
     @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating jitter; not security relevant
+    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating jitter; not security relevant
     ConnectionMaxAgeFilterFactory(Clock clock) {
         this(clock, ThreadLocalRandom.current()::nextLong);
     }
