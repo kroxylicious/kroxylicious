@@ -136,6 +136,13 @@ spec:
                             event loop. During this period the event loop continues to accept and
                             process tasks; if no tasks arrive within this period, shutdown proceeds.
                             Go-style duration (e.g. "2s").
+                        shutdownTimeout:
+                          type: string
+                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          description: |
+                            The maximum time to wait for the proxy channel's event loop to shut
+                            down gracefully. If shutdown does not complete within this period,
+                            it is forced. Go-style duration (e.g. "15s"). Defaults to 15s.
                         authenticatedIdleTimeout:
                           type: string
                           pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
@@ -165,6 +172,13 @@ spec:
                           description: |
                             The quiet period used during graceful shutdown of the management
                             channel's event loop. Go-style duration (e.g. "2s").
+                        shutdownTimeout:
+                          type: string
+                          pattern: "^([0-9]+(d|h|m|s|ms|us|\u03bcs|ns))+$"
+                          description: |
+                            The maximum time to wait for the management channel's event loop to
+                            shut down gracefully. If shutdown does not complete within this
+                            period, it is forced. Go-style duration (e.g. "15s"). Defaults to 15s.
                 replicas:
                   description: "The number of pods to deploy."
                   type: integer

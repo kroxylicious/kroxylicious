@@ -178,6 +178,7 @@ class NetworkDefinitionBuilderTest {
 
     @ParameterizedTest
     @CsvSource({
+            "500ms, PT0.5S",
             "2s,    PT2S",
             "90s,   PT1M30S",
             "1m,    PT1M",
@@ -209,6 +210,34 @@ class NetworkDefinitionBuilderTest {
         assertThat(result.proxy()).isNotNull();
         assertThat(result.proxy().shutdownQuietPeriod())
                 .isEqualTo(Optional.of(Duration.parse(expectedIso)));
+    }
+
+    @Test
+    void shouldParseShutdownTimeoutToDuration() {
+        // given
+        // @formatter:off
+        var proxy = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withName("test")
+                .endMetadata()
+                .withNewSpec()
+                    .withNewNetwork()
+                        .withNewProxy()
+                            .withShutdownTimeout("30s")
+                        .endProxy()
+                    .endNetwork()
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        // when
+        NetworkDefinition result = NetworkDefinitionBuilder.build(proxy);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.proxy()).isNotNull();
+        assertThat(result.proxy().shutdownTimeout())
+                .isEqualTo(Optional.of(Duration.ofSeconds(30)));
     }
 
     @Test

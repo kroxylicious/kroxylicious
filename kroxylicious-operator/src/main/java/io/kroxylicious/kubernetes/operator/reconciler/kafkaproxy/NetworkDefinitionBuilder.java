@@ -42,20 +42,21 @@ final class NetworkDefinitionBuilder {
         var prxy = network.getProxy();
         return new NetworkDefinition(
                 mgmt == null ? null
-                        : buildNettySettings(mgmt.getWorkerThreadCount(), mgmt.getShutdownQuietPeriod(), null, null),
+                        : buildNettySettings(mgmt.getWorkerThreadCount(), mgmt.getShutdownQuietPeriod(), mgmt.getShutdownTimeout(), null, null),
                 prxy == null ? null
-                        : buildNettySettings(prxy.getWorkerThreadCount(), prxy.getShutdownQuietPeriod(),
+                        : buildNettySettings(prxy.getWorkerThreadCount(), prxy.getShutdownQuietPeriod(), prxy.getShutdownTimeout(),
                                 prxy.getAuthenticatedIdleTimeout(), prxy.getUnauthenticatedIdleTimeout()));
     }
 
     private static NettySettings buildNettySettings(@Nullable Integer workerThreadCount,
                                                     @Nullable String shutdownQuietPeriod,
+                                                    @Nullable String shutdownTimeout,
                                                     @Nullable String authenticatedIdleTimeout,
                                                     @Nullable String unauthenticatedIdleTimeout) {
         return new NettySettings(
                 Optional.ofNullable(workerThreadCount),
                 Optional.ofNullable(shutdownQuietPeriod).map(NetworkDefinitionBuilder::parseDuration),
-                Optional.empty(),
+                Optional.ofNullable(shutdownTimeout).map(NetworkDefinitionBuilder::parseDuration),
                 Optional.ofNullable(authenticatedIdleTimeout).map(NetworkDefinitionBuilder::parseDuration),
                 Optional.ofNullable(unauthenticatedIdleTimeout).map(NetworkDefinitionBuilder::parseDuration));
     }
