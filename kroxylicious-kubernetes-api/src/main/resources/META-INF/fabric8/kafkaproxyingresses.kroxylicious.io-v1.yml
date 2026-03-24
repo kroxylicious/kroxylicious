@@ -42,6 +42,11 @@ spec:
           jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
           type: string
           priority: 0
+        - name: Accepted
+          description: Whether the ingress definition has been accepted by the proxy.
+          jsonPath: ".status.conditions[?(@.type==\"Accepted\")].status"
+          type: string
+          priority: 0
       schema:
         openAPIV3Schema:
           type: object
