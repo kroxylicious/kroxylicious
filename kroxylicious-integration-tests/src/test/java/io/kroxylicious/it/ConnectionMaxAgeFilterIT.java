@@ -28,25 +28,21 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
-/**
- * Integration test for {@link io.kroxylicious.filter.connectionmaxage.ConnectionMaxAgeFilter}.
- * <p>
- * Verifies that when the connection max age is exceeded, the connection is closed
- * after the next request, and the client can reconnect and continue operating.
- */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
 class ConnectionMaxAgeFilterIT {
 
+    private static final Duration MAX_AGE = Duration.ofSeconds(2);
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     @Test
-    void shouldCloseConnectionAfterMaxAgeAndClientCanReconnect(@BrokerCluster KafkaCluster cluster, Topic topic) {
-        var className = ConnectionMaxAgeFilterFactory.class.getName();
-        // Use a very short max age (2 seconds) for testing
-        var filterDefinition = new NamedFilterDefinitionBuilder("connection-max-age", className)
-                .withConfig("maxAgeSeconds", 2)
+    void shouldCloseConnectionAfterMaxAgeAndClientCanReconnect(
+            @BrokerCluster KafkaCluster cluster, Topic topic) {
+        var filterDefinition = new NamedFilterDefinitionBuilder(
+                "connection-max-age", ConnectionMaxAgeFilterFactory.class.getName())
+                .withConfig("maxAge", "2s")
                 .build();
         var proxyConfig = proxy(cluster);
         proxyConfig.addToFilterDefinitions(filterDefinition);
@@ -57,33 +53,16 @@ class ConnectionMaxAgeFilterIT {
                 var consumer = tester.consumer(Serdes.String(), Serdes.String(),
                         Map.of(ConsumerConfig.GROUP_ID_CONFIG, "test-group",
                                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-            // First produce should succeed (connection is young)
-            var record1 = new ProducerRecord<>(topic.name(), "key1", "value1");
-            assertThat(producer.send(record1)).succeedsWithin(TIMEOUT);
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "key1", "value1")))
+                    .succeedsWithin(TIMEOUT);
 
-            // Wait for connection to exceed max age
-            sleep(Duration.ofSeconds(3));
+            await().pollDelay(MAX_AGE.plusSeconds(1)).atMost(TIMEOUT).until(() -> true);
 
-            // Produce after max age - the client library should handle the disconnection
-            // by reconnecting automatically and completing the produce
-            var record2 = new ProducerRecord<>(topic.name(), "key2", "value2");
-            assertThat(producer.send(record2)).succeedsWithin(TIMEOUT);
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "key2", "value2")))
+                    .succeedsWithin(TIMEOUT);
 
-            // Verify both records were produced successfully
             consumer.subscribe(List.of(topic.name()));
-            var records = consumer.poll(TIMEOUT);
-            assertThat(records.records(topic.name()))
-                    .hasSizeGreaterThanOrEqualTo(2);
-        }
-    }
-
-    private static void sleep(Duration duration) {
-        try {
-            Thread.sleep(duration.toMillis());
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
+            assertThat(consumer.poll(TIMEOUT).records(topic.name())).hasSize(2);
         }
     }
 }
