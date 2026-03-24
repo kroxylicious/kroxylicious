@@ -1479,10 +1479,12 @@ public class KafkaProxyReconcilerIT {
 
     // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaService updateStatusObservedGeneration(KafkaService service, String bootstrapServers) {
-        service.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(service))
+        // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
+        KafkaService fresh = testActor.get(KafkaService.class, name(service));
+        fresh.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
                 .withBootstrapServers(bootstrapServers)
                 .build());
-        return testActor.patchStatus(service);
+        return testActor.patchStatus(fresh);
     }
 
     // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
