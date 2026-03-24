@@ -50,6 +50,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
         implements ClusterIngressNetworkingModel {
 
     public RouteClusterIngressNetworkingModel {
+        Objects.requireNonNull(proxy);
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(ingress);
         Objects.requireNonNull(openShiftRoute);
