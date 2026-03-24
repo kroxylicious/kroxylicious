@@ -38,8 +38,7 @@ class ConnectionMaxAgeFilterIT {
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     @Test
-    void shouldCloseConnectionAfterMaxAgeAndClientCanReconnect(
-            @BrokerCluster KafkaCluster cluster, Topic topic) {
+    void shouldCloseConnectionAfterMaxAgeAndClientCanReconnect(@BrokerCluster KafkaCluster cluster, Topic topic) {
         var filterDefinition = new NamedFilterDefinitionBuilder(
                 "connection-max-age", ConnectionMaxAgeFilterFactory.class.getName())
                 .withConfig("maxAge", "2s")

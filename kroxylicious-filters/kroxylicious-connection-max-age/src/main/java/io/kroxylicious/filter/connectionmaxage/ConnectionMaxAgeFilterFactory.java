@@ -33,7 +33,6 @@ public class ConnectionMaxAgeFilterFactory
 
     private final Clock clock;
 
-    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating jitter; not security relevant
     private final LongBinaryOperator randomSource;
 
     /**
@@ -49,6 +48,7 @@ public class ConnectionMaxAgeFilterFactory
      * @param clock the clock to use
      */
     @VisibleForTesting
+    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating jitter; not security relevant
     ConnectionMaxAgeFilterFactory(Clock clock) {
         this(clock, ThreadLocalRandom.current()::nextLong);
     }
