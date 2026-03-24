@@ -11,6 +11,7 @@ import java.util.Set;
 import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
+import io.javaoperatorsdk.operator.processing.dependent.kubernetes.BooleanWithUndefined;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 import io.javaoperatorsdk.operator.processing.event.NoEventSourceForClassException;
@@ -24,7 +25,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 /**
  * Generates the OpenShift {@code Route} for a single virtual cluster.
  */
-@KubernetesDependent
+@KubernetesDependent(useSSA = BooleanWithUndefined.TRUE)
 public class ClusterRouteDependentResource
         extends CRUDKubernetesDependentResource<Route, KafkaProxy>
         implements BulkDependentResource<Route, KafkaProxy, String> {

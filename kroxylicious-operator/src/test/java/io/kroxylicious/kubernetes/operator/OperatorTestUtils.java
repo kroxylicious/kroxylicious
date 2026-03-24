@@ -36,7 +36,7 @@ public class OperatorTestUtils {
     private static final KubernetesClientBuilder PRESENCE_PROBING_KUBE_CLIENT_BUILD = new KubernetesClientBuilder()
             .editOrNewConfig()
             .withRequestRetryBackoffLimit(2)
-            .withConnectionTimeout(500)
+            .withConnectionTimeout(1000)
             .endConfig();
 
     public static @NonNull KubernetesClient kubeClient() {
