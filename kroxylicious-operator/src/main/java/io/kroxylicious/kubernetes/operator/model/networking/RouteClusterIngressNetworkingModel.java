@@ -142,6 +142,8 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
 
     @Override
     public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
+        // The domain a generated route cannot be determined up-front because of Ingress Controller sharding. Instead, we initially use a temporary placeholder token.
+        // Once the route is created and assigned a hostname, we extract the domain from it and use that instead of the token upon reconciliation.
         HostPort bootstrapAddress = new HostPort("$(virtualClusterName)-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(HOST_TOKEN), sharedSniPort);
         HostPort advertisedBrokerAddressPattern = new HostPort("$(virtualClusterName)-$(nodeId)." + getDomain(RouteHostDetails.RouteFor.NODE).orElse(HOST_TOKEN),
                 CLIENT_FACING_ROUTE_PORT);
