@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.connectionmaxage;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 
@@ -30,7 +31,7 @@ class ConnectionMaxAgeFilterFactoryTest {
     @Test
     void shouldInitializeWithValidConfig() {
         ConnectionMaxAgeFilterFactory factory = new ConnectionMaxAgeFilterFactory();
-        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(300, null);
+        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(Duration.ofSeconds(300), null);
 
         ConnectionMaxAgeFilterConfig result = factory.initialize(context, config);
 
@@ -49,7 +50,7 @@ class ConnectionMaxAgeFilterFactoryTest {
     void shouldCreateFilter() {
         Clock clock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneId.of("UTC"));
         ConnectionMaxAgeFilterFactory factory = new ConnectionMaxAgeFilterFactory(clock);
-        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(300, null);
+        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(Duration.ofSeconds(300), null);
         factory.initialize(context, config);
 
         var filter = factory.createFilter(context, config);
@@ -61,7 +62,7 @@ class ConnectionMaxAgeFilterFactoryTest {
     void shouldCreateFilterWithJitter() {
         Clock clock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneId.of("UTC"));
         ConnectionMaxAgeFilterFactory factory = new ConnectionMaxAgeFilterFactory(clock);
-        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(300, 30L);
+        ConnectionMaxAgeFilterConfig config = new ConnectionMaxAgeFilterConfig(Duration.ofSeconds(300), Duration.ofSeconds(30));
         factory.initialize(context, config);
 
         var filter = factory.createFilter(context, config);
