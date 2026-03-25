@@ -82,4 +82,14 @@ class OmbResultTest {
     void aggregatedEndToEndLatency999pctIsDeserialized() {
         assertThat(baseline.getAggregatedEndToEndLatency999pct()).isEqualTo(69.80);
     }
+
+    @Test
+    void publishDelayLatencyAvgIsDeserialized() {
+        assertThat(baseline.getPublishDelayLatencyAvgNs()).isEqualTo(74.0);
+    }
+
+    @Test
+    void publishDelayLatency99pctIsDeserialized() {
+        assertThat(baseline.getPublishDelayLatency99pctNs()).isEqualTo(182.0);
+    }
 }
