@@ -15,39 +15,17 @@ When enabled, idle disconnects are observable via the `kroxylicious_client_to_pr
 
 == When to enable idle timeouts
 
-Consider enabling idle timeouts in the following scenarios:
-
-* *Security posture*: unauthenticated connections can be closed quickly to limit the window for abuse, while authenticated connections get a more generous timeout.
-* *Unclosed connections*: clients that abandon connections without properly closing them, leaving resources allocated unnecessarily.
-* *Network infrastructure requirements*: environments where firewalls or load balancers drop idle connections, configure the proxy to disconnect gracefully first.
+include::../../_snippets/snip-idle-timeout-when-to-enable.adoc[]
 
 == When not to enable idle timeouts
 
-Avoid enabling idle timeouts in the following scenarios:
-
-* *Legitimate idle connections*: applications that maintain long-lived connections with extended idle periods, such as consumers with long poll timeouts or applications using connection pooling.
-* *Stable network infrastructure*: environments with reliable network infrastructure and no issues with idle connection management.
+include::../../_snippets/snip-idle-timeout-when-not-to-enable.adoc[]
 
 == How idle timeouts work
 
-The proxy supports two independent timeout settings that apply at different stages of the connection lifecycle:
+include::../../_snippets/snip-idle-timeout-how-it-works.adoc[]
 
-* *Unauthenticated timeout* (`unauthenticatedIdleTimeout`): applies to connections where the proxy has not yet detected completed authentication. The proxy considers authentication complete if either of the following is true:
-** A transport subject builder (a component that extracts an authenticated identity from transport-layer attributes) creates a subject with an identity (for example, from a client TLS certificate).
-** A SASL inspection or termination filter invokes `clientSaslAuthenticationSuccess`.
-* *Authenticated timeout* (`authenticatedIdleTimeout`): applies to connections where an identity has been established, for the remainder of the connection's lifetime.
-
-[NOTE]
-====
-For the proxy to detect authentication completion, you must configure either TLS client certificate authentication or a SASL inspection or termination filter.
-Without one of these, all connections remain in the unauthenticated state for their entire lifetime, and `authenticatedIdleTimeout` has no effect.
-For more information, see the link:{SASLInspectionGuideUrl}[SASL inspection filter guide].
-====
-
-You can configure one, both, or neither setting depending on your requirements.
-Timeout values use a string-based duration format, following Go conventions.
-Supported units are: `m` (minutes), `s` (seconds), `ms` (milliseconds), `μs` or `us` (microseconds), and `ns` (nanoseconds).
-Units can be combined, for example `1m30s`.
+include::../../_snippets/snip-idle-timeout-duration-format.adoc[]
 
 == Configuration examples
 
@@ -85,7 +63,4 @@ spec:
 
 == Monitoring idle disconnects
 
-The proxy tracks idle disconnects using the `kroxylicious_client_to_proxy_disconnects_total` metric with `cause="idle_timeout"`.
-This counter increments each time a connection is closed after exceeding the configured idle timeout.
-
-For more information about connection metrics, see xref:con-prometheus-metrics-proxy-{context}[Overview of proxy metrics].
+include::../../_snippets/snip-idle-timeout-monitoring.adoc[]
