@@ -132,6 +132,21 @@ public class ProxyDeploymentDependentResource
         return encoded;
     }
 
+    /**
+     * When OpenShift's router assigns a host to a {@link Route} via {@code status.ingress},
+     * that is a status-only update which does not increment the {@link Route}'s {@code generation}
+     * field. The proxy deployment therefore needs to react to host assignment in
+     * order to restart with the correct advertised broker addresses.
+     * <p>
+     * This function adds route host data to the referent checksum annotation on the proxy
+     * pod template so that a rolling restart is triggered when:
+     * <ul>
+     * <li>a new Route is created and OpenShift assigns it a host, or</li>
+     * <li>a previously host-less Route has a host assigned.</li>
+     * </ul>
+     * Only the route name and {@code status.ingress[].host} values are hashed to avoid
+     * spurious restarts from unrelated {@link Route} changes.
+     */
     private static void appendRouteHostsToChecksum(MetadataChecksumGenerator checksumGenerator, Route route) {
         checksumGenerator.appendString(route.getMetadata().getName());
         Optional.ofNullable(route.getStatus())
