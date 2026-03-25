@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.steps;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -21,15 +22,18 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -158,5 +162,20 @@ public class KafkaSteps {
     public static void restartKafkaBroker(String clusterName) {
         clusterName = clusterName + "-kafka";
         assertThat("Broker has not been restarted successfully!", KafkaUtils.restartBroker(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName));
+    }
+
+    /**
+     * Get the consumer groups that are currently on kafka
+     * @param clusterName
+     * @return list of consumer groups
+     */
+    public static List<String> getConsumerGroups(String clusterName) {
+        List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
+        String kafkaPodName = kafkaPods.stream().filter(p -> p.getMetadata().getName().contains("kafka")).findFirst().get().getMetadata().getName();
+        String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9094";
+        List<String> command = List.of("/bin/bash", "./bin/kafka-consumer-groups.sh", "--bootstrap-server", kafkaBootstrap, "--list");
+        ExecResult result = cmdKubeClient(Constants.KAFKA_DEFAULT_NAMESPACE).execInPod(kafkaPodName, true, command);
+        LOGGER.info("Consumer groups: {}", result.out());
+        return Arrays.stream(result.out().split("\n")).toList();
     }
 }

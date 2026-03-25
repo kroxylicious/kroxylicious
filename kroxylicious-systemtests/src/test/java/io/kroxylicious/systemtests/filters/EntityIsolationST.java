@@ -7,7 +7,6 @@
 package io.kroxylicious.systemtests.filters;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +28,6 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
-import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
@@ -37,7 +35,6 @@ import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
-import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -122,7 +119,7 @@ public class EntityIsolationST extends AbstractSystemTests {
         List<ConsumerRecord> bobResult = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), bobKafkaProps);
         LOGGER.atInfo().setMessage("Received: {}").addArgument(bobResult).log();
 
-        assertAll( () -> {
+        assertAll(() -> {
             assertThat(aliceResult).withFailMessage("expected messages have not been received!")
                     .extracting(ConsumerRecord::getPayload)
                     .hasSize(numberOfMessages)
@@ -136,21 +133,10 @@ public class EntityIsolationST extends AbstractSystemTests {
             assertThat(aliceResult).withFailMessage("Alice and Bob received different messages!")
                     .isEqualTo(bobResult);
 
-            assertThat(getConsumerGroups()).withFailMessage("")
+            assertThat(KafkaSteps.getConsumerGroups(clusterName)).withFailMessage("")
                     .hasSize(2)
-                    .allSatisfy(v -> assertThat(v).endsWith(Constants.CONSUMER_GROUP_NAME))
-                    .anySatisfy(v -> assertThat(v).startsWith(userBob))
-                    .anySatisfy(v -> assertThat(v).startsWith(userAlice));
+                    .anySatisfy(v -> assertThat(v).isEqualTo(userBob + "-" + Constants.CONSUMER_GROUP_NAME))
+                    .anySatisfy(v -> assertThat(v).isEqualTo(userAlice  + "-" + Constants.CONSUMER_GROUP_NAME));
         });
-    }
-
-    private List<String> getConsumerGroups() {
-        List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
-        String kafkaPodName = kafkaPods.stream().filter(p -> p.getMetadata().getName().contains("kafka")).findFirst().get().getMetadata().getName();
-        String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9094";
-        List<String> command = List.of("/bin/bash", "./bin/kafka-consumer-groups.sh", "--bootstrap-server", kafkaBootstrap, "--list");
-        ExecResult result = cmdKubeClient(Constants.KAFKA_DEFAULT_NAMESPACE).execInPod(kafkaPodName, true, command);
-        LOGGER.info("Consumer groups: {}", result.out());
-        return Arrays.stream(result.out().split("\n")).toList();
     }
 }
