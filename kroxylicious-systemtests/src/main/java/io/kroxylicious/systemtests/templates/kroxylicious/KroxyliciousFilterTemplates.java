@@ -185,7 +185,7 @@ public final class KroxyliciousFilterTemplates {
     }
 
     private static Map<String, Object> getEntityIsolationConfigMap(Set<EntityIsolation.EntityType> entityTypes) {
-        EntityIsolation.Config entityIsolationConfig = new EntityIsolation.Config(entityTypes, PrincipalEntityNameMapperService.class.getSimpleName(), null);
+        EntityIsolation.Config entityIsolationConfig = new EntityIsolation.Config(entityTypes, PrincipalEntityNameMapperService.class.getSimpleName(), "");
 
         return OBJECT_MAPPER
                 .convertValue(entityIsolationConfig, new TypeReference<>() {
