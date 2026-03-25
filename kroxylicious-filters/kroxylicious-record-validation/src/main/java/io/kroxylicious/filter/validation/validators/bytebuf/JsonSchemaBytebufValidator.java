@@ -30,7 +30,7 @@ import io.kroxylicious.filter.validation.validators.Result;
 class JsonSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final JsonValidator jsonValidator;
 
-    public JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
+    JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
         super(schemaId, wireFormatVersion);
         this.jsonValidator = new JsonValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromContentId(schemaId)));
     }

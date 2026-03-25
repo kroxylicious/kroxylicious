@@ -42,7 +42,7 @@ class AvroSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final AvroValidator avroValidator;
     private final Schema avroSchema;
 
-    public AvroSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
+    AvroSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
         super(schemaId, wireFormatVersion);
         this.avroValidator = new AvroValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromContentId(schemaId)));
         this.avroSchema = resolveAvroSchema(schemaResolverConfig, schemaId);
