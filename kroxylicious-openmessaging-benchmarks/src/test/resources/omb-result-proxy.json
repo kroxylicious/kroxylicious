@@ -13,5 +13,10 @@
   "endToEndLatency50pct": [7.80, 8.20, 8.00],
   "endToEndLatency95pct": [22.40, 23.20, 22.80],
   "endToEndLatency99pct": [42.60, 44.00, 43.30],
-  "endToEndLatency999pct": [78.40, 81.60, 80.00]
+  "endToEndLatency999pct": [78.40, 81.60, 80.00],
+  "aggregatedEndToEndLatencyAvg": 10.70,
+  "aggregatedEndToEndLatency50pct": 8.10,
+  "aggregatedEndToEndLatency95pct": 23.30,
+  "aggregatedEndToEndLatency99pct": 45.20,
+  "aggregatedEndToEndLatency999pct": 82.50
 }

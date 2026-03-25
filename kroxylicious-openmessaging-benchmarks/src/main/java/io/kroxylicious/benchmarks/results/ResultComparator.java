@@ -47,13 +47,12 @@ public class ResultComparator {
     }
 
     private void printEndToEndLatency(PrintStream out) {
-        String label = aggregationMethod.name().toLowerCase();
-        printSectionHeader(out, "End-to-End Latency (ms, " + label + ")");
-        printRow(out, "Avg", baseline.getEndToEndLatencyAvg(aggregationMethod), candidate.getEndToEndLatencyAvg(aggregationMethod));
-        printRow(out, "p50", baseline.getEndToEndLatency50pct(aggregationMethod), candidate.getEndToEndLatency50pct(aggregationMethod));
-        printRow(out, "p95", baseline.getEndToEndLatency95pct(aggregationMethod), candidate.getEndToEndLatency95pct(aggregationMethod));
-        printRow(out, "p99", baseline.getEndToEndLatency99pct(aggregationMethod), candidate.getEndToEndLatency99pct(aggregationMethod));
-        printRow(out, "p99.9", baseline.getEndToEndLatency999pct(aggregationMethod), candidate.getEndToEndLatency999pct(aggregationMethod));
+        printSectionHeader(out, "End-to-End Latency (ms)");
+        printRow(out, "Avg", baseline.getAggregatedEndToEndLatencyAvg(), candidate.getAggregatedEndToEndLatencyAvg());
+        printRow(out, "p50", baseline.getAggregatedEndToEndLatency50pct(), candidate.getAggregatedEndToEndLatency50pct());
+        printRow(out, "p95", baseline.getAggregatedEndToEndLatency95pct(), candidate.getAggregatedEndToEndLatency95pct());
+        printRow(out, "p99", baseline.getAggregatedEndToEndLatency99pct(), candidate.getAggregatedEndToEndLatency99pct());
+        printRow(out, "p99.9", baseline.getAggregatedEndToEndLatency999pct(), candidate.getAggregatedEndToEndLatency999pct());
     }
 
     private void printThroughput(PrintStream out) {
