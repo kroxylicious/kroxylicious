@@ -9,7 +9,7 @@
 
 [role="_abstract"]
 The proxy can automatically disconnect idle client connections to reclaim resources.
-Idle timeout configuration is completely optional and disabled by default, allowing you to opt in only when needed for your deployment.
+Idle timeout configuration is optional and disabled by default. Enable it only when required for your deployment.
 Idle timeouts are configured under `spec.network.proxy` in the `KafkaProxy` resource and apply only to the proxy listener — they are not available for the management HTTP server.
 When enabled, idle disconnects are observable via the `kroxylicious_client_to_proxy_disconnects_total` metric.
 
@@ -18,8 +18,8 @@ When enabled, idle disconnects are observable via the `kroxylicious_client_to_pr
 Consider enabling idle timeouts in the following scenarios:
 
 * *Security posture*: unauthenticated connections can be closed quickly to limit the window for abuse, while authenticated connections get a more generous timeout.
-* *Misbehaving clients*: clients that abandon connections without properly closing them, leaving resources allocated unnecessarily.
-* *Network infrastructure requirements*: environments where firewalls or load balancers drop idle connections, and you want the proxy to disconnect gracefully first.
+* *Unclosed connections*: clients that abandon connections without properly closing them, leaving resources allocated unnecessarily.
+* *Network infrastructure requirements*: environments where firewalls or load balancers drop idle connections, configure the proxy to disconnect gracefully first.
 
 == When not to enable idle timeouts
 
@@ -33,19 +33,19 @@ Avoid enabling idle timeouts in the following scenarios:
 The proxy supports two independent timeout settings that apply at different stages of the connection lifecycle:
 
 * *Unauthenticated timeout* (`unauthenticatedIdleTimeout`): applies to connections where the proxy has not yet detected completed authentication. The proxy considers authentication complete if either of the following is true:
-** A transport subject builder creates a subject with an identity (for example, from a client TLS certificate).
-** A SASL inspection or termination filter has invoked `clientSaslAuthenticationSuccess`.
+** A transport subject builder (a component that extracts an authenticated identity from transport-layer attributes) creates a subject with an identity (for example, from a client TLS certificate).
+** A SASL inspection or termination filter invokes `clientSaslAuthenticationSuccess`.
 * *Authenticated timeout* (`authenticatedIdleTimeout`): applies to connections where an identity has been established, for the remainder of the connection's lifetime.
 
 [NOTE]
 ====
 For the proxy to detect authentication completion, you must configure either TLS client certificate authentication or a SASL inspection or termination filter.
 Without one of these, all connections remain in the unauthenticated state for their entire lifetime, and `authenticatedIdleTimeout` has no effect.
-For more information, see the link:{SASLInspectionGuideUrl}[SASL inspection filter guide] and the link:{AuthorizationGuideUrl}[authorization guide].
+For more information, see the link:{SASLInspectionGuideUrl}[SASL inspection filter guide].
 ====
 
-You can configure one, both, or neither depending on your requirements.
-Timeout values use Go-style duration format.
+You can configure one, both, or neither setting depending on your requirements.
+Timeout values use a string-based duration format, following Go conventions.
 Supported units are: `m` (minutes), `s` (seconds), `ms` (milliseconds), `μs` or `us` (microseconds), and `ns` (nanoseconds).
 Units can be combined, for example `1m30s`.
 
@@ -86,6 +86,6 @@ spec:
 == Monitoring idle disconnects
 
 The proxy tracks idle disconnects using the `kroxylicious_client_to_proxy_disconnects_total` metric with `cause="idle_timeout"`.
-This counter is incremented each time a connection is closed due to exceeding the configured idle timeout.
+This counter increments each time a connection is closed after exceeding the configured idle timeout.
 
 For more information about connection metrics, see xref:con-prometheus-metrics-proxy-{context}[Overview of proxy metrics].

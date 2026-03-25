@@ -36,6 +36,6 @@ Units can be combined, for example `1m30s`.
 
 [NOTE]
 ====
-The `shutdownQuietPeriodSeconds` field (an integer number of seconds) is deprecated and will be removed in a future release.
+The `shutdownQuietPeriodSeconds` property (an integer number of seconds) is deprecated and will be removed in a future release.
 Use `shutdownQuietPeriod` with a Go-style duration string instead (for example, `shutdownQuietPeriod: 2s`).
 ====

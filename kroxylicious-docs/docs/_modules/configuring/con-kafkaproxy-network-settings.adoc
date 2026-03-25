@@ -8,7 +8,7 @@
 = Advanced network tuning for a proxy
 
 [role="_abstract"]
-The `spec.network` section of a `KafkaProxy` resource exposes low-level tuning options for the proxy listener and management HTTP server.
+The `spec.network` section of a `KafkaProxy` resource provides low-level tuning options for the proxy listener and management HTTP server.
 The defaults are suitable for most deployments — only configure these settings if you have a specific operational reason to do so.
 
 .Example `KafkaProxy` with network tuning applied
@@ -21,21 +21,23 @@ metadata:
   name: simple
 spec:
   network:
-    proxy: # <1>
-      workerThreadCount: 8 # <2>
-      shutdownQuietPeriod: 5s # <3>
-      shutdownTimeout: 20s # <4>
-    management: # <5>
+    proxy:
+      workerThreadCount: 8
+      shutdownQuietPeriod: 5s
+      shutdownTimeout: 20s
+    management:
       workerThreadCount: 2
       shutdownQuietPeriod: 5s
       shutdownTimeout: 20s
 ----
-<1> Network tuning for the proxy listener that handles Kafka client connections. All fields are optional.
-<2> Number of threads available to process requests across client connections. Each connection is pinned to one thread, but a single thread can serve many connections. More threads increase parallelism but also CPU consumption — tune this in conjunction with the pod's CPU limits and validate under realistic load. Defaults to twice the number of available processors.
-<3> Grace period during which the proxy continues to accept and complete in-flight requests before shutting down. If no new requests arrive during this window, shutdown proceeds. Defaults to `2s` if not specified.
-<4> Maximum time allowed for the proxy to complete shutdown, including the quiet period. If shutdown does not complete within this period, it is forced. Defaults to `15s` if not specified. Set this to a value less than the pod's `terminationGracePeriodSeconds` (Kubernetes default: `30s`) to ensure the proxy can finish gracefully before Kubernetes forcibly terminates the pod.
-<5> Network tuning for the management HTTP server that serves metrics and health endpoints. Supports the same settings as the proxy listener, and can be configured independently.
+where:
 
-Duration values use Go-style format (for example, `30s`, `5m`).
+* `spec.network.proxy` configures network tuning for the proxy listener that handles Kafka client connections. All fields are optional.
+* `workerThreadCount` is the number of threads available to process requests across client connections. Each connection is pinned to one thread, but a single thread can serve many connections. More threads increase parallelism but also CPU consumption. Tune this in conjunction with the pod's CPU limits and validate under realistic load. Defaults to twice the number of available processors.
+* `shutdownQuietPeriod` is the grace period during which the proxy continues to accept and complete in-flight requests before shutting down. If no new requests arrive during this window, shutdown proceeds. Defaults to `2s` if not specified.
+* `shutdownTimeout` is the maximum time allowed for the proxy to complete shutdown, including the quiet period. If shutdown does not complete within this period, it is forced. Defaults to `15s` if not specified. Set this to a value less than the pod's `terminationGracePeriodSeconds` (Kubernetes default: `30s`) to ensure the proxy can finish gracefully before Kubernetes forcibly terminates the pod.
+* `spec.network.management` configures network tuning for the management HTTP server that serves metrics and health endpoints. Supports the same settings as the proxy listener, and can be configured independently.
+
+Duration values use a string-based Go-style duration format (for example, `30s`, `5m`).
 Supported units are: `m` (minutes), `s` (seconds), `ms` (milliseconds), `μs` or `us` (microseconds), and `ns` (nanoseconds).
 Units can be combined, for example `1m30s`.
