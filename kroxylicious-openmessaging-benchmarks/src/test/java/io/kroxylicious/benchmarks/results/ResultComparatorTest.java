@@ -180,7 +180,7 @@ class ResultComparatorTest {
         @BeforeAll
         static void setUp() throws IOException {
             String output = runComparison();
-            throughputRows = extractSection(output, "Throughput");
+            throughputRows = extractSection(output, "Total Throughput");
         }
 
         @Test
@@ -191,21 +191,21 @@ class ResultComparatorTest {
         }
 
         @Test
-        void publishRateShowsCorrectValues() {
-            // Baseline publishRate: [50000.0, 49800.0, 50200.0] -> avg = 50000.00
-            // Proxy publishRate: [49500.0, 49200.0, 49700.0] -> avg = 49466.67
+        void publishRateShowsTotalAcrossAllProducers() {
+            // Baseline: [5000, 4980, 5020] mean=5000 * 10 topics * 1 producer = 50000
+            // Proxy: [4950, 4920, 4970] mean=4946.67 * 10 * 1 = 49466.67
             RowValues row = findRow(throughputRows, "Publish Rate");
-            assertThat(row).as("Throughput should have a Publish Rate row").isNotNull();
+            assertThat(row).as("Total Throughput should have a Publish Rate row").isNotNull();
             assertThat(row.baseline()).as("baseline").isEqualTo("50000.00");
             assertThat(row.candidate()).as("candidate").isEqualTo("49466.67");
         }
 
         @Test
-        void consumeRateShowsCorrectValues() {
-            // Baseline consumeRate: [49900.0, 50100.0, 50000.0] -> avg = 50000.00
-            // Proxy consumeRate: [49400.0, 49600.0, 49500.0] -> avg = 49500.00
+        void consumeRateShowsTotalAcrossAllConsumers() {
+            // Baseline: [4990, 5010, 5000] mean=5000 * 10 topics * 1 consumer = 50000
+            // Proxy: [4940, 4960, 4950] mean=4950 * 10 * 1 = 49500
             RowValues row = findRow(throughputRows, "Consume Rate");
-            assertThat(row).as("Throughput should have a Consume Rate row").isNotNull();
+            assertThat(row).as("Total Throughput should have a Consume Rate row").isNotNull();
             assertThat(row.baseline()).as("baseline").isEqualTo("50000.00");
             assertThat(row.candidate()).as("candidate").isEqualTo("49500.00");
         }
