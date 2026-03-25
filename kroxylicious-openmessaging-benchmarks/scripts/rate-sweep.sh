@@ -229,7 +229,7 @@ print_summary() {
                     b_delta=$(printf "%'d" $(( rate - b_achieved_int )))
                     printf "  %-20s  %-14s" "sat@$(printf "%'d" "${b_achieved_int}")(-${b_delta})" "—"
                 else
-                    b_p99=$(jq '[.endToEndLatency99pct[]] | add / length' "${bf}")
+                    b_p99=$(jq '.aggregatedEndToEndLatency99pct' "${bf}")
                     baseline_p99="${b_p99}"
                     printf "  %-20s  %-14s" \
                         "$(printf '%.0f' "${b_achieved}")" \
@@ -264,7 +264,7 @@ print_summary() {
                 printf "  %-20s  %-14s" "sat@$(printf "%'d" "${s_achieved_int}")(-${s_delta})" "—"
                 [[ -n "${baseline_dir}" ]] && printf "  %-20s" "—"
             else
-                s_p99=$(jq '[.endToEndLatency99pct[]] | add / length' "${sf}")
+                s_p99=$(jq '.aggregatedEndToEndLatency99pct' "${sf}")
                 printf "  %-20s  %-14s" \
                     "$(printf '%.0f' "${s_achieved}")" \
                     "$(printf '%.2f ms' "${s_p99}")"

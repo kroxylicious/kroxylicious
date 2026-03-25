@@ -81,4 +81,20 @@ class OmbResultTest {
         assertThat(baseline.getEndToEndLatency99pct(AggregationMethod.MEAN))
                 .isCloseTo(36.10, offset(0.01));
     }
+
+    @Test
+    void aggregatedEndToEndLatency99pctIsDeserialized() {
+        // distinct from the per-window mean (36.10) — proves we use the OMB scalar, not the array
+        assertThat(baseline.getAggregatedEndToEndLatency99pct()).isEqualTo(38.50);
+    }
+
+    @Test
+    void aggregatedEndToEndLatency50pctIsDeserialized() {
+        assertThat(baseline.getAggregatedEndToEndLatency50pct()).isEqualTo(6.40);
+    }
+
+    @Test
+    void aggregatedEndToEndLatency999pctIsDeserialized() {
+        assertThat(baseline.getAggregatedEndToEndLatency999pct()).isEqualTo(69.80);
+    }
 }
