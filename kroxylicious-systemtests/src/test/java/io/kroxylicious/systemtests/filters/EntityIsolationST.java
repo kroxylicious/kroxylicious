@@ -136,7 +136,7 @@ public class EntityIsolationST extends AbstractSystemTests {
             assertThat(KafkaSteps.getConsumerGroups(clusterName)).withFailMessage("")
                     .hasSize(2)
                     .anySatisfy(v -> assertThat(v).isEqualTo(userBob + "-" + Constants.CONSUMER_GROUP_NAME))
-                    .anySatisfy(v -> assertThat(v).isEqualTo(userAlice  + "-" + Constants.CONSUMER_GROUP_NAME));
+                    .anySatisfy(v -> assertThat(v).isEqualTo(userAlice + "-" + Constants.CONSUMER_GROUP_NAME));
         });
     }
 }
