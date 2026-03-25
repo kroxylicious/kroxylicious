@@ -24,12 +24,15 @@ metadata:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
       name: "minimal"
+      uid: "uid"
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "VirtualKafkaCluster"
       name: "one"
+      uid: "uid"
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxyIngress"
       name: "myopenshiftroute"
+      uid: "uid"
 spec:
   subdomain: "one-bootstrap"
   port:
