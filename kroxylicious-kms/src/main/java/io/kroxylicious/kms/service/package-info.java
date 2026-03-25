@@ -5,9 +5,9 @@
  */
 
 /**
- * <p>Key Management System (KMS) API for managing Data Encryption Keys (DEKs) and Key Encryption Keys (KEKs).</p>
+ * <p>Abstracts Key Management System (KMS) operations necessary for the envelope encryption pattern using Data Encryption Keys (DEKs) and Key Encryption Keys (KEKs).</p>
  * <p>The {@link io.kroxylicious.kms.service.Kms} interface provides methods for generating DEKs,
- * encrypting them with KEKs, and later decrypting encrypted DEKs (edeks) for use in record encryption.</p>
+ * encrypting them with KEKs, and later decrypting encrypted DEKs (edeks).</p>
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)

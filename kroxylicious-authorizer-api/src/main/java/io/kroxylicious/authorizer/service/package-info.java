@@ -5,7 +5,13 @@
  */
 
 /**
- * Provides an abstract API for authorizing subjects to perform actions.
+ * <p>An abstract API for making access control decisions about {@link io.kroxylicious.proxy.authentication.Subject Subjects}
+ * wanting to perform {@link io.kroxylicious.authorizer.service.Action Actions}.</p>
+ *
+ * <p>The {@link io.kroxylicious.authorizer.service.AuthorizerService} interface is implemented by
+ * service providers using the {@link java.util.ServiceLoader} mechanism.
+ * An instance of {@link io.kroxylicious.authorizer.service.AuthorizerService} is a factory for
+ * an {@link io.kroxylicious.authorizer.service.Authorizer}, which makes the access control decision.</p>
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
