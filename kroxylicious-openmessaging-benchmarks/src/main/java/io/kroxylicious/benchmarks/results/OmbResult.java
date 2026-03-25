@@ -6,15 +6,19 @@
 
 package io.kroxylicious.benchmarks.results;
 
+import java.util.Arrays;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Represents the relevant metrics from an OpenMessaging Benchmark result JSON file.
  * <p>
- * Scalar fields correspond to pre-aggregated publish latency values.
- * Array fields contain per-interval measurements that are reduced to a
- * single value using a caller-supplied {@link AggregationMethod}.
+ * Latency fields use the pre-aggregated scalars that OMB computes from a full-run
+ * accumulated HDR histogram — these are the true percentiles over all messages, not
+ * a roll-up of per-sample-window values.
+ * <p>
+ * Throughput fields are per-interval arrays; the mean is returned as the representative value.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OmbResult {
@@ -34,41 +38,26 @@ public class OmbResult {
     @JsonProperty("aggregatedPublishLatency999pct")
     private double publishLatency999pct;
 
+    @JsonProperty("aggregatedEndToEndLatencyAvg")
+    private double endToEndLatencyAvg;
+
+    @JsonProperty("aggregatedEndToEndLatency50pct")
+    private double endToEndLatency50pct;
+
+    @JsonProperty("aggregatedEndToEndLatency95pct")
+    private double endToEndLatency95pct;
+
+    @JsonProperty("aggregatedEndToEndLatency99pct")
+    private double endToEndLatency99pct;
+
+    @JsonProperty("aggregatedEndToEndLatency999pct")
+    private double endToEndLatency999pct;
+
     @JsonProperty("publishRate")
     private double[] publishRate;
 
     @JsonProperty("consumeRate")
     private double[] consumeRate;
-
-    @JsonProperty("aggregatedEndToEndLatencyAvg")
-    private double aggregatedEndToEndLatencyAvg;
-
-    @JsonProperty("aggregatedEndToEndLatency50pct")
-    private double aggregatedEndToEndLatency50pct;
-
-    @JsonProperty("aggregatedEndToEndLatency95pct")
-    private double aggregatedEndToEndLatency95pct;
-
-    @JsonProperty("aggregatedEndToEndLatency99pct")
-    private double aggregatedEndToEndLatency99pct;
-
-    @JsonProperty("aggregatedEndToEndLatency999pct")
-    private double aggregatedEndToEndLatency999pct;
-
-    @JsonProperty("endToEndLatencyAvg")
-    private double[] endToEndLatencyAvg;
-
-    @JsonProperty("endToEndLatency50pct")
-    private double[] endToEndLatency50pct;
-
-    @JsonProperty("endToEndLatency95pct")
-    private double[] endToEndLatency95pct;
-
-    @JsonProperty("endToEndLatency99pct")
-    private double[] endToEndLatency99pct;
-
-    @JsonProperty("endToEndLatency999pct")
-    private double[] endToEndLatency999pct;
 
     public double getPublishLatencyAvg() {
         return publishLatencyAvg;
@@ -90,51 +79,31 @@ public class OmbResult {
         return publishLatency999pct;
     }
 
-    public double getPublishRate(AggregationMethod method) {
-        return method.aggregate(publishRate);
-    }
-
-    public double getConsumeRate(AggregationMethod method) {
-        return method.aggregate(consumeRate);
-    }
-
     public double getAggregatedEndToEndLatencyAvg() {
-        return aggregatedEndToEndLatencyAvg;
+        return endToEndLatencyAvg;
     }
 
     public double getAggregatedEndToEndLatency50pct() {
-        return aggregatedEndToEndLatency50pct;
+        return endToEndLatency50pct;
     }
 
     public double getAggregatedEndToEndLatency95pct() {
-        return aggregatedEndToEndLatency95pct;
+        return endToEndLatency95pct;
     }
 
     public double getAggregatedEndToEndLatency99pct() {
-        return aggregatedEndToEndLatency99pct;
+        return endToEndLatency99pct;
     }
 
     public double getAggregatedEndToEndLatency999pct() {
-        return aggregatedEndToEndLatency999pct;
+        return endToEndLatency999pct;
     }
 
-    public double getEndToEndLatencyAvg(AggregationMethod method) {
-        return method.aggregate(endToEndLatencyAvg);
+    public double getPublishRate() {
+        return Arrays.stream(publishRate).average().orElse(0.0);
     }
 
-    public double getEndToEndLatency50pct(AggregationMethod method) {
-        return method.aggregate(endToEndLatency50pct);
-    }
-
-    public double getEndToEndLatency95pct(AggregationMethod method) {
-        return method.aggregate(endToEndLatency95pct);
-    }
-
-    public double getEndToEndLatency99pct(AggregationMethod method) {
-        return method.aggregate(endToEndLatency99pct);
-    }
-
-    public double getEndToEndLatency999pct(AggregationMethod method) {
-        return method.aggregate(endToEndLatency999pct);
+    public double getConsumeRate() {
+        return Arrays.stream(consumeRate).average().orElse(0.0);
     }
 }
