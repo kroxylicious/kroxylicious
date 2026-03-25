@@ -38,6 +38,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
@@ -220,13 +221,14 @@ class DerivedResourcesTest {
                     VirtualKafkaCluster.class);
             List<KafkaService> kafkaServiceRefs = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaService-*"), KafkaService.class);
             List<KafkaProxyIngress> ingresses = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaProxyIngress-*"), KafkaProxyIngress.class);
+            List<Route> routes = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-Route-*"), Route.class);
 
             unusedFiles.remove(input);
             unusedFiles.removeAll(TestFiles.childFilesMatching(testDir, "in-*"));
 
             Context<KafkaProxy> context;
             try {
-                context = buildContext(testDir, kafkaProxy, virtualKafkaClusters, kafkaServiceRefs, ingresses);
+                context = buildContext(testDir, kafkaProxy, virtualKafkaClusters, kafkaServiceRefs, ingresses, routes);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -313,7 +315,8 @@ class DerivedResourcesTest {
                                                     KafkaProxy kafkaProxy,
                                                     List<VirtualKafkaCluster> virtualKafkaClusters,
                                                     List<KafkaService> kafkaServiceRefs,
-                                                    List<KafkaProxyIngress> ingresses)
+                                                    List<KafkaProxyIngress> ingresses,
+                                                    List<Route> routes)
             throws IOException {
         Context<KafkaProxy> context = mock(Context.class);
 
@@ -328,6 +331,7 @@ class DerivedResourcesTest {
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         doReturn(Set.copyOf(kafkaServiceRefs)).when(context).getSecondaryResources(KafkaService.class);
         doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);
+        doReturn(Set.copyOf(routes)).when(context).getSecondaryResources(Route.class);
 
         new KafkaProxyReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR)
                 .initContext(kafkaProxy, context);
