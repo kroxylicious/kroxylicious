@@ -6,6 +6,8 @@
 
 package io.kroxylicious.test.tester;
 
+import java.time.Duration;
+
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
@@ -135,8 +137,8 @@ public class KroxyliciousConfigUtils {
     public static ConfigurationBuilder baseConfigurationBuilder() {
         ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
         configurationBuilder.withNewNetwork()
-                .withNewManagement().withShutdownQuietPeriodSeconds(0).endManagement()
-                .withNewProxy().withShutdownQuietPeriodSeconds(0).endProxy()
+                .withNewManagement().withShutdownQuietPeriod(Duration.ZERO).endManagement()
+                .withNewProxy().withShutdownQuietPeriod(Duration.ZERO).endProxy()
                 .endNetwork();
         return configurationBuilder;
     }

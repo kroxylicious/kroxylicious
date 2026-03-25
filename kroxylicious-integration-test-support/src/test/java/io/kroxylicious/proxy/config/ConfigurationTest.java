@@ -433,14 +433,15 @@ class ConfigurationTest {
                                       portIdentifiesNode:
                                         bootstrapAddress: cluster1:9192
                                 """),
-                argumentSet("Proxy worker shutdown quiet period seconds",
-                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withShutdownQuietPeriodSeconds(5).endProxy()
+                argumentSet("Proxy worker shutdown quiet period",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withShutdownQuietPeriod(Duration.ofSeconds(5))
+                                .endProxy()
                                 .endNetwork()
                                 .build(),
                         """
                                 network:
                                     proxy:
-                                        shutdownQuietPeriodSeconds: 5
+                                        shutdownQuietPeriod: "5s"
                                 virtualClusters:
                                   - name: demo
                                     targetCluster:
@@ -466,14 +467,15 @@ class ConfigurationTest {
                                       portIdentifiesNode:
                                         bootstrapAddress: example.com:1234
                                 """),
-                argumentSet("Management worker shutdown quiet period seconds",
-                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement().withShutdownQuietPeriodSeconds(5)
+                argumentSet("Management worker shutdown quiet period",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement()
+                                .withShutdownQuietPeriod(Duration.ofSeconds(5))
                                 .endManagement()
                                 .endNetwork().build(),
                         """
                                 network:
                                     management:
-                                        shutdownQuietPeriodSeconds: 5
+                                        shutdownQuietPeriod: "5s"
                                 virtualClusters:
                                   - name: demo
                                     targetCluster:

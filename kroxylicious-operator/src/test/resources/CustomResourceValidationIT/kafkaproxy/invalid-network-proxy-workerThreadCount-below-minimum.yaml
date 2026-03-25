@@ -15,5 +15,5 @@ resource:
     network:
       proxy:
         workerThreadCount: 0
-expectFailureMessageToContain: |
+expectFailureMessageToContain: |-
   spec.network.proxy.workerThreadCount
