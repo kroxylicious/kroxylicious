@@ -22,11 +22,11 @@ network:
 virtualClusters:
   # ...
 ----
-<1> Network settings for the proxy endpoints that handle client connections.
+<1> Network settings for the proxy listener that handles client connections.
 <2> Optional: Number of Netty worker threads for handling concurrent connections. Defaults to twice the number of available processors.
 <3> Optional: Grace period during which the proxy continues to accept and complete in-flight requests before shutting down. If no new requests arrive during this window, shutdown proceeds. Defaults to `2s` if not specified. Uses Go-style duration format (for example, `30s`, `5m`).
 <4> Optional: Maximum time allowed for the proxy to complete shutdown. If shutdown does not complete within this period, it is forced. Defaults to `15s` if not specified. Uses Go-style duration format.
-<5> Network settings for the management HTTP endpoints. Can be configured independently from proxy settings.
+<5> Network settings for the management HTTP server. Can be configured independently from the proxy listener settings.
 
 Supported duration units are: `h` (hours), `m` (minutes), `s` (seconds), `ms` (milliseconds), `μs` or `us` (microseconds), and `ns` (nanoseconds).
 Units can be combined, for example `1m30s`.
