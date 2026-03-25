@@ -434,7 +434,8 @@ class ConfigurationTest {
                                         bootstrapAddress: cluster1:9192
                                 """),
                 argumentSet("Proxy worker shutdown quiet period",
-                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withShutdownQuietPeriod(Duration.ofSeconds(5)).endProxy()
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withShutdownQuietPeriod(Duration.ofSeconds(5))
+                                .endProxy()
                                 .endNetwork()
                                 .build(),
                         """
@@ -467,7 +468,8 @@ class ConfigurationTest {
                                         bootstrapAddress: example.com:1234
                                 """),
                 argumentSet("Management worker shutdown quiet period",
-                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement().withShutdownQuietPeriod(Duration.ofSeconds(5))
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement()
+                                .withShutdownQuietPeriod(Duration.ofSeconds(5))
                                 .endManagement()
                                 .endNetwork().build(),
                         """
