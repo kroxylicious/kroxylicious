@@ -15,6 +15,7 @@ package io.kroxylicious;
 //DEPS org.slf4j:slf4j-api:${slf4j.version}
 //DEPS org.slf4j:slf4j-simple:${slf4j.version}
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -78,6 +79,12 @@ public class Webify implements Callable<Integer> {
     @Option(names = { "--datafy" }, description = "Glob matching data yamls")
     private String datafyGlob;
 
+    @Option(names = { "--copy-dir" }, description = "Directory to copy as-is to destination")
+    private Path copyDir;
+
+    @Option(names = { "--copy-dest" }, description = "Destination path for copied directory (relative to dest-dir)")
+    private String copyDest;
+
     private final Logger logger = LoggerFactory.getLogger(Webify.class);
 
     private Path outdir;
@@ -108,6 +115,29 @@ public class Webify implements Callable<Integer> {
             PathMatcher datafyGlobMatcher = globPathMatcher(fs, this.datafyGlob);
 
             walk(omitGlobsMatchers, tocifyGlobMatcher, datafyGlobMatcher);
+
+            // Copy additional directories if specified
+            if (copyDir != null && copyDest != null && Files.exists(copyDir)) {
+                Path javadocDest = this.destdir.resolve(copyDest);
+                logger.info("Copying directory from {} to {}", copyDir, javadocDest);
+                Files.createDirectories(javadocDest);
+                try (var stream = Files.walk(copyDir)) {
+                    stream.forEach(source -> {
+                        try {
+                            Path destination = javadocDest.resolve(copyDir.relativize(source));
+                            if (Files.isDirectory(source)) {
+                                Files.createDirectories(destination);
+                            }
+                            else {
+                                Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+                            }
+                        }
+                        catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+                }
+            }
 
             Path parentDir = outdir.getParent();
             // If condition to keep spotbugs happy
