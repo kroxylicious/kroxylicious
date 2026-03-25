@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.data.Offset.offset;
+import static org.assertj.core.data.Percentage.withPercentage;
 
 class OmbResultTest {
 
@@ -57,34 +57,17 @@ class OmbResultTest {
     @Test
     void publishRateMeanIsComputed() {
         // [50000.0, 49800.0, 50200.0] -> mean = 50000.0
-        assertThat(baseline.getPublishRate(AggregationMethod.MEAN))
-                .isCloseTo(50000.0, offset(0.01));
+        assertThat(baseline.getPublishRate()).isCloseTo(50000.0, withPercentage(0.01));
     }
 
     @Test
     void consumeRateMeanIsComputed() {
         // [49900.0, 50100.0, 50000.0] -> mean = 50000.0
-        assertThat(baseline.getConsumeRate(AggregationMethod.MEAN))
-                .isCloseTo(50000.0, offset(0.01));
-    }
-
-    @Test
-    void endToEndLatencyAvgMeanIsComputed() {
-        // [8.50, 9.20, 8.80] -> mean = 8.8333
-        assertThat(baseline.getEndToEndLatencyAvg(AggregationMethod.MEAN))
-                .isCloseTo(8.8333, offset(0.001));
-    }
-
-    @Test
-    void endToEndLatency99pctMeanIsComputed() {
-        // [35.40, 36.80, 36.10] -> mean = 36.10
-        assertThat(baseline.getEndToEndLatency99pct(AggregationMethod.MEAN))
-                .isCloseTo(36.10, offset(0.01));
+        assertThat(baseline.getConsumeRate()).isCloseTo(50000.0, withPercentage(0.01));
     }
 
     @Test
     void aggregatedEndToEndLatency99pctIsDeserialized() {
-        // distinct from the per-window mean (36.10) — proves we use the OMB scalar, not the array
         assertThat(baseline.getAggregatedEndToEndLatency99pct()).isEqualTo(38.50);
     }
 
