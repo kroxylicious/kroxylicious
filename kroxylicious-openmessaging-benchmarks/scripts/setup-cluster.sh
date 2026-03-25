@@ -74,6 +74,22 @@ if [[ "${SKIP_KROXYLICIOUS}" == "false" ]]; then
 fi
 echo ""
 
+# --- Storage class pre-flight ---
+
+if ! kubectl get storageclass &>/dev/null || \
+   [[ -z "$(kubectl get storageclass -o name 2>/dev/null)" ]]; then
+    echo "Error: no StorageClass found in this cluster." >&2
+    echo "" >&2
+    echo "Kafka requires persistent storage. Set up a StorageClass first, then re-run this script." >&2
+    echo "" >&2
+    echo "For clusters with local block devices (e.g. /dev/vdb):" >&2
+    echo "  $(dirname "$0")/setup-local-storage.sh --devices /dev/vdb" >&2
+    echo "" >&2
+    echo "Once a StorageClass exists, pass it to benchmarks with:" >&2
+    echo "  --set kafka.storage.storageClass=<name>" >&2
+    exit 1
+fi
+
 # --- Namespace ---
 
 if kubectl get namespace "${NAMESPACE}" &>/dev/null; then
@@ -109,12 +125,8 @@ fi
 # --- Strimzi operator ---
 
 echo ""
-if kubectl get deployment strimzi-cluster-operator -n "${NAMESPACE}" &>/dev/null; then
-    echo "Strimzi operator already installed in namespace '${NAMESPACE}', skipping."
-else
-    echo "Installing Strimzi operator (${STRIMZI_VERSION})..."
-    kubectl create -f "${STRIMZI_INSTALL_URL}" -n "${NAMESPACE}"
-fi
+echo "Installing Strimzi operator (${STRIMZI_VERSION})..."
+kubectl apply -f "${STRIMZI_INSTALL_URL}" -n "${NAMESPACE}"
 
 echo "Waiting for Strimzi operator to be ready..."
 kubectl rollout status deployment/strimzi-cluster-operator \
@@ -130,27 +142,23 @@ if [[ "${SKIP_KROXYLICIOUS}" == "true" ]]; then
     echo "Skipping Kroxylicious operator installation (--skip-kroxylicious)."
 else
     echo ""
-    if kubectl get deployment kroxylicious-operator -n "${KROXYLICIOUS_OPERATOR_NAMESPACE}" &>/dev/null; then
-        echo "Kroxylicious operator already installed in namespace '${KROXYLICIOUS_OPERATOR_NAMESPACE}', skipping."
-    else
-        echo "Installing Kroxylicious operator (${KROXYLICIOUS_VERSION})..."
+    echo "Installing Kroxylicious operator (${KROXYLICIOUS_VERSION})..."
 
-        WORK_DIR="$(mktemp -d)"
-        trap 'rm -rf "${WORK_DIR}"' EXIT
+    WORK_DIR="$(mktemp -d)"
+    trap 'rm -rf "${WORK_DIR}"' EXIT
 
-        TARBALL="kroxylicious-operator-${KROXYLICIOUS_VERSION}.tar.gz"
-        echo "  Downloading ${TARBALL}..."
-        gh release download "v${KROXYLICIOUS_VERSION}" \
-            --repo kroxylicious/kroxylicious \
-            --pattern "${TARBALL}" \
-            --output "${WORK_DIR}/${TARBALL}"
+    TARBALL="kroxylicious-operator-${KROXYLICIOUS_VERSION}.tar.gz"
+    echo "  Downloading ${TARBALL}..."
+    gh release download "v${KROXYLICIOUS_VERSION}" \
+        --repo kroxylicious/kroxylicious \
+        --pattern "${TARBALL}" \
+        --output "${WORK_DIR}/${TARBALL}"
 
-        echo "  Extracting..."
-        tar xzf "${WORK_DIR}/${TARBALL}" -C "${WORK_DIR}"
+    echo "  Extracting..."
+    tar xzf "${WORK_DIR}/${TARBALL}" -C "${WORK_DIR}"
 
-        echo "  Applying manifests..."
-        kubectl apply -f "${WORK_DIR}/install/"
-    fi
+    echo "  Applying manifests..."
+    kubectl apply -f "${WORK_DIR}/install/"
 
     echo "Waiting for Kroxylicious operator to be ready..."
     kubectl rollout status deployment/kroxylicious-operator \
