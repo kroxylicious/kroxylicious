@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.ScramMechanism;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
+import io.skodjob.testframe.clients.KubeClusterException;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.executor.ExecResult;
@@ -166,16 +168,29 @@ public class KafkaSteps {
 
     /**
      * Get the consumer groups that are currently on kafka
-     * @param clusterName
+     * @param clusterName the cluster name
      * @return list of consumer groups
      */
     public static List<String> getConsumerGroups(String clusterName) {
+        List<String> consumerGroups = List.of();
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
-        String kafkaPodName = kafkaPods.stream().filter(p -> p.getMetadata().getName().contains("kafka")).findFirst().get().getMetadata().getName();
-        String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9094";
-        List<String> command = List.of("/bin/bash", "./bin/kafka-consumer-groups.sh", "--bootstrap-server", kafkaBootstrap, "--list");
-        ExecResult result = cmdKubeClient(Constants.KAFKA_DEFAULT_NAMESPACE).execInPod(kafkaPodName, true, command);
-        LOGGER.info("Consumer groups: {}", result.out());
-        return Arrays.stream(result.out().split("\n")).toList();
+        Optional<Pod> kafkaPod = kafkaPods.stream().filter(p -> p.getMetadata().getName().contains("kafka")).findFirst();
+
+        if (kafkaPod.isPresent()) {
+            String kafkaPodName = kafkaPod.get().getMetadata().getName();
+            String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9094";
+            List<String> command = List.of("/bin/bash", "./bin/kafka-consumer-groups.sh", "--bootstrap-server", kafkaBootstrap, "--list");
+            ExecResult result = cmdKubeClient(Constants.KAFKA_DEFAULT_NAMESPACE).execInPod(kafkaPodName, true, command);
+
+            if (result.isSuccess()) {
+                LOGGER.info("Consumer groups: {}", result.out());
+                consumerGroups = Arrays.stream(result.out().split("\n")).toList();
+            }
+        }
+        else {
+            throw new KubeClusterException(new Throwable("Kafka pod not found!"));
+        }
+
+        return consumerGroups;
     }
 }

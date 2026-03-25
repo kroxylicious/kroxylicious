@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-public class EntityIsolationST extends AbstractSystemTests {
+class EntityIsolationST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(EntityIsolationST.class);
     private static final String MESSAGE = "Hello-world";
     private final String clusterName = "entity-isolation-st-cluster";
