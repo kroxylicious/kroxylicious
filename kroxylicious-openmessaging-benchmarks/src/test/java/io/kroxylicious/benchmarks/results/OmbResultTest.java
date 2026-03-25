@@ -55,14 +55,16 @@ class OmbResultTest {
     }
 
     @Test
-    void publishRateMeanIsComputed() {
-        // [50000.0, 49800.0, 50200.0] -> mean = 50000.0
+    void publishRateIsTotalAcrossAllProducers() {
+        // per-producer: [5000, 4980, 5020] -> mean 5000; topics=10, producersPerTopic=1
+        // total = 5000 * 10 * 1 = 50000
         assertThat(baseline.getPublishRate()).isCloseTo(50000.0, withPercentage(0.01));
     }
 
     @Test
-    void consumeRateMeanIsComputed() {
-        // [49900.0, 50100.0, 50000.0] -> mean = 50000.0
+    void consumeRateIsTotalAcrossAllConsumers() {
+        // per-consumer: [4990, 5010, 5000] -> mean 5000; topics=10, consumersPerTopic=1
+        // total = 5000 * 10 * 1 = 50000
         assertThat(baseline.getConsumeRate()).isCloseTo(50000.0, withPercentage(0.01));
     }
 

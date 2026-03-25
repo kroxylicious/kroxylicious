@@ -54,7 +54,7 @@ public class ResultComparator {
     }
 
     private void printThroughput(PrintStream out) {
-        printSectionHeader(out, "Throughput (msg/s, mean)");
+        printSectionHeader(out, "Total Throughput (msg/s)");
         printRow(out, "Publish Rate", baseline.getPublishRate(), candidate.getPublishRate());
         printRow(out, "Consume Rate", baseline.getConsumeRate(), candidate.getConsumeRate());
     }
