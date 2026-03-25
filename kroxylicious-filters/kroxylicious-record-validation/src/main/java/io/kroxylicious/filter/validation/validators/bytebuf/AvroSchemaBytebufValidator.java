@@ -38,7 +38,7 @@ import io.kroxylicious.filter.validation.validators.Result;
  * envelope (schema ID in headers or magic-byte body prefix).
  * </p>
  */
-public class AvroSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
+class AvroSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final AvroValidator avroValidator;
     private final Schema avroSchema;
 

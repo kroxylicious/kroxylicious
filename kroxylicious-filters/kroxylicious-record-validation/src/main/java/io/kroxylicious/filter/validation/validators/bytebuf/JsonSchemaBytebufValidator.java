@@ -27,7 +27,7 @@ import io.kroxylicious.filter.validation.validators.Result;
  * headers or magic-byte body prefix).
  * </p>
  */
-public class JsonSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
+class JsonSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final JsonValidator jsonValidator;
 
     public JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
