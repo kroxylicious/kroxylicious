@@ -13,19 +13,29 @@ These settings control low-level Netty behavior and are optional, with sensible 
 network:
   proxy: # <1>
     workerThreadCount: 8 # <2>
-    shutdownQuietPeriodSeconds: 10 # <3>
-  management: # <4>
+    shutdownQuietPeriod: 5s # <3>
+    shutdownTimeout: 20s # <4>
+  management: # <5>
     workerThreadCount: 2
-    shutdownQuietPeriodSeconds: 5
+    shutdownQuietPeriod: 5s
+    shutdownTimeout: 20s
 virtualClusters:
   # ...
 ----
 <1> Network settings for the proxy endpoints that handle client connections.
 <2> Optional: Number of Netty worker threads for handling concurrent connections. Defaults to twice the number of available processors.
-<3> Optional: Grace period in seconds during which the proxy continues processing existing connections before shutting down. Defaults to 0.
-<4> Network settings for the management HTTP endpoints. Can be configured independently from proxy settings.
+<3> Optional: Grace period during which the proxy continues to accept and complete in-flight requests before shutting down. If no new requests arrive during this window, shutdown proceeds. Defaults to `2s` if not specified. Uses Go-style duration format (for example, `30s`, `5m`).
+<4> Optional: Maximum time allowed for the proxy to complete shutdown. If shutdown does not complete within this period, it is forced. Defaults to `15s` if not specified. Uses Go-style duration format.
+<5> Network settings for the management HTTP endpoints. Can be configured independently from proxy settings.
 
-* All network settings are optional. The proxy will use sensible defaults if not specified.
+Supported duration units are: `h` (hours), `m` (minutes), `s` (seconds), `ms` (milliseconds), `μs` or `us` (microseconds), and `ns` (nanoseconds).
+Units can be combined, for example `1m30s`.
+
 * The `workerThreadCount` setting allows tuning for high-concurrency deployments. Increasing this value can improve throughput when handling many simultaneous client connections.
-* The `shutdownQuietPeriodSeconds` setting provides a graceful shutdown window, allowing in-flight requests to complete before the proxy terminates.
-* Proxy and management endpoints can have different thread pool sizes and shutdown behaviors based on their different workload characteristics.
+* The `shutdownQuietPeriod` and `shutdownTimeout` settings together control graceful shutdown behaviour. `shutdownQuietPeriod` should always be less than or equal to `shutdownTimeout`.
+
+[NOTE]
+====
+The `shutdownQuietPeriodSeconds` field (an integer number of seconds) is deprecated and will be removed in a future release.
+Use `shutdownQuietPeriod` with a Go-style duration string instead (for example, `shutdownQuietPeriod: 2s`).
+====
