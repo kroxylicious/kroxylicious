@@ -62,6 +62,12 @@ public class OmbResult {
     @JsonProperty("consumersPerTopic")
     private int consumersPerTopic = 1;
 
+    @JsonProperty("aggregatedPublishDelayLatencyAvg")
+    private double publishDelayLatencyAvgNs;
+
+    @JsonProperty("aggregatedPublishDelayLatency99pct")
+    private double publishDelayLatency99pctNs;
+
     @JsonProperty("publishRate")
     private double[] publishRate;
 
@@ -106,6 +112,14 @@ public class OmbResult {
 
     public double getAggregatedEndToEndLatency999pct() {
         return endToEndLatency999pct;
+    }
+
+    public double getPublishDelayLatencyAvgNs() {
+        return publishDelayLatencyAvgNs;
+    }
+
+    public double getPublishDelayLatency99pctNs() {
+        return publishDelayLatency99pctNs;
     }
 
     public double getPublishRate() {

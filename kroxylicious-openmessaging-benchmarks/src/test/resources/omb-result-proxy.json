@@ -16,5 +16,7 @@
   "aggregatedEndToEndLatency50pct": 8.10,
   "aggregatedEndToEndLatency95pct": 23.30,
   "aggregatedEndToEndLatency99pct": 45.20,
-  "aggregatedEndToEndLatency999pct": 82.50
+  "aggregatedEndToEndLatency999pct": 82.50,
+  "aggregatedPublishDelayLatencyAvg": 76.0,
+  "aggregatedPublishDelayLatency99pct": 190.0
 }
