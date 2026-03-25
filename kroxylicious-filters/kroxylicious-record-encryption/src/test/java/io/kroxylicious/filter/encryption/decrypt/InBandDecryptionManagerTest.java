@@ -142,13 +142,13 @@ class InBandDecryptionManagerTest {
                 3L,
                 (short) 4, 5, false, false, 1, ARBITRARY_KEY.getBytes(
                         StandardCharsets.UTF_8),
-                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8));
+                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8), 0L);
 
         MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, Compression.NONE,
                 TimestampType.LOG_APPEND_TIME, 9L, 10L,
                 (short) 11, 12, false, false, 2, ARBITRARY_KEY_2.getBytes(
                         StandardCharsets.UTF_8),
-                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8));
+                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8), 0L);
         MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, secondBatch);
 
         // when
@@ -174,13 +174,13 @@ class InBandDecryptionManagerTest {
                 3L,
                 (short) 4, 5, false, false, 1, ARBITRARY_KEY.getBytes(
                         StandardCharsets.UTF_8),
-                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8));
+                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8), 0L);
 
         MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, Compression.NONE,
                 TimestampType.LOG_APPEND_TIME, 9L, 10L,
                 (short) 11, 12, false, false, 2, ARBITRARY_KEY_2.getBytes(
                         StandardCharsets.UTF_8),
-                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8));
+                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8), 0L);
         MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, secondBatch);
         MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(encryptionManager, scheme, records));
 
