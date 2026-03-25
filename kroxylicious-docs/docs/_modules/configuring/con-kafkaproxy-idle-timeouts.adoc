@@ -1,0 +1,91 @@
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-deploy-a-proxy.adoc
+
+[id='con-kafkaproxy-idle-timeouts-{context}']
+= Configuring idle connection timeouts
+
+[role="_abstract"]
+The proxy can automatically disconnect idle client connections to reclaim resources.
+Idle timeout configuration is completely optional and disabled by default, allowing you to opt in only when needed for your deployment.
+Idle timeouts are configured under `spec.network.proxy` in the `KafkaProxy` resource and apply only to the proxy listener — they are not available for the management HTTP server.
+When enabled, idle disconnects are observable via the `kroxylicious_client_to_proxy_disconnects_total` metric.
+
+== When to enable idle timeouts
+
+Consider enabling idle timeouts in the following scenarios:
+
+* *Security posture*: unauthenticated connections can be closed quickly to limit the window for abuse, while authenticated connections get a more generous timeout.
+* *Misbehaving clients*: clients that abandon connections without properly closing them, leaving resources allocated unnecessarily.
+* *Network infrastructure requirements*: environments where firewalls or load balancers drop idle connections, and you want the proxy to disconnect gracefully first.
+
+== When not to enable idle timeouts
+
+Avoid enabling idle timeouts in the following scenarios:
+
+* *Legitimate idle connections*: applications that maintain long-lived connections with extended idle periods, such as consumers with long poll timeouts or applications using connection pooling.
+* *Stable network infrastructure*: environments with reliable network infrastructure and no issues with idle connection management.
+
+== How idle timeouts work
+
+The proxy supports two independent timeout settings that apply at different stages of the connection lifecycle:
+
+* *Unauthenticated timeout* (`unauthenticatedIdleTimeout`): applies to connections where the proxy has not yet detected completed authentication. The proxy considers authentication complete if either of the following is true:
+** A transport subject builder creates a subject with an identity (for example, from a client TLS certificate).
+** A SASL inspection or termination filter has invoked `clientSaslAuthenticationSuccess`.
+* *Authenticated timeout* (`authenticatedIdleTimeout`): applies to connections where an identity has been established, for the remainder of the connection's lifetime.
+
+[NOTE]
+====
+For the proxy to detect authentication completion, you must configure either TLS client certificate authentication or a SASL inspection or termination filter.
+Without one of these, all connections remain in the unauthenticated state for their entire lifetime, and `authenticatedIdleTimeout` has no effect.
+For more information, see the link:{SASLInspectionGuideUrl}[SASL inspection filter guide] and the link:{AuthorizationGuideUrl}[authorization guide].
+====
+
+You can configure one, both, or neither depending on your requirements.
+Timeout values use Go-style duration format.
+Supported units are: `m` (minutes), `s` (seconds), `ms` (milliseconds), `μs` or `us` (microseconds), and `ns` (nanoseconds).
+Units can be combined, for example `1m30s`.
+
+== Configuration examples
+
+.Example: Unauthenticated timeout only
+[source,yaml]
+----
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  network:
+    proxy:
+      unauthenticatedIdleTimeout: 30s # <1>
+----
+<1> Disconnect connections that remain unauthenticated for more than 30 seconds.
+
+.Example: Both timeouts configured
+[source,yaml]
+----
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  network:
+    proxy:
+      unauthenticatedIdleTimeout: 30s # <1>
+      authenticatedIdleTimeout: 10m # <2>
+----
+<1> Disconnect unauthenticated connections after 30 seconds of inactivity.
+<2> Disconnect authenticated connections after 10 minutes of inactivity.
+
+== Monitoring idle disconnects
+
+The proxy tracks idle disconnects using the `kroxylicious_client_to_proxy_disconnects_total` metric with `cause="idle_timeout"`.
+This counter is incremented each time a connection is closed due to exceeding the configured idle timeout.
+
+For more information about connection metrics, see xref:con-prometheus-metrics-proxy-{context}[Overview of proxy metrics].
