@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.StreamSupport;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -82,7 +83,11 @@ public class RunMetadata {
         if (!minikubeProfile.isEmpty()) {
             metadata.put("minikubeProfile", minikubeProfile);
         }
-        metadata.put("hostSystem", hostSystemInfo());
+        Map<String, Object> clusterNodes = clusterNodesInfo(runner);
+        if (!clusterNodes.isEmpty()) {
+            metadata.put("clusterNodes", clusterNodes);
+        }
+        metadata.put("orchestratorSystem", orchestratorSystemInfo());
 
         Path metadataFile = outputDir.resolve("run-metadata.json");
         MAPPER.writerWithDefaultPrettyPrinter().writeValue(metadataFile.toFile(), metadata);
@@ -114,7 +119,39 @@ public class RunMetadata {
         return config;
     }
 
-    private static Map<String, Object> hostSystemInfo() {
+    private static Map<String, Object> clusterNodesInfo(CommandRunner runner) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        try {
+            String json = runner.run("kubectl", "get", "nodes", "-o", "json");
+            JsonNode root = MAPPER.readTree(json);
+            JsonNode items = root.path("items");
+            if (!items.isArray() || items.isEmpty()) {
+                return info;
+            }
+            long nodeCount = StreamSupport.stream(items.spliterator(), false).count();
+            info.put("nodeCount", nodeCount);
+            // Assume homogeneous nodes — take specs from first node
+            JsonNode first = items.get(0);
+            JsonNode nodeInfo = first.path("status").path("nodeInfo");
+            info.put("arch", nodeInfo.path("architecture").asText(DEFAULT_UNKNOWN_VALUE));
+            info.put("osImage", nodeInfo.path("osImage").asText(DEFAULT_UNKNOWN_VALUE));
+            info.put("kernelVersion", nodeInfo.path("kernelVersion").asText(DEFAULT_UNKNOWN_VALUE));
+            info.put("kubeletVersion", nodeInfo.path("kubeletVersion").asText(DEFAULT_UNKNOWN_VALUE));
+            JsonNode capacity = first.path("status").path("capacity");
+            info.put("cpuPerNode", capacity.path("cpu").asText(DEFAULT_UNKNOWN_VALUE));
+            String memKi = capacity.path("memory").asText("");
+            if (memKi.endsWith("Ki")) {
+                long memGb = Long.parseLong(memKi.substring(0, memKi.length() - 2)) / (1024 * 1024);
+                info.put("memoryPerNodeGb", memGb);
+            }
+        }
+        catch (Exception e) {
+            // kubectl not available or not pointed at a cluster
+        }
+        return info;
+    }
+
+    private static Map<String, Object> orchestratorSystemInfo() {
         Map<String, Object> info = new LinkedHashMap<>();
         info.put("os", System.getProperty("os.name"));
         info.put("osVersion", System.getProperty("os.version"));
