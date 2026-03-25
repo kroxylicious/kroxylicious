@@ -336,7 +336,7 @@ public class TestClientsJobTemplates {
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(TOPIC_VAR, topicName),
                 envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
-                envVar(GROUP_ID_VAR, "my-group"),
+                envVar(GROUP_ID_VAR, Constants.CONSUMER_GROUP_NAME),
                 envVar(LOG_LEVEL_VAR, "INFO"),
                 envVar(CLIENT_TYPE_VAR, "KafkaConsumer"),
                 envVar(OUTPUT_FORMAT_VAR, "json"),

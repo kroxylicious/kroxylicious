@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
+import io.kroxylicious.filter.entityisolation.EntityIsolation;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
@@ -71,16 +73,19 @@ public class Kroxylicious {
 
     private void deployAuthorizationResources(String clusterName, Map<String, String> usernamePassword, List<String> aclRules) {
         LOGGER.info("Deploy Kroxylicious with authorization filter in {} namespace", deploymentNamespace);
-        String passwordSuffix = "-password";
-
-        usernamePassword.forEach((user, password) -> resourceManager.createResourceFromBuilderWithWait(
-                KroxyliciousSecretTemplates.createPasswordSecret(Constants.KAFKA_DEFAULT_NAMESPACE, user + passwordSuffix, password),
-                KafkaUserTemplates.kafkaUserWithSecret(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, user, user + passwordSuffix)));
+        deployKafkaUsers(clusterName, usernamePassword);
 
         resourceManager.createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getAclRulesConfigMap(deploymentNamespace, "acl-rules", aclRules),
                 KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(deploymentNamespace),
                 KroxyliciousFilterTemplates.kroxyliciousAuthorizationFilter(deploymentNamespace, "${configmap:acl-rules:acl-rules}"));
+    }
+
+    private void deployKafkaUsers(String clusterName, Map<String, String> usernamePassword) {
+        String passwordSuffix = "-password";
+        usernamePassword.forEach((user, password) -> resourceManager.createResourceFromBuilderWithWait(
+                KroxyliciousSecretTemplates.createPasswordSecret(Constants.KAFKA_DEFAULT_NAMESPACE, user + passwordSuffix, password),
+                KafkaUserTemplates.kafkaUserWithSecret(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, user, user + passwordSuffix)));
     }
 
     /**
@@ -300,5 +305,23 @@ public class Kroxylicious {
         deployAuthorizationResources(clusterName, usernamePassword, aclRules);
         deployPortIdentifiesNodeWithFilters(clusterName,
                 List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_AUTHORIZATION_FILTER_NAME));
+    }
+
+    /**
+     * Deploy port identifies node with entity isolation filter.
+     *
+     * @param clusterName the cluster name
+     */
+    public void deployPortIdentifiesNodeWithEntityIsolationFilter(String clusterName, Map<String, String> usernamePassword, Set<EntityIsolation.EntityType> entityTypes) {
+        deployKafkaUsers(clusterName, usernamePassword);
+        deployEntityIsolationResources(entityTypes);
+        deployPortIdentifiesNodeWithFilters(clusterName,
+                List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_ENTITY_ISOLATION_FILTER_NAME));
+    }
+
+    private void deployEntityIsolationResources(Set<EntityIsolation.EntityType> entityTypes) {
+        resourceManager.createResourceFromBuilderWithWait(
+                KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(deploymentNamespace),
+                KroxyliciousFilterTemplates.kroxyliciousEntityIsolationFilter(deploymentNamespace, entityTypes));
     }
 }

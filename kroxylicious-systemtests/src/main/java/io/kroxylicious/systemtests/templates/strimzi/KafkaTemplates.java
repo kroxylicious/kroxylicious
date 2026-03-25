@@ -78,6 +78,12 @@ public class KafkaTemplates {
                                 .withPort(9093)
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(true)
+                                .build(),
+                        new GenericKafkaListenerBuilder()
+                                .withName(Constants.CONSUMER_GROUPS_LISTENER_NAME)
+                                .withPort(9094)
+                                .withType(KafkaListenerType.INTERNAL)
+                                .withTls(false)
                                 .build())
                 .endKafka()
                 .withEntityOperator(entityOperatorSpec)
