@@ -40,6 +40,21 @@ public class OmbResult {
     @JsonProperty("consumeRate")
     private double[] consumeRate;
 
+    @JsonProperty("aggregatedEndToEndLatencyAvg")
+    private double aggregatedEndToEndLatencyAvg;
+
+    @JsonProperty("aggregatedEndToEndLatency50pct")
+    private double aggregatedEndToEndLatency50pct;
+
+    @JsonProperty("aggregatedEndToEndLatency95pct")
+    private double aggregatedEndToEndLatency95pct;
+
+    @JsonProperty("aggregatedEndToEndLatency99pct")
+    private double aggregatedEndToEndLatency99pct;
+
+    @JsonProperty("aggregatedEndToEndLatency999pct")
+    private double aggregatedEndToEndLatency999pct;
+
     @JsonProperty("endToEndLatencyAvg")
     private double[] endToEndLatencyAvg;
 
@@ -81,6 +96,26 @@ public class OmbResult {
 
     public double getConsumeRate(AggregationMethod method) {
         return method.aggregate(consumeRate);
+    }
+
+    public double getAggregatedEndToEndLatencyAvg() {
+        return aggregatedEndToEndLatencyAvg;
+    }
+
+    public double getAggregatedEndToEndLatency50pct() {
+        return aggregatedEndToEndLatency50pct;
+    }
+
+    public double getAggregatedEndToEndLatency95pct() {
+        return aggregatedEndToEndLatency95pct;
+    }
+
+    public double getAggregatedEndToEndLatency99pct() {
+        return aggregatedEndToEndLatency99pct;
+    }
+
+    public double getAggregatedEndToEndLatency999pct() {
+        return aggregatedEndToEndLatency999pct;
     }
 
     public double getEndToEndLatencyAvg(AggregationMethod method) {
