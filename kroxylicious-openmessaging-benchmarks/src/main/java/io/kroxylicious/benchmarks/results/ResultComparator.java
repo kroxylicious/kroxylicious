@@ -18,12 +18,10 @@ public class ResultComparator {
 
     private final OmbResult baseline;
     private final OmbResult candidate;
-    private final AggregationMethod aggregationMethod;
 
-    public ResultComparator(OmbResult baseline, OmbResult candidate, AggregationMethod aggregationMethod) {
+    public ResultComparator(OmbResult baseline, OmbResult candidate) {
         this.baseline = baseline;
         this.candidate = candidate;
-        this.aggregationMethod = aggregationMethod;
     }
 
     /**
@@ -56,10 +54,9 @@ public class ResultComparator {
     }
 
     private void printThroughput(PrintStream out) {
-        String label = aggregationMethod.name().toLowerCase();
-        printSectionHeader(out, "Throughput (msg/s, " + label + ")");
-        printRow(out, "Publish Rate", baseline.getPublishRate(aggregationMethod), candidate.getPublishRate(aggregationMethod));
-        printRow(out, "Consume Rate", baseline.getConsumeRate(aggregationMethod), candidate.getConsumeRate(aggregationMethod));
+        printSectionHeader(out, "Throughput (msg/s, mean)");
+        printRow(out, "Publish Rate", baseline.getPublishRate(), candidate.getPublishRate());
+        printRow(out, "Consume Rate", baseline.getConsumeRate(), candidate.getConsumeRate());
     }
 
     private static void printSectionHeader(PrintStream out, String title) {
