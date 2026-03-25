@@ -106,5 +106,5 @@ spec:
         emptyDir: {}
       - name: results-out
         persistentVolumeClaim:
-          claimName: {{ .Values.omb.sweepResultsPvcName }}
+          claimName: {{ .Values.omb.resultsPvcName }}
 {{- end }}
