@@ -53,6 +53,15 @@ public class OmbResult {
     @JsonProperty("aggregatedEndToEndLatency999pct")
     private double endToEndLatency999pct;
 
+    @JsonProperty("topics")
+    private int topics = 1;
+
+    @JsonProperty("producersPerTopic")
+    private int producersPerTopic = 1;
+
+    @JsonProperty("consumersPerTopic")
+    private int consumersPerTopic = 1;
+
     @JsonProperty("publishRate")
     private double[] publishRate;
 
@@ -100,10 +109,10 @@ public class OmbResult {
     }
 
     public double getPublishRate() {
-        return Arrays.stream(publishRate).average().orElse(0.0);
+        return Arrays.stream(publishRate).average().orElse(0.0) * topics * producersPerTopic;
     }
 
     public double getConsumeRate() {
-        return Arrays.stream(consumeRate).average().orElse(0.0);
+        return Arrays.stream(consumeRate).average().orElse(0.0) * topics * consumersPerTopic;
     }
 }
