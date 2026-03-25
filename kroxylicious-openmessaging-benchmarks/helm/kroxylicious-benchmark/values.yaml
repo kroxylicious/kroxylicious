@@ -66,7 +66,7 @@ omb:
   coordinatorProducerRate: ""  # Producer rate override injected per-probe; empty uses workload default
   # Coordinator JVM opts — explicit Xmx avoids cgroup misdetection where MaxRAMPercentage reads node RAM
   coordinatorJavaOpts: "-Xmx1g -XX:NativeMemoryTracking=summary"
-  sweepResultsPvcName: "omb-sweep-results"  # PVC for result JSON; not Helm-managed, persists across probes
+  resultsPvcName: "omb-results"  # PVC for result JSON; not Helm-managed, persists across runs
   # Resources for the OMB coordinator (Job pod).
   # Needs more headroom than workers.
   coordinator:

@@ -19,7 +19,7 @@ METRICS_INTERVAL="${METRICS_INTERVAL:-30}"
 # Maximum time to wait for a single benchmark to complete (seconds).
 # Should exceed testDurationMinutes + warmupDurationMinutes + setup overhead.
 PROBE_TIMEOUT="${PROBE_TIMEOUT:-3600}"
-RESULTS_PVC_NAME="${RESULTS_PVC_NAME:-omb-sweep-results}"
+RESULTS_PVC_NAME="${RESULTS_PVC_NAME:-omb-results}"
 
 PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component=proxy,app.kubernetes.io/instance=benchmark-proxy"
 
@@ -316,16 +316,20 @@ spec:
 EOF
     local collected=false
     if kubectl wait pod "${reader_pod}" -n "${NAMESPACE}" \
-            --for=condition=ready --timeout=120s 2>/dev/null; then
+            --for=condition=ready --timeout=300s 2>/dev/null; then
         mkdir -p "${OUTPUT_DIR}"
         if kubectl cp "${NAMESPACE}/${reader_pod}:/results/result.json" "${OUTPUT_DIR}/result.json" 2>/dev/null; then
             echo "  result.json"
             collected=true
         fi
     fi
-    kubectl delete pod "${reader_pod}" -n "${NAMESPACE}" --ignore-not-found --wait=false 2>/dev/null || true
     if [[ "${collected}" != "true" ]]; then
         echo "Error: failed to collect result JSON from PVC ${RESULTS_PVC_NAME}" >&2
+        echo "Reader pod status:" >&2
+        kubectl describe pod "${reader_pod}" -n "${NAMESPACE}" 2>/dev/null | tail -20 >&2 || true
+    fi
+    kubectl delete pod "${reader_pod}" -n "${NAMESPACE}" --ignore-not-found --wait=false 2>/dev/null || true
+    if [[ "${collected}" != "true" ]]; then
         return 1
     fi
 }
@@ -351,7 +355,54 @@ HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
 HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
 for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do HELM_ARGS+=(--set "${set_arg}"); done
 
+check_storage_class() {
+    # Extract kafka.storage.storageClass from --set args if present
+    local requested_class=""
+    for arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do
+        if [[ "${arg}" == kafka.storage.storageClass=* ]]; then
+            requested_class="${arg#kafka.storage.storageClass=}"
+        fi
+    done
+
+    if [[ -n "${requested_class}" ]]; then
+        # A specific class was requested — verify it exists
+        if ! kubectl get storageclass "${requested_class}" &>/dev/null; then
+            echo "Error: StorageClass '${requested_class}' not found in this cluster." >&2
+            echo "" >&2
+            echo "Available storage classes:" >&2
+            kubectl get storageclass -o name 2>/dev/null | sed 's|storageclass.storage.k8s.io/|  |' >&2 \
+                || echo "  (none)" >&2
+            echo "" >&2
+            echo "Set up local storage first:" >&2
+            echo "  $(dirname "$0")/setup-local-storage.sh --devices /dev/vdb" >&2
+            exit 1
+        fi
+    else
+        # No class specified — check that a default StorageClass exists
+        local default_class
+        default_class=$(kubectl get storageclass \
+            -o jsonpath='{range .items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")]}{.metadata.name}{"\n"}{end}' \
+            2>/dev/null | head -1)
+        if [[ -z "${default_class}" ]]; then
+            echo "Error: no default StorageClass found and no kafka.storage.storageClass was specified." >&2
+            echo "" >&2
+            echo "Either set a default StorageClass or pass one explicitly:" >&2
+            echo "  --set kafka.storage.storageClass=<name>" >&2
+            echo "" >&2
+            echo "Available storage classes:" >&2
+            kubectl get storageclass -o name 2>/dev/null | sed 's|storageclass.storage.k8s.io/|  |' >&2 \
+                || echo "  (none)" >&2
+            echo "" >&2
+            echo "Set up local storage first:" >&2
+            echo "  $(dirname "$0")/setup-local-storage.sh --devices /dev/vdb" >&2
+            exit 1
+        fi
+    fi
+}
+
 if [[ "${SKIP_DEPLOY}" == "false" ]]; then
+    check_storage_class
+
     # Ensure previous run is cleaned up before starting
     if helm status "${HELM_RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
         echo "Warning: Helm release '${HELM_RELEASE}' already exists. Tearing down before proceeding."
