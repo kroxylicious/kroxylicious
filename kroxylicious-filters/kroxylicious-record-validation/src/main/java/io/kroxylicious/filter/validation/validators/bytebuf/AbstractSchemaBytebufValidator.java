@@ -70,6 +70,10 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
             }
 
             if (extractedSchemaId.isPresent()) {
+                // Some serdes write extra framing bytes after the schema ID (in both header and body modes).
+                // For example, Apicurio ProtobufSerde always writes a delimited Ref message containing the
+                // message type name before the protobuf payload — verified against Apicurio source where
+                // writeRef defaults to true and is never set to false in the body-mode code path.
                 skipExtraSerdeBytes(buffer);
             }
 

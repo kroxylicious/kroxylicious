@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Consumer;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -24,22 +23,12 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.utility.DockerImageName;
 
-import com.github.dockerjava.api.command.CreateContainerCmd;
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.PortBinding;
-import com.github.dockerjava.api.model.Ports;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 
-import io.apicurio.registry.client.RegistryClientFactory;
-import io.apicurio.registry.client.common.RegistryClientOptions;
 import io.apicurio.registry.rest.client.models.CreateArtifact;
 import io.apicurio.registry.rest.client.models.CreateVersion;
 import io.apicurio.registry.rest.client.models.VersionContent;
@@ -88,11 +77,7 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
 
     private static final String PROTOBUF_CONTENT_TYPE = "application/x-protobuf";
 
-    private static final String APICURIO_REGISTRY_HOST = "http://localhost";
-    private static final Integer APICURIO_REGISTRY_PORT = 8083;
-    private static final String APICURIO_REGISTRY_API = "/apis/registry/v3";
-    private static final String APICURIO_REGISTRY_URL = APICURIO_REGISTRY_HOST + ":" + APICURIO_REGISTRY_PORT + APICURIO_REGISTRY_API;
-
+    private static String apicurioRegistryUrl;
     private static String artifactId;
     private static int contentId;
     private static int secondContentId;
@@ -101,22 +86,10 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
 
     @BeforeAll
     static void init() throws Descriptors.DescriptorValidationException {
-        String image = "quay.io/apicurio/apicurio-registry:3.1.6@sha256:d0625211cebb1f58a2982df29cb0945249d8f88f37ccce9e162c0c12c2aea89e";
-        DockerImageName dockerImageName = DockerImageName.parse(image)
-                .asCompatibleSubstituteFor(DockerImageName.parse(image.substring(0, image.indexOf("@"))));
+        registryContainer = startRegistryContainer();
+        apicurioRegistryUrl = registryUrl(registryContainer);
 
-        Consumer<CreateContainerCmd> cmd = e -> e.withHostConfig(new HostConfig().withPortBindings(
-                new PortBinding(Ports.Binding.bindPort(APICURIO_REGISTRY_PORT), new ExposedPort(APICURIO_REGISTRY_PORT))));
-
-        registryContainer = new GenericContainer<>(dockerImageName)
-                .withEnv(Map.of("QUARKUS_HTTP_PORT", String.valueOf(APICURIO_REGISTRY_PORT)))
-                .withExposedPorts(APICURIO_REGISTRY_PORT)
-                .withCreateContainerCmdModifier(cmd)
-                .waitingFor(Wait.forHttp(APICURIO_REGISTRY_API + "/system/info").forStatusCode(200));
-
-        registryContainer.start();
-
-        var client = RegistryClientFactory.create(RegistryClientOptions.create(APICURIO_REGISTRY_URL));
+        var client = registryClient(apicurioRegistryUrl);
 
         CreateArtifact createArtifact = new CreateArtifact();
         createArtifact.setArtifactType("PROTOBUF");
@@ -137,7 +110,7 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
         CreateVersion secondVersion = new CreateVersion();
         VersionContent secondContent = new VersionContent();
         secondContent.setContent(PROTOBUF_SCHEMA_2);
-        secondContent.setContentType("application/x-protobuf");
+        secondContent.setContentType(PROTOBUF_CONTENT_TYPE);
         secondVersion.setContent(secondContent);
         createSecondArtifact.setFirstVersion(secondVersion);
 
@@ -286,7 +259,7 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
     private static ProtobufSerde<DynamicMessage> createProtobufProducerSerde(boolean schemaIdInHeader) {
         var serde = new ProtobufSerde();
         serde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
+                SerdeConfig.REGISTRY_URL, apicurioRegistryUrl,
                 SerdeConfig.EXPLICIT_ARTIFACT_ID, artifactId,
                 SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
                 KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
@@ -300,7 +273,7 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
         // The deserializer falls back to Ref-based type detection in the body instead.
         var serde = new ProtobufSerde();
         serde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
+                SerdeConfig.REGISTRY_URL, apicurioRegistryUrl,
                 SerdeConfig.EXPLICIT_ARTIFACT_ID, artifactId,
                 SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
                 KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader,
@@ -320,7 +293,7 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
                 List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
                         Map.of("schemaValidationConfig",
-                                Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioId", protobufContentId, "schemaType", "PROTOBUF")))))
+                                Map.of("apicurioRegistryUrl", apicurioRegistryUrl, "apicurioId", protobufContentId, "schemaType", "PROTOBUF")))))
                 .build();
         return proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)
@@ -329,12 +302,6 @@ class ProtobufRecordValidationIT extends RecordValidationBaseIT {
 
     @AfterAll
     static void stopResources() {
-        if (registryContainer != null && registryContainer.isRunning()) {
-            registryContainer.stop();
-        }
-    }
-
-    static boolean isDockerAvailable() {
-        return DockerClientFactory.instance().isDockerAvailable();
+        stopContainer(registryContainer);
     }
 }

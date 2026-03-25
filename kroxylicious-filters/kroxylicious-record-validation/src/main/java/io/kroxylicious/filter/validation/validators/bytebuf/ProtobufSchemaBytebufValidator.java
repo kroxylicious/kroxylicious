@@ -37,12 +37,17 @@ import io.kroxylicious.filter.validation.validators.Result;
  * is not currently supported by Apicurio Registry.
  * </p>
  * <p>
+ * Only the first message type defined in the {@code .proto} file is used for validation.
+ * If the schema contains no message types, construction fails with an
+ * {@link IllegalArgumentException}.
+ * </p>
+ * <p>
  * The Apicurio ProtobufSerde writes a delimited Ref message (containing the protobuf message
  * type name) before the actual protobuf payload in both header and body modes. This class
  * overrides {@link #skipExtraSerdeBytes(ByteBuffer)} to skip that Ref prefix before validation.
  * </p>
  */
-public class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
+class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final ProtobufValidator protobufValidator;
     private final Descriptors.Descriptor messageDescriptor;
 
@@ -69,6 +74,12 @@ public class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidat
         int shift = 0;
         byte b;
         do {
+            if (!buffer.hasRemaining()) {
+                throw new IllegalArgumentException("Truncated varint in Ref prefix");
+            }
+            if (shift >= 35) {
+                throw new IllegalArgumentException("Varint too long in Ref prefix");
+            }
             b = buffer.get();
             value |= (b & 0x7F) << shift;
             shift += 7;
@@ -96,7 +107,11 @@ public class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidat
             resolver.configure(schemaResolverConfig, new ProtobufSchemaParser<>());
             var schemaLookupResult = resolver.resolveSchemaByArtifactReference(ArtifactReference.fromContentId(schemaId));
             var protobufSchema = schemaLookupResult.getParsedSchema().getParsedSchema();
-            return protobufSchema.getFileDescriptor().getMessageTypes().get(0);
+            var messageTypes = protobufSchema.getFileDescriptor().getMessageTypes();
+            if (messageTypes.isEmpty()) {
+                throw new IllegalArgumentException("Protobuf schema has no message types defined");
+            }
+            return messageTypes.get(0);
         }
         catch (IOException e) {
             throw new UncheckedIOException("Failed to resolve Protobuf schema", e);
