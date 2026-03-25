@@ -51,7 +51,7 @@ class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     private final ProtobufValidator protobufValidator;
     private final Descriptors.Descriptor messageDescriptor;
 
-    public ProtobufSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
+    ProtobufSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long schemaId, WireFormatVersion wireFormatVersion) {
         super(schemaId, wireFormatVersion);
         this.protobufValidator = new ProtobufValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromContentId(schemaId)));
         this.messageDescriptor = resolveProtobufDescriptor(schemaResolverConfig, schemaId);
