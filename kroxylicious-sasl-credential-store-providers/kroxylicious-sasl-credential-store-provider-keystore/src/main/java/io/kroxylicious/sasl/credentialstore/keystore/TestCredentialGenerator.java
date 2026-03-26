@@ -33,6 +33,7 @@ public class TestCredentialGenerator {
 
     private static final int DEFAULT_ITERATIONS = 4096;
     private static final int SALT_LENGTH = 20;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     /**
      * Generate a KeyStore containing SCRAM credentials for testing.
@@ -131,7 +132,7 @@ public class TestCredentialGenerator {
     @NonNull
     private static byte[] generateSalt() {
         byte[] salt = new byte[SALT_LENGTH];
-        new SecureRandom().nextBytes(salt);
+        SECURE_RANDOM.nextBytes(salt);
         return salt;
     }
 }
