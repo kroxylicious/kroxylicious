@@ -7,9 +7,7 @@
 package io.kroxylicious.proxy.internal.tls;
 
 import java.security.PrivateKey;
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -39,24 +37,15 @@ public class ServerTlsCredentialSupplierContextImpl implements ServerTlsCredenti
 
     @NonNull
     @Override
-    public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+    public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull X509Certificate[] certificateChain) {
         Objects.requireNonNull(key, "key must not be null");
         Objects.requireNonNull(certificateChain, "certificateChain must not be null");
         if (certificateChain.length == 0) {
             throw new IllegalArgumentException("certificateChain must not be empty");
         }
 
-        X509Certificate[] x509Chain = Arrays.stream(certificateChain)
-                .map(cert -> {
-                    if (!(cert instanceof X509Certificate)) {
-                        throw new IllegalArgumentException("All certificates in chain must be X509Certificate instances");
-                    }
-                    return (X509Certificate) cert;
-                })
-                .toArray(X509Certificate[]::new);
+        TlsUtil.validateCertificateChain(key, certificateChain);
 
-        TlsUtil.validateCertificateChain(key, x509Chain);
-
-        return new TlsCredentialsImpl(key, x509Chain);
+        return new TlsCredentialsImpl(key, certificateChain);
     }
 }

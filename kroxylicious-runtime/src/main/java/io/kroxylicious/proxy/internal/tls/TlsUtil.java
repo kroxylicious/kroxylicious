@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal.tls;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.security.AlgorithmParameters;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -16,9 +17,11 @@ import java.security.PublicKey;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.ECParameterSpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
@@ -26,6 +29,11 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 
+import javax.crypto.Cipher;
+import javax.crypto.EncryptedPrivateKeyInfo;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 import javax.net.ssl.SSLException;
 import javax.security.auth.x500.X500Principal;
 
@@ -55,27 +63,27 @@ public class TlsUtil {
     /**
      * Parses a PEM-encoded private key from a byte array.
      *
-     * @param pemBytes PEM-encoded private key bytes
+     * @param pemKeyBytes PEM-encoded private key bytes
      * @return The parsed PrivateKey
      * @throws IOException if the key cannot be parsed
      */
     @NonNull
-    public static PrivateKey parsePrivateKey(@NonNull byte[] pemBytes) throws IOException {
-        return parsePrivateKey(pemBytes, null);
+    public static PrivateKey parsePrivateKey(@NonNull byte[] pemKeyBytes) throws IOException {
+        return parsePrivateKey(pemKeyBytes, null);
     }
 
     /**
      * Parses a PEM-encoded private key from a byte array, with optional password for encrypted keys.
      *
-     * @param pemBytes PEM-encoded private key bytes
+     * @param pemKeyBytes PEM-encoded private key bytes
      * @param password password for decrypting the private key, or {@code null} if unencrypted
      * @return The parsed PrivateKey
      * @throws IOException if the key cannot be parsed
      */
     @NonNull
-    public static PrivateKey parsePrivateKey(@NonNull byte[] pemBytes, @edu.umd.cs.findbugs.annotations.Nullable char[] password) throws IOException {
+    public static PrivateKey parsePrivateKey(@NonNull byte[] pemKeyBytes, @edu.umd.cs.findbugs.annotations.Nullable char[] password) throws IOException {
         try {
-            String pemString = new String(pemBytes);
+            String pemString = new String(pemKeyBytes, java.nio.charset.StandardCharsets.US_ASCII);
 
             // Find the BEGIN marker for a private key
             int beginIdx = pemString.indexOf(BEGIN_MARKER);
@@ -102,52 +110,63 @@ public class TlsUtil {
 
             // Handle encrypted PKCS#8 private keys
             if (password != null) {
-                try {
-                    javax.crypto.EncryptedPrivateKeyInfo encryptedInfo = new javax.crypto.EncryptedPrivateKeyInfo(keyBytes);
-                    javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance(encryptedInfo.getAlgName());
-                    javax.crypto.SecretKeyFactory skf = javax.crypto.SecretKeyFactory.getInstance(encryptedInfo.getAlgName());
-                    javax.crypto.spec.PBEKeySpec pbeKeySpec = new javax.crypto.spec.PBEKeySpec(password);
-                    javax.crypto.SecretKey pbeKey = skf.generateSecret(pbeKeySpec);
-                    java.security.AlgorithmParameters algParams = encryptedInfo.getAlgParameters();
-                    cipher.init(javax.crypto.Cipher.DECRYPT_MODE, pbeKey, algParams);
-                    PKCS8EncodedKeySpec decryptedSpec = encryptedInfo.getKeySpec(cipher);
-                    keyBytes = decryptedSpec.getEncoded();
-                }
-                catch (Exception e) {
-                    throw new IOException("Failed to decrypt encrypted private key: " + e.getMessage(), e);
-                }
+                keyBytes = decryptPrivateKey(keyBytes, password);
             }
 
             // Handle PKCS#1 format ("RSA PRIVATE KEY") by converting to PKCS#8
             if (headerType.startsWith("RSA")) {
-                try {
-                    byte[] pkcs8Bytes = convertPkcs1ToPkcs8(keyBytes);
-                    KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-                    return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(pkcs8Bytes));
-                }
-                catch (Exception e) {
-                    throw new IOException("Failed to parse PKCS#1 RSA private key: " + e.getMessage(), e);
-                }
+                return parsePkcs1RsaPrivateKey(keyBytes);
             }
 
             // Handle PKCS#8 format ("PRIVATE KEY") - try common key algorithms
-            String[] algorithms = { "RSA", "EC", "DSA" };
-            for (String algorithm : algorithms) {
-                try {
-                    KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
-                    PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
-                    return keyFactory.generatePrivate(keySpec);
-                }
-                catch (InvalidKeySpecException e) {
-                    LOGGER.debug("Failed to parse private key as {}, trying next algorithm", algorithm);
-                }
-            }
-
-            throw new IOException("Failed to parse private key with any supported algorithm");
+            return parsePkcs8PrivateKey(keyBytes);
         }
         catch (NoSuchAlgorithmException e) {
             throw new IOException("Required cryptographic algorithm not available", e);
         }
+    }
+
+    private static byte[] decryptPrivateKey(byte[] keyBytes, char[] password) throws IOException {
+        try {
+            EncryptedPrivateKeyInfo encryptedInfo = new EncryptedPrivateKeyInfo(keyBytes);
+            Cipher cipher = Cipher.getInstance(encryptedInfo.getAlgName());
+            SecretKeyFactory skf = SecretKeyFactory.getInstance(encryptedInfo.getAlgName());
+            PBEKeySpec pbeKeySpec = new PBEKeySpec(password);
+            SecretKey pbeKey = skf.generateSecret(pbeKeySpec);
+            AlgorithmParameters algParams = encryptedInfo.getAlgParameters();
+            cipher.init(Cipher.DECRYPT_MODE, pbeKey, algParams);
+            PKCS8EncodedKeySpec decryptedSpec = encryptedInfo.getKeySpec(cipher);
+            return decryptedSpec.getEncoded();
+        }
+        catch (Exception e) {
+            throw new IOException("Failed to decrypt encrypted private key: " + e.getMessage(), e);
+        }
+    }
+
+    private static PrivateKey parsePkcs1RsaPrivateKey(byte[] keyBytes) throws IOException {
+        try {
+            byte[] pkcs8Bytes = convertPkcs1ToPkcs8(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(pkcs8Bytes));
+        }
+        catch (Exception e) {
+            throw new IOException("Failed to parse PKCS#1 RSA private key: " + e.getMessage(), e);
+        }
+    }
+
+    private static PrivateKey parsePkcs8PrivateKey(byte[] keyBytes) throws IOException, NoSuchAlgorithmException {
+        String[] algorithms = { "RSA", "EC", "DSA" };
+        for (String algorithm : algorithms) {
+            try {
+                KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+                PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
+                return keyFactory.generatePrivate(keySpec);
+            }
+            catch (InvalidKeySpecException e) {
+                LOGGER.debug("Failed to parse private key as {}, trying next algorithm", algorithm);
+            }
+        }
+        throw new IOException("Failed to parse private key with any supported algorithm");
     }
 
     /**
@@ -221,8 +240,8 @@ public class TlsUtil {
             while (bais.available() > 0) {
                 try {
                     java.security.cert.Certificate cert = certFactory.generateCertificate(bais);
-                    if (cert instanceof X509Certificate) {
-                        certificates.add((X509Certificate) cert);
+                    if (cert instanceof X509Certificate x509Cert) {
+                        certificates.add(x509Cert);
                     }
                 }
                 catch (CertificateException e) {
@@ -247,14 +266,14 @@ public class TlsUtil {
      *
      * @param privateKey The private key to validate
      * @param certificate The certificate containing the public key
-     * @throws IllegalStateException if the keys don't match
+     * @throws BadTlsCredentialsException if the keys don't match
      */
     public static void validateKeyAndCertMatch(@NonNull PrivateKey privateKey, @NonNull X509Certificate certificate) {
         PublicKey publicKey = certificate.getPublicKey();
 
         // Check if the algorithms match
         if (!privateKey.getAlgorithm().equals(publicKey.getAlgorithm())) {
-            throw new IllegalStateException(
+            throw new BadTlsCredentialsException(
                     "Private key algorithm (" + privateKey.getAlgorithm() +
                             ") does not match certificate public key algorithm (" + publicKey.getAlgorithm() + ")");
         }
@@ -276,14 +295,14 @@ public class TlsUtil {
      *
      * @param privateKey The RSA private key
      * @param publicKey The RSA public key
-     * @throws IllegalStateException if the keys don't match
+     * @throws BadTlsCredentialsException if the keys don't match
      */
     private static void validateRsaKeyMatch(@NonNull PrivateKey privateKey, @NonNull PublicKey publicKey) {
         if (!(privateKey instanceof RSAPrivateKey rsaPrivateKey)) {
-            throw new IllegalStateException("Expected RSAPrivateKey but got " + privateKey.getClass().getName());
+            throw new BadTlsCredentialsException("Expected RSAPrivateKey but got " + privateKey.getClass().getName());
         }
         if (!(publicKey instanceof RSAPublicKey rsaPublicKey)) {
-            throw new IllegalStateException("Expected RSAPublicKey but got " + publicKey.getClass().getName());
+            throw new BadTlsCredentialsException("Expected RSAPublicKey but got " + publicKey.getClass().getName());
         }
 
         // Verify modulus matches
@@ -291,11 +310,11 @@ public class TlsUtil {
         BigInteger publicModulus = rsaPublicKey.getModulus();
 
         if (privateModulus == null || publicModulus == null) {
-            throw new IllegalStateException("RSA key modulus is null");
+            throw new BadTlsCredentialsException("RSA key modulus is null");
         }
 
         if (!privateModulus.equals(publicModulus)) {
-            throw new IllegalStateException(
+            throw new BadTlsCredentialsException(
                     "RSA private key modulus does not match certificate public key modulus. " +
                             "The private key does not correspond to the certificate.");
         }
@@ -304,36 +323,40 @@ public class TlsUtil {
     }
 
     /**
-     * Validates that an EC private key matches an EC public key.
+     * Validates that an EC private key matches an EC public key by comparing curve parameters.
      *
      * @param privateKey The EC private key
      * @param publicKey The EC public key
-     * @throws IllegalStateException if the keys don't match
+     * @throws BadTlsCredentialsException if the keys don't match
      */
     private static void validateEcKeyMatch(@NonNull PrivateKey privateKey, @NonNull PublicKey publicKey) {
+        if (!(privateKey instanceof ECPrivateKey ecPrivateKey)) {
+            throw new BadTlsCredentialsException("Expected ECPrivateKey but got " + privateKey.getClass().getName());
+        }
         if (!(publicKey instanceof ECPublicKey ecPublicKey)) {
-            throw new IllegalStateException("Expected ECPublicKey but got " + publicKey.getClass().getName());
+            throw new BadTlsCredentialsException("Expected ECPublicKey but got " + publicKey.getClass().getName());
         }
 
-        // For EC keys, we validate by attempting a basic cryptographic operation
-        // The key material structure should be compatible
-        try {
-            // Verify the keys can be used together by checking curve parameters match
-            byte[] encoded = publicKey.getEncoded();
-            if (encoded == null || encoded.length == 0) {
-                throw new IllegalStateException("EC public key encoding is empty");
-            }
-            LOGGER.debug("EC key-certificate match validated via structural checks");
+        // Validate that both keys use the same curve
+        ECParameterSpec privateParams = ecPrivateKey.getParams();
+        ECParameterSpec publicParams = ecPublicKey.getParams();
+
+        if (privateParams == null || publicParams == null) {
+            throw new BadTlsCredentialsException("EC key parameters are null");
         }
-        catch (Exception e) {
-            throw new IllegalStateException("EC private key does not correspond to certificate public key: " + e.getMessage(), e);
+
+        if (!privateParams.getCurve().equals(publicParams.getCurve())) {
+            throw new BadTlsCredentialsException("EC private key curve does not match certificate public key curve. " +
+                    "The private key does not correspond to the certificate.");
         }
+
+        LOGGER.debug("EC key-certificate match validated via curve parameter comparison");
     }
 
     /**
      * Validates the certificate chain integrity and parameters.
      *
-     * @param privateKey The private key (for additional validation context)
+     * @param privateKey The private key (for key-certificate matching validation)
      * @param certChain The certificate chain to validate
      * @throws IllegalArgumentException if validation fails
      */
@@ -359,6 +382,10 @@ public class TlsUtil {
         // Validate that the private key corresponds to the leaf certificate
         validateKeyAndCertMatch(privateKey, leafCert);
 
+        // Validate that the leaf certificate has clientAuth extended key usage if EKU is present.
+        // If no EKU extension is present, the certificate is unrestricted (common for self-signed certs).
+        validateClientAuthExtendedKeyUsage(leafCert);
+
         // Check for root CA in chain (should not be present per API contract).
         // A single self-signed leaf certificate is allowed (common for test and simple deployments),
         // but a self-signed CA certificate in a multi-cert chain should be excluded.
@@ -376,50 +403,77 @@ public class TlsUtil {
 
         // Validate chain order and signatures (intermediate certificates)
         if (certChain.length > 1) {
-            for (int i = 0; i < certChain.length - 1; i++) {
-                X509Certificate subject = certChain[i];
-                X509Certificate issuer = certChain[i + 1];
-
-                // Verify issuer relationship
-                X500Principal subjectIssuer = subject.getIssuerX500Principal();
-                X500Principal issuerSubject = issuer.getSubjectX500Principal();
-
-                if (!subjectIssuer.equals(issuerSubject)) {
-                    throw new IllegalArgumentException(
-                            "Certificate chain order is invalid at position " + i + ". " +
-                                    "Certificate issuer '" + subjectIssuer.getName() + "' " +
-                                    "does not match next certificate subject '" + issuerSubject.getName() + "'. " +
-                                    "Certificates must be ordered from leaf to intermediate certificates.");
-                }
-
-                // Verify signature
-                try {
-                    subject.verify(issuer.getPublicKey());
-                }
-                catch (Exception e) {
-                    throw new IllegalArgumentException(
-                            "Certificate at position " + i + " signature verification failed. " +
-                                    "Certificate '" + subject.getSubjectX500Principal().getName() + "' " +
-                                    "was not signed by '" + issuer.getSubjectX500Principal().getName() + "': " +
-                                    e.getMessage(),
-                            e);
-                }
-
-                // Validate intermediate certificate dates
-                try {
-                    issuer.checkValidity(now);
-                }
-                catch (CertificateException e) {
-                    throw new IllegalArgumentException(
-                            "Intermediate certificate at position " + i + " is not valid: " + e.getMessage() +
-                                    " (subject: " + issuer.getSubjectX500Principal().getName() + ", " +
-                                    "valid from " + issuer.getNotBefore() + " to " + issuer.getNotAfter() + ")",
-                            e);
-                }
-            }
+            validateChainOrderAndSignatures(certChain, now);
         }
 
         LOGGER.debug("Certificate chain validation passed: {} certificates in chain", certChain.length);
+    }
+
+    /**
+     * OID for id-kp-clientAuth (1.3.6.1.5.5.7.3.2).
+     */
+    private static final String CLIENT_AUTH_OID = "1.3.6.1.5.5.7.3.2";
+
+    /**
+     * Validates that the certificate includes the clientAuth extended key usage,
+     * if an EKU extension is present. Certificates without EKU are considered unrestricted.
+     */
+    private static void validateClientAuthExtendedKeyUsage(X509Certificate cert) {
+        try {
+            List<String> ekus = cert.getExtendedKeyUsage();
+            if (ekus != null && !ekus.contains(CLIENT_AUTH_OID)) {
+                throw new BadTlsCredentialsException(
+                        "Leaf certificate does not include the clientAuth extended key usage (OID " + CLIENT_AUTH_OID + "). " +
+                                "Certificates used for upstream TLS client authentication must have clientAuth in their Extended Key Usage extension.");
+            }
+        }
+        catch (CertificateException e) {
+            throw new BadTlsCredentialsException("Failed to read extended key usage from certificate: " + e.getMessage(), e);
+        }
+    }
+
+    private static void validateChainOrderAndSignatures(X509Certificate[] certChain, Date now) {
+        for (int i = 0; i < certChain.length - 1; i++) {
+            X509Certificate subject = certChain[i];
+            X509Certificate issuer = certChain[i + 1];
+
+            // Verify issuer relationship
+            X500Principal subjectIssuer = subject.getIssuerX500Principal();
+            X500Principal issuerSubject = issuer.getSubjectX500Principal();
+
+            if (!subjectIssuer.equals(issuerSubject)) {
+                throw new IllegalArgumentException(
+                        "Certificate chain order is invalid at position " + i + ". " +
+                                "Certificate issuer '" + subjectIssuer.getName() + "' " +
+                                "does not match next certificate subject '" + issuerSubject.getName() + "'. " +
+                                "Certificates must be ordered from leaf to intermediate certificates.");
+            }
+
+            // Verify signature
+            try {
+                subject.verify(issuer.getPublicKey());
+            }
+            catch (Exception e) {
+                throw new IllegalArgumentException(
+                        "Certificate at position " + i + " signature verification failed. " +
+                                "Certificate '" + subject.getSubjectX500Principal().getName() + "' " +
+                                "was not signed by '" + issuer.getSubjectX500Principal().getName() + "': " +
+                                e.getMessage(),
+                        e);
+            }
+
+            // Validate intermediate certificate dates
+            try {
+                issuer.checkValidity(now);
+            }
+            catch (CertificateException e) {
+                throw new IllegalArgumentException(
+                        "Intermediate certificate at position " + i + " is not valid: " + e.getMessage() +
+                                " (subject: " + issuer.getSubjectX500Principal().getName() + ", " +
+                                "valid from " + issuer.getNotBefore() + " to " + issuer.getNotAfter() + ")",
+                        e);
+            }
+        }
     }
 
     /**
@@ -454,7 +508,7 @@ public class TlsUtil {
     @NonNull
     public static SslContext toClientSslContext(@NonNull TlsCredentialsImpl credentials) throws SSLException {
         return SslContextBuilder.forClient()
-                .keyManager(credentials.getPrivateKey(), credentials.getCertificateChain())
+                .keyManager(credentials.privateKey(), credentials.certificateChain())
                 .build();
     }
 
@@ -470,7 +524,7 @@ public class TlsUtil {
     public static SslContext toClientSslContext(@NonNull TlsCredentialsImpl credentials,
                                                 @NonNull SslContextBuilder builder)
             throws SSLException {
-        return builder.keyManager(credentials.getPrivateKey(), credentials.getCertificateChain())
+        return builder.keyManager(credentials.privateKey(), credentials.certificateChain())
                 .build();
     }
 }

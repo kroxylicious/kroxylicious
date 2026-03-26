@@ -7,7 +7,7 @@
 package io.kroxylicious.proxy.tls;
 
 import java.security.PrivateKey;
-import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.Optional;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -25,7 +25,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * <pre>{@code
  * public class MyCredentialSupplier implements ServerTlsCredentialSupplier {
  *     private final PrivateKey defaultKey;
- *     private final Certificate[] defaultChain;
+ *     private final X509Certificate[] defaultChain;
  *
  *     @Override
  *     public CompletionStage<TlsCredentials> tlsCredentials(ServerTlsCredentialSupplierContext context) {
@@ -71,5 +71,5 @@ public interface ServerTlsCredentialSupplierContext {
      * @throws IllegalArgumentException if the key does not match the certificate or the chain is invalid
      */
     @NonNull
-    TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain);
+    TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull X509Certificate[] certificateChain);
 }

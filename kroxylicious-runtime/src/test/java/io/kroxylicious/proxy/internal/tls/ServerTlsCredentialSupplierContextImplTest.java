@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.tls;
 
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -44,7 +43,7 @@ class ServerTlsCredentialSupplierContextImplTest {
     @Test
     void tlsCredentialsRejectsNullKey() {
         var ctx = new ServerTlsCredentialSupplierContextImpl(null);
-        Certificate[] chain = { mock(X509Certificate.class) };
+        X509Certificate[] chain = { mock(X509Certificate.class) };
         assertThatThrownBy(() -> ctx.tlsCredentials(null, chain))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("key");
@@ -61,28 +60,19 @@ class ServerTlsCredentialSupplierContextImplTest {
     @Test
     void tlsCredentialsRejectsEmptyChain() {
         var ctx = new ServerTlsCredentialSupplierContextImpl(null);
-        assertThatThrownBy(() -> ctx.tlsCredentials(keyAndCert.privateKey(), new Certificate[0]))
+        assertThatThrownBy(() -> ctx.tlsCredentials(keyAndCert.privateKey(), new X509Certificate[0]))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must not be empty");
     }
 
     @Test
-    void tlsCredentialsRejectsNonX509Certificate() {
-        var ctx = new ServerTlsCredentialSupplierContextImpl(null);
-        Certificate nonX509 = mock(Certificate.class);
-        assertThatThrownBy(() -> ctx.tlsCredentials(keyAndCert.privateKey(), new Certificate[]{ nonX509 }))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("X509Certificate");
-    }
-
-    @Test
     void tlsCredentialsReturnsTlsCredentialsWithValidInput() {
         var ctx = new ServerTlsCredentialSupplierContextImpl(null);
-        TlsCredentials creds = ctx.tlsCredentials(keyAndCert.privateKey(), new Certificate[]{ keyAndCert.cert() });
+        TlsCredentials creds = ctx.tlsCredentials(keyAndCert.privateKey(), new X509Certificate[]{ keyAndCert.cert() });
         assertThat(creds).isInstanceOf(TlsCredentialsImpl.class);
         TlsCredentialsImpl impl = (TlsCredentialsImpl) creds;
-        assertThat(impl.getPrivateKey()).isSameAs(keyAndCert.privateKey());
-        assertThat(impl.getCertificateChain()).containsExactly(keyAndCert.cert());
+        assertThat(impl.privateKey()).isSameAs(keyAndCert.privateKey());
+        assertThat(impl.certificateChain()).containsExactly(keyAndCert.cert());
     }
 
     @Test
@@ -90,8 +80,8 @@ class ServerTlsCredentialSupplierContextImplTest {
         var ctx = new ServerTlsCredentialSupplierContextImpl(null);
         TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateKeyStoreAndCert("CN=other");
 
-        assertThatThrownBy(() -> ctx.tlsCredentials(other.privateKey(), new Certificate[]{ keyAndCert.cert() }))
-                .isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> ctx.tlsCredentials(other.privateKey(), new X509Certificate[]{ keyAndCert.cert() }))
+                .isInstanceOf(BadTlsCredentialsException.class)
                 .hasMessageContaining("does not match");
     }
 }
