@@ -170,15 +170,17 @@ When using an `openShiftRoute` ingress, the proxy uses SNI (Server Name Indicati
 The bootstrap and broker addresses are automatically generated. They look like this:
 
 .Example bootstrap and broker addresses
-[source,shell]
+[source,text]
 ----
-your-cluster-bootstrap.ingress-domain:443 # <1>
-your-cluster-0.ingress-domain:443 # <2>
+your-cluster-bootstrap.ingress-domain:443
+your-cluster-0.ingress-domain:443
 your-cluster-1.ingress-domain:443
 your-cluster-2.ingress-domain:443
 ----
-<1> The bootstrap address follows this pattern: `<virtualClusterName>-bootstrap.<ingressDomain>:443`
-<2> The broker address follows this pattern: `<virtualClusterName>-<nodeId>.<ingressDomain>:443`
+where:
+
+* The bootstrap address follows this pattern: `<virtualClusterName>-bootstrap.<ingressDomain>:443`
+* The broker address follows this pattern: `<virtualClusterName>-<nodeId>.<ingressDomain>:443`
 
 NOTE: The bootstrap and broker addresses may contain different ingress domains if {IngressControllerSharding} is used.
 
@@ -193,8 +195,10 @@ metadata:
 spec:
   proxyRef:
     name: simple
-  openShiftRoute: {} # <1>
+  openShiftRoute: {}
 ----
-<1> Exposes the proxy to off-cluster clients using OpenShift Routes.
+where:
+
+* `spec.openShiftRoute` exposes the proxy to off-cluster clients using OpenShift Routes.
 
 When using TLS, specify a xref:con-virtualkafkacluster-loadbalancer-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource using a `certificateRef`.
