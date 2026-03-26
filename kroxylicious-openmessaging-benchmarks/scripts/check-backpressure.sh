@@ -16,4 +16,4 @@ if [[ ! -f "$FILTERED" ]]; then
     exit 1
 fi
 
-exec jbang "$FILTERED" "$@"
+exec jbang "$FILTERED" --scripts-dir "${SCRIPT_DIR}" "$@"
