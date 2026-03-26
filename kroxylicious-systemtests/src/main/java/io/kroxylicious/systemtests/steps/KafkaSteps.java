@@ -183,7 +183,7 @@ public class KafkaSteps {
             ExecResult result = cmdKubeClient(Constants.KAFKA_DEFAULT_NAMESPACE).execInPod(kafkaPodName, true, command);
 
             if (result.isSuccess()) {
-                LOGGER.info("Consumer groups: {}", result.out());
+                LOGGER.atInfo().setMessage("Consumer groups: {}").addArgument(result.out()).log();
                 consumerGroups = Arrays.stream(result.out().split("\n")).toList();
             }
         }
