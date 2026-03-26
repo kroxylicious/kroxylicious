@@ -118,6 +118,7 @@ jobs:
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
         uses: ./kroxylicious/.github/actions/common/slack-notification
         with:
+          slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The snapshot documentation build workflow failed.'
 
@@ -141,5 +142,6 @@ jobs:
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
         uses: ./kroxylicious/.github/actions/common/slack-notification
         with:
+          slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The snapshot documentation deployment workflow failed.'
