@@ -92,4 +92,14 @@ class OmbResultTest {
     void publishDelayLatency99pctIsDeserialized() {
         assertThat(baseline.getPublishDelayLatency99pctNs()).isEqualTo(182.0);
     }
+
+    @Test
+    void publishLatency99pctWindowsAreDeserialized() {
+        assertThat(baseline.getPublishLatency99pctWindows()).containsExactly(24.0, 25.0, 26.0);
+    }
+
+    @Test
+    void endToEndLatency99pctWindowsAreDeserialized() {
+        assertThat(baseline.getEndToEndLatency99pctWindows()).containsExactly(37.0, 38.5, 39.0);
+    }
 }
