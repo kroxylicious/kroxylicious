@@ -43,7 +43,7 @@ oc get ingresscontrollers.operator.openshift.io -n openshift-ingress-operator de
 ----
 
 
-NOTE: The bootstrap and broker addresses may contain different ingress domains if https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/ingress_and_load_balancing/routes#nw-ingress-sharding-route-configuration_creating-basic-routes[Ingress Controller sharding] is used.
+NOTE: The bootstrap and broker addresses may contain different ingress domains if {IngressControllerSharding} is used.
 
 include::../../_snippets/snip-create-secret-containing-pem-certificate.adoc[]
 
