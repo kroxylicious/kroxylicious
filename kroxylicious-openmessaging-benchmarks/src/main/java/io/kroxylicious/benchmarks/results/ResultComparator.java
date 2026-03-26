@@ -17,6 +17,7 @@ import java.util.Optional;
 public class ResultComparator {
 
     private static final String SEPARATOR = "------------";
+    private static final String SEPARATOR_NARROW = "----------";
 
     private final OmbResult baseline;
     private final OmbResult candidate;
@@ -41,6 +42,8 @@ public class ResultComparator {
         printPublishLatency(out);
         printEndToEndLatency(out);
         printThroughput(out);
+        out.println();
+        out.println("  * p < 0.05 (Mann-Whitney U on per-window samples; samples are aggregated window statistics, not individual message latencies)");
     }
 
     private void printPublishLatency(PrintStream out) {
@@ -55,7 +58,7 @@ public class ResultComparator {
                         baseline.getPublishLatency99pctWindows(), candidate.getPublishLatency99pctWindows()),
                 new LatencyComparison("p99.9", baseline.getPublishLatency999pct(), candidate.getPublishLatency999pct(),
                         baseline.getPublishLatency999pctWindows(), candidate.getPublishLatency999pctWindows()));
-        printSection(out, "Publish Latency (ms)", rows);
+        printLatencySection(out, "Publish Latency (ms)", rows);
     }
 
     private void printEndToEndLatency(PrintStream out) {
@@ -70,46 +73,42 @@ public class ResultComparator {
                         baseline.getEndToEndLatency99pctWindows(), candidate.getEndToEndLatency99pctWindows()),
                 new LatencyComparison("p99.9", baseline.getAggregatedEndToEndLatency999pct(), candidate.getAggregatedEndToEndLatency999pct(),
                         baseline.getEndToEndLatency999pctWindows(), candidate.getEndToEndLatency999pctWindows()));
-        printSection(out, "End-to-End Latency (ms)", rows);
+        printLatencySection(out, "End-to-End Latency (ms)", rows);
     }
 
     private void printThroughput(PrintStream out) {
-        printSectionHeader(out, "Total Throughput (msg/s)");
+        out.println();
+        out.println("Total Throughput (msg/s)");
+        out.printf("  %-25s %12s %12s %12s %10s%n", "Metric", "Baseline", "Candidate", "Delta", "%Change");
+        out.printf("  %-25s %12s %12s %12s %10s%n",
+                "-------------------------", SEPARATOR, SEPARATOR, SEPARATOR, SEPARATOR_NARROW);
         printRow(out, "Publish Rate", baseline.getPublishRate(), candidate.getPublishRate());
         printRow(out, "Consume Rate", baseline.getConsumeRate(), candidate.getConsumeRate());
     }
 
-    private void printSection(PrintStream out, String title, List<LatencyComparison> rows) {
-        printSectionHeader(out, title);
+    private void printLatencySection(PrintStream out, String title, List<LatencyComparison> rows) {
+        out.println();
+        out.println(title);
+        out.printf("  %-25s %12s %12s %12s %10s %10s%n", "Metric", "Baseline", "Candidate", "Delta", "%Change", "MWU p");
+        out.printf("  %-25s %12s %12s %12s %10s %10s%n",
+                "-------------------------", SEPARATOR, SEPARATOR, SEPARATOR, SEPARATOR_NARROW, SEPARATOR_NARROW);
         for (LatencyComparison row : rows) {
             Optional<SignificanceTester.Result> sig = row.assess(significanceTester);
             printLatencyRow(out, row, sig.orElse(null));
         }
     }
 
-    private static void printSectionHeader(PrintStream out, String title) {
-        out.println();
-        out.println(title);
-        out.printf("  %-25s %12s %12s %12s%n", "Metric", "Baseline", "Candidate", "Delta");
-        out.printf("  %-25s %12s %12s %12s%n",
-                "-------------------------", SEPARATOR, SEPARATOR, SEPARATOR);
-    }
-
     private static void printLatencyRow(PrintStream out, LatencyComparison c, SignificanceTester.Result sig) {
-        String pctSign = c.pct() > 0 ? "+" : "";
-        String sigSuffix = sig == null ? ""
-                : sig.significant()
-                        ? String.format("  p=%.4f *", sig.pValue())
-                        : String.format("  p=%.4f", sig.pValue());
-        out.printf("  %-25s %12.2f %12.2f %12.2f (%s%.1f%%)%s%n",
-                c.label(), c.baseline(), c.candidate(), c.delta(), pctSign, c.pct(), sigSuffix);
+        String pctChange = String.format("%+.1f%%", c.pct());
+        String pValue = sig == null ? "         " : String.format("%9.4f%s", sig.pValue(), sig.significant() ? "*" : " ");
+        out.printf("  %-25s %12.2f %12.2f %12.2f %10s %10s%n",
+                c.label(), c.baseline(), c.candidate(), c.delta(), pctChange, pValue);
     }
 
     private static void printRow(PrintStream out, String label, double baselineVal, double candidateVal) {
         double delta = candidateVal - baselineVal;
         double pct = baselineVal != 0 ? delta / baselineVal * 100.0 : 0.0;
-        String pctSign = pct > 0 ? "+" : "";
-        out.printf("  %-25s %12.2f %12.2f %12.2f (%s%.1f%%)%n",
-                label, baselineVal, candidateVal, delta, pctSign, pct);
+        out.printf("  %-25s %12.2f %12.2f %12.2f %+10.1f%%%n",
+                label, baselineVal, candidateVal, delta, pct);
     }
 }
