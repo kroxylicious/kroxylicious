@@ -55,7 +55,7 @@ public record RouteHostDetails(
         BOOTSTRAP,
         NODE;
 
-        public static final String LABEL_KEY = "route-for";
+        public static final String LABEL_KEY = "kroxylicious.io/route-for";
 
         @Override
         public String toString() {

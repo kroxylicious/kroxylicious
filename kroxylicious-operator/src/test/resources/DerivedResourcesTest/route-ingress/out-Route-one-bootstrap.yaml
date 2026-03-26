@@ -17,7 +17,7 @@ metadata:
     app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/component: "proxy"
     app.kubernetes.io/instance: "minimal"
-    route-for: "bootstrap"
+    kroxylicious.io/route-for: "bootstrap"
   name: "one-bootstrap"
   namespace: "proxy-ns"
   ownerReferences:
