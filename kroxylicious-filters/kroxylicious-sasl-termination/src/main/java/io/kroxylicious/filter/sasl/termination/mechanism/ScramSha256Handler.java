@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -236,17 +235,16 @@ public class ScramSha256Handler implements MechanismHandler {
 
     /**
      * Convert our ScramCredential to Kafka's ScramCredential format.
+     * <p>
+     * Note: Kafka's constructor parameter order is (salt, storedKey, serverKey, iterations).
+     * </p>
      */
     private static org.apache.kafka.common.security.scram.ScramCredential convertCredential(
                                                                                             ScramCredential credential) {
-        byte[] salt = Base64.getDecoder().decode(credential.salt());
-        byte[] serverKey = Base64.getDecoder().decode(credential.serverKey());
-        byte[] storedKey = Base64.getDecoder().decode(credential.storedKey());
-
         return new org.apache.kafka.common.security.scram.ScramCredential(
-                salt,
-                serverKey,
-                storedKey,
+                credential.salt(),
+                credential.storedKey(),
+                credential.serverKey(),
                 credential.iterations());
     }
 }

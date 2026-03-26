@@ -66,7 +66,8 @@ class SaslTerminationIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        TestCredentialGenerator.generateKeyStore(
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
                 TEST_USERNAME, TEST_PASSWORD);
@@ -121,7 +122,8 @@ class SaslTerminationIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        TestCredentialGenerator.generateKeyStore(
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
                 TEST_USERNAME, TEST_PASSWORD);
@@ -153,7 +155,8 @@ class SaslTerminationIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        TestCredentialGenerator.generateKeyStore(
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
                 TEST_USERNAME, TEST_PASSWORD);
@@ -185,7 +188,8 @@ class SaslTerminationIT extends BaseIT {
 
         // Generate KeyStore with test credentials
         Path keystorePath = tempDir.resolve("credentials.jks");
-        TestCredentialGenerator.generateKeyStore(
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
                 TEST_USERNAME, TEST_PASSWORD);

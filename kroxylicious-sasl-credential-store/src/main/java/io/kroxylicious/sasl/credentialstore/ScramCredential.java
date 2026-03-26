@@ -6,8 +6,11 @@
 
 package io.kroxylicious.sasl.credentialstore;
 
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * SCRAM credential for SASL authentication.
@@ -31,19 +34,19 @@ import java.util.Set;
  * </p>
  *
  * @param username the username associated with this credential
- * @param salt Base64-encoded salt used in PBKDF2 derivation
+ * @param salt salt bytes used in PBKDF2 derivation
  * @param iterations number of PBKDF2 iterations (must be >= 4096)
- * @param serverKey Base64-encoded SCRAM server key
- * @param storedKey Base64-encoded SCRAM stored key
+ * @param serverKey SCRAM server key bytes
+ * @param storedKey SCRAM stored key bytes
  * @param hashAlgorithm the hash algorithm ("SHA-256" or "SHA-512")
  */
 public record ScramCredential(
-                              String username,
-                              String salt,
-                              int iterations,
-                              String serverKey,
-                              String storedKey,
-                              String hashAlgorithm) {
+                              @JsonProperty(required = true) String username,
+                              @JsonProperty(required = true) byte[] salt,
+                              @JsonProperty(required = true) int iterations,
+                              @JsonProperty(required = true) byte[] serverKey,
+                              @JsonProperty(required = true) byte[] storedKey,
+                              @JsonProperty(required = true) String hashAlgorithm) {
 
     /**
      * Minimum number of PBKDF2 iterations required.
@@ -71,13 +74,13 @@ public record ScramCredential(
         if (username.isEmpty()) {
             throw new IllegalArgumentException("username must not be empty");
         }
-        if (salt.isEmpty()) {
+        if (salt.length == 0) {
             throw new IllegalArgumentException("salt must not be empty");
         }
-        if (serverKey.isEmpty()) {
+        if (serverKey.length == 0) {
             throw new IllegalArgumentException("serverKey must not be empty");
         }
-        if (storedKey.isEmpty()) {
+        if (storedKey.length == 0) {
             throw new IllegalArgumentException("storedKey must not be empty");
         }
         if (iterations < MINIMUM_ITERATIONS) {
@@ -88,5 +91,78 @@ public record ScramCredential(
             throw new IllegalArgumentException(
                     "hashAlgorithm must be one of " + SUPPORTED_ALGORITHMS + ", got: " + hashAlgorithm);
         }
+
+        // Defensive copies for mutable arrays
+        salt = salt.clone();
+        serverKey = serverKey.clone();
+        storedKey = storedKey.clone();
+    }
+
+    /**
+     * Accessor that returns a defensive copy of the salt.
+     *
+     * @return a copy of the salt bytes
+     */
+    @Override
+    public byte[] salt() {
+        return salt.clone();
+    }
+
+    /**
+     * Accessor that returns a defensive copy of the server key.
+     *
+     * @return a copy of the server key bytes
+     */
+    @Override
+    public byte[] serverKey() {
+        return serverKey.clone();
+    }
+
+    /**
+     * Accessor that returns a defensive copy of the stored key.
+     *
+     * @return a copy of the stored key bytes
+     */
+    @Override
+    public byte[] storedKey() {
+        return storedKey.clone();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        ScramCredential that = (ScramCredential) obj;
+        return iterations == that.iterations &&
+                Objects.equals(username, that.username) &&
+                Arrays.equals(salt, that.salt) &&
+                Arrays.equals(serverKey, that.serverKey) &&
+                Arrays.equals(storedKey, that.storedKey) &&
+                Objects.equals(hashAlgorithm, that.hashAlgorithm);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(username, iterations, hashAlgorithm);
+        result = 31 * result + Arrays.hashCode(salt);
+        result = 31 * result + Arrays.hashCode(serverKey);
+        result = 31 * result + Arrays.hashCode(storedKey);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "ScramCredential{" +
+                "username='" + username + '\'' +
+                ", salt=" + Arrays.toString(salt) +
+                ", iterations=" + iterations +
+                ", serverKey=" + Arrays.toString(serverKey) +
+                ", storedKey=" + Arrays.toString(storedKey) +
+                ", hashAlgorithm='" + hashAlgorithm + '\'' +
+                '}';
     }
 }
