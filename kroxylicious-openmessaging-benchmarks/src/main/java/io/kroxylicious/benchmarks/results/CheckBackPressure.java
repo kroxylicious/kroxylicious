@@ -13,9 +13,11 @@ package io.kroxylicious.benchmarks.results;
 //DEPS info.picocli:picocli:${picocli.version}
 //SOURCES OmbResult.java
 //SOURCES BackPressureAnalyser.java
+//SOURCES RunMetadataResult.java
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,7 +59,11 @@ public class CheckBackPressure implements Callable<Integer> {
     @Override
     public Integer call() throws IOException {
         List<LabelledResult> labelled = resultFiles.stream()
-                .map(f -> new LabelledResult(label(f), readQuietly(f)))
+                .map(f -> {
+                    RunMetadataResult meta = RunMetadataResult.fromSiblingOf(f).orElse(null);
+                    String label = meta != null ? meta.scenario() : fallbackLabel(f);
+                    return new LabelledResult(label, readQuietly(f));
+                })
                 .toList();
 
         List<Report> saturated = new BackPressureAnalyser().analyse(labelled);
@@ -77,13 +83,14 @@ public class CheckBackPressure implements Callable<Integer> {
         }
 
         if (!saturated.isEmpty()) {
-            printWarning(saturated);
+            String resolvedWorkload = workload != null ? workload : inferWorkload();
+            printWarning(saturated, resolvedWorkload);
             return 1;
         }
         return 0;
     }
 
-    private void printWarning(List<Report> saturated) {
+    private void printWarning(List<Report> saturated, String resolvedWorkload) {
         System.out.println();
         System.out.println("WARNING: Producer back-pressure detected in " + saturated.size()
                 + " of " + resultFiles.size() + " result(s).");
@@ -93,14 +100,25 @@ public class CheckBackPressure implements Callable<Integer> {
         System.out.println("Consider a rate sweep to find the saturation knee:");
         Report first = saturated.get(0);
         System.out.println("  scripts/rate-sweep.sh \\");
-        if (workload != null) {
-            System.out.println("    --workload " + workload + " \\");
+        if (resolvedWorkload != null) {
+            System.out.println("    --workload " + resolvedWorkload + " \\");
         }
         System.out.println("    --min-rate " + first.suggestedMinRate() + " --max-rate " + first.suggestedMaxRate() + " \\");
         System.out.println("    --output-dir ./results/sweep-$(date +%Y%m%d-%H%M%S)/");
     }
 
-    private static String label(File f) {
+    /** Reads the workload from any sibling metadata file, returning null if none found. */
+    private String inferWorkload() {
+        return resultFiles.stream()
+                .map(RunMetadataResult::fromSiblingOf)
+                .filter(Optional::isPresent)
+                .map(opt -> opt.get().workload())
+                .filter(w -> w != null && !w.isBlank())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static String fallbackLabel(File f) {
         return f.getParentFile() != null ? f.getParentFile().getName() : f.getName();
     }
 
