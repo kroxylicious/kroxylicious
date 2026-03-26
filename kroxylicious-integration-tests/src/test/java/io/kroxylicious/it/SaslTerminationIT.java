@@ -27,10 +27,12 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.filter.sasl.termination.SaslTermination;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.sasl.credentialstore.keystore.KeystoreScramCredentialStoreService;
 import io.kroxylicious.sasl.credentialstore.keystore.TestCredentialGenerator;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -209,11 +211,11 @@ class SaslTerminationIT extends BaseIT {
 
     private NamedFilterDefinition createSaslTerminationFilter(Path keystorePath) {
         return new NamedFilterDefinitionBuilder(
-                "SaslTermination",
-                "io.kroxylicious.filter.sasl.termination.SaslTermination")
+                SaslTermination.class.getSimpleName(),
+                SaslTermination.class.getName())
                 .withConfig("mechanisms", Map.of(
                         "SCRAM-SHA-256", Map.of(
-                                "credentialStore", "KeystoreScramCredentialStoreService",
+                                "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
                                 "credentialStoreConfig", Map.of(
                                         "file", keystorePath.toString(),
                                         "storePassword", Map.of("password", KEYSTORE_PASSWORD),

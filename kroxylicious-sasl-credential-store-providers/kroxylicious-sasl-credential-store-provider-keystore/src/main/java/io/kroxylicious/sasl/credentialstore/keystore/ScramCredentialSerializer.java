@@ -13,8 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.sasl.credentialstore.ScramCredential;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Serializes and deserializes {@link ScramCredential} objects to/from JSON for storage in KeyStore.
  * <p>
@@ -32,8 +30,7 @@ public class ScramCredentialSerializer {
      * @return JSON bytes suitable for storing in a KeyStore SecretKey
      * @throws IllegalArgumentException if serialization fails
      */
-    @NonNull
-    public byte[] serialize(@NonNull ScramCredential credential) {
+    public byte[] serialize(ScramCredential credential) {
         try {
             return OBJECT_MAPPER.writeValueAsBytes(credential);
         }
@@ -50,8 +47,7 @@ public class ScramCredentialSerializer {
      * @return the deserialized credential
      * @throws IllegalArgumentException if deserialization or validation fails
      */
-    @NonNull
-    public ScramCredential deserialize(@NonNull byte[] bytes, @NonNull String alias) {
+    public ScramCredential deserialize(byte[] bytes, String alias) {
         try {
             ScramCredential credential = OBJECT_MAPPER.readValue(bytes, ScramCredential.class);
             // Verify the credential is valid (canonical constructor will validate)

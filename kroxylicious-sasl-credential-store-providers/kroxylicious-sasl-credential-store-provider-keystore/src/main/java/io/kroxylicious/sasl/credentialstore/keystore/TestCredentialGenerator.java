@@ -20,8 +20,6 @@ import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 
 import io.kroxylicious.sasl.credentialstore.ScramCredential;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Utility for generating test SCRAM credentials and KeyStore files.
  * <p>
@@ -44,9 +42,9 @@ public class TestCredentialGenerator {
      * @throws Exception if generation fails
      */
     public static void generateKeyStore(
-                                        @NonNull Path outputPath,
-                                        @NonNull String storePassword,
-                                        @NonNull String... users)
+                                        Path outputPath,
+                                        String storePassword,
+                                        String... users)
             throws Exception {
 
         if (users.length % 2 != 0) {
@@ -86,11 +84,10 @@ public class TestCredentialGenerator {
      * @param mechanism the SCRAM mechanism
      * @return the generated credential
      */
-    @NonNull
     public static ScramCredential generateScramCredential(
-                                                          @NonNull String username,
-                                                          @NonNull String password,
-                                                          @NonNull ScramMechanism mechanism) {
+                                                          String username,
+                                                          String password,
+                                                          ScramMechanism mechanism) {
 
         try {
             byte[] salt = generateSalt();
@@ -129,7 +126,6 @@ public class TestCredentialGenerator {
      *
      * @return the salt bytes
      */
-    @NonNull
     private static byte[] generateSalt() {
         byte[] salt = new byte[SALT_LENGTH];
         SECURE_RANDOM.nextBytes(salt);

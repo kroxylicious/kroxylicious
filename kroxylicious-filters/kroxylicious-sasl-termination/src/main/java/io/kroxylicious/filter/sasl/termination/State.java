@@ -8,7 +8,6 @@ package io.kroxylicious.filter.sasl.termination;
 
 import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandler;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -61,7 +60,6 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
      *
      * @return the requiring handshake state
      */
-    @NonNull
     static RequiringHandshake start() {
         return new RequiringHandshake();
     }
@@ -107,8 +105,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          * @param mechanismHandler the handler for the negotiated mechanism
          * @return the requiring authenticate state
          */
-        @NonNull
-        public RequiringAuthenticate nextState(@NonNull MechanismHandler mechanismHandler) {
+        public RequiringAuthenticate nextState(MechanismHandler mechanismHandler) {
             return new RequiringAuthenticate(mechanismHandler);
         }
 
@@ -128,7 +125,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
 
         private final MechanismHandler mechanismHandler;
 
-        private RequiringAuthenticate(@NonNull MechanismHandler mechanismHandler) {
+        private RequiringAuthenticate(MechanismHandler mechanismHandler) {
             this.mechanismHandler = mechanismHandler;
         }
 
@@ -137,7 +134,6 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          *
          * @return the mechanism handler
          */
-        @NonNull
         public MechanismHandler mechanismHandler() {
             return mechanismHandler;
         }
@@ -150,7 +146,6 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          *
          * @return a new requiring authenticate state (loop)
          */
-        @NonNull
         public RequiringAuthenticate nextStateChallenge() {
             return this; // Stay in same state for next round
         }
@@ -161,8 +156,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          * @param authorizationId the authenticated user's authorization ID
          * @return the authenticated state
          */
-        @NonNull
-        public Authenticated nextStateSuccess(@NonNull String authorizationId) {
+        public Authenticated nextStateSuccess(String authorizationId) {
             return new Authenticated(authorizationId);
         }
 
@@ -172,8 +166,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          * @param errorMessage the error message
          * @return the failed state
          */
-        @NonNull
-        public Failed nextStateFailure(@NonNull String errorMessage) {
+        public Failed nextStateFailure(String errorMessage) {
             return new Failed(errorMessage);
         }
 
@@ -190,7 +183,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
 
         private final String authorizationId;
 
-        private Authenticated(@NonNull String authorizationId) {
+        private Authenticated(String authorizationId) {
             this.authorizationId = authorizationId;
         }
 
@@ -199,7 +192,6 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
          *
          * @return the authorization ID
          */
-        @NonNull
         public String authorizationId() {
             return authorizationId;
         }

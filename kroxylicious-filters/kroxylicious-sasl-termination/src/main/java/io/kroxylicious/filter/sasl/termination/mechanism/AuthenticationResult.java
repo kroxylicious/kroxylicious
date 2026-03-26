@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -22,8 +21,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param errorMessage the error message (only present on FAILURE)
  */
 public record AuthenticationResult(
-                                   @NonNull Outcome outcome,
-                                   @NonNull byte[] responseBytes,
+                                   Outcome outcome,
+                                   byte[] responseBytes,
                                    @Nullable String authorizationId,
                                    @Nullable String errorMessage) {
 
@@ -77,8 +76,7 @@ public record AuthenticationResult(
      * @param responseBytes the challenge bytes
      * @return the authentication result
      */
-    @NonNull
-    public static AuthenticationResult challenge(@NonNull byte[] responseBytes) {
+    public static AuthenticationResult challenge(byte[] responseBytes) {
         return new AuthenticationResult(Outcome.CHALLENGE, responseBytes, null, null);
     }
 
@@ -89,8 +87,7 @@ public record AuthenticationResult(
      * @param authorizationId the authenticated user's authorization ID
      * @return the authentication result
      */
-    @NonNull
-    public static AuthenticationResult success(@NonNull byte[] responseBytes, @NonNull String authorizationId) {
+    public static AuthenticationResult success(byte[] responseBytes, String authorizationId) {
         return new AuthenticationResult(Outcome.SUCCESS, responseBytes, authorizationId, null);
     }
 
@@ -101,8 +98,7 @@ public record AuthenticationResult(
      * @param errorMessage the error message
      * @return the authentication result
      */
-    @NonNull
-    public static AuthenticationResult failure(@NonNull byte[] responseBytes, @NonNull String errorMessage) {
+    public static AuthenticationResult failure(byte[] responseBytes, String errorMessage) {
         return new AuthenticationResult(Outcome.FAILURE, responseBytes, null, errorMessage);
     }
 }

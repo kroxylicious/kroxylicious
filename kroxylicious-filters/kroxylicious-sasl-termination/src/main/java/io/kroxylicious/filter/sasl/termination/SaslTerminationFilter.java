@@ -31,8 +31,6 @@ import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * SASL termination filter.
  * <p>
@@ -78,19 +76,18 @@ public class SaslTerminationFilter implements RequestFilter {
     private final SaslTermination.SaslTerminationContext context;
     private State state;
 
-    public SaslTerminationFilter(@NonNull SaslTermination.SaslTerminationContext context) {
+    public SaslTerminationFilter(SaslTermination.SaslTerminationContext context) {
         this.context = context;
         this.state = State.start();
     }
 
     @Override
-    @NonNull
     public CompletionStage<RequestFilterResult> onRequest(
-                                                          @NonNull ApiKeys apiKey,
+                                                          ApiKeys apiKey,
                                                           short apiVersion,
-                                                          @NonNull RequestHeaderData header,
-                                                          @NonNull ApiMessage request,
-                                                          @NonNull FilterContext filterContext) {
+                                                          RequestHeaderData header,
+                                                          ApiMessage request,
+                                                          FilterContext filterContext) {
 
         return switch (apiKey) {
             case API_VERSIONS -> filterContext.forwardRequest(header, request);
@@ -106,10 +103,9 @@ public class SaslTerminationFilter implements RequestFilter {
      * Validates the requested mechanism and transitions to RequiringAuthenticate state.
      * </p>
      */
-    @NonNull
     private CompletionStage<RequestFilterResult> onSaslHandshakeRequest(
-                                                                        @NonNull SaslHandshakeRequestData request,
-                                                                        @NonNull FilterContext filterContext) {
+                                                                        SaslHandshakeRequestData request,
+                                                                        FilterContext filterContext) {
 
         if (!(state instanceof State.RequiringHandshake)) {
             LOGGER.warn("{}: Received SASL handshake in state {}", filterContext.channelDescriptor(), state);
@@ -158,10 +154,9 @@ public class SaslTerminationFilter implements RequestFilter {
      * state based on the result (CHALLENGE/SUCCESS/FAILURE).
      * </p>
      */
-    @NonNull
     private CompletionStage<RequestFilterResult> onSaslAuthenticateRequest(
-                                                                           @NonNull SaslAuthenticateRequestData request,
-                                                                           @NonNull FilterContext filterContext) {
+                                                                           SaslAuthenticateRequestData request,
+                                                                           FilterContext filterContext) {
 
         if (!(state instanceof State.RequiringAuthenticate authenticating)) {
             LOGGER.warn("{}: Received SASL authenticate in state {}", filterContext.channelDescriptor(), state);
@@ -194,11 +189,10 @@ public class SaslTerminationFilter implements RequestFilter {
     /**
      * Process authentication result and transition state.
      */
-    @NonNull
     private CompletionStage<RequestFilterResult> processAuthenticationResult(
-                                                                             @NonNull AuthenticationResult result,
-                                                                             @NonNull MechanismHandler handler,
-                                                                             @NonNull FilterContext filterContext) {
+                                                                             AuthenticationResult result,
+                                                                             MechanismHandler handler,
+                                                                             FilterContext filterContext) {
 
         return switch (result.outcome()) {
             case CHALLENGE -> {
@@ -248,11 +242,10 @@ public class SaslTerminationFilter implements RequestFilter {
     /**
      * Handle authentication failure.
      */
-    @NonNull
     private RequestFilterResult handleAuthenticationFailure(
                                                             String errorMessage,
-                                                            @NonNull MechanismHandler handler,
-                                                            @NonNull FilterContext filterContext) {
+                                                            MechanismHandler handler,
+                                                            FilterContext filterContext) {
 
         LOGGER.debug("{}: Authentication failed: {}", filterContext.channelDescriptor(), errorMessage);
 
@@ -285,11 +278,10 @@ public class SaslTerminationFilter implements RequestFilter {
      * Enforces security barrier: only authenticated connections can proceed.
      * </p>
      */
-    @NonNull
     private CompletionStage<RequestFilterResult> handleDefaultRequest(
-                                                                      @NonNull RequestHeaderData header,
-                                                                      @NonNull ApiMessage request,
-                                                                      @NonNull FilterContext filterContext) {
+                                                                      RequestHeaderData header,
+                                                                      ApiMessage request,
+                                                                      FilterContext filterContext) {
 
         if (state.isAuthenticated()) {
             // Authenticated - forward request

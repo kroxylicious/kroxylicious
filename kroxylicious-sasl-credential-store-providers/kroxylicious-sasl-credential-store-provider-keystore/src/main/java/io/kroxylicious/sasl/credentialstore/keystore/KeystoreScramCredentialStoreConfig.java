@@ -10,7 +10,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -22,8 +21,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param storeType KeyStore type (e.g., "PKCS12", "JKS"). Defaults to KeyStore.getDefaultType() if not specified.
  */
 public record KeystoreScramCredentialStoreConfig(
-                                                 @JsonProperty(required = true) @NonNull String file,
-                                                 @JsonProperty(required = true) @NonNull PasswordProvider storePassword,
+                                                 @JsonProperty(required = true) String file,
+                                                 @JsonProperty(required = true) PasswordProvider storePassword,
                                                  @Nullable PasswordProvider keyPassword,
                                                  @Nullable String storeType) {
 
@@ -44,7 +43,6 @@ public record KeystoreScramCredentialStoreConfig(
      *
      * @return the key password provider
      */
-    @NonNull
     public PasswordProvider effectiveKeyPassword() {
         return keyPassword != null ? keyPassword : storePassword;
     }
@@ -54,7 +52,6 @@ public record KeystoreScramCredentialStoreConfig(
      *
      * @return the KeyStore type
      */
-    @NonNull
     public String effectiveStoreType() {
         return storeType != null ? storeType : java.security.KeyStore.getDefaultType();
     }

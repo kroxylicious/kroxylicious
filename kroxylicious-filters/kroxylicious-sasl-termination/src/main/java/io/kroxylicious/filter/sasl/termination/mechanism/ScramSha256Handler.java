@@ -22,12 +22,13 @@ import javax.security.sasl.SaslServer;
 
 import org.apache.kafka.common.security.scram.ScramCredentialCallback;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.sasl.credentialstore.CredentialLookupException;
 import io.kroxylicious.sasl.credentialstore.ScramCredential;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -56,6 +57,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class ScramSha256Handler implements MechanismHandler {
 
+    Logger LOGGER = LoggerFactory.getLogger(ScramSha256Handler.class);
     private static final String MECHANISM_NAME = ScramMechanism.SCRAM_SHA_256.mechanismName();
     private static final Map<String, String> SASL_PROPS = Map.of();
 
@@ -66,16 +68,14 @@ public class ScramSha256Handler implements MechanismHandler {
     private String extractedUsername;
 
     @Override
-    @NonNull
     public String mechanismName() {
         return MECHANISM_NAME;
     }
 
     @Override
-    @NonNull
     public CompletionStage<AuthenticationResult> handleAuthenticate(
-                                                                    @NonNull byte[] authBytes,
-                                                                    @NonNull ScramCredentialStore credentialStore) {
+                                                                    byte[] authBytes,
+                                                                    ScramCredentialStore credentialStore) {
         if (saslServer == null) {
             // First round: extract username and fetch credentials asynchronously
             return handleFirstRound(authBytes, credentialStore);
@@ -101,10 +101,9 @@ public class ScramSha256Handler implements MechanismHandler {
         }
     }
 
-    @NonNull
     private CompletionStage<AuthenticationResult> handleFirstRound(
-                                                                   @NonNull byte[] authBytes,
-                                                                   @NonNull ScramCredentialStore credentialStore) {
+                                                                   byte[] authBytes,
+                                                                   ScramCredentialStore credentialStore) {
         try {
             // Extract username from first SCRAM client message
             // Format: n,,n=username,r=client-nonce
@@ -132,10 +131,9 @@ public class ScramSha256Handler implements MechanismHandler {
         }
     }
 
-    @NonNull
     private CompletionStage<AuthenticationResult> processWithCredential(
-                                                                        @NonNull byte[] authBytes,
-                                                                        @NonNull ScramCredential credential) {
+                                                                        byte[] authBytes,
+                                                                        ScramCredential credential) {
         try {
             // Create callback handler that supplies the credential
             CallbackHandler callbackHandler = callbacks -> {
@@ -174,13 +172,11 @@ public class ScramSha256Handler implements MechanismHandler {
         }
     }
 
-    @NonNull
-    private CompletionStage<AuthenticationResult> handleSubsequentRound(@NonNull byte[] authBytes) {
+    private CompletionStage<AuthenticationResult> handleSubsequentRound(byte[] authBytes) {
         return evaluateResponse(authBytes);
     }
 
-    @NonNull
-    private CompletionStage<AuthenticationResult> evaluateResponse(@NonNull byte[] authBytes) {
+    private CompletionStage<AuthenticationResult> evaluateResponse(byte[] authBytes) {
         try {
             byte[] response = saslServer.evaluateResponse(authBytes);
 
@@ -195,6 +191,10 @@ public class ScramSha256Handler implements MechanismHandler {
             }
         }
         catch (SaslException e) {
+            LOGGER.atError().setMessage("Could not evaluate a SASL response username={}")
+                    .setCause(e)
+                    .addArgument(extractedUsername)
+                    .log();
             return CompletableFuture.completedFuture(
                     AuthenticationResult.failure(new byte[0], "Authentication failed: " + e.getMessage()));
         }
@@ -210,8 +210,7 @@ public class ScramSha256Handler implements MechanismHandler {
      * @return the extracted username
      * @throws IllegalArgumentException if the message format is invalid
      */
-    @NonNull
-    private static String extractUsername(@NonNull byte[] clientFirstMessage) {
+    private static String extractUsername(byte[] clientFirstMessage) {
         String message = new String(clientFirstMessage, StandardCharsets.UTF_8);
 
         // SCRAM client-first-message format: n,,n=username,r=nonce
@@ -238,9 +237,8 @@ public class ScramSha256Handler implements MechanismHandler {
     /**
      * Convert our ScramCredential to Kafka's ScramCredential format.
      */
-    @NonNull
     private static org.apache.kafka.common.security.scram.ScramCredential convertCredential(
-                                                                                            @NonNull ScramCredential credential) {
+                                                                                            ScramCredential credential) {
         byte[] salt = Base64.getDecoder().decode(credential.salt());
         byte[] serverKey = Base64.getDecoder().decode(credential.serverKey());
         byte[] storedKey = Base64.getDecoder().decode(credential.storedKey());

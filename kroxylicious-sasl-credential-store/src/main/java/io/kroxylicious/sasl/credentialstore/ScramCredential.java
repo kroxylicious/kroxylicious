@@ -9,8 +9,6 @@ package io.kroxylicious.sasl.credentialstore;
 import java.util.Objects;
 import java.util.Set;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * SCRAM credential for SASL authentication.
  * <p>
@@ -40,12 +38,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param hashAlgorithm the hash algorithm ("SHA-256" or "SHA-512")
  */
 public record ScramCredential(
-                              @NonNull String username,
-                              @NonNull String salt,
+                              String username,
+                              String salt,
                               int iterations,
-                              @NonNull String serverKey,
-                              @NonNull String storedKey,
-                              @NonNull String hashAlgorithm) {
+                              String serverKey,
+                              String storedKey,
+                              String hashAlgorithm) {
 
     /**
      * Minimum number of PBKDF2 iterations required.

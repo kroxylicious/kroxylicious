@@ -10,8 +10,6 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Configuration for the SASL termination filter.
  * <p>
@@ -36,7 +34,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param mechanisms map of mechanism name to mechanism configuration
  */
 public record SaslTerminationConfig(
-                                    @JsonProperty(required = true) @NonNull Map<String, MechanismConfig> mechanisms) {
+                                    @JsonProperty(required = true) Map<String, MechanismConfig> mechanisms) {
 
     /**
      * Canonical constructor with validation.

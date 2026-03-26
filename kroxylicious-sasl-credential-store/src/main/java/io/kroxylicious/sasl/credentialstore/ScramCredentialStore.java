@@ -8,8 +8,6 @@ package io.kroxylicious.sasl.credentialstore;
 
 import java.util.concurrent.CompletionStage;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Store for SCRAM credentials used in SASL authentication.
  * <p>
@@ -74,6 +72,5 @@ public interface ScramCredentialStore {
      * @return a completion stage that will complete with the credential or null
      * @throws NullPointerException if username is null
      */
-    @NonNull
-    CompletionStage<ScramCredential> lookupCredential(@NonNull String username);
+    CompletionStage<ScramCredential> lookupCredential(String username);
 }
