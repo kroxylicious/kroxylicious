@@ -47,10 +47,10 @@ Immutable record storing SCRAM credential data.
 ```java
 public record ScramCredential(
     String username,
-    String salt,           // Base64-encoded
+    byte[] salt,           // Salt bytes (base64-encoded in JSON)
     int iterations,        // >= 4096
-    String serverKey,      // Base64-encoded
-    String storedKey,      // Base64-encoded
+    byte[] serverKey,      // Server key bytes (base64-encoded in JSON)
+    byte[] storedKey,      // Stored key bytes (base64-encoded in JSON)
     String hashAlgorithm   // "SHA-256" or "SHA-512"
 ) { }
 ```
@@ -59,6 +59,8 @@ public record ScramCredential(
 - All fields must be non-null and non-empty
 - Iterations must be >= 4096
 - Hash algorithm must be "SHA-256" or "SHA-512"
+
+**Important:** Byte arrays are automatically encoded as base64 when serialised to JSON. The credential record provides defensive copies to prevent mutation.
 
 ## Exception Hierarchy
 
@@ -112,7 +114,7 @@ public record FilterConfig(
 ## Dependencies
 
 This module has minimal dependencies:
-- `slf4j-api` - Logging
+- `jackson-annotations` - JSON serialization annotations
 - `spotbugs-annotations` - Nullability annotations
 
 Test dependencies:

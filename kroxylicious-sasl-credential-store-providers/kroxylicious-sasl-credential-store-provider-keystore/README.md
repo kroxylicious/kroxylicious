@@ -63,7 +63,8 @@ import io.kroxylicious.sasl.credentialstore.keystore.TestCredentialGenerator;
 Path keystorePath = Paths.get("credentials.jks");
 String password = "keystore-password";
 
-TestCredentialGenerator.generateKeyStore(
+var generator = new TestCredentialGenerator();
+generator.generateKeyStore(
     keystorePath,
     password,
     "alice", "alice-secret",
