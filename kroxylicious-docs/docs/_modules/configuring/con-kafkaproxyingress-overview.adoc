@@ -16,7 +16,7 @@ The `KafkaProxyIngress` resource supports the following ingress types to configu
 
 * `clusterIP` exposes the virtual cluster to applications running inside the same Kubernetes cluster as the proxy.
 * `loadBalancer` exposes the virtual cluster to applications running outside the Kubernetes cluster.
-* `openShiftRoute` exposes the virtual cluster to applications running outside the Kubernetes cluster by using OpenShift Routes.
+* `openShiftRoute` exposes the virtual cluster to applications running outside the OpenShift cluster by using OpenShift Routes (OpenShift only)
 
 The `clusterIP` ingress types support both TCP (plain) and TLS connections.
 The `loadBalancer` and `openShiftRoute` types exclusively supports TLS.
