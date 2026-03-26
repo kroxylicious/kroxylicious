@@ -11,8 +11,10 @@ package io.kroxylicious.benchmarks.results;
 //DEPS com.fasterxml.jackson.core:jackson-core:${jackson.version}
 //DEPS com.fasterxml.jackson.core:jackson-databind:${jackson.version}
 //DEPS info.picocli:picocli:${picocli.version}
+//DEPS org.apache.commons:commons-math3:3.6.1
 //SOURCES OmbResult.java
 //SOURCES ResultComparator.java
+//SOURCES SignificanceTester.java
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.Callable;
