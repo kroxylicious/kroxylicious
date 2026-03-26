@@ -17,6 +17,7 @@ import static io.kroxylicious.proxy.internal.VirtualClusterState.DRAINING;
 import static io.kroxylicious.proxy.internal.VirtualClusterState.FAILED;
 import static io.kroxylicious.proxy.internal.VirtualClusterState.INITIALIZING;
 import static io.kroxylicious.proxy.internal.VirtualClusterState.SERVING;
+import static io.kroxylicious.proxy.internal.VirtualClusterState.STOPPED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -48,7 +49,9 @@ class VirtualClusterStateMachineTest {
                 Arguments.of(INITIALIZING, FAILED),
                 Arguments.of(SERVING, DRAINING),
                 Arguments.of(DRAINING, INITIALIZING),
-                Arguments.of(FAILED, INITIALIZING));
+                Arguments.of(DRAINING, STOPPED),
+                Arguments.of(FAILED, INITIALIZING),
+                Arguments.of(FAILED, STOPPED));
     }
 
     @ParameterizedTest
@@ -69,15 +72,22 @@ class VirtualClusterStateMachineTest {
         return Stream.of(
                 Arguments.of(INITIALIZING, INITIALIZING),
                 Arguments.of(INITIALIZING, DRAINING),
+                Arguments.of(INITIALIZING, STOPPED),
                 Arguments.of(SERVING, INITIALIZING),
                 Arguments.of(SERVING, SERVING),
                 Arguments.of(SERVING, FAILED),
+                Arguments.of(SERVING, STOPPED),
                 Arguments.of(DRAINING, SERVING),
                 Arguments.of(DRAINING, DRAINING),
                 Arguments.of(DRAINING, FAILED),
                 Arguments.of(FAILED, SERVING),
                 Arguments.of(FAILED, DRAINING),
-                Arguments.of(FAILED, FAILED));
+                Arguments.of(FAILED, FAILED),
+                Arguments.of(STOPPED, INITIALIZING),
+                Arguments.of(STOPPED, SERVING),
+                Arguments.of(STOPPED, DRAINING),
+                Arguments.of(STOPPED, FAILED),
+                Arguments.of(STOPPED, STOPPED));
     }
 
     @ParameterizedTest
@@ -140,6 +150,33 @@ class VirtualClusterStateMachineTest {
         assertThat(lifecycle.currentState()).isEqualTo(SERVING);
     }
 
+    @Test
+    void shouldSupportGracefulShutdown() {
+        // Given
+        var lifecycle = new VirtualClusterStateMachine(CLUSTER_NAME);
+
+        // When — simulate: start → serve → drain → stopped
+        lifecycle.transitionTo(SERVING);
+        lifecycle.transitionTo(DRAINING);
+        lifecycle.transitionTo(STOPPED);
+
+        // Then
+        assertThat(lifecycle.currentState()).isEqualTo(STOPPED);
+    }
+
+    @Test
+    void shouldSupportShutdownFromFailed() {
+        // Given
+        var lifecycle = new VirtualClusterStateMachine(CLUSTER_NAME);
+
+        // When — simulate: fail on init → shutdown
+        lifecycle.transitionTo(FAILED);
+        lifecycle.transitionTo(STOPPED);
+
+        // Then
+        assertThat(lifecycle.currentState()).isEqualTo(STOPPED);
+    }
+
     /**
      * Advances the lifecycle to the target state via the shortest valid path from INITIALIZING.
      */
@@ -154,6 +191,11 @@ class VirtualClusterStateMachineTest {
                 lifecycle.transitionTo(DRAINING);
             }
             case FAILED -> lifecycle.transitionTo(FAILED);
+            case STOPPED -> {
+                lifecycle.transitionTo(SERVING);
+                lifecycle.transitionTo(DRAINING);
+                lifecycle.transitionTo(STOPPED);
+            }
         }
     }
 }

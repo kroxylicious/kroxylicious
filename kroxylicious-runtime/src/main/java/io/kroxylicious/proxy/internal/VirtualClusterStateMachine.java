@@ -17,17 +17,20 @@ import static io.kroxylicious.proxy.internal.VirtualClusterState.DRAINING;
 import static io.kroxylicious.proxy.internal.VirtualClusterState.FAILED;
 import static io.kroxylicious.proxy.internal.VirtualClusterState.INITIALIZING;
 import static io.kroxylicious.proxy.internal.VirtualClusterState.SERVING;
+import static io.kroxylicious.proxy.internal.VirtualClusterState.STOPPED;
 
 /**
  * Tracks the lifecycle state of a virtual cluster and enforces valid state transitions.
  * <p>
  * Valid transitions:
  * <pre>
- *   INITIALIZING → SERVING    (startup/reload success)
- *   INITIALIZING → FAILED     (startup/reload failure)
- *   SERVING      → DRAINING   (shutdown or structural reload)
+ *   INITIALIZING → SERVING      (startup/reload success)
+ *   INITIALIZING → FAILED       (startup/reload failure)
+ *   SERVING      → DRAINING     (shutdown or structural reload)
  *   DRAINING     → INITIALIZING (reload: re-init after drain)
+ *   DRAINING     → STOPPED      (shutdown or cluster removal — terminal)
  *   FAILED       → INITIALIZING (retry with corrected config)
+ *   FAILED       → STOPPED      (shutdown or cluster removal — terminal)
  * </pre>
  * <p>
  * This class is thread-safe.
@@ -39,8 +42,9 @@ public class VirtualClusterStateMachine {
     private static final Map<VirtualClusterState, Set<VirtualClusterState>> VALID_TRANSITIONS = Map.of(
             INITIALIZING, Set.of(SERVING, FAILED),
             SERVING, Set.of(DRAINING),
-            DRAINING, Set.of(INITIALIZING),
-            FAILED, Set.of(INITIALIZING));
+            DRAINING, Set.of(INITIALIZING, STOPPED),
+            FAILED, Set.of(INITIALIZING, STOPPED),
+            STOPPED, Set.of());
 
     private final String clusterName;
     private volatile VirtualClusterState currentState;

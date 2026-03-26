@@ -15,7 +15,9 @@ package io.kroxylicious.proxy.internal;
  *   <li>{@code INITIALIZING → FAILED} on startup failure</li>
  *   <li>{@code SERVING → DRAINING} on shutdown or before structural reload</li>
  *   <li>{@code DRAINING → INITIALIZING} on reload (re-init after drain)</li>
+ *   <li>{@code DRAINING → STOPPED} on shutdown or cluster removal (terminal)</li>
  *   <li>{@code FAILED → INITIALIZING} on retry with corrected config</li>
+ *   <li>{@code FAILED → STOPPED} on shutdown or cluster removal (terminal)</li>
  * </ul>
  */
 public enum VirtualClusterState {
@@ -39,5 +41,10 @@ public enum VirtualClusterState {
      * The proxy determined the configuration not to be viable. All partially-acquired
      * resources are released on entry to this state.
      */
-    FAILED
+    FAILED,
+    /**
+     * The cluster has been permanently removed from the configuration or the proxy is
+     * shutting down. All resources have been released. This is a terminal state.
+     */
+    STOPPED
 }
