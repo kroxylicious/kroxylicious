@@ -88,3 +88,4 @@ spec:
 include::./con-virtualkafkacluster-clusterip-generate-tls-certificates.adoc[leveloffset=+1]
 include::./con-virtualkafkacluster-loadbalancer-generate-tls-certificates.adoc[leveloffset=+1]
 include::./proc-virtualkafkacluster-loadbalancer-dns-config.adoc[leveloffset=+1]
+include::./con-virtualkafkacluster-openshiftroute-generate-tls-certificates.adoc[leveloffset=+1]
