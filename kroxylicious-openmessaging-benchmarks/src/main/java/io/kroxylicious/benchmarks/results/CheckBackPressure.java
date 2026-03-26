@@ -48,6 +48,9 @@ public class CheckBackPressure implements Callable<Integer> {
     @Option(names = "--workload", description = "Workload name to include in the rate-sweep hint")
     private String workload;
 
+    @Option(names = "--scripts-dir", description = "Path to the scripts directory for the rate-sweep hint (default: scripts/)", defaultValue = "scripts")
+    private String scriptsDir;
+
     public static void main(String... args) {
         System.exit(execute(args));
     }
@@ -99,7 +102,7 @@ public class CheckBackPressure implements Callable<Integer> {
         System.out.println();
         System.out.println("Consider a rate sweep to find the saturation knee:");
         Report first = saturated.get(0);
-        System.out.println("  scripts/rate-sweep.sh \\");
+        System.out.println("  " + scriptsDir + "/rate-sweep.sh \\");
         if (resolvedWorkload != null) {
             System.out.println("    --workload " + resolvedWorkload + " \\");
         }
