@@ -339,10 +339,8 @@ for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
         echo "--- Probe ${PROBE_NUM}/${TOTAL_PROBES}: $(printf '%'"'"'d' "${RATE}") msg/sec ---"
 
         # Build run-benchmark.sh args.
-        # First probe deploys (no --skip-deploy); last probe tears down (no --skip-teardown).
+        # Each probe gets a full deploy + teardown for a clean environment.
         RB_ARGS=(--producer-rate "${RATE}")
-        [[ $i -gt 0 ]]                     && RB_ARGS+=(--skip-deploy)
-        [[ $i -lt $((TOTAL_PROBES - 1)) ]] && RB_ARGS+=(--skip-teardown)
         [[ -n "${PROFILE_VALUES}" ]]        && RB_ARGS+=(--profile "${PROFILE_VALUES}")
         for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do
             RB_ARGS+=(--set "${set_arg}")
