@@ -280,6 +280,33 @@ class KafkaProxyInitializerTest {
         Mockito.verifyNoMoreInteractions(channelPipeline);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void shouldAddHaProxyHandlersWhenProxyProtocolEnabled(boolean tls) {
+        // Given
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, true, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline).addLast(eq("HAProxyMessageDecoder"), any());
+        verify(channelPipeline).addLast(eq("HAProxyMessageHandler"), isA(HAProxyMessageHandler.class));
+    }
+
+    @Test
+    void shouldNotAddHaProxyHandlersWhenProxyProtocolDisabled() {
+        // Given
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, false, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline, never()).addLast(eq("HAProxyMessageDecoder"), any());
+        verify(channelPipeline, never()).addLast(eq("HAProxyMessageHandler"), any());
+    }
+
     @Test
     void shouldInitialiseTlsChannel() {
         // Given
@@ -343,12 +370,19 @@ class KafkaProxyInitializerTest {
     @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
+        return createKafkaProxyInitializer(tls, false, bindingResolver);
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
+                                                              boolean haproxyProtocol,
+                                                              EndpointBindingResolver bindingResolver) {
         return new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
-                false,
+                haproxyProtocol,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings));
     }
