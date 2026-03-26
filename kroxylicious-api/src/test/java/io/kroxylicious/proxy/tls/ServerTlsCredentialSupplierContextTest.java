@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.tls;
 
 import java.security.PrivateKey;
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Optional;
 
@@ -27,14 +26,14 @@ class ServerTlsCredentialSupplierContextTest {
     private ClientTlsContext mockClientContext;
     private TlsCredentials mockCreatedCredentials;
     private PrivateKey mockKey;
-    private Certificate[] mockChain;
+    private X509Certificate[] mockChain;
 
     @BeforeEach
     void setUp() {
         mockClientContext = mock(ClientTlsContext.class);
         mockCreatedCredentials = mock(TlsCredentials.class);
         mockKey = mock(PrivateKey.class);
-        mockChain = new Certificate[]{ mock(X509Certificate.class) };
+        mockChain = new X509Certificate[]{ mock(X509Certificate.class) };
 
         context = new ServerTlsCredentialSupplierContext() {
             @Override
@@ -45,7 +44,7 @@ class ServerTlsCredentialSupplierContextTest {
 
             @Override
             @NonNull
-            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull X509Certificate[] certificateChain) {
                 return mockCreatedCredentials;
             }
         };
@@ -69,7 +68,7 @@ class ServerTlsCredentialSupplierContextTest {
 
             @Override
             @NonNull
-            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull X509Certificate[] certificateChain) {
                 return mockCreatedCredentials;
             }
         };
@@ -94,7 +93,7 @@ class ServerTlsCredentialSupplierContextTest {
 
             @Override
             @NonNull
-            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull X509Certificate[] certificateChain) {
                 throw new IllegalArgumentException("Invalid certificate format");
             }
         };
@@ -115,7 +114,7 @@ class ServerTlsCredentialSupplierContextTest {
 
             @Override
             @NonNull
-            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+            public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull X509Certificate[] certificateChain) {
                 throw new IllegalArgumentException("Private key does not match certificate");
             }
         };

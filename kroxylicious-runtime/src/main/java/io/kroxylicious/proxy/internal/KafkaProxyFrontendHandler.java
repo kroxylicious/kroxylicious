@@ -476,7 +476,7 @@ public class KafkaProxyFrontendHandler
 
             // Build SslContextBuilder with trust configuration from target cluster
             SslContextBuilder sslContextBuilder = SslContextBuilder.forClient()
-                    .keyManager(credentialsImpl.getPrivateKey(), credentialsImpl.getCertificateChain());
+                    .keyManager(credentialsImpl.privateKey(), credentialsImpl.certificateChain());
 
             proxyChannelStateMachine.virtualCluster().targetCluster().tls().ifPresent(tls -> {
                 VirtualClusterModel.configureCipherSuites(sslContextBuilder, tls);

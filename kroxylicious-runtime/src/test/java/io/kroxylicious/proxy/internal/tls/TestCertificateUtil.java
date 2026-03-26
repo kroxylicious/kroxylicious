@@ -51,12 +51,21 @@ public final class TestCertificateUtil {
     }
 
     public static KeyAndCert generateKeyStoreAndCert(String dn) throws Exception {
+        return generateKeyStoreAndCert(dn, (String[]) null);
+    }
+
+    /**
+     * Generates a self-signed certificate with optional keytool extensions.
+     * @param dn the distinguished name
+     * @param extensions optional keytool -ext values (e.g. "eku=clientAuth", "eku=serverAuth")
+     */
+    public static KeyAndCert generateKeyStoreAndCert(String dn, String... extensions) throws Exception {
         File ksFile = File.createTempFile("test-keystore", ".jks");
         ksFile.delete(); // keytool requires non-existent file
         ksFile.deleteOnExit();
 
         // Generate keystore with self-signed cert using keytool
-        ProcessBuilder pb = new ProcessBuilder(
+        var args = new java.util.ArrayList<>(java.util.List.of(
                 "keytool", "-genkeypair",
                 "-alias", ALIAS,
                 "-keyalg", "RSA",
@@ -66,7 +75,14 @@ public final class TestCertificateUtil {
                 "-keystore", ksFile.getAbsolutePath(),
                 "-storepass", PASSWORD,
                 "-keypass", PASSWORD,
-                "-storetype", "JKS");
+                "-storetype", "JKS"));
+        if (extensions != null) {
+            for (String ext : extensions) {
+                args.add("-ext");
+                args.add(ext);
+            }
+        }
+        ProcessBuilder pb = new ProcessBuilder(args);
         pb.inheritIO();
         Process p = pb.start();
         if (p.waitFor() != 0) {

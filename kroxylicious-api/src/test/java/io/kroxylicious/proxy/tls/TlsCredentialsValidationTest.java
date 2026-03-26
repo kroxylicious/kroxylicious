@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.tls;
 
 import java.security.PrivateKey;
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Optional;
 
@@ -32,7 +31,7 @@ class TlsCredentialsValidationTest {
                 "Private key does not match the certificate");
 
         PrivateKey mockKey = mock(PrivateKey.class);
-        Certificate[] mockChain = new Certificate[]{ mock(X509Certificate.class) };
+        X509Certificate[] mockChain = new X509Certificate[]{ mock(X509Certificate.class) };
 
         assertThatThrownBy(() -> context.tlsCredentials(mockKey, mockChain))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -45,7 +44,7 @@ class TlsCredentialsValidationTest {
         ServerTlsCredentialSupplierContext context = createPassingSupplierContext(mockCredentials);
 
         PrivateKey mockKey = mock(PrivateKey.class);
-        Certificate[] mockChain = new Certificate[]{ mock(X509Certificate.class) };
+        X509Certificate[] mockChain = new X509Certificate[]{ mock(X509Certificate.class) };
 
         TlsCredentials result = context.tlsCredentials(mockKey, mockChain);
         assertThat(result).isSameAs(mockCredentials);
@@ -61,7 +60,7 @@ class TlsCredentialsValidationTest {
         ServerTlsCredentialSupplierContext context = createValidatingSupplierContext(multipleErrors);
 
         PrivateKey mockKey = mock(PrivateKey.class);
-        Certificate[] mockChain = new Certificate[]{ mock(X509Certificate.class) };
+        X509Certificate[] mockChain = new X509Certificate[]{ mock(X509Certificate.class) };
 
         assertThatThrownBy(() -> context.tlsCredentials(mockKey, mockChain))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -102,7 +101,7 @@ class TlsCredentialsValidationTest {
 
         @Override
         @NonNull
-        public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+        public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull X509Certificate[] certificateChain) {
             if (errorMessage != null) {
                 throw new IllegalArgumentException(errorMessage);
             }

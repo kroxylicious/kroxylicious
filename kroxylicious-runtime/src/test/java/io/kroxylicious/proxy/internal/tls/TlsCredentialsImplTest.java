@@ -26,8 +26,8 @@ class TlsCredentialsImplTest {
 
         TlsCredentialsImpl creds = new TlsCredentialsImpl(key, chain);
 
-        assertThat(creds.getPrivateKey()).isSameAs(key);
-        assertThat(creds.getCertificateChain()).containsExactly(cert);
+        assertThat(creds.privateKey()).isSameAs(key);
+        assertThat(creds.certificateChain()).containsExactly(cert);
     }
 
     @Test

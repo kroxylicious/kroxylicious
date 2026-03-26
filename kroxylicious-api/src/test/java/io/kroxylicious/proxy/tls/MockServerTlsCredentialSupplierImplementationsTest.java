@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.tls;
 
 import java.security.PrivateKey;
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Optional;
 import java.util.Set;
@@ -120,9 +119,9 @@ class MockServerTlsCredentialSupplierImplementationsTest {
 
     public static class FactoryBasedSupplier implements ServerTlsCredentialSupplier {
         private final PrivateKey key;
-        private final Certificate[] chain;
+        private final X509Certificate[] chain;
 
-        FactoryBasedSupplier(PrivateKey key, Certificate[] chain) {
+        FactoryBasedSupplier(PrivateKey key, X509Certificate[] chain) {
             this.key = key;
             this.chain = chain;
         }
@@ -171,7 +170,7 @@ class MockServerTlsCredentialSupplierImplementationsTest {
 
         @Override
         @NonNull
-        public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull Certificate[] certificateChain) {
+        public TlsCredentials tlsCredentials(@NonNull PrivateKey key, @NonNull X509Certificate[] certificateChain) {
             return mock(TlsCredentials.class);
         }
     }
@@ -251,7 +250,7 @@ class MockServerTlsCredentialSupplierImplementationsTest {
     @Test
     void testFactoryBasedSupplier() throws Exception {
         PrivateKey mockKey = mock(PrivateKey.class);
-        Certificate[] mockChain = new Certificate[]{ mock(X509Certificate.class) };
+        X509Certificate[] mockChain = new X509Certificate[]{ mock(X509Certificate.class) };
         MockSupplierContext context = new MockSupplierContext();
         FactoryBasedSupplier supplier = new FactoryBasedSupplier(mockKey, mockChain);
 

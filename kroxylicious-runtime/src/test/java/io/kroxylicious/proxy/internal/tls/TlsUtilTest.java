@@ -149,7 +149,7 @@ class TlsUtilTest {
         void rejectsMismatchedKeyAndCert() throws Exception {
             TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateKeyStoreAndCert("CN=other");
             assertThatThrownBy(() -> TlsUtil.validateKeyAndCertMatch(other.privateKey(), keyAndCert.cert()))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(BadTlsCredentialsException.class)
                     .hasMessageContaining("does not match");
         }
 
@@ -158,7 +158,7 @@ class TlsUtilTest {
             PrivateKey mockKey = mock(PrivateKey.class);
             when(mockKey.getAlgorithm()).thenReturn("DSA");
             assertThatThrownBy(() -> TlsUtil.validateKeyAndCertMatch(mockKey, keyAndCert.cert()))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(BadTlsCredentialsException.class)
                     .hasMessageContaining("does not match certificate public key algorithm");
         }
     }
@@ -182,8 +182,28 @@ class TlsUtilTest {
         void rejectsKeyMismatch() throws Exception {
             TestCertificateUtil.KeyAndCert other = TestCertificateUtil.generateKeyStoreAndCert("CN=other");
             assertThatThrownBy(() -> TlsUtil.validateCertificateChain(other.privateKey(), new X509Certificate[]{ keyAndCert.cert() }))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(BadTlsCredentialsException.class)
                     .hasMessageContaining("does not match");
+        }
+
+        @Test
+        void acceptsCertWithClientAuthEku() throws Exception {
+            TestCertificateUtil.KeyAndCert clientAuthCert = TestCertificateUtil.generateKeyStoreAndCert("CN=clientauth", "eku=clientAuth");
+            TlsUtil.validateCertificateChain(clientAuthCert.privateKey(), new X509Certificate[]{ clientAuthCert.cert() });
+        }
+
+        @Test
+        void acceptsCertWithNoEku() {
+            // Default keytool certs have no EKU, which is unrestricted
+            TlsUtil.validateCertificateChain(keyAndCert.privateKey(), new X509Certificate[]{ keyAndCert.cert() });
+        }
+
+        @Test
+        void rejectsCertWithServerAuthOnlyEku() throws Exception {
+            TestCertificateUtil.KeyAndCert serverOnlyCert = TestCertificateUtil.generateKeyStoreAndCert("CN=serveronly", "eku=serverAuth");
+            assertThatThrownBy(() -> TlsUtil.validateCertificateChain(serverOnlyCert.privateKey(), new X509Certificate[]{ serverOnlyCert.cert() }))
+                    .isInstanceOf(BadTlsCredentialsException.class)
+                    .hasMessageContaining("clientAuth");
         }
     }
 

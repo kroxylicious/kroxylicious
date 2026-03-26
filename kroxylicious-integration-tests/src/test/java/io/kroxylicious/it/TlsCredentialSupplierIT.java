@@ -159,7 +159,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                     byte[] certBytes = Files.readAllBytes(keys.selfSignedCertificatePem());
                     byte[] keyBytes = Files.readAllBytes(keys.privateKeyPem());
                     java.security.PrivateKey key = io.kroxylicious.proxy.internal.tls.TlsUtil.parsePrivateKey(keyBytes);
-                    java.security.cert.Certificate[] chain = io.kroxylicious.proxy.internal.tls.TlsUtil.parseCertificateChain(certBytes);
+                    java.security.cert.X509Certificate[] chain = io.kroxylicious.proxy.internal.tls.TlsUtil.parseCertificateChain(certBytes);
                     TlsCredentials creds = context.tlsCredentials(key, chain);
                     return CompletableFuture.completedFuture(creds);
                 }
@@ -173,7 +173,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                 byte[] certBytes = Files.readAllBytes(sharedContext.defaultKeys.selfSignedCertificatePem());
                 byte[] keyBytes = Files.readAllBytes(sharedContext.defaultKeys.privateKeyPem());
                 java.security.PrivateKey key = io.kroxylicious.proxy.internal.tls.TlsUtil.parsePrivateKey(keyBytes);
-                java.security.cert.Certificate[] chain = io.kroxylicious.proxy.internal.tls.TlsUtil.parseCertificateChain(certBytes);
+                java.security.cert.X509Certificate[] chain = io.kroxylicious.proxy.internal.tls.TlsUtil.parseCertificateChain(certBytes);
                 TlsCredentials creds = context.tlsCredentials(key, chain);
                 return CompletableFuture.completedFuture(creds);
             }
