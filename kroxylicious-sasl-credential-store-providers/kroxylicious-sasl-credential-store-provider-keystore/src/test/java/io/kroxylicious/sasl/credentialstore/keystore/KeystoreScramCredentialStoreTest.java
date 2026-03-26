@@ -102,6 +102,7 @@ class KeystoreScramCredentialStoreTest {
         assertThat(alice.storedKey()).isNotEqualTo(bob.storedKey());
     }
 
+    @SuppressWarnings("DataFlowIssue") // we're testing that the null argument is rejected
     @Test
     void shouldRejectNullUsername() {
         assertThatThrownBy(() -> store.lookupCredential(null))
@@ -123,7 +124,7 @@ class KeystoreScramCredentialStoreTest {
     }
 
     @Test
-    void shouldThrowExceptionForInvalidPassword() throws Exception {
+    void shouldThrowExceptionForInvalidPassword() {
         KeystoreScramCredentialStoreConfig badConfig = new KeystoreScramCredentialStoreConfig(
                 keystorePath.toString(),
                 new InlinePassword("wrong-password"),
@@ -154,7 +155,7 @@ class KeystoreScramCredentialStoreTest {
     }
 
     @Test
-    void shouldUseSeparateKeyPasswordWhenProvided() throws Exception {
+    void shouldUseSeparateKeyPasswordWhenProvided() {
         String keyPassword = "different-key-password";
 
         // For this test, we'd need to generate a keystore with different key passwords

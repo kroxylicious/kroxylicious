@@ -158,11 +158,11 @@ public record ScramCredential(
     public String toString() {
         return "ScramCredential{" +
                 "username='" + username + '\'' +
-                ", salt=" + Arrays.toString(salt) +
-                ", iterations=" + iterations +
-                ", serverKey=" + Arrays.toString(serverKey) +
-                ", storedKey=" + Arrays.toString(storedKey) +
                 ", hashAlgorithm='" + hashAlgorithm + '\'' +
+                ", iterations=" + iterations +
+                ", salt=***" +
+                ", serverKey=***" +
+                ", storedKey=***" +
                 '}';
     }
 }

@@ -60,6 +60,7 @@ class ScramCredentialTest {
                 .doesNotThrowAnyException();
     }
 
+    @SuppressWarnings("DataFlowIssue") // we're testing that the null argument is rejected
     @Test
     void shouldRejectNullUsername() {
         assertThatThrownBy(() -> new ScramCredential(
@@ -86,6 +87,7 @@ class ScramCredentialTest {
                 .hasMessageContaining("username must not be empty");
     }
 
+    @SuppressWarnings("DataFlowIssue") // we're testing that the null argument is rejected
     @Test
     void shouldRejectNullSalt() {
         assertThatThrownBy(() -> new ScramCredential(
@@ -112,6 +114,7 @@ class ScramCredentialTest {
                 .hasMessageContaining("salt must not be empty");
     }
 
+    @SuppressWarnings("DataFlowIssue") // we're testing that the null argument is rejected
     @Test
     void shouldRejectNullServerKey() {
         assertThatThrownBy(() -> new ScramCredential(
@@ -138,6 +141,7 @@ class ScramCredentialTest {
                 .hasMessageContaining("serverKey must not be empty");
     }
 
+    @SuppressWarnings("DataFlowIssue") // we're testing that the null argument is rejected
     @Test
     void shouldRejectNullStoredKey() {
         assertThatThrownBy(() -> new ScramCredential(
@@ -164,6 +168,8 @@ class ScramCredentialTest {
                 .hasMessageContaining("storedKey must not be empty");
     }
 
+
+    @SuppressWarnings("DataFlowIssue") // we're testing that the null argument is rejected
     @Test
     void shouldRejectNullHashAlgorithm() {
         assertThatThrownBy(() -> new ScramCredential(
@@ -250,8 +256,8 @@ class ScramCredentialTest {
                 new byte[]{ 7, 8, 9 },
                 "SHA-256");
 
-        assertThat(credential1).isEqualTo(credential2);
-        assertThat(credential1.hashCode()).isEqualTo(credential2.hashCode());
+        assertThat(credential1).isEqualTo(credential2)
+                .hasSameHashCodeAs(credential2);
     }
 
     @Test

@@ -73,7 +73,7 @@ class ScramCredentialRoundTripTest {
     }
 
     @Test
-    void shouldPrintJsonFormatForDebugging() throws Exception {
+    void shouldPrintJsonFormatForDebugging() {
         // This test helps us see what the JSON looks like
         ScramCredential credential = new ScramCredential(
                 "alice",
@@ -85,9 +85,6 @@ class ScramCredentialRoundTripTest {
 
         ScramCredentialSerializer serializer = new ScramCredentialSerializer();
         byte[] json = serializer.serialize(credential);
-
-        // Print for inspection
-        System.out.println("JSON format: " + new String(json, java.nio.charset.StandardCharsets.UTF_8));
 
         // Verify it round-trips
         ScramCredential deserialized = serializer.deserialize(json, "alice");
