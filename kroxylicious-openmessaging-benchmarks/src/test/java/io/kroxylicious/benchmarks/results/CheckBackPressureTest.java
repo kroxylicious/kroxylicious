@@ -72,11 +72,11 @@ class CheckBackPressureTest {
         @Test
         void computesSuggestedRateBoundsFromAchievedRate() {
             // saturated fixture: publishRate ~49445/s × 1 topic × 1 producer = 49445
-            // max = round(49445 / 1000) * 1000 = 49000, min = 20% = 9800
+            // max = round(49445 / 1000) * 1000 = 49000, min = 50% of max = 24500
             var reports = ANALYSER.analyse(List.of(new LabelledResult("baseline", saturated)));
             assertThat(reports).singleElement().satisfies(r -> {
                 assertThat(r.suggestedMaxRate()).isEqualTo(49_000L);
-                assertThat(r.suggestedMinRate()).isEqualTo(9_800L);
+                assertThat(r.suggestedMinRate()).isEqualTo(24_500L);
             });
         }
 
