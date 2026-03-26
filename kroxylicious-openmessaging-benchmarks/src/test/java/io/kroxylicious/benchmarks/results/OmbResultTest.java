@@ -94,12 +94,52 @@ class OmbResultTest {
     }
 
     @Test
+    void publishLatencyAvgWindowsAreDeserialized() {
+        assertThat(baseline.getPublishLatencyAvgWindows()).containsExactly(4.8, 5.1, 5.5);
+    }
+
+    @Test
+    void publishLatency50pctWindowsAreDeserialized() {
+        assertThat(baseline.getPublishLatency50pctWindows()).containsExactly(3.5, 3.9, 4.1);
+    }
+
+    @Test
+    void publishLatency95pctWindowsAreDeserialized() {
+        assertThat(baseline.getPublishLatency95pctWindows()).containsExactly(11.0, 12.5, 13.2);
+    }
+
+    @Test
     void publishLatency99pctWindowsAreDeserialized() {
         assertThat(baseline.getPublishLatency99pctWindows()).containsExactly(24.0, 25.0, 26.0);
     }
 
     @Test
+    void publishLatency999pctWindowsAreDeserialized() {
+        assertThat(baseline.getPublishLatency999pctWindows()).containsExactly(45.0, 48.0, 51.0);
+    }
+
+    @Test
+    void endToEndLatencyAvgWindowsAreDeserialized() {
+        assertThat(baseline.getEndToEndLatencyAvgWindows()).containsExactly(8.2, 9.0, 9.5);
+    }
+
+    @Test
+    void endToEndLatency50pctWindowsAreDeserialized() {
+        assertThat(baseline.getEndToEndLatency50pctWindows()).containsExactly(6.0, 6.4, 6.8);
+    }
+
+    @Test
+    void endToEndLatency95pctWindowsAreDeserialized() {
+        assertThat(baseline.getEndToEndLatency95pctWindows()).containsExactly(18.0, 19.0, 20.5);
+    }
+
+    @Test
     void endToEndLatency99pctWindowsAreDeserialized() {
         assertThat(baseline.getEndToEndLatency99pctWindows()).containsExactly(37.0, 38.5, 39.0);
+    }
+
+    @Test
+    void endToEndLatency999pctWindowsAreDeserialized() {
+        assertThat(baseline.getEndToEndLatency999pctWindows()).containsExactly(65.0, 70.0, 74.0);
     }
 }

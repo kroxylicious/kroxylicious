@@ -19,6 +19,14 @@
   "aggregatedEndToEndLatency999pct": 69.80,
   "aggregatedPublishDelayLatencyAvg": 74.0,
   "aggregatedPublishDelayLatency99pct": 182.0,
+  "publishLatencyAvg": [4.8, 5.1, 5.5],
+  "publishLatency50pct": [3.5, 3.9, 4.1],
+  "publishLatency95pct": [11.0, 12.5, 13.2],
   "publishLatency99pct": [24.0, 25.0, 26.0],
-  "endToEndLatency99pct": [37.0, 38.5, 39.0]
+  "publishLatency999pct": [45.0, 48.0, 51.0],
+  "endToEndLatencyAvg": [8.2, 9.0, 9.5],
+  "endToEndLatency50pct": [6.0, 6.4, 6.8],
+  "endToEndLatency95pct": [18.0, 19.0, 20.5],
+  "endToEndLatency99pct": [37.0, 38.5, 39.0],
+  "endToEndLatency999pct": [65.0, 70.0, 74.0]
 }
