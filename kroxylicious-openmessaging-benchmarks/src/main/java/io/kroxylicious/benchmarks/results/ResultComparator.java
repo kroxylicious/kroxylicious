@@ -18,10 +18,16 @@ public class ResultComparator {
 
     private final OmbResult baseline;
     private final OmbResult candidate;
+    private final SignificanceTester significanceTester;
 
     public ResultComparator(OmbResult baseline, OmbResult candidate) {
+        this(baseline, candidate, new SignificanceTester());
+    }
+
+    ResultComparator(OmbResult baseline, OmbResult candidate, SignificanceTester significanceTester) {
         this.baseline = baseline;
         this.candidate = candidate;
+        this.significanceTester = significanceTester;
     }
 
     /**
@@ -42,6 +48,7 @@ public class ResultComparator {
         printRow(out, "p95", baseline.getPublishLatency95pct(), candidate.getPublishLatency95pct());
         printRow(out, "p99", baseline.getPublishLatency99pct(), candidate.getPublishLatency99pct());
         printRow(out, "p99.9", baseline.getPublishLatency999pct(), candidate.getPublishLatency999pct());
+        printSignificanceFooter(out, baseline.getPublishLatency99pctWindows(), candidate.getPublishLatency99pctWindows());
     }
 
     private void printEndToEndLatency(PrintStream out) {
@@ -51,6 +58,7 @@ public class ResultComparator {
         printRow(out, "p95", baseline.getAggregatedEndToEndLatency95pct(), candidate.getAggregatedEndToEndLatency95pct());
         printRow(out, "p99", baseline.getAggregatedEndToEndLatency99pct(), candidate.getAggregatedEndToEndLatency99pct());
         printRow(out, "p99.9", baseline.getAggregatedEndToEndLatency999pct(), candidate.getAggregatedEndToEndLatency999pct());
+        printSignificanceFooter(out, baseline.getEndToEndLatency99pctWindows(), candidate.getEndToEndLatency99pctWindows());
     }
 
     private void printThroughput(PrintStream out) {
@@ -73,5 +81,14 @@ public class ResultComparator {
         String pctSign = pct > 0 ? "+" : "";
         out.printf("  %-25s %12.2f %12.2f %12.2f (%s%.1f%%)%n",
                 label, baselineVal, candidateVal, delta, pctSign, pct);
+    }
+
+    private void printSignificanceFooter(PrintStream out, double[] baselineWindows, double[] candidateWindows) {
+        if (baselineWindows == null || candidateWindows == null) {
+            return;
+        }
+        SignificanceTester.Result result = significanceTester.test(baselineWindows, candidateWindows);
+        String verdict = result.significant() ? "SIGNIFICANT" : "not significant";
+        out.printf("  Mann-Whitney U (p99 windows): p=%.4f — %s%n", result.pValue(), verdict);
     }
 }
