@@ -383,10 +383,14 @@ class KafkaProxyFrontendHandlerTest {
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
 
         if (haProxyConfigured) {
-            // Simulate the HA proxy handler
-            inboundChannel.writeInbound(new HAProxyMessage(HAProxyProtocolVersion.V1,
+            // Simulate the HA proxy handler. Retain before writeInbound because
+            // SimpleChannelInboundHandler auto-releases the consumed message, and
+            // EmbeddedChannel also releases inbound messages during cleanup.
+            var haProxyMsg = new HAProxyMessage(HAProxyProtocolVersion.V1,
                     HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
-                    "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT));
+                    "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT);
+            haProxyMsg.retain();
+            inboundChannel.writeInbound(haProxyMsg);
             assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.HaProxy.class);
         }
 

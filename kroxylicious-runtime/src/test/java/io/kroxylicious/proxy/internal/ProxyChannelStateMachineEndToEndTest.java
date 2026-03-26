@@ -193,7 +193,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
         if (haProxy) {
             proxyChannelStateMachine.forceState(
-                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                    new ProxyChannelState.HaProxy(),
                     handler,
                     backendHandler,
                     TEST_SESSION);
@@ -617,7 +617,6 @@ class ProxyChannelStateMachineEndToEndTest {
                                                 List<ApiKeys> expectedBufferedRequestTypes) {
         var stateAssert = assertThat(proxyChannelStateMachine.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Connecting.class));
-        stateAssert.extracting(ProxyChannelState.Connecting::haProxyMessage).isEqualTo(haProxy ? HA_PROXY_MESSAGE : null);
         stateAssert.extracting(ProxyChannelState.Connecting::clientSoftwareName)
                 .isEqualTo(expectedBufferedRequestTypes.contains(ApiKeys.API_VERSIONS) ? CLIENT_SOFTWARE_NAME : null);
         stateAssert.extracting(ProxyChannelState.Connecting::clientSoftwareVersion)
@@ -707,7 +706,6 @@ class ProxyChannelStateMachineEndToEndTest {
         }
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.SelectingServer(
-                        haProxy ? HA_PROXY_MESSAGE : null,
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
                 handler,

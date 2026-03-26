@@ -9,42 +9,46 @@ package io.kroxylicious.proxy.internal.net;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import io.netty.buffer.ByteBufUtil;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
-import io.netty.handler.codec.haproxy.HAProxyTLV;
 
 /**
  * Immutable snapshot of a decoded HAProxy PROXY protocol header.
  * <p>
  * Captures the source/destination addresses, ports and any TLV extensions
  * from the Netty {@link HAProxyMessage} so that the reference-counted
- * message can be released immediately after {@code channelRead}.
+ * message can be released immediately after extraction.
  * </p>
  *
  * @param sourceAddress      the original client address reported by the load-balancer
  * @param destinationAddress the destination address the client connected to
  * @param sourcePort         the original client port
  * @param destinationPort    the destination port
- * @param tlvs               HAProxy v2 TLV extensions keyed by type name
+ * @param tlvs               HAProxy v2 TLV extensions keyed by type name, values are {@code byte[]}
  */
 public record HAProxyContext(
                              String sourceAddress,
                              String destinationAddress,
                              int sourcePort,
                              int destinationPort,
-                             Map<String, Object> tlvs) {
+                             Map<String, byte[]> tlvs) {
 
     /**
      * Creates an {@link HAProxyContext} from a Netty {@link HAProxyMessage}.
+     * <p>
+     * TLV content is deep-copied so the returned context is safe to use
+     * after the message is released.
+     * </p>
      *
-     * @param msg the decoded HAProxy message (caller is responsible for releasing it)
+     * @param msg the decoded HAProxy message
      * @return an immutable context snapshot
      */
     public static HAProxyContext from(HAProxyMessage msg) {
-        Map<String, Object> tlvs = msg.tlvs().stream()
+        Map<String, byte[]> tlvs = msg.tlvs().stream()
                 .collect(
                         Collectors.toMap(
                                 t -> t.type().name(),
-                                HAProxyTLV::content));
+                                t -> ByteBufUtil.getBytes(t.content())));
         return new HAProxyContext(
                 msg.sourceAddress(),
                 msg.destinationAddress(),

@@ -25,11 +25,6 @@ public class KafkaSession {
      * The HAProxy PROXY-protocol message received for this session, if any.
      * Captured by {@link HAProxyMessageHandler} before the SSL/binding handshake
      * completes so it is available when the state machine becomes active.
-     *
-     * TODO: replace with a parsed "HaProxyConnectionInfo" record holding
-     *       sourceAddress, sourcePort, destinationAddress, destinationPort, etc.
-     *       (and optionally HAProxy v2 TLV extensions) so we are not storing
-     *       a Netty reference-counted object beyond channelRead.
      */
     @Nullable
     private HAProxyContext haProxyContext;
@@ -63,14 +58,18 @@ public class KafkaSession {
     }
 
     /**
-     * Record the HAProxy PROXY-protocol message for this session.
-     * Called by {@link HAProxyMessageHandler} when the PROXY header is decoded.
+     * Extract connection metadata from the HAProxy PROXY-protocol message
+     * and store it as the session's {@link HAProxyContext}.
+     * <p>
+     * The {@link HAProxyContext} deep-copies all fields (including TLV content)
+     * so it remains valid regardless of the raw message's reference-count lifecycle.
+     * The raw message is <b>not</b> released here — Netty's pipeline manages that.
+     * </p>
      *
      * @param msg the decoded HAProxy message
      */
-    public void onHaProxyMessage(HAProxyMessage msg) {
+    public void setHAProxyContext(HAProxyMessage msg) {
         haProxyContext = HAProxyContext.from(msg);
-        msg.release();
     }
 
     /**
