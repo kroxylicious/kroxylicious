@@ -4,7 +4,9 @@ Pluggable API for SCRAM credential storage used by SASL termination filters.
 
 ## Purpose
 
-This module defines the API for credential stores that provide SCRAM credentials for SASL authentication. It follows the same pattern as the KMS API (`kroxylicious-kms`), allowing filters to authenticate clients against various backing stores without depending on specific implementations.
+This module defines the API for credential stores that provide SCRAM credentials for SASL authentication. 
+It provides an abstraction for calling code to authenticate clients against various backing stores without depending on specific implementations.
+In practice the calling code is expected to be some kind of SASL terminating protocol filter, such as the `SaslTermination` filter. 
 
 ## Core Interfaces
 

@@ -72,8 +72,8 @@ class KeystoreScramCredentialStoreServiceTest {
         service.initialize(config);
         ScramCredentialStore store = service.buildCredentialStore();
 
-        assertThat(store).isNotNull();
-        assertThat(store).isInstanceOf(KeystoreScramCredentialStore.class);
+        assertThat(store).isNotNull()
+                .isInstanceOf(KeystoreScramCredentialStore.class);
     }
 
     @Test
@@ -136,9 +136,10 @@ class KeystoreScramCredentialStoreServiceTest {
 
     @Test
     void shouldAllowCloseWithoutInitialize() {
-        KeystoreScramCredentialStoreService uninitializedService = new KeystoreScramCredentialStoreService();
+        try (KeystoreScramCredentialStoreService uninitializedService = new KeystoreScramCredentialStoreService()) {
 
-        assertThatCode(() -> uninitializedService.close())
-                .doesNotThrowAnyException();
+            assertThatCode(uninitializedService::close)
+                    .doesNotThrowAnyException();
+        }
     }
 }
