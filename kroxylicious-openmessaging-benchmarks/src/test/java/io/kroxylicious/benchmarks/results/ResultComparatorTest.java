@@ -176,15 +176,25 @@ class ResultComparatorTest {
     class Significance {
 
         @Test
-        void publishLatencyRowsWithWindowsShowPValue() throws IOException {
-            List<String> rows = extractSection(runComparison(), "Publish Latency");
-            assertThat(rows).allSatisfy(row -> assertThat(row).contains("p="));
+        void latencySectionHeaderContainsMwuPColumn() throws IOException {
+            assertThat(runComparison()).contains("MWU p");
         }
 
         @Test
-        void endToEndLatencyRowsWithWindowsShowPValue() throws IOException {
-            List<String> rows = extractSection(runComparison(), "End-to-End Latency");
-            assertThat(rows).allSatisfy(row -> assertThat(row).contains("p="));
+        void publishLatencyDataRowsShowPValue() throws IOException {
+            List<String> dataRows = extractSection(runComparison(), "Publish Latency");
+            assertThat(dataRows).allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
+        }
+
+        @Test
+        void endToEndLatencyDataRowsShowPValue() throws IOException {
+            List<String> dataRows = extractSection(runComparison(), "End-to-End Latency");
+            assertThat(dataRows).allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
+        }
+
+        @Test
+        void footnoteExplainsSignificanceMarker() throws IOException {
+            assertThat(runComparison()).contains("p < 0.05");
         }
     }
 
