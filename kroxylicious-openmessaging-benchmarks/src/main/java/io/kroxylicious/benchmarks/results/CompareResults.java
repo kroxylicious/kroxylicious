@@ -13,6 +13,7 @@ package io.kroxylicious.benchmarks.results;
 //DEPS info.picocli:picocli:${picocli.version}
 //DEPS org.apache.commons:commons-math3:3.6.1
 //SOURCES OmbResult.java
+//SOURCES LatencyComparison.java
 //SOURCES ResultComparator.java
 //SOURCES SignificanceTester.java
 import java.io.File;
