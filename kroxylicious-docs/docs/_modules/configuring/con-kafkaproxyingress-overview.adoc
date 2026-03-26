@@ -166,7 +166,6 @@ The `openShiftRoute` ingress type allows applications running off-cluster to con
 The `openShiftRoute` ingress type uses OpenShift `Route` resources to enable off-cluster access.
 
 When using an `openShiftRoute` ingress, the proxy uses SNI (Server Name Indication) to match the client’s requested host name to the correct virtual cluster and broker within the proxy.
-This means that every virtual cluster and every broker within the virtual cluster *must* be uniquely identifiable within DNS.
 
 To accomplish this, the following are automatically generated:
 
