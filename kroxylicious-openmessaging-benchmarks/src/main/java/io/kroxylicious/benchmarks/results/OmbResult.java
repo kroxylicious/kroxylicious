@@ -74,6 +74,12 @@ public class OmbResult {
     @JsonProperty("consumeRate")
     private double[] consumeRate;
 
+    @JsonProperty("publishLatency99pct")
+    private double[] publishLatency99pctWindows;
+
+    @JsonProperty("endToEndLatency99pct")
+    private double[] endToEndLatency99pctWindows;
+
     public double getPublishLatencyAvg() {
         return publishLatencyAvg;
     }
@@ -112,6 +118,14 @@ public class OmbResult {
 
     public double getAggregatedEndToEndLatency999pct() {
         return endToEndLatency999pct;
+    }
+
+    public double[] getPublishLatency99pctWindows() {
+        return publishLatency99pctWindows;
+    }
+
+    public double[] getEndToEndLatency99pctWindows() {
+        return endToEndLatency99pctWindows;
     }
 
     public double getPublishDelayLatencyAvgNs() {
