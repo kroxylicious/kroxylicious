@@ -33,6 +33,9 @@ include::_assemblies/assembly-operator-secure-proxy.adoc[leveloffset=+1]
 ifdef::parent-context[:context: {parent-context}]
 ifndef::parent-context[:!context:]
 
+// advanced proxy tuning
+include::_assemblies/assembly-operator-advanced-proxy-tuning.adoc[leveloffset=+1]
+
 // // monitoring proxies
 include::_assemblies/assembly-operator-monitoring.adoc[leveloffset=+1]
 

@@ -1,0 +1,16 @@
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+
+[id='assembly-operator-advanced-proxy-tuning-{context}']
+= Advanced proxy tuning
+
+[role="_abstract"]
+Configure advanced network and connection settings for the proxy.
+
+include::../_modules/configuring/con-kafkaproxy-network-settings.adoc[leveloffset=+1]
+
+include::../_modules/configuring/con-kafkaproxy-idle-timeouts.adoc[leveloffset=+1]
