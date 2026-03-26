@@ -167,31 +167,18 @@ The `openShiftRoute` ingress type uses OpenShift `Route` resources to enable off
 
 When using an `openShiftRoute` ingress, the proxy uses SNI (Server Name Indication) to match the client’s requested host name to the correct virtual cluster and broker within the proxy.
 
-To accomplish this, the following are automatically generated:
+The bootstrap and broker addresses are automatically generated. They look like this:
 
-* A unique `bootstrapAddress`. This is the address that the clients initially use to connect to the virtual cluster.
-* An `advertisedBrokerAddressPattern` that generates unique broker addresses which clients use to connect to individual brokers.
-
-The `advertisedBrokerAddressPattern` contains the token `$(nodeId)`.
-The proxy replaces this token with the broker's node ID.
-This ensures that client connections are correctly routed to the intended broker.
-
-Both `bootstrapAddress` and `advertisedBrokerAddressPattern` contain the token `$(virtualClusterName)`.
-The proxy replaces this token with the virtual cluster's name.
-This token is necessary when the `KafkaProxyIngress` is being shared by many virtual clusters.
-
-Both `bootstrapAddress` and `advertisedBrokerAddressPattern` also contain the domain assigned to their associated OpenShift Route.
-
-.`bootstrapAddress` and `advertisedBrokerAddressPattern` scheme
-|===
-|Address Type|Address
-
-|`bootstrapAddress`
-|`$(virtualClusterName)-bootstrap.your-domain:443`
-
-|`advertisedBrokerAddressPattern`
-|`$(virtualClusterName)-$(nodeId).your-domain:443`
-|===
+.Example bootstrap and broker addresses
+[source,text]
+----
+your-cluster-bootstrap.ingress-domain:443 # <1>
+your-cluster-0.ingress-domain:443 # <2>
+your-cluster-1.ingress-domain:443
+your-cluster-2.ingress-domain:443
+----
+<1> The bootstrap address follows this pattern: `<virtualClusterName>-bootstrap.<ingressDomain>:443`
+<2> The broker address follows this pattern: `<virtualClusterName>-<nodeId>.<ingressDomain>:443`
 
 .Example `KafkaProxyIngress` configuration for `openShiftRoute`
 [source,yaml]
