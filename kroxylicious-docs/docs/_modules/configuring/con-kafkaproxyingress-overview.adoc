@@ -180,6 +180,8 @@ your-cluster-2.ingress-domain:443
 <1> The bootstrap address follows this pattern: `<virtualClusterName>-bootstrap.<ingressDomain>:443`
 <2> The broker address follows this pattern: `<virtualClusterName>-<nodeId>.<ingressDomain>:443`
 
+NOTE: The bootstrap and broker addresses may contain different ingress domains if https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/ingress_and_load_balancing/routes#nw-ingress-sharding-route-configuration_creating-basic-routes[Ingress Controller sharding] is used.
+
 .Example `KafkaProxyIngress` configuration for `openShiftRoute`
 [source,yaml]
 ----
