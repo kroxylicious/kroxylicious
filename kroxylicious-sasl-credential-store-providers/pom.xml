@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.20.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>kroxylicious-sasl-credential-store-providers</artifactId>
+
+    <name>SASL Credential Store provider implementations</name>
+    <description>SASL Credential Store provider implementations</description>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>kroxylicious-sasl-credential-store-provider-keystore</module>
+    </modules>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>credential-store-use-public-api</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>io.kroxylicious</exclude>
+                                    </excludes>
+                                    <includes combine.children="append">
+                                        <include>io.kroxylicious:kroxylicious-sasl-credential-store</include>
+                                        <include>io.kroxylicious:kroxylicious-api</include>
+                                        <include>io.kroxylicious:kroxylicious-annotations</include>
+                                    </includes>
+                                </bannedDependencies>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

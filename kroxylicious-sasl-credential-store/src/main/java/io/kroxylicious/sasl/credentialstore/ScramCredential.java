@@ -61,7 +61,7 @@ public record ScramCredential(
      * Canonical constructor with validation.
      *
      * @throws NullPointerException if any parameter is null
-     * @throws IllegalArgumentException if iterations < 4096 or hash algorithm is not supported
+     * @throws IllegalArgumentException if iterations {@literal <} 4096 or hash algorithm is not supported
      */
     public ScramCredential {
         Objects.requireNonNull(username, "username must not be null");
