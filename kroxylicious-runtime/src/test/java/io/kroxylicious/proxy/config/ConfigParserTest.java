@@ -391,6 +391,50 @@ class ConfigParserTest {
     }
 
     @Test
+    void shouldDeserializeNettySettingsShutdownQuietPeriod() {
+        var configuration = configParser.parseConfiguration("""
+                network:
+                  proxy:
+                    shutdownQuietPeriod: 2s
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """);
+        assertThat(configuration.network())
+                .isNotNull()
+                .satisfies(network -> assertThat(network.proxy())
+                        .isNotNull()
+                        .satisfies(proxy -> assertThat(proxy.shutdownQuietPeriod()).contains(Duration.ofSeconds(2))));
+    }
+
+    @Test
+    void shouldDeserializeNettySettingsShutdownTimeout() {
+        var configuration = configParser.parseConfiguration("""
+                network:
+                  proxy:
+                    shutdownTimeout: 30s
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """);
+        assertThat(configuration.network())
+                .isNotNull()
+                .satisfies(network -> assertThat(network.proxy())
+                        .isNotNull()
+                        .satisfies(proxy -> assertThat(proxy.shutdownTimeout()).contains(Duration.ofSeconds(30))));
+    }
+
+    @Test
     void testConfigParserBadJson() {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> configParser.parseConfiguration("}"));
         assertThat(exception.getMessage()).contains("Couldn't parse configuration");

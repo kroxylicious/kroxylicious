@@ -136,7 +136,8 @@ class KafkaProxyInitializerTest {
     @Test
     void shouldRegisterIdleStateHandlerWithConfiguredDuration() {
         // Given
-        proxyNettySettings = new NettySettings(Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(CONFIGURED_IDLE_DURATION));
+        proxyNettySettings = new NettySettings(Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.of(CONFIGURED_IDLE_DURATION));
         kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
 
         // When

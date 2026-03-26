@@ -20,9 +20,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRoute;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
+import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterIngressNetworkingModelResult;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
@@ -62,23 +64,24 @@ public class NetworkingPlanner {
      *
      * @param primary primary being reconciled
      * @param proxyResolutionResult
+     * @param routeHostDetails
      * @return non-null ProxyIngressModel
      */
     public static ProxyNetworkingModel planNetworking(KafkaProxy primary,
-                                                      ProxyResolutionResult proxyResolutionResult) {
+                                                      ProxyResolutionResult proxyResolutionResult, List<RouteHostDetails> routeHostDetails) {
         AtomicInteger identifyingPorts = new AtomicInteger(PROXY_PORT_START);
         // include broken clusters in the model, so that if they are healed the ports will stay the same
         Stream<ClusterResolutionResult> virtualKafkaClusterStream = proxyResolutionResult.allResolutionResultsInClusterNameOrder();
         List<ClusterNetworkingModel> list = virtualKafkaClusterStream
-                .map(it -> planClusterNetworking(primary, it, identifyingPorts))
+                .map(it -> planClusterNetworking(primary, it, identifyingPorts, routeHostDetails))
                 .toList();
         return new ProxyNetworkingModel(list);
     }
 
     private static ClusterNetworkingModel planClusterNetworking(KafkaProxy primary,
                                                                 ClusterResolutionResult clusterResolutionResult,
-                                                                AtomicInteger identifyingPorts) {
-        Stream<ClusterIngressNetworkingDefinition> networkingDefinitions = planClusterIngressNetworkingDefinitions(primary, clusterResolutionResult);
+                                                                AtomicInteger identifyingPorts, List<RouteHostDetails> routeHostDetails) {
+        Stream<ClusterIngressNetworkingDefinition> networkingDefinitions = planClusterIngressNetworkingDefinitions(primary, clusterResolutionResult, routeHostDetails);
         List<ClusterIngressNetworkingModelResult> ingressResults = networkingDefinitions.map(networkingDefinition -> {
             int toAllocate = networkingDefinition.numIdentifyingPortsRequired();
             @Nullable
@@ -108,7 +111,8 @@ public class NetworkingPlanner {
     }
 
     static Stream<ClusterIngressNetworkingDefinition> planClusterIngressNetworkingDefinitions(KafkaProxy primary,
-                                                                                              ClusterResolutionResult clusterResolutionResult) {
+                                                                                              ClusterResolutionResult clusterResolutionResult,
+                                                                                              List<RouteHostDetails> routeHostDetails) {
         VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
         return clusterResolutionResult.ingressResolutionResults().stream()
                 .flatMap(
@@ -116,7 +120,8 @@ public class NetworkingPlanner {
                             Optional<KafkaProxyIngress> maybeIngress = ingressResolutionResult.ingressResolutionResult().maybeReferentResource();
                             Optional<KafkaService> maybeService = clusterResolutionResult.serviceResolutionResult().maybeReferentResource();
                             // skip if ingress or service unresolved
-                            return maybeIngress.map(ingress -> planClusterIngressNetworkingDefinition(primary, ingressResolutionResult, ingress, maybeService, cluster))
+                            return maybeIngress.map(
+                                    ingress -> planClusterIngressNetworkingDefinition(primary, ingressResolutionResult, ingress, maybeService, cluster, routeHostDetails))
                                     .orElseGet(Stream::empty);
                         });
     }
@@ -126,12 +131,13 @@ public class NetworkingPlanner {
                                                                                                      IngressResolutionResult ingressResolutionResult,
                                                                                                      KafkaProxyIngress ingress,
                                                                                                      Optional<KafkaService> service,
-                                                                                                     VirtualKafkaCluster cluster) {
+                                                                                                     VirtualKafkaCluster cluster,
+                                                                                                     List<RouteHostDetails> routeHostDetails) {
         // todo we should change this so that we skip if KafkaService is not resolved
         List<NodeIdRanges> nodeIdRanges = service.map(s -> s.getSpec().getNodeIdRanges()).orElse(DEFAULT_NODE_ID_RANGES);
         try {
             ClusterIngressNetworkingDefinition definition = clusterIngressNetworkingDefinition(primary, cluster, ingress, nodeIdRanges,
-                    ingressResolutionResult.ingress().getTls());
+                    ingressResolutionResult.ingress().getTls(), routeHostDetails);
             return Stream.of(
                     definition);
         }
@@ -145,9 +151,11 @@ public class NetworkingPlanner {
                                                                                          VirtualKafkaCluster cluster,
                                                                                          KafkaProxyIngress ingress,
                                                                                          List<NodeIdRanges> nodeIdRanges,
-                                                                                         @Nullable Tls tls) {
+                                                                                         @Nullable Tls tls,
+                                                                                         List<RouteHostDetails> routeHostDetails) {
         ClusterIP clusterIP = ingress.getSpec().getClusterIP();
         LoadBalancer loadBalancer = ingress.getSpec().getLoadBalancer();
+        OpenShiftRoute openShiftRoute = ingress.getSpec().getOpenShiftRoute();
         if (clusterIP != null) {
             switch (clusterIP.getProtocol()) {
                 case TCP -> {
@@ -163,8 +171,12 @@ public class NetworkingPlanner {
             validateNotNull(tls, "LoadBalancer requires TLS to be provided by the virtualkafkacluster");
             return new LoadBalancerClusterIngressNetworkingDefinition(ingress, cluster, loadBalancer, tls);
         }
+        else if (openShiftRoute != null) {
+            validateNotNull(tls, "OpenShiftRoute requires TLS to be provided by the virtualkafkacluster");
+            return new OpenShiftRouteClusterIngressNetworkingDefinition(primary, ingress, cluster, openShiftRoute, nodeIdRanges, tls, routeHostDetails);
+        }
         else {
-            throw new NetworkPlanningException("ingress must have clusterIP or loadBalancer specified");
+            throw new NetworkPlanningException("ingress must have either clusterIP, loadBalancer, or openShiftRoute specified");
         }
     }
 
@@ -275,6 +287,30 @@ public class NetworkingPlanner {
                                                                    @Nullable Integer sharedSniPort) {
             validateNotNull(sharedSniPort, "sharedSniPort must be non null for LoadBalancer ingress");
             return new LoadBalancerClusterIngressNetworkingModel(cluster, ingress, loadBalancer, tls, sharedSniPort);
+        }
+
+        @Override
+        public boolean requiresSharedSniPort() {
+            return true;
+        }
+    }
+
+    private record OpenShiftRouteClusterIngressNetworkingDefinition(
+                                                                    KafkaProxy primary,
+                                                                    KafkaProxyIngress ingress,
+                                                                    VirtualKafkaCluster cluster,
+                                                                    OpenShiftRoute openShiftRoute,
+                                                                    List<NodeIdRanges> nodeIdRanges,
+                                                                    Tls tls, List<RouteHostDetails> routeHostDetails)
+            implements ClusterIngressNetworkingDefinition {
+
+        @Override
+        @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
+        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
+                                                                   @Nullable Integer lastIdentifyingPort,
+                                                                   @Nullable Integer sharedSniPort) {
+            validateNotNull(sharedSniPort, "sharedSniPort must be non null for OpenShiftRoute ingress");
+            return new RouteClusterIngressNetworkingModel(primary, cluster, ingress, openShiftRoute, nodeIdRanges, tls, sharedSniPort, routeHostDetails);
         }
 
         @Override
