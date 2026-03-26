@@ -35,5 +35,13 @@ mycluster-1.ingress-domain
 mycluster-2.ingress-domain
 ----
 
+To prepare your certificate in advance, you can lookup the ingress domain from the Ingress Controller:
+
+[source,bash]
+----
+oc get ingresscontrollers.operator.openshift.io -n openshift-ingress-operator default -o=jsonpath='{.status.domain}'
+----
+
+
 include::../../_snippets/snip-create-secret-containing-pem-certificate.adoc[]
 
