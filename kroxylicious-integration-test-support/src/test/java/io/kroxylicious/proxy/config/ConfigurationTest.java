@@ -37,6 +37,7 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultGateway
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
@@ -111,6 +112,26 @@ class ConfigurationTest {
                                 privateKeyFile: /tmp/key
                         """, VirtualCluster.class)).isInstanceOf(MismatchedInputException.class)
                 .hasMessageContaining("Missing required creator property 'advertisedBrokerAddressPattern'");
+    }
+
+    @Test
+    void shouldNotRejectSniGatewayWithOpenshiftRoutePlaceholderToken() {
+        assertThatCode(() -> MAPPER.readValue(
+                """
+                          name: cluster
+                          targetCluster:
+                            bootstrapServers: kafka.example:1234
+                          gateways:
+                          - name: default
+                            sniHostIdentifiesNode:
+                                bootstrapAddress: one-bootstrap.$(unresolvedRouteHost):9192
+                                advertisedBrokerAddressPattern: one-$(nodeId).$(unresolvedRouteHost):443
+                            tls:
+                              key:
+                                certificateFile: /tmp/cert
+                                privateKeyFile: /tmp/key
+                        """, VirtualCluster.class))
+                .doesNotThrowAnyException();
     }
 
     static Stream<Arguments> fluentApiConfigYamlFidelity() {
