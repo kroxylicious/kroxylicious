@@ -1,0 +1,161 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+# .github/workflows/operator-tests-microshift.yml
+#
+# Runs the kroxylicious-operator integration against a
+# MicroShift (single-node OpenShift) cluster, providing confidence that the
+# operator works correctly on the OpenShift API surface.
+#
+# Prerequisites / secrets required in the repository:
+#   REDHAT_PULL_SECRET  – Red Hat pull secret (JSON) downloaded from
+#                         https://console.redhat.com/openshift/downloads#tool-pull-secret
+#                         Required to pull MicroShift's bundled OpenShift images.
+
+name: Test Operator on MicroShift (OpenShift substitute)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_run: # uses workflow_run as we need access to the secrets
+    workflows: [ "Lint Pull Request" ]
+    types: [completed]
+
+  # Exists mainly for diagnostic purposes
+  workflow_dispatch:
+    inputs:
+      additionalMavenArguments:
+        description: 'Additional arguments passed to Maven'
+        default: ''
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: Preflight checks
+    runs-on: ubuntu-latest
+    outputs:
+      pull-secret-check: ${{ steps.pull-check.outputs.pullsecret }}
+      operator-changed: ${{ steps.filter.outputs.changes }}
+    steps:
+        - name: Checkout source
+          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+        - name: 'Test for presence of Red Hat pull-secret'
+          id: pull-check
+          env:
+            REDHAT_PULL_SECRET: ${{ secrets.REDHAT_PULL_SECRET }}
+          run: echo "pullsecret=$(test ${REDHAT_PULL_SECRET} && echo true)" >> "$GITHUB_OUTPUT"
+
+        - name: "Test for updates to the operator itself"
+          uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d
+          id: filter
+          with:
+            filters: |
+              changes:
+                - 'kroxylicious-operator/**'
+                - 'kroxylicious-kubernetes-api/**'
+                - '.github/workflows/operator-tests-microshift.yml'
+
+  operator-tests-microshift:
+    name: Operator integration & system tests on MicroShift
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: preflight
+    if: needs.preflight.outputs.pull-secret-check == 'true' && needs.preflight.outputs.operator-changed == 'true'
+
+    steps:
+      - name: 'Test for Slack secret'
+        env:
+          KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+        run: |
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+
+      - name: 'Install podman'
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install podman podman-remote
+
+      - name: Checkout source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
+
+      - name: 'Cache Maven packages'
+        uses: ./.github/actions/common/cache-maven-packages
+
+      - name: 'Cache crc cache'
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        with:
+          path: |
+            ~/.crc/cache
+          key: ${{ runner.os }}-crc
+          restore-keys: ${{ runner.os }}-crc
+
+      - name: Start MicroShift cluster
+        uses: crc-org/crc-github-action@466b8741bd91b9ee59f37db92b69f285cacada41
+        with:
+          pull-secret: ${{ secrets.REDHAT_PULL_SECRET }}
+          preset: microshift
+
+      - name: Verify cluster is healthy
+        run: |
+          echo "==> Node status"
+          kubectl get nodes -o wide
+          echo "==> All system pods"
+          kubectl get pods -A
+          echo "==> All system pods"
+          echo "==> API server version"
+          kubectl version
+
+      - name: 'Build Kroxylicious Operand Container Images'
+        run: |
+          eval $(crc podman-env --root)
+          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator -Dquick install
+
+      - name: Run operator integration tests
+        run: |
+          eval $(crc podman-env --root)
+          mvn --batch-mode \
+            -pl kroxylicious-operator \
+            -Dcheckstyle.skip \
+            -Dspotbugs.skip \
+            -Dmaven.javadoc.skip=true \
+            verify \
+            ${{ github.event.inputs.additionalMavenArguments }}
+
+      - name: Upload Maven surefire / failsafe reports
+        if: failure()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: maven-test-reports
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          retention-days: 7
+
+      - name: Slack Notification on Failure
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true'
+        uses: ./.github/actions/common/slack-notification
+        with:
+          slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+          slackTitle: 'Failure Alert: ${{ github.repository }}'
+          slackMessage: 'The operator maven workflow failed on branch ${{ github.ref_name }}.'
