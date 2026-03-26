@@ -47,6 +47,14 @@
 
     <build>
         <plugins>
+            <!-- Skip dependency analysis - this is a javadoc aggregation module -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
             <!-- Skip parent's asciidoctor executions -->
             <plugin>
                 <groupId>org.asciidoctor</groupId>
