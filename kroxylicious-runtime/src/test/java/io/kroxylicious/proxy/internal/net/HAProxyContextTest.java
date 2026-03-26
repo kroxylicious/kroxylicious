@@ -6,12 +6,17 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
+import io.netty.handler.codec.haproxy.HAProxyTLV;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -63,5 +68,31 @@ class HAProxyContextTest {
         assertThat(context.destinationAddress()).isEqualTo("172.16.0.1");
         assertThat(context.sourcePort()).isEqualTo(12345);
         assertThat(context.destinationPort()).isEqualTo(8080);
+    }
+
+    @Test
+    void shouldDeepCopyTlvContent() {
+        // Given
+        var authorityBytes = "broker.example.com".getBytes(StandardCharsets.UTF_8);
+        var tlv = new HAProxyTLV(HAProxyTLV.Type.PP2_TYPE_AUTHORITY,
+                Unpooled.copiedBuffer(authorityBytes));
+
+        var msg = new HAProxyMessage(
+                HAProxyProtocolVersion.V2,
+                HAProxyCommand.PROXY,
+                HAProxyProxiedProtocol.TCP4,
+                "10.0.0.1",
+                "10.0.0.2",
+                12345,
+                9092,
+                List.of(tlv));
+
+        // When
+        var context = HAProxyContext.from(msg);
+        msg.release();
+
+        // Then — TLV content is a deep copy, safe after release
+        assertThat(context.tlvs()).containsKey("PP2_TYPE_AUTHORITY");
+        assertThat(context.tlvs().get("PP2_TYPE_AUTHORITY")).isEqualTo(authorityBytes);
     }
 }
