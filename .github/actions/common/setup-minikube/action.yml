@@ -21,8 +21,7 @@ description: "Installs minikube"
 inputs:
   githubToken:
     description: "Github Token to be used"
-    required: false
-    default: ${{ secrets.GITHUB_TOKEN }}
+    required: true
 
 runs:
   using: "composite"

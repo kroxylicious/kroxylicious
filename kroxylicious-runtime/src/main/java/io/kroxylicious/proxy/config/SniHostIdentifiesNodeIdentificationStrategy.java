@@ -22,6 +22,7 @@ import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_NODE_ID;
+import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_UNRESOLVED_ROUTE_HOST;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_VIRTUAL_CLUSTER_NAME;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.validatePortSpecifier;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.validateStringContainsOnlyExpectedTokens;
@@ -52,7 +53,7 @@ public class SniHostIdentifiesNodeIdentificationStrategy
     private final String advertisedBrokerAddressPattern;
 
     private static final Set<String> REQUIRED_TOKEN_SET = Set.of(LITERAL_NODE_ID);
-    private static final Set<String> ALLOWED_TOKEN_SET = Set.of(LITERAL_NODE_ID, LITERAL_VIRTUAL_CLUSTER_NAME);
+    private static final Set<String> ALLOWED_TOKEN_SET = Set.of(LITERAL_NODE_ID, LITERAL_VIRTUAL_CLUSTER_NAME, LITERAL_UNRESOLVED_ROUTE_HOST);
 
     @JsonIgnore
     private final String parsedBootstrapAddressPattern;
@@ -151,6 +152,12 @@ public class SniHostIdentifiesNodeIdentificationStrategy
                 "advertisedBrokerAddressPattern=" + advertisedBrokerAddressPattern + ']';
     }
 
+    public static class UnresolvedHostException extends RuntimeException {
+        public UnresolvedHostException(String m) {
+            super(m);
+        }
+    }
+
     @Override
     public NodeIdentificationStrategy buildStrategy(String clusterName) {
         return new Strategy(clusterName);
@@ -172,6 +179,11 @@ public class SniHostIdentifiesNodeIdentificationStrategy
             this.bootstrapAddress = new HostPort(
                     BrokerAddressPatternUtils.replaceVirtualClusterName(parsedBootstrapAddressPattern, clusterName),
                     getBootstrapPort());
+
+            if (bootstrapAddress.host().contains(LITERAL_UNRESOLVED_ROUTE_HOST)) {
+                throw new UnresolvedHostException("Parsed bootstrap address host '" + parsedBootstrapAddressPattern + "' contains placeholder host token.");
+            }
+
             try {
                 URI.create(bootstrapAddress.toString());
             }

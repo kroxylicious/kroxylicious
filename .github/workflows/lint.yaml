@@ -61,5 +61,6 @@ jobs:
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
         uses: ./.github/actions/common/slack-notification
         with:
+          slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The lint workflow failed on branch ${{ github.ref_name }}.'

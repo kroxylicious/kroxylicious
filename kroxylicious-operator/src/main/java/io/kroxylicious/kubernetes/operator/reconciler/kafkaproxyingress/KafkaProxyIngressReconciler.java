@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxyingress;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -14,6 +15,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -26,6 +28,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
@@ -33,9 +36,17 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
- * Reconciles a {@link KafkaProxyIngress} by checking whether the {@link KafkaProxy}
- * referenced by the {@code spec.proxyRef.name} actually exists, setting a
- * {@link Condition.Type#ResolvedRefs} {@link Condition} accordingly.
+ * Reconciles a {@link KafkaProxyIngress} resource.
+ * <br/>
+ * It does this by checking the following:
+ * <ol>
+ *     <li>It checks whether the the {@link KafkaProxy} referenced by the {@code spec.proxyRef.name} actually exists.</li>
+ *     <li>It checks whether the specified ingress are accepted for the platform. This check currently  applies to the {@code spec.openShiftRoute} ingress type only.
+ *     If this ingress type is specified the platform must provide the OpenShift Route API.</li>
+ * </ol>
+ * The reconciler uses the {@link Condition.Type#ResolvedRefs} {@link Condition} to report if the KafkaProxy spec is present.
+ * The reconciler uses the {@link Condition.Type#Accepted} {@link Condition} to report the ingress is fully acceptable.
+ * This is the case if the proxy exists and any specific ingress requirement passes.
  */
 public class KafkaProxyIngressReconciler implements
         Reconciler<KafkaProxyIngress> {
@@ -72,25 +83,70 @@ public class KafkaProxyIngressReconciler implements
         var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
         LOGGER.debug("spec.proxyRef.name resolves to: {}", proxyOpt);
 
+        var isIngressSpecUsingOpenshiftRoute = ingress.getSpec().getOpenShiftRoute() != null;
+        var isOpenShiftRouteApiAvailable = context.getClient().supports(Route.class);
+
+        var conditions = new ArrayList<Condition>();
+
+        addResolvedRefCondition(ingress, proxyOpt, conditions);
+        addAcceptedConditions(ingress, isIngressSpecUsingOpenshiftRoute, isOpenShiftRouteApiAvailable, proxyOpt, conditions);
+
+        var update = statusFactory.ingressStatusPatch(ingress, ResourceState.fromList(conditions), MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
         UpdateControl<KafkaProxyIngress> updateControl;
-        if (proxyOpt.isPresent()) {
-            updateControl = UpdateControl.patchResourceAndStatus(
-                    statusFactory.newTrueConditionStatusPatch(
-                            ingress,
-                            Condition.Type.ResolvedRefs,
-                            MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED));
+        if (update.getStatus().getConditions().stream().allMatch(c -> Condition.Status.TRUE.equals(c.getStatus()))) {
+            updateControl = UpdateControl.patchResourceAndStatus(update);
         }
         else {
-            updateControl = UpdateControl.patchStatus(statusFactory.newFalseConditionStatusPatch(
+            updateControl = UpdateControl.patchStatus(update);
+        }
+
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{}", namespace(ingress), name(ingress));
+        }
+
+        return updateControl;
+    }
+
+    private void addAcceptedConditions(KafkaProxyIngress ingress,
+                                       boolean isIngressSpecUsingOpenshiftRoute,
+                                       boolean isOpenShiftRouteApiAvailable,
+                                       Optional<KafkaProxy> proxyOpt,
+                                       List<Condition> conditions) {
+        if (isIngressSpecUsingOpenshiftRoute && !isOpenShiftRouteApiAvailable) {
+            conditions.add(statusFactory.newFalseCondition(
+                    ingress,
+                    Condition.Type.Accepted,
+                    Condition.REASON_REQUESTED_RESOURCE_KIND_NOT_SUPPORTED,
+                    "Kubernetes server is missing support for resource kind Route. spec.openShiftRoute is only supported on OpenShift."));
+        }
+        else if (proxyOpt.isEmpty()) {
+            conditions.add(statusFactory.newFalseCondition(
+                    ingress,
+                    Condition.Type.Accepted,
+                    Condition.REASON_INVALID,
+                    "Other conditions prevent the resource being acceptable."));
+        }
+        else {
+            conditions.add(statusFactory.newTrueCondition(
+                    ingress,
+                    Condition.Type.Accepted));
+        }
+    }
+
+    private void addResolvedRefCondition(KafkaProxyIngress ingress,
+                                         Optional<KafkaProxy> proxyOpt,
+                                         List<Condition> conditions) {
+        if (proxyOpt.isEmpty()) {
+            conditions.add(statusFactory.newFalseCondition(
                     ingress,
                     Condition.Type.ResolvedRefs,
                     Condition.REASON_REFS_NOT_FOUND,
                     "KafkaProxy spec.proxyRef.name not found"));
         }
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{}", namespace(ingress), name(ingress));
+        else {
+            conditions.add(statusFactory.newTrueCondition(
+                    ingress, Condition.Type.ResolvedRefs));
         }
-        return updateControl;
     }
 
     @Override

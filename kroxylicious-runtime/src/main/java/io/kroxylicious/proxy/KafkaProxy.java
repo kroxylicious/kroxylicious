@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -79,12 +80,13 @@ public final class KafkaProxy implements AutoCloseable {
     private static final TreeSet<Integer> TESTED_JRE_VERSIONS = new TreeSet<>(Set.of(21, 25));
 
     @VisibleForTesting
-    record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
+    record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz,
+                            Duration shutdownQuietPeriod, Duration shutdownTimeout) {
 
-        @SuppressWarnings("java:S1452") // wildcard generics expected, shutdownGracefully returns wildcard
-        public List<Future<?>> shutdownGracefully(int shutdownQuietPeriodSeconds) {
-            return List.of(bossGroup.shutdownGracefully(shutdownQuietPeriodSeconds, 15, TimeUnit.SECONDS),
-                    workerGroup.shutdownGracefully(shutdownQuietPeriodSeconds, 15, TimeUnit.SECONDS));
+        @SuppressWarnings("java:S1452")
+        public List<Future<?>> shutdownGracefully() {
+            return List.of(bossGroup.shutdownGracefully(shutdownQuietPeriod.toNanos(), shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS),
+                    workerGroup.shutdownGracefully(shutdownQuietPeriod.toNanos(), shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS));
         }
 
         public static EventGroupConfig build(String name, Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier, boolean useIoUring) {
@@ -118,7 +120,17 @@ public final class KafkaProxy implements AutoCloseable {
             bossGroup = new MultiThreadIoEventLoopGroup(workerThreadCount, ioHandlerFactory);
             workerGroup = new MultiThreadIoEventLoopGroup(workerThreadCount, ioHandlerFactory);
 
-            return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
+            var nettySettings = getNettySettings(configuration, settingsSupplier);
+            var quietPeriod = resolveQuietPeriod(nettySettings);
+            var timeout = nettySettings.flatMap(NettySettings::shutdownTimeout).orElse(Duration.ofSeconds(15));
+
+            return new EventGroupConfig(name, bossGroup, workerGroup, channelClass, quietPeriod, timeout);
+        }
+
+        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+        private static Duration resolveQuietPeriod(Optional<NettySettings> nettySettings) {
+            return nettySettings.flatMap(NettySettings::shutdownQuietPeriod)
+                    .orElse(Duration.ofSeconds(2));
         }
 
         private static int resolveThreadCount(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
@@ -336,12 +348,10 @@ public final class KafkaProxy implements AutoCloseable {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
                 if (proxyEventGroup != null) {
-                    Integer shutdownQuietPeriodSeconds = getShutdownQuietPeriodSeconds(NetworkDefinition::proxy);
-                    closeFutures.addAll(proxyEventGroup.shutdownGracefully(shutdownQuietPeriodSeconds));
+                    closeFutures.addAll(proxyEventGroup.shutdownGracefully());
                 }
                 if (managementEventGroup != null) {
-                    Integer shutdownQuietPeriodSeconds = getShutdownQuietPeriodSeconds(NetworkDefinition::management);
-                    closeFutures.addAll(managementEventGroup.shutdownGracefully(shutdownQuietPeriodSeconds));
+                    closeFutures.addAll(managementEventGroup.shutdownGracefully());
                 }
                 closeFutures.forEach(Future::syncUninterruptibly);
                 if (filterChainFactory != null) {
@@ -366,11 +376,6 @@ public final class KafkaProxy implements AutoCloseable {
             LOGGER.info("Shut down completed.");
 
         }
-    }
-
-    private Integer getShutdownQuietPeriodSeconds(Function<NetworkDefinition, NettySettings> nettySettingsFunction) {
-        return Optional.ofNullable(config.network()).flatMap(networkDefinition -> Optional.ofNullable(nettySettingsFunction.apply(networkDefinition)))
-                .flatMap(NettySettings::shutdownQuietPeriodSeconds).orElse(2);
     }
 
     @Override

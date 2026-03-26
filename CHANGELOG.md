@@ -15,9 +15,13 @@ Format `<github issue/pr number>: <short description>`.
 * [#3444](https://github.com/kroxylicious/kroxylicious/pull/3444): feat(authorization): support v13-v18 Fetch with topicIds
 * [#3506](https://github.com/kroxylicious/kroxylicious/pull/3506): feat(validation): support v13+ Produce with topicIds
 * [#3448](https://github.com/kroxylicious/kroxylicious/pull/3448): feat(authorization): support authorization of group new consumer protocol group
+* [#3399](https://github.com/kroxylicious/kroxylicious/pull/3399): feat(operator): add `KafkaProxyIngress.spec.openShiftRoute`
 
 ### Changes, deprecations and removals
 
+* [#3496](https://github.com/kroxylicious/kroxylicious/issues/3496): The `shutdownQuietPeriodSeconds` field under `network.proxy` and `network.management` is deprecated.
+  Use the new `shutdownQuietPeriod` field instead, which accepts Go-style durations (e.g. `"2s"`, `"500ms"`) and adds support for sub-second precision.
+  A new `shutdownTimeout` field is also available to configure the previously hardcoded 15-second Netty shutdown timeout.
 * Apicurio v3 has changed the default way schemas are identified. They are now referred to using `contentId` rather than `globalId`.
   The reason for this change was to allow interop with Confluent based kafka clients.
   Unfortunately, this causes breaking changes for users of `schemaValidation` rules of the record-validation feature.
@@ -27,6 +31,8 @@ Format `<github issue/pr number>: <short description>`.
     Refer to the [Apicurio upgrade documentation](https://www.apicur.io/registry/docs/apicurio-registry/3.1.x/getting-started/assembly-migrating-registry-v2-v3.html) for details.
   * Alternatively, the old behaviour can be restored by  setting the config option `wireFormatVersion` to `V2`. In this mode, the `apicurioId` refers to the `globalId` and clients must send `globalId`.
     `V2` mode is deprecated and will be removed in a future release.
+* The operator now has the ability to enable external access to a Virtual Cluster via OpenShift Routes using `KafkaProxyIngress.spec.openShiftRoute`.
+  This enables off-cluster client access on OpenShift, with graceful rejection when the Route API is unavailable.
 
 ## 0.19.0
 

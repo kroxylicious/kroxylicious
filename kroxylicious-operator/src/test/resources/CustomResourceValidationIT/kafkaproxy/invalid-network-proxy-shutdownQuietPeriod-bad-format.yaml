@@ -15,5 +15,5 @@ resource:
     network:
       proxy:
         shutdownQuietPeriod: "PT2S"
-expectFailureMessageToContain: |
+expectFailureMessageToContain: |-
   spec.network.proxy.shutdownQuietPeriod
