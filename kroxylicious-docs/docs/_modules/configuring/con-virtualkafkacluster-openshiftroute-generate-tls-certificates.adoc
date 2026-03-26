@@ -25,14 +25,14 @@ The certificate must meet the following criteria:
 * The format of the key must be PKCS#8 encoded PEM (Privacy Enhanced Mail).
   It must not be password protected.
 * The certificate must use SANs (Subject Alternate Names) to list the bootstrap and all the broker names or use a wildcard TLS certificate that covers them all.
-Assuming a `bootstrapAddress` of `$(virtualClusterName)-bootstrap.your-domain:443`, an `advertisedBrokerAddressPattern` of `$(virtualClusterName)-$(nodeId).your-domain:443`, a Kafka cluster using node IDs (0-2), and a virtual cluster name of `my-cluster`, the following SANs must be listed in the certificate:
+Assuming a `bootstrapAddress` of `$(virtualClusterName)-bootstrap.ingress-domain:443`, an `advertisedBrokerAddressPattern` of `$(virtualClusterName)-$(nodeId).ingress-domain:443`, a Kafka cluster using node IDs (0-2), and a virtual cluster name of `my-cluster`, the following SANs must be listed in the certificate:
 +
 [source,text]
 ----
-mycluster-bootstrap.your-domain
-mycluster-0.your-domain
-mycluster-1.your-domain
-mycluster-2.your-domain
+mycluster-bootstrap.ingress-domain
+mycluster-0.ingress-domain
+mycluster-1.ingress-domain
+mycluster-2.ingress-domain
 ----
 
 include::../../_snippets/snip-create-secret-containing-pem-certificate.adoc[]
