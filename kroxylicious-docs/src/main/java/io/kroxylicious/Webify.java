@@ -112,7 +112,9 @@ public class Webify implements Callable<Integer> {
             Path parentDir = outdir.getParent();
             // If condition to keep spotbugs happy
             if (parentDir != null && Files.exists(parentDir)) {
-                Files.writeString(parentDir.resolve("index.md"),
+                Path resolved = parentDir.resolve("index.md");
+                logger.info("writing index.md {}", resolved);
+                Files.writeString(resolved,
                         docIndexFrontMatter(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                 return 0;
             }
@@ -166,7 +168,10 @@ public class Webify implements Callable<Integer> {
         if (logger.isInfoEnabled()) {
             logger.info(mapper.writeValueAsString(resultRootObject));
         }
-        Files.createDirectories(Objects.requireNonNull(dataDestPath.getParent()));
+        Path dir = Objects.requireNonNull(dataDestPath.getParent());
+        logger.info("create dirs {}", dir);
+        Files.createDirectories(dir);
+        logger.info("write data to {}", dataDestPath);
         Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
@@ -295,7 +300,9 @@ public class Webify implements Callable<Integer> {
                 resultDocsList.add(createDataDocObject(filePath, relFilePath, outputDirectory));
             }
             else if (!omitable && !tocifiable) {
+                logger.info("creating dir for !omitable !tocifiable {}", outputDirectory);
                 Files.createDirectories(outputDirectory);
+                logger.info("copying !omitable !tocifiable file {} to {}", filePath, outFilePath);
                 Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
             }
             else {
@@ -312,8 +319,11 @@ public class Webify implements Callable<Integer> {
             if (!dataDocObject.has("path")) {
                 Path relFilePathParent = Objects.requireNonNull(relFilePath.getParent());
                 relPath = "html/" + relFilePathParent;
+                logger.info("creating dir for data doc object {}", outputDirectory);
                 Files.createDirectories(outputDirectory);
-                Files.writeString(outputDirectory.resolve("index.html"),
+                Path outputPath = outputDirectory.resolve("index.html");
+                logger.info("creating index.html for data doc object {}", outputPath);
+                Files.writeString(outputPath,
                         Webify.this.guideFrontMatter(dataDocObject, "html/" + relFilePathParent),
                         StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             }
