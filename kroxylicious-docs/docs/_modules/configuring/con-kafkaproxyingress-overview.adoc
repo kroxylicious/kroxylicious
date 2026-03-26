@@ -16,9 +16,10 @@ The `KafkaProxyIngress` resource supports the following ingress types to configu
 
 * `clusterIP` exposes the virtual cluster to applications running inside the same Kubernetes cluster as the proxy.
 * `loadBalancer` exposes the virtual cluster to applications running outside the Kubernetes cluster.
+* `openShiftRoute` exposes the virtual cluster to applications running outside the Kubernetes cluster by using OpenShift Routes.
 
 The `clusterIP` ingress types support both TCP (plain) and TLS connections.
-The `loadBalancer` type exclusively supports TLS.
+The `loadBalancer` and `openShiftRoute` types exclusively supports TLS.
 
 When using TLS, you specify a TLS server certificate in the ingress configuration of the `VirtualKafkaCluster` resource.
 
@@ -39,6 +40,11 @@ The following table summarizes the supported ingress types.
 |Off-cluster applications
 |TLS only
 |Yes
+
+|`openShiftRoute`
+|Off-cluster applications
+|TLS only
+|No (hostnames are assigned by OpenShift)
 |===
 
 IMPORTANT: TLS is recommended when connecting applications in a production environment.
@@ -149,3 +155,58 @@ spec:
 When using TLS, specify a xref:con-virtualkafkacluster-loadbalancer-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource using a `certificateRef`.
 
 You must also xref:proc-virtualkafkacluster-loadbalancer-dns-config-{context}[configure DNS] so that the bootstrap and broker address resolve from the network used by the applications.
+
+
+== `openShiftRoute` ingress type
+
+IMPORTANT: OpenShift Routes are an OpenShift-only feature and are not supported on vanilla Kubernetes environments. The Kroxylicious Operator actively detects whether the OpenShift Route API is supported on the Kubernetes Server; if the feature is not available, the operator will gracefully reject any attempt by the user to use it.
+
+The `openShiftRoute` ingress type allows applications running off-cluster to connect to the virtual cluster. TLS must be used with this ingress type.
+
+The `openShiftRoute` ingress type uses OpenShift `Route` resources to enable off-cluster access.
+
+When using an `openShiftRoute` ingress, the proxy uses SNI (Server Name Indication) to match the client’s requested host name to the correct virtual cluster and broker within the proxy.
+This means that every virtual cluster and every broker within the virtual cluster *must* be uniquely identifiable within DNS.
+
+To accomplish this, the following are automatically generated:
+
+* A unique `bootstrapAddress`. This is the address that the clients initially use to connect to the virtual cluster.
+* An `advertisedBrokerAddressPattern` that generates unique broker addresses which clients use to connect to individual brokers.
+
+The `advertisedBrokerAddressPattern` contains the token `$(nodeId)`.
+The proxy replaces this token with the broker's node ID.
+This ensures that client connections are correctly routed to the intended broker.
+
+Both `bootstrapAddress` and `advertisedBrokerAddressPattern` contain the token `$(virtualClusterName)`.
+The proxy replaces this token with the virtual cluster's name.
+This token is necessary when the `KafkaProxyIngress` is being shared by many virtual clusters.
+
+Both `bootstrapAddress` and `advertisedBrokerAddressPattern` also contain the domain assigned to their associated OpenShift Route.
+
+.`bootstrapAddress` and `advertisedBrokerAddressPattern` scheme
+|===
+|Address Type|Address
+
+|`bootstrapAddress`
+|`$(virtualClusterName)-bootstrap.your-domain:443`
+
+|`advertisedBrokerAddressPattern`
+|`$(virtualClusterName)-$(nodeId).your-domain:443`
+|===
+
+.Example `KafkaProxyIngress` configuration for `openShiftRoute`
+[source,yaml]
+----
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: openshift-route-ingress
+spec:
+  proxyRef:
+    name: simple
+  openShiftRoute: {} # <1>
+----
+<1> Exposes the proxy to off-cluster clients using OpenShift Routes.
+
+When using TLS, specify a xref:con-virtualkafkacluster-loadbalancer-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource using a `certificateRef`.
