@@ -13,7 +13,10 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static io.kroxylicious.proxy.internal.VirtualClusterState.*;
+import static io.kroxylicious.proxy.internal.VirtualClusterState.DRAINING;
+import static io.kroxylicious.proxy.internal.VirtualClusterState.FAILED;
+import static io.kroxylicious.proxy.internal.VirtualClusterState.INITIALIZING;
+import static io.kroxylicious.proxy.internal.VirtualClusterState.SERVING;
 
 /**
  * Tracks the lifecycle state of a virtual cluster and enforces valid state transitions.

@@ -13,7 +13,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import static io.kroxylicious.proxy.internal.VirtualClusterState.*;
+import static io.kroxylicious.proxy.internal.VirtualClusterState.DRAINING;
+import static io.kroxylicious.proxy.internal.VirtualClusterState.FAILED;
+import static io.kroxylicious.proxy.internal.VirtualClusterState.INITIALIZING;
+import static io.kroxylicious.proxy.internal.VirtualClusterState.SERVING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
