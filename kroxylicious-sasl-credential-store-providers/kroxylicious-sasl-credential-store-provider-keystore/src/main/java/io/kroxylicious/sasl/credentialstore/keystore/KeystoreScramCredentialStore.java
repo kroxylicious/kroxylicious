@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -63,9 +64,7 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
 
     @Override
     public CompletionStage<ScramCredential> lookupCredential(String username) {
-        if (username == null) {
-            throw new NullPointerException("username must not be null");
-        }
+        Objects.requireNonNull(username, "username must not be null");
 
         ScramCredential credential = credentialCache.get(username);
         return CompletableFuture.completedFuture(credential);

@@ -30,8 +30,11 @@ public record KeystoreScramCredentialStoreConfig(
      * Canonical constructor with validation.
      */
     public KeystoreScramCredentialStoreConfig {
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("file must not be null or empty");
+        if (file == null) {
+            throw new IllegalArgumentException("file must not be null");
+        }
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("file must not be empty");
         }
         if (storePassword == null) {
             throw new IllegalArgumentException("storePassword must not be null");

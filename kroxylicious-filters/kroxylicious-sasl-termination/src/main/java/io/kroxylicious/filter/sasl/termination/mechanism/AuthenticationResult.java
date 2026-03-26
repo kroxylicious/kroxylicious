@@ -6,6 +6,8 @@
 
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
+import java.util.Objects;
+
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -53,12 +55,8 @@ public record AuthenticationResult(
      * Canonical constructor with validation.
      */
     public AuthenticationResult {
-        if (outcome == null) {
-            throw new NullPointerException("outcome must not be null");
-        }
-        if (responseBytes == null) {
-            throw new NullPointerException("responseBytes must not be null");
-        }
+        Objects.requireNonNull(outcome, "outcome must not be null");
+        Objects.requireNonNull(responseBytes, "responseBytes must not be null");
         if (outcome == Outcome.SUCCESS && authorizationId == null) {
             throw new IllegalArgumentException("authorizationId required for SUCCESS outcome");
         }

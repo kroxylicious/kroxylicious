@@ -39,8 +39,11 @@ public record MechanismConfig(
      * Canonical constructor with validation.
      */
     public MechanismConfig {
-        if (credentialStore == null || credentialStore.isEmpty()) {
-            throw new IllegalArgumentException("credentialStore must not be null or empty");
+        if (credentialStore == null) {
+            throw new IllegalArgumentException("credentialStore must not be null");
+        }
+        if (credentialStore.isEmpty()) {
+            throw new IllegalArgumentException("credentialStore must not be empty");
         }
         if (credentialStoreConfig == null) {
             throw new IllegalArgumentException("credentialStoreConfig must not be null");
