@@ -201,7 +201,7 @@ kind: KafkaProxyIngress
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
   namespace: my-proxy
-  name: openshift-route-ingress
+  name: openshift-route
 spec:
   proxyRef:
     name: simple
