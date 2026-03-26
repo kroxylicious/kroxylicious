@@ -58,12 +58,15 @@ public class CollectResults implements Callable<Integer> {
     public Integer call() throws Exception {
         if (metadataDir != null) {
             Map<String, Object> probeContext = new LinkedHashMap<>();
-            if (scenario != null)
+            if (scenario != null) {
                 probeContext.put("scenario", scenario);
-            if (workload != null)
+            }
+            if (workload != null) {
                 probeContext.put("workload", workload);
-            if (targetRate != null)
+            }
+            if (targetRate != null) {
                 probeContext.put("targetRate", targetRate);
+            }
             RunMetadata.generate(metadataDir, probeContext);
             System.out.println("Generated " + metadataDir.resolve("run-metadata.json"));
             return 0;
