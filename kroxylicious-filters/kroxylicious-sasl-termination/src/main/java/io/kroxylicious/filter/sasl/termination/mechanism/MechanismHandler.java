@@ -10,8 +10,6 @@ import java.util.concurrent.CompletionStage;
 
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Handler for a specific SASL mechanism.
  * <p>
@@ -53,7 +51,6 @@ public interface MechanismHandler {
      *
      * @return the mechanism name (e.g., "SCRAM-SHA-256")
      */
-    @NonNull
     String mechanismName();
 
     /**
@@ -72,10 +69,9 @@ public interface MechanismHandler {
      * @param credentialStore the credential store for looking up user credentials
      * @return a completion stage that completes with the authentication result
      */
-    @NonNull
     CompletionStage<AuthenticationResult> handleAuthenticate(
-                                                             @NonNull byte[] authBytes,
-                                                             @NonNull ScramCredentialStore credentialStore);
+                                                             byte[] authBytes,
+                                                             ScramCredentialStore credentialStore);
 
     /**
      * Dispose of resources used by this handler.

@@ -6,10 +6,6 @@
 
 package io.kroxylicious.sasl.credentialstore;
 
-import javax.annotation.concurrent.ThreadSafe;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Service interface for SCRAM credential stores.
  * <p>
@@ -31,7 +27,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  *
  * @param <C> The configuration type
  */
-@ThreadSafe
 public interface ScramCredentialStoreService<C> extends AutoCloseable {
 
     /**
@@ -49,7 +44,6 @@ public interface ScramCredentialStoreService<C> extends AutoCloseable {
      * @return the credential store
      * @throws IllegalStateException if the service has not been initialised or the service is closed
      */
-    @NonNull
     ScramCredentialStore buildCredentialStore() throws IllegalStateException;
 
     /**

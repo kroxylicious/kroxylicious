@@ -13,8 +13,6 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStoreService;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Service for creating KeyStore-based SCRAM credential stores.
  * <p>
@@ -53,7 +51,7 @@ public class KeystoreScramCredentialStoreService implements ScramCredentialStore
     private boolean closed = false;
 
     @Override
-    public void initialize(@NonNull KeystoreScramCredentialStoreConfig config) {
+    public void initialize(KeystoreScramCredentialStoreConfig config) {
         if (initialized) {
             throw new IllegalStateException("Service has already been initialized");
         }
@@ -68,7 +66,6 @@ public class KeystoreScramCredentialStoreService implements ScramCredentialStore
     }
 
     @Override
-    @NonNull
     public ScramCredentialStore buildCredentialStore() {
         if (!initialized) {
             throw new IllegalStateException("Service has not been initialized");

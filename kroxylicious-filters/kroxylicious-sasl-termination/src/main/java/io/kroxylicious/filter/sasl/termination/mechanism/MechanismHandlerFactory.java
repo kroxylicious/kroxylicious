@@ -6,8 +6,6 @@
 
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Factory for creating mechanism handlers.
  * <p>
@@ -52,7 +50,6 @@ public interface MechanismHandlerFactory {
      *
      * @return the mechanism name (e.g., "SCRAM-SHA-256", "PLAIN", "OAUTHBEARER")
      */
-    @NonNull
     String mechanismName();
 
     /**
@@ -64,6 +61,5 @@ public interface MechanismHandlerFactory {
      *
      * @return a new handler instance
      */
-    @NonNull
     MechanismHandler createHandler();
 }

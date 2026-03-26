@@ -18,8 +18,6 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStoreService;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * FilterFactory for SASL termination.
  * <p>
@@ -67,14 +65,13 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      * @param handlerFactories map of mechanism name to handler factory
      */
     public record SaslTerminationContext(
-                                         @NonNull Map<String, ScramCredentialStore> credentialStores,
-                                         @NonNull Map<String, MechanismHandlerFactory> handlerFactories) {}
+                                         Map<String, ScramCredentialStore> credentialStores,
+                                         Map<String, MechanismHandlerFactory> handlerFactories) {}
 
     @Override
-    @NonNull
     public SaslTerminationContext initialize(
-                                             @NonNull FilterFactoryContext context,
-                                             @NonNull SaslTerminationConfig config)
+                                             FilterFactoryContext context,
+                                             SaslTerminationConfig config)
             throws PluginConfigurationException {
 
         // Load mechanism handler factories via ServiceLoader
@@ -110,10 +107,9 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
     }
 
     @Override
-    @NonNull
     public SaslTerminationFilter createFilter(
-                                              @NonNull FilterFactoryContext context,
-                                              @NonNull SaslTerminationContext filterContext) {
+                                              FilterFactoryContext context,
+                                              SaslTerminationContext filterContext) {
         return new SaslTerminationFilter(filterContext);
     }
 
@@ -122,7 +118,6 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      *
      * @return map of mechanism name to factory
      */
-    @NonNull
     private Map<String, MechanismHandlerFactory> loadMechanismHandlerFactories() {
         Map<String, MechanismHandlerFactory> factories = new HashMap<>();
 

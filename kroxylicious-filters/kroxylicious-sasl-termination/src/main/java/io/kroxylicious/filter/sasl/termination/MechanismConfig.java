@@ -12,8 +12,6 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStoreService;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Configuration for a single SASL mechanism.
  * <p>
@@ -34,8 +32,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param credentialStoreConfig the configuration for the credential store
  */
 public record MechanismConfig(
-                              @JsonProperty(required = true) @PluginImplName(ScramCredentialStoreService.class) @NonNull String credentialStore,
-                              @JsonProperty(required = true) @PluginImplConfig(implNameProperty = "credentialStore") @NonNull Object credentialStoreConfig) {
+                              @JsonProperty(required = true) @PluginImplName(ScramCredentialStoreService.class) String credentialStore,
+                              @JsonProperty(required = true) @PluginImplConfig(implNameProperty = "credentialStore") Object credentialStoreConfig) {
 
     /**
      * Canonical constructor with validation.

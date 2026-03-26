@@ -29,7 +29,6 @@ import io.kroxylicious.sasl.credentialstore.CredentialServiceUnavailableExceptio
 import io.kroxylicious.sasl.credentialstore.ScramCredential;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -56,15 +55,14 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
      * @param config the configuration
      * @throws CredentialServiceUnavailableException if the KeyStore cannot be loaded
      */
-    public KeystoreScramCredentialStore(@NonNull KeystoreScramCredentialStoreConfig config) throws CredentialServiceUnavailableException {
+    public KeystoreScramCredentialStore(KeystoreScramCredentialStoreConfig config) throws CredentialServiceUnavailableException {
         this.serializer = new ScramCredentialSerializer();
         this.credentialCache = loadKeyStore(config);
         LOGGER.info("Loaded {} SCRAM credentials from KeyStore: {}", credentialCache.size(), config.file());
     }
 
     @Override
-    @NonNull
-    public CompletionStage<ScramCredential> lookupCredential(@NonNull String username) {
+    public CompletionStage<ScramCredential> lookupCredential(String username) {
         if (username == null) {
             throw new NullPointerException("username must not be null");
         }
@@ -80,9 +78,8 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
      * @return map of username to credential
      * @throws CredentialServiceUnavailableException if loading fails
      */
-    @NonNull
     @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "File path comes from trusted configuration")
-    private Map<String, ScramCredential> loadKeyStore(@NonNull KeystoreScramCredentialStoreConfig config) throws CredentialServiceUnavailableException {
+    private Map<String, ScramCredential> loadKeyStore(KeystoreScramCredentialStoreConfig config) throws CredentialServiceUnavailableException {
         try {
             KeyStore keyStore = KeyStore.getInstance(config.effectiveStoreType());
 
@@ -109,8 +106,7 @@ public class KeystoreScramCredentialStore implements ScramCredentialStore {
      * @return map of username to credential
      * @throws CredentialServiceUnavailableException if extraction fails
      */
-    @NonNull
-    private Map<String, ScramCredential> extractCredentials(@NonNull KeyStore keyStore, char[] keyPassword) throws CredentialServiceUnavailableException {
+    private Map<String, ScramCredential> extractCredentials(KeyStore keyStore, char[] keyPassword) throws CredentialServiceUnavailableException {
         Map<String, ScramCredential> credentials = new HashMap<>();
         int skippedEntries = 0;
 
