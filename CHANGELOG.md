@@ -15,6 +15,7 @@ Format `<github issue/pr number>: <short description>`.
 * [#3444](https://github.com/kroxylicious/kroxylicious/pull/3444): feat(authorization): support v13-v18 Fetch with topicIds
 * [#3506](https://github.com/kroxylicious/kroxylicious/pull/3506): feat(validation): support v13+ Produce with topicIds
 * [#3448](https://github.com/kroxylicious/kroxylicious/pull/3448): feat(authorization): support authorization of group new consumer protocol group
+* [#3399](https://github.com/kroxylicious/kroxylicious/pull/3399): feat(operator): add `KafkaProxyIngress.spec.openShiftRoute`
 
 ### Changes, deprecations and removals
 
@@ -30,6 +31,8 @@ Format `<github issue/pr number>: <short description>`.
     Refer to the [Apicurio upgrade documentation](https://www.apicur.io/registry/docs/apicurio-registry/3.1.x/getting-started/assembly-migrating-registry-v2-v3.html) for details.
   * Alternatively, the old behaviour can be restored by  setting the config option `wireFormatVersion` to `V2`. In this mode, the `apicurioId` refers to the `globalId` and clients must send `globalId`.
     `V2` mode is deprecated and will be removed in a future release.
+* The operator now has the ability to enable external access to a Virtual Cluster via OpenShift Routes using `KafkaProxyIngress.spec.openShiftRoute`.
+  This enables off-cluster client access on OpenShift, with graceful rejection when the Route API is unavailable.
 
 ## 0.19.0
 

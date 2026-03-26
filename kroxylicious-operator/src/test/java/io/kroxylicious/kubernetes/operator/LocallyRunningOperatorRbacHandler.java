@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.KubernetesResource;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
@@ -210,6 +211,11 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             }
 
             @NonNull
+            public <T extends HasMetadata> T getInNamespace(@NonNull Class<T> type, @NonNull String name, @NonNull String namespace) {
+                return testActorClient.resources(type).inNamespace(namespace).withName(name).get();
+            }
+
+            @NonNull
             public <T extends HasMetadata> T replace(@NonNull T resource) {
                 return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).update();
             }
@@ -232,6 +238,10 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
                 return testActorClient.resources(type).inNamespace(operatorExtension.getNamespace());
             }
 
+            public <T extends KubernetesResource> boolean supports(Class<T> type) {
+                return testActorClient.supports(type);
+            }
+
         };
     }
 
@@ -247,6 +257,9 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
         @Nullable
         <T extends HasMetadata> T get(@NonNull Class<T> type, @NonNull String name);
 
+        @Nullable
+        <T extends HasMetadata> T getInNamespace(@NonNull Class<T> type, @NonNull String name, @NonNull String namespace);
+
         @NonNull
         <T extends HasMetadata> T replace(@NonNull T resource);
 
@@ -257,5 +270,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
         @NonNull
         <T extends HasMetadata> NonNamespaceOperation<T, KubernetesResourceList<T>, Resource<T>> resources(@NonNull Class<T> type);
+
+        <T extends KubernetesResource> boolean supports(@NonNull Class<T> type);
     }
 }

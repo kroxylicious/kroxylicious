@@ -42,6 +42,11 @@ spec:
           jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
           type: string
           priority: 0
+        - name: Accepted
+          description: Whether the ingress definition has been accepted by the proxy.
+          jsonPath: ".status.conditions[?(@.type==\"Accepted\")].status"
+          type: string
+          priority: 0
       schema:
         openAPIV3Schema:
           type: object
@@ -53,6 +58,7 @@ spec:
               oneOf:
               - required: ["proxyRef", "clusterIP"]
               - required: ["proxyRef", "loadBalancer"]
+              - required: ["proxyRef", "openShiftRoute"]
               properties:
                 proxyRef:
                   # Mapped to Java type io.kroxylicious.kubernetes.api. io.kroxylicious.kubernetes.api.common.common.ProxyRef
@@ -103,6 +109,10 @@ spec:
                       clusters. Responsibility for configuring DNS to resolve these addresses to the LoadBalancer Service 
                       IP is on the user. Must not end with a port specifier."
                       type: string
+                openShiftRoute:
+                  description: |-
+                    specifies that this ingress is for access from outside the OpenShift cluster via OpenShift Routes.
+                  type: object
             status:
               type: object
               properties:

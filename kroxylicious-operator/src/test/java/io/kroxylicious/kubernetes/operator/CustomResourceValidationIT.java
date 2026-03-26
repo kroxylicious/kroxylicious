@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.Assertions;
@@ -32,6 +33,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.NamespaceableResource;
 import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
+import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
@@ -41,12 +43,14 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class CustomResourceValidationIT {
 
     public static final Namespace NAMESPACE = new NamespaceBuilder().withNewMetadata().withName("proxy-ns").endMetadata().build();
     public static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
+    private static boolean isOpenShiftRouteApiAvailable;
 
     @BeforeAll
     static void beforeAll() {
@@ -57,6 +61,8 @@ class CustomResourceValidationIT {
         LocallyRunOperatorExtension.applyCrd(KafkaService.class, client);
         LocallyRunOperatorExtension.applyCrd(KafkaProxyIngress.class, client);
         client.namespaces().resource(NAMESPACE).createOr(NonDeletingOperation::update);
+
+        isOpenShiftRouteApiAvailable = client.supports(Route.class);
     }
 
     @AfterAll
@@ -116,6 +122,7 @@ class CustomResourceValidationIT {
     private static void testValid(Path validYaml) {
         try (InputStream is = Files.newInputStream(validYaml)) {
             NamespaceableResource<HasMetadata> resource = OperatorTestUtils.kubeClient().resource(is);
+            assumeThatOpenShiftRouteApiAvailable(resource);
             Assertions.assertThatCode(resource::create).doesNotThrowAnyException();
             Assertions.assertThatCode(resource::delete).doesNotThrowAnyException();
         }
@@ -139,6 +146,7 @@ class CustomResourceValidationIT {
     @ParameterizedTest
     void testResourceInvalid(InvalidResource invalidYaml) {
         NamespaceableResource<HasMetadata> resource = OperatorTestUtils.kubeClient().resource(invalidYaml.resourceAsString());
+        assumeThatOpenShiftRouteApiAvailable(resource);
         try {
             Assertions.assertThatThrownBy(resource::create).isInstanceOfSatisfying(KubernetesClientException.class, e -> {
                 Status status = e.getStatus();
@@ -166,6 +174,7 @@ class CustomResourceValidationIT {
     void testResourceValidStatus(Path validYaml) {
         try (InputStream is = Files.newInputStream(validYaml)) {
             NamespaceableResource<HasMetadata> resource = OperatorTestUtils.kubeClient().resource(is);
+            assumeThatOpenShiftRouteApiAvailable(resource);
             Assertions.assertThatCode(resource::create).doesNotThrowAnyException();
             Assertions.assertThatCode(resource::patchStatus).doesNotThrowAnyException();
             Assertions.assertThatCode(resource::delete).doesNotThrowAnyException();
@@ -179,6 +188,7 @@ class CustomResourceValidationIT {
     @ParameterizedTest
     void testResourceInvalidStatus(InvalidResource invalidYaml) {
         NamespaceableResource<HasMetadata> resource = OperatorTestUtils.kubeClient().resource(invalidYaml.resourceAsString());
+        assumeThatOpenShiftRouteApiAvailable(resource);
         try {
             Assertions.assertThatCode(resource::create).doesNotThrowAnyException();
             Assertions.assertThatThrownBy(resource::patchStatus).isInstanceOfSatisfying(KubernetesClientException.class, e -> {
@@ -195,6 +205,12 @@ class CustomResourceValidationIT {
             catch (KubernetesClientException e) {
                 // ignored, redundantly deleting in case the resource was accidentally valid
             }
+        }
+    }
+
+    static void assumeThatOpenShiftRouteApiAvailable(NamespaceableResource<HasMetadata> resource) {
+        if (Objects.equals(resource.item().getKind(), "Route")) {
+            assumeThat(isOpenShiftRouteApiAvailable).withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
         }
     }
 

@@ -21,8 +21,7 @@ description: "Slack Notification"
 inputs:
   slackWebhook:
     description: "Slack webhook"
-    required: false
-    default: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+    required: true
   slackColor:
     description: "Color for the message"
     required: false
