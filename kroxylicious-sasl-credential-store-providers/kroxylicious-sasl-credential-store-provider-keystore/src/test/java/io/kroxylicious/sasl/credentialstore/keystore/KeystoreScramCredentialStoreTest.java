@@ -41,7 +41,8 @@ class KeystoreScramCredentialStoreTest {
         keystorePath = tempDir.resolve("test-credentials.jks");
 
         // Generate test keystore with two users
-        TestCredentialGenerator.generateKeyStore(
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
                 keystorePath,
                 STORE_PASSWORD,
                 "alice", ALICE_PASSWORD,
@@ -137,7 +138,8 @@ class KeystoreScramCredentialStoreTest {
     @Test
     void shouldHandleEmptyKeyStore() throws Exception {
         Path emptyKeystorePath = tempDir.resolve("empty.jks");
-        TestCredentialGenerator.generateKeyStore(emptyKeystorePath, STORE_PASSWORD);
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(emptyKeystorePath, STORE_PASSWORD);
 
         KeystoreScramCredentialStoreConfig emptyConfig = new KeystoreScramCredentialStoreConfig(
                 emptyKeystorePath.toString(),

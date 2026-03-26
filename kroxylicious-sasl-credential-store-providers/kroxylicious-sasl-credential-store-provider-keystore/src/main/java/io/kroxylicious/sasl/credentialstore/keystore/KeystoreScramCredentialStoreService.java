@@ -13,6 +13,8 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStoreService;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Service for creating KeyStore-based SCRAM credential stores.
  * <p>
@@ -46,6 +48,7 @@ public class KeystoreScramCredentialStoreService implements ScramCredentialStore
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KeystoreScramCredentialStoreService.class);
 
+    @Nullable
     private KeystoreScramCredentialStoreConfig config;
     private boolean initialized = false;
     private boolean closed = false;

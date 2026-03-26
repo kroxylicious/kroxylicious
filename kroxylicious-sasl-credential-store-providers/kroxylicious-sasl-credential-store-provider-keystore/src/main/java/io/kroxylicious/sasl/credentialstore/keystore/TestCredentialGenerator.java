@@ -10,7 +10,6 @@ import java.io.FileOutputStream;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.SecureRandom;
-import java.util.Base64;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -31,7 +30,23 @@ public class TestCredentialGenerator {
 
     private static final int DEFAULT_ITERATIONS = 4096;
     private static final int SALT_LENGTH = 20;
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private final SecureRandom secureRandom;
+
+    /**
+     * Create a credential generator with a new {@link SecureRandom} instance.
+     */
+    public TestCredentialGenerator() {
+        this(new SecureRandom());
+    }
+
+    /**
+     * Create a credential generator with the specified {@link SecureRandom}.
+     *
+     * @param secureRandom the random source to use for salt generation
+     */
+    public TestCredentialGenerator(SecureRandom secureRandom) {
+        this.secureRandom = secureRandom;
+    }
 
     /**
      * Generate a KeyStore containing SCRAM credentials for testing.
@@ -41,10 +56,10 @@ public class TestCredentialGenerator {
      * @param users array of username/password pairs (alternating username, password)
      * @throws Exception if generation fails
      */
-    public static void generateKeyStore(
-                                        Path outputPath,
-                                        String storePassword,
-                                        String... users)
+    public void generateKeyStore(
+                                 Path outputPath,
+                                 String storePassword,
+                                 String... users)
             throws Exception {
 
         if (users.length % 2 != 0) {
@@ -84,14 +99,13 @@ public class TestCredentialGenerator {
      * @param mechanism the SCRAM mechanism
      * @return the generated credential
      */
-    public static ScramCredential generateScramCredential(
-                                                          String username,
-                                                          String password,
-                                                          ScramMechanism mechanism) {
+    public ScramCredential generateScramCredential(
+                                                   String username,
+                                                   String password,
+                                                   ScramMechanism mechanism) {
 
         try {
             byte[] salt = generateSalt();
-            String saltBase64 = Base64.getEncoder().encodeToString(salt);
 
             ScramFormatter formatter = new ScramFormatter(mechanism);
 
@@ -103,17 +117,14 @@ public class TestCredentialGenerator {
             byte[] clientKey = formatter.clientKey(saltedPassword);
             byte[] storedKey = formatter.storedKey(clientKey);
 
-            String serverKeyBase64 = Base64.getEncoder().encodeToString(serverKey);
-            String storedKeyBase64 = Base64.getEncoder().encodeToString(storedKey);
-
             String hashAlgorithm = mechanism == ScramMechanism.SCRAM_SHA_256 ? "SHA-256" : "SHA-512";
 
             return new ScramCredential(
                     username,
-                    saltBase64,
+                    salt,
                     DEFAULT_ITERATIONS,
-                    serverKeyBase64,
-                    storedKeyBase64,
+                    serverKey,
+                    storedKey,
                     hashAlgorithm);
         }
         catch (Exception e) {
@@ -126,9 +137,9 @@ public class TestCredentialGenerator {
      *
      * @return the salt bytes
      */
-    private static byte[] generateSalt() {
+    private byte[] generateSalt() {
         byte[] salt = new byte[SALT_LENGTH];
-        SECURE_RANDOM.nextBytes(salt);
+        secureRandom.nextBytes(salt);
         return salt;
     }
 }

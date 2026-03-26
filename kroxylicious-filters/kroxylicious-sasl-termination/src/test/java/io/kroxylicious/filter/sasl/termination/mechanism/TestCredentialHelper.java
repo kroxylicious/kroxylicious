@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.sasl.termination.mechanism;
 
 import java.security.SecureRandom;
-import java.util.Base64;
 
 import org.apache.kafka.common.security.scram.internals.ScramFormatter;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
@@ -40,7 +39,6 @@ class TestCredentialHelper {
 
         try {
             byte[] salt = generateSalt();
-            String saltBase64 = Base64.getEncoder().encodeToString(salt);
 
             ScramFormatter formatter = new ScramFormatter(mechanism);
 
@@ -52,17 +50,14 @@ class TestCredentialHelper {
             byte[] clientKey = formatter.clientKey(saltedPassword);
             byte[] storedKey = formatter.storedKey(clientKey);
 
-            String serverKeyBase64 = Base64.getEncoder().encodeToString(serverKey);
-            String storedKeyBase64 = Base64.getEncoder().encodeToString(storedKey);
-
             String hashAlgorithm = mechanism == ScramMechanism.SCRAM_SHA_256 ? "SHA-256" : "SHA-512";
 
             return new ScramCredential(
                     username,
-                    saltBase64,
+                    salt,
                     DEFAULT_ITERATIONS,
-                    serverKeyBase64,
-                    storedKeyBase64,
+                    serverKey,
+                    storedKey,
                     hashAlgorithm);
         }
         catch (Exception e) {
