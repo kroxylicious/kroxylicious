@@ -15,6 +15,7 @@ package io.kroxylicious;
 //DEPS org.slf4j:slf4j-api:${slf4j.version}
 //DEPS org.slf4j:slf4j-simple:${slf4j.version}
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -97,6 +98,10 @@ public class Webify implements Callable<Integer> {
         return new CommandLine(new Webify()).execute(args);
     }
 
+    private static boolean isDocYaml(Path f) {
+        return Optional.of(f).map(Path::getFileName).map(Path::toString).filter("doc.yaml"::equals).isPresent();
+    }
+
     @Override
     public Integer call() {
         this.outdir = this.destdir.resolve("documentation").resolve(this.projectVersion).resolve("html");
@@ -112,7 +117,9 @@ public class Webify implements Callable<Integer> {
             Path parentDir = outdir.getParent();
             // If condition to keep spotbugs happy
             if (parentDir != null && Files.exists(parentDir)) {
-                Files.writeString(parentDir.resolve("index.md"),
+                Path resolved = parentDir.resolve("index.md");
+                logger.info("writing index.md {}", resolved);
+                Files.writeString(resolved,
                         docIndexFrontMatter(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                 return 0;
             }
@@ -152,9 +159,14 @@ public class Webify implements Callable<Integer> {
                       PathMatcher datafyGlob)
             throws IOException {
         var resultDocsList = new ArrayList<ObjectNode>();
-        try (var stream = Files.walk(this.srcDir)) {
-            stream.forEach(new DocConverter(omitGlobs, tocifyGlob, datafyGlob, resultDocsList));
-        }
+        docDirs(this.srcDir).forEach(docDir -> {
+            try (var stream = Files.walk(docDir).sorted(docYamlLastComparator())) {
+                stream.forEach(new DocConverter(omitGlobs, tocifyGlob, datafyGlob, resultDocsList));
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
 
         Comparator<ObjectNode> byRank = Comparator.comparing(node -> node.get("rank").asText(null));
         Comparator<ObjectNode> byTitle = Comparator.comparing(node -> node.get("title").asText(null));
@@ -166,8 +178,33 @@ public class Webify implements Callable<Integer> {
         if (logger.isInfoEnabled()) {
             logger.info(mapper.writeValueAsString(resultRootObject));
         }
-        Files.createDirectories(Objects.requireNonNull(dataDestPath.getParent()));
+        Path dir = Objects.requireNonNull(dataDestPath.getParent());
+        logger.info("create dirs {}", dir);
+        Files.createDirectories(dir);
+        logger.info("write data to {}", dataDestPath);
         Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    private static Comparator<Path> docYamlLastComparator() {
+        return Comparator.<Path, Integer> comparing(p -> isDocYaml(p) ? 1 : 0).thenComparing(Comparator.naturalOrder());
+    }
+
+    private List<Path> docDirs(Path srcDir) {
+        try (var stream = Files.walk(srcDir)) {
+            return stream
+                    .filter(Files::isDirectory)
+                    .filter(path -> {
+                        try (var children = Files.list(path)) {
+                            return children.anyMatch(Webify::isDocYaml);
+                        }
+                        catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    }).toList();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     String guideFrontMatter(ObjectNode dataDocObject, String relPath) throws IOException {
@@ -295,7 +332,9 @@ public class Webify implements Callable<Integer> {
                 resultDocsList.add(createDataDocObject(filePath, relFilePath, outputDirectory));
             }
             else if (!omitable && !tocifiable) {
+                logger.info("creating dir for !omitable !tocifiable {}", outputDirectory);
                 Files.createDirectories(outputDirectory);
+                logger.info("copying !omitable !tocifiable file {} to {}", filePath, outFilePath);
                 Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
             }
             else {
@@ -312,8 +351,11 @@ public class Webify implements Callable<Integer> {
             if (!dataDocObject.has("path")) {
                 Path relFilePathParent = Objects.requireNonNull(relFilePath.getParent());
                 relPath = "html/" + relFilePathParent;
+                logger.info("creating dir for data doc object {}", outputDirectory);
                 Files.createDirectories(outputDirectory);
-                Files.writeString(outputDirectory.resolve("index.html"),
+                Path outputPath = outputDirectory.resolve("index.html");
+                logger.info("creating index.html for data doc object {}", outputPath);
+                Files.writeString(outputPath,
                         Webify.this.guideFrontMatter(dataDocObject, "html/" + relFilePathParent),
                         StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             }
