@@ -170,7 +170,7 @@ When using an `openShiftRoute` ingress, the proxy uses SNI (Server Name Indicati
 The bootstrap and broker addresses are automatically generated. They look like this:
 
 .Example bootstrap and broker addresses
-[source,text]
+[source,shell]
 ----
 your-cluster-bootstrap.ingress-domain:443 # <1>
 your-cluster-0.ingress-domain:443 # <2>
