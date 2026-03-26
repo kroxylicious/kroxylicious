@@ -173,6 +173,25 @@ class ResultComparatorTest {
     }
 
     @Nested
+    class Significance {
+
+        @Test
+        void publishLatencySectionContainsPValue() throws IOException {
+            String output = runComparison();
+            assertThat(output).contains("p=");
+        }
+
+        @Test
+        void endToEndLatencySectionContainsPValue() throws IOException {
+            String output = runComparison();
+            List<String> e2eRows = extractSection(output, "End-to-End Latency");
+            // The section footer line contains the p-value annotation
+            String fullSection = output.substring(output.indexOf("End-to-End Latency"));
+            assertThat(fullSection).contains("p=");
+        }
+    }
+
+    @Nested
     class Throughput {
 
         private static List<String> throughputRows;
