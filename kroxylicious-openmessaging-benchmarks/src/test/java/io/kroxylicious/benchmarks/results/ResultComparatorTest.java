@@ -176,18 +176,15 @@ class ResultComparatorTest {
     class Significance {
 
         @Test
-        void publishLatencySectionContainsPValue() throws IOException {
-            String output = runComparison();
-            assertThat(output).contains("p=");
+        void publishLatencyRowsWithWindowsShowPValue() throws IOException {
+            List<String> rows = extractSection(runComparison(), "Publish Latency");
+            assertThat(rows).allSatisfy(row -> assertThat(row).contains("p="));
         }
 
         @Test
-        void endToEndLatencySectionContainsPValue() throws IOException {
-            String output = runComparison();
-            List<String> e2eRows = extractSection(output, "End-to-End Latency");
-            // The section footer line contains the p-value annotation
-            String fullSection = output.substring(output.indexOf("End-to-End Latency"));
-            assertThat(fullSection).contains("p=");
+        void endToEndLatencyRowsWithWindowsShowPValue() throws IOException {
+            List<String> rows = extractSection(runComparison(), "End-to-End Latency");
+            assertThat(rows).allSatisfy(row -> assertThat(row).contains("p="));
         }
     }
 

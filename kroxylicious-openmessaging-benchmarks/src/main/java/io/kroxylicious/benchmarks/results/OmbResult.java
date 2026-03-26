@@ -74,11 +74,35 @@ public class OmbResult {
     @JsonProperty("consumeRate")
     private double[] consumeRate;
 
+    @JsonProperty("publishLatencyAvg")
+    private double[] publishLatencyAvgWindows;
+
+    @JsonProperty("publishLatency50pct")
+    private double[] publishLatency50pctWindows;
+
+    @JsonProperty("publishLatency95pct")
+    private double[] publishLatency95pctWindows;
+
     @JsonProperty("publishLatency99pct")
     private double[] publishLatency99pctWindows;
 
+    @JsonProperty("publishLatency999pct")
+    private double[] publishLatency999pctWindows;
+
+    @JsonProperty("endToEndLatencyAvg")
+    private double[] endToEndLatencyAvgWindows;
+
+    @JsonProperty("endToEndLatency50pct")
+    private double[] endToEndLatency50pctWindows;
+
+    @JsonProperty("endToEndLatency95pct")
+    private double[] endToEndLatency95pctWindows;
+
     @JsonProperty("endToEndLatency99pct")
     private double[] endToEndLatency99pctWindows;
+
+    @JsonProperty("endToEndLatency999pct")
+    private double[] endToEndLatency999pctWindows;
 
     public double getPublishLatencyAvg() {
         return publishLatencyAvg;
@@ -120,12 +144,44 @@ public class OmbResult {
         return endToEndLatency999pct;
     }
 
+    public double[] getPublishLatencyAvgWindows() {
+        return publishLatencyAvgWindows;
+    }
+
+    public double[] getPublishLatency50pctWindows() {
+        return publishLatency50pctWindows;
+    }
+
+    public double[] getPublishLatency95pctWindows() {
+        return publishLatency95pctWindows;
+    }
+
     public double[] getPublishLatency99pctWindows() {
         return publishLatency99pctWindows;
     }
 
+    public double[] getPublishLatency999pctWindows() {
+        return publishLatency999pctWindows;
+    }
+
+    public double[] getEndToEndLatencyAvgWindows() {
+        return endToEndLatencyAvgWindows;
+    }
+
+    public double[] getEndToEndLatency50pctWindows() {
+        return endToEndLatency50pctWindows;
+    }
+
+    public double[] getEndToEndLatency95pctWindows() {
+        return endToEndLatency95pctWindows;
+    }
+
     public double[] getEndToEndLatency99pctWindows() {
         return endToEndLatency99pctWindows;
+    }
+
+    public double[] getEndToEndLatency999pctWindows() {
+        return endToEndLatency999pctWindows;
     }
 
     public double getPublishDelayLatencyAvgNs() {

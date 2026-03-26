@@ -45,23 +45,31 @@ public class ResultComparator {
 
     private void printPublishLatency(PrintStream out) {
         List<LatencyComparison> rows = List.of(
-                new LatencyComparison("Avg", baseline.getPublishLatencyAvg(), candidate.getPublishLatencyAvg(), null, null),
-                new LatencyComparison("p50", baseline.getPublishLatency50pct(), candidate.getPublishLatency50pct(), null, null),
-                new LatencyComparison("p95", baseline.getPublishLatency95pct(), candidate.getPublishLatency95pct(), null, null),
+                new LatencyComparison("Avg", baseline.getPublishLatencyAvg(), candidate.getPublishLatencyAvg(),
+                        baseline.getPublishLatencyAvgWindows(), candidate.getPublishLatencyAvgWindows()),
+                new LatencyComparison("p50", baseline.getPublishLatency50pct(), candidate.getPublishLatency50pct(),
+                        baseline.getPublishLatency50pctWindows(), candidate.getPublishLatency50pctWindows()),
+                new LatencyComparison("p95", baseline.getPublishLatency95pct(), candidate.getPublishLatency95pct(),
+                        baseline.getPublishLatency95pctWindows(), candidate.getPublishLatency95pctWindows()),
                 new LatencyComparison("p99", baseline.getPublishLatency99pct(), candidate.getPublishLatency99pct(),
                         baseline.getPublishLatency99pctWindows(), candidate.getPublishLatency99pctWindows()),
-                new LatencyComparison("p99.9", baseline.getPublishLatency999pct(), candidate.getPublishLatency999pct(), null, null));
+                new LatencyComparison("p99.9", baseline.getPublishLatency999pct(), candidate.getPublishLatency999pct(),
+                        baseline.getPublishLatency999pctWindows(), candidate.getPublishLatency999pctWindows()));
         printSection(out, "Publish Latency (ms)", rows);
     }
 
     private void printEndToEndLatency(PrintStream out) {
         List<LatencyComparison> rows = List.of(
-                new LatencyComparison("Avg", baseline.getAggregatedEndToEndLatencyAvg(), candidate.getAggregatedEndToEndLatencyAvg(), null, null),
-                new LatencyComparison("p50", baseline.getAggregatedEndToEndLatency50pct(), candidate.getAggregatedEndToEndLatency50pct(), null, null),
-                new LatencyComparison("p95", baseline.getAggregatedEndToEndLatency95pct(), candidate.getAggregatedEndToEndLatency95pct(), null, null),
+                new LatencyComparison("Avg", baseline.getAggregatedEndToEndLatencyAvg(), candidate.getAggregatedEndToEndLatencyAvg(),
+                        baseline.getEndToEndLatencyAvgWindows(), candidate.getEndToEndLatencyAvgWindows()),
+                new LatencyComparison("p50", baseline.getAggregatedEndToEndLatency50pct(), candidate.getAggregatedEndToEndLatency50pct(),
+                        baseline.getEndToEndLatency50pctWindows(), candidate.getEndToEndLatency50pctWindows()),
+                new LatencyComparison("p95", baseline.getAggregatedEndToEndLatency95pct(), candidate.getAggregatedEndToEndLatency95pct(),
+                        baseline.getEndToEndLatency95pctWindows(), candidate.getEndToEndLatency95pctWindows()),
                 new LatencyComparison("p99", baseline.getAggregatedEndToEndLatency99pct(), candidate.getAggregatedEndToEndLatency99pct(),
                         baseline.getEndToEndLatency99pctWindows(), candidate.getEndToEndLatency99pctWindows()),
-                new LatencyComparison("p99.9", baseline.getAggregatedEndToEndLatency999pct(), candidate.getAggregatedEndToEndLatency999pct(), null, null));
+                new LatencyComparison("p99.9", baseline.getAggregatedEndToEndLatency999pct(), candidate.getAggregatedEndToEndLatency999pct(),
+                        baseline.getEndToEndLatency999pctWindows(), candidate.getEndToEndLatency999pctWindows()));
         printSection(out, "End-to-End Latency (ms)", rows);
     }
 
