@@ -31,7 +31,7 @@ public class BackPressureAnalyser {
                 .map(lr -> {
                     OmbResult r = lr.result();
                     long maxRate = Math.round(r.getPublishRate() / 1000.0) * 1000L;
-                    long minRate = Math.round(maxRate * 0.2);
+                    long minRate = Math.round(maxRate * 0.5);
                     return new Report(lr.label(), r.getPublishDelayLatencyAvgNs(),
                             r.getPublishDelayLatency99pctNs(), true, maxRate, minRate);
                 })
