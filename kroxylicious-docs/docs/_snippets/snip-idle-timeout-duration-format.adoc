@@ -1,0 +1,7 @@
+:_mod-docs-content-type: SNIPPET
+
+Both timeout settings are optional and have no default values.
+You can configure one, both, or neither depending on your requirements.
+Timeout values use a string-based duration format, following Go conventions (for example, `30s`, `5m`).
+Supported units are: `h` (hours), `m` (minutes), `s` (seconds), `ms` (milliseconds), `μs` or `us` (microseconds), and `ns` (nanoseconds).
+Units can be combined, for example `1m30s`.
