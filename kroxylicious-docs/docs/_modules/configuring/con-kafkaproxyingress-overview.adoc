@@ -152,7 +152,7 @@ spec:
 <3> The bootstrap address for clients to connect to the virtual cluster.
 <4> The advertised broker address used by the proxy to generate the individual broker addresses presented to the client.
 
-When using TLS, specify a xref:con-virtualkafkacluster-loadbalancer-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource using a `certificateRef`.
+Specify a xref:con-virtualkafkacluster-loadbalancer-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource by using a `certificateRef`.
 
 You must also xref:proc-virtualkafkacluster-loadbalancer-dns-config-{context}[configure DNS] so that the bootstrap and broker address resolve from the network used by the applications.
 
@@ -201,4 +201,4 @@ where:
 
 * `spec.openShiftRoute` exposes the proxy to off-cluster clients using OpenShift Routes.
 
-When using TLS, specify a xref:con-virtualkafkacluster-loadbalancer-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource using a `certificateRef`.
+Specify a xref:con-virtualkafkacluster-loadbalancer-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource by using a `certificateRef`.
