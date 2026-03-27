@@ -60,7 +60,7 @@ class OperatorMainTest {
 
     private OperatorMain operatorMain;
 
-    @Mock(strictness = Mock.Strictness.LENIENT)
+    @Mock
     HttpServer managementServer;
 
     @Mock
