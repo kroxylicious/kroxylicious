@@ -70,6 +70,9 @@ spec:
                     listenerName:
                       description: listener name of the cluster
                       type: string
+                    trustStrimziCaCertificate:
+                      description: trust certificate from Strimzi
+                      type: boolean
                   required:
                     - name
                     - listenerName
@@ -212,6 +215,20 @@ spec:
                   description: |
                     The metadata.generation that was observed during the last reconciliation by the operator.
                   type: integer
+                strimziTrustAnchorRef:
+                  type: object
+                  properties:
+                    name:
+                      description: The name of the resource containing the TLS client certificate.
+                      type: string
+                    storeType:
+                      description: The format of the key store containing the trusted CA certificates.
+                      type: string
+                    key:
+                      description: |
+                                  The name of the key identifying the certificate bundle within the resource.
+                                  Supported formats for the bundle are: PEM, PKCS#12 and JKS.
+                      type: string
                 bootstrapServers:
                   description: |
                     The bootstrap address of the target cluster.
