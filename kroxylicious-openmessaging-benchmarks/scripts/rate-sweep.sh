@@ -12,6 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEFAULT_WORKLOAD="1topic-1kb"
 DEFAULT_SCENARIOS="baseline,proxy-no-filters"
 DEFAULT_STEP_PERCENT=10
+DEFAULT_PROFILE_VALUES="${SCRIPT_DIR}/../helm/kroxylicious-benchmark/scenarios/rate-sweep-values.yaml"
 
 usage() {
     cat >&2 <<EOF
@@ -37,6 +38,7 @@ Options:
   --step-percent <n>        Step size as a percentage of the range (default: ${DEFAULT_STEP_PERCENT})
   --workload <name>         OMB workload to use (default: ${DEFAULT_WORKLOAD})
   --profile <values-file>   Additional Helm values layered on top of each scenario
+                            (default: scenarios/rate-sweep-values.yaml — 5 min warmup + 5 min test)
   --set <key=value>         Pass a Helm --set override to run-benchmark.sh (may be repeated)
   --dry-run                 Print rate sequence and planned steps without running anything
   -h, --help                Show this help
@@ -71,7 +73,7 @@ MIN_RATE=""
 MAX_RATE=""
 STEP_PERCENT="${DEFAULT_STEP_PERCENT}"
 WORKLOAD="${DEFAULT_WORKLOAD}"
-PROFILE_VALUES=""
+PROFILE_VALUES="${DEFAULT_PROFILE_VALUES}"
 HELM_SET_ARGS=()
 DRY_RUN=false
 
