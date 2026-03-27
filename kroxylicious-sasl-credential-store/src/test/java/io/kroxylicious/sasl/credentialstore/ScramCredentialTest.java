@@ -168,7 +168,6 @@ class ScramCredentialTest {
                 .hasMessageContaining("storedKey must not be empty");
     }
 
-
     @SuppressWarnings("DataFlowIssue") // we're testing that the null argument is rejected
     @Test
     void shouldRejectNullHashAlgorithm() {

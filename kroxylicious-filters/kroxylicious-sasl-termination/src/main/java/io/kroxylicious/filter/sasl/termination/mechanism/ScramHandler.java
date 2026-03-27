@@ -31,7 +31,7 @@ import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Handles SCRAM-SHA-256 authentication.
+ * Handles SCRAM authentication for SHA-256 and SHA-512.
  * <p>
  * This handler uses Kafka's {@link SaslServer} implementation to process
  * the SCRAM protocol exchange. It asynchronously fetches credentials from
@@ -40,7 +40,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * <h2>Multi-Round Authentication</h2>
  * <p>
- * SCRAM-SHA-256 typically requires 3 rounds:
+ * SCRAM typically requires 3 rounds:
  * </p>
  * <ol>
  *     <li>Client sends first message with username</li>
@@ -54,11 +54,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * on that connection's event loop thread.
  * </p>
  */
-public class ScramSha256Handler implements MechanismHandler {
+public class ScramHandler implements MechanismHandler {
 
-    Logger LOGGER = LoggerFactory.getLogger(ScramSha256Handler.class);
-    private static final String MECHANISM_NAME = ScramMechanism.SCRAM_SHA_256.mechanismName();
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScramHandler.class);
     private static final Map<String, String> SASL_PROPS = Map.of();
+
+    private final String mechanismName;
 
     @Nullable
     private SaslServer saslServer;
@@ -66,9 +67,18 @@ public class ScramSha256Handler implements MechanismHandler {
     @Nullable
     private String extractedUsername;
 
+    /**
+     * Create a SCRAM handler for the specified mechanism.
+     *
+     * @param mechanism the SCRAM mechanism (SHA-256 or SHA-512)
+     */
+    public ScramHandler(ScramMechanism mechanism) {
+        this.mechanismName = mechanism.mechanismName();
+    }
+
     @Override
     public String mechanismName() {
-        return MECHANISM_NAME;
+        return mechanismName;
     }
 
     @Override
@@ -152,7 +162,7 @@ public class ScramSha256Handler implements MechanismHandler {
 
             // Create SaslServer
             saslServer = Sasl.createSaslServer(
-                    MECHANISM_NAME,
+                    mechanismName,
                     "kafka",
                     null,
                     SASL_PROPS,

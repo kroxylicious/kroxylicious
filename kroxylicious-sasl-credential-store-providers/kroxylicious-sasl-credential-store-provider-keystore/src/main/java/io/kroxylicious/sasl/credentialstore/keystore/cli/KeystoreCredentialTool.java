@@ -111,6 +111,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                                 "Prefer interactive prompts or environment variables.");
             }
             // Warn about insecure usage
+            // CHECKSTYLE:OFF RegexpSinglelineJava - CLI tool legitimately writes to stderr
             err.println("SECURITY WARNING: Password provided via command-line option.");
             err.println("This is NOT RECOMMENDED as passwords are visible in:");
             err.println("  - Process listings (ps, top, /proc/<pid>/cmdline)");
@@ -121,6 +122,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
             err.println("  - Environment variables");
             err.println("  - Password files with restricted permissions");
             err.println();
+            // CHECKSTYLE:ON RegexpSinglelineJava
             return optionValue;
         }
 

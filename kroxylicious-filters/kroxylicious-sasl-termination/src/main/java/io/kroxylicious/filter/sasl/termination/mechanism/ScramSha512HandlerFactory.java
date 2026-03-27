@@ -9,7 +9,7 @@ package io.kroxylicious.filter.sasl.termination.mechanism;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 
 /**
- * Factory for creating SCRAM-SHA-256 mechanism handlers.
+ * Factory for creating SCRAM-SHA-512 mechanism handlers.
  * <p>
  * Discovered via {@link java.util.ServiceLoader}. Registered in:
  * </p>
@@ -17,9 +17,9 @@ import org.apache.kafka.common.security.scram.internals.ScramMechanism;
  * META-INF/services/io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandlerFactory
  * </pre>
  */
-public class ScramSha256HandlerFactory implements MechanismHandlerFactory {
+public class ScramSha512HandlerFactory implements MechanismHandlerFactory {
 
-    private static final String MECHANISM_NAME = ScramMechanism.SCRAM_SHA_256.mechanismName();
+    private static final String MECHANISM_NAME = ScramMechanism.SCRAM_SHA_512.mechanismName();
 
     @Override
     public String mechanismName() {
@@ -28,6 +28,6 @@ public class ScramSha256HandlerFactory implements MechanismHandlerFactory {
 
     @Override
     public MechanismHandler createHandler() {
-        return new ScramHandler(ScramMechanism.SCRAM_SHA_256);
+        return new ScramHandler(ScramMechanism.SCRAM_SHA_512);
     }
 }
