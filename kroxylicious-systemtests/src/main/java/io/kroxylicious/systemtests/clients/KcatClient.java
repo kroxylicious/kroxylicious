@@ -64,6 +64,11 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
+    public String getImage() {
+        return Constants.KCAT_CLIENT_IMAGE;
+    }
+
+    @Override
     public KafkaClient inNamespace(String namespace) {
         this.deployNamespace = namespace;
         return this;

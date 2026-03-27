@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -122,6 +123,7 @@ class NonJVMClientsST extends AbstractSystemTests {
 
     @BeforeAll
     void setupBefore() {
+        preloadImages();
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.warn("Skipping kafka deployment. It is already deployed!");
@@ -139,8 +141,19 @@ class NonJVMClientsST extends AbstractSystemTests {
         kroxyliciousOperator.deploy();
     }
 
+    private void preloadImages() {
+        clientCombinations()
+                .flatMap(args -> Arrays.stream(args.get()))
+                .filter(KafkaClient.class::isInstance)
+                .map(KafkaClient.class::cast)
+                .distinct()
+                .forEach(KafkaClient::preloadImage);
+    }
+
     @AfterAll
     void cleanUp() {
-        kroxyliciousOperator.delete();
+        if (kroxyliciousOperator != null) {
+            kroxyliciousOperator.delete();
+        }
     }
 }

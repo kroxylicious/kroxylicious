@@ -63,6 +63,11 @@ public class PythonTestClient implements KafkaClient {
     }
 
     @Override
+    public String getImage() {
+        return Constants.PYTHON_CLIENT_IMAGE;
+    }
+
+    @Override
     public KafkaClient inNamespace(String namespace) {
         this.deployNamespace = namespace;
         return this;
