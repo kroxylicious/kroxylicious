@@ -20,6 +20,9 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStore;
 import io.kroxylicious.sasl.credentialstore.ScramCredentialStoreService;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * FilterFactory for SASL termination.
  * <p>
@@ -73,9 +76,10 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
                                          List<ScramCredentialStoreService<?>> services) {}
 
     @Override
+    @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "Framework guarantees non-null parameters")
     public SaslTerminationContext initialize(
-                                             FilterFactoryContext context,
-                                             SaslTerminationConfig config)
+                                             @NonNull FilterFactoryContext context,
+                                             @NonNull SaslTerminationConfig config)
             throws PluginConfigurationException {
 
         // Load mechanism handler factories via ServiceLoader
@@ -115,9 +119,10 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
     }
 
     @Override
+    @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "Framework guarantees non-null parameters")
     public SaslTerminationFilter createFilter(
-                                              FilterFactoryContext context,
-                                              SaslTerminationContext filterContext) {
+                                              @NonNull FilterFactoryContext context,
+                                              @NonNull SaslTerminationContext filterContext) {
         return new SaslTerminationFilter(filterContext);
     }
 
@@ -143,7 +148,8 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
     }
 
     @Override
-    public void close(SaslTerminationContext initializationData) {
+    @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "Framework guarantees non-null parameters")
+    public void close(@NonNull SaslTerminationContext initializationData) {
         RuntimeException firstException = null;
         for (var service : initializationData.services()) {
             try {

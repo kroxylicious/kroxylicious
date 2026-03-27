@@ -29,17 +29,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class ScramSha256HandlerTest {
+class ScramHandlerTest {
 
     private static final String TEST_USERNAME = "alice";
     private static final String TEST_PASSWORD = "alice-secret";
 
-    private ScramSha256Handler handler;
+    private ScramHandler handler;
     private ScramCredentialStore credentialStore;
 
     @BeforeEach
     void setUp() {
-        handler = new ScramSha256Handler();
+        handler = new ScramHandler(ScramMechanism.SCRAM_SHA_256);
         credentialStore = mock(ScramCredentialStore.class);
     }
 
@@ -51,8 +51,14 @@ class ScramSha256HandlerTest {
     }
 
     @Test
-    void shouldReturnCorrectMechanismName() {
+    void shouldReturnCorrectMechanismNameForSha256() {
         assertThat(handler.mechanismName()).isEqualTo("SCRAM-SHA-256");
+    }
+
+    @Test
+    void shouldReturnCorrectMechanismNameForSha512() {
+        handler = new ScramHandler(ScramMechanism.SCRAM_SHA_512);
+        assertThat(handler.mechanismName()).isEqualTo("SCRAM-SHA-512");
     }
 
     @Test
@@ -67,7 +73,7 @@ class ScramSha256HandlerTest {
                 .toCompletableFuture().get();
 
         assertThat(result.outcome()).isEqualTo(AuthenticationResult.Outcome.FAILURE);
-        assertThat(result.errorMessage()).contains("Unknown user");
+        assertThat(result.errorMessage()).isEqualTo("Authentication failed");
         assertThat(result.authorizationId()).isNull();
 
         verify(credentialStore).lookupCredential(TEST_USERNAME);
@@ -86,6 +92,7 @@ class ScramSha256HandlerTest {
 
     @Test
     void shouldFailForEmptyMessage() throws Exception {
+
         byte[] emptyMessage = new byte[0];
 
         AuthenticationResult result = handler.handleAuthenticate(emptyMessage, credentialStore)
@@ -97,6 +104,7 @@ class ScramSha256HandlerTest {
 
     @Test
     void shouldFailForMessageWithoutUsername() throws Exception {
+
         // SCRAM message without username field
         byte[] invalidMessage = "n,,r=clientnonce".getBytes(StandardCharsets.UTF_8);
 
@@ -109,6 +117,7 @@ class ScramSha256HandlerTest {
 
     @Test
     void shouldExtractUsernameCorrectly() throws Exception {
+
         when(credentialStore.lookupCredential("bob"))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
@@ -122,6 +131,7 @@ class ScramSha256HandlerTest {
 
     @Test
     void shouldFailForCredentialLookupException() throws Exception {
+
         when(credentialStore.lookupCredential(anyString()))
                 .thenReturn(failedFuture(new CredentialLookupException("Database error")));
 
@@ -136,6 +146,7 @@ class ScramSha256HandlerTest {
 
     @Test
     void shouldFailForCredentialServiceUnavailable() throws Exception {
+
         when(credentialStore.lookupCredential(anyString()))
                 .thenReturn(failedFuture(new CredentialServiceUnavailableException("Service down")));
 
@@ -150,6 +161,7 @@ class ScramSha256HandlerTest {
 
     @Test
     void shouldDisposeIdempotently() {
+
         handler.dispose();
         handler.dispose(); // Should not throw
     }
@@ -157,7 +169,7 @@ class ScramSha256HandlerTest {
     @Test
     @Disabled("Full SCRAM server creation requires provider registration - tested in integration tests")
     void shouldCreateChallengeWithValidCredential() throws Exception {
-        ScramCredential credential = generateCredential(TEST_USERNAME, TEST_PASSWORD);
+        ScramCredential credential = generateCredential(TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_256);
         when(credentialStore.lookupCredential(TEST_USERNAME))
                 .thenReturn(CompletableFuture.completedFuture(credential));
 
@@ -176,11 +188,12 @@ class ScramSha256HandlerTest {
 
     private ScramCredential generateCredential(
                                                String username,
-                                               String password) {
+                                               String password,
+                                               ScramMechanism mechanism) {
         return TestCredentialHelper.generateCredential(
                 username,
                 password,
-                ScramMechanism.SCRAM_SHA_256);
+                mechanism);
     }
 
     private <T> CompletionStage<T> failedFuture(Throwable throwable) {

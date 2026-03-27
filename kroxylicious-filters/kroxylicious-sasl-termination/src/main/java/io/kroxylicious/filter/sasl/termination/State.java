@@ -9,6 +9,7 @@ package io.kroxylicious.filter.sasl.termination;
 import io.kroxylicious.filter.sasl.termination.mechanism.MechanismHandler;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * State machine for SASL termination filter.
@@ -209,6 +210,7 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
 
         private final String errorMessage;
 
+        @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "errorMessage is intentionally nullable - null is printed as 'null' in toString()")
         private Failed(@Nullable String errorMessage) {
             this.errorMessage = errorMessage;
         }

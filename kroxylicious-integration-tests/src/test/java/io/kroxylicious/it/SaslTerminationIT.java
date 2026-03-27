@@ -234,9 +234,77 @@ class SaslTerminationIT extends BaseIT {
                 .build();
     }
 
+    @Test
+    void shouldAuthenticateClientWithScramSha512(
+                                                 KafkaCluster cluster,
+                                                 Topic topic,
+                                                 @TempDir Path tempDir)
+            throws Exception {
+
+        // Generate KeyStore with test credentials for SHA-512
+        Path keystorePath = tempDir.resolve("credentials-512.jks");
+        var generator = new TestCredentialGenerator();
+        generator.generateKeyStore(
+                keystorePath,
+                KEYSTORE_PASSWORD,
+                TEST_USERNAME, TEST_PASSWORD,
+                ScramMechanism.SCRAM_SHA_512);
+
+        // Configure SASL termination filter with SHA-512
+        var saslTermination = createSaslTerminationFilter(keystorePath, "SCRAM-SHA-512");
+
+        var config = proxy(cluster)
+                .addToFilterDefinitions(saslTermination)
+                .addToDefaultFilters(saslTermination.name());
+
+        // Create SCRAM-SHA-512 client configs
+        var clientConfigs = createScramClientConfigs(TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_512);
+
+        try (var tester = kroxyliciousTester(config)) {
+            // Test successful produce
+            try (var producer = tester.producer(clientConfigs)) {
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                        .succeedsWithin(Duration.ofSeconds(5));
+            }
+
+            // Test successful consume
+            var consumerConfigs = new HashMap<>(clientConfigs);
+            consumerConfigs.put(GROUP_ID_CONFIG, "test-group-512");
+            consumerConfigs.put(AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+            try (var consumer = tester.consumer(consumerConfigs)) {
+                consumer.subscribe(Set.of(topic.name()));
+                var records = consumer.poll(Duration.ofSeconds(10));
+
+                assertThat(records).hasSize(1);
+            }
+        }
+    }
+
+    private NamedFilterDefinition createSaslTerminationFilter(
+                                                              Path keystorePath,
+                                                              String mechanism) {
+        return new NamedFilterDefinitionBuilder(
+                SaslTermination.class.getSimpleName(),
+                SaslTermination.class.getName())
+                .withConfig("mechanisms", Map.of(
+                        mechanism, Map.of(
+                                "credentialStore", KeystoreScramCredentialStoreService.class.getName(),
+                                "credentialStoreConfig", Map.of(
+                                        "file", keystorePath.toString(),
+                                        "storePassword", Map.of("password", KEYSTORE_PASSWORD),
+                                        "storeType", "PKCS12"))))
+                .build();
+    }
+
+    private NamedFilterDefinition createSaslTerminationFilter(Path keystorePath) {
+        return createSaslTerminationFilter(keystorePath, "SCRAM-SHA-256");
+    }
+
     private Map<String, Object> createScramClientConfigs(
                                                          String username,
-                                                         String password) {
+                                                         String password,
+                                                         ScramMechanism mechanism) {
         String jaasConfig = String.format(
                 "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\";",
                 username, password);
@@ -244,7 +312,13 @@ class SaslTerminationIT extends BaseIT {
         return new HashMap<>(Map.of(
                 CLIENT_ID_CONFIG, "scram-test-client",
                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
-                SaslConfigs.SASL_MECHANISM, ScramMechanism.SCRAM_SHA_256.mechanismName(),
+                SaslConfigs.SASL_MECHANISM, mechanism.mechanismName(),
                 SaslConfigs.SASL_JAAS_CONFIG, jaasConfig));
+    }
+
+    private Map<String, Object> createScramClientConfigs(
+                                                         String username,
+                                                         String password) {
+        return createScramClientConfigs(username, password, ScramMechanism.SCRAM_SHA_256);
     }
 }
