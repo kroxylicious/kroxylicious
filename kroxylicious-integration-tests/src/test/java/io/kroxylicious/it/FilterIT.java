@@ -8,6 +8,7 @@ package io.kroxylicious.it;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -16,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
@@ -66,6 +68,7 @@ import io.kroxylicious.proxy.internal.TopicNameRetriever;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
+import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -415,6 +418,28 @@ class FilterIT {
     void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Topic topic) throws Exception {
 
         try (var tester = kroxyliciousTester(proxy(cluster));
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester.consumer()) {
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", "Hello, world!")).get();
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            consumer.close();
+
+            assertThat(records.iterator())
+                    .toIterable()
+                    .hasSize(1)
+                    .map(ConsumerRecord::value)
+                    .containsExactly(PLAINTEXT);
+
+        }
+    }
+
+    @Test
+    void bootstrapServersToleratesWhitespace(KafkaCluster cluster, Topic topic) throws Exception {
+        String bootstrapServers = cluster.getBootstrapServers();
+        String bootstrapServersContainingWhitespace = Arrays.stream(bootstrapServers.split(",")).collect(Collectors.joining("  ,  ", "  ", "  "));
+        ConfigurationBuilder configBuilder = KroxyliciousConfigUtils.proxy(bootstrapServersContainingWhitespace);
+        try (var tester = kroxyliciousTester(configBuilder);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
                 var consumer = tester.consumer()) {
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "Hello, world!")).get();

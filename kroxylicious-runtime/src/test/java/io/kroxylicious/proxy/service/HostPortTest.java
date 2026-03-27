@@ -24,6 +24,8 @@ class HostPortTest {
     public static Stream<Arguments> parse() {
         return Stream.of(Arguments.argumentSet("bare host", "localhost:12345", "localhost", 12345),
                 Arguments.argumentSet("FQDN", "kafka.example.com:12345", "kafka.example.com", 12345),
+                Arguments.argumentSet("preceding whitespace", "  kafka.example.com:12345", "kafka.example.com", 12345),
+                Arguments.argumentSet("trailing whitespace", "kafka.example.com:12345  ", "kafka.example.com", 12345),
                 Arguments.argumentSet("Ipv4", "192.168.0.1:12345", "192.168.0.1", 12345),
                 Arguments.argumentSet("Ipv6", "[2001:db8::1]:12345", "[2001:db8::1]", 12345));
     }
