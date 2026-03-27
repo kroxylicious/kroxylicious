@@ -217,7 +217,7 @@ class ProxyChannelStateMachineEndToEndTest {
         assertThat(inboundChannel.config().isAutoRead()).isFalse();
         assertThat(inboundChannel.isWritable()).isTrue();
 
-        assertHandlerInConnectingState(proxyChannelStateMachine, haProxy, List.of(firstMessage));
+        assertHandlerInConnectingState(proxyChannelStateMachine, List.of(firstMessage));
     }
 
     private ProxyChannelStateMachine buildHandlerInClientActiveState(boolean sni) {
@@ -240,7 +240,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                   ApiKeys firstMessage) {
         // Given
         activateOutboundChannelAutomatically = false;
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
         firstRequest(firstMessage);
 
         // When
@@ -266,7 +266,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                    Throwable serverException) {
         // Given
         activateOutboundChannelAutomatically = false;
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
         final DecodedRequestFrame<ApiMessage> requestFrame = firstRequest(firstMessage);
 
         // When
@@ -292,7 +292,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                   boolean haProxy,
                                                   ApiKeys firstMessage) {
         // Given
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
         firstRequest(firstMessage);
 
         // When
@@ -311,7 +311,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                 boolean haProxy,
                                                 ApiKeys firstMessage) {
         // Given
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
         var firstRequest = firstRequest(firstMessage);
 
         // When
@@ -339,7 +339,7 @@ class ProxyChannelStateMachineEndToEndTest {
                           boolean haProxy,
                           ApiKeys firstMessage) {
         // Given
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
         final DecodedRequestFrame<ApiMessage> requestFrame = firstRequest(firstMessage);
         outboundChannel.pipeline().fireChannelActive();
 
@@ -366,7 +366,7 @@ class ProxyChannelStateMachineEndToEndTest {
                              boolean haProxy,
                              ApiKeys firstMessage) {
         // Given
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
         firstRequest(firstMessage);
         outboundChannel.pipeline().fireChannelActive();
 
@@ -613,7 +613,6 @@ class ProxyChannelStateMachineEndToEndTest {
 
     private void assertHandlerInConnectingState(
                                                 ProxyChannelStateMachine proxyChannelStateMachine,
-                                                boolean haProxy,
                                                 List<ApiKeys> expectedBufferedRequestTypes) {
         var stateAssert = assertThat(proxyChannelStateMachine.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Connecting.class));
@@ -695,7 +694,6 @@ class ProxyChannelStateMachineEndToEndTest {
 
     private ProxyChannelStateMachine buildHandlerInConnectingState(
                                                                    boolean sni,
-                                                                   boolean haProxy,
                                                                    boolean tlsConfigured,
                                                                    ApiKeys firstMessage) {
         var proxyChannelStateMachine = buildFrontendHandler(tlsConfigured);

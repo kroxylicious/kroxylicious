@@ -92,7 +92,6 @@ class HAProxyContextTest {
         msg.release();
 
         // Then — TLV content is a deep copy, safe after release
-        assertThat(context.tlvs()).containsKey("PP2_TYPE_AUTHORITY");
-        assertThat(context.tlvs().get("PP2_TYPE_AUTHORITY")).isEqualTo(authorityBytes);
+        assertThat(context.tlvs()).containsEntry("PP2_TYPE_AUTHORITY", authorityBytes);
     }
 }
