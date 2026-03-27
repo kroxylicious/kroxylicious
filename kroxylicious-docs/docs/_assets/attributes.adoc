@@ -163,6 +163,11 @@ ifndef::DocRoot[:DocRoot: ..]
 :RecordValidationGuideText: Record Validation guide
 :RecordValidationGuide: link:{RecordValidationGuideUrl}[{RecordValidationGuideText}]
 
-:SASLInspectionGuideUrl: {DocRoot}/sasl-inspection-guide/
-:SASLInspectionGuideText: SASL Inspection guide
+:AuthenticationGuideUrl: {DocRoot}/authentication-guide/
+:AuthenticationGuideText: Authentication guide
+:AuthenticationGuide: link:{AuthenticationGuideUrl}[{AuthenticationGuideText}]
+
+// Deprecated: Use AuthenticationGuide instead
+:SASLInspectionGuideUrl: {DocRoot}/authentication-guide/
+:SASLInspectionGuideText: Authentication guide
 :SASLInspectionGuide: link:{SASLInspectionGuideUrl}[{SASLInspectionGuideText}]

@@ -1,0 +1,11 @@
+:_mod-docs-content-type: CONCEPT
+
+[discrete]
+[id='con-about-authentication-guide-{context}']
+= About this guide
+
+[role="_abstract"]
+This guide covers authentication in Kroxylicious using the *SASL Inspection* and *SASL Termination* filters.
+These filters enable the proxy to authenticate Kafka clients and make authenticated identities available to other filters in the chain.
+
+Refer to other Kroxylicious guides for information on running the proxy or for advanced topics such as plugin development.
