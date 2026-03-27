@@ -29,7 +29,7 @@ class KeystoreCredentialToolIT {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
         // Create keystore
-        var createResult = executeCommand("create",
+        var createResult = executeCommand("--unlock-insecure-options", "create",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-t", "PKCS12");
@@ -39,7 +39,7 @@ class KeystoreCredentialToolIT {
         assertThat(keystorePath).exists();
 
         // List users (should be empty)
-        var listResult = executeCommand("list-users",
+        var listResult = executeCommand("--unlock-insecure-options", "list-users",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
@@ -52,12 +52,12 @@ class KeystoreCredentialToolIT {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
         // Create keystore first
-        executeCommand("create",
+        executeCommand("--unlock-insecure-options", "create",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
         // Add user
-        var addResult = executeCommand("add-user",
+        var addResult = executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
@@ -67,7 +67,7 @@ class KeystoreCredentialToolIT {
         assertThat(addResult.stdout()).contains("User 'alice' added successfully");
 
         // List users
-        var listResult = executeCommand("list-users",
+        var listResult = executeCommand("--unlock-insecure-options", "list-users",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
@@ -81,29 +81,29 @@ class KeystoreCredentialToolIT {
     void shouldAddMultipleUsersAndListInOrder(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
         // Add users in non-alphabetical order
-        executeCommand("add-user",
+        executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "zebra",
                 "-w", "password");
 
-        executeCommand("add-user",
+        executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "password");
 
-        executeCommand("add-user",
+        executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "mike",
                 "-w", "password");
 
         // List should be sorted
-        var listResult = executeCommand("list-users",
+        var listResult = executeCommand("--unlock-insecure-options", "list-users",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
@@ -124,20 +124,20 @@ class KeystoreCredentialToolIT {
     void shouldRemoveUser(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
-        executeCommand("add-user",
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "password");
-        executeCommand("add-user",
+        executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "bob",
                 "-w", "password");
 
         // Remove alice
-        var removeResult = executeCommand("remove-user",
+        var removeResult = executeCommand("--unlock-insecure-options", "remove-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice");
@@ -146,7 +146,7 @@ class KeystoreCredentialToolIT {
         assertThat(removeResult.stdout()).contains("User 'alice' removed successfully");
 
         // List should only show bob
-        var listResult = executeCommand("list-users",
+        var listResult = executeCommand("--unlock-insecure-options", "list-users",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
@@ -160,15 +160,15 @@ class KeystoreCredentialToolIT {
     void shouldUpdatePassword(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
-        executeCommand("add-user",
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
                 "-w", "old-password");
 
         // Update password
-        var updateResult = executeCommand("update-password",
+        var updateResult = executeCommand("--unlock-insecure-options", "update-password",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
@@ -178,7 +178,7 @@ class KeystoreCredentialToolIT {
         assertThat(updateResult.stdout()).contains("Password for user 'alice' updated successfully");
 
         // User should still exist
-        var listResult = executeCommand("list-users",
+        var listResult = executeCommand("--unlock-insecure-options", "list-users",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD);
 
@@ -190,9 +190,9 @@ class KeystoreCredentialToolIT {
     void shouldFailWhenRemovingNonExistentUser(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
-        var removeResult = executeCommand("remove-user",
+        var removeResult = executeCommand("--unlock-insecure-options", "remove-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "nonexistent");
@@ -207,9 +207,9 @@ class KeystoreCredentialToolIT {
     void shouldFailWhenUpdatingNonExistentUser(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
-        var updateResult = executeCommand("update-password",
+        var updateResult = executeCommand("--unlock-insecure-options", "update-password",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "nonexistent",
@@ -225,7 +225,7 @@ class KeystoreCredentialToolIT {
     void shouldFailWhenKeystoreFileNotFound(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("nonexistent.p12");
 
-        var addResult = executeCommand("add-user",
+        var addResult = executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
@@ -241,9 +241,9 @@ class KeystoreCredentialToolIT {
     void shouldSupportScramSha256Mechanism(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
-        var addResult = executeCommand("add-user",
+        var addResult = executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
@@ -258,9 +258,9 @@ class KeystoreCredentialToolIT {
     void shouldSupportScramSha512Mechanism(@TempDir Path tempDir) {
         Path keystorePath = tempDir.resolve("credentials.p12");
 
-        executeCommand("create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
+        executeCommand("--unlock-insecure-options", "create", "-k", keystorePath.toString(), "-p", KEYSTORE_PASSWORD);
 
-        var addResult = executeCommand("add-user",
+        var addResult = executeCommand("--unlock-insecure-options", "add-user",
                 "-k", keystorePath.toString(),
                 "-p", KEYSTORE_PASSWORD,
                 "-u", "alice",
@@ -284,6 +284,38 @@ class KeystoreCredentialToolIT {
                 .contains("remove-user")
                 .contains("update-password")
                 .contains("list-users");
+    }
+
+    @Test
+    void shouldBlockPasswordOptionsByDefault(@TempDir Path tempDir) {
+        Path keystorePath = tempDir.resolve("credentials.p12");
+
+        // Try to create keystore with password option but without unlock flag
+        var result = executeCommand("create",
+                "-k", keystorePath.toString(),
+                "-p", KEYSTORE_PASSWORD);
+
+        assertThat(result.exitCode()).isEqualTo(2);
+        assertThat(result.stderr())
+                .contains("Password options are disabled by default for security")
+                .contains("--unlock-insecure-options");
+    }
+
+    @Test
+    void shouldWarnWhenUsingInsecureOptions(@TempDir Path tempDir) {
+        Path keystorePath = tempDir.resolve("credentials.p12");
+
+        // Create with unlock flag - should warn
+        var result = executeCommand("--unlock-insecure-options", "create",
+                "-k", keystorePath.toString(),
+                "-p", KEYSTORE_PASSWORD);
+
+        assertThat(result.exitCode()).isZero();
+        assertThat(result.stderr())
+                .contains("SECURITY WARNING")
+                .contains("NOT RECOMMENDED")
+                .contains("Process listings")
+                .contains("Shell history");
     }
 
     /**

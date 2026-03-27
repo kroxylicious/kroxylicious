@@ -112,8 +112,9 @@ public class ScramSha256Handler implements MechanismHandler {
             return credentialStore.lookupCredential(extractedUsername)
                     .thenCompose(credential -> {
                         if (credential == null) {
+                            // Use generic error to prevent username enumeration
                             return CompletableFuture.completedFuture(
-                                    AuthenticationResult.failure(new byte[0], "Unknown user: " + extractedUsername));
+                                    AuthenticationResult.failure(new byte[0], "Authentication failed"));
                         }
                         return processWithCredential(authBytes, credential);
                     })

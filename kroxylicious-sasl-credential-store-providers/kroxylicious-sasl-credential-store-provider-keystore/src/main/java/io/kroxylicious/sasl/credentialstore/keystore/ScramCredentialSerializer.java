@@ -7,7 +7,6 @@
 package io.kroxylicious.sasl.credentialstore.keystore;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -54,8 +53,8 @@ public class ScramCredentialSerializer {
             return credential;
         }
         catch (IOException e) {
-            throw new IllegalArgumentException("Failed to deserialize credential for alias: " + alias
-                    + ". Content: " + new String(bytes, StandardCharsets.UTF_8), e);
+            // Don't log credential content (may contain sensitive data even if corrupted)
+            throw new IllegalArgumentException("Failed to deserialize credential for alias: " + alias, e);
         }
         catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid credential for alias: " + alias, e);

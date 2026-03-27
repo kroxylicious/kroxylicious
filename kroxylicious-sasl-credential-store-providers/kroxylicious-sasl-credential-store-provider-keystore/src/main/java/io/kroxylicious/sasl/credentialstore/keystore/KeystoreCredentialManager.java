@@ -57,7 +57,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 public class KeystoreCredentialManager {
 
-    private static final int DEFAULT_ITERATIONS = 4096;
+    private static final int DEFAULT_ITERATIONS = 10000;
     private static final int SALT_LENGTH = 20;
     private final SecureRandom secureRandom;
 
