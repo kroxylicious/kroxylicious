@@ -19,7 +19,7 @@ The `KafkaProxyIngress` resource supports the following ingress types to configu
 * `openShiftRoute` exposes the virtual cluster to applications running outside the OpenShift cluster by using OpenShift Routes (OpenShift only)
 
 The `clusterIP` ingress types support both TCP (plain) and TLS connections.
-The `loadBalancer` and `openShiftRoute` types exclusively supports TLS.
+The `loadBalancer` and `openShiftRoute` types support only TLS.
 
 When using TLS, you specify a TLS server certificate in the ingress configuration of the `VirtualKafkaCluster` resource.
 
@@ -159,7 +159,7 @@ You must also xref:proc-virtualkafkacluster-loadbalancer-dns-config-{context}[co
 
 == `openShiftRoute` ingress type
 
-IMPORTANT: OpenShift Routes are an OpenShift-only feature and are not supported on vanilla Kubernetes environments. The Kroxylicious Operator actively detects whether the OpenShift Route API is supported on the Kubernetes Server; if the feature is not available, the operator will gracefully reject any attempt by the user to use it.
+IMPORTANT: OpenShift Routes are available only on OpenShift and are not supported on Kubernetes environments. The Kroxylicious Operator detects whether the OpenShift Route API is available on the Kubernetes server. If it is not available, the operator rejects configurations that use this ingress type.
 
 The `openShiftRoute` ingress type allows applications running off-cluster to connect to the virtual cluster. TLS must be used with this ingress type.
 
@@ -167,7 +167,7 @@ The `openShiftRoute` ingress type uses OpenShift `Route` resources to enable off
 
 When using an `openShiftRoute` ingress, the proxy uses SNI (Server Name Indication) to match the client’s requested host name to the correct virtual cluster and broker within the proxy.
 
-The bootstrap and broker addresses are automatically generated. They look like this:
+The bootstrap and broker addresses are generated automatically, for example:
 
 .Example bootstrap and broker addresses
 [source,text]

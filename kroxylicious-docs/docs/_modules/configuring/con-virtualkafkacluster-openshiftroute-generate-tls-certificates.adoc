@@ -35,7 +35,7 @@ mycluster-1.ingress-domain
 mycluster-2.ingress-domain
 ----
 
-To prepare your certificate in advance, you can lookup the ingress domain from the Ingress Controller:
+To prepare your certificate in advance, look up the ingress domain in the Ingress Controller:
 
 [source,bash]
 ----
