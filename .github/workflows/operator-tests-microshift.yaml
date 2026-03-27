@@ -31,12 +31,10 @@ name: Operator Tests (MicroShift / OpenShift)
 on:
   push:
     branches: [ main ]
-  pull_request:
-    paths:
-      - 'kroxylicious-operator/**'
-      - 'kroxylicious-kubernetes-api/**'
-      - 'kroxylicious-app/**'
-      - '.github/workflows/operator-tests-microshift.yml'
+  workflow_run: # uses workflow_run as we need access to the secrets
+    workflows: [ "Lint Pull Request" ]
+    types: [completed]
+
   # Exists mainly for diagnostic purposes
   workflow_dispatch:
     inputs:
@@ -54,20 +52,31 @@ jobs:
     name: Preflight check for pull-sc
     runs-on: ubuntu-latest
     outputs:
-      pull-secret: ${{ steps.pull-check.outputs.pullsecret }}
+      pullsecretcheck: ${{ steps.pull-check.outputs.pullsecretcheck }}
+      srcfilter: ${{ steps.filter.outputs.srcfilter }}
     steps:
-        - name: 'Test for Red Hat pull-secret'
+        - name: 'Test for presence of Red Hat pull-secret'
           id: pull-check
           env:
             REDHAT_PULL_SECRET: ${{ secrets.REDHAT_PULL_SECRET }}
           run: echo "pullsecret=$(test ${REDHAT_PULL_SECRET} && echo true)" >> "$GITHUB_OUTPUT"
+        - name: "Test for updates to the operator itself"
+          uses: dorny/paths-filter@d1c1ffe9a5bf6e0c87f703b06f2e00d9f6e45bb3 # v3.0.3
+          id: filter
+          with:
+            filters: |
+              srcfilter:
+                - 'kroxylicious-operator/**'
+                - 'kroxylicious-kubernetes-api/**'
+                - 'kroxylicious-app/**'
+                - '.github/workflows/operator-tests-microshift.yml'
 
   operator-tests-microshift:
     name: Operator integration & system tests on MicroShift
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: preflight
-    if: needs.preflight.outputs.pull-secret == 'true'
+    if: needs.preflight.outputs.pullsecretcheck == 'true' && needs.preflight.outputs.srcfilter == 'true'
 
     steps:
       - name: 'Test for Slack secret'
