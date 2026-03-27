@@ -40,7 +40,7 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
      * @param requestHeader header to send
      * @param request request to send
      */
-    public record When(String subject, JsonNode requestHeader, JsonNode request) {}
+    public record When(@Nullable String subject, JsonNode requestHeader, JsonNode request) {}
 
     /**
      * Expect request future to be completed exceptionally

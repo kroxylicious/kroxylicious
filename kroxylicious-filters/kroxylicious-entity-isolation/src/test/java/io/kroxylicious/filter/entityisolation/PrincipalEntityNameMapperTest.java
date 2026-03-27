@@ -7,10 +7,15 @@
 package io.kroxylicious.filter.entityisolation;
 
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -21,6 +26,7 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -63,11 +69,19 @@ class PrincipalEntityNameMapperTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    void shouldRejectEmptySeparator() {
+    @ParameterizedTest
+    @ValueSource(strings = { "", "*", "a*", " " })
+    void shouldRejectSeparatorsThatAreNotLegalKafkaResourceNames(String separator) {
         // Given/When/Then
-        assertThatThrownBy(() -> new PrincipalEntityNameMapper(User.class, ""))
+        assertThatThrownBy(() -> new PrincipalEntityNameMapper(User.class, separator))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "-", "_", ".", "--", "abc" })
+    void shouldAcceptSeparatorsThatAreLegalKafkaResourceNames(String separator) {
+        // Given/When/Then
+        assertThatNoException().isThrownBy(() -> new PrincipalEntityNameMapper(User.class, separator));
     }
 
     @Test
@@ -100,10 +114,49 @@ class PrincipalEntityNameMapperTest {
         var mapperContext = buildMapperContext(bobSubject);
 
         // When/Then
-        // When/Then
         assertThatThrownBy(() -> mapper.map(mapperContext, EntityType.TOPIC_NAME, "foo"))
                 .isInstanceOf(EntityMapperException.class)
                 .hasMessageContaining("Principal 'User[name=dash-boy]' is unacceptable as it contains the mapping separator '-'");
+    }
+
+    @Test
+    void mapShouldRejectPrincipalThatIsNotLegalKafkaResourceNames() {
+        // Given
+        when(bobSubject.uniquePrincipalOfType(User.class)).thenReturn(Optional.of(new User("bad*boy")));
+        var mapperContext = buildMapperContext(bobSubject);
+
+        // When/Then
+        assertThatThrownBy(() -> mapper.map(mapperContext, EntityType.TOPIC_NAME, "foo"))
+                .isInstanceOf(EntityMapperException.class)
+                .hasMessageContaining("Principal 'User[name=bad*boy]' is unacceptable as it contains characters outside ASCII alphanumerics, '.', '_' and '-'");
+    }
+
+    static Stream<Arguments> overlyLongKafkaResourceClusterNamesScenarios() {
+        var bob = new User("bob");
+        return Stream.of(
+                Arguments.argumentSet("upstream topic name too long by one", EntityType.TOPIC_NAME, bob,
+                        "t".repeat(PrincipalEntityNameMapper.MAX_NAME_LENGTH - 3 - 1 + 1), false),
+                Arguments.argumentSet("upstream topic name just fits", EntityType.TOPIC_NAME, bob, "t".repeat(PrincipalEntityNameMapper.MAX_NAME_LENGTH - 3 - 1), true),
+                Arguments.argumentSet("upstream group id just fits", EntityType.GROUP_ID, bob, "t".repeat(PrincipalEntityNameMapper.MAX_NAME_LENGTH - 3 - 1 + 1), false),
+                Arguments.argumentSet("upstream transactional id not unconstrained", EntityType.GROUP_ID, bob, "t".repeat(PrincipalEntityNameMapper.MAX_NAME_LENGTH * 2),
+                        false));
+    }
+
+    @ParameterizedTest
+    @MethodSource("overlyLongKafkaResourceClusterNamesScenarios")
+    void detectsOverlyLongKafkaResourceClusterNames(EntityType entityType, User principal, String resourceName, boolean isLegal) {
+        // Given
+        when(bobSubject.uniquePrincipalOfType(User.class)).thenReturn(Optional.of(principal));
+        var mapperContext = buildMapperContext(bobSubject);
+
+        // When/Then
+        if (isLegal) {
+            assertThatNoException().isThrownBy(() -> mapper.map(mapperContext, entityType, resourceName));
+        }
+        else {
+            assertThatThrownBy(() -> mapper.map(mapperContext, entityType, resourceName))
+                    .isInstanceOf(EntityMapperException.class);
+        }
     }
 
     @Test
