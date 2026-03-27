@@ -147,6 +147,11 @@ public class Webify implements Callable<Integer> {
                        \s""".replace(PROJECT_VERSION_PLACEHOLDER, this.projectVersion);
     }
 
+    private static boolean isDocYaml(Path p) {
+        var fileName = p.getFileName();
+        return fileName != null && "doc.yaml".equals(fileName.toString());
+    }
+
     private void walk(List<PathMatcher> omitGlobs,
                       PathMatcher tocifyGlob,
                       PathMatcher datafyGlob)
@@ -155,7 +160,7 @@ public class Webify implements Callable<Integer> {
         try (var stream = Files.walk(this.srcDir)) {
             // Sort doc.yaml last so it always overwrites any index.html written by tocify,
             // rather than the other way around. Files.walk gives no ordering guarantee.
-            stream.sorted(Comparator.<Path, Integer> comparing(p -> p.getFileName() != null && "doc.yaml".equals(p.getFileName().toString()) ? 1 : 0)
+            stream.sorted(Comparator.<Path, Integer> comparing(p -> isDocYaml(p) ? 1 : 0)
                     .thenComparing(Comparator.naturalOrder()))
                     .forEach(new DocConverter(omitGlobs, tocifyGlob, datafyGlob, resultDocsList));
         }
