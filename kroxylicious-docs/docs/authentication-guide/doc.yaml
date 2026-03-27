@@ -1,0 +1,8 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: Authentication Guide
+description: Covers authentication in Kroxylicious using SASL Inspection and SASL Termination filters.
+tags:
+  - filter
+  - authentication
+  - security
+rank: "023"

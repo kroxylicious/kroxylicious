@@ -1,0 +1,69 @@
+:_mod-docs-content-type: ASSEMBLY
+
+[id='assembly-sasl-termination-{context}']
+= SASL Termination filter
+
+[role="_abstract"]
+The SASL Termination filter terminates SASL authentication at the proxy, authenticating clients against pluggable credential stores.
+This enables centralised credential management without requiring broker-side credential configuration.
+
+include::../../_modules/authentication/con-sasl-termination-overview.adoc[leveloffset=+1]
+
+include::../../_modules/authentication/con-sasl-termination-mechanisms.adoc[leveloffset=+1]
+
+include::../../_modules/authentication/con-sasl-termination-credential-stores.adoc[leveloffset=+1]
+
+include::../../_modules/authentication/con-sasl-termination-security.adoc[leveloffset=+1]
+
+== Configuring SASL Termination
+
+[role="_abstract"]
+This procedure describes how to set up the SASL Termination filter by configuring it in Kroxylicious.
+
+.Prerequisites
+
+* An instance of Kroxylicious
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
+* TLS configured for client connections to the proxy (required for security)
+* Credential keystore prepared (see <<proc-managing-credentials-keystore-tool-{context}>>)
+
+.Procedure
+
+. Prepare credential keystore.
++
+See <<proc-managing-credentials-keystore-tool-{context}>> for detailed procedures on creating keystores and managing user credentials.
+
+. Configure a `SaslTermination` type filter.
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-sasl-termination-example-proxy-config-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment using a `KafkaProtocolFilter` resource. See <<con-sasl-termination-example-kafkaprotocolfilter-resource-{context}>>
+endif::[]
+
+ifdef::include-platform-bare-metal[]
+include::../../_modules/authentication/con-sasl-termination-example-proxy-config.adoc[leveloffset=+2]
+endif::[]
+
+ifdef::include-platform-kubernetes[]
+include::../../_modules/authentication/con-sasl-termination-example-kafkaprotocolfilter-resource.adoc[leveloffset=+2]
+endif::[]
+
+== Managing credentials
+
+include::../../_modules/authentication/proc-managing-credentials-keystore-tool.adoc[leveloffset=+1]
+
+include::../../_modules/authentication/proc-generating-secure-passwords.adoc[leveloffset=+1]
+
+== Configuration reference
+
+include::../../_modules/authentication/ref-sasl-termination-config.adoc[leveloffset=+1]
+
+include::../../_modules/authentication/ref-keystore-credential-store-config.adoc[leveloffset=+1]
+
+include::../../_modules/authentication/con-configuring-sasl-subject-builder.adoc[leveloffset=+1]
