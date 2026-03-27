@@ -49,7 +49,7 @@ concurrency:
 
 jobs:
   preflight:
-    name: Preflight check for pull-sc
+    name: Preflight checks
     runs-on: ubuntu-latest
     outputs:
       pull-secret-check: ${{ steps.pull-check.outputs.pullsecret }}
@@ -128,7 +128,7 @@ jobs:
       - name: 'Build Kroxylicious Operand Container Images'
         run: |
           eval $(crc podman-env --root)
-          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app -Dquick install
+          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator -Dquick install
 
       - name: Run operator integration tests
         run: |
