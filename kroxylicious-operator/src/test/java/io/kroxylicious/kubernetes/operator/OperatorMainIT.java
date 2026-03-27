@@ -13,6 +13,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -26,8 +28,8 @@ import org.junit.jupiter.api.condition.EnabledIf;
 
 import com.sun.net.httpserver.HttpServer;
 
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
@@ -37,12 +39,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class OperatorMainIT {
@@ -52,6 +55,7 @@ class OperatorMainIT {
     private static final String CLUSTER_FOO_BOOTSTRAP = "my-cluster-kafka-bootstrap.foo.svc.cluster.local:9092";
     private static final String CLUSTER_BAR_REF = "barref";
     private static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
+    private static final String FOO = UUID.randomUUID().toString();
 
     private HttpServer managementServer;
     private KafkaProxy kafkaProxy;
@@ -78,9 +82,9 @@ class OperatorMainIT {
     }
 
     @BeforeEach
-    void beforeEach() throws IOException {
-        managementServer = HttpServer.create(new InetSocketAddress("localhost", 0), 10);
-        operatorMain = new OperatorMain(null, managementServer);
+    void beforeEach() throws Exception {
+        managementServer = createManagementServer();
+        operatorMain = new OperatorMain(managementServer, null, null);
     }
 
     @AfterEach
@@ -98,13 +102,7 @@ class OperatorMainIT {
 
     @Test
     void start() {
-        try {
-            operatorMain.start();
-        }
-        catch (OperatorException e) {
-            fail("Exception occurred starting operator: " + e.getMessage());
-        }
-
+        assertThatNoException().isThrownBy(() -> operatorMain.start());
     }
 
     @Test
@@ -233,6 +231,50 @@ class OperatorMainIT {
         assertThat(response.body()).isEmpty();
     }
 
+    @Test
+    void shouldWatchOnlyConfiguredNamespace() throws Exception {
+        // Given
+        operatorMain.stop();
+        managementServer.stop(0);
+
+        var kc = Objects.requireNonNull(OperatorTestUtils.kubeClient());
+        var watchedNs = "watched-" + System.currentTimeMillis();
+        var unwatchedNs = "unwatched-" + System.currentTimeMillis();
+        var watched = kc.namespaces().resource(new NamespaceBuilder().withNewMetadata().withName(watchedNs).endMetadata().build()).create();
+        var unwatched = kc.namespaces().resource(new NamespaceBuilder().withNewMetadata().withName(unwatchedNs).endMetadata().build()).create();
+        var watchedKp = kc.resource(new KafkaProxyBuilder().withNewMetadata().withNamespace(watchedNs).withName("myproxy").endMetadata().withNewSpec().endSpec().build())
+                .create();
+        var unwatchedKp = kc
+                .resource(new KafkaProxyBuilder().withNewMetadata().withNamespace(unwatchedNs).withName("myproxy").endMetadata().withNewSpec().endSpec().build())
+                .create();
+
+        managementServer = createManagementServer();
+        operatorMain = new OperatorMain(managementServer, null, Set.of(watched.getMetadata().getName()));
+
+        // When
+        operatorMain.start();
+
+        // Then
+        Awaitility.await("reconcilesWatchedProxy")
+                .untilAsserted(() -> {
+                    var watchedProxy = kc.resource(watchedKp).get();
+                    assertThat(watchedProxy)
+                            .extracting(KafkaProxy::getStatus)
+                            .extracting(KafkaProxyStatus::getObservedGeneration)
+                            .withFailMessage("expecting watched proxy to have status with observed generation as operator should be reconciling it.")
+                            .isNotNull();
+                });
+
+        var unwatchedProxy = kc.resource(unwatchedKp).get();
+        assertThat(unwatchedProxy)
+                .isNotNull()
+                .extracting(KafkaProxy::getStatus)
+                .withFailMessage("expecting unwatched proxy to have no status object as operator should not be reconciling it.")
+                .isNull();
+
+        Set.of(watched, unwatched).forEach(r -> kc.resource(r).delete());
+    }
+
     private KafkaProxy createProxyInstance(KafkaProxyBuilder proxyBuilder) {
         final KubernetesClient kubernetesClient = Objects.requireNonNull(OperatorTestUtils.kubeClient());
         kubernetesClient.resource(clusterRef(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP)).create();
@@ -250,5 +292,9 @@ class OperatorMainIT {
 
     private String managementAddress() {
         return String.format("http://%s:%s", managementServer.getAddress().getHostString(), managementServer.getAddress().getPort());
+    }
+
+    private static HttpServer createManagementServer() throws IOException {
+        return HttpServer.create(new InetSocketAddress("localhost", 0), 10);
     }
 }
