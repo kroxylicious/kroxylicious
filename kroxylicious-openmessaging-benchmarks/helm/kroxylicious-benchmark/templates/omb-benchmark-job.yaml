@@ -30,8 +30,10 @@ spec:
           value: {{ include "kroxylicious-benchmark.workerList" . | quote }}
         - name: PRODUCER_RATE
           value: {{ .Values.omb.coordinatorProducerRate | quote }}
+        - name: HEAP_OPTS
+          value: {{ .Values.omb.coordinatorHeapOpts | quote }}
         - name: JAVA_TOOL_OPTIONS
-          value: "{{ .Values.omb.coordinatorJavaOpts }} -Dorg.slf4j.simpleLogger.defaultLogLevel={{ .Values.omb.logLevel }}"
+          value: "-Dorg.slf4j.simpleLogger.defaultLogLevel={{ .Values.omb.logLevel }}"
         command:
         - /bin/bash
         - -c

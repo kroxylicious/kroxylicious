@@ -60,22 +60,22 @@ omb:
   imagePullPolicy: IfNotPresent
   driver: baseline  # Can be 'baseline' or 'proxy'
   workload: 1topic-1kb  # Workload name to run
-  workerJavaOpts: "-XX:MaxRAMPercentage=50 -XX:NativeMemoryTracking=summary"  # JVM opts for OMB workers
+  workerJavaOpts: "-XX:MaxRAMPercentage=50"  # JVM opts for OMB workers
   logLevel: warn  # SLF4J SimpleLogger log level (debug, info, warn, error)
   createBenchmarkJob: false  # Job is created explicitly by run-benchmark.sh; not managed by Helm install
   coordinatorProducerRate: ""  # Producer rate override injected per-probe; empty uses workload default
-  # Coordinator JVM opts — explicit Xmx avoids cgroup misdetection where MaxRAMPercentage reads node RAM
-  coordinatorJavaOpts: "-Xmx1g -XX:NativeMemoryTracking=summary"
+  # Coordinator heap sizing passed as HEAP_OPTS to the OMB launcher script.
+  # The coordinator is an orchestrator only — workers do the actual producing/consuming.
+  coordinatorHeapOpts: "-Xms512m -Xmx1g"
   resultsPvcName: "omb-results"  # PVC for result JSON; not Helm-managed, persists across runs
-  # Resources for the OMB coordinator (Job pod).
-  # Needs more headroom than workers.
+  # Resources for the OMB coordinator (Job pod). Sized for 1 GB heap + native overhead.
   coordinator:
     resources:
       requests:
-        memory: "2Gi"
+        memory: "1Gi"
         cpu: "500m"
       limits:
-        memory: "6Gi"
+        memory: "2Gi"
         cpu: "1000m"
   # Resources for each OMB worker (StatefulSet pods). Workers run producers and
   # consumers — less JVM startup overhead than the coordinator.
