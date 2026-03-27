@@ -627,7 +627,7 @@ if [[ -n "${PROXY_POD}" ]]; then
             echo "Warning: ASYNC_PROFILER_LIB not set in JVM environment — skipping flamegraph" >&2
         elif kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
                 sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
-                       'stop,file=/tmp/flamegraph.html,output=flamegraph,title=${SCENARIO}/${WORKLOAD} $(date -u +%Y-%m-%dT%H:%M:%SZ)'"; then
+                       'stop,file=/tmp/flamegraph.html,output=flamegraph,title=${SCENARIO}/${WORKLOAD}_$(date -u +%Y-%m-%dT%H:%M:%SZ)'"; then
             echo "Flamegraph written to /tmp/flamegraph.html"
         else
             echo "Warning: async-profiler stop failed — flamegraph may be incomplete or absent" >&2
