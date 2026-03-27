@@ -78,7 +78,7 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         if (console == null) {
             return null;
         }
-        char[] passwordChars = console.readPassword("%s: ", prompt);
+        char[] passwordChars = console.readPassword("%s (minimum 12 characters): ", prompt);
         if (passwordChars == null) {
             return null;
         }

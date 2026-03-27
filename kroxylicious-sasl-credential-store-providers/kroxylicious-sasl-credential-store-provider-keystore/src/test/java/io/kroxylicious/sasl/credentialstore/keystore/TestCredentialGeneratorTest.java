@@ -31,7 +31,7 @@ import static org.mockito.Mockito.mock;
  */
 class TestCredentialGeneratorTest {
 
-    private static final String KEYSTORE_PASSWORD = "test-password";
+    private static final String KEYSTORE_PASSWORD = "test-keystore-password-123";
 
     @Test
     void shouldGenerateDeterministicCredentials() throws Exception {
@@ -50,7 +50,7 @@ class TestCredentialGeneratorTest {
 
         // When - generate credential with known inputs
         String username = "alice";
-        String password = "alice-secret";
+        String password = "alice-secret-password-123";
         ScramCredential credential = generator.generateScramCredential(
                 username,
                 password,
@@ -91,12 +91,12 @@ class TestCredentialGeneratorTest {
         // When - generate same credential twice
         ScramCredential cred1 = generator.generateScramCredential(
                 "bob",
-                "bob-password",
+                "bob-password-secret-123",
                 ScramMechanism.SCRAM_SHA_256);
 
         ScramCredential cred2 = generator.generateScramCredential(
                 "bob",
-                "bob-password",
+                "bob-password-secret-123",
                 ScramMechanism.SCRAM_SHA_256);
 
         // Then - credentials should be identical
@@ -121,12 +121,12 @@ class TestCredentialGeneratorTest {
         // When - generate credentials with different passwords
         ScramCredential cred1 = generator.generateScramCredential(
                 "user",
-                "password1",
+                "user-password-one-123",
                 ScramMechanism.SCRAM_SHA_256);
 
         ScramCredential cred2 = generator.generateScramCredential(
                 "user",
-                "password2",
+                "user-password-two-456",
                 ScramMechanism.SCRAM_SHA_256);
 
         // Then - credentials should differ
@@ -141,9 +141,9 @@ class TestCredentialGeneratorTest {
         var generator = new TestCredentialGenerator();
 
         String username1 = "alice";
-        String password1 = "alice-secret";
+        String password1 = "alice-secret-password-123";
         String username2 = "bob";
-        String password2 = "bob-secret";
+        String password2 = "bob-secret-password-456";
 
         generator.generateKeyStore(
                 keystorePath,
@@ -198,7 +198,7 @@ class TestCredentialGeneratorTest {
         // When - generate SHA-512 credential
         ScramCredential credential = generator.generateScramCredential(
                 "user",
-                "password",
+                "user-password-secret-512",
                 ScramMechanism.SCRAM_SHA_512);
 
         // Then
