@@ -6,7 +6,9 @@
 
 package io.kroxylicious.filter.sasl.termination;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 
@@ -63,10 +65,12 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
      *
      * @param credentialStores map of mechanism name to credential store
      * @param handlerFactories map of mechanism name to handler factory
+     * @param services list of credential store services to close on shutdown
      */
     public record SaslTerminationContext(
                                          Map<String, ScramCredentialStore> credentialStores,
-                                         Map<String, MechanismHandlerFactory> handlerFactories) {}
+                                         Map<String, MechanismHandlerFactory> handlerFactories,
+                                         List<ScramCredentialStoreService<?>> services) {}
 
     @Override
     public SaslTerminationContext initialize(
@@ -79,6 +83,8 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
 
         // Initialize credential stores for each configured mechanism
         Map<String, ScramCredentialStore> credentialStores = new HashMap<>();
+
+        var services = new ArrayList<ScramCredentialStoreService<?>>();
 
         for (Map.Entry<String, MechanismConfig> entry : config.mechanisms().entrySet()) {
             String mechanismName = entry.getKey();
@@ -101,9 +107,11 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
             // Build and store the credential store
             ScramCredentialStore credentialStore = service.buildCredentialStore();
             credentialStores.put(mechanismName, credentialStore);
+
+            services.add(service);
         }
 
-        return new SaslTerminationContext(credentialStores, handlerFactories);
+        return new SaslTerminationContext(credentialStores, handlerFactories, services);
     }
 
     @Override
@@ -132,5 +140,27 @@ public class SaslTermination implements FilterFactory<SaslTerminationConfig, Sas
         }
 
         return factories;
+    }
+
+    @Override
+    public void close(SaslTerminationContext initializationData) {
+        RuntimeException firstException = null;
+        for (var service : initializationData.services()) {
+            try {
+                service.close();
+            }
+            catch (RuntimeException e) {
+                if (firstException == null) {
+                    firstException = e;
+                }
+                else {
+                    firstException.addSuppressed(e);
+                }
+
+            }
+        }
+        if (firstException != null) {
+            throw firstException;
+        }
     }
 }
