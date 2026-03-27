@@ -52,8 +52,8 @@ jobs:
     name: Preflight check for pull-sc
     runs-on: ubuntu-latest
     outputs:
-      pullsecretcheck: ${{ steps.pull-check.outputs.pullsecretcheck }}
-      srcfilter: ${{ steps.filter.outputs.srcfilter }}
+      pull-secret-check: ${{ steps.pull-check.outputs.pullsecret }}
+      operator-changed: ${{ steps.filter.outputs.changes }}
     steps:
         - name: Checkout source
           uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -68,10 +68,9 @@ jobs:
           id: filter
           with:
             filters: |
-              srcfilter:
+              changes:
                 - 'kroxylicious-operator/**'
                 - 'kroxylicious-kubernetes-api/**'
-                - 'kroxylicious-app/**'
                 - '.github/workflows/operator-tests-microshift.yml'
 
   operator-tests-microshift:
@@ -79,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: preflight
-    if: needs.preflight.outputs.pullsecretcheck == 'true' && needs.preflight.outputs.srcfilter == 'true'
+    if: needs.preflight.outputs.pull-secret-check == 'true' && needs.preflight.outputs.operator-changed == 'true'
 
     steps:
       - name: 'Test for Slack secret'
