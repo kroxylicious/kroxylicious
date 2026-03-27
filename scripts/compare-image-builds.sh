@@ -4,6 +4,7 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
+
 # Compares the legacy root-Dockerfile image build against the Maven-artifact-based
 # build introduced in https://github.com/kroxylicious/kroxylicious/pull/3553.
 #
