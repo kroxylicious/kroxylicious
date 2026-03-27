@@ -153,7 +153,11 @@ public class Webify implements Callable<Integer> {
             throws IOException {
         var resultDocsList = new ArrayList<ObjectNode>();
         try (var stream = Files.walk(this.srcDir)) {
-            stream.forEach(new DocConverter(omitGlobs, tocifyGlob, datafyGlob, resultDocsList));
+            // Sort doc.yaml last so it always overwrites any index.html written by tocify,
+            // rather than the other way around. Files.walk gives no ordering guarantee.
+            stream.sorted(Comparator.<Path, Integer> comparing(p -> p.getFileName() != null && "doc.yaml".equals(p.getFileName().toString()) ? 1 : 0)
+                    .thenComparing(Comparator.naturalOrder()))
+                    .forEach(new DocConverter(omitGlobs, tocifyGlob, datafyGlob, resultDocsList));
         }
 
         Comparator<ObjectNode> byRank = Comparator.comparing(node -> node.get("rank").asText(null));
