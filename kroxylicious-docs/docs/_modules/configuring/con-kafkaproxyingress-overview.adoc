@@ -201,4 +201,4 @@ where:
 
 * `spec.openShiftRoute` exposes the proxy to off-cluster clients using OpenShift Routes.
 
-Specify a xref:con-virtualkafkacluster-loadbalancer-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource by using a `certificateRef`.
+Specify a xref:con-virtualkafkacluster-openshiftroute-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource by using a `certificateRef`.
