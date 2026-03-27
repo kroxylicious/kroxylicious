@@ -144,6 +144,7 @@ public class PythonTestClient implements KafkaClient {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + PYTHON_TAG + TestUtils.getRandomPodNameSuffix();
         // Running consumer with parameters to get the latest N number of messages received to avoid consuming twice the same messages
         List<String> args = new ArrayList<>(List.of(PYTHON_COMMAND, CONSUMER_PATH, "-n", String.valueOf(numOfMessages), "-b", bootstrap, "-t", topicName));
+        args.addAll(List.of("-g", Constants.CONSUMER_GROUP_NAME));
         additionalConfig.forEach((key, value) -> {
             args.add("-X");
             args.add(key + "=" + value);

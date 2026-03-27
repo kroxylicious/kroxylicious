@@ -129,8 +129,9 @@ public class KafClient implements KafkaClient {
 
         LOGGER.atInfo().log("Consuming messages using kaf");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
-        List<String> args = List.of("-b", bootstrap, "--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME, "consume", topicName,
-                "--output", "json");
+        List<String> args = new ArrayList<>(List.of("-b", bootstrap, "--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME, "consume", topicName,
+                "--output", "json"));
+        args.addAll(List.of("--group", Constants.CONSUMER_GROUP_NAME));
         Job kafClientJob = TestClientsJobTemplates.authenticationKafkaGoJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, kafClientJob);
         String log = waitForConsumer(podName, numOfMessages, timeout);
