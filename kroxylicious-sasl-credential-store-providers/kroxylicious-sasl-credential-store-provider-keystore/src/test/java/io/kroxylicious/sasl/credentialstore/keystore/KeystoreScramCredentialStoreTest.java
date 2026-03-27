@@ -27,7 +27,7 @@ class KeystoreScramCredentialStoreTest {
 
     private static final String STORE_PASSWORD = "test-password";
     private static final String ALICE_PASSWORD = "alice-secret";
-    private static final String BOB_PASSWORD = "bob-secret";
+    private static final String BOB_PASSWORD = "bob-secret-pw";
 
     @TempDir
     Path tempDir;
