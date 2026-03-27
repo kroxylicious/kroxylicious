@@ -312,7 +312,7 @@ public class Kroxylicious {
     }
 
     private void deployPortIdentifiesNodeWithEntityIsolationFilter(String clusterName, Map<String, String> usernamePassword, Set<EntityIsolation.EntityType> entityTypes,
-                                                                  Class<?> mapperServiceClass) {
+                                                                   Class<?> mapperServiceClass) {
         createKafkaUsers(clusterName, usernamePassword);
         deployEntityIsolationResources(entityTypes, mapperServiceClass);
         deployPortIdentifiesNodeWithFilters(clusterName,
@@ -333,7 +333,8 @@ public class Kroxylicious {
      * @param usernamePasswords the username passwords map for all users
      * @param entityTypes the list of entity types used in the filter (see enum {@link EntityIsolation.EntityType})
      */
-    public void deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(String clusterName, Map<String, String> usernamePasswords, Set<EntityIsolation.EntityType> entityTypes) {
+    public void deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(String clusterName, Map<String, String> usernamePasswords,
+                                                                                               Set<EntityIsolation.EntityType> entityTypes) {
         deployPortIdentifiesNodeWithEntityIsolationFilter(clusterName, usernamePasswords, entityTypes, PrincipalEntityNameMapperService.class);
     }
 }

@@ -102,7 +102,8 @@ class EntityIsolationST extends AbstractSystemTests {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(clusterName, usernamePasswords, Set.of(EntityIsolation.EntityType.GROUP_ID));
+        kroxylicious.deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(clusterName, usernamePasswords,
+                Set.of(EntityIsolation.EntityType.GROUP_ID));
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();

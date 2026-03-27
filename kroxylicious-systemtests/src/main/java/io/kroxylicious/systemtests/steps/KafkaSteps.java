@@ -37,6 +37,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
@@ -173,7 +174,9 @@ public class KafkaSteps {
      */
     public static List<String> getConsumerGroups(String clusterName) {
         List<String> consumerGroups = List.of();
-        List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
+        List<Pod> kafkaPods = await().atMost(Duration.ofSeconds(10)).until(() -> kubeClient().listPods(Constants.KAFKA_DEFAULT_NAMESPACE, "app", clusterName),
+                p -> !p.isEmpty());
+        // We will have in kafkaPods at least two pods: one entity-operator and at least one kafka-X
         Optional<Pod> kafkaPod = kafkaPods.stream().filter(p -> p.getMetadata().getName().contains("kafka")).findFirst();
 
         if (kafkaPod.isPresent()) {

@@ -175,7 +175,8 @@ public final class KroxyliciousFilterTemplates {
      * @param entityTypes the entity type supported
      * @return  the kafka protocol filter builder
      */
-    public static KafkaProtocolFilterBuilder kroxyliciousEntityIsolationFilter(String namespace, Set<EntityIsolation.EntityType> entityTypes, Class<?> mapperServiceClass) {
+    public static KafkaProtocolFilterBuilder kroxyliciousEntityIsolationFilter(String namespace, Set<EntityIsolation.EntityType> entityTypes,
+                                                                               Class<?> mapperServiceClass) {
         return baseFilterDeployment(namespace, Constants.KROXYLICIOUS_ENTITY_ISOLATION_FILTER_NAME)
                 .withNewSpec()
                 .withType(EntityIsolation.class.getSimpleName())
