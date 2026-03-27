@@ -59,12 +59,12 @@ class TestCredentialGeneratorTest {
         // Then - verify deterministic salt
         assertThat(credential.salt()).isEqualTo(knownSalt);
         assertThat(credential.username()).isEqualTo(username);
-        assertThat(credential.iterations()).isEqualTo(4096);
+        assertThat(credential.iterations()).isEqualTo(10000);
         assertThat(credential.hashAlgorithm()).isEqualTo("SHA-256");
 
         // And - verify keys are computed correctly using Kafka's ScramFormatter
         ScramFormatter formatter = new ScramFormatter(ScramMechanism.SCRAM_SHA_256);
-        byte[] expectedSaltedPassword = formatter.saltedPassword(password, knownSalt, 4096);
+        byte[] expectedSaltedPassword = formatter.saltedPassword(password, knownSalt, 10000);
         byte[] expectedServerKey = formatter.serverKey(expectedSaltedPassword);
         byte[] expectedClientKey = formatter.clientKey(expectedSaltedPassword);
         byte[] expectedStoredKey = formatter.storedKey(expectedClientKey);
@@ -206,6 +206,6 @@ class TestCredentialGeneratorTest {
         assertThat(credential.salt()).isNotEmpty();
         assertThat(credential.serverKey()).isNotEmpty();
         assertThat(credential.storedKey()).isNotEmpty();
-        assertThat(credential.iterations()).isEqualTo(4096);
+        assertThat(credential.iterations()).isEqualTo(10000);
     }
 }

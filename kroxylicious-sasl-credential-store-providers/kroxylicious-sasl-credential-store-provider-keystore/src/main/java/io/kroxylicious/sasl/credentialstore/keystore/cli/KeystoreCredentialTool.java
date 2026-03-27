@@ -6,6 +6,7 @@
 
 package io.kroxylicious.sasl.credentialstore.keystore.cli;
 
+import java.io.Console;
 import java.nio.file.Path;
 import java.security.KeyStoreException;
 import java.util.List;
@@ -18,6 +19,7 @@ import io.kroxylicious.sasl.credentialstore.keystore.KeystoreCredentialManager;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
 
 /**
  * Command-line tool for managing SCRAM credentials in Java KeyStores.
@@ -56,10 +58,80 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @CommandLine.Spec
     CommandLine.Model.CommandSpec spec;
 
+    @Option(names = { "--unlock-insecure-options" }, description = "Unlock password options (NOT RECOMMENDED: passwords visible in process listings and shell history)")
+    boolean unlockInsecureOptions;
+
     @Override
     public Integer call() {
         spec.commandLine().usage(spec.commandLine().getOut());
         return 0;
+    }
+
+    /**
+     * Read a password interactively from console.
+     *
+     * @param prompt the prompt to display
+     * @return the password, or null if console not available
+     */
+    static String readPasswordFromConsole(String prompt) {
+        Console console = System.console();
+        if (console == null) {
+            return null;
+        }
+        char[] passwordChars = console.readPassword("%s: ", prompt);
+        if (passwordChars == null) {
+            return null;
+        }
+        return new String(passwordChars);
+    }
+
+    /**
+     * Get a password, either from option (if unlocked) or from console.
+     *
+     * @param optionValue the password option value (may be null)
+     * @param unlocked whether insecure options are unlocked
+     * @param prompt the console prompt
+     * @param out the output stream for messages
+     * @param err the error stream for warnings
+     * @return the password
+     * @throws IllegalStateException if password option used without unlock, or console not available for interactive read
+     */
+    static String getPassword(
+                              String optionValue,
+                              boolean unlocked,
+                              String prompt,
+                              java.io.PrintWriter out,
+                              java.io.PrintWriter err) {
+        if (optionValue != null) {
+            if (!unlocked) {
+                throw new IllegalStateException(
+                        "Password options are disabled by default for security. " +
+                                "Use --unlock-insecure-options to enable them, or omit the password option to be prompted interactively. " +
+                                "SECURITY WARNING: Command-line passwords are visible in process listings, shell history, and system logs. " +
+                                "Prefer interactive prompts or environment variables.");
+            }
+            // Warn about insecure usage
+            err.println("SECURITY WARNING: Password provided via command-line option.");
+            err.println("This is NOT RECOMMENDED as passwords are visible in:");
+            err.println("  - Process listings (ps, top, /proc/<pid>/cmdline)");
+            err.println("  - Shell history (.bash_history, .zsh_history, etc.)");
+            err.println("  - System audit logs");
+            err.println("Prefer:");
+            err.println("  - Interactive password prompts (omit -p/-w options)");
+            err.println("  - Environment variables");
+            err.println("  - Password files with restricted permissions");
+            err.println();
+            return optionValue;
+        }
+
+        // Read interactively
+        String password = readPasswordFromConsole(prompt);
+        if (password == null) {
+            throw new IllegalStateException(
+                    "Cannot read password interactively (no console available). " +
+                            "Either run from an interactive terminal, or use --unlock-insecure-options with password options.");
+        }
+        return password;
     }
 
     /**
@@ -68,13 +140,16 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @Command(name = "create", description = "Create a new KeyStore file")
     static class CreateCommand implements Callable<Integer> {
 
+        @ParentCommand
+        KeystoreCredentialTool parent;
+
         @CommandLine.Spec
         CommandLine.Model.CommandSpec spec;
 
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true)
+        @Option(names = { "-p", "--password" }, description = "KeyStore password (omit to be prompted interactively)")
         String password;
 
         @Option(names = { "-t", "--type" }, description = "KeyStore type (default: ${DEFAULT-VALUE})", defaultValue = "PKCS12")
@@ -83,10 +158,21 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         @Override
         public Integer call() {
             try {
+                String keystorePassword = getPassword(
+                        password,
+                        parent.unlockInsecureOptions,
+                        "KeyStore password",
+                        spec.commandLine().getOut(),
+                        spec.commandLine().getErr());
+
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
-                manager.createKeyStore(keystorePath, password, storeType);
+                manager.createKeyStore(keystorePath, keystorePassword, storeType);
                 spec.commandLine().getOut().println("KeyStore created successfully: " + keystorePath);
                 return 0;
+            }
+            catch (IllegalStateException e) {
+                spec.commandLine().getErr().println(e.getMessage());
+                return 2;
             }
             catch (KeyStoreException e) {
                 spec.commandLine().getErr().println(formatError("Failed to create KeyStore", e));
@@ -101,19 +187,22 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @Command(name = "add-user", description = "Add a user to the KeyStore")
     static class AddUserCommand implements Callable<Integer> {
 
+        @ParentCommand
+        KeystoreCredentialTool parent;
+
         @CommandLine.Spec
         CommandLine.Model.CommandSpec spec;
 
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true)
+        @Option(names = { "-p", "--password" }, description = "KeyStore password (omit to be prompted interactively)")
         String storePassword;
 
         @Option(names = { "-u", "--username" }, description = "Username to add", required = true)
         String username;
 
-        @Option(names = { "-w", "--user-password" }, description = "User's password", required = true)
+        @Option(names = { "-w", "--user-password" }, description = "User's password (omit to be prompted interactively)")
         String userPassword;
 
         @Option(names = { "-m", "--mechanism" }, description = "SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM_SHA_256")
@@ -122,10 +211,28 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         @Override
         public Integer call() {
             try {
+                String keystorePassword = getPassword(
+                        storePassword,
+                        parent.unlockInsecureOptions,
+                        "KeyStore password",
+                        spec.commandLine().getOut(),
+                        spec.commandLine().getErr());
+
+                String password = getPassword(
+                        userPassword,
+                        parent.unlockInsecureOptions,
+                        "Password for user '" + username + "'",
+                        spec.commandLine().getOut(),
+                        spec.commandLine().getErr());
+
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
-                manager.addUser(keystorePath, storePassword, username, userPassword, mechanism.toScramMechanism());
+                manager.addUser(keystorePath, keystorePassword, username, password, mechanism.toScramMechanism());
                 spec.commandLine().getOut().println("User '" + username + "' added successfully");
                 return 0;
+            }
+            catch (IllegalStateException e) {
+                spec.commandLine().getErr().println(e.getMessage());
+                return 2;
             }
             catch (KeyStoreException e) {
                 spec.commandLine().getErr().println(formatError("Failed to add user", e));
@@ -140,13 +247,16 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @Command(name = "remove-user", description = "Remove a user from the KeyStore")
     static class RemoveUserCommand implements Callable<Integer> {
 
+        @ParentCommand
+        KeystoreCredentialTool parent;
+
         @CommandLine.Spec
         CommandLine.Model.CommandSpec spec;
 
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true)
+        @Option(names = { "-p", "--password" }, description = "KeyStore password (omit to be prompted interactively)")
         String password;
 
         @Option(names = { "-u", "--username" }, description = "Username to remove", required = true)
@@ -155,10 +265,21 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         @Override
         public Integer call() {
             try {
+                String keystorePassword = getPassword(
+                        password,
+                        parent.unlockInsecureOptions,
+                        "KeyStore password",
+                        spec.commandLine().getOut(),
+                        spec.commandLine().getErr());
+
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
-                manager.removeUser(keystorePath, password, username);
+                manager.removeUser(keystorePath, keystorePassword, username);
                 spec.commandLine().getOut().println("User '" + username + "' removed successfully");
                 return 0;
+            }
+            catch (IllegalStateException e) {
+                spec.commandLine().getErr().println(e.getMessage());
+                return 2;
             }
             catch (KeyStoreException e) {
                 spec.commandLine().getErr().println(formatError("Failed to remove user", e));
@@ -173,19 +294,22 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @Command(name = "update-password", description = "Update a user's password")
     static class UpdatePasswordCommand implements Callable<Integer> {
 
+        @ParentCommand
+        KeystoreCredentialTool parent;
+
         @CommandLine.Spec
         CommandLine.Model.CommandSpec spec;
 
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true)
+        @Option(names = { "-p", "--password" }, description = "KeyStore password (omit to be prompted interactively)")
         String storePassword;
 
         @Option(names = { "-u", "--username" }, description = "Username", required = true)
         String username;
 
-        @Option(names = { "-w", "--new-password" }, description = "New password for the user", required = true)
+        @Option(names = { "-w", "--new-password" }, description = "New password for the user (omit to be prompted interactively)")
         String newPassword;
 
         @Option(names = { "-m", "--mechanism" }, description = "SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM_SHA_256")
@@ -194,10 +318,28 @@ public class KeystoreCredentialTool implements Callable<Integer> {
         @Override
         public Integer call() {
             try {
+                String keystorePassword = getPassword(
+                        storePassword,
+                        parent.unlockInsecureOptions,
+                        "KeyStore password",
+                        spec.commandLine().getOut(),
+                        spec.commandLine().getErr());
+
+                String password = getPassword(
+                        newPassword,
+                        parent.unlockInsecureOptions,
+                        "New password for user '" + username + "'",
+                        spec.commandLine().getOut(),
+                        spec.commandLine().getErr());
+
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
-                manager.updatePassword(keystorePath, storePassword, username, newPassword, mechanism.toScramMechanism());
+                manager.updatePassword(keystorePath, keystorePassword, username, password, mechanism.toScramMechanism());
                 spec.commandLine().getOut().println("Password for user '" + username + "' updated successfully");
                 return 0;
+            }
+            catch (IllegalStateException e) {
+                spec.commandLine().getErr().println(e.getMessage());
+                return 2;
             }
             catch (KeyStoreException e) {
                 spec.commandLine().getErr().println(formatError("Failed to update password", e));
@@ -212,20 +354,30 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @Command(name = "list-users", description = "List all users in the KeyStore")
     static class ListUsersCommand implements Callable<Integer> {
 
+        @ParentCommand
+        KeystoreCredentialTool parent;
+
         @CommandLine.Spec
         CommandLine.Model.CommandSpec spec;
 
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true)
+        @Option(names = { "-p", "--password" }, description = "KeyStore password (omit to be prompted interactively)")
         String password;
 
         @Override
         public Integer call() {
             try {
+                String keystorePassword = getPassword(
+                        password,
+                        parent.unlockInsecureOptions,
+                        "KeyStore password",
+                        spec.commandLine().getOut(),
+                        spec.commandLine().getErr());
+
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
-                List<String> users = manager.listUsers(keystorePath, password);
+                List<String> users = manager.listUsers(keystorePath, keystorePassword);
 
                 if (users.isEmpty()) {
                     spec.commandLine().getOut().println("No users found in KeyStore");
@@ -237,6 +389,10 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                     }
                 }
                 return 0;
+            }
+            catch (IllegalStateException e) {
+                spec.commandLine().getErr().println(e.getMessage());
+                return 2;
             }
             catch (KeyStoreException e) {
                 spec.commandLine().getErr().println(formatError("Failed to list users", e));

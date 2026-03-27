@@ -72,7 +72,7 @@ class KeystoreScramCredentialStoreTest {
         assertThat(credential).isNotNull();
         assertThat(credential.username()).isEqualTo("alice");
         assertThat(credential.hashAlgorithm()).isEqualTo("SHA-256");
-        assertThat(credential.iterations()).isEqualTo(4096);
+        assertThat(credential.iterations()).isEqualTo(10000);
         assertThat(credential.salt()).isNotEmpty();
         assertThat(credential.serverKey()).isNotEmpty();
         assertThat(credential.storedKey()).isNotEmpty();
