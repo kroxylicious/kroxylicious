@@ -70,6 +70,10 @@
 :KubernetesSite: https://kubernetes.io/[Kubernetes website^]
 :OperatorPattern: https://kubernetes.io/docs/concepts/extend-kubernetes/operator/[Operators^]
 
+// OpenShift links
+:OpenShiftVersion: 4.21
+:IngressControllerSharding: https://docs.redhat.com/en/documentation/openshift_container_platform/{OpenShiftVersion}/html/ingress_and_load_balancing/routes#nw-ingress-sharding-route-configuration_creating-basic-routes[Ingress Controller sharding^]
+
 // Minikube links
 :Minikube: https://minikube.sigs.k8s.io/
 
