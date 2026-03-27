@@ -1,0 +1,45 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-sasl-termination-overview-{context}']
+= SASL Termination overview
+
+[role="_abstract"]
+The SASL Termination filter enables the proxy to authenticate Kafka clients directly, without forwarding authentication requests to the broker.
+This provides centralized credential management and an additional security layer.
+
+== How SASL Termination works
+
+When a client connects to the proxy with SASL Termination configured:
+
+1. The client initiates SASL authentication with the proxy
+2. The proxy looks up the user's credentials from a pluggable credential store
+3. The proxy validates the client's authentication challenge using the SASL mechanism
+4. On success, the proxy establishes an authenticated connection to the broker on behalf of the client
+5. The proxy makes the authenticated subject available to other filters in the chain
+
+Unlike SASL Inspection, which extracts identity from broker authentication, SASL Termination performs authentication at the proxy layer.
+
+== Benefits
+
+*Centralized credential management*:: Manage client credentials in a central credential store rather than distributing them to each broker.
+
+*Security isolation*:: Separate client authentication from broker access. Clients authenticate to the proxy; the proxy connects to brokers using different credentials or authentication mechanisms.
+
+*Compliance*:: Enforce authentication policies at the proxy layer for security and audit requirements.
+
+*Simplified broker configuration*:: Brokers don't need to manage client credentials directly.
+
+*Credential rotation*:: Update credentials in the credential store without broker reconfiguration.
+
+== When to use SASL Termination
+
+Use SASL Termination when:
+
+* You need centralized credential management across multiple Kafka clusters
+* You want to isolate client credentials from broker access
+* You need to enforce authentication policies at the proxy layer
+* Your security or compliance requirements mandate authentication termination at a security boundary
+* You want to support credential rotation without broker reconfiguration
+* You need to simplify broker configuration by removing client credential management
+
+For comparison with SASL Inspection, see xref:con-choosing-authentication-approach-{context}[].
