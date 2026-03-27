@@ -10,7 +10,7 @@
 
 [role="_abstract"]
 
-When using `openshiftRoute` ingress type, you must provide suitable TLS certificates to secure communication.
+When using the `openshiftRoute` ingress type, you must provide suitable TLS certificates to secure communication.
 
 The basic steps are as follows:
 
