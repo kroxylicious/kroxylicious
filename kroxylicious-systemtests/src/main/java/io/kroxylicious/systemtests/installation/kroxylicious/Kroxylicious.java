@@ -21,6 +21,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation;
+import io.kroxylicious.filter.entityisolation.PrincipalEntityNameMapperService;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
@@ -310,21 +311,29 @@ public class Kroxylicious {
                 List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_AUTHORIZATION_FILTER_NAME));
     }
 
-    /**
-     * Deploy port identifies node with entity isolation filter.
-     *
-     * @param clusterName the cluster name
-     */
-    public void deployPortIdentifiesNodeWithEntityIsolationFilter(String clusterName, Map<String, String> usernamePassword, Set<EntityIsolation.EntityType> entityTypes) {
+    private void deployPortIdentifiesNodeWithEntityIsolationFilter(String clusterName, Map<String, String> usernamePassword, Set<EntityIsolation.EntityType> entityTypes,
+                                                                  Class<?> mapperServiceClass) {
         createKafkaUsers(clusterName, usernamePassword);
-        deployEntityIsolationResources(entityTypes);
+        deployEntityIsolationResources(entityTypes, mapperServiceClass);
         deployPortIdentifiesNodeWithFilters(clusterName,
                 List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_ENTITY_ISOLATION_FILTER_NAME));
     }
 
-    private void deployEntityIsolationResources(Set<EntityIsolation.EntityType> entityTypes) {
+    private void deployEntityIsolationResources(Set<EntityIsolation.EntityType> entityTypes, Class<?> mapperServiceClass) {
         resourceManager.createResourceFromBuilderWithWait(
                 KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(deploymentNamespace),
-                KroxyliciousFilterTemplates.kroxyliciousEntityIsolationFilter(deploymentNamespace, entityTypes));
+                KroxyliciousFilterTemplates.kroxyliciousEntityIsolationFilter(deploymentNamespace, entityTypes, mapperServiceClass));
+    }
+
+    /**
+     * Deploy port identifies node with entity isolation filter
+     * using PrincipalEntityNameMapper class.
+     *
+     * @param clusterName the cluster name
+     * @param usernamePasswords the username passwords map for all users
+     * @param entityTypes the list of entity types used in the filter (see enum {@link EntityIsolation.EntityType})
+     */
+    public void deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(String clusterName, Map<String, String> usernamePasswords, Set<EntityIsolation.EntityType> entityTypes) {
+        deployPortIdentifiesNodeWithEntityIsolationFilter(clusterName, usernamePasswords, entityTypes, PrincipalEntityNameMapperService.class);
     }
 }

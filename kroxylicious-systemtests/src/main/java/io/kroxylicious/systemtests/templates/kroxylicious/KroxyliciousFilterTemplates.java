@@ -30,7 +30,6 @@ import io.kroxylicious.filter.authorization.Authorization;
 import io.kroxylicious.filter.authorization.AuthorizationConfig;
 import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.entityisolation.EntityIsolation;
-import io.kroxylicious.filter.entityisolation.PrincipalEntityNameMapperService;
 import io.kroxylicious.filter.sasl.inspection.Config;
 import io.kroxylicious.filter.sasl.inspection.SaslInspection;
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -176,16 +175,16 @@ public final class KroxyliciousFilterTemplates {
      * @param entityTypes the entity type supported
      * @return  the kafka protocol filter builder
      */
-    public static KafkaProtocolFilterBuilder kroxyliciousEntityIsolationFilter(String namespace, Set<EntityIsolation.EntityType> entityTypes) {
+    public static KafkaProtocolFilterBuilder kroxyliciousEntityIsolationFilter(String namespace, Set<EntityIsolation.EntityType> entityTypes, Class<?> mapperServiceClass) {
         return baseFilterDeployment(namespace, Constants.KROXYLICIOUS_ENTITY_ISOLATION_FILTER_NAME)
                 .withNewSpec()
                 .withType(EntityIsolation.class.getSimpleName())
-                .withConfigTemplate(getEntityIsolationConfigMap(entityTypes))
+                .withConfigTemplate(getEntityIsolationConfigMap(entityTypes, mapperServiceClass))
                 .endSpec();
     }
 
-    private static Map<String, Object> getEntityIsolationConfigMap(Set<EntityIsolation.EntityType> entityTypes) {
-        EntityIsolation.Config entityIsolationConfig = new EntityIsolation.Config(entityTypes, PrincipalEntityNameMapperService.class.getSimpleName(), "");
+    private static Map<String, Object> getEntityIsolationConfigMap(Set<EntityIsolation.EntityType> entityTypes, Class<?> mapperServiceClass) {
+        EntityIsolation.Config entityIsolationConfig = new EntityIsolation.Config(entityTypes, mapperServiceClass.getSimpleName(), "");
 
         return OBJECT_MAPPER
                 .convertValue(entityIsolationConfig, new TypeReference<>() {
