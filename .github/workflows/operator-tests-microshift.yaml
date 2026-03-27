@@ -55,6 +55,9 @@ jobs:
       pullsecretcheck: ${{ steps.pull-check.outputs.pullsecretcheck }}
       srcfilter: ${{ steps.filter.outputs.srcfilter }}
     steps:
+        - name: Checkout source
+          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
         - name: 'Test for presence of Red Hat pull-secret'
           id: pull-check
           env:
