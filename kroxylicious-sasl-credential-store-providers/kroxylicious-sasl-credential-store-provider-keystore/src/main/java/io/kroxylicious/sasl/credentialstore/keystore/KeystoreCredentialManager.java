@@ -59,6 +59,7 @@ public class KeystoreCredentialManager {
 
     private static final int DEFAULT_ITERATIONS = 10000;
     private static final int SALT_LENGTH = 20;
+    private static final int MIN_PASSWORD_LENGTH = 12;
     private final SecureRandom secureRandom;
 
     /**
@@ -78,6 +79,27 @@ public class KeystoreCredentialManager {
     }
 
     /**
+     * Validate password meets minimum length requirements.
+     * <p>
+     * NIST SP 800-63B Rev 4 recommends minimum 12 characters for service credentials,
+     * without composition rules (uppercase, digits, special characters).
+     * </p>
+     *
+     * @param password password to validate
+     * @param parameterName parameter name for error message
+     * @throws IllegalArgumentException if password is too short
+     */
+    private void validatePasswordLength(String password, String parameterName) {
+        if (password.length() < MIN_PASSWORD_LENGTH) {
+            throw new IllegalArgumentException(
+                    parameterName + " must be at least " + MIN_PASSWORD_LENGTH + " characters long. " +
+                            "NIST recommends 12-15 characters minimum for service credentials. " +
+                            "Consider using a passphrase (e.g., \"coffee-sunrise-laptop-2026\") " +
+                            "or a password manager to generate a strong password.");
+        }
+    }
+
+    /**
      * Create a new KeyStore file.
      * <p>
      * If the file already exists, it will be overwritten.
@@ -94,6 +116,7 @@ public class KeystoreCredentialManager {
                                String storePassword,
                                String storeType)
             throws KeyStoreException {
+        validatePasswordLength(storePassword, "KeyStore password");
         try {
             KeyStore keyStore = KeyStore.getInstance(storeType);
             keyStore.load(null, storePassword.toCharArray());
@@ -128,6 +151,8 @@ public class KeystoreCredentialManager {
                         String password,
                         ScramMechanism mechanism)
             throws KeyStoreException {
+        validatePasswordLength(storePassword, "KeyStore password");
+        validatePasswordLength(password, "User password");
 
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
@@ -164,6 +189,7 @@ public class KeystoreCredentialManager {
                            String storePassword,
                            String username)
             throws KeyStoreException {
+        validatePasswordLength(storePassword, "KeyStore password");
 
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
@@ -201,6 +227,8 @@ public class KeystoreCredentialManager {
                                String newPassword,
                                ScramMechanism mechanism)
             throws KeyStoreException {
+        validatePasswordLength(storePassword, "KeyStore password");
+        validatePasswordLength(newPassword, "New password");
 
         // Verify user exists before attempting update
         try {
@@ -230,6 +258,7 @@ public class KeystoreCredentialManager {
                                   Path keystorePath,
                                   String storePassword)
             throws KeyStoreException {
+        validatePasswordLength(storePassword, "KeyStore password");
 
         try {
             KeyStore keyStore = loadKeyStore(keystorePath, storePassword);
@@ -272,9 +301,15 @@ public class KeystoreCredentialManager {
                                  ScramMechanism mechanism,
                                  String... users)
             throws Exception {
+        validatePasswordLength(storePassword, "KeyStore password");
 
         if (users.length % 2 != 0) {
             throw new IllegalArgumentException("users must contain alternating username/password pairs");
+        }
+
+        // Validate all user passwords upfront
+        for (int i = 1; i < users.length; i += 2) {
+            validatePasswordLength(users[i], "User password for '" + users[i - 1] + "'");
         }
 
         KeyStore keyStore = KeyStore.getInstance("PKCS12");

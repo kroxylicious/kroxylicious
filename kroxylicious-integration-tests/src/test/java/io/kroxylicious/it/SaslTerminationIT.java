@@ -54,8 +54,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SaslTerminationIT extends BaseIT {
 
     private static final String TEST_USERNAME = "alice";
-    private static final String TEST_PASSWORD = "alice-secret";
-    private static final String KEYSTORE_PASSWORD = "keystore-password";
+    private static final String TEST_PASSWORD = "alice-secret-password-123";
+    private static final String KEYSTORE_PASSWORD = "keystore-password-secret-456";
 
     @Test
     void shouldAuthenticateClientWithValidCredentials(
@@ -247,8 +247,8 @@ class SaslTerminationIT extends BaseIT {
         generator.generateKeyStore(
                 keystorePath,
                 KEYSTORE_PASSWORD,
-                TEST_USERNAME, TEST_PASSWORD,
-                ScramMechanism.SCRAM_SHA_512);
+                ScramMechanism.SCRAM_SHA_512,
+                TEST_USERNAME, TEST_PASSWORD);
 
         // Configure SASL termination filter with SHA-512
         var saslTermination = createSaslTerminationFilter(keystorePath, "SCRAM-SHA-512");
@@ -295,10 +295,6 @@ class SaslTerminationIT extends BaseIT {
                                         "storePassword", Map.of("password", KEYSTORE_PASSWORD),
                                         "storeType", "PKCS12"))))
                 .build();
-    }
-
-    private NamedFilterDefinition createSaslTerminationFilter(Path keystorePath) {
-        return createSaslTerminationFilter(keystorePath, "SCRAM-SHA-256");
     }
 
     private Map<String, Object> createScramClientConfigs(
