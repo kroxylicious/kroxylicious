@@ -6,9 +6,10 @@
 
 package io.kroxylicious.filter.entityisolation;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
 import io.kroxylicious.proxy.authentication.Principal;
@@ -31,14 +32,23 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
     private final Class<? extends Principal> uniquePrincipalType;
     private final String separator;
 
+    /**
+     * Regular expression for what Kafka considers legal for topic and group id names.
+     * Kafka doesn't restrict transactionalId names,
+     */
+    static final Pattern KAFKA_RESOURCE_NAME_LEGAL_CHARS = Pattern.compile("[a-zA-Z0-9._\\-]+");
+
+    /** Maximum length of a Kafka topic or groupId */
+    static final int MAX_NAME_LENGTH = 249;
+
     PrincipalEntityNameMapper(Class<? extends Principal> uniquePrincipalType, String separator) {
         this.uniquePrincipalType = Objects.requireNonNull(uniquePrincipalType);
         this.separator = Objects.requireNonNull(separator);
         if (!uniquePrincipalType.isAnnotationPresent(Unique.class)) {
             throw new IllegalArgumentException(uniquePrincipalType.getName() + " is not a unique principal type.");
         }
-        if (separator.isEmpty()) {
-            throw new IllegalArgumentException(separator + " is an unacceptable separator.");
+        if (separator.isEmpty() || isIllegalKafkaName(separator)) {
+            throw new IllegalArgumentException("'%s' is an unacceptable separator.".formatted(separator));
         }
     }
 
@@ -49,13 +59,18 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
         Objects.requireNonNull(downstreamEntityName);
 
         var validatedPrincipal = getValidatedPrincipal(mapperContext);
-        return doMap(validatedPrincipal.name(), downstreamEntityName);
+        return doMap(validatedPrincipal, downstreamEntityName, entityType);
     }
 
-    private String doMap(String principal, String downstreamEntityName) {
-        // Once we start mapping topic names, we must verify the length upstream name doesn't violate the topic naming org.apache.kafka.common.internals.Topic.isValid
-        // Also if https://cwiki.apache.org/confluence/display/KAFKA/KIP-1233%3A+Maximum+lengths+for+resource+names+and+IDs is accepted there may be rules to apply to groupIds/transactionalIds
-        return buildPrefix(principal) + downstreamEntityName;
+    private String doMap(Principal principal, String downstreamEntityName, EntityType entityType) {
+        // Note that there is a KIP proposed that will affect https://cwiki.apache.org/confluence/display/KAFKA/KIP-1233%3A+Maximum+lengths+for+resource+names+and+IDs resource name validations
+        var upstreamName = buildPrefix(principal.name()) + downstreamEntityName;
+        if (isIllegalKafkaName(upstreamName, entityType)) {
+            var pretty = entityType.name().toLowerCase(Locale.ROOT).replace("_", " ");
+            throw new EntityMapperException(String.format("Upstream name generated for principal '%s' for resource '%s' ('%s') is not a valid kafka %s.",
+                    downstreamEntityName, principal, upstreamName, pretty));
+        }
+        return upstreamName;
     }
 
     @Override
@@ -105,10 +120,29 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
                         .formatted(
                                 uniquePrincipalType.getSimpleName(), mapperContext.authenticatedSubject())));
 
-        principalOpt.map(Principal::name)
-                .filter(Predicate.not(name -> name.contains(separator)))
-                .orElseThrow(() -> new EntityMapperException(
-                        "Principal '%s' is unacceptable as it contains the mapping separator '%s'".formatted(principalOpt.get(), separator)));
+        principalOpt.map(Principal::name).ifPresent(name -> {
+            if (name.contains(separator)) {
+                throw new EntityMapperException(
+                        "Principal '%s' is unacceptable as it contains the mapping separator '%s'".formatted(principalOpt.get(), separator));
+            }
+            if (isIllegalKafkaName(name)) {
+                throw new EntityMapperException(
+                        "Principal '%s' is unacceptable as it contains characters outside ASCII alphanumerics, '.', '_' and '-'".formatted(principalOpt.get()));
+            }
+        });
+
         return principalOpt.orElseThrow();
     }
+
+    private static boolean isIllegalKafkaName(String separator) {
+        return !KAFKA_RESOURCE_NAME_LEGAL_CHARS.matcher(separator).matches();
+    }
+
+    private static boolean isIllegalKafkaName(String upstreamName, EntityType entityType) {
+        return switch (entityType) {
+            case TOPIC_NAME, GROUP_ID -> isIllegalKafkaName(upstreamName) || upstreamName.length() > MAX_NAME_LENGTH;
+            case TRANSACTIONAL_ID -> false;
+        };
+    }
+
 }
