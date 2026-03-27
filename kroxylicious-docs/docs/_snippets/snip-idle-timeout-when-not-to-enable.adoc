@@ -1,0 +1,6 @@
+:_mod-docs-content-type: SNIPPET
+
+Avoid enabling idle timeouts in the following scenarios:
+
+* *Legitimate idle connections*: applications that maintain long-lived connections with extended idle periods, such as consumers with long poll timeouts or applications using connection pooling.
+* *Stable network infrastructure*: environments with reliable network infrastructure and no issues with idle connection management.

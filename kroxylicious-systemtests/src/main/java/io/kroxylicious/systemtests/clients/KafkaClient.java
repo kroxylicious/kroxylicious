@@ -9,6 +9,9 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.ScramMechanism;
@@ -16,6 +19,12 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.fabric8.kubernetes.api.model.ContainerStatus;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.readiness.Readiness;
 
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.executor.ExecResult;
@@ -24,10 +33,20 @@ import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+
 /**
  * The interface Kafka client.
  */
 public interface KafkaClient {
+    Logger LOGGER = LoggerFactory.getLogger(KafkaClient.class);
+
+    /**
+     * Gets the image of the corresponding test client
+     * @return the image
+     */
+    String getImage();
+
     /**
      * Sets the namespace where the kafka client will be deployed in kubernetes.
      *
@@ -35,6 +54,36 @@ public interface KafkaClient {
      * @return  the kafka client
      */
     KafkaClient inNamespace(String namespace);
+
+    /**
+     * Preload the image of the corresponding kafka client to fail fast if not available
+     *
+     */
+    default void preloadImage() {
+        String image = getImage();
+        LOGGER.info("Preloading Test Kafka Client Image from {}", image);
+        var pod = kubeClient().getClient().run().withName("preload-operand-image")
+                .withNewRunConfig()
+                .withImage(image)
+                .withRestartPolicy("Never").withCommand("ls").done();
+        checkPreloadedImage(pod);
+    }
+
+    static void checkPreloadedImage(Pod pod) {
+        try {
+            kubeClient().getClient().resource(pod).waitUntilCondition(Readiness::isPodSucceeded, 2, TimeUnit.MINUTES);
+        }
+        finally {
+            var reread = kubeClient().getClient().resource(pod).get();
+            if (!Readiness.isPodSucceeded(reread)) {
+                var reasons = reread.getStatus().getContainerStatuses().stream().map(ContainerStatus::getState).map(Objects::toString)
+                        .collect(Collectors.joining(","));
+                kubeClient().logsInSpecificNamespace("default", "preload-operand-image");
+                LOGGER.error("Preloading operand image failed, phase: {}, container state: {}", reread.getStatus().getPhase(), reasons);
+            }
+            kubeClient().getClient().resource(pod).delete();
+        }
+    }
 
     /**
      * Gets additional sasl props.

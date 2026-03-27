@@ -26,6 +26,7 @@ import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.extensions.CompressionTypeInvocationContextProvider;
 import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
@@ -54,6 +55,7 @@ class RecordEncryptionST extends AbstractSystemTests {
 
     @BeforeAll
     void setUp() {
+        KafkaClients.getKafkaClient().preloadImage();
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.atInfo().setMessage("Skipping kafka deployment. It is already deployed!").log();

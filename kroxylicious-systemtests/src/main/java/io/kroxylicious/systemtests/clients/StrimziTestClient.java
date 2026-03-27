@@ -69,6 +69,11 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     @Override
+    public String getImage() {
+        return Environment.TEST_CLIENTS_IMAGE;
+    }
+
+    @Override
     public KafkaClient inNamespace(String namespace) {
         this.deployNamespace = namespace;
         return this;

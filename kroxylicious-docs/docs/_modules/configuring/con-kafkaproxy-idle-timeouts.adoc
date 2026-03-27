@@ -1,11 +1,17 @@
 :_mod-docs-content-type: CONCEPT
 
-[id='con-configuring-idle-timeouts-{context}']
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-deploy-a-proxy.adoc
+
+[id='con-kafkaproxy-idle-timeouts-{context}']
 = Configuring idle connection timeouts
 
 [role="_abstract"]
 The proxy can automatically disconnect idle client connections to reclaim resources.
-Idle timeout configuration is completely optional and disabled by default, allowing you to opt in only when needed for your deployment.
+Idle timeout configuration is optional and disabled by default. Enable it only when required for your deployment.
+Idle timeouts are configured under `spec.network.proxy` in the `KafkaProxy` resource and apply only to the proxy listener — they are not available for the management HTTP server.
+When enabled, idle disconnects are observable via the `kroxylicious_client_to_proxy_disconnects_total` metric.
 
 == When to enable idle timeouts
 
@@ -26,34 +32,31 @@ include::../../_snippets/snip-idle-timeout-duration-format.adoc[]
 .Example: Unauthenticated timeout only
 [source,yaml]
 ----
-network:
-  proxy:
-    unauthenticatedIdleTimeout: 30s # <1>
-virtualClusters:
-  # ...
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  network:
+    proxy:
+      unauthenticatedIdleTimeout: 30s # <1>
 ----
 <1> Disconnect connections that remain unauthenticated for more than 30 seconds.
-
-.Example: Authenticated timeout only
-[source,yaml]
-----
-network:
-  proxy:
-    authenticatedIdleTimeout: 5m # <1>
-virtualClusters:
-  # ...
-----
-<1> Disconnect authenticated connections that are idle for more than 5 minutes.
 
 .Example: Both timeouts configured
 [source,yaml]
 ----
-network:
-  proxy:
-    unauthenticatedIdleTimeout: 30s # <1>
-    authenticatedIdleTimeout: 10m # <2>
-virtualClusters:
-  # ...
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  network:
+    proxy:
+      unauthenticatedIdleTimeout: 30s # <1>
+      authenticatedIdleTimeout: 10m # <2>
 ----
 <1> Disconnect unauthenticated connections after 30 seconds of inactivity.
 <2> Disconnect authenticated connections after 10 minutes of inactivity.

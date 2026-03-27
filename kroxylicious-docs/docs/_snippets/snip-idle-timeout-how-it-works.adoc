@@ -1,0 +1,15 @@
+:_mod-docs-content-type: SNIPPET
+
+The proxy supports two independent timeout settings that apply at different stages of the connection lifecycle:
+
+* *Unauthenticated timeout* (`unauthenticatedIdleTimeout`): applies to connections where the proxy has not yet detected completed authentication. The proxy considers authentication complete if either of the following is true:
+** A transport subject builder (a component that extracts an authenticated identity from transport-layer attributes) creates a subject with an identity (for example, from a client TLS certificate).
+** A SASL inspection or termination filter invokes `io.kroxylicious.proxy.filter.FilterContext.clientSaslAuthenticationSuccess`.
+* *Authenticated timeout* (`authenticatedIdleTimeout`): applies to connections where an identity has been established, for the remainder of the connection's lifetime.
+
+[NOTE]
+====
+For the proxy to detect authentication completion, you must configure either TLS client certificate authentication or a SASL inspection or termination filter.
+Without one of these, all connections remain in the unauthenticated state for their entire lifetime, and `authenticatedIdleTimeout` has no effect.
+For more information, see the link:{SASLInspectionGuideUrl}[SASL inspection filter guide].
+====

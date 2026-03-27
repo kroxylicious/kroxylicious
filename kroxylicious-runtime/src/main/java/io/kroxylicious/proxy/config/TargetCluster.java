@@ -38,6 +38,7 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
         if (bootstrapServers == null) {
             throw new IllegalArgumentException("'bootstrapServers' is required in a target cluster.");
         }
+        bootstrapServers = bootstrapServers.replaceAll("\\s", "");
     }
 
     public TargetCluster(String bootstrapServers, @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Tls> tls) {
