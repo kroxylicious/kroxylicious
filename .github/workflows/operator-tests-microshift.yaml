@@ -61,7 +61,7 @@ jobs:
             REDHAT_PULL_SECRET: ${{ secrets.REDHAT_PULL_SECRET }}
           run: echo "pullsecret=$(test ${REDHAT_PULL_SECRET} && echo true)" >> "$GITHUB_OUTPUT"
         - name: "Test for updates to the operator itself"
-          uses: dorny/paths-filter@d1c1ffe9a5bf6e0c87f703b06f2e00d9f6e45bb3 # v3.0.3
+          uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d
           id: filter
           with:
             filters: |
