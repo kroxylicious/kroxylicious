@@ -7,12 +7,13 @@
 # Compares the legacy root-Dockerfile image build against the Maven-artifact-based
 # build introduced in https://github.com/kroxylicious/kroxylicious/pull/3553.
 #
-# Requires: docker (with buildx), syft, jq, mvn
+# Requires: docker (with buildx) or podman, syft, jq, mvn
 #
 # Usage:
 #   ./scripts/compare-image-builds.sh               # compares proxy images
 #   ./scripts/compare-image-builds.sh -o            # compares operator images
-#   ./scripts/compare-image-builds.sh -o -p         # compares both
+#   ./scripts/compare-image-builds.sh -p -o         # compares both
+#   CONTAINER_ENGINE=podman ./scripts/compare-image-builds.sh  # use podman
 
 set -eo pipefail
 
@@ -51,15 +52,17 @@ if [[ "${COMPARE_PROXY}" == false && "${COMPARE_OPERATOR}" == false ]]; then
   COMPARE_PROXY=true
 fi
 
+CONTAINER_ENGINE="${CONTAINER_ENGINE:-docker}"
+
 # Check required tools
-for tool in docker syft jq mvn; do
+for tool in "${CONTAINER_ENGINE}" syft jq mvn; do
   if ! command -v "${tool}" &>/dev/null; then
     echo -e "${RED}Required tool not found: ${tool}${NO_COLOUR}" >&2
     exit 1
   fi
 done
 
-if ! docker buildx version &>/dev/null; then
+if [[ "${CONTAINER_ENGINE}" == "docker" ]] && ! docker buildx version &>/dev/null; then
   echo -e "${RED}docker buildx is required but not available${NO_COLOUR}" >&2
   exit 1
 fi
@@ -89,23 +92,37 @@ compare_image() {
   echo -e "\n${YELLOW}=== ${name} image comparison ===${NO_COLOUR}"
 
   echo -e "\n${YELLOW}Building old ${name} image (root Dockerfile)...${NO_COLOUR}"
-  docker build -t "${old_tag}" \
+  "${CONTAINER_ENGINE}" build -t "${old_tag}" \
     --build-arg KROXYLICIOUS_VERSION="${VERSION}" \
     -f "${old_dockerfile}" \
     "${old_context}"
 
   echo -e "\n${YELLOW}Building new ${name} image (Maven artifacts + module Dockerfile)...${NO_COLOUR}"
-  docker buildx build -t "${new_tag}" --load \
-    --build-arg KROXYLICIOUS_VERSION="${VERSION}" \
-    -f "${new_dockerfile}" \
-    "${new_context}"
+  if [[ "${CONTAINER_ENGINE}" == "docker" ]]; then
+    docker buildx build -t "${new_tag}" --load \
+      --build-arg KROXYLICIOUS_VERSION="${VERSION}" \
+      -f "${new_dockerfile}" \
+      "${new_context}"
+  else
+    "${CONTAINER_ENGINE}" build -t "${new_tag}" \
+      --build-arg KROXYLICIOUS_VERSION="${VERSION}" \
+      -f "${new_dockerfile}" \
+      "${new_context}"
+  fi
 
   echo -e "\n${YELLOW}--- SBOM diff (packages) ---${NO_COLOUR}"
   local old_sbom new_sbom
+  local old_tar new_tar
+  old_tar=$(mktemp).tar
+  new_tar=$(mktemp).tar
+  "${CONTAINER_ENGINE}" save -o "${old_tar}" "${old_tag}"
+  "${CONTAINER_ENGINE}" save -o "${new_tar}" "${new_tag}"
+
   old_sbom=$(mktemp)
   new_sbom=$(mktemp)
-  syft "${old_tag}" -o syft-json 2>/dev/null | jq -r '.artifacts[].name' | sort > "${old_sbom}"
-  syft "${new_tag}" -o syft-json 2>/dev/null | jq -r '.artifacts[].name' | sort > "${new_sbom}"
+  syft "docker-archive:${old_tar}" -o syft-json 2>/dev/null | jq -r '.artifacts[].name' | sort > "${old_sbom}" || { echo -e "${RED}syft failed for old image${NO_COLOUR}" >&2; rm -f "${old_tar}" "${new_tar}"; return 1; }
+  syft "docker-archive:${new_tar}" -o syft-json 2>/dev/null | jq -r '.artifacts[].name' | sort > "${new_sbom}" || { echo -e "${RED}syft failed for new image${NO_COLOUR}" >&2; rm -f "${old_tar}" "${new_tar}"; return 1; }
+  rm -f "${old_tar}" "${new_tar}"
   if diff "${old_sbom}" "${new_sbom}"; then
     echo -e "${GREEN}No package differences${NO_COLOUR}"
   fi
@@ -115,15 +132,16 @@ compare_image() {
   local old_meta new_meta
   old_meta=$(mktemp)
   new_meta=$(mktemp)
-  docker inspect "${old_tag}" | jq '.[0].Config | {Entrypoint, Cmd, User, Env, Labels, WorkingDir}' > "${old_meta}"
-  docker inspect "${new_tag}" | jq '.[0].Config | {Entrypoint, Cmd, User, Env, Labels, WorkingDir}' > "${new_meta}"
+  "${CONTAINER_ENGINE}" inspect "${old_tag}" | jq '.[0].Config | {Entrypoint, Cmd, User, Env, Labels, WorkingDir}' > "${old_meta}"
+  "${CONTAINER_ENGINE}" inspect "${new_tag}" | jq '.[0].Config | {Entrypoint, Cmd, User, Env, Labels, WorkingDir}' > "${new_meta}"
   if diff "${old_meta}" "${new_meta}"; then
     echo -e "${GREEN}No metadata differences${NO_COLOUR}"
   fi
   rm -f "${old_meta}" "${new_meta}"
 
   echo -e "\n${YELLOW}--- Startup sanity check (new image) ---${NO_COLOUR}"
-  if docker run --rm "${new_tag}" ${start_cmd}; then
+  # shellcheck disable=SC2086
+  if "${CONTAINER_ENGINE}" run --rm "${new_tag}" ${start_cmd}; then
     echo -e "${GREEN}Startup check passed${NO_COLOUR}"
   else
     echo -e "${RED}Startup check failed${NO_COLOUR}"
