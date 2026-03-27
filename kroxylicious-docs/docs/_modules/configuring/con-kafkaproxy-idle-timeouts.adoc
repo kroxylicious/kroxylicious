@@ -1,0 +1,66 @@
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-deploy-a-proxy.adoc
+
+[id='con-kafkaproxy-idle-timeouts-{context}']
+= Configuring idle connection timeouts
+
+[role="_abstract"]
+The proxy can automatically disconnect idle client connections to reclaim resources.
+Idle timeout configuration is optional and disabled by default. Enable it only when required for your deployment.
+Idle timeouts are configured under `spec.network.proxy` in the `KafkaProxy` resource and apply only to the proxy listener — they are not available for the management HTTP server.
+When enabled, idle disconnects are observable via the `kroxylicious_client_to_proxy_disconnects_total` metric.
+
+== When to enable idle timeouts
+
+include::../../_snippets/snip-idle-timeout-when-to-enable.adoc[]
+
+== When not to enable idle timeouts
+
+include::../../_snippets/snip-idle-timeout-when-not-to-enable.adoc[]
+
+== How idle timeouts work
+
+include::../../_snippets/snip-idle-timeout-how-it-works.adoc[]
+
+include::../../_snippets/snip-idle-timeout-duration-format.adoc[]
+
+== Configuration examples
+
+.Example: Unauthenticated timeout only
+[source,yaml]
+----
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  network:
+    proxy:
+      unauthenticatedIdleTimeout: 30s # <1>
+----
+<1> Disconnect connections that remain unauthenticated for more than 30 seconds.
+
+.Example: Both timeouts configured
+[source,yaml]
+----
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  network:
+    proxy:
+      unauthenticatedIdleTimeout: 30s # <1>
+      authenticatedIdleTimeout: 10m # <2>
+----
+<1> Disconnect unauthenticated connections after 30 seconds of inactivity.
+<2> Disconnect authenticated connections after 10 minutes of inactivity.
+
+== Monitoring idle disconnects
+
+include::../../_snippets/snip-idle-timeout-monitoring.adoc[]

@@ -60,6 +60,8 @@ jobs:
           javaDistro: ${{ matrix.java.distro }}
       - name: Setup Minikube
         uses: ./.github/actions/common/setup-minikube
+        with:
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Test for unpublished reference release (japicmp)'
         run: |
           REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
@@ -98,5 +100,6 @@ jobs:
         if: failure() && env.SLACK_WEBHOOK_SET == 'true'
         uses: ./.github/actions/common/slack-notification
         with:
+          slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The maven workflow failed on branch ${{ github.ref_name }}.'

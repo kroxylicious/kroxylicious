@@ -24,7 +24,7 @@ given:
         groupIds:
           - "group1"
           - "group2"
-        includeAuthorizedOperations: true
+        includeAuthorizedOperations: false
       upstreamResponseHeader:
         correlationId: 1
       upstreamResponse:
@@ -98,6 +98,14 @@ given:
         resourceName: "my-topic"
         resourceClass: "TOPIC"
         resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "group1"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "group2"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
   topicNames: { }
 when:
   subject: "alice"
@@ -110,7 +118,7 @@ when:
     groupIds:
       - "group1"
       - "group2"
-    includeAuthorizedOperations: true
+    includeAuthorizedOperations: false
 then:
   expectedResponseHeader:
     correlationId: 1

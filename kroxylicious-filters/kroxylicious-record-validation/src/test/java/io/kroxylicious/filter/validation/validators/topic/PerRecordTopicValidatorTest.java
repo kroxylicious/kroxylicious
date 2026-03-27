@@ -43,7 +43,7 @@ class PerRecordTopicValidatorTest {
         var topicValidator = new PerRecordTopicValidator(validator);
 
         when(validator.validate(any(Record.class))).thenReturn(Result.VALID_RESULT_STAGE);
-        var result = topicValidator.validateTopicData(tpd);
+        var result = topicValidator.validateTopicData(tpd, tpd.name());
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .returns(false, TopicValidationResult::isAnyPartitionInvalid)
@@ -59,7 +59,7 @@ class PerRecordTopicValidatorTest {
         var topicValidator = new PerRecordTopicValidator(validator);
 
         when(validator.validate(any(Record.class))).thenReturn(CompletableFuture.completedStage(new Result(false, "my bad record")));
-        var result = topicValidator.validateTopicData(tpd);
+        var result = topicValidator.validateTopicData(tpd, tpd.name());
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .returns(true, TopicValidationResult::isAnyPartitionInvalid);
@@ -84,7 +84,7 @@ class PerRecordTopicValidatorTest {
 
         when(validator.validate(good)).thenReturn(Result.VALID_RESULT_STAGE);
         when(validator.validate(bad)).thenReturn(CompletableFuture.completedStage(new Result(false, "my bad record")));
-        var result = topicValidator.validateTopicData(tpd);
+        var result = topicValidator.validateTopicData(tpd, tpd.name());
 
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
@@ -112,7 +112,7 @@ class PerRecordTopicValidatorTest {
         when(validator.validate(bad)).thenReturn(CompletableFuture.completedStage(new Result(false, "my bad record")));
         when(validator.validate(ugly)).thenReturn(CompletableFuture.completedStage(new Result(false, "my ugly record")));
 
-        var result = topicValidator.validateTopicData(tpd);
+        var result = topicValidator.validateTopicData(tpd, tpd.name());
 
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
@@ -142,7 +142,7 @@ class PerRecordTopicValidatorTest {
         when(validator.validate(bad)).thenReturn(CompletableFuture.completedStage(new Result(false, "my bad record")));
         when(validator.validate(ugly)).thenReturn(CompletableFuture.completedStage(new Result(false, "my ugly record")));
 
-        var result = topicValidator.validateTopicData(tpd);
+        var result = topicValidator.validateTopicData(tpd, tpd.name());
 
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))

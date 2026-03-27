@@ -1,0 +1,6 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: Entity Isolation Guide
+description: Covers using the entity isolation filter.
+tags:
+  - filter
+rank: "025"
