@@ -27,6 +27,15 @@ public record AuthenticationResult(
                                    byte[] responseBytes,
                                    @Nullable String authorizationId,
                                    @Nullable String errorMessage) {
+    @Override
+    public String toString() {
+        // intentionally omit the responseBytes
+        return "AuthenticationResult{" +
+                "authorizationId='" + authorizationId + '\'' +
+                ", outcome=" + outcome +
+                ", errorMessage='" + errorMessage + '\'' +
+                '}';
+    }
 
     /**
      * Authentication outcome.
