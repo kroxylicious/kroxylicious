@@ -11,6 +11,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -40,6 +41,7 @@ class RunMetadataTest {
     private static Path memInfoPath;
     private static Path actual;
     private static String minikubeJson;
+    private static String kubectlGetNodesJson;
     private static String generatedJson;
 
     // --- Integration-style tests (real CommandRunner) ---
@@ -55,6 +57,7 @@ class RunMetadataTest {
         cpuInfoPath = fixture("proc/cpuinfo");
         memInfoPath = fixture("proc/meminfo");
         minikubeJson = Files.readString(fixture("minikube-profile-list.json"));
+        kubectlGetNodesJson = Files.readString(fixture("kubectl-get-nodes.json"));
     }
 
     @Test
@@ -63,7 +66,7 @@ class RunMetadataTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = { "gitCommit", "gitBranch", "timestamp", "hostSystem" })
+    @ValueSource(strings = { "gitCommit", "gitBranch", "timestamp", "orchestratorSystem" })
     void metadataContainsExpectedField(String fieldName) throws IOException {
         JsonNode metadata = MAPPER.readTree(generatedJson);
         assertThat(metadata.has(fieldName))
@@ -88,25 +91,25 @@ class RunMetadataTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "os", "osVersion", "osArch", "logicalCpus" })
-    void hostSystemContainsCrossPlatformFields(String fieldName) throws IOException {
-        JsonNode hostSystem = MAPPER.readTree(generatedJson).get("hostSystem");
-        assertThat(hostSystem.has(fieldName))
-                .as("hostSystem should contain %s", fieldName)
+    void orchestratorSystemContainsCrossPlatformFields(String fieldName) throws IOException {
+        JsonNode orchestratorSystem = MAPPER.readTree(generatedJson).get("orchestratorSystem");
+        assertThat(orchestratorSystem.has(fieldName))
+                .as("orchestratorSystem should contain %s", fieldName)
                 .isTrue();
     }
 
     @Test
-    void hostSystemOsFieldsMatchSystemProperties() throws IOException {
-        JsonNode hostSystem = MAPPER.readTree(generatedJson).get("hostSystem");
-        assertThat(hostSystem.get("os").asText()).isEqualTo(System.getProperty("os.name"));
-        assertThat(hostSystem.get("osVersion").asText()).isEqualTo(System.getProperty("os.version"));
-        assertThat(hostSystem.get("osArch").asText()).isEqualTo(System.getProperty("os.arch"));
+    void orchestratorSystemOsFieldsMatchSystemProperties() throws IOException {
+        JsonNode orchestratorSystem = MAPPER.readTree(generatedJson).get("orchestratorSystem");
+        assertThat(orchestratorSystem.get("os").asText()).isEqualTo(System.getProperty("os.name"));
+        assertThat(orchestratorSystem.get("osVersion").asText()).isEqualTo(System.getProperty("os.version"));
+        assertThat(orchestratorSystem.get("osArch").asText()).isEqualTo(System.getProperty("os.arch"));
     }
 
     @Test
-    void hostSystemLogicalCpuCountIsPositive() throws IOException {
-        JsonNode hostSystem = MAPPER.readTree(generatedJson).get("hostSystem");
-        assertThat(hostSystem.get("logicalCpus").asInt()).isPositive();
+    void orchestratorSystemLogicalCpuCountIsPositive() throws IOException {
+        JsonNode orchestratorSystem = MAPPER.readTree(generatedJson).get("orchestratorSystem");
+        assertThat(orchestratorSystem.get("logicalCpus").asInt()).isPositive();
     }
 
     // --- CommandRunner injection tests ---
@@ -116,6 +119,7 @@ class RunMetadataTest {
         RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
         when(runner.run(eq("git"), any(String[].class))).thenReturn(FIXTURE_GIT_COMMIT);
         when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
 
         RunMetadata.generate(tempDir, runner);
 
@@ -132,6 +136,7 @@ class RunMetadataTest {
         when(runner.run(eq("git"), any(String[].class)))
                 .thenReturn(FIXTURE_GIT_COMMIT, FIXTURE_GIT_BRANCH);
         when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
 
         RunMetadata.generate(tempDir, runner);
 
@@ -145,6 +150,7 @@ class RunMetadataTest {
         RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
         when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
         when(runner.run(eq("minikube"), any(String[].class))).thenReturn(minikubeJson);
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
 
         RunMetadata.generate(tempDir, runner);
 
@@ -163,11 +169,45 @@ class RunMetadataTest {
         RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
         when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
         when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
 
         RunMetadata.generate(tempDir, runner);
 
         JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
         assertThat(metadata.has("minikubeProfile")).isFalse();
+    }
+
+    @Test
+    void clusterNodesPopulatedFromKubectlOutput(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn(kubectlGetNodesJson);
+
+        RunMetadata.generate(tempDir, runner);
+
+        JsonNode clusterNodes = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json"))).get("clusterNodes");
+        assertThat(clusterNodes).isNotNull();
+        assertThat(clusterNodes.get("nodeCount").asInt()).isEqualTo(3);
+        assertThat(clusterNodes.get("arch").asText()).isEqualTo("amd64");
+        assertThat(clusterNodes.get("osImage").asText()).isEqualTo("Red Hat Enterprise Linux CoreOS 416.94.202411260420-0");
+        assertThat(clusterNodes.get("kernelVersion").asText()).isEqualTo("5.14.0-427.13.1.el9_4.x86_64");
+        assertThat(clusterNodes.get("kubeletVersion").asText()).isEqualTo("v1.29.3+elf5e57");
+        assertThat(clusterNodes.get("cpuPerNode").asText()).isEqualTo("16");
+        assertThat(clusterNodes.get("memoryPerNodeGb").asLong()).isEqualTo(30L);
+    }
+
+    @Test
+    void clusterNodesAbsentWhenKubectlFails(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
+
+        RunMetadata.generate(tempDir, runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.has("clusterNodes")).isFalse();
     }
 
     // --- parseProcEntries tests ---
@@ -207,5 +247,42 @@ class RunMetadataTest {
         URL fixtureUrl = RunMetadataTest.class.getResource("/fixtures/" + name);
         Assumptions.assumeTrue(fixtureUrl != null);
         return Path.of(fixtureUrl.toURI());
+    }
+
+    // --- Probe context tests ---
+
+    @Test
+    void probeContextFieldsWrittenToMetadata(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
+
+        Map<String, Object> probeContext = Map.of(
+                "scenario", "proxy-no-filters",
+                "workload", "1topic-1kb",
+                "targetRate", 50000);
+
+        RunMetadata.generate(tempDir, probeContext, runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.get("scenario").asText()).isEqualTo("proxy-no-filters");
+        assertThat(metadata.get("workload").asText()).isEqualTo("1topic-1kb");
+        assertThat(metadata.get("targetRate").asInt()).isEqualTo(50000);
+    }
+
+    @Test
+    void generateWithoutProbeContextOmitsProbeFields(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
+
+        RunMetadata.generate(tempDir, runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.has("scenario")).isFalse();
+        assertThat(metadata.has("workload")).isFalse();
+        assertThat(metadata.has("targetRate")).isFalse();
     }
 }

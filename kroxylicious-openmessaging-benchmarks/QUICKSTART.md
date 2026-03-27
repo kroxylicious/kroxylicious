@@ -5,7 +5,9 @@ then run the benchmark suite.
 
 ## Prerequisites
 
-- Kubernetes cluster (minikube, kind, or cloud provider) with 8 CPU cores and 16GB RAM
+- Kubernetes cluster (minikube, kind, or cloud provider)
+  - Smoke / local validation: 4 CPU cores, 8 GB RAM (single-node cluster is fine)
+  - Full benchmark run: 8 CPU cores, 16 GB RAM across the cluster (3 brokers + 3 OMB workers)
 - `kubectl` configured to access the cluster
 - `helm` 3.0+
 - `gh` (GitHub CLI) — for downloading the Kroxylicious operator release
@@ -77,7 +79,8 @@ Available workloads: `1topic-1kb`, `10topics-1kb`, `100topics-1kb`
 ### Quick validation (smoke profile)
 
 The smoke profile uses 1 broker, 2 workers, and a 1-minute test — not suitable for
-performance measurement but useful to verify the cluster is working before a full run:
+performance measurement but useful to verify the cluster is working before a full run.
+It fits comfortably within a 16 GB single-node cluster (minikube/kind).
 
 ```bash
 ./scripts/run-benchmark.sh \

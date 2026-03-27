@@ -6,15 +6,19 @@
 
 package io.kroxylicious.benchmarks.results;
 
+import java.util.Arrays;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Represents the relevant metrics from an OpenMessaging Benchmark result JSON file.
  * <p>
- * Scalar fields correspond to pre-aggregated publish latency values.
- * Array fields contain per-interval measurements that are reduced to a
- * single value using a caller-supplied {@link AggregationMethod}.
+ * Latency fields use the pre-aggregated scalars that OMB computes from a full-run
+ * accumulated HDR histogram — these are the true percentiles over all messages, not
+ * a roll-up of per-sample-window values.
+ * <p>
+ * Throughput fields are per-interval arrays; the mean is returned as the representative value.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OmbResult {
@@ -34,26 +38,71 @@ public class OmbResult {
     @JsonProperty("aggregatedPublishLatency999pct")
     private double publishLatency999pct;
 
+    @JsonProperty("aggregatedEndToEndLatencyAvg")
+    private double endToEndLatencyAvg;
+
+    @JsonProperty("aggregatedEndToEndLatency50pct")
+    private double endToEndLatency50pct;
+
+    @JsonProperty("aggregatedEndToEndLatency95pct")
+    private double endToEndLatency95pct;
+
+    @JsonProperty("aggregatedEndToEndLatency99pct")
+    private double endToEndLatency99pct;
+
+    @JsonProperty("aggregatedEndToEndLatency999pct")
+    private double endToEndLatency999pct;
+
+    @JsonProperty("topics")
+    private int topics = 1;
+
+    @JsonProperty("producersPerTopic")
+    private int producersPerTopic = 1;
+
+    @JsonProperty("consumersPerTopic")
+    private int consumersPerTopic = 1;
+
+    @JsonProperty("aggregatedPublishDelayLatencyAvg")
+    private double publishDelayLatencyAvgNs;
+
+    @JsonProperty("aggregatedPublishDelayLatency99pct")
+    private double publishDelayLatency99pctNs;
+
     @JsonProperty("publishRate")
     private double[] publishRate;
 
     @JsonProperty("consumeRate")
     private double[] consumeRate;
 
+    @JsonProperty("publishLatencyAvg")
+    private double[] publishLatencyAvgWindows;
+
+    @JsonProperty("publishLatency50pct")
+    private double[] publishLatency50pctWindows;
+
+    @JsonProperty("publishLatency95pct")
+    private double[] publishLatency95pctWindows;
+
+    @JsonProperty("publishLatency99pct")
+    private double[] publishLatency99pctWindows;
+
+    @JsonProperty("publishLatency999pct")
+    private double[] publishLatency999pctWindows;
+
     @JsonProperty("endToEndLatencyAvg")
-    private double[] endToEndLatencyAvg;
+    private double[] endToEndLatencyAvgWindows;
 
     @JsonProperty("endToEndLatency50pct")
-    private double[] endToEndLatency50pct;
+    private double[] endToEndLatency50pctWindows;
 
     @JsonProperty("endToEndLatency95pct")
-    private double[] endToEndLatency95pct;
+    private double[] endToEndLatency95pctWindows;
 
     @JsonProperty("endToEndLatency99pct")
-    private double[] endToEndLatency99pct;
+    private double[] endToEndLatency99pctWindows;
 
     @JsonProperty("endToEndLatency999pct")
-    private double[] endToEndLatency999pct;
+    private double[] endToEndLatency999pctWindows;
 
     public double getPublishLatencyAvg() {
         return publishLatencyAvg;
@@ -75,31 +124,79 @@ public class OmbResult {
         return publishLatency999pct;
     }
 
-    public double getPublishRate(AggregationMethod method) {
-        return method.aggregate(publishRate);
+    public double getAggregatedEndToEndLatencyAvg() {
+        return endToEndLatencyAvg;
     }
 
-    public double getConsumeRate(AggregationMethod method) {
-        return method.aggregate(consumeRate);
+    public double getAggregatedEndToEndLatency50pct() {
+        return endToEndLatency50pct;
     }
 
-    public double getEndToEndLatencyAvg(AggregationMethod method) {
-        return method.aggregate(endToEndLatencyAvg);
+    public double getAggregatedEndToEndLatency95pct() {
+        return endToEndLatency95pct;
     }
 
-    public double getEndToEndLatency50pct(AggregationMethod method) {
-        return method.aggregate(endToEndLatency50pct);
+    public double getAggregatedEndToEndLatency99pct() {
+        return endToEndLatency99pct;
     }
 
-    public double getEndToEndLatency95pct(AggregationMethod method) {
-        return method.aggregate(endToEndLatency95pct);
+    public double getAggregatedEndToEndLatency999pct() {
+        return endToEndLatency999pct;
     }
 
-    public double getEndToEndLatency99pct(AggregationMethod method) {
-        return method.aggregate(endToEndLatency99pct);
+    public double[] getPublishLatencyAvgWindows() {
+        return publishLatencyAvgWindows;
     }
 
-    public double getEndToEndLatency999pct(AggregationMethod method) {
-        return method.aggregate(endToEndLatency999pct);
+    public double[] getPublishLatency50pctWindows() {
+        return publishLatency50pctWindows;
+    }
+
+    public double[] getPublishLatency95pctWindows() {
+        return publishLatency95pctWindows;
+    }
+
+    public double[] getPublishLatency99pctWindows() {
+        return publishLatency99pctWindows;
+    }
+
+    public double[] getPublishLatency999pctWindows() {
+        return publishLatency999pctWindows;
+    }
+
+    public double[] getEndToEndLatencyAvgWindows() {
+        return endToEndLatencyAvgWindows;
+    }
+
+    public double[] getEndToEndLatency50pctWindows() {
+        return endToEndLatency50pctWindows;
+    }
+
+    public double[] getEndToEndLatency95pctWindows() {
+        return endToEndLatency95pctWindows;
+    }
+
+    public double[] getEndToEndLatency99pctWindows() {
+        return endToEndLatency99pctWindows;
+    }
+
+    public double[] getEndToEndLatency999pctWindows() {
+        return endToEndLatency999pctWindows;
+    }
+
+    public double getPublishDelayLatencyAvgNs() {
+        return publishDelayLatencyAvgNs;
+    }
+
+    public double getPublishDelayLatency99pctNs() {
+        return publishDelayLatency99pctNs;
+    }
+
+    public double getPublishRate() {
+        return Arrays.stream(publishRate).average().orElse(0.0) * topics * producersPerTopic;
+    }
+
+    public double getConsumeRate() {
+        return Arrays.stream(consumeRate).average().orElse(0.0) * topics * consumersPerTopic;
     }
 }

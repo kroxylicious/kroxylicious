@@ -87,7 +87,7 @@ class ResultComparatorTest {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8)) {
-            new ResultComparator(baseline, candidate, AggregationMethod.MEAN).compare(ps);
+            new ResultComparator(baseline, candidate).compare(ps);
         }
         return baos.toString(StandardCharsets.UTF_8);
     }
@@ -155,22 +155,46 @@ class ResultComparatorTest {
 
         @Test
         void avgShowsCorrectValues() {
-            // Baseline endToEndLatencyAvg: [8.50, 9.20, 8.80] -> avg = 8.83
-            // Proxy endToEndLatencyAvg: [10.20, 10.80, 10.50] -> avg = 10.50
+            // Uses aggregatedEndToEndLatencyAvg (OMB full-run scalar)
             RowValues row = findRow(endToEndLatencyRows, "Avg");
             assertThat(row).as("End-to-End Latency should have an Avg row").isNotNull();
-            assertThat(row.baseline()).as("baseline").isEqualTo("8.83");
-            assertThat(row.candidate()).as("candidate").isEqualTo("10.50");
+            assertThat(row.baseline()).as("baseline").isEqualTo("8.95");
+            assertThat(row.candidate()).as("candidate").isEqualTo("10.70");
         }
 
         @Test
         void p99ShowsCorrectValues() {
-            // Baseline endToEndLatency99pct: [35.40, 36.80, 36.10] -> avg = 36.10
-            // Proxy endToEndLatency99pct: [42.60, 44.00, 43.30] -> avg = 43.30
+            // Uses aggregatedEndToEndLatency99pct (OMB full-run scalar, not mean of per-window p99s)
             RowValues row = findRow(endToEndLatencyRows, "p99");
             assertThat(row).as("End-to-End Latency should have a p99 row (not p99.9)").isNotNull();
-            assertThat(row.baseline()).as("baseline").isEqualTo("36.10");
-            assertThat(row.candidate()).as("candidate").isEqualTo("43.30");
+            assertThat(row.baseline()).as("baseline").isEqualTo("38.50");
+            assertThat(row.candidate()).as("candidate").isEqualTo("45.20");
+        }
+    }
+
+    @Nested
+    class Significance {
+
+        @Test
+        void latencySectionHeaderContainsMwuPColumn() throws IOException {
+            assertThat(runComparison()).contains("MWU p");
+        }
+
+        @Test
+        void publishLatencyDataRowsShowPValue() throws IOException {
+            List<String> dataRows = extractSection(runComparison(), "Publish Latency");
+            assertThat(dataRows).allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
+        }
+
+        @Test
+        void endToEndLatencyDataRowsShowPValue() throws IOException {
+            List<String> dataRows = extractSection(runComparison(), "End-to-End Latency");
+            assertThat(dataRows).allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
+        }
+
+        @Test
+        void footnoteExplainsSignificanceMarker() throws IOException {
+            assertThat(runComparison()).contains("p < 0.05");
         }
     }
 
@@ -182,7 +206,7 @@ class ResultComparatorTest {
         @BeforeAll
         static void setUp() throws IOException {
             String output = runComparison();
-            throughputRows = extractSection(output, "Throughput");
+            throughputRows = extractSection(output, "Total Throughput");
         }
 
         @Test
@@ -193,21 +217,21 @@ class ResultComparatorTest {
         }
 
         @Test
-        void publishRateShowsCorrectValues() {
-            // Baseline publishRate: [50000.0, 49800.0, 50200.0] -> avg = 50000.00
-            // Proxy publishRate: [49500.0, 49200.0, 49700.0] -> avg = 49466.67
+        void publishRateShowsTotalAcrossAllProducers() {
+            // Baseline: [5000, 4980, 5020] mean=5000 * 10 topics * 1 producer = 50000
+            // Proxy: [4950, 4920, 4970] mean=4946.67 * 10 * 1 = 49466.67
             RowValues row = findRow(throughputRows, "Publish Rate");
-            assertThat(row).as("Throughput should have a Publish Rate row").isNotNull();
+            assertThat(row).as("Total Throughput should have a Publish Rate row").isNotNull();
             assertThat(row.baseline()).as("baseline").isEqualTo("50000.00");
             assertThat(row.candidate()).as("candidate").isEqualTo("49466.67");
         }
 
         @Test
-        void consumeRateShowsCorrectValues() {
-            // Baseline consumeRate: [49900.0, 50100.0, 50000.0] -> avg = 50000.00
-            // Proxy consumeRate: [49400.0, 49600.0, 49500.0] -> avg = 49500.00
+        void consumeRateShowsTotalAcrossAllConsumers() {
+            // Baseline: [4990, 5010, 5000] mean=5000 * 10 topics * 1 consumer = 50000
+            // Proxy: [4940, 4960, 4950] mean=4950 * 10 * 1 = 49500
             RowValues row = findRow(throughputRows, "Consume Rate");
-            assertThat(row).as("Throughput should have a Consume Rate row").isNotNull();
+            assertThat(row).as("Total Throughput should have a Consume Rate row").isNotNull();
             assertThat(row.baseline()).as("baseline").isEqualTo("50000.00");
             assertThat(row.candidate()).as("candidate").isEqualTo("49500.00");
         }

@@ -146,6 +146,19 @@ else
         echo "--- ${WORKLOAD}: baseline vs proxy-no-filters ---"
         "${SCRIPT_DIR}/compare-results.sh" "${BASELINE_OMB[0]}" "${PROXY_OMB[0]}"
         echo ""
+
+        # Check all scenarios for producer back-pressure and suggest a rate sweep if detected.
+        _BP_RESULTS=()
+        for _bp_scenario in "${SCENARIOS[@]}"; do
+            _bp_results=("${OUTPUT_DIR}/${_bp_scenario}/${WORKLOAD}/"*.json)
+            for _bp_f in "${_bp_results[@]}"; do
+                [[ -f "${_bp_f}" && "$(basename "${_bp_f}")" != "run-metadata.json" ]] && _BP_RESULTS+=("${_bp_f}")
+            done
+        done
+        if [[ ${#_BP_RESULTS[@]} -gt 0 ]]; then
+            "${SCRIPT_DIR}/check-backpressure.sh" --workload "${WORKLOAD}" "${_BP_RESULTS[@]}" || true
+            echo ""
+        fi
     done
 fi
 
