@@ -53,9 +53,12 @@ import picocli.CommandLine.Option;
 })
 public class KeystoreCredentialTool implements Callable<Integer> {
 
+    @CommandLine.Spec
+    CommandLine.Model.CommandSpec spec;
+
     @Override
     public Integer call() {
-        new CommandLine(this).usage(System.out);
+        spec.commandLine().usage(spec.commandLine().getOut());
         return 0;
     }
 
@@ -65,10 +68,13 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @Command(name = "create", description = "Create a new KeyStore file")
     static class CreateCommand implements Callable<Integer> {
 
+        @CommandLine.Spec
+        CommandLine.Model.CommandSpec spec;
+
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true, interactive = true)
+        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true)
         String password;
 
         @Option(names = { "-t", "--type" }, description = "KeyStore type (default: ${DEFAULT-VALUE})", defaultValue = "PKCS12")
@@ -79,11 +85,11 @@ public class KeystoreCredentialTool implements Callable<Integer> {
             try {
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
                 manager.createKeyStore(keystorePath, password, storeType);
-                System.out.println("KeyStore created successfully: " + keystorePath);
+                spec.commandLine().getOut().println("KeyStore created successfully: " + keystorePath);
                 return 0;
             }
             catch (KeyStoreException e) {
-                System.err.println("Failed to create KeyStore: " + e.getMessage());
+                spec.commandLine().getErr().println(formatError("Failed to create KeyStore", e));
                 return 1;
             }
         }
@@ -95,19 +101,22 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @Command(name = "add-user", description = "Add a user to the KeyStore")
     static class AddUserCommand implements Callable<Integer> {
 
+        @CommandLine.Spec
+        CommandLine.Model.CommandSpec spec;
+
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true, interactive = true)
+        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true)
         String storePassword;
 
         @Option(names = { "-u", "--username" }, description = "Username to add", required = true)
         String username;
 
-        @Option(names = { "-w", "--user-password" }, description = "User's password", required = true, interactive = true)
+        @Option(names = { "-w", "--user-password" }, description = "User's password", required = true)
         String userPassword;
 
-        @Option(names = { "-m", "--mechanism" }, description = "SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM-SHA-256")
+        @Option(names = { "-m", "--mechanism" }, description = "SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM_SHA_256")
         ScramMechanismType mechanism;
 
         @Override
@@ -115,11 +124,11 @@ public class KeystoreCredentialTool implements Callable<Integer> {
             try {
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
                 manager.addUser(keystorePath, storePassword, username, userPassword, mechanism.toScramMechanism());
-                System.out.println("User '" + username + "' added successfully");
+                spec.commandLine().getOut().println("User '" + username + "' added successfully");
                 return 0;
             }
             catch (KeyStoreException e) {
-                System.err.println("Failed to add user: " + e.getMessage());
+                spec.commandLine().getErr().println(formatError("Failed to add user", e));
                 return 1;
             }
         }
@@ -131,10 +140,13 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @Command(name = "remove-user", description = "Remove a user from the KeyStore")
     static class RemoveUserCommand implements Callable<Integer> {
 
+        @CommandLine.Spec
+        CommandLine.Model.CommandSpec spec;
+
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true, interactive = true)
+        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true)
         String password;
 
         @Option(names = { "-u", "--username" }, description = "Username to remove", required = true)
@@ -145,11 +157,11 @@ public class KeystoreCredentialTool implements Callable<Integer> {
             try {
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
                 manager.removeUser(keystorePath, password, username);
-                System.out.println("User '" + username + "' removed successfully");
+                spec.commandLine().getOut().println("User '" + username + "' removed successfully");
                 return 0;
             }
             catch (KeyStoreException e) {
-                System.err.println("Failed to remove user: " + e.getMessage());
+                spec.commandLine().getErr().println(formatError("Failed to remove user", e));
                 return 1;
             }
         }
@@ -161,19 +173,22 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @Command(name = "update-password", description = "Update a user's password")
     static class UpdatePasswordCommand implements Callable<Integer> {
 
+        @CommandLine.Spec
+        CommandLine.Model.CommandSpec spec;
+
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true, interactive = true)
+        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true)
         String storePassword;
 
         @Option(names = { "-u", "--username" }, description = "Username", required = true)
         String username;
 
-        @Option(names = { "-w", "--new-password" }, description = "New password for the user", required = true, interactive = true)
+        @Option(names = { "-w", "--new-password" }, description = "New password for the user", required = true)
         String newPassword;
 
-        @Option(names = { "-m", "--mechanism" }, description = "SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM-SHA-256")
+        @Option(names = { "-m", "--mechanism" }, description = "SCRAM mechanism: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})", defaultValue = "SCRAM_SHA_256")
         ScramMechanismType mechanism;
 
         @Override
@@ -181,11 +196,11 @@ public class KeystoreCredentialTool implements Callable<Integer> {
             try {
                 KeystoreCredentialManager manager = new KeystoreCredentialManager();
                 manager.updatePassword(keystorePath, storePassword, username, newPassword, mechanism.toScramMechanism());
-                System.out.println("Password for user '" + username + "' updated successfully");
+                spec.commandLine().getOut().println("Password for user '" + username + "' updated successfully");
                 return 0;
             }
             catch (KeyStoreException e) {
-                System.err.println("Failed to update password: " + e.getMessage());
+                spec.commandLine().getErr().println(formatError("Failed to update password", e));
                 return 1;
             }
         }
@@ -197,10 +212,13 @@ public class KeystoreCredentialTool implements Callable<Integer> {
     @Command(name = "list-users", description = "List all users in the KeyStore")
     static class ListUsersCommand implements Callable<Integer> {
 
+        @CommandLine.Spec
+        CommandLine.Model.CommandSpec spec;
+
         @Option(names = { "-k", "--keystore" }, description = "Path to the KeyStore file", required = true)
         Path keystorePath;
 
-        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true, interactive = true)
+        @Option(names = { "-p", "--password" }, description = "KeyStore password", required = true)
         String password;
 
         @Override
@@ -210,18 +228,18 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 List<String> users = manager.listUsers(keystorePath, password);
 
                 if (users.isEmpty()) {
-                    System.out.println("No users found in KeyStore");
+                    spec.commandLine().getOut().println("No users found in KeyStore");
                 }
                 else {
-                    System.out.println("Users in KeyStore (" + users.size() + "):");
+                    spec.commandLine().getOut().println("Users in KeyStore (" + users.size() + "):");
                     for (String user : users) {
-                        System.out.println("  " + user);
+                        spec.commandLine().getOut().println("  " + user);
                     }
                 }
                 return 0;
             }
             catch (KeyStoreException e) {
-                System.err.println("Failed to list users: " + e.getMessage());
+                spec.commandLine().getErr().println(formatError("Failed to list users", e));
                 return 1;
             }
         }
@@ -240,6 +258,26 @@ public class KeystoreCredentialTool implements Callable<Integer> {
                 case SCRAM_SHA_512 -> ScramMechanism.SCRAM_SHA_512;
             };
         }
+    }
+
+    /**
+     * Format an exception message including cause chain.
+     *
+     * @param message the main error message
+     * @param exception the exception
+     * @return formatted error message
+     */
+    private static String formatError(String message, Exception exception) {
+        StringBuilder sb = new StringBuilder(message);
+        if (exception.getMessage() != null) {
+            sb.append(": ").append(exception.getMessage());
+        }
+        Throwable cause = exception.getCause();
+        while (cause != null && cause.getMessage() != null) {
+            sb.append(": ").append(cause.getMessage());
+            cause = cause.getCause();
+        }
+        return sb.toString();
     }
 
     /**
