@@ -50,12 +50,18 @@ public record RouteHostDetails(
 
     /**
      * Label used to identify a {@link Route} target.
+     * <p>
+     * The Operator manifests the Routes for an Ingress + VirtualKafkaCluster and
+     * needs to react once the 'ingress[0].host' becomes available in the Routes' status.
+     * This label enables the reconciler to discriminate between the bootstrap route and
+     * the node routes when it is constructing the bootstrapAddress and advertisedBrokerAddressPattern
+     * for the Gateway of the VirtualKafkaCluster.
      */
     public enum RouteFor {
         BOOTSTRAP,
         NODE;
 
-        public static final String LABEL_KEY = "route-for";
+        public static final String LABEL_KEY = "kroxylicious.io/route-for";
 
         @Override
         public String toString() {
