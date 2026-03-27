@@ -93,15 +93,16 @@ public final class HostPort {
         if (address == null) {
             throw new IllegalArgumentException(exceptionText);
         }
+        String trimmed = address.trim();
 
-        var ipv6Match = IPV6_WITH_PORT.matcher(address);
+        var ipv6Match = IPV6_WITH_PORT.matcher(trimmed);
         if (ipv6Match.matches()) {
             var host = ipv6Match.group(1);
             var port = parsePort(exceptionText, ipv6Match.group(2));
             return new HostPort(host, port);
         }
         else {
-            var split = PORT_SEPARATOR.split(address);
+            var split = PORT_SEPARATOR.split(trimmed);
             if (split.length != 2) {
                 throw new IllegalArgumentException(exceptionText);
             }
