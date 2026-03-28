@@ -29,7 +29,7 @@
         <module>kroxylicious-oauthbearer-validation</module>
         <module>kroxylicious-sasl-inspection</module>
         <module>kroxylicious-authorization</module>
-        <module>kroxylicious-connection-max-age</module>
+        <module>kroxylicious-connection-expiration</module>
         <module>kroxylicious-entity-isolation</module>
     </modules>
 
