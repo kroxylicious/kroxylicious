@@ -1,6 +1,0 @@
-$schema: https://kroxylicious.io/doc-schema.yaml
-title: Connection Max Age Guide
-description: Covers using the connection max age, including configuration.
-tags:
-  - filter
-rank: "030"

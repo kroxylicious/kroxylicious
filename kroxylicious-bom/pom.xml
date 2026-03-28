@@ -221,7 +221,7 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-connection-max-age</artifactId>
+                <artifactId>kroxylicious-connection-expiration</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

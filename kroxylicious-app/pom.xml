@@ -358,7 +358,7 @@
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
-                    <artifactId>kroxylicious-connection-max-age</artifactId>
+                    <artifactId>kroxylicious-connection-expiration</artifactId>
                     <scope>runtime</scope>
                 </dependency>
                 <dependency>
