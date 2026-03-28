@@ -219,6 +219,12 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-connection-expiration</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <!-- testing dependencies -->
             <!-- note scope is *not* set at this level -->
             <dependency>
