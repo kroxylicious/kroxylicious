@@ -41,8 +41,11 @@ kroxylicious:
       cpu: "1000m"
 
 # HashiCorp Vault (for encryption scenarios)
+# vault.provision controls whether the chart deploys a Vault instance.
+# Set to false when using an external Vault or a non-Vault KMS (e.g. AWS KMS).
 vault:
-  enabled: false
+  provision: false
+  token: benchmark-token  # Root token for the provisioned Vault dev instance
   image: hashicorp/vault:1.21.4@sha256:4e33b126a59c0c333b76fb4e894722462659a6bec7c48c9ee8cea56fccfd2569
   imagePullPolicy: IfNotPresent
   resources:
@@ -52,6 +55,21 @@ vault:
     limits:
       memory: "512Mi"
       cpu: "200m"
+
+# Record encryption filter (for encryption scenarios)
+# encryption.enabled controls whether the KafkaProtocolFilter is created and
+# referenced by the VirtualKafkaCluster.
+# encryption.kms.type and encryption.kms.config are passed directly into the
+# filter configTemplate — swap these out (via --profile) for alternative KMS providers.
+encryption:
+  enabled: false
+  kekName: benchmark-kek  # Name of the KEK in the KMS
+  kms:
+    type: io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService
+    config:
+      vaultTransitEngineUrl: http://vault:8200/v1/transit
+      vaultToken:
+        password: benchmark-token
 
 # OpenMessaging Benchmark workers
 omb:
