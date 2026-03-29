@@ -196,7 +196,15 @@ public class OmbResult {
         return Arrays.stream(publishRate).average().orElse(0.0) * topics * producersPerTopic;
     }
 
+    public double[] getPublishRateWindows() {
+        return Arrays.stream(publishRate).map(r -> r * topics * producersPerTopic).toArray();
+    }
+
     public double getConsumeRate() {
         return Arrays.stream(consumeRate).average().orElse(0.0) * topics * consumersPerTopic;
+    }
+
+    public double[] getConsumeRateWindows() {
+        return Arrays.stream(consumeRate).map(r -> r * topics * consumersPerTopic).toArray();
     }
 }
