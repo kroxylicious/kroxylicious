@@ -193,26 +193,30 @@ public class OmbResult {
     }
 
     public double getPublishRate() {
-        if (publishRate == null || publishRate.length == 0)
+        if (publishRate == null || publishRate.length == 0) {
             return 0.0;
+        }
         return Arrays.stream(publishRate).average().orElse(0.0) * topics * producersPerTopic;
     }
 
     public double[] getPublishRateWindows() {
-        if (publishRate == null)
+        if (publishRate == null) {
             return new double[0];
+        }
         return Arrays.stream(publishRate).map(r -> r * topics * producersPerTopic).toArray();
     }
 
     public double getConsumeRate() {
-        if (consumeRate == null || consumeRate.length == 0)
+        if (consumeRate == null || consumeRate.length == 0) {
             return 0.0;
+        }
         return Arrays.stream(consumeRate).average().orElse(0.0) * topics * consumersPerTopic;
     }
 
     public double[] getConsumeRateWindows() {
-        if (consumeRate == null)
+        if (consumeRate == null) {
             return new double[0];
+        }
         return Arrays.stream(consumeRate).map(r -> r * topics * consumersPerTopic).toArray();
     }
 }
