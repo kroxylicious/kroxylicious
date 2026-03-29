@@ -199,8 +199,9 @@ print_summary() {
         [[ "${s}" != "baseline" ]] && other_scenarios+=("${s}")
     done
 
+    local any_saturated=false
     echo "=== Summary ==="
-    echo "(achieved = mean publish rate; p99 = mean end-to-end latency p99; sat@N(-D) = saturated at N msg/s, D short of target)"
+    echo "(achieved = mean publish rate; p99 = mean end-to-end latency p99)"
     echo ""
 
     printf "%-14s" "Target (msg/s)"
@@ -226,10 +227,10 @@ print_summary() {
                 b_achieved=$(jq '[.publishRate[]] | add / length' "${bf}")
                 b_sat=$(awk "BEGIN { print (${b_achieved} < ${rate} * 0.95) ? 1 : 0 }")
                 if [[ "${b_sat}" == "1" ]]; then
-                    local b_achieved_int b_delta
+                    local b_achieved_int
                     b_achieved_int=$(printf '%.0f' "${b_achieved}")
-                    b_delta=$(printf "%'d" $(( rate - b_achieved_int )))
-                    printf "  %-20s  %-14s" "sat@$(printf "%'d" "${b_achieved_int}")(-${b_delta})" "—"
+                    any_saturated=true
+                    printf "  %-20s  %-14s" "$(printf "%'d" "${b_achieved_int}") [2]" "—"
                 else
                     b_p99=$(jq '.aggregatedEndToEndLatency99pct' "${bf}")
                     baseline_p99="${b_p99}"
@@ -260,10 +261,10 @@ print_summary() {
             s_achieved=$(jq '[.publishRate[]] | add / length' "${sf}")
             s_sat=$(awk "BEGIN { print (${s_achieved} < ${rate} * 0.95) ? 1 : 0 }")
             if [[ "${s_sat}" == "1" ]]; then
-                local s_achieved_int s_delta
+                local s_achieved_int
                 s_achieved_int=$(printf '%.0f' "${s_achieved}")
-                s_delta=$(printf "%'d" $(( rate - s_achieved_int )))
-                printf "  %-20s  %-14s" "sat@$(printf "%'d" "${s_achieved_int}")(-${s_delta})" "—"
+                any_saturated=true
+                printf "  %-20s  %-14s" "$(printf "%'d" "${s_achieved_int}") [2]" "—"
                 [[ -n "${baseline_dir}" ]] && printf "  %-20s" "—"
             else
                 s_p99=$(jq '.aggregatedEndToEndLatency99pct' "${sf}")
@@ -290,6 +291,9 @@ print_summary() {
     echo ""
     if [[ -n "${baseline_dir}" ]]; then
         echo "[1] Caution: Difference between baseline and candidate is not statistically significant (MWU p > 0.05) — measurement noise or other environmental factors may have affected the benchmark."
+    fi
+    if [[ "${any_saturated}" == "true" ]]; then
+        echo "[2] Saturated: achieved rate fell more than 5% below target — p99 latency is not meaningful."
     fi
 }
 
