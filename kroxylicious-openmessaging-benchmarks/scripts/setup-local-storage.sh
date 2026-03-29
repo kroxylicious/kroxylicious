@@ -189,15 +189,15 @@ done
 
 # --- LocalVolume CR ---
 
-if kubectl get localvolume local-disks -n "${LSO_NAMESPACE}" &>/dev/null; then
-    echo "LocalVolume 'local-disks' already exists, skipping."
+if kubectl get localvolume "${STORAGE_CLASS_NAME}" -n "${LSO_NAMESPACE}" &>/dev/null; then
+    echo "LocalVolume '${STORAGE_CLASS_NAME}' already exists, skipping."
 else
     echo "Creating LocalVolume CR..."
     kubectl apply -f - <<EOF
 apiVersion: local.storage.openshift.io/v1
 kind: LocalVolume
 metadata:
-  name: local-disks
+  name: ${STORAGE_CLASS_NAME}
   namespace: ${LSO_NAMESPACE}
 spec:
   nodeSelector:
