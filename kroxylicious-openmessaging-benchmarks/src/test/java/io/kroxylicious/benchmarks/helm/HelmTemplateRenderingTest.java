@@ -123,8 +123,8 @@ class HelmTemplateRenderingTest {
 
     @Test
     void shouldSetWorkersEnvironmentVariable() throws IOException {
-        // When: Rendering templates
-        String yaml = HelmUtils.renderTemplate();
+        // When: Rendering templates with benchmark job enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("omb.createBenchmarkJob", "true"));
         List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
         GenericKubernetesResource benchmarkJob = HelmUtils.findResourceTyped(resources, "Job", "omb-benchmark");
 
@@ -139,8 +139,8 @@ class HelmTemplateRenderingTest {
     @ParameterizedTest
     @ValueSource(ints = { 1, 3, 5 })
     void shouldGenerateCorrectNumberOfWorkerUrls(int workerReplicas) throws IOException {
-        // When: Rendering with custom worker replica count
-        String yaml = HelmUtils.renderTemplate(Map.of("omb.workerReplicas", String.valueOf(workerReplicas)));
+        // When: Rendering with custom worker replica count and benchmark job enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("omb.workerReplicas", String.valueOf(workerReplicas), "omb.createBenchmarkJob", "true"));
         List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
         GenericKubernetesResource benchmarkJob = HelmUtils.findResourceTyped(resources, "Job", "omb-benchmark");
 
@@ -246,14 +246,14 @@ class HelmTemplateRenderingTest {
 
     private List<GenericKubernetesResource> renderSmokeResources() throws IOException {
         Path smokeValues = Paths.get("helm/kroxylicious-benchmark/scenarios/smoke-values.yaml").toAbsolutePath();
-        String yaml = HelmUtils.renderTemplate(List.of(smokeValues), Map.of());
+        String yaml = HelmUtils.renderTemplate(List.of(smokeValues), Map.of("omb.createBenchmarkJob", "true"));
         return HelmUtils.parseKubernetesResourcesTyped(yaml);
     }
 
     @Test
     void shouldFormatWorkerUrlsCorrectly() throws IOException {
-        // When: Rendering templates with 3 workers
-        String yaml = HelmUtils.renderTemplate(Map.of("omb.workerReplicas", "3"));
+        // When: Rendering templates with 3 workers and benchmark job enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("omb.workerReplicas", "3", "omb.createBenchmarkJob", "true"));
         List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
         GenericKubernetesResource benchmarkJob = HelmUtils.findResourceTyped(resources, "Job", "omb-benchmark");
 
