@@ -25,8 +25,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * <p>
  * Intended for use in shell scripts to annotate sweep summary tables with noise warnings.
  */
-// TODO: update sweep summary saturation indicator to use [N] footnote callouts instead of sat@N(-D) syntax
-// TODO: update ResultComparator to use [N] footnote callouts instead of * markers, flipping to assume significance
 public class CheckSignificance {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
