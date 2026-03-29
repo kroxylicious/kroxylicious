@@ -1,6 +1,6 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Record Encryption Guide
-description: Using the record encryption filter to provide encryption-at-rest for Apache Kafka®
+description: Using the record encryption filter to provide encryption-at-rest for Apache Kafka®.
 tags:
   - security
   - filter

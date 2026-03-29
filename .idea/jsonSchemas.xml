@@ -6,18 +6,8 @@
         <entry key="doc-schema">
           <value>
             <SchemaInfo>
-              <option name="generatedName" value="New Schema" />
+              <option name="generatedName" value="Kroxylicious doc-schema" />
               <option name="name" value="doc-schema" />
-              <option name="relativePathToSchema" value="docs/doc-schema.yaml" />
-              <option name="schemaVersion" value="JSON Schema 202,012" />
-            </SchemaInfo>
-          </value>
-        </entry>
-        <entry key="doc-schema 2">
-          <value>
-            <SchemaInfo>
-              <option name="generatedName" value="New Schema" />
-              <option name="name" value="doc-schema 2" />
               <option name="relativePathToSchema" value="kroxylicious-docs/docs/doc-schema.yaml" />
               <option name="schemaVersion" value="JSON Schema 202,012" />
               <option name="patterns">

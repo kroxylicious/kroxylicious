@@ -1,6 +1,6 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Kroxylicious Operator for Kubernetes
-description: Deploying and running the Proxy in a Kubernetes environment using the Kroxylicious Operator
+description: Using the Kroxylicious Operator to deploy and run the Proxy in a Kubernetes environment.
 tags:
   - kubernetes
 rank: "020"

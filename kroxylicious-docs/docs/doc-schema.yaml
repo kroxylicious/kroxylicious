@@ -11,8 +11,13 @@ properties:
     description: The name of this document.
     type: string
   description:
-    description: A description of this document.
+    description: |
+      A description of this document. This should be one or more complete sentences, ending with punctuation.
+      For Quick State guides, the first sentence should begin "Start here ...".
+      For other guides the suggested pattern is to begin the first sentence with a present participle, and 
+      to keep it task-oriented. For example, "Using the Foo to frobnicate a bar."
     type: string
+    pattern: (.|\r?\n)*[.!?]
   tags:
     description: Tags to associate with this document
     type: array

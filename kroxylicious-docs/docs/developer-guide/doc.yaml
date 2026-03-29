@@ -1,6 +1,6 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Kroxylicious Developer Guide
-description: Writing plugins for the proxy in the Java programming language
+description: Writing plugins for the proxy in the Java programming language.
 tags:
   - developer
 rank: "032"

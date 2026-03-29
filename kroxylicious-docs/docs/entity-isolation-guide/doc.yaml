@@ -1,6 +1,7 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Entity Isolation Guide
-description: Using the entity isolation filter to give authenticated user a private namespace within a Kafka® cluster.
+description: Using the entity isolation filter to give authenticated Kafka® clients a 
+  private namespace within a Kafka cluster.
 tags:
   - filter
 rank: "025"

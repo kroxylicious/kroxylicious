@@ -1,6 +1,6 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Authorization Guide
-description: Using the Authorization filter to provide Kafka-equivalent access controls within the proxy.
+description: Using the Authorization filter to provide Kafka®-equivalent access controls within the proxy.
 tags:
   - security
   - filter

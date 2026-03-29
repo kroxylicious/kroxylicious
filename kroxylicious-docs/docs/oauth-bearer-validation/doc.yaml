@@ -1,6 +1,8 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Oauth Bearer Validation guide
-description: Using the Oauth Bearer validation filter to validate JWT tokens received from Kafka® clients.
+description: | 
+  Using the Oauth Bearer validation filter to validate JWT tokens received 
+  from Kafka® clients during authentication.
 tags:
   - filter
   - security
