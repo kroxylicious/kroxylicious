@@ -272,9 +272,13 @@ print_summary() {
                     "$(printf '%.2f ms' "${s_p99}")"
                 if [[ -n "${baseline_dir}" ]]; then
                     if [[ -n "${baseline_p99}" ]]; then
-                        local overhead
+                        local overhead callout=""
                         overhead=$(awk -v s="${s_p99}" -v b="${baseline_p99}" 'BEGIN { abs = s - b; rel = (b > 0) ? (abs / b * 100) : 0; printf "+%.2f ms (+%.0f%%)", abs, rel }')
-                        printf "  %-20s" "${overhead}"
+                        local bf="${baseline_dir}/rate-${rate}/result.json"
+                        if ! "${SCRIPT_DIR}/check-significance.sh" "${bf}" "${sf}" &>/dev/null; then
+                            callout=" [1]"
+                        fi
+                        printf "  %-20s" "${overhead}${callout}"
                     else
                         printf "  %-20s" "—"
                     fi
@@ -284,6 +288,9 @@ print_summary() {
         printf "\n"
     done
     echo ""
+    if [[ -n "${baseline_dir}" ]]; then
+        echo "[1] Caution: Difference between baseline and candidate is not statistically significant (MWU p > 0.05) — measurement noise or other environmental factors may have affected the benchmark."
+    fi
 }
 
 # --- Main ---
