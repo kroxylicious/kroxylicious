@@ -196,6 +196,12 @@ class ResultComparatorTest {
         void footnoteExplainsSignificanceMarker() throws IOException {
             assertThat(runComparison()).contains("p < 0.05");
         }
+
+        @Test
+        void throughputDataRowsShowPValue() throws IOException {
+            List<String> dataRows = extractSection(runComparison(), "Total Throughput");
+            assertThat(dataRows).allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
+        }
     }
 
     @Nested

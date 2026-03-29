@@ -77,13 +77,12 @@ public class ResultComparator {
     }
 
     private void printThroughput(PrintStream out) {
-        out.println();
-        out.println("Total Throughput (msg/s)");
-        out.printf("  %-25s %12s %12s %12s %10s%n", "Metric", "Baseline", "Candidate", "Delta", "%Change");
-        out.printf("  %-25s %12s %12s %12s %10s%n",
-                "-------------------------", SEPARATOR, SEPARATOR, SEPARATOR, SEPARATOR_NARROW);
-        printRow(out, "Publish Rate", baseline.getPublishRate(), candidate.getPublishRate());
-        printRow(out, "Consume Rate", baseline.getConsumeRate(), candidate.getConsumeRate());
+        List<LatencyComparison> rows = List.of(
+                new LatencyComparison("Publish Rate", baseline.getPublishRate(), candidate.getPublishRate(),
+                        baseline.getPublishRateWindows(), candidate.getPublishRateWindows()),
+                new LatencyComparison("Consume Rate", baseline.getConsumeRate(), candidate.getConsumeRate(),
+                        baseline.getConsumeRateWindows(), candidate.getConsumeRateWindows()));
+        printLatencySection(out, "Total Throughput (msg/s)", rows);
     }
 
     private void printLatencySection(PrintStream out, String title, List<LatencyComparison> rows) {
@@ -105,10 +104,4 @@ public class ResultComparator {
                 c.label(), c.baseline(), c.candidate(), c.delta(), pctChange, pValue);
     }
 
-    private static void printRow(PrintStream out, String label, double baselineVal, double candidateVal) {
-        double delta = candidateVal - baselineVal;
-        double pct = baselineVal != 0 ? delta / baselineVal * 100.0 : 0.0;
-        out.printf("  %-25s %12.2f %12.2f %12.2f %+10.1f%%%n",
-                label, baselineVal, candidateVal, delta, pct);
-    }
 }
