@@ -188,9 +188,9 @@ fi
 
 echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
 HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
-for profile_file in "${PROFILE_VALUES[@]}"; do HELM_ARGS+=(-f "${profile_file}"); done
+for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do HELM_ARGS+=(-f "${profile_file}"); done
 HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
-for set_arg in "${HELM_SET_ARGS[@]}"; do HELM_ARGS+=(--set "${set_arg}"); done
+for set_arg in ${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}; do HELM_ARGS+=(--set "${set_arg}"); done
 
 helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}"
 
