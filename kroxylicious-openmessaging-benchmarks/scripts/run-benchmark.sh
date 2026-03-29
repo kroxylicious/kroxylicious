@@ -435,6 +435,13 @@ check_storage_class() {
     fi
 }
 
+# Register teardown to run on exit (success or failure) so we always clean up.
+# Registered unconditionally so --skip-deploy probes also tear down on failure.
+# Skipped when --skip-teardown is set, leaving infrastructure up for debugging.
+if [[ "${SKIP_TEARDOWN}" == "false" ]]; then
+    trap teardown EXIT
+fi
+
 if [[ "${SKIP_DEPLOY}" == "false" ]]; then
     check_storage_class
 
@@ -448,12 +455,6 @@ if [[ "${SKIP_DEPLOY}" == "false" ]]; then
 
     echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
     helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" --timeout 300s
-
-    # Register teardown to run on exit (success or failure) so we always clean up.
-    # Skipped when --skip-teardown is set, leaving infrastructure up for debugging.
-    if [[ "${SKIP_TEARDOWN}" == "false" ]]; then
-        trap teardown EXIT
-    fi
 
     # --- Wait for Kafka ---
 
