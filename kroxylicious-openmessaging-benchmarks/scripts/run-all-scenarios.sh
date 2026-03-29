@@ -10,6 +10,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Scenarios to run in order. Results are compared pairwise: each scenario vs baseline.
+# Note: the encryption scenario requires an additional KMS profile (e.g. --profile vault-values.yaml
+# or --profile aws-kms-values.yaml) and must be run separately via run-benchmark.sh.
 SCENARIOS=(baseline proxy-no-filters)
 
 # Workloads to run for each scenario.

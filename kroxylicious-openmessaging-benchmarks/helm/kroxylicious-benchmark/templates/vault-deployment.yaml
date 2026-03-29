@@ -42,8 +42,4 @@ spec:
           periodSeconds: 5
         resources:
           {{- toYaml .Values.vault.resources | nindent 10 }}
-        securityContext:
-          capabilities:
-            add:
-            - IPC_LOCK
 {{- end }}

@@ -42,7 +42,7 @@ Results include benchmark.jfr and flamegraph.html written to output-dir.
 
 Arguments:
   scenario    Scenario name matching a file in helm/scenarios/<scenario>-values.yaml
-              Available: baseline, proxy-no-filters
+              Available: baseline, proxy-no-filters, encryption
   workload    Workload name (e.g. 1topic-1kb, 10topics-1kb, 100topics-1kb)
   output-dir  Directory to write result JSON and run metadata into
 

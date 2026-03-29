@@ -11,7 +11,7 @@ metadata:
 spec:
   type: io.kroxylicious.filter.encryption.RecordEncryption
   configTemplate:
-    kms: {{ .Values.encryption.kms.type }}
+    kms: {{ .Values.encryption.kms.type | quote }}
     kmsConfig:
       {{- toYaml .Values.encryption.kms.config | nindent 6 }}
     selector: io.kroxylicious.filter.encryption.TemplateKekSelector

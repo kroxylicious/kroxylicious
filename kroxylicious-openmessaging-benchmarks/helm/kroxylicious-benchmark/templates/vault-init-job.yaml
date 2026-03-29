@@ -16,7 +16,7 @@ metadata:
   labels:
     app: vault
   annotations:
-    "helm.sh/hook": post-install
+    "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": hook-succeeded
 spec:
@@ -54,10 +54,10 @@ spec:
           fi
 
           echo "Creating KEK '{{ .Values.encryption.kekName }}'..."
-          if vault read transit/keys/{{ .Values.encryption.kekName }} >/dev/null 2>&1; then
+          if vault read "transit/keys/{{ .Values.encryption.kekName }}" >/dev/null 2>&1; then
             echo "  KEK already exists."
           else
-            vault write -f transit/keys/{{ .Values.encryption.kekName }}
+            vault write -f "transit/keys/{{ .Values.encryption.kekName }}"
             echo "  KEK created."
           fi
 
