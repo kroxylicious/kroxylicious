@@ -110,6 +110,16 @@ if [[ -z "${MAX_RATE}" ]]; then
     usage
 fi
 
+if ! [[ "${MIN_RATE}" =~ ^[0-9]+$ ]]; then
+    echo "Error: --min-rate must be a positive integer, got: ${MIN_RATE}" >&2
+    exit 1
+fi
+
+if ! [[ "${MAX_RATE}" =~ ^[0-9]+$ ]]; then
+    echo "Error: --max-rate must be a positive integer, got: ${MAX_RATE}" >&2
+    exit 1
+fi
+
 if [[ "${MAX_RATE}" -lt "${MIN_RATE}" ]]; then
     echo "Error: --max-rate (${MAX_RATE}) must be >= --min-rate (${MIN_RATE})" >&2
     exit 1
@@ -187,7 +197,7 @@ print_summary() {
     while IFS= read -r rate; do
         rates+=("${rate}")
     done < <(find "${ref_dir}" -maxdepth 1 -name 'rate-*' -type d 2>/dev/null \
-        | sed 's|.*rate-||' | sort -n)
+        | xargs -n1 basename | sed 's/^rate-//' | sort -n)
 
     if [[ ${#rates[@]} -eq 0 ]]; then
         echo "No results found in ${ref_dir} — cannot produce summary" >&2
