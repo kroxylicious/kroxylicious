@@ -193,14 +193,29 @@ class ResultComparatorTest {
         }
 
         @Test
-        void footnoteExplainsSignificanceMarker() throws IOException {
-            assertThat(runComparison()).contains("p < 0.05");
-        }
-
-        @Test
         void throughputDataRowsShowPValue() throws IOException {
             List<String> dataRows = extractSection(runComparison(), "Total Throughput");
             assertThat(dataRows).allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
+        }
+
+        @Test
+        void significantRowsHaveNoAsteriskMarker() throws IOException {
+            // baseline vs proxy has significant differences — no * should appear
+            assertThat(runComparison()).doesNotContain("*");
+        }
+
+        @Test
+        void noiseCalloutAppearsWhenResultsAreNotSignificant() throws IOException {
+            // baseline vs itself: identical data, MWU p = 1.0, not significant → [1] should appear
+            OmbResult baseline;
+            try (InputStream is = ResultComparatorTest.class.getResourceAsStream("/omb-result-baseline.json")) {
+                baseline = MAPPER.readValue(is, OmbResult.class);
+            }
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8)) {
+                new ResultComparator(baseline, baseline).compare(ps);
+            }
+            assertThat(baos.toString(StandardCharsets.UTF_8)).contains("[1]");
         }
     }
 
