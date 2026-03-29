@@ -117,7 +117,13 @@ public class Webify implements Callable<Integer> {
             walk(omitGlobsMatchers, tocifyGlobMatcher, datafyGlobMatcher);
 
             // Copy additional directories if specified
-            if (copyDir != null && copyDest != null && Files.exists(copyDir)) {
+            if (copyDir != null) {
+                if (!Files.exists(copyDir)) {
+                    throw new WebifyException("--copy-dir was specified but " + copyDir + " does not exist");
+                }
+                if (copyDest == null) {
+                    throw new WebifyException("--copy-dir was specified but --copy-dest was not");
+                }
                 Path javadocDest = this.destdir.resolve(copyDest);
                 logger.info("Copying directory from {} to {}", copyDir, javadocDest);
                 Files.createDirectories(javadocDest);
@@ -365,6 +371,10 @@ public class Webify implements Callable<Integer> {
     }
 
     public static class WebifyException extends RuntimeException {
+        public WebifyException(String message) {
+            super(message);
+        }
+
         public WebifyException(String message, Throwable cause) {
             super(message, cause);
         }
