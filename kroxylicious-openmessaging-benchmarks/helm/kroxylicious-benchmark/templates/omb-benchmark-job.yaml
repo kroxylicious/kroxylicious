@@ -64,7 +64,7 @@ spec:
 
           # Apply producer rate override if specified
           if [[ -n "${PRODUCER_RATE}" ]]; then
-            sed "s/^producerRate:.*/producerRate: ${PRODUCER_RATE}/" \
+            sed "s|^producerRate:.*|producerRate: ${PRODUCER_RATE}|" \
               /etc/omb/workloads/workload.yaml > /tmp/workload.yaml
           else
             cp /etc/omb/workloads/workload.yaml /tmp/workload.yaml
