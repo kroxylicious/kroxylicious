@@ -1,5 +1,7 @@
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: https://kroxylicious.io/doc-schema.yaml
+title: Kroxylicious documentation metadata schema
+description: The schema for Kroxylicious documentation metadata (`doc.yaml`)
 type: object
 required:
   - title
@@ -22,6 +24,8 @@ properties:
         - developer
         - filter
         - kubernetes
+        - security
+        - governance
   path:
     description: |
       Optional URL pointing to the documentation. Relative paths are interpreted as relative to the 

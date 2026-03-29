@@ -1,6 +1,7 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
-title: Proxy guide
-description: Covers using the proxy, including configuration, security and operation.
+title: Proxy Guide
+description: Using the proxy, including configuration, security and operation.
 tags:
   - proxy
+  - security
 rank: "010"

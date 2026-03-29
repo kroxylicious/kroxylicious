@@ -1,6 +1,7 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Connection Expiration Guide
-description: Covers using the connection expiration filter, including configuration.
+description: Using the connection expiration filter to avoid connection skew in Kubernetes environments
 tags:
+  - kubernetes
   - filter
 rank: "030"

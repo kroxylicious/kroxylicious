@@ -13,6 +13,25 @@
             </SchemaInfo>
           </value>
         </entry>
+        <entry key="doc-schema 2">
+          <value>
+            <SchemaInfo>
+              <option name="generatedName" value="New Schema" />
+              <option name="name" value="doc-schema 2" />
+              <option name="relativePathToSchema" value="kroxylicious-docs/docs/doc-schema.yaml" />
+              <option name="schemaVersion" value="JSON Schema 202,012" />
+              <option name="patterns">
+                <list>
+                  <Item>
+                    <option name="pattern" value="true" />
+                    <option name="path" value="doc.yaml" />
+                    <option name="mappingKind" value="Pattern" />
+                  </Item>
+                </list>
+              </option>
+            </SchemaInfo>
+          </value>
+        </entry>
       </map>
     </state>
   </component>

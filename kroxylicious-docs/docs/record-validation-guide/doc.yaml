@@ -1,6 +1,7 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Record Validation Guide
-description: Covers using the record validation filter.
+description: Using the record validation filter to ensure records are valid according to rules including schema validity and signature validity.
 tags:
+  - governance
   - filter
 rank: "021"
