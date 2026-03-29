@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -141,5 +142,39 @@ class OmbResultTest {
     @Test
     void endToEndLatency999pctWindowsAreDeserialized() {
         assertThat(baseline.getEndToEndLatency999pctWindows()).containsExactly(65.0, 70.0, 74.0);
+    }
+
+    @Nested
+    class NullRateArrays {
+
+        private static OmbResult nullRates;
+
+        @BeforeAll
+        static void loadFixture() throws IOException {
+            // Minimal JSON with no publishRate/consumeRate fields (absent → null after deserialization)
+            nullRates = MAPPER.readValue(
+                    "{\"topics\":1,\"producersPerTopic\":1,\"consumersPerTopic\":1}",
+                    OmbResult.class);
+        }
+
+        @Test
+        void getPublishRateReturnsZeroWhenArrayIsNull() {
+            assertThat(nullRates.getPublishRate()).isZero();
+        }
+
+        @Test
+        void getConsumeRateReturnsZeroWhenArrayIsNull() {
+            assertThat(nullRates.getConsumeRate()).isZero();
+        }
+
+        @Test
+        void getPublishRateWindowsReturnsEmptyWhenArrayIsNull() {
+            assertThat(nullRates.getPublishRateWindows()).isEmpty();
+        }
+
+        @Test
+        void getConsumeRateWindowsReturnsEmptyWhenArrayIsNull() {
+            assertThat(nullRates.getConsumeRateWindows()).isEmpty();
+        }
     }
 }
