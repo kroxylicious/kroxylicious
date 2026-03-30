@@ -1,6 +1,6 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Multi-tenancy Guide
-description: Covers using the multi-tenancy filter.
+description: Using the multi-tenancy filter to present a single Kafka® cluster as if it were multiple clusters.
 tags:
   - filter
 rank: "022"
