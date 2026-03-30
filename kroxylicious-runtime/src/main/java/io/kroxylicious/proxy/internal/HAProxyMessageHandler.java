@@ -38,14 +38,13 @@ public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage haProxyMessage) {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Received HAProxy message: sourceAddress={}, sourcePort={}, destinationAddress={}, destinationPort={}",
-                        ctx.channel(),
-                        haProxyMessage.sourceAddress(),
-                        haProxyMessage.sourcePort(),
-                        haProxyMessage.destinationAddress(),
-                        haProxyMessage.destinationPort());
-            }
+            LOGGER.atDebug()
+                    .addKeyValue("channelId", () -> ctx.channel().toString())
+                    .addKeyValue("sourceAddress", haProxyMessage.sourceAddress())
+                    .addKeyValue("sourcePort", haProxyMessage.sourcePort())
+                    .addKeyValue("destinationAddress", haProxyMessage.destinationAddress())
+                    .addKeyValue("destinationPort", haProxyMessage.destinationPort())
+                    .log("received HAProxy message");
             // Forward to state machine for processing - do not propagate to filters
             proxyChannelStateMachine.onClientRequest(haProxyMessage);
         }

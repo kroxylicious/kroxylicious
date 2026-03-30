@@ -84,7 +84,7 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
             finally {
                 POISON_PILL.getFuture().complete(null);
                 networkBindingExecutor.shutdown();
-                LOGGER.debug("Network event processor shutdown");
+                LOGGER.atDebug().log("network event processor shutdown");
             }
         });
     }
@@ -96,7 +96,9 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
         catch (Exception e) {
             // We don't expect performBindingOperation to throw an exception but if it does,
             // we don't want to break the executor loop.
-            LOGGER.error("Unexpected error performing the binding operation", e);
+            LOGGER.atError()
+                    .setCause(e)
+                    .log("unexpected error performing the binding operation");
         }
     }
 

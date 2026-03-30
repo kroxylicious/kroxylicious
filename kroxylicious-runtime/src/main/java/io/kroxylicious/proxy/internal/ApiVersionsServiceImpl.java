@@ -97,26 +97,48 @@ public class ApiVersionsServiceImpl {
                 apiKey.messageType.lowestSupportedVersion());
         if (ApiKeys.PRODUCE.equals(apiKey)
                 && key.minVersion() <= apiKey.messageType.lowestSupportedVersion()) {
-            LOGGER.trace("{}: {} min version downgraded to v0 (is: {}) to support KAFKA-18659", sessionId, apiKey, key.minVersion());
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("currentMinVersion", key.minVersion())
+                    .log("min version downgraded to v0 to support KAFKA-18659");
             key.setMinVersion(apiKey.messageType.lowestDeprecatedVersion());
         }
         else if (mutualMin != key.minVersion()) {
-            LOGGER.trace("{}: {} min version changed to {} (was: {})", sessionId, apiKey, mutualMin, key.maxVersion());
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("newMinVersion", mutualMin)
+                    .addKeyValue("oldMinVersion", key.minVersion())
+                    .log("min version changed");
             key.setMinVersion(mutualMin);
         }
         else {
-            LOGGER.trace("{}: {} min version unchanged (is: {})", sessionId, apiKey, mutualMin);
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("minVersion", mutualMin)
+                    .log("min version unchanged");
         }
 
         short mutualMax = (short) Math.min(
                 key.maxVersion(),
                 apiKeysShortFunction.apply(apiKey));
         if (mutualMax != key.maxVersion()) {
-            LOGGER.trace("{}: {} max version changed to {} (was: {})", sessionId, apiKey, mutualMin, key.maxVersion());
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("newMaxVersion", mutualMax)
+                    .addKeyValue("oldMaxVersion", key.maxVersion())
+                    .log("max version changed");
             key.setMaxVersion(mutualMax);
         }
         else {
-            LOGGER.trace("{}: {} max version unchanged (is: {})", sessionId, apiKey, mutualMin);
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("maxVersion", mutualMax)
+                    .log("max version unchanged");
         }
     }
 
