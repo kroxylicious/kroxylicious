@@ -9,7 +9,7 @@ Format `<github issue/pr number>: <short description>`.
 
 * [#3535](https://github.com/kroxylicious/kroxylicious/issues/3535): bugfix: bootstrapServers containing whitespace parsed unexpectedly
 * [#3496](https://github.com/kroxylicious/kroxylicious/issues/3496): feat(runtime): make Netty shutdown durations configurable
-* [#3457](https://github.com/kroxylicious/kroxylicious/issues/3457): refactor(config): register DurationSerde globally on ObjectMapper rather than per-field
+* [#3457](https://github.com/kroxylicious/kroxylicious/issues/3457): refactor(config): register DurationSerde globally on ObjectMapper rather than per-field (see [note](#note-020-duration-serializer))
 * [#3534](https://github.com/kroxylicious/kroxylicious/pull/3534): (docs) Include our Javadocs on kroxylicious.io website
 * [#3449](https://github.com/kroxylicious/kroxylicious/pull/3449): Add Connection Expiration filter that closes client connections after a configurable maximum age, helping to rebalance connections across proxy instances in dynamic environments like Kubernetes.
 * [#2697](https://github.com/kroxylicious/kroxylicious/issues/2697) EntityIsolationFilter (restricted to groupId and transactionalId entity type only)
@@ -40,7 +40,7 @@ Format `<github issue/pr number>: <short description>`.
 * The operator now has the ability to enable external access to a Virtual Cluster via OpenShift Routes using `KafkaProxyIngress.spec.openShiftRoute`.
   This enables off-cluster client access on OpenShift, with graceful rejection when the Route API is unavailable.
 * The preview Authorization Filter no longer supports ConsumerGroupHeartbeat version 1 RPCs, see [#3561](https://github.com/kroxylicious/kroxylicious/issues/3561).
-* The Proxy now registers a custom Duration serialization/deserialization module on the config ObjectMapper, meaning Filter Config classes can use Duration and it will
+* <a id="note-020-duration-serializer"></a>The Proxy now registers a custom Duration serialization/deserialization module on the config ObjectMapper, meaning Filter Config classes can use Duration and it will
   be serialized to/from golang-style strings (e.g "1h" for 1 hour) without adding any annotations to your parameters.
 * Javadoc for public APIs will now be published on the website, alongside the other per-version documentation when we create a new release
 
