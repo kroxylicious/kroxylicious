@@ -168,37 +168,34 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
     private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
         boolean mayContainSecret = message instanceof DescribeConfigsResponseData;
         LOGGER.atDebug()
-                .addArgument(context::sessionId)
-                .addArgument(context::authenticatedSubject)
-                .addArgument(description)
-                .addArgument(key)
-                .addArgument(mayContainSecret ? "<redacted>" : message)
-                .setMessage("{} for {}: {} {}: {}")
-                .log();
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("subject", context.authenticatedSubject())
+                .addKeyValue("description", description)
+                .addKeyValue("key", key)
+                .addKeyValue("message", mayContainSecret ? "<redacted>" : message)
+                .log("entity isolation operation");
     }
 
     private static void logUnexpectedApiVersion(FilterContext context, ApiKeys key, short version, short minVersion, short maxVersion) {
         LOGGER.atWarn()
-                .addArgument(context::sessionId)
-                .addArgument(context::authenticatedSubject)
-                .addArgument(key)
-                .addArgument(version)
-                .addArgument(minVersion)
-                .addArgument(maxVersion)
-                .setMessage("{} for {}: {} (version {}) falls outside range {}...{} known to this filter. Closing connection.")
-                .log();
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("subject", context.authenticatedSubject())
+                .addKeyValue("key", key)
+                .addKeyValue("version", version)
+                .addKeyValue("minVersion", minVersion)
+                .addKeyValue("maxVersion", maxVersion)
+                .log("API version falls outside range known to this filter, closing connection");
     }
 
     private static void logMappingException(FilterContext context, ApiKeys key, short version, Throwable cause) {
         LOGGER.atWarn()
-                .addArgument(context::sessionId)
-                .addArgument(context::authenticatedSubject)
-                .addArgument(key)
-                .addArgument(version)
-                .addArgument(cause.getMessage())
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("subject", context.authenticatedSubject())
+                .addKeyValue("key", key)
+                .addKeyValue("version", version)
+                .addKeyValue("error", cause.getMessage())
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                .setMessage("{} for {}: {} (version {}) failed. Closing connection. Cause message {}. Raise log level to DEBUG to see the stack.")
-                .log();
+                .log("operation failed, closing connection, raise log level to DEBUG for stacktrace");
     }
 
     private class ApiVersionsHandler implements EntityIsolationProcessor<ApiVersionsRequestData, ApiVersionsResponseData, Void> {
