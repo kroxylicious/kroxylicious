@@ -97,6 +97,14 @@ public final class KafkaServiceReconciler implements
                 .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context))
                 .build();
 
+        InformerEventSourceConfiguration<Secret> serviceToStrimziCaCertificate = InformerEventSourceConfiguration.from(
+                Secret.class,
+                KafkaService.class)
+                .withName(SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToStrimziCaCertificateSecondary())
+                .withSecondaryToPrimaryMapper(new StrimziCaCertificateSecondaryToKafkaServicePrimary(context))
+                .build();
+
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();
 
         informersList.add(new InformerEventSource<>(serviceToSecret, context));
@@ -104,7 +112,7 @@ public final class KafkaServiceReconciler implements
         informersList.add(new InformerEventSource<>(serviceToSecretTrustAnchorRef, context));
 
         APIGroup strimziKafkaApiGroup = context.getClient().getApiGroup(STRIMZI_KAFKA_GROUP_NAME);
-
+        
         if (strimziKafkaApiGroup != null) {
             LOGGER.debug("Adding `kafkas.strimzi.io.kafkas` informer because the Strimzi Kafka CRD is present in namespace: {}", context.getClient().getNamespace());
             InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
@@ -115,6 +123,7 @@ public final class KafkaServiceReconciler implements
                     .withSecondaryToPrimaryMapper(new StrimziKafkaSecondaryToKafkaServicePrimaryMapper(context))
                     .build();
             informersList.add(new InformerEventSource<>(serviceToStrimziKafka, context));
+            informersList.add(new InformerEventSource<>(serviceToStrimziCaCertificate, context));
         }
 
         return informersList;

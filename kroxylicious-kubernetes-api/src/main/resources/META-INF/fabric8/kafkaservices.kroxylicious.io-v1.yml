@@ -215,20 +215,23 @@ spec:
                   description: |
                     The metadata.generation that was observed during the last reconciliation by the operator.
                   type: integer
-                strimziTrustAnchorRef:
+                tls:
                   type: object
                   properties:
-                    name:
-                      description: The name of the resource containing the TLS client certificate.
-                      type: string
-                    storeType:
-                      description: The format of the key store containing the trusted CA certificates.
-                      type: string
-                    key:
-                      description: |
-                                  The name of the key identifying the certificate bundle within the resource.
-                                  Supported formats for the bundle are: PEM, PKCS#12 and JKS.
-                      type: string
+                      trustAnchor:
+                        type: object
+                        description: Configuration for the TLS trust anchor (CA certificates).
+                        properties:
+                          name:
+                            type: string
+                            description: The name of the Secret or ConfigMap containing the Strimzi-generated CA certificate.
+                          storeType:
+                            type: string
+                            description: The format of the store.
+                          key:
+                            type: string
+                            description: |
+                              The key within the resource identifying the certificate bundle.
                 bootstrapServers:
                   description: |
                     The bootstrap address of the target cluster.
