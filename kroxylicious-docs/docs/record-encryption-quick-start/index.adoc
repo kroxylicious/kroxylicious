@@ -14,13 +14,13 @@ include::_assets/attributes.adoc[]
 :quickstart: record-encryption
 
 [id="quickstart-{context}"]
-= Record Encryption Quickstart
+= Record Encryption Quick Start
 
 [role="_abstract"]
 
 Are you looking for an https://kroxylicious.io/use-cases/#encryption-at-rest[encryption-at-rest] solution for data stored in your Apache Kafka?
 
-This quickstart guide will show you how to do that on Kubernetes ... from scratch ... without external dependencies.
+This quick start guide will show you how to do that on Kubernetes ... from scratch ... without external dependencies.
 You'll be encrypting in a snap!
 
 == Objectives
