@@ -36,6 +36,8 @@ spec:
           value: "0.0.0.0:8200"
         - name: SKIP_SETCAP
           value: "true"
+        - name: HOME
+          value: "/tmp"
         readinessProbe:
           httpGet:
             path: /v1/sys/health
