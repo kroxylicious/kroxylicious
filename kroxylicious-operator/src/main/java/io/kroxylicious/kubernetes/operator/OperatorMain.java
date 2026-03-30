@@ -58,7 +58,7 @@ public class OperatorMain {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorMain.class);
     private static final String BIND_ADDRESS_VAR_NAME = "BIND_ADDRESS";
     /**
-     * Name of an environment that specifies a comma separated list of namespaces that the operator will watch.
+     * Name of an environment variable specifing a comma separated list of Kubernetes namespaces that the operator will watch.
      * If the environment variable is not set, or is empty, the Operator will watch all namespaces.
      */
     static final String KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME = "KROXYLICIOUS_WATCHED_NAMESPACES";
