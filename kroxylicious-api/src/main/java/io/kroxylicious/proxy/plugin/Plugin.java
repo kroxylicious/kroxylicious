@@ -20,5 +20,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface Plugin {
+    /**
+     * @return The type of configuration associated with the plugin implementation.
+     */
     Class<?> configType();
 }

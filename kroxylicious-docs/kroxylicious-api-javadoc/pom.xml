@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.20.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>kroxylicious-api-javadoc</artifactId>
+    <name>Kroxylicious API Javadoc</name>
+    <description>Aggregated Javadoc for public API modules</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-authorizer-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Annotation dependencies needed for javadoc generation -->
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Skip dependency analysis - this is a javadoc aggregation module -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <!-- Javadoc aggregation -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <!-- Override parent's skip=true -->
+                    <skip>false</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>javadoc-jar</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <phase>compile</phase>
+                        <configuration>
+                            <includeDependencySources>true</includeDependencySources>
+                            <dependencySourceIncludes>
+                                <dependencySourceInclude>io.kroxylicious:kroxylicious-api</dependencySourceInclude>
+                                <dependencySourceInclude>io.kroxylicious:kroxylicious-authorizer-api</dependencySourceInclude>
+                                <dependencySourceInclude>io.kroxylicious:kroxylicious-kms</dependencySourceInclude>
+                            </dependencySourceIncludes>
+                            <source>17</source>
+                            <detectJavaApiLink>true</detectJavaApiLink>
+                            <detectLinks>false</detectLinks>
+                            <failOnError>false</failOnError>
+                            <failOnWarnings>false</failOnWarnings>
+                            <links>
+                                <link>https://javadoc.io/doc/org.apache.kafka/kafka-clients/${kafka.version}/</link>
+                            </links>
+                            <bottom><![CDATA[
+                                Copyright &#169; {currentYear} Kroxylicious Authors. Licensed under the Apache License, Version 2.0.
+                            ]]></bottom>
+                            <reportOutputDirectory>${project.build.directory}</reportOutputDirectory>
+                            <destDir>apidocs</destDir>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
