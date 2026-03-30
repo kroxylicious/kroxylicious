@@ -26,8 +26,9 @@ import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireForma
 import io.kroxylicious.filter.validation.validators.Result;
 
 /**
- * Base class for schema-based record validators that validate Kafka record values (or keys)
+ * Base class for schema-based record validators that validate Kafka record keys or values
  * against a schema stored in Apicurio Registry.
+ * This checks both that the record key or value has the expected schemaId, and that the key or value bytes validate against that schema.
  * <p>
  * This class handles the Apicurio serde wire format, extracting the schema identifier from
  * the record (either from Kafka headers or from a magic-byte prefix in the record body) and
