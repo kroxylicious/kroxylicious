@@ -90,10 +90,10 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
                 Cipher cipher = cipherFunc.apply(CipherSpecResolver.ALL.fromName(cipherSpec));
                 String provider = Optional.ofNullable(cipher.getProvider()).map(Provider::getName).orElse("(no provider)");
                 LOGGER.atInfo()
-                        .addKeyValue("cipher", cipher)
-                        .addKeyValue("provider", provider)
                         .addKeyValue("cipherSpec", cipherSpec)
-                        .log("Loaded Cipher from provider for CipherSpec");
+                        .addKeyValue("provider", provider)
+                        .addKeyValue("cipherAlgorithm", cipher.getAlgorithm())
+                        .log("Loaded cipher from provider for CipherSpec");
                 return Stream.empty();
             }
             catch (Exception e) {

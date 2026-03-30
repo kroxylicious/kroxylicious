@@ -165,37 +165,36 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 context.clientSaslContext().orElse(null));
     }
 
-    private static void log(FilterContext context, String description, ApiKeys key, ApiMessage message) {
+    private static void log(FilterContext context, String description, ApiKeys apiKey, ApiMessage message) {
         boolean mayContainSecret = message instanceof DescribeConfigsResponseData;
         LOGGER.atDebug()
                 .addKeyValue("sessionId", context.sessionId())
-                .addKeyValue("subject", context.authenticatedSubject())
-                .addKeyValue("description", description)
-                .addKeyValue("key", key)
+                .addKeyValue("subject", context::authenticatedSubject)
+                .addKeyValue("apiKey", apiKey)
                 .addKeyValue("message", mayContainSecret ? "<redacted>" : message)
-                .log("entity isolation operation");
+                .log(description);
     }
 
-    private static void logUnexpectedApiVersion(FilterContext context, ApiKeys key, short version, short minVersion, short maxVersion) {
+    private static void logUnexpectedApiVersion(FilterContext context, ApiKeys apiKey, short apiVersion, short minVersion, short maxVersion) {
         LOGGER.atWarn()
                 .addKeyValue("sessionId", context.sessionId())
-                .addKeyValue("subject", context.authenticatedSubject())
-                .addKeyValue("key", key)
-                .addKeyValue("version", version)
+                .addKeyValue("subject", context::authenticatedSubject)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
                 .addKeyValue("minVersion", minVersion)
                 .addKeyValue("maxVersion", maxVersion)
                 .log("API version falls outside range known to this filter, closing connection");
     }
 
-    private static void logMappingException(FilterContext context, ApiKeys key, short version, Throwable cause) {
+    private static void logMappingException(FilterContext context, ApiKeys apiKey, short apiVersion, Throwable cause) {
         LOGGER.atWarn()
                 .addKeyValue("sessionId", context.sessionId())
-                .addKeyValue("subject", context.authenticatedSubject())
-                .addKeyValue("key", key)
-                .addKeyValue("version", version)
+                .addKeyValue("subject", context::authenticatedSubject)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
                 .addKeyValue("error", cause.getMessage())
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                .log("operation failed, closing connection, raise log level to DEBUG for stacktrace");
+                .log("operation failed, closing connection" + (LOGGER.isDebugEnabled() ? "" : ", raise log level to DEBUG for stacktrace"));
     }
 
     private class ApiVersionsHandler implements EntityIsolationProcessor<ApiVersionsRequestData, ApiVersionsResponseData, Void> {
