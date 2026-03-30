@@ -19,6 +19,8 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -74,6 +76,22 @@ class HAProxyMessageHandlerTest {
         verifyNoInteractions(proxyChannelStateMachine);
         // Should propagate to next handler
         verify(ctx).fireChannelRead(kafkaFrame);
+    }
+
+    @Test
+    void shouldReleaseHaProxyMessageWhenStateMachineThrows() throws Exception {
+        // Given
+        HAProxyMessage mockHaProxyMessage = mock(HAProxyMessage.class);
+        doThrow(new RuntimeException("state machine error")).when(proxyChannelStateMachine).onClientRequest(mockHaProxyMessage);
+
+        // When
+        assertThatThrownBy(() -> handler.channelRead(ctx, mockHaProxyMessage))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("state machine error");
+
+        // Then
+        verify(mockHaProxyMessage).release();
+        verifyNoInteractions(ctx);
     }
 
     @Test

@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.util.ReferenceCountUtil;
 
 /**
  * A channel handler that intercepts {@link HAProxyMessage} objects emitted by
@@ -46,8 +47,18 @@ public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
                         haProxyMessage.destinationAddress(),
                         haProxyMessage.destinationPort());
             }
-            // Forward to state machine for processing - do not propagate to filters
-            proxyChannelStateMachine.onClientRequest(haProxyMessage);
+            // Forward to state machine for processing - do not propagate to filters.
+            // Release the message if the state machine throws before taking ownership of it.
+            boolean released = false;
+            try {
+                proxyChannelStateMachine.onClientRequest(haProxyMessage);
+                released = true;
+            }
+            finally {
+                if (!released) {
+                    ReferenceCountUtil.release(haProxyMessage);
+                }
+            }
         }
         else {
             // Pass all other messages (Kafka frames) to the next handler

@@ -388,6 +388,74 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
+    void shouldReleaseHaProxyMessageWhenClosedFromHaProxyState() {
+        // Given
+        HAProxyMessage mockHaProxyMessage = mock(HAProxyMessage.class);
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.HaProxy(mockHaProxyMessage),
+                frontendHandler,
+                null,
+                TEST_KAFKA_SESSION);
+
+        // When
+        proxyChannelStateMachine.onClientInactive();
+
+        // Then
+        verify(mockHaProxyMessage).release();
+    }
+
+    @Test
+    void shouldReleaseHaProxyMessageWhenClosedFromSelectingServerState() {
+        // Given
+        HAProxyMessage mockHaProxyMessage = mock(HAProxyMessage.class);
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.SelectingServer(mockHaProxyMessage, null, null),
+                frontendHandler,
+                null,
+                TEST_KAFKA_SESSION);
+
+        // When
+        proxyChannelStateMachine.onClientInactive();
+
+        // Then
+        verify(mockHaProxyMessage).release();
+    }
+
+    @Test
+    void shouldReleaseHaProxyMessageWhenClosedFromConnectingState() {
+        // Given
+        HAProxyMessage mockHaProxyMessage = mock(HAProxyMessage.class);
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.Connecting(mockHaProxyMessage, null, null, BROKER_ADDRESS),
+                frontendHandler,
+                backendHandler,
+                TEST_KAFKA_SESSION);
+
+        // When
+        proxyChannelStateMachine.onClientInactive();
+
+        // Then
+        verify(mockHaProxyMessage).release();
+    }
+
+    @Test
+    void shouldReleaseHaProxyMessageWhenClosedFromForwardingState() {
+        // Given
+        HAProxyMessage mockHaProxyMessage = mock(HAProxyMessage.class);
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.Forwarding(mockHaProxyMessage, null, null),
+                frontendHandler,
+                backendHandler,
+                TEST_KAFKA_SESSION);
+
+        // When
+        proxyChannelStateMachine.onClientInactive();
+
+        // Then
+        verify(mockHaProxyMessage).release();
+    }
+
+    @Test
     void inHaProxyShouldBufferWhenOnClientMetadataRequest() {
         // Given
         stateMachineInHaProxy();
@@ -800,9 +868,14 @@ class ProxyChannelStateMachineTest {
                 TEST_KAFKA_SESSION);
     }
 
+    private static HAProxyMessage newHaProxyMessage() {
+        return new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+                "1.1.1.1", "2.2.2.2", 46421, 9092);
+    }
+
     private void stateMachineInHaProxy() {
         proxyChannelStateMachine.forceState(
-                new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                new ProxyChannelState.HaProxy(newHaProxyMessage()),
                 frontendHandler,
                 null,
                 TEST_KAFKA_SESSION);

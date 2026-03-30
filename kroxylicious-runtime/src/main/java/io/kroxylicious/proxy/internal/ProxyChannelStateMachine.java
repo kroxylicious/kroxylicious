@@ -23,6 +23,7 @@ import io.micrometer.core.instrument.Timer;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
@@ -695,11 +696,29 @@ public class ProxyChannelStateMachine {
         toClosed(errorCodeEx, null);
     }
 
+    @Nullable
+    private static HAProxyMessage extractHaProxyMessage(ProxyChannelState state) {
+        if (state instanceof ProxyChannelState.HaProxy haProxy) {
+            return haProxy.haProxyMessage();
+        }
+        else if (state instanceof ProxyChannelState.SelectingServer ss) {
+            return ss.haProxyMessage();
+        }
+        else if (state instanceof ProxyChannelState.Connecting conn) {
+            return conn.haProxyMessage();
+        }
+        else if (state instanceof ProxyChannelState.Forwarding fwd) {
+            return fwd.haProxyMessage();
+        }
+        return null;
+    }
+
     private void toClosed(@Nullable Throwable errorCodeEx, @Nullable DisconnectCause disconnectCause) {
         if (state instanceof Closed) {
             return;
         }
 
+        ReferenceCountUtil.release(extractHaProxyMessage(state));
         setState(new Closed());
 
         incrementAppropriateDisconnectsMetric(disconnectCause);
