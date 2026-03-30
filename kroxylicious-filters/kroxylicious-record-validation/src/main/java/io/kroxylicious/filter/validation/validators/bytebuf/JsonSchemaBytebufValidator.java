@@ -20,7 +20,7 @@ import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireForma
 import io.kroxylicious.filter.validation.validators.Result;
 
 /**
- * Validates Kafka record values against a JSON Schema stored in Apicurio Registry.
+ * Validates Kafka record keys and values against a JSON Schema stored in Apicurio Registry.
  * <p>
  * Supports JSON Schema drafts as accepted by Apicurio Registry (Draft-04 through Draft 2020-12).
  * The JSON payload is validated after stripping any Apicurio serde envelope (schema ID in

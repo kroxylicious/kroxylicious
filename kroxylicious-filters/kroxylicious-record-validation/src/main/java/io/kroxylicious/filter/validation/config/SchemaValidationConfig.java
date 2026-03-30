@@ -23,7 +23,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param tls optional TLS configuration for connecting to a schema registry protected by TLS
  * @param schemaType the type of schema to validate against (defaults to JSON_SCHEMA if null)
  */
-public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioId, WireFormatVersion wireFormatVersion, @Nullable Tls tls, SchemaType schemaType) {
+public record SchemaValidationConfig(URL apicurioRegistryUrl,
+                                     long apicurioId,
+                                     WireFormatVersion wireFormatVersion,
+                                     @Nullable Tls tls,
+                                     SchemaType schemaType) {
 
     /**
      * The type of schema stored in Apicurio Registry to validate against.
