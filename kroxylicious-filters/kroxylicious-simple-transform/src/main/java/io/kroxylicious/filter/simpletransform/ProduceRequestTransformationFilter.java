@@ -110,10 +110,9 @@ class ProduceRequestTransformationFilter implements ProduceRequestFilter {
         int failures = topicNameMapping.failures().size();
         boolean hasMore = failures > MAX_TOPIC_IDS_TO_LOG;
         LOGGER.atWarn()
-                .setMessage("failed to map {} topic ids ({}{}) to names for acks=0 request, " + outcome + ".")
-                .addArgument(() -> failures)
-                .addArgument(() -> firstThree)
-                .addArgument(() -> hasMore ? "..." : "")
-                .log();
+                .addKeyValue("failureCount", failures)
+                .addKeyValue("topicIds", () -> firstThree + (hasMore ? "..." : ""))
+                .addKeyValue("outcome", outcome)
+                .log("failed to map topic ids to names for acks=0 request");
     }
 }
