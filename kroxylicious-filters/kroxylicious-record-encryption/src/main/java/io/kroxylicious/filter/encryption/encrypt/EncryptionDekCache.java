@@ -85,9 +85,8 @@ public class EncryptionDekCache<K, E> {
                                                          @NonNull Executor executor) {
         return dekManager.generateDek(cacheKey.kek(), cipherSpecResolver.fromName(cacheKey.cipherSpec()))
                 .thenApply(dek -> {
-                    if (LOGGER.isTraceEnabled()) {
-                        LOGGER.trace("Adding DEK to cache: {}", dek);
-                    }
+                    LOGGER.atTrace()
+                            .log("adding DEK to cache");
                     dek.destroyForDecrypt();
                     return dek;
                 })
@@ -103,9 +102,8 @@ public class EncryptionDekCache<K, E> {
                                     RemovalCause removalCause) {
         if (dek != null) {
             dek.destroyForEncrypt();
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("Attempted to destroy DEK: {}", dek);
-            }
+            LOGGER.atTrace()
+                    .log("attempted to destroy DEK");
         }
     }
 
