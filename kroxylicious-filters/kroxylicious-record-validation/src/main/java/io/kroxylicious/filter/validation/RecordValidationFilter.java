@@ -107,7 +107,9 @@ class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFil
     private CompletionStage<RequestFilterResult> handleInvalidTopicPartitions(List<NamedTopicProduceData> requestTopicData,
                                                                               FilterContext context,
                                                                               ProduceRequestValidationResult result) {
-        LOGGER.debug("At least one topic-partitions with the request contained invalid records: {}. Produce request will be rejected.", result);
+        LOGGER.atDebug()
+                .addKeyValue("validationResult", result)
+                .log("At least one topic-partitions with the request contained invalid records. Produce request will be rejected.");
         ProduceResponseData response = invalidateEntireRequest(requestTopicData, result);
         return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
     }
@@ -167,7 +169,9 @@ class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFil
                                                                    FilterContext context) {
         ProduceRequestValidationResult produceRequestValidationResult = correlatedResults.remove(header.correlationId());
         if (produceRequestValidationResult != null) {
-            LOGGER.debug("augmenting invalid topic-partition details into response: {}", produceRequestValidationResult);
+            LOGGER.atDebug()
+                    .addKeyValue("validationResult", produceRequestValidationResult)
+                    .log("augmenting invalid topic-partition details into response");
             augmentResponseWithInvalidTopicPartitions(response, produceRequestValidationResult);
             return context.forwardResponse(header, response);
         }
