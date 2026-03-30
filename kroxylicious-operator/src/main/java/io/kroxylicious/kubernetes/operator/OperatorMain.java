@@ -59,7 +59,7 @@ public class OperatorMain {
     private static final String BIND_ADDRESS_VAR_NAME = "BIND_ADDRESS";
     /**
      * Name of an environment that specifies a comma separated list of namespaces that the operator will watch.
-     * If the environment variable is not set, is empty, or set to a value *, the Operator will watch all namespaces.
+     * If the environment variable is not set, or is empty, the Operator will watch all namespaces.
      */
     static final String KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME = "KROXYLICIOUS_WATCHED_NAMESPACES";
     private static final int DEFAULT_MANAGEMENT_PORT = 8080;
@@ -255,8 +255,7 @@ public class OperatorMain {
     private static Set<String> getWatchedNamespacesFromEnvironment() {
         var targets = Optional.ofNullable(System.getenv().get(KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME))
                 .map(String::trim)
-                .filter(Predicate.not(String::isEmpty))
-                .filter(Predicate.not("*"::equals));
+                .filter(Predicate.not(String::isEmpty));
 
         if (targets.isEmpty()) {
             return null;
@@ -265,6 +264,7 @@ public class OperatorMain {
         return targets.stream()
                 .flatMap(WATCHED_NAMESPACE_SPLITTER::splitAsStream)
                 .map(String::trim)
+                .filter(Predicate.not(String::isEmpty))
                 .collect(Collectors.toSet());
     }
 

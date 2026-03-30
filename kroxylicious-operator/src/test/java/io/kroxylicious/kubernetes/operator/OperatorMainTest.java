@@ -198,8 +198,8 @@ class OperatorMainTest {
     }
 
     @Test
-    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = "*")
-    void shouldNotOverrideOperatorNamespaceWhenEnvVarWildcard() {
+    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = "")
+    void shouldNotOverrideOperatorNamespaceWhenEnvVarEmpty() {
         doShouldNotOverrideOperatorNamespace();
     }
 
@@ -211,13 +211,43 @@ class OperatorMainTest {
     }
 
     @Test
-    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = "abc,def, ghi ")
-    void shouldOverrideOperatorNamespaces() {
+    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = "single")
+    void shouldOverrideOperatorNamespaceToSingletonNamespace() {
+        // When
+        operatorMain.start();
+
+        // Then
+        assertThat(operatorMain.getWatchedNamespaces()).containsExactly("single");
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = "abc,def,ghi")
+    void shouldOverrideOperatorNamespacesToManyNamespaces() {
         // When
         operatorMain.start();
 
         // Then
         assertThat(operatorMain.getWatchedNamespaces()).containsExactly("abc", "def", "ghi");
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = " abc ,def ")
+    void shouldTrimNamespaceNames() {
+        // When
+        operatorMain.start();
+
+        // Then
+        assertThat(operatorMain.getWatchedNamespaces()).containsExactly("abc", "def");
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = ",abc,")
+    void shouldIgnoreEmptyNamespaces() {
+        // When
+        operatorMain.start();
+
+        // Then
+        assertThat(operatorMain.getWatchedNamespaces()).containsExactly("abc");
     }
 
     private void shouldRespondWithStatusCode(ArgumentCaptor<HttpHandler> captor,
