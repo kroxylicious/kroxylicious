@@ -174,7 +174,8 @@ public class KafkaSteps {
      */
     public static List<String> getConsumerGroups(String clusterName) {
         List<String> consumerGroups = List.of();
-        List<Pod> kafkaPods = await().atMost(Duration.ofSeconds(10)).until(() -> kubeClient().listPods(Constants.KAFKA_DEFAULT_NAMESPACE, "app", clusterName),
+        List<Pod> kafkaPods = await().atMost(Duration.ofSeconds(10)).until(
+                () -> kubeClient().listPods(Constants.KAFKA_DEFAULT_NAMESPACE, "app.kubernetes.io/instance", clusterName),
                 p -> !p.isEmpty());
         // We will have in kafkaPods at least two pods: one entity-operator and at least one kafka-X
         Optional<Pod> kafkaPod = kafkaPods.stream().filter(p -> p.getMetadata().getName().contains("kafka")).findFirst();

@@ -98,7 +98,6 @@ public class KafkaTemplates {
                 .withNewMetadata()
                     .withName(clusterName)
                     .withNamespace(namespaceName)
-                    .addToLabels("app", clusterName)
                 .endMetadata()
                 .editSpec()
                     .editKafka()
