@@ -83,7 +83,7 @@ public class StrimziKafkaRef
     }
 
     public String toString() {
-        return this.getClass() + "(strimziKafkaRef=" + this.getRef() + ", listenerName=" + this.getListenerName() + ")";
+        return this.getClass() + "(strimziKafkaRef=" + this.getRef() + ", listenerName=" + this.getListenerName() + ", trustStrimziCaCertificate=" + this.getTrustStrimziCaCertificate() + ")";
     }
 
     @Override
