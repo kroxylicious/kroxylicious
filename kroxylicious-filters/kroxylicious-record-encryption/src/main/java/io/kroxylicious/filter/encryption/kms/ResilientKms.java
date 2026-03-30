@@ -96,10 +96,15 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         return schedule(operation, delay)
                 .exceptionallyCompose(e -> {
                     if (isUnknownEntityException(e) || (e instanceof CompletionException ce && (isUnknownEntityException(ce.getCause())))) {
-                        LOGGER.debug("not retrying unknown entity exception");
+                        LOGGER.atDebug()
+                                .log("not retrying unknown entity exception");
                         return CompletableFuture.failedFuture(e);
                     }
-                    LOGGER.debug("{} failed attempt {}", name, attempt, e);
+                    LOGGER.atDebug()
+                            .addKeyValue("kmsOperation", name)
+                            .addKeyValue("attempt", attempt)
+                            .setCause(e)
+                            .log("KMS operation failed attempt");
                     return retry(name, operation, attempt + 1, e);
                 });
     }
