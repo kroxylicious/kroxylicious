@@ -33,6 +33,7 @@
             <artifactId>kroxylicious-docs</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
+            <type>pom</type>
         </dependency>
     </dependencies>
 

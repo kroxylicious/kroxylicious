@@ -1,0 +1,6 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: Connection Expiration Guide
+description: Covers using the connection expiration filter, including configuration.
+tags:
+  - filter
+rank: "030"

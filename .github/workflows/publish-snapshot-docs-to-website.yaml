@@ -67,7 +67,7 @@ jobs:
         working-directory: kroxylicious
       
       - name: Build with Maven
-        run: mvn -Dquick -P dist package --pl kroxylicious-docs
+        run: mvn -Dquick -P dist package --pl kroxylicious-docs --am
         working-directory: kroxylicious
       
       - name: Checkout Website
