@@ -1,4 +1,4 @@
-# Running OpenMessaging Benchmarks - Quickstart
+# Running OpenMessaging Benchmarks - Quick Start
 
 Benchmark Kroxylicious proxy overhead in two steps: set up the cluster operators once,
 then run the benchmark suite.
