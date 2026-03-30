@@ -713,7 +713,12 @@ class SaslInspectionFilterTest {
         verify(context, never()).forwardRequest(any(), ArgumentMatchers.assertArg(r -> assertThat(ApiKeys.forId(r.apiKey())).isEqualTo(ApiKeys.METADATA)));
         verify(requestCloseOrTerminalStage).withCloseConnection();
         assertThat(logCaptor.getInfoLogs()).singleElement()
-                .isEqualTo("123-session-id-abc: Client attempted METADATA request without having attempted SASL authentication: closing connection with error");
+                .asString()
+                .contains("Client attempted request without having SASL authentication")
+                .contains("sessionId=\"123-session-id-abc\"")
+                .contains("apiKey=\"METADATA\"")
+                .contains("authenticationDisposition=\"attempted\"")
+                .contains("outcome=\"closing connection with error\"");
     }
 
     @SuppressWarnings("deprecation")
@@ -742,7 +747,12 @@ class SaslInspectionFilterTest {
                             .isEqualTo(ApiKeys.METADATA);
                 });
         assertThat(logCaptor.getInfoLogs()).singleElement()
-                .isEqualTo("123-session-id-abc: Client attempted METADATA request without having attempted SASL authentication: forwarding request");
+                .asString()
+                .contains("Client attempted request without having SASL authentication")
+                .contains("sessionId=\"123-session-id-abc\"")
+                .contains("apiKey=\"METADATA\"")
+                .contains("authenticationDisposition=\"attempted\"")
+                .contains("outcome=\"forwarding request\"");
     }
 
     @SuppressWarnings("deprecation")
@@ -777,7 +787,12 @@ class SaslInspectionFilterTest {
                             .isEqualTo(ApiKeys.METADATA);
                 });
         assertThat(logCaptor.getInfoLogs())
-                .contains("123-session-id-abc: Client attempted METADATA request without having completed SASL authentication: forwarding request");
+                .anySatisfy(log -> assertThat(log)
+                        .contains("Client attempted request without having SASL authentication")
+                        .contains("sessionId=\"123-session-id-abc\"")
+                        .contains("apiKey=\"METADATA\"")
+                        .contains("authenticationDisposition=\"completed\"")
+                        .contains("outcome=\"forwarding request\""));
     }
 
     private void doAuthenticateSuccessfully(SaslObserverFactory saslObserverFactory, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {
