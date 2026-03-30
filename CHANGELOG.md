@@ -10,7 +10,7 @@ Format `<github issue/pr number>: <short description>`.
 * [#3535](https://github.com/kroxylicious/kroxylicious/issues/3535): bugfix: bootstrapServers containing whitespace parsed unexpectedly
 * [#3496](https://github.com/kroxylicious/kroxylicious/issues/3496): feat(runtime): make Netty shutdown durations configurable
 * [#3457](https://github.com/kroxylicious/kroxylicious/issues/3457): refactor(config): register DurationSerde globally on ObjectMapper rather than per-field
-* [#3534](https://github.com/kroxylicious/kroxylicious/pull/3534): (docs) Javadoc on site
+* [#3534](https://github.com/kroxylicious/kroxylicious/pull/3534): (docs) Include our Javadocs on kroxylicious.io website
 * [#3449](https://github.com/kroxylicious/kroxylicious/pull/3449): Add Connection Expiration filter that closes client connections after a configurable maximum age, helping to rebalance connections across proxy instances in dynamic environments like Kubernetes.
 * [#2697](https://github.com/kroxylicious/kroxylicious/issues/2697) EntityIsolationFilter (restricted to groupId and transactionalId entity type only)
 * [#3007](https://github.com/kroxylicious/kroxylicious/issues/3007) Allow schema validation to use a schema registry protected by an internally signed certificate.
