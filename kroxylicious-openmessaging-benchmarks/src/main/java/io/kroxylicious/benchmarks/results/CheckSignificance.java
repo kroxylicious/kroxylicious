@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * <p>
  * Intended for use in shell scripts to annotate sweep summary tables with noise warnings.
  */
+@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106" }) // CLI tool that intentionally writes to System.err
 public class CheckSignificance {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
