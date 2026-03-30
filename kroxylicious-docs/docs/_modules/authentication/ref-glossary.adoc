@@ -1,0 +1,18 @@
+:_mod-docs-content-type: REFERENCE
+
+= Glossary
+
+[role="_abstract"]
+Glossary of terms used in the Authentication guide.
+
+Authentication termination:: The process of performing SASL authentication at the proxy layer rather than forwarding authentication to the broker. Enables centralised credential management and security isolation.
+Credential store:: A pluggable backend system that provides SCRAM credentials for authentication. Examples include Java keystores, LDAP directories, or databases.
+JWE:: JSON Web Encryption is an https://datatracker.ietf.org/doc/html/rfc7516[IETF standard] for exchanging encrypted data using JSON.
+JWT:: JSON Web Token is an https://datatracker.ietf.org/doc/html/rfc8259[IETF standard] for securely transmitting information between parties as a JSON object.
+JWS:: JSON Web Signature is an https://datatracker.ietf.org/doc/html/rfc7515[IETF-proposed standard] for signing arbitrary data.
+Keystore:: A Java keystore file (PKCS12 or JKS format) that stores cryptographic keys and certificates. For SASL Termination, keystores store JSON-encoded SCRAM credentials.
+PBKDF2:: Password-Based Key Derivation Function 2 is a key derivation function used to derive cryptographic keys from passwords. Used by SCRAM to generate authentication keys from passwords with salt and iteration count.
+Principal:: A principal is a component of a subject. Examples include username principals or certificate DN principals.
+SASL:: Simple Authentication and Security Layer is an https://datatracker.ietf.org/doc/html/rfc4422[IETF framework] for handling authentication.
+SCRAM:: Salted Challenge Response Authentication Mechanism is a family of modern, secure authentication mechanisms that provide password-based authentication without exposing passwords on the network.
+Subject:: A subject is the authenticated identity of a client. Contains one or more principals representing different aspects of the client's identity.

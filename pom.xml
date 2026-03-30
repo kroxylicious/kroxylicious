@@ -551,6 +551,8 @@
         <module>kroxylicious-kms-test-support</module>
         <module>kroxylicious-kms-tls-support</module>
         <module>kroxylicious-kms-providers</module>
+        <module>kroxylicious-sasl-credential-store</module>
+        <module>kroxylicious-sasl-credential-store-providers</module>
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
         <module>kroxylicious-app</module>
