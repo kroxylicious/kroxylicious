@@ -661,12 +661,18 @@ if [[ -n "${PROXY_POD}" ]]; then
             sh -c "tr '\0' '\n' < /proc/${JVM_PID}/environ | grep '^ASYNC_PROFILER_LIB=' | cut -d= -f2-")
         if [[ -z "${AGENT_LIB}" ]]; then
             echo "Warning: ASYNC_PROFILER_LIB not set in JVM environment — skipping flamegraph" >&2
-        elif kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
-                       'stop,file=/tmp/flamegraph.html,output=flamegraph,title=${SCENARIO}/${WORKLOAD}_$(date -u +%Y-%m-%dT%H:%M:%SZ)'"; then
-            echo "Flamegraph written to /tmp/flamegraph.html"
         else
-            echo "Warning: async-profiler stop failed — flamegraph may be incomplete or absent" >&2
+            # jcmd always exits 0 even when the agent returns an error — it prints the
+            # agent return code as "return code: N" on stdout.  Check for the output file
+            # to determine whether the stop actually succeeded.
+            kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
+                       'stop,file=/tmp/flamegraph.html,output=flamegraph,title=${SCENARIO}/${WORKLOAD}_$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+            if kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- test -s /tmp/flamegraph.html 2>/dev/null; then
+                echo "Flamegraph written to /tmp/flamegraph.html"
+            else
+                echo "Warning: async-profiler stop failed (see return code above) — flamegraph absent" >&2
+            fi
         fi
 
         # If more probes follow, restart a fresh recording for the next rate.
