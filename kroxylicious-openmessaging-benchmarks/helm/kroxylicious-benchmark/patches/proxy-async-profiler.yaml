@@ -28,7 +28,7 @@ spec:
       - name: proxy
         env:
         - name: ASYNC_PROFILER_FLAGS
-          value: "start,event=cpu,file=/tmp/flamegraph.html,output=flamegraph"
+          value: "start,event=cpu,flamegraph,file=/tmp/flamegraph.html"
         securityContext:
           seccompProfile:
             type: Unconfined

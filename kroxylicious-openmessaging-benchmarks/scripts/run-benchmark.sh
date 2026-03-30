@@ -665,9 +665,14 @@ if [[ -n "${PROXY_POD}" ]]; then
             # jcmd always exits 0 even when the agent returns an error — it prints the
             # agent return code as "return code: N" on stdout.  Check for the output file
             # to determine whether the stop actually succeeded.
+            # IMPORTANT: the options string MUST be wrapped in double quotes inside the
+            # jcmd command.  jcmd passes arguments through the JVM's DCmdParser, which
+            # splits on '=' as a named-parameter separator.  Without inner quotes,
+            # 'file=/tmp/flamegraph.html' is split and the agent receives 'file' with no
+            # value, causing ARGUMENTS_ERROR (return code 100).
             kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
                 sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
-                       'stop,file=/tmp/flamegraph.html,output=flamegraph,title=${SCENARIO}/${WORKLOAD}_$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                       '\"stop,flamegraph,file=/tmp/flamegraph.html,title=${SCENARIO}/${WORKLOAD}_$(date -u +%Y-%m-%dT%H:%M:%SZ)\"'"
             if kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- test -s /tmp/flamegraph.html 2>/dev/null; then
                 echo "Flamegraph written to /tmp/flamegraph.html"
             else
