@@ -89,7 +89,9 @@ public class OauthBearerValidationFilter
                                                                        FilterContext context) {
         // in any case, handshake if SASL server is initiated is a protocol violation
         if (this.saslServer != null) {
-            LOGGER.debug("SASL error : Handshake request with a not null SASL server");
+            LOGGER.atDebug()
+                    .addKeyValue("saslState", "ILLEGAL_SASL_STATE")
+                    .log("SASL error: Handshake request with a not null SASL server");
             return context.requestFilterResultBuilder()
                     .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(ILLEGAL_SASL_STATE.code()))
                     .withCloseConnection()
@@ -104,7 +106,10 @@ public class OauthBearerValidationFilter
             }
         }
         catch (SaslException e) {
-            LOGGER.debug("SASL error : {}", e.getMessage(), e);
+            LOGGER.atDebug()
+                    .addKeyValue("error", e.getMessage())
+                    .setCause(e)
+                    .log("SASL error");
             notifyThrowable(context, e);
             return context.requestFilterResultBuilder()
                     .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(UNKNOWN_SERVER_ERROR.code()))
@@ -127,7 +132,9 @@ public class OauthBearerValidationFilter
                 SaslAuthenticateResponseData failedResponse = new SaslAuthenticateResponseData()
                         .setErrorCode(ILLEGAL_SASL_STATE.code())
                         .setErrorMessage("Unexpected SASL request");
-                LOGGER.debug("SASL invalid state");
+                LOGGER.atDebug()
+                        .addKeyValue("saslState", "ILLEGAL_SASL_STATE")
+                        .log("SASL invalid state");
                 notifyThrowable(context, INVALID_SASL_STATE_EXCEPTION);
                 return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
             }
@@ -140,12 +147,18 @@ public class OauthBearerValidationFilter
                             SaslAuthenticateResponseData failedResponse = new SaslAuthenticateResponseData()
                                     .setErrorCode(SASL_AUTHENTICATION_FAILED.code())
                                     .setErrorMessage(e.getMessage());
-                            LOGGER.debug("SASL Authentication failed : {}", e.getMessage(), e);
+                            LOGGER.atDebug()
+                                    .addKeyValue("error", e.getMessage())
+                                    .setCause(e)
+                                    .log("SASL Authentication failed");
                             notifyThrowable(context, cause);
                             return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
                         }
                         else {
-                            LOGGER.debug("SASL error : {}", e.getMessage(), e);
+                            LOGGER.atDebug()
+                                    .addKeyValue("error", e.getMessage())
+                                    .setCause(e)
+                                    .log("SASL error");
                             if (e instanceof CompletionException) {
                                 notifyThrowable(context, e.getCause());
                             }
