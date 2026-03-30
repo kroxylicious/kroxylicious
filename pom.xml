@@ -625,8 +625,6 @@
                                     <exclude>**/.dontdelete</exclude>
                                     <exclude>**/goal.txt</exclude>
                                     <exclude>**/.jbang/**</exclude>
-                                    <exclude>docs/**</exclude>
-                                    <exclude>**/*.adoc</exclude>
                                     <exclude>src/main/resources/archetype-resources/**</exclude>
                                     <!-- Need to keep original copyright for Vert.x classes -->
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>

@@ -1,3 +1,9 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Proxy Quick Start
 description: Start here if you're experimenting with the proxy for the first time.
