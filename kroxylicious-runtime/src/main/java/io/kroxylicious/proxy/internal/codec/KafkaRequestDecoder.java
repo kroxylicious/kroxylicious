@@ -59,13 +59,27 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         short apiVersion = readApiVersion(ctx, in);
         final int startOfMessage = in.readerIndex();
         int correlationId = in.readInt();
-        LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
+        LOGGER.atDebug()
+                .addKeyValue("context", ctx)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("downstreamCorrelationId", correlationId)
+                .log("received request");
 
         var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
 
-        LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
+        LOGGER.atDebug()
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("decodeRequest", decodeRequest)
+                .addKeyValue("predicate", decodePredicate)
+                .log("decode request decision");
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
-        LOGGER.debug("Decode {}/v{} response? {}, Predicate {}", apiKey, apiVersion, decodeResponse, decodePredicate);
+        LOGGER.atDebug()
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("decodeResponse", decodeResponse)
+                .addKeyValue("predicate", decodePredicate)
+                .log("decode response decision");
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
 
         final RequestFrame frame;

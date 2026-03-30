@@ -72,7 +72,9 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        LOGGER.trace("Channel active {}", ctx);
+        LOGGER.atTrace()
+                .addKeyValue("context", ctx)
+                .log("channel active");
         if (proxyChannelStateMachine.virtualCluster().getUpstreamSslContext().isEmpty()) {
             proxyChannelStateMachine.onServerActive();
         }
@@ -166,7 +168,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
                 pendingServerFlushes = false;
             }
         }
-        LOGGER.trace("/READ");
+        LOGGER.atTrace().log("/READ");
     }
 
     /**

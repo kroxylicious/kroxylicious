@@ -113,17 +113,22 @@ public class FilterChainFactory implements AutoCloseable {
                     return new ClassDescription(isOnRequestDeprecated, isOnResponseDeprecated);
                 }
                 catch (Exception e) {
-                    LOGGER.warn("Exception while inspecting Filter implementation for deprecations {}", filterDefinition.name(), e);
+                    LOGGER.atWarn()
+                            .setCause(e)
+                            .addKeyValue("filterName", filterDefinition.name())
+                            .log("exception while inspecting Filter implementation for deprecations");
                     return new ClassDescription(false, false);
                 }
             });
         }
 
         private void logDeprecation(Class<? extends Filter> filterClass, String methodName, Class<? extends ApiMessage> headerType) {
-            LOGGER.warn(
-                    "FilterDefinition with name '{}' and type {} created a Filter instance of type {} which implements the deprecated {}(ApiKeys, {}, ApiMessage, FilterContext) "
-                            + "method. This Filter implementation must be updated as the method will be removed in a future release.",
-                    filterDefinition.name(), filterDefinition.type(), filterClass, methodName, headerType.getSimpleName());
+            LOGGER.atWarn()
+                    .addKeyValue("filterName", filterDefinition.name())
+                    .addKeyValue("filterDefinitionType", filterDefinition.type())
+                    .addKeyValue("filterClass", filterClass)
+                    .addKeyValue("method", methodName + "(ApiKeys, " + headerType.getSimpleName() + ", ApiMessage, FilterContext)")
+                    .log("FilterDefinition created a Filter instance which implements a deprecated method. This Filter implementation must be updated as the method will be removed in a future release");
         }
 
         public void close() {

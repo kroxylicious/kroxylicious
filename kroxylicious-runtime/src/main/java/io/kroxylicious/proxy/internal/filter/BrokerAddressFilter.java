@@ -168,7 +168,12 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         int nodeId = nodeIdGetter.applyAsInt(broker);
         var advertisedAddress = listenerModel.getAdvertisedBrokerAddress(nodeId);
 
-        LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}", context, incomingHost, incomingPort, advertisedAddress);
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("incomingHost", incomingHost)
+                .addKeyValue("incomingPort", incomingPort)
+                .addKeyValue("advertisedAddress", advertisedAddress)
+                .log("rewriting broker address in response");
         hostSetter.accept(broker, advertisedAddress.host());
         portSetter.accept(broker, advertisedAddress.port());
     }
@@ -177,7 +182,9 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
                                                                                  Map<Integer, HostPort> nodeMap) {
         return reconciler.reconcile(listenerModel, nodeMap).toCompletableFuture()
                 .thenCompose(u -> {
-                    LOGGER.debug("Endpoint reconciliation complete for virtual cluster {}", listenerModel);
+                    LOGGER.atDebug()
+                            .addKeyValue("virtualCluster", listenerModel)
+                            .log("endpoint reconciliation complete");
                     return context.responseFilterResultBuilder().forward(header, data).completed();
                 });
     }

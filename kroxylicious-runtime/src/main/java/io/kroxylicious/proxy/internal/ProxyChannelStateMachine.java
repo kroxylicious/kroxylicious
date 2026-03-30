@@ -219,7 +219,11 @@ public class ProxyChannelStateMachine {
      */
     @VisibleForTesting
     void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler, KafkaSession kafkaSession) {
-        LOGGER.info("Forcing state to {} with {} and {}", state, frontendHandler, backendHandler);
+        LOGGER.atInfo()
+                .addKeyValue("state", state)
+                .addKeyValue("frontendHandler", frontendHandler)
+                .addKeyValue("backendHandler", backendHandler)
+                .log("forcing state");
         this.state = state;
         this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
@@ -324,11 +328,10 @@ public class ProxyChannelStateMachine {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
             LOGGER.atDebug()
-                    .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
-                    .addArgument(kafkaSession.sessionId())
-                    .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
-                    .addArgument(this.frontendHandler.remotePort())
-                    .log();
+                    .addKeyValue("sessionId", kafkaSession.sessionId())
+                    .addKeyValue("remoteHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
+                    .addKeyValue("remotePort", this.frontendHandler.remotePort())
+                    .log("allocated session ID for downstream connection");
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
         else {
@@ -373,7 +376,10 @@ public class ProxyChannelStateMachine {
      */
     void illegalState(String msg) {
         if (!(state instanceof Closed)) {
-            LOGGER.error("Unexpected event while in {} message: {}, closing channels with no client response.", state, msg);
+            LOGGER.atError()
+                    .addKeyValue("state", state)
+                    .addKeyValue("message", msg)
+                    .log("unexpected event, closing channels with no client response");
             toClosed(null);
         }
     }
@@ -483,9 +489,9 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     void onServerException(@Nullable Throwable cause) {
         LOGGER.atWarn()
+                .addKeyValue("error", cause != null ? cause.getMessage() : "")
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                .addArgument(cause != null ? cause.getMessage() : "")
-                .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
+                .log("exception from server channel, increase log level to DEBUG for stacktrace");
         proxyToServerErrorCounter.increment();
         toClosed(cause);
     }
@@ -506,17 +512,18 @@ public class ProxyChannelStateMachine {
                     : " Possible unexpected TLS handshake? When connecting via TLS from your client, make sure to enable TLS for the Kroxylicious gateway ("
                             + StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)
                             + ").";
-            LOGGER.warn(
-                    "Received over-sized frame from the client, max frame size bytes {}, received frame size bytes {} "
-                            + "(hint: {} Other possible causes are: an oversized Kafka frame, or something unexpected like an HTTP request.)",
-                    e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
+            LOGGER.atWarn()
+                    .addKeyValue("maxFrameSizeBytes", e.getMaxFrameSizeBytes())
+                    .addKeyValue("receivedFrameSizeBytes", e.getReceivedFrameSizeBytes())
+                    .addKeyValue("hint", tlsHint)
+                    .log("received over-sized frame from client, other possible causes are: an oversized Kafka frame, or something unexpected like an HTTP request");
             errorCodeEx = Errors.INVALID_REQUEST.exception();
         }
         else {
             LOGGER.atWarn()
+                    .addKeyValue("error", cause != null ? cause.getMessage() : "")
                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                    .addArgument(cause != null ? cause.getMessage() : "")
-                    .log("Exception from the client channel: {}. Increase log level to DEBUG for stacktrace");
+                    .log("exception from client channel, increase log level to DEBUG for stacktrace");
             errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
         clientToProxyErrorCounter.increment();
@@ -612,12 +619,11 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()
-                .setMessage("{}: Upstream connection to {} established for client at {}:{}")
-                .addArgument(kafkaSession.sessionId())
-                .addArgument(connecting.remote())
-                .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
-                .addArgument(this.frontendHandler.remotePort())
-                .log();
+                .addKeyValue("sessionId", kafkaSession.sessionId())
+                .addKeyValue("remote", connecting.remote())
+                .addKeyValue("clientHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
+                .addKeyValue("clientPort", this.frontendHandler.remotePort())
+                .log("upstream connection established for client");
     }
 
     @SuppressWarnings("java:S5738")
@@ -736,7 +742,10 @@ public class ProxyChannelStateMachine {
     }
 
     private void setState(ProxyChannelState state) {
-        LOGGER.trace("{} transitioning to {}", this, state);
+        LOGGER.atTrace()
+                .addKeyValue("stateMachine", this)
+                .addKeyValue("targetState", state)
+                .log("transitioning to state");
         this.state = state;
     }
 

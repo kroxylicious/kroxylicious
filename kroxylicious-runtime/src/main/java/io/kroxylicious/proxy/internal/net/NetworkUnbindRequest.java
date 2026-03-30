@@ -40,15 +40,22 @@ public class NetworkUnbindRequest extends NetworkBindingOperation<Void> {
     public void performBindingOperation(ServerBootstrap serverBootstrap, ExecutorService executorService) {
         try {
             var addr = channel.localAddress();
-            LOGGER.info("Unbinding {}", addr);
+            LOGGER.atInfo()
+                    .addKeyValue("address", addr)
+                    .log("unbinding");
 
             channel.close().addListener((ChannelFutureListener) channelFuture -> executorService.execute(() -> {
                 if (channelFuture.cause() != null) {
-                    LOGGER.debug("Unbind failed {}", addr, channelFuture.cause());
+                    LOGGER.atDebug()
+                            .setCause(channelFuture.cause())
+                            .addKeyValue("address", addr)
+                            .log("unbind failed");
                     future.completeExceptionally(channelFuture.cause());
                 }
                 else {
-                    LOGGER.info("Unbound {}", addr);
+                    LOGGER.atInfo()
+                            .addKeyValue("address", addr)
+                            .log("unbound");
                     future.complete(null);
                 }
             }));
