@@ -42,35 +42,35 @@ import io.kroxylicious.test.ShellUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Executes the shell commands found within quickstart, in sequence, within a single shell.
+ * Executes the shell commands found within quick start guides, in sequence, within a single shell.
  * Test will fail if any command fails.
  */
-@EnabledIf("io.kroxylicious.doctools.validator.QuickstartDT#isEnvironmentValid")
+@EnabledIf("io.kroxylicious.doctools.validator.QuickStartDT#isEnvironmentValid")
 @SuppressWarnings("java:S3577") // ignoring naming convention for the test class
-class QuickstartDT {
+class QuickStartDT {
 
     private static final FileAttribute<Set<PosixFilePermission>> OWNER_RWX = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
 
-    private static List<Arguments> quickstarts() {
+    private static List<Arguments> quickStarts() {
         try (var blockExtractor = new BlockExtractor()) {
 
             Assertions.assertThat(Utils.OPERATOR_ZIP).exists();
 
-            // Some quickstarts rely on the {OperatorAssetZipLink} variable
+            // Some quick starts rely on the {OperatorAssetZipLink} variable
             blockExtractor.withAttributes(Attributes.builder()
                     .attribute("OperatorAssetZipLink", pathToFileUrl(Utils.OPERATOR_ZIP))
                     .build());
 
-            var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quickstart").resolve("index.adoc");
-            var quickstarts = List.of(new Quickstart("record-encryption-quickstart(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")),
-                    new Quickstart("record-encryption-quickstart(localstack)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "localstack")));
-            return quickstarts.stream().map(q -> extractCodeBlocks(blockExtractor, q)).toList();
+            var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quick-start").resolve("index.adoc");
+            var quickStarts = List.of(new Quickstart("record-encryption-quick-start(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")),
+                    new Quickstart("record-encryption-quick-start(localstack)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "localstack")));
+            return quickStarts.stream().map(q -> extractCodeBlocks(blockExtractor, q)).toList();
         }
     }
 
     @ParameterizedTest
-    @MethodSource("quickstarts")
-    void quickstart(List<Block> shellBlocks) {
+    @MethodSource("quickStarts")
+    void quickStart(List<Block> shellBlocks) {
         // Given
         Path shellScript = writeShellScript(shellBlocks);
 
@@ -131,7 +131,7 @@ class QuickstartDT {
                         CompletableFuture.supplyAsync(() -> streamToString(p.getErrorStream()), stderrExecutor));
             }
             catch (IOException e) {
-                throw new UncheckedIOException("Failed to run script containing quickstart commands: %s".formatted(shellScript), e);
+                throw new UncheckedIOException("Failed to run script containing quick start commands: %s".formatted(shellScript), e);
             }
             finally {
                 stdoutExecutor.shutdown();
@@ -170,7 +170,7 @@ class QuickstartDT {
 
     private Path writeShellScript(List<Block> shellBlocks) {
         try {
-            var tempFile = Files.createTempFile("quickstart", ".sh", OWNER_RWX);
+            var tempFile = Files.createTempFile("quick-start", ".sh", OWNER_RWX);
             try (var writer = new PrintWriter(Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8))) {
                 writer.println("#!/usr/bin/env bash");
                 writer.println("set -e -v -o pipefail");
