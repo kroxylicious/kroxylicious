@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.awaitility.core.ConditionTimeoutException;
+import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,8 +119,8 @@ public class KcatClient implements KafkaClient {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat-" + TestUtils.getRandomPodNameSuffix();
         // Running consumer with parameters to get the latest N number of messages received to avoid consuming twice the same messages
         List<String> args = new ArrayList<>(List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-o", "-" + numOfMessages, "-e", "-J"));
-        if (!additionalConfig.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
-            args.addAll(List.of("-X", ConsumerConfig.GROUP_ID_CONFIG + "=" + consumerGroup));
+        if (additionalConfig.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
+            throw new ParameterResolutionException("Consumer group.id found on additionalConfig. Consumer group must be specified on ConsumerGroup parameter");
         }
         additionalConfig.forEach((key, value) -> {
             args.add("-X");
