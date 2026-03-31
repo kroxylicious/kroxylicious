@@ -369,7 +369,7 @@ for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
             RB_ARGS+=(--set "${set_arg}")
         done
 
-        if ! "${SCRIPT_DIR}/run-benchmark.sh" "${RB_ARGS[@]}" \
+        if ! "${SCRIPT_DIR}/run-benchmark.sh" ${RB_ARGS[@]+"${RB_ARGS[@]}"} \
                 "${SCENARIO}" "${WORKLOAD}" "${PROBE_OUTPUT}"; then
             FAILED=true
             break
