@@ -34,35 +34,41 @@ include::../../_snippets/snip-idle-timeout-duration-format.adoc[]
 ----
 network:
   proxy:
-    unauthenticatedIdleTimeout: 30s # <1>
+    unauthenticatedIdleTimeout: 30s
 virtualClusters:
   # ...
 ----
-<1> Disconnect connections that remain unauthenticated for more than 30 seconds.
+where:
+
+* `unauthenticatedIdleTimeout` - specifies the length of time unauthenticated connections may remain idle before being disconnected.
 
 .Example: Authenticated timeout only
 [source,yaml]
 ----
 network:
   proxy:
-    authenticatedIdleTimeout: 5m # <1>
+    authenticatedIdleTimeout: 5m
 virtualClusters:
   # ...
 ----
-<1> Disconnect authenticated connections that are idle for more than 5 minutes.
+where:
+
+* `authenticatedIdleTimeout` specifies the length of time authenticated connections may remain idle before being disconnected.
 
 .Example: Both timeouts configured
 [source,yaml]
 ----
 network:
   proxy:
-    unauthenticatedIdleTimeout: 30s # <1>
-    authenticatedIdleTimeout: 10m # <2>
+    unauthenticatedIdleTimeout: 30s
+    authenticatedIdleTimeout: 10m
 virtualClusters:
   # ...
 ----
-<1> Disconnect unauthenticated connections after 30 seconds of inactivity.
-<2> Disconnect authenticated connections after 10 minutes of inactivity.
+where:
+
+* `unauthenticatedIdleTimeout` specifies the length of time unauthenticated connections may remain idle before being disconnected.
+* `authenticatedIdleTimeout` specifies the length of time authenticated connections may remain idle before being disconnected.
 
 == Monitoring idle disconnects
 

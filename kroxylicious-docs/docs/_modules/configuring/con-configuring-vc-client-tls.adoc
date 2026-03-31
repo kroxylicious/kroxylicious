@@ -39,18 +39,22 @@ virtualClusters:
       # ...
       tls:
         key:
-          storeFile: <path>/server.p12  # <1>
+          storeFile: <path>/server.p12
           storePassword:
-            passwordFile: <path>/store.password # <2>
+            passwordFile: <path>/store.password
           keyPassword:
-            passwordFile: <path>/key.password # <3>
-          storeType: PKCS12 # <4>
+            passwordFile: <path>/key.password
+          storeType: PKCS12
 # ...
 ----
-<1> PKCS #12 store containing the private-key and certificate/intermediates of the virtual cluster gateway.
-<2> Password to protect the PKCS #12 store.
-<3> (Optional) Password for the key. If a password is not specified, the keystore’s password is used to decrypt the key too.
-<4> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
+where:
+
+* `storeFile` refers to a PKCS #12 store file containing the private-key and certificate/intermediates of the virtual cluster gateway.
+** `storePassword` defines the password used decrypt the store file. Omit the `storePassword` field if the store is not password protected.
+*** `passwordFile` Password to protect the PKCS #12 store.
+** `keyPassword` defines the password used decrypt the key.
+*** `passwordFile` refers to a file containing the password for the key. If a password is not specified, the `storePassword` is used to decrypt the key too.
+* `storeType` identifies the keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
 
 .Example applying a PEM server certificate and key pair to a virtual cluster gateway
 [source,yaml]
@@ -64,15 +68,18 @@ virtualClusters:
       # ...
       tls:
         key:
-          privateKeyFile: <path>/server.key   # <1>
-          certificateFile: <path>/server.crt # <2>
+          privateKeyFile: <path>/server.key
+          certificateFile: <path>/server.crt
           keyPassword:
-            passwordFile: <path>/key.password # <3>
+            passwordFile: <path>/key.password
 # ...
 ----
-<1> Private key of the virtual cluster gateway.
-<2> Public certificate of the virtual cluster gateway.
-<3> (Optional) Password for the key.
+where:
+
+* `privateKeyFile` refers to a private key of the virtual cluster gateway.
+* `certificateFile` refers to a public certificate of the virtual cluster gateway.
+* `keyPassword` defines the password used decrypt the private key. If the private key file is not encrypted, omit the `keyPassword` field.
+** `passwordFile` `passwordFile` refers to a file containing the password for the key.
 
 You can configure the virtual cluster gateway to require that clients present a certificate for authentication.
 The virtual cluster gateway verifies that the client's certificate is signed by one of the CA certificates contained in a trust store.
@@ -92,22 +99,23 @@ virtualClusters:
         key:
            # ...
         trust:
-          storeFile: <path>/trust.p12 # <1>
+          storeFile: <path>/trust.p12
           storePassword:
-            passwordFile: <path>/trust.password # <2>
-          storeType: PKCS12 # <3>
+            passwordFile: <path>/trust.password
+          storeType: PKCS12
           trustOptions:
-            clientAuth: REQUIRED # <4>
+            clientAuth: REQUIRED
 # ...
 ----
-<1> PKCS #12 store containing CA certificates used to verify that the client's certificate is trusted.
-<2> (Optional) Password to protect the PKCS #12 store.
-<3> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
-<4> (Optional) Client authentication mode. 
-If set to `REQUIRED`, the client must present a valid certificate. 
-If set to `REQUESTED`, the client is requested to present a certificate. If presented, the certificate is validated. If the client chooses not to present a certificate the connection is still allowed. 
-If set to `NONE`, client authentication is disabled.
-If a client authentication mode is not specified, then the default behaviour is `REQUIRED`.
+where:
+
+* `storeFile` refers to a PKCS #12 store file containing the private-key and certificate/intermediates of the virtual cluster gateway.
+** `storePassword` defines the password used decrypt the store file. Omit the `storePassword` field if the store is not password protected.
+*** `passwordFile` Password to protect the PKCS #12 store.
+** `keyPassword` defines the password used decrypt the key.
+*** `passwordFile` refers to a file containing the password for the key. If a password is not specified, the `storePassword` is used to decrypt the key too.
+* `storeType` identifies the keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
+* `clientAuth` specifies the client authentication mode. If set to `REQUIRED`, the client must present a valid certificate. If set to `REQUESTED`, the client is requested to present a certificate. If presented, the certificate is validated. If the client chooses not to present a certificate the connection is still allowed. If set to `NONE`, client authentication is disabled. If a client authentication mode is not specified, then the default behaviour is `REQUIRED`.
 
 NOTE: The client's identity, as established through TLS client authentication, is currently not relayed to the target cluster. 
 For more information, see the {github-issues}/1637[related issue^].
@@ -136,11 +144,14 @@ virtualClusters:
       tls:
         # ...
         protocols:
-          allowed:  # <1>
+          allowed:
           - TLSv1.3
           - TLSv1.2
 ----
-<1> List of allowed TLS protocols.
+where:
+
+* `protocols` configures the TLS protocols
+** `allowed` lists the allowed TLS protocols.
 
 .Example restricting TLS protocols using a deny list
 
@@ -155,10 +166,13 @@ virtualClusters:
       tls:
         # ...
         protocols:
-          denied:  # <1>
+          denied:
           - TLSv1.1
 ----
-<1> List of disallowed TLS protocols.
+where:
+
+* `protocols` configures the TLS protocols
+** `denied` lists the disallowed TLS protocols.
 
 You can restrict the TLS cipher suite by specifying either an allow list of cipher suites to be enabled, in preference
 order, or a deny list of ciphers suites to be disallowed from the platform's default.
@@ -184,11 +198,14 @@ virtualClusters:
       tls:
         # ...
         cipherSuites:
-          allowed:  # <1>
+          allowed:
           - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
           - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
 ----
-<1> List of allowed cipher suites in preference order.
+where:
+
+* `cipherSuites` configures the cipher suites.
+** `allowed` lists the cipher suites which are permitted in preference order.
 
 .Example restricting cipher suites using a deny list
 
@@ -203,7 +220,10 @@ virtualClusters:
       tls:
         # ...
         cipherSuites:
-          denied:  # <1>
+          denied:
           - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
 ----
-<1> List of disallowed cipher suites.
+where:
+
+* `cipherSuites` configures the cipher suites.
+** `denied` lists the disallowed cipher suites.

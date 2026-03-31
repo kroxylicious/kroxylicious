@@ -19,13 +19,15 @@ This is configured with the top level `management` property.
 ----
 # ... (filterDefinitions, virtualClusters etc)
 management:
-  bindAddress: 0.0.0.0 <1>
-  port: 9190 <2>
-  endpoints: # <3>
-    prometheus: {} # <4>
+  bindAddress: 0.0.0.0
+  port: 9190
+  endpoints:
+    prometheus: {}
 ----
-<1> The address the HTTP server should bind to. Defaults to `0.0.0.0`.
-<2> The port the HTTP server should bind to. Defaults to `9190`.
-<3> Control over the exposed endpoints
-<4> If present and not null, exposes a Prometheus scrape endpoint at path `/metrics`.
+where:
+
+* `bindAddress` is the address the HTTP server should bind to. Defaults to `0.0.0.0`.
+* `port` is the port the HTTP server should bind to. Defaults to `9190`.
+* `endpoints` defines the services exposed by the management interface.
+** `prometheus` If present and not null, exposes a Prometheus scrape endpoint at path `/metrics`.
 

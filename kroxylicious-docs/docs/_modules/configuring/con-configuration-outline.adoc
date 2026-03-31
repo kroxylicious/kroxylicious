@@ -17,31 +17,36 @@ While not complete (as indicated by `# ...`), it illustrates the essential struc
 .Basic outline of a Kroxylicious configuration
 [source,yaml]
 ----
-filterDefinitions: # <1>
-  - name: example # <2>
-    type: org.example.filter.Example # <3>
-    config: # <4>
+filterDefinitions:
+  - name: example
+    type: org.example.filter.Example
+    config:
       # ...
-defaultFilters: <5>
+defaultFilters:
   - example
-virtualClusters: # <6>
+virtualClusters:
   - name: my-cluster-proxy
-    targetCluster: # <7>
+    targetCluster:
       # ...
-    gateways: # <8>
+    gateways:
     - name: ...
       # ...
-    subjectBuilder: # <9>
+    subjectBuilder:
       # ...
 
 # ...
 ----
-<1> A list of named filter definitions.
-<2> A filter definition called `example`. The definitions must each have a unique name.
-<3> The name of the filter class implementation for the `example` filter. Required.
-<4> The configuration for the `example` filter instance. Usually required for non-trivial filters.
-<5> A list of default filters. It's possible to override this list at the virtual cluster level.
-<6> List of virtual clusters specified by name, with cluster-specific configurations.
-<7> Configuration of the actual Kafka cluster that is proxied by the 'my-cluster-proxy' virtual cluster.
-<8> Configuration of the gateways for this virtual cluster.
-<9> (Optional) Configuration for the transport subject builder.
+where:
+
+* `filterDefinitions` defines the list of filter definitions. Each filter definition comprises:
+** A `name` which identifies the filter definition. Name is required. It must be unique amongst all the other filters in the list.
+** A `type` that specifies the filter implementation class. Required.
+** `config` provides configuration to the filter. Usually required for non-trivial filters.
+   The configuration required depends on the filter implementation.
+* `defaultFilters` defines an ordered list of filters that the traffic sent to the virtual cluster will pass through.
+  It's possible to override this list at the virtual cluster level.
+* `virtualClusters` List of virtual clusters definition providing cluster-specific configurations.
+** A `name` which identifies the virtual cluster. Name is required. It must be unique amongst all the other virtual cluster in the list.
+** `targetCluster` Configuration of the actual Kafka cluster that is proxied by the 'my-cluster-proxy' virtual cluster.
+** `gateways` Configuration of the gateways for this virtual cluster.
+** `subjectBuilder` (Optional) Configuration for the transport subject builder.

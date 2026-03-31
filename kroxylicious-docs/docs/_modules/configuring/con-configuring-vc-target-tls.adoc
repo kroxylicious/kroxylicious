@@ -54,15 +54,18 @@ virtualClusters:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
         trust:
-          storeFile: <path>/trust.p12 # <1>                
+          storeFile: <path>/trust.p12
           storePassword:
-            passwordFile: <path>/store.password # <2>    
-          storeType: PKCS12 # <3>
+            passwordFile: <path>/store.password
+          storeType: PKCS12
 # ...
 ----
-<1> PKCS #12 store for the public CA certificate of the Kafka cluster.
-<2> Password to access the public Kafka cluster CA certificate.
-<3> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
+where:
+
+* `storeFile` refers to a PKCS #12 store for the public CA certificate of the Kafka cluster.
+** `storePassword` defines the password used decrypt the store file. Omit the `storePassword` field if the store is not password protected.
+*** `passwordFile` Password to protect the PKCS #12 store.
+* `storeType` identifies the keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
 
 For mutual TLS, add a keystore configuration for the virtual cluster.  
 The following example uses a PEM format server certificate and key pair. 
@@ -79,12 +82,14 @@ virtualClusters:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
         key:
-          privateKeyFile: <path>/client.key # <1>
-          certificateFile: <path>/client.crt # <2>
+          privateKeyFile: <path>/client.key
+          certificateFile: <path>/client.crt
 # ...
 ----
-<1> Private key of the virtual cluster.
-<2> Public CA certificate of the virtual cluster.
+where:
+
+* `privateKeyFile` refers to a private key of the virtual cluster.
+* `certificateFile` refers to a public certificate of the virtual cluster.
 
 The TLS protocols and cipher suites available to the TLS connection may also be configured.
 
@@ -100,11 +105,14 @@ virtualClusters:
       tls:
         # ...
         protocols:
-          allowed:  # <1>
+          allowed:
           - TLSv1.3
           - TLSv1.2
 ----
-<1> List of allowed TLS protocols.
+where:
+
+* `protocols` configures the TLS protocols
+** `allowed` lists the allowed TLS protocols.
 
 .Example restricting TLS protocols using a deny list
 
@@ -117,10 +125,13 @@ virtualClusters:
       tls:
         # ...
         protocols:
-          denied:  # <1>
+          denied:
           - TLSv1.1
 ----
-<1> List of disallowed TLS protocols.
+where:
+
+* `protocols` configures the TLS protocols
+** `denied` lists the disallowed TLS protocols.
 
 .Example restricting cipher suites using an allow list
 
@@ -133,11 +144,14 @@ virtualClusters:
       tls:
         # ...
         cipherSuites:
-          allowed:  # <1>
+          allowed:
           - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
           - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
 ----
-<1> List of allowed cipher suites.
+where:
+
+* `cipherSuites` configures the cipher suites.
+** `allowed` lists the cipher suites which are permitted in preference order.
 
 .Example restricting cipher suites using a deny list
 
@@ -150,10 +164,13 @@ virtualClusters:
       tls:
         # ...
         cipherSuites:
-          denied:  # <1>
+          denied:
           - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
 ----
-<1> List of disallowed cipher suites.
+where:
+
+* `cipherSuites` configures the cipher suites.
+** `denied` lists the disallowed cipher suites.
 
 For the purposes of testing (that is, outside a production environment), you can set the `insecure` property to `true`
 to disable TLS trust checks (hostname verification and certificate validation) so that the Kroxylicious can connect to
