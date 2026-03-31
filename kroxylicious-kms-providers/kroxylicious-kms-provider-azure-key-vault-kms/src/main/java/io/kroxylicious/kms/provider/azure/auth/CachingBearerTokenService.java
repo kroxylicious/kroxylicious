@@ -147,7 +147,10 @@ public class CachingBearerTokenService implements BearerTokenService {
     private <T extends State> boolean transition(State currentState, T toState, Consumer<T> onTransition) {
         boolean transitioned = state.compareAndSet(currentState, toState);
         if (transitioned) {
-            LOG.debug("transitioned from {} to {}", currentState, toState);
+            LOG.atDebug()
+                    .addKeyValue("fromState", currentState)
+                    .addKeyValue("toState", toState)
+                    .log("transitioned state");
             onTransition.accept(toState);
         }
         return transitioned;
@@ -213,7 +216,10 @@ public class CachingBearerTokenService implements BearerTokenService {
     }
 
     private void onRefreshFailed(Throwable t, State.Refreshing refreshing) {
-        LOG.debug("refresh completed exceptionally", t);
+        LOG.atDebug()
+                .setCause(t)
+                .addKeyValue("error", t.getMessage())
+                .log("refresh completed exceptionally");
         if (refreshing.current() != null) {
             // continue with existing token if it exists
             transitionToSteady(refreshing, refreshing.current(), steady -> refreshing.promise().completeExceptionally(t));
@@ -224,7 +230,8 @@ public class CachingBearerTokenService implements BearerTokenService {
     }
 
     private void onRefreshComplete(BearerToken token, State.Refreshing refreshing) {
-        LOG.debug("refresh completed successfully");
+        LOG.atDebug()
+                .log("refresh completed successfully");
         transitionToSteady(refreshing, token, steady -> refreshing.promise().complete(token));
     }
 

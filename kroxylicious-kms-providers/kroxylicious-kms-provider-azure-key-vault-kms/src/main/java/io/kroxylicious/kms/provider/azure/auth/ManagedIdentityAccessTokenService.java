@@ -95,20 +95,26 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
 
     private static AccessTokenResponse getAccessTokenResponse(HttpResponse<String> r) {
         if (r.statusCode() != 200) {
-            LOG.warn("GET Managed Identity token failed. Received unexpected status code {}", r.statusCode());
+            LOG.atWarn()
+                    .addKeyValue("statusCode", r.statusCode())
+                    .log("GET Managed Identity token failed, received unexpected status code");
             throw new UnexpectedHttpStatusCodeException(r);
         }
         else {
             String body = r.body();
             if (body == null || body.isEmpty()) {
-                LOG.warn("GET Managed Identity token failed. Received empty body");
+                LOG.atWarn()
+                        .log("GET Managed Identity token failed, received empty body");
                 throw new MalformedResponseBodyException("response body is null or empty");
             }
             try {
                 return MAPPER.readValue(body, AccessTokenResponse.class);
             }
             catch (JsonProcessingException e) {
-                LOG.warn("GET Managed Identity token failed. Failed to parse access token response");
+                LOG.atWarn()
+                        .setCause(LOG.isDebugEnabled() ? e : null)
+                        .addKeyValue("error", e.getMessage())
+                        .log("GET Managed Identity token failed, failed to parse access token response, increase log level to DEBUG for stacktrace");
                 throw new MalformedResponseBodyException("failed to decode response body", e);
             }
         }
