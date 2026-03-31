@@ -53,7 +53,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       pull-secret-check: ${{ steps.pull-check.outputs.pullsecret }}
-      operator-changed: ${{ steps.filter.outputs.changes }}
     steps:
         - name: Checkout source
           uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -64,22 +63,12 @@ jobs:
             REDHAT_PULL_SECRET: ${{ secrets.REDHAT_PULL_SECRET }}
           run: echo "pullsecret=$(test ${REDHAT_PULL_SECRET} && echo true)" >> "$GITHUB_OUTPUT"
 
-        - name: "Test for updates to the operator itself"
-          uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d
-          id: filter
-          with:
-            filters: |
-              changes:
-                - 'kroxylicious-operator/**'
-                - 'kroxylicious-kubernetes-api/**'
-                - '.github/workflows/operator-tests-microshift.yml'
-
   operator-tests-microshift:
     name: Operator integration & system tests on MicroShift
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: preflight
-    if: needs.preflight.outputs.pull-secret-check == 'true' && needs.preflight.outputs.operator-changed == 'true'
+    if: needs.preflight.outputs.pull-secret-check == 'true' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: 'Test for Slack secret'
@@ -116,7 +105,7 @@ jobs:
           pull-secret: ${{ secrets.REDHAT_PULL_SECRET }}
           preset: microshift
 
-      - name: Verify cluster is healthy
+      - name: Dump cluster status
         run: |
           echo "==> Node status"
           kubectl get nodes -o wide
@@ -126,14 +115,29 @@ jobs:
           echo "==> API server version"
           kubectl version
 
+      - name: 'Propagate the MircoShift container runtime configuration to environment'
+        run: |
+          crc podman-env --root  >> $GITHUB_ENV
+
       - name: 'Build Kroxylicious Operand Container Images'
         run: |
-          eval $(crc podman-env --root)
-          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator -Dquick install
+          GIT_HASH="$(git rev-parse HEAD)"
+          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
+          KROXYLICIOUS_IMAGE=quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}
+
+          mvn --batch-mode \
+              --activate-profiles dist \
+              --also-make \
+              --projects :kroxylicious-app,:kroxylicious-operator \
+              -Dquick \
+              -Dio.kroxylicious.proxy.image.name=${KROXYLICIOUS_IMAGE} \
+              install
+
+          # This ensures that the tests will use the built operand.
+          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
 
       - name: Run operator integration tests
         run: |
-          eval $(crc podman-env --root)
           mvn --batch-mode \
             -pl kroxylicious-operator \
             -Dcheckstyle.skip \
