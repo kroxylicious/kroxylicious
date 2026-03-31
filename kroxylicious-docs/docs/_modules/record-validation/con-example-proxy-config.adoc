@@ -25,21 +25,23 @@ filterDefinitions:
     type: RecordValidation
     config:
         rules:
-        - topicNames:                                                  # <1>
+        - topicNames:
             - <topic name>
           keyRule:
-            <rule definition>                                          # <2>
+            <rule definition>
           valueRule:
-            <rule definition>                                          # <3>
-        defaultRule:                                                   # <4>
+            <rule definition>
+        defaultRule:
           keyRule:
-            <rule definition>                                          # <2>
+            <rule definition>
           valueRule:
-            <rule definition>                                          # <3>
+            <rule definition>
 ----
-<1> List of topic names to which the validation rules will be applied.
-<2> Validation rules that are applied to the record's key.
-<3> Validation rules that are applied to the record's value.
-<4> (Optional) Default rule that is applied to any topics for which there is no explict rule defined.
+where:
+
+* `topicNames` provides the list of  topic names to which the validation rules will be applied.
+* `keyRule` provides the validation rules that are applied to the record's key.
+* `valueRule` provides the validation rules that are applied to the record's value.
+* `defaultRule` provides the defaults that is applied to any topics for which there is no explicit rule defined.
 
 Refer to the {ProxyGuide} for more information about configuring the proxy.

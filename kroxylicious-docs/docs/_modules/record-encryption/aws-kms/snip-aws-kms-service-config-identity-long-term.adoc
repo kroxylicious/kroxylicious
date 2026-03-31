@@ -14,22 +14,24 @@
 .Configuration for authenticating with a long-term IAM identity
 [source, yaml]
 ----
-kms: AwsKmsService                                            # <1>
+kms: AwsKmsService
 kmsConfig:
-  endpointUrl: https://kms.<region>.amazonaws.com             # <2>
-  tls:                                                        # <3>
+  endpointUrl: https://kms.<region>.amazonaws.com
+  tls:
     # ...
   longTermCredentials:
     accessKeyId:
-      passwordFile: /opt/aws/accessKey                        # <4>
+      passwordFile: /opt/aws/accessKey
     secretAccessKey:
-      passwordFile: /opt/aws/secretKey                        # <5>
-  region: <region>                                            # <6>
+      passwordFile: /opt/aws/secretKey
+  region: <region>
 ----
-<1> Specifies the name of the KMS provider. Use `AwsKmsService`.
-<2> AWS KMS endpoint URL, which must include the `https://` scheme.
-<3> (Optional) TLS trust configuration.
-<4> File containing the AWS access key ID.
-<5> File containing the AWS secret access key.
-<6> The AWS region identifier, such as `us-east-1`, specifying where your KMS resources are located. 
-This must match the region of the KMS endpoint you're using.
+where:
+
+* `kms` specifies the name of the KMS provider. Use `AwsKmsService`.
+* `kmsConfig` specifies the configuration of the KMS service.
+** `endpointUrl` AWS KMS endpoint URL, which must include the `https://` scheme.
+** `longTermCredentials` configures the KMS to authenticate long term credentials.
+*** `accessKeyId` References a file containing containing the AWS access key ID.
+*** `secretAccessKey` References a file containing AWS secret access key.
+** `region` defines the AWS region identifier, such as `us-east-1`, specifying where your KMS resources are located. This must match the region of the KMS endpoint you're using.

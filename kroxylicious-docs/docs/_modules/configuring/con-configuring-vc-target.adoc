@@ -53,9 +53,10 @@ virtualClusters:
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap-0.kafka.svc.cluster.local:9093,my-cluster-kafka-bootstrap-1.kafka.svc.cluster.local:9093,my-cluster-kafka-bootstrap-2.kafka.svc.cluster.local:9093
       bootstrapServerSelection:
-        strategy: "round-robin" # <1>
+        strategy: "round-robin"
       tls: {}
 #...
 ----
+where:
 
-<1> Round-robin strategy for bootstrap server selection.
+* `strategy` provides the strategy for bootstrap server selection.

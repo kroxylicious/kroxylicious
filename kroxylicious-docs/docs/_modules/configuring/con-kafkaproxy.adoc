@@ -27,7 +27,9 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   namespace: my-proxy
   name: simple
-spec: {} # <1>
+spec: {}
 ----
-<1>  An empty `spec` creates a proxy with default configuration. 
+where:
+
+* An empty `spec` creates a proxy with default configuration.
 

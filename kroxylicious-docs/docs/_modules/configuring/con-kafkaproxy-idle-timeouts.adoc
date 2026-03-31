@@ -46,9 +46,11 @@ metadata:
 spec:
   network:
     proxy:
-      unauthenticatedIdleTimeout: 30s # <1>
+      unauthenticatedIdleTimeout: 30s
 ----
-<1> Disconnect connections that remain unauthenticated for more than 30 seconds.
+where:
+
+* `unauthenticatedIdleTimeout` Disconnect connections that remain unauthenticated for more than 30 seconds.
 
 .Example: Both timeouts configured
 [source,yaml]
@@ -61,11 +63,13 @@ metadata:
 spec:
   network:
     proxy:
-      unauthenticatedIdleTimeout: 30s # <1>
-      authenticatedIdleTimeout: 10m # <2>
+      unauthenticatedIdleTimeout: 30s
+      authenticatedIdleTimeout: 10m
 ----
-<1> Disconnect unauthenticated connections after 30 seconds of inactivity.
-<2> Disconnect authenticated connections after 10 minutes of inactivity.
+where:
+
+* `unauthenticatedIdleTimeout` Disconnect unauthenticated connections after 30 seconds of inactivity.
+* `authenticatedIdleTimeout` Disconnect authenticated connections after 10 minutes of inactivity.
 
 == Monitoring idle disconnects
 

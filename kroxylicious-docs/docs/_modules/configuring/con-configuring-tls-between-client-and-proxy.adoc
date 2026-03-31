@@ -26,29 +26,25 @@ metadata:
   name: my-cluster
   namespace: my-proxy
 spec:
-  proxyRef: # <1>
+  proxyRef:
     name: simple
-  targetKafkaServiceRef: # <2>
+  targetKafkaServiceRef:
     name: my-cluster
   ingresses:
-    - ingressRef: # <3>
+    - ingressRef:
         name: cluster-ip
-      tls: # <4>
+      tls:
         certificateRef:
           name: server-certificate
           kind: Secret
 ----
-<1> Identifies the `KafkaProxy` resource that this virtual cluster is part of.
-  It must be in the same namespace as the `VirtualKafkaCluster`.
-<2> The virtual cluster names the `KafkaService` to be proxied.
-  It must be in the same namespace as the `VirtualKafkaCluster`.
-<3> The virtual cluster can be exposed by one or more ingresses.
-  Each ingress must reference a `KafkaProxyIngress` in the same namespace as the `VirtualKafkaCluster`.
-<4> If the ingress supports TLS, the `tls` property configures the TLS server certificate to use.
+where:
 
-Within a `VirtualKafkaCluster`, an ingress's `tls` property configures TLS for that ingress.
-The `tls.certificateRef` specifies the `Secret` resource holding the TLS server certificate that the proxy uses for clients connecting through this ingress.
-The referenced `KafkaProxyIngress` also needs to be configured for TLS.
+* `proxyRef` identifies the `KafkaProxy` resource that this virtual cluster is part of. It must be in the same namespace as the `VirtualKafkaCluster`.
+* `targetKafkaServiceRef` is the virtual cluster names the `KafkaService` to be proxied. It must be in the same namespace as the `VirtualKafkaCluster`.
+* `ingresses` defines how the traffic flows into the virtual cluster.
+** `ingressRef` is the virtual cluster can be exposed by one or more ingresses. Each ingress must reference a `KafkaProxyIngress` in the same namespace as the `VirtualKafkaCluster`.
+** If the referenced ingress requires TLS, the `tls`  property must provide a TLS server certificate to use.
 
 .Example `KafkaProxyIngress` configuration for TLS
 [source,yaml]
@@ -59,11 +55,13 @@ metadata:
   name: cluster-ip
   namespace: my-proxy
 spec:
-  proxyRef: # <1>
+  proxyRef:
     name: simple
-  clusterIP: # <2>
-    protocol: TLS # <3>
+  clusterIP:
+    protocol: TLS
 ----
-<1> The ingress must reference a `KafkaProxy` in the same namespace as the `KafkaProxyIngress`.
-<2> Exposes the proxy to Kafka clients inside the same Kubernetes cluster using a `ClusterIP` service.
-<3> The ingress uses `TLS` as the transport protocol.
+where:
+
+* `proxyRef` specifies the `KafkaProxy` which this ingress belongs. The ingress must reference a `KafkaProxy` in the same namespace as the `KafkaProxyIngress`.
+* `clusterIP` exposes the proxy to Kafka clients inside the same Kubernetes cluster using a `ClusterIP` service.
+** `protocol` specifies that the ingress uses `TLS` as the transport protocol.

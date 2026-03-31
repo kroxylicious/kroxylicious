@@ -26,6 +26,8 @@ Prometheus to scrape the monitors from your proxy instances.
 scrape_configs:
   - job_name: 'kroxylicious'
     static_configs:
-      - targets: ['proxyhost:9190'] # <1>
+      - targets: ['proxyhost:9190']
 ----
-<1> The host that is running the Kroxylicious instance and the port number assigned to management.
+where:
+
+* `targets` specified the host that is running the Kroxylicious instance and the port number assigned to management.
