@@ -208,7 +208,9 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
                     .setCause(LOGGER.isDebugEnabled() ? t : null)
                     .addKeyValue("iamRole", config.iamRole())
                     .addKeyValue("error", t.getMessage())
-                    .log("refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance? Increase log level to DEBUG for stacktrace");
+                    .log(LOGGER.isDebugEnabled()
+                            ? "refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance?"
+                            : "refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance? Increase log level to DEBUG for stacktrace");
             tokenRefreshErrorCount.incrementAndGet();
             target.completeExceptionally(t);
 
