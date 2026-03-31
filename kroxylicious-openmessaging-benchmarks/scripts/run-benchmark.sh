@@ -169,11 +169,6 @@ if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
     exit 1
 fi
 
-if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
-    echo "Error: cluster-overrides file not found: ${CLUSTER_OVERRIDES}" >&2
-    exit 1
-fi
-
 METRICS_PID=""
 LOGS_PID=""
 
@@ -379,9 +374,6 @@ if [[ -n "${PRODUCER_RATE}" ]]; then
 fi
 if [[ ${#PROFILE_VALUES[@]} -gt 0 ]]; then
     echo "Profiles:   ${PROFILE_VALUES[*]}"
-fi
-if [[ -n "${CLUSTER_OVERRIDES}" ]]; then
-    echo "Cluster:    ${CLUSTER_OVERRIDES}"
 fi
 if [[ -n "${CLUSTER_OVERRIDES}" ]]; then
     echo "Cluster:    ${CLUSTER_OVERRIDES}"
