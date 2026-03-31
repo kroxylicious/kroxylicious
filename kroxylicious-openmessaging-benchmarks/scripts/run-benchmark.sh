@@ -127,7 +127,7 @@ if [[ ! -f "${SCENARIO_VALUES}" ]]; then
 fi
 
 # Validate each profile file exists
-for profile_file in "${PROFILE_VALUES[@]}"; do
+for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do
     if [[ ! -f "${profile_file}" ]]; then
         echo "Error: profile values file not found: ${profile_file}" >&2
         exit 1
