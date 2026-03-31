@@ -114,7 +114,9 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
                 LOG.atWarn()
                         .setCause(LOG.isDebugEnabled() ? e : null)
                         .addKeyValue("error", e.getMessage())
-                        .log("GET Managed Identity token failed, failed to parse access token response, increase log level to DEBUG for stacktrace");
+                        .log(LOG.isDebugEnabled()
+                                ? "GET Managed Identity token failed, failed to parse access token response"
+                                : "GET Managed Identity token failed, failed to parse access token response, increase log level to DEBUG for stacktrace");
                 throw new MalformedResponseBodyException("failed to decode response body", e);
             }
         }
