@@ -395,7 +395,9 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("apiKey", decodedFrame.apiKey())
                     .addKeyValue("error", t.getMessage())
                     .setCause(LOGGER.isDebugEnabled() ? t : null)
-                    .log("filter ended exceptionally, closing connection, increase log level to DEBUG for stacktrace");
+                    .log(LOGGER.isDebugEnabled()
+                            ? "filter ended exceptionally, closing connection"
+                            : "filter ended exceptionally, closing connection, increase log level to DEBUG for stacktrace");
         }
         closeConnection();
         return null;

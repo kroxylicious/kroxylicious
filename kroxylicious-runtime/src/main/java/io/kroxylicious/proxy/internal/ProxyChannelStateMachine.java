@@ -491,7 +491,9 @@ public class ProxyChannelStateMachine {
         LOGGER.atWarn()
                 .addKeyValue("error", cause != null ? cause.getMessage() : "")
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                .log("exception from server channel, increase log level to DEBUG for stacktrace");
+                .log(LOGGER.isDebugEnabled()
+                        ? "exception from server channel"
+                        : "exception from server channel, increase log level to DEBUG for stacktrace");
         proxyToServerErrorCounter.increment();
         toClosed(cause);
     }
@@ -523,7 +525,9 @@ public class ProxyChannelStateMachine {
             LOGGER.atWarn()
                     .addKeyValue("error", cause != null ? cause.getMessage() : "")
                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                    .log("exception from client channel, increase log level to DEBUG for stacktrace");
+                    .log(LOGGER.isDebugEnabled()
+                            ? "exception from client channel"
+                            : "exception from client channel, increase log level to DEBUG for stacktrace");
             errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
         clientToProxyErrorCounter.increment();
