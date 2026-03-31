@@ -52,7 +52,7 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
 
     private final ManagedIdentityCredentialsConfig managedIdentityCredentialsConfig;
     private final Clock clock;
-    private static final Logger LOG = LoggerFactory.getLogger(ManagedIdentityAccessTokenService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ManagedIdentityAccessTokenService.class);
 
     private final HttpClient httpClient;
 
@@ -95,7 +95,7 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
 
     private static AccessTokenResponse getAccessTokenResponse(HttpResponse<String> r) {
         if (r.statusCode() != 200) {
-            LOG.atWarn()
+            LOGGER.atWarn()
                     .addKeyValue("statusCode", r.statusCode())
                     .log("GET Managed Identity token failed, received unexpected status code");
             throw new UnexpectedHttpStatusCodeException(r);
@@ -103,7 +103,7 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
         else {
             String body = r.body();
             if (body == null || body.isEmpty()) {
-                LOG.atWarn()
+                LOGGER.atWarn()
                         .log("GET Managed Identity token failed, received empty body");
                 throw new MalformedResponseBodyException("response body is null or empty");
             }
@@ -111,10 +111,10 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
                 return MAPPER.readValue(body, AccessTokenResponse.class);
             }
             catch (JsonProcessingException e) {
-                LOG.atWarn()
-                        .setCause(LOG.isDebugEnabled() ? e : null)
+                LOGGER.atWarn()
+                        .setCause(LOGGER.isDebugEnabled() ? e : null)
                         .addKeyValue("error", e.getMessage())
-                        .log(LOG.isDebugEnabled()
+                        .log(LOGGER.isDebugEnabled()
                                 ? "GET Managed Identity token failed, failed to parse access token response"
                                 : "GET Managed Identity token failed, failed to parse access token response, increase log level to DEBUG for stacktrace");
                 throw new MalformedResponseBodyException("failed to decode response body", e);

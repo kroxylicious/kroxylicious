@@ -39,7 +39,7 @@ public class CachingBearerTokenService implements BearerTokenService {
     private final BearerTokenService delegate;
     private final AtomicReference<State> state;
     private final Clock clock;
-    private static final Logger LOG = LoggerFactory.getLogger(CachingBearerTokenService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CachingBearerTokenService.class);
 
     public CachingBearerTokenService(BearerTokenService delegate, Clock clock) {
         this(delegate, new State.Initial(new CompletableFuture<>()), clock);
@@ -147,7 +147,7 @@ public class CachingBearerTokenService implements BearerTokenService {
     private <T extends State> boolean transition(State currentState, T toState, Consumer<T> onTransition) {
         boolean transitioned = state.compareAndSet(currentState, toState);
         if (transitioned) {
-            LOG.atDebug()
+            LOGGER.atDebug()
                     .addKeyValue("fromState", currentState)
                     .addKeyValue("toState", toState)
                     .log("transitioned state");
@@ -216,7 +216,7 @@ public class CachingBearerTokenService implements BearerTokenService {
     }
 
     private void onRefreshFailed(Throwable t, State.Refreshing refreshing) {
-        LOG.atDebug()
+        LOGGER.atDebug()
                 .setCause(t)
                 .addKeyValue("error", t.getMessage())
                 .log("refresh completed exceptionally");
@@ -230,7 +230,7 @@ public class CachingBearerTokenService implements BearerTokenService {
     }
 
     private void onRefreshComplete(BearerToken token, State.Refreshing refreshing) {
-        LOG.atDebug()
+        LOGGER.atDebug()
                 .log("refresh completed successfully");
         transitionToSteady(refreshing, token, steady -> refreshing.promise().complete(token));
     }

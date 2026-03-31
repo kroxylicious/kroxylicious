@@ -28,7 +28,7 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 public record ManagedIdentityCredentialsConfig(@JsonProperty(required = true) String targetResource,
                                                @JsonInclude(NON_NULL) @Nullable @JsonProperty URI identityServiceEndpoint) {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ManagedIdentityCredentialsConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ManagedIdentityCredentialsConfig.class);
 
     /**
      * The IMDS host IP recommended by Microsoft for use with retrieving Managed Identity tokens (see
@@ -43,11 +43,11 @@ public record ManagedIdentityCredentialsConfig(@JsonProperty(required = true) St
         Objects.requireNonNull(targetResource, "targetResource cannot be null");
         if (identityServiceEndpoint != null) {
             if (!identityServiceEndpoint.getScheme().equalsIgnoreCase("http")) {
-                LOG.warn(
+                LOGGER.warn(
                         "identityServiceEndpoint {} does not begin with http://, production installations should not use HTTPS as Azure Instance Metadata Service (IMDS) endpoint is not TLS enabled",
                         identityServiceEndpoint);
             }
-            LOG.warn("identityServiceEndpoint {} has been configured, this property should not be used in production", identityServiceEndpoint);
+            LOGGER.warn("identityServiceEndpoint {} has been configured, this property should not be used in production", identityServiceEndpoint);
         }
     }
 
