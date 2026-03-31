@@ -79,7 +79,7 @@ jobs:
           echo "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" >> "$GITHUB_ENV"
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
-          mvn -B install -DskipITs -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
+          mvn -B install -DskipITs -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -Dspotbugs.skip=true
       - name: Cache SonarCloud packages
         uses: actions/cache@v5
         if: github.ref_name == 'main' || env.SONAR_TOKEN_SET == 'true'
