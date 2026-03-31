@@ -204,6 +204,12 @@ trap teardown EXIT
 
 # --- Wait for Vault init job (if provisioned) ---
 
+if kubectl get deployment/vault -n "${NAMESPACE}" &>/dev/null; then
+    echo "Waiting for Vault to be ready (timeout: ${POD_READY_TIMEOUT})..."
+    kubectl rollout status deployment/vault -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
+    echo "Vault is ready."
+fi
+
 if kubectl get job/vault-init -n "${NAMESPACE}" &>/dev/null; then
     echo "Waiting for Vault init job to complete (timeout: ${POD_READY_TIMEOUT})..."
     kubectl wait --for=condition=complete job/vault-init \
