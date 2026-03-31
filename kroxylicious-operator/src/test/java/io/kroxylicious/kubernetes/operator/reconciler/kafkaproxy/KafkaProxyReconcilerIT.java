@@ -890,12 +890,11 @@ public class KafkaProxyReconcilerIT {
         assumeThat(testActor.supports(Route.class)).withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
 
         // Given
+        var domain = getDefaultOpenShiftIngressControllerDomain();
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
         KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
 
         int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
-
-        var domain = getDefaultOpenShiftIngressControllerDomain();
 
         String ingressName = "openshiftroute";
         String routeBootstrap = "$(virtualClusterName)-bootstrap." + domain;
@@ -1201,13 +1200,11 @@ public class KafkaProxyReconcilerIT {
         String ingressControllerName = "default";
         String ingressControllerNamespace = "openshift-ingress-operator";
 
-        IngressController defaultIngressController;
-        try {
-            defaultIngressController = testActor.getInNamespace(IngressController.class, ingressControllerName, ingressControllerNamespace);
-        }
-        catch (Exception e) {
-            defaultIngressController = null;
-        }
+        // Note: Real OpenShift has the IngressController API and an instance called `default` in the `openshift-ingress-operator` namespace
+        // MicroShift has the IngressController API, but no instances of the API, or a namespace of that name.
+        // Minikube has neither API nor namespace.
+        // The Fabric8 #get API treats absence of resource/namespace/api in the same manner (all return null).
+        var defaultIngressController = testActor.getInNamespace(IngressController.class, ingressControllerName, ingressControllerNamespace);
 
         return Optional.ofNullable(defaultIngressController)
                 .map(IngressController::getStatus)
