@@ -293,7 +293,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                    .log("An exceptionCaught() event was caught by the error handler {}: {}. Increase log level to DEBUG for stacktrace",
+                    .log(LOGGER.isDebugEnabled()
+                            ? "An exceptionCaught() event was caught by the error handler {}: {}"
+                            : "An exceptionCaught() event was caught by the error handler {}: {}. Increase log level to DEBUG for stacktrace",
                             cause.getClass().getSimpleName(), cause.getMessage());
         }
     }
