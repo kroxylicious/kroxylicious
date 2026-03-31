@@ -17,9 +17,10 @@ Kroxylicious is a Kafka protocol proxy, addressing use cases such as encryption,
 
 ## Quick Links
 - [kroxylicious.io](https://www.kroxylicious.io)
-- [Documentation](https://www.kroxylicious.io/documentation)
+- [Documentation](https://www.kroxylicious.io/kroxylicious/documentation/)
 - [GitHub design and discussion](https://github.com/kroxylicious/design)
-- [Community Slack chat](https://kroxylicious.io/join-us/)
+- [Community Slack chat](https://kroxylicious.slack.com/)
+- [Join Slack](https://join.slack.com/t/kroxylicious/shared_invite/zt-1rzjijq6d-x7At3bfPiPqFEqc9RmNhYA)
 
 ## Build status
 ![Maven Central Version](https://img.shields.io/maven-central/v/io.kroxylicious/kroxylicious-parent)
