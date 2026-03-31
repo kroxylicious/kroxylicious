@@ -9,39 +9,35 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Scenarios to run in order. Results are compared pairwise: each scenario vs baseline.
-# Note: the encryption scenario requires an additional KMS profile (e.g. --profile vault-values.yaml
-# or --profile aws-kms-values.yaml) and must be run separately via run-benchmark.sh.
-SCENARIOS=(baseline proxy-no-filters)
-
 # Workloads to run for each scenario.
 WORKLOADS=(1topic-1kb 10topics-1kb 100topics-1kb)
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") [--cluster-overrides <file>] [--profile <values-file>] <output-dir>
+Usage: $(basename "$0") [options] [<baseline> <candidate>] <output-dir>
 
-Runs the baseline and proxy-no-filters scenarios across all workloads and
-produces a side-by-side comparison to quantify proxy overhead.
+Runs two benchmark scenarios across all workloads and produces a side-by-side
+comparison to quantify overhead.
 
 For each scenario/workload combination, run-benchmark.sh is called.
 Each benchmark deploys fresh infrastructure, runs to completion, collects
 results, then tears down before the next run starts.
 
-After all runs complete, compare-results.sh is called for each workload
-to produce a baseline vs proxy-no-filters comparison.
+After all runs complete, compare-results.sh is called for each workload.
 
 Arguments:
-  output-dir  Root directory for all results. Results are organised as:
-                <output-dir>/<scenario>/<workload>/
+  baseline   Baseline scenario name (default: baseline)
+  candidate  Candidate scenario name (default: proxy-no-filters)
+  output-dir Root directory for all results. Results are organised as:
+               <output-dir>/<scenario>/<workload>/
 
 Options:
   --cluster-overrides <file> Helm values file with cluster-specific settings (storage class,
                              images, resource limits). Applied after --profile files so cluster
                              settings always win. Passed through to each run-benchmark.sh call.
-  --profile <values-file>   Additional Helm values file layered on top of each scenario.
-                            May be specified multiple times; files are applied in order.
-  -h, --help                Show this help
+  --profile <values-file>    Additional Helm values file layered on top of each scenario.
+                             May be specified multiple times; files are applied in order.
+  -h, --help                 Show this help
 
 Environment:
   NAMESPACE              Kubernetes namespace (default: kafka)
@@ -50,9 +46,8 @@ Environment:
 
 Examples:
   $(basename "$0") ./results/run-$(date +%Y%m%d-%H%M%S)/
-  $(basename "$0") --profile ./helm/kroxylicious-benchmark/scenarios/single-node-values.yaml \
-    ./results/run-$(date +%Y%m%d-%H%M%S)/
-  $(basename "$0") --cluster-overrides ~/my-cluster.yaml ./results/run-$(date +%Y%m%d-%H%M%S)/
+  $(basename "$0") baseline encryption \
+    --cluster-overrides ~/my-cluster.yaml ./results/run-$(date +%Y%m%d-%H%M%S)/
 EOF
     exit 1
 }
@@ -83,12 +78,20 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ $# -ne 1 ]]; then
-    echo "Error: expected 1 argument, got $#" >&2
+if [[ $# -eq 1 ]]; then
+    BASELINE_SCENARIO="baseline"
+    CANDIDATE_SCENARIO="proxy-no-filters"
+    OUTPUT_DIR="$1"
+elif [[ $# -eq 3 ]]; then
+    BASELINE_SCENARIO="$1"
+    CANDIDATE_SCENARIO="$2"
+    OUTPUT_DIR="$3"
+else
+    echo "Error: expected 1 or 3 arguments, got $#" >&2
     usage
 fi
 
-OUTPUT_DIR="$1"
+SCENARIOS=("${BASELINE_SCENARIO}" "${CANDIDATE_SCENARIO}")
 
 for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do
     if [[ ! -f "${profile_file}" ]]; then
@@ -102,8 +105,9 @@ if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
     exit 1
 fi
 
-echo "=== Running all benchmark scenarios ==="
-echo "Scenarios: ${SCENARIOS[*]}"
+echo "=== Running benchmark scenarios ==="
+echo "Baseline:  ${BASELINE_SCENARIO}"
+echo "Candidate: ${CANDIDATE_SCENARIO}"
 echo "Workloads: ${WORKLOADS[*]}"
 echo "Output:    ${OUTPUT_DIR}"
 if [[ ${#PROFILE_VALUES[@]} -gt 0 ]]; then
@@ -139,7 +143,7 @@ mvn -q process-sources -pl kroxylicious-openmessaging-benchmarks -f "${SCRIPT_DI
 
 # --- Compare baseline vs proxy-no-filters ---
 
-echo "=== Comparing baseline vs proxy-no-filters ==="
+echo "=== Comparing ${BASELINE_SCENARIO} vs ${CANDIDATE_SCENARIO} ==="
 echo ""
 
 FILTERED="${SCRIPT_DIR}/../target/jbang/generated-sources/io/kroxylicious/benchmarks/results/CompareResults.java"
@@ -147,33 +151,29 @@ if [[ ! -f "${FILTERED}" ]]; then
     echo "Warning: comparison tooling not available after mvn process-sources, skipping." >&2
 else
     for WORKLOAD in "${WORKLOADS[@]}"; do
-        BASELINE_RESULTS=("${OUTPUT_DIR}/baseline/${WORKLOAD}/"*.json)
-        PROXY_RESULTS=("${OUTPUT_DIR}/proxy-no-filters/${WORKLOAD}/"*.json)
-
-        # Filter out run-metadata.json - we want the OMB result files only
+        # Filter out run-metadata.json — we want the OMB result files only
         BASELINE_OMB=()
-        for f in "${BASELINE_RESULTS[@]}"; do
-            [[ "$(basename "$f")" != "run-metadata.json" ]] && BASELINE_OMB+=("$f")
+        for f in "${OUTPUT_DIR}/${BASELINE_SCENARIO}/${WORKLOAD}/"*.json; do
+            [[ -f "${f}" && "$(basename "$f")" != "run-metadata.json" ]] && BASELINE_OMB+=("${f}")
         done
-        PROXY_OMB=()
-        for f in "${PROXY_RESULTS[@]}"; do
-            [[ "$(basename "$f")" != "run-metadata.json" ]] && PROXY_OMB+=("$f")
+        CANDIDATE_OMB=()
+        for f in "${OUTPUT_DIR}/${CANDIDATE_SCENARIO}/${WORKLOAD}/"*.json; do
+            [[ -f "${f}" && "$(basename "$f")" != "run-metadata.json" ]] && CANDIDATE_OMB+=("${f}")
         done
 
-        if [[ ${#BASELINE_OMB[@]} -eq 0 || ${#PROXY_OMB[@]} -eq 0 ]]; then
+        if [[ ${#BASELINE_OMB[@]} -eq 0 || ${#CANDIDATE_OMB[@]} -eq 0 ]]; then
             echo "  ${WORKLOAD}: skipping (missing results for one or both scenarios)"
             continue
         fi
 
-        echo "--- ${WORKLOAD}: baseline vs proxy-no-filters ---"
-        "${SCRIPT_DIR}/compare-results.sh" "${BASELINE_OMB[0]}" "${PROXY_OMB[0]}"
+        echo "--- ${WORKLOAD}: ${BASELINE_SCENARIO} vs ${CANDIDATE_SCENARIO} ---"
+        "${SCRIPT_DIR}/compare-results.sh" "${BASELINE_OMB[0]}" "${CANDIDATE_OMB[0]}"
         echo ""
 
         # Check all scenarios for producer back-pressure and suggest a rate sweep if detected.
         _BP_RESULTS=()
         for _bp_scenario in "${SCENARIOS[@]}"; do
-            _bp_results=("${OUTPUT_DIR}/${_bp_scenario}/${WORKLOAD}/"*.json)
-            for _bp_f in "${_bp_results[@]}"; do
+            for _bp_f in "${OUTPUT_DIR}/${_bp_scenario}/${WORKLOAD}/"*.json; do
                 [[ -f "${_bp_f}" && "$(basename "${_bp_f}")" != "run-metadata.json" ]] && _BP_RESULTS+=("${_bp_f}")
             done
         done
