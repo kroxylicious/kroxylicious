@@ -20,11 +20,22 @@
     <artifactId>kroxylicious-docs</artifactId>
     <name>Kroxylicious documentation</name>
     <description>User-facing documentation for the Kroxylicuous project.</description>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>kroxylicious-api-javadoc</module>
+    </modules>
+
     <properties>
         <jsoup.version>1.22.1</jsoup.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api-javadoc</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
@@ -190,6 +201,8 @@
                                 <arg>--tocify-toc-file=toc.html</arg>
                                 <arg>--tocify-tocless-file=content.html</arg>
                                 <arg>--datafy=*/doc.yaml</arg>
+                                <arg>--copy-dir=${project.basedir}/kroxylicious-api-javadoc/target/reports/apidocs</arg>
+                                <arg>--copy-dest=documentation/${project.version}/javadoc</arg>
                             </args>
                         </configuration>
                     </execution>

@@ -15,6 +15,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junitpioneer.jupiter.ClearEnvironmentVariable;
+import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -78,7 +80,7 @@ class OperatorMainTest {
         when(managementServer.createContext(eq("/"), rootCaptor.capture())).thenReturn(rootHttpContext);
         when(managementServer.createContext(eq(OperatorMain.HTTP_PATH_METRICS), any(HttpHandler.class))).thenReturn(metricsHttpContext);
         when(managementServer.createContext(eq(OperatorMain.HTTP_PATH_LIVEZ), livezCaptor.capture())).thenReturn(livezHttpContext);
-        operatorMain = new OperatorMain(kubeClient, managementServer);
+        operatorMain = new OperatorMain(managementServer, kubeClient, null);
     }
 
     @AfterEach
@@ -187,6 +189,65 @@ class OperatorMainTest {
     void shouldRespondWith200ForRequestsLivez() throws IOException {
         // Given
         shouldRespondWithStatusCode(livezCaptor, 200);
+    }
+
+    @Test
+    @ClearEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME)
+    void shouldNotOverrideOperatorNamespaceWhenEnvVarNotSpecified() {
+        doShouldNotOverrideOperatorNamespace();
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = "")
+    void shouldNotOverrideOperatorNamespaceWhenEnvVarEmpty() {
+        doShouldNotOverrideOperatorNamespace();
+    }
+
+    private void doShouldNotOverrideOperatorNamespace() {
+        // When
+        operatorMain.start();
+        // Then
+        assertThat(operatorMain.getWatchedNamespaces()).isNull();
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = "single")
+    void shouldOverrideOperatorNamespaceToSingletonNamespace() {
+        // When
+        operatorMain.start();
+
+        // Then
+        assertThat(operatorMain.getWatchedNamespaces()).containsExactly("single");
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = "abc,def,ghi")
+    void shouldOverrideOperatorNamespacesToManyNamespaces() {
+        // When
+        operatorMain.start();
+
+        // Then
+        assertThat(operatorMain.getWatchedNamespaces()).containsExactly("abc", "def", "ghi");
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = " abc ,def ")
+    void shouldTrimNamespaceNames() {
+        // When
+        operatorMain.start();
+
+        // Then
+        assertThat(operatorMain.getWatchedNamespaces()).containsExactly("abc", "def");
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME, value = ",abc,")
+    void shouldIgnoreEmptyNamespaces() {
+        // When
+        operatorMain.start();
+
+        // Then
+        assertThat(operatorMain.getWatchedNamespaces()).containsExactly("abc");
     }
 
     private void shouldRespondWithStatusCode(ArgumentCaptor<HttpHandler> captor,

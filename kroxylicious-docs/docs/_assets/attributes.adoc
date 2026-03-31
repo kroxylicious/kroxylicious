@@ -138,7 +138,7 @@ ifndef::DocRoot[:DocRoot: ..]
 :DeveloperGuideText: Kroxylicious Developer guide
 :DeveloperGuide: link:{DeveloperGuideUrl}[{DeveloperGuideText}]
 
-:DeveloperQuickstartUrl: {DocRoot}/developer-quickstart/
+:DeveloperQuickstartUrl: {DocRoot}/developer-quick-start/
 :DeveloperQuickstartText: Kroxylicious Developer Quickstart
 :DeveloperQuickstart: link:{DeveloperQuickstartUrl}[{DeveloperQuickstartText}]
 
@@ -170,3 +170,7 @@ ifndef::DocRoot[:DocRoot: ..]
 :SASLInspectionGuideUrl: {DocRoot}/sasl-inspection-guide/
 :SASLInspectionGuideText: SASL Inspection guide
 :SASLInspectionGuide: link:{SASLInspectionGuideUrl}[{SASLInspectionGuideText}]
+
+:ConnectionExpirationGuideUrl: {DocRoot}/connection-expiration-guide/
+:ConnectionExpirationGuideText: Connection Expiration guide
+:ConnectionExpirationGuide: link:{ConnectionExpirationGuideUrl}[{ConnectionExpirationGuideText}]

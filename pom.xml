@@ -57,7 +57,7 @@
         <log4j.version>2.25.3</log4j.version>
         <caffeine.version>3.2.3</caffeine.version>
         <picocli.version>4.7.7</picocli.version>
-        <netty.version>4.2.10.Final</netty.version>
+        <netty.version>4.2.12.Final</netty.version>
         <netty.epoll.architecture>linux-x86_64</netty.epoll.architecture>
         <netty.io_uring.architecture>linux-x86_64</netty.io_uring.architecture>
         <netty.kqueue.architecture>osx-x86_64</netty.kqueue.architecture>
@@ -533,6 +533,12 @@
                 <groupId>io.github.hakky54</groupId>
                 <artifactId>logcaptor</artifactId>
                 <version>${logcaptor.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.threeten</groupId>
+                <artifactId>threeten-extra</artifactId>
+                <version>1.8.0</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -1248,7 +1254,7 @@
                         <executions>
                             <execution>
                                 <id>run-project-checks</id>
-                                <phase>verify</phase>
+                                <phase>process-sources</phase>
                                 <goals>
                                     <goal>check</goal>
                                 </goals>
