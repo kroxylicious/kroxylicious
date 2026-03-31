@@ -147,7 +147,9 @@ public class ApiKeySessionProvider implements SessionProvider {
     }
 
     private void scheduleCredentialRefresh(long delayMs) {
-        LOGGER.debug("Scheduling refresh of Fortanix session in {}ms", delayMs);
+        LOGGER.atDebug()
+                .addKeyValue("delayMs", delayMs)
+                .log("scheduling refresh of Fortanix session");
 
         var refreshedCredFuture = new CompletableFuture<Session>();
         executorService.schedule(() -> {
@@ -197,7 +199,10 @@ public class ApiKeySessionProvider implements SessionProvider {
     private void propagateResultToFuture(Session credentials, Throwable t, CompletableFuture<Session> target) {
         final long refreshDelay;
         if (t != null) {
-            LOGGER.warn("Refresh of session failed", t);
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? t : null)
+                    .addKeyValue("error", t.getMessage())
+                    .log("refresh of session failed, increase log level to DEBUG for stacktrace");
             tokenRefreshErrorCount.incrementAndGet();
             target.completeExceptionally(t);
 
@@ -205,7 +210,9 @@ public class ApiKeySessionProvider implements SessionProvider {
         }
         else {
             var expiration = credentials.expiration();
-            LOGGER.debug("Obtained Fortanix DSM session, expiry: {}", expiration);
+            LOGGER.atDebug()
+                    .addKeyValue("expiration", expiration)
+                    .log("obtained Fortanix DSM session");
             tokenRefreshErrorCount.set(0);
             target.complete(credentials);
 
@@ -284,11 +291,16 @@ public class ApiKeySessionProvider implements SessionProvider {
                 client.sendAsync(terminateRequest, HttpResponse.BodyHandlers.discarding())
                         .thenApply(ApiKeySessionProvider::checkResponseStatus)
                         .thenApply(r -> {
-                            LOGGER.debug("Terminated previous session (response code {})", r.statusCode());
+                            LOGGER.atDebug()
+                                    .addKeyValue("statusCode", r.statusCode())
+                                    .log("terminated previous session");
                             return null;
                         })
                         .exceptionally(t -> {
-                            LOGGER.warn("Failed to terminate previous session (ignored). Raise log level to DEBUG to see the cause", LOGGER.isDebugEnabled() ? t : null);
+                            LOGGER.atWarn()
+                                    .setCause(LOGGER.isDebugEnabled() ? t : null)
+                                    .addKeyValue("error", t.getMessage())
+                                    .log("failed to terminate previous session (ignored), increase log level to DEBUG for stacktrace");
                             return null;
                         });
             }
