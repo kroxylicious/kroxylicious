@@ -39,6 +39,10 @@ Options:
   --workload <name>         OMB workload to use (default: ${DEFAULT_WORKLOAD})
   --profile <values-file>   Additional Helm values layered on top of each scenario
                             (default: scenarios/rate-sweep-values.yaml — 5 min warmup + 5 min test)
+                            May be specified multiple times; files are applied in order.
+  --cluster-overrides <file> Helm values file with cluster-specific settings (storage class,
+                            images, resource limits). Applied after --profile files so cluster
+                            settings always win.
   --set <key=value>         Pass a Helm --set override to run-benchmark.sh (may be repeated)
   --dry-run                 Print rate sequence and planned steps without running anything
   -h, --help                Show this help
@@ -73,25 +77,27 @@ MIN_RATE=""
 MAX_RATE=""
 STEP_PERCENT="${DEFAULT_STEP_PERCENT}"
 WORKLOAD="${DEFAULT_WORKLOAD}"
-PROFILE_VALUES="${DEFAULT_PROFILE_VALUES}"
+PROFILE_VALUES=("${DEFAULT_PROFILE_VALUES}")
+CLUSTER_OVERRIDES=""
 HELM_SET_ARGS=()
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --output-dir)    OUTPUT_DIR="$2";           shift 2 ;;
-        --scenarios)     SCENARIOS="$2";            shift 2 ;;
-        --baseline-from) BASELINE_FROM="$2";        shift 2 ;;
-        --min-rate)      MIN_RATE="$2";             shift 2 ;;
-        --max-rate)      MAX_RATE="$2";             shift 2 ;;
-        --step-percent)  STEP_PERCENT="$2";         shift 2 ;;
-        --workload)      WORKLOAD="$2";             shift 2 ;;
-        --profile)       PROFILE_VALUES="$2";       shift 2 ;;
-        --set)           HELM_SET_ARGS+=("$2");     shift 2 ;;
-        --dry-run)       DRY_RUN=true;              shift   ;;
-        -h|--help)       usage ;;
-        -*)              echo "Error: unknown option '$1'" >&2; usage ;;
-        *)               echo "Error: unexpected argument '$1'" >&2; usage ;;
+        --output-dir)       OUTPUT_DIR="$2";           shift 2 ;;
+        --scenarios)        SCENARIOS="$2";            shift 2 ;;
+        --baseline-from)    BASELINE_FROM="$2";        shift 2 ;;
+        --min-rate)         MIN_RATE="$2";             shift 2 ;;
+        --max-rate)         MAX_RATE="$2";             shift 2 ;;
+        --step-percent)     STEP_PERCENT="$2";         shift 2 ;;
+        --workload)         WORKLOAD="$2";             shift 2 ;;
+        --profile)          PROFILE_VALUES+=("$2");    shift 2 ;;
+        --cluster-overrides) CLUSTER_OVERRIDES="$2";  shift 2 ;;
+        --set)              HELM_SET_ARGS+=("$2");     shift 2 ;;
+        --dry-run)          DRY_RUN=true;              shift   ;;
+        -h|--help)          usage ;;
+        -*)                 echo "Error: unknown option '$1'" >&2; usage ;;
+        *)                  echo "Error: unexpected argument '$1'" >&2; usage ;;
     esac
 done
 
@@ -130,8 +136,15 @@ if [[ -n "${BASELINE_FROM}" && ! -d "${BASELINE_FROM}" ]]; then
     exit 1
 fi
 
-if [[ -n "${PROFILE_VALUES}" && ! -f "${PROFILE_VALUES}" ]]; then
-    echo "Error: --profile file not found: ${PROFILE_VALUES}" >&2
+for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do
+    if [[ ! -f "${profile_file}" ]]; then
+        echo "Error: --profile file not found: ${profile_file}" >&2
+        exit 1
+    fi
+done
+
+if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
+    echo "Error: --cluster-overrides file not found: ${CLUSTER_OVERRIDES}" >&2
     exit 1
 fi
 
@@ -166,7 +179,8 @@ if [[ "${DRY_RUN}" == "true" ]]; then
     echo "Workload:     ${WORKLOAD}"
     echo "Output dir:   ${OUTPUT_DIR:-<not set>}"
     [[ -n "${BASELINE_FROM}" ]] && echo "Baseline from: ${BASELINE_FROM}"
-    [[ -n "${PROFILE_VALUES}" ]] && echo "Profile:       ${PROFILE_VALUES}"
+    [[ ${#PROFILE_VALUES[@]} -gt 0 ]] && echo "Profiles:      ${PROFILE_VALUES[*]}"
+    [[ -n "${CLUSTER_OVERRIDES}" ]] && echo "Cluster:       ${CLUSTER_OVERRIDES}"
     echo ""
     STEP_INCREMENT=$(awk "BEGIN { printf \"%'d\", (${MAX_RATE} - ${MIN_RATE}) * ${STEP_PERCENT} / 100 }")
     echo "Rate sequence (min=$(printf "%'d" "${MIN_RATE}"), max=$(printf "%'d" "${MAX_RATE}"), step=${STEP_PERCENT}% (+${STEP_INCREMENT} msg/sec fixed increment)):"
@@ -332,7 +346,8 @@ cat > "${OUTPUT_DIR}/run-metadata.json" <<METADATA_EOF
   "stepPercent": ${STEP_PERCENT},
   "scenarios": "${SCENARIO_LIST}",
   "workload": "${WORKLOAD}",
-  "profile": "${PROFILE_VALUES:-}"
+  "profiles": "$(IFS=,; echo "${PROFILE_VALUES[*]+"${PROFILE_VALUES[*]}"}")",
+  "clusterOverrides": "${CLUSTER_OVERRIDES:-}"
 }
 METADATA_EOF
 
@@ -342,6 +357,8 @@ echo "Workload:   ${WORKLOAD}"
 echo "Output dir: ${OUTPUT_DIR}"
 echo "Rates:      ${MIN_RATE}–${MAX_RATE} msg/sec (${STEP_PERCENT}% steps)"
 [[ -n "${BASELINE_FROM}" ]] && echo "Baseline:   ${BASELINE_FROM}"
+[[ ${#PROFILE_VALUES[@]} -gt 0 ]] && echo "Profiles:   ${PROFILE_VALUES[*]}"
+[[ -n "${CLUSTER_OVERRIDES}" ]] && echo "Cluster:    ${CLUSTER_OVERRIDES}"
 echo ""
 
 for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
@@ -364,7 +381,12 @@ for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
         # Build run-benchmark.sh args.
         # Each probe gets a full deploy + teardown for a clean environment.
         RB_ARGS=(--producer-rate "${RATE}")
-        [[ -n "${PROFILE_VALUES}" ]]        && RB_ARGS+=(--profile "${PROFILE_VALUES}")
+        [[ $i -gt 0 ]]                     && RB_ARGS+=(--skip-deploy)
+        [[ $i -lt $((TOTAL_PROBES - 1)) ]] && RB_ARGS+=(--skip-teardown)
+        for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do
+            RB_ARGS+=(--profile "${profile_file}")
+        done
+        [[ -n "${CLUSTER_OVERRIDES}" ]] && RB_ARGS+=(--cluster-overrides "${CLUSTER_OVERRIDES}")
         for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do
             RB_ARGS+=(--set "${set_arg}")
         done
