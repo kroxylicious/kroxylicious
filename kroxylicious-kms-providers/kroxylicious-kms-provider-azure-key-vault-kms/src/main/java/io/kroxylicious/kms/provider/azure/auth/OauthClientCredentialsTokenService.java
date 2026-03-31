@@ -138,7 +138,9 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
                 LOG.atWarn()
                         .setCause(LOG.isDebugEnabled() ? e : null)
                         .addKeyValue("error", e.getMessage())
-                        .log("GET Microsoft Identity Platform OAuth 2.0 token failed, error parsing response body, increase log level to DEBUG for stacktrace");
+                        .log(LOG.isDebugEnabled()
+                                ? "GET Microsoft Identity Platform OAuth 2.0 token failed, error parsing response body"
+                                : "GET Microsoft Identity Platform OAuth 2.0 token failed, error parsing response body, increase log level to DEBUG for stacktrace");
                 throw new MalformedResponseBodyException("failed to decode response body", e);
             }
         }
