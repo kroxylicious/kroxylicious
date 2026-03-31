@@ -54,6 +54,7 @@ EOF
 
 PROFILE_VALUES=()
 CLUSTER_OVERRIDES=""
+POSITIONAL=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -73,21 +74,22 @@ while [[ $# -gt 0 ]]; do
             usage
             ;;
         *)
-            break
+            POSITIONAL+=("$1")
+            shift
             ;;
     esac
 done
 
-if [[ $# -eq 1 ]]; then
+if [[ ${#POSITIONAL[@]} -eq 1 ]]; then
     BASELINE_SCENARIO="baseline"
     CANDIDATE_SCENARIO="proxy-no-filters"
-    OUTPUT_DIR="$1"
-elif [[ $# -eq 3 ]]; then
-    BASELINE_SCENARIO="$1"
-    CANDIDATE_SCENARIO="$2"
-    OUTPUT_DIR="$3"
+    OUTPUT_DIR="${POSITIONAL[0]}"
+elif [[ ${#POSITIONAL[@]} -eq 3 ]]; then
+    BASELINE_SCENARIO="${POSITIONAL[0]}"
+    CANDIDATE_SCENARIO="${POSITIONAL[1]}"
+    OUTPUT_DIR="${POSITIONAL[2]}"
 else
-    echo "Error: expected 1 or 3 arguments, got $#" >&2
+    echo "Error: expected 1 or 3 positional arguments, got ${#POSITIONAL[@]}" >&2
     usage
 fi
 
