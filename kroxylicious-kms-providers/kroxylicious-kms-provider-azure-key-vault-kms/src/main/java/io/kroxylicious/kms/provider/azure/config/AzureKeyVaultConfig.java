@@ -45,7 +45,7 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
                                   @JsonInclude(NON_NULL) @Nullable @JsonProperty Integer keyVaultPort,
                                   @JsonInclude(NON_NULL) @JsonProperty(value = "tls") @Nullable Tls tls) {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AzureKeyVaultConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AzureKeyVaultConfig.class);
     private static final Pattern VAULT_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9\\-]{3,24}$");
 
     public AzureKeyVaultConfig {
@@ -73,7 +73,7 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
             throw new IllegalArgumentException("keyVaultHost is blank");
         }
         if (!kvScheme().equals("https")) {
-            LOG.warn("keyVaultScheme {} is not https, production installations should use a secure endpoint", keyVaultScheme());
+            LOGGER.warn("keyVaultScheme {} is not https, production installations should use a secure endpoint", keyVaultScheme());
         }
     }
 

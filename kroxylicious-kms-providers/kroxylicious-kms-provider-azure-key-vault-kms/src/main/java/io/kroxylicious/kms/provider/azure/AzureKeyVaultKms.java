@@ -35,7 +35,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AzureKeyVaultKms.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AzureKeyVaultKms.class);
 
     private static final List<String> REQUIRED_OPERATIONS = List.of("wrapKey", "unwrapKey");
     private static final int AES_256_KEY_SIZE = 32;
@@ -52,7 +52,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
 
     @Override
     public CompletionStage<DekPair<AzureKeyVaultEdek>> generateDekPair(WrappingKey wrappingKey) {
-        LOG.atDebug()
+        LOGGER.atDebug()
                 .addKeyValue("keyName", wrappingKey.keyName())
                 .addKeyValue("keyVersion", wrappingKey.keyVersion())
                 .log("generating DEK pair");
@@ -89,7 +89,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
 
     @Override
     public CompletionStage<SecretKey> decryptEdek(AzureKeyVaultEdek edek) {
-        LOG.atDebug()
+        LOGGER.atDebug()
                 .addKeyValue("keyName", edek.keyName())
                 .addKeyValue("keyVersion", edek.keyVersion())
                 .log("decrypting DEK pair");
@@ -145,7 +145,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
      */
     @Override
     public CompletionStage<WrappingKey> resolveAlias(String alias) {
-        LOG.debug("Resolving alias {}", alias);
+        LOGGER.debug("Resolving alias {}", alias);
         return client.getKey(encryptingKeyVaultName, alias).handle((response, throwable) -> {
             if (throwable != null) {
                 if (isInstanceOfOrCompletionExceptionWithCauseSatisfying(throwable, UnexpectedHttpStatusCodeException.class, e -> e.getStatusCode() == 404)) {
@@ -157,7 +157,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
                 throw new KmsException("get key returned null for: '" + alias + "'");
             }
             else {
-                LOG.debug("resolved alias {} to {}", alias, response);
+                LOGGER.debug("resolved alias {} to {}", alias, response);
                 JsonWebKey key = response.key();
                 SupportedKeyType keyType = validateKeyAndExtractType(alias, response, key);
                 return WrappingKey.parse(encryptingKeyVaultName, alias, response.key().keyId(), keyType);
