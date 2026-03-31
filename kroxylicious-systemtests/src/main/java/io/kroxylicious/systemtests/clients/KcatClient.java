@@ -112,13 +112,13 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
-    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig) {
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig, String consumerGroup) {
         LOGGER.atInfo().log("Consuming messages using kcat");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat-" + TestUtils.getRandomPodNameSuffix();
         // Running consumer with parameters to get the latest N number of messages received to avoid consuming twice the same messages
         List<String> args = new ArrayList<>(List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-o", "-" + numOfMessages, "-e", "-J"));
         if (!additionalConfig.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
-            args.addAll(List.of("-X", ConsumerConfig.GROUP_ID_CONFIG + "=" + Constants.CONSUMER_GROUP_NAME));
+            args.addAll(List.of("-X", ConsumerConfig.GROUP_ID_CONFIG + "=" + consumerGroup));
         }
         additionalConfig.forEach((key, value) -> {
             args.add("-X");

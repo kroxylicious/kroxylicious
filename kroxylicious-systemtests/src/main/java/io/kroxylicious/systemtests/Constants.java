@@ -57,7 +57,7 @@ public final class Constants {
      * Listener names for Kafka cluster
      */
     public static final String PLAIN_LISTENER_NAME = "plain";
-    public static final String CONSUMER_GROUPS_LISTENER_NAME = "groups";
+    public static final String ANONYMOUS_LISTENER_NAME = "anonymous";
     public static final String TLS_LISTENER_NAME = "tls";
 
     public static final String CONSUMER_GROUP_NAME = "my-group";

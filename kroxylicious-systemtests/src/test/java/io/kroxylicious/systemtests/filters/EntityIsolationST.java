@@ -88,7 +88,7 @@ class EntityIsolationST extends AbstractSystemTests {
     }
 
     @Test
-    void testGroupIdWithPrincipalEntityNameMapperService(String namespace) {
+    void testIsolationByGroupIdWithPrincipalEntityNameMapperService(String namespace) {
         // kcat does not support scram-sha-512 authentication: https://github.com/edenhill/kcat/issues/462
         assumeThat(Environment.KAFKA_CLIENT).isNotEqualToIgnoringCase(KafkaClientType.KCAT.name());
 
@@ -117,14 +117,14 @@ class EntityIsolationST extends AbstractSystemTests {
         LOGGER.atInfo().setMessage("Then the messages are consumed by {}").addArgument(userAlice).log();
         Map<String, String> aliceKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
         List<ConsumerRecord> aliceResult = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessagesForAlice, Duration.ofMinutes(2),
-                aliceKafkaProps);
+                aliceKafkaProps, Constants.CONSUMER_GROUP_NAME);
         LOGGER.atInfo().setMessage("Received: {}").addArgument(aliceResult).log();
 
         int numberOfMessages = numberOfMessagesForBob - numberOfMessagesForAlice;
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, bobKafkaProps);
         LOGGER.atInfo().setMessage("Then the messages are consumed by {}").addArgument(userBob).log();
-        List<ConsumerRecord> bobResult = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessagesForBob, Duration.ofMinutes(2), bobKafkaProps);
+        List<ConsumerRecord> bobResult = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessagesForBob, Duration.ofMinutes(2), bobKafkaProps, Constants.CONSUMER_GROUP_NAME);
         LOGGER.atInfo().setMessage("Received: {}").addArgument(bobResult).log();
 
         assertAll(() -> {
@@ -148,10 +148,10 @@ class EntityIsolationST extends AbstractSystemTests {
                     .last()
                     .isEqualTo((long) (numberOfMessagesForBob - 1));
 
-            assertThat(KafkaSteps.getConsumerGroups(clusterName)).withFailMessage("Consumer groups are not as expected!")
+            assertThat(KafkaSteps.getConsumerGroupsFromUpstreamCluster(clusterName))
+                    .withFailMessage("Consumer groups from cluster '{}' are not as expected!", clusterName)
                     .hasSize(2)
-                    .anySatisfy(v -> assertThat(v).isEqualTo(userBob + "-" + Constants.CONSUMER_GROUP_NAME))
-                    .anySatisfy(v -> assertThat(v).isEqualTo(userAlice + "-" + Constants.CONSUMER_GROUP_NAME));
+                    .containsExactlyInAnyOrder(userBob + "-" + Constants.CONSUMER_GROUP_NAME, userAlice + "-" + Constants.CONSUMER_GROUP_NAME);
         });
     }
 }

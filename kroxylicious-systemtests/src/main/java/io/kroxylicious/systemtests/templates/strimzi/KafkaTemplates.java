@@ -80,7 +80,7 @@ public class KafkaTemplates {
                                 .withTls(true)
                                 .build(),
                         new GenericKafkaListenerBuilder()
-                                .withName(Constants.CONSUMER_GROUPS_LISTENER_NAME)
+                                .withName(Constants.ANONYMOUS_LISTENER_NAME)
                                 .withPort(9094)
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(false)

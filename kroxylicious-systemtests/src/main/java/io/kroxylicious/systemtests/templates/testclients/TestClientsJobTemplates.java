@@ -179,14 +179,15 @@ public class TestClientsJobTemplates {
      * @param topicName the topic name
      * @param numOfMessages the num of messages
      * @param additionalKafkaProps the additional kafka props
+     * @param consumerGroup the consumer group
      * @return  the job builder
      */
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages,
-                                                          Map<String, String> additionalKafkaProps) {
+                                                          Map<String, String> additionalKafkaProps, String consumerGroup) {
         return newJobForContainer(jobName,
                 "test-client-consumer",
                 Environment.TEST_CLIENTS_IMAGE,
-                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages, additionalKafkaProps));
+                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages, additionalKafkaProps, consumerGroup));
     }
 
     /**
@@ -328,7 +329,7 @@ public class TestClientsJobTemplates {
         return envVars;
     }
 
-    private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages, Map<String, String> additionalKafkaProps) {
+    private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages, Map<String, String> additionalKafkaProps, String consumerGroup) {
         String additionalConfigVar = additionalKafkaProps.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("\n"));
 
@@ -336,7 +337,7 @@ public class TestClientsJobTemplates {
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(TOPIC_VAR, topicName),
                 envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
-                envVar(GROUP_ID_VAR, Constants.CONSUMER_GROUP_NAME),
+                envVar(GROUP_ID_VAR, consumerGroup),
                 envVar(LOG_LEVEL_VAR, "INFO"),
                 envVar(CLIENT_TYPE_VAR, "KafkaConsumer"),
                 envVar(OUTPUT_FORMAT_VAR, "json"),

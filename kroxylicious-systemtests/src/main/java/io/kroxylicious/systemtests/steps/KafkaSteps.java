@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
-import io.skodjob.testframe.clients.KubeClusterException;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.executor.ExecResult;
@@ -172,29 +171,26 @@ public class KafkaSteps {
      * @param clusterName the cluster name
      * @return list of consumer groups
      */
-    public static List<String> getConsumerGroups(String clusterName) {
-        List<String> consumerGroups = List.of();
+    public static List<String> getConsumerGroupsFromUpstreamCluster(String clusterName) {
         List<Pod> kafkaPods = await().atMost(Duration.ofSeconds(10)).until(
                 () -> kubeClient().listPods(Constants.KAFKA_DEFAULT_NAMESPACE, "app.kubernetes.io/instance", clusterName),
                 p -> !p.isEmpty());
-        // We will have in kafkaPods at least two pods: one entity-operator and at least one kafka-X
+        // We will have in kafkaPods at least two pods: one entity-operator and at least one kafka-X,
+        // so we need to filter for the kafka one to run the script there
         Optional<Pod> kafkaPod = kafkaPods.stream().filter(p -> p.getMetadata().getName().contains("kafka")).findFirst();
 
-        if (kafkaPod.isPresent()) {
-            String kafkaPodName = kafkaPod.get().getMetadata().getName();
+        return kafkaPod.map(pod -> {
+            String kafkaPodName = pod.getMetadata().getName();
             String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9094";
             List<String> command = List.of("/bin/bash", "./bin/kafka-consumer-groups.sh", "--bootstrap-server", kafkaBootstrap, "--list");
             ExecResult result = cmdKubeClient(Constants.KAFKA_DEFAULT_NAMESPACE).execInPod(kafkaPodName, true, command);
 
+            List<String> groups = List.of();
             if (result.isSuccess()) {
                 LOGGER.atInfo().setMessage("Consumer groups: {}").addArgument(result.out()).log();
-                consumerGroups = Arrays.stream(result.out().split("\n")).toList();
+                groups = Arrays.stream(result.out().split("\n")).toList();
             }
-        }
-        else {
-            throw new KubeClusterException(new Throwable("Kafka pod not found!"));
-        }
-
-        return consumerGroups;
+            return groups;
+        }).orElseThrow();
     }
 }

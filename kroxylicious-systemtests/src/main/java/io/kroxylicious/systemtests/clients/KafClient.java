@@ -123,7 +123,7 @@ public class KafClient implements KafkaClient {
     }
 
     @Override
-    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig) {
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig, String consumerGroup) {
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
 
@@ -131,7 +131,7 @@ public class KafClient implements KafkaClient {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
         List<String> args = new ArrayList<>(List.of("-b", bootstrap, "--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME, "consume", topicName,
                 "--output", "json"));
-        args.addAll(List.of("--group", Constants.CONSUMER_GROUP_NAME));
+        args.addAll(List.of("--group", consumerGroup));
         Job kafClientJob = TestClientsJobTemplates.authenticationKafkaGoJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, kafClientJob);
         String log = waitForConsumer(podName, numOfMessages, timeout);

@@ -143,10 +143,10 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     @Override
-    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig) {
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig, String consumerGroup) {
         LOGGER.atInfo().log("Consuming records using Strimzi Test Client");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
-        Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages, additionalConfig).build();
+        Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages, additionalConfig, consumerGroup).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
         KafkaUtils.deleteJob(testClientJob);
