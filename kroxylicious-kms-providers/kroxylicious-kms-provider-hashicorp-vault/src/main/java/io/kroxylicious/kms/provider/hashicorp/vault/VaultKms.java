@@ -162,7 +162,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .addKeyValue("kekRef", edek.kekRef())
                     .addKeyValue("error", e.getMessage())
-                    .log("failed to build request body for key, increase log level to DEBUG for stacktrace");
+                    .log(LOGGER.isDebugEnabled()
+                            ? "failed to build request body for key"
+                            : "failed to build request body for key, increase log level to DEBUG for stacktrace");
             throw new KmsException("Failed to build request body for %s".formatted(edek.kekRef()));
         }
     }
@@ -205,7 +207,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .addKeyValue("responseBody", responseBody)
                     .addKeyValue("error", e.getMessage())
-                    .log("failed to decode Vault response as JSON, increase log level to DEBUG for stacktrace");
+                    .log(LOGGER.isDebugEnabled()
+                            ? "failed to decode Vault response as JSON"
+                            : "failed to decode Vault response as JSON, increase log level to DEBUG for stacktrace");
             throw new UncheckedIOException("Failed to decode Vault response as JSON", e);
         }
     }
