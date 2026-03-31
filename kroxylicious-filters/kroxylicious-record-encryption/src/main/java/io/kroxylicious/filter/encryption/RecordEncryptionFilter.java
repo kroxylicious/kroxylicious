@@ -70,7 +70,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  * @param <K> The type of KEK reference
  */
 class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFilter, ShareFetchResponseFilter {
-    private static final Logger log = getLogger(RecordEncryptionFilter.class);
+    private static final Logger LOGGER = getLogger(RecordEncryptionFilter.class);
     private final TopicNameBasedKekSelector<K> kekSelector;
     private final EncryptionManager<K> encryptionManager;
     private final DecryptionManager decryptionManager;
@@ -116,7 +116,7 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
     private static CompletionStage<RequestFilterResult> maybeRespondWithUnknownTopicId(RequestHeaderData header, ProduceRequestData request, FilterContext context,
                                                                                        TopicNameMapping topicNameMapping) {
         if (request.acks() == 0) {
-            log.debug("a topic id lookup failed for zero-ack produce request, dropping request: {}", topicNameMapping.failures());
+            LOGGER.debug("a topic id lookup failed for zero-ack produce request, dropping request: {}", topicNameMapping.failures());
             return context.requestFilterResultBuilder().drop().completed();
         }
         else {
@@ -172,8 +172,8 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                     }).toList();
                     return RecordEncryptionUtil.join(futures).thenApply(x -> request);
                 }).exceptionallyCompose(throwable -> {
-                    log.atWarn().setMessage("failed to encrypt records, cause message: {}").addArgument(throwable.getMessage())
-                            .setCause(log.isDebugEnabled() ? throwable : null).log();
+                    LOGGER.atWarn().setMessage("failed to encrypt records, cause message: {}").addArgument(throwable.getMessage())
+                            .setCause(LOGGER.isDebugEnabled() ? throwable : null).log();
                     return CompletableFuture.failedStage(throwable);
                 });
     }
@@ -222,14 +222,14 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                 }).exceptionallyCompose(throwable -> {
                     if (throwable.getCause() instanceof UnknownKeyException) {
                         // #maybeDecodePartitions will have set the RESOURCE_NOT_FOUND error code on the partition(s) that failed to decrypt
-                        // and will have logged the affected topic-partitions.
+                        // and will have LOGGERged the affected topic-partitions.
                         // Remove all the records from the whole fetch to avoid the possibility that the client processes an incomplete response.
                         response.responses().forEach(topicResponse -> topicResponse.partitions().forEach(p -> p.setRecords(MemoryRecords.EMPTY)));
                         return context.forwardResponse(header, response);
                     }
                     else {
                         // returning a failed stage is effectively asking the runtime to kill the connection.
-                        return logAndCreateFailedStage(throwable);
+                        return LOGGERAndCreateFailedStage(throwable);
                     }
                 }));
     }
@@ -248,23 +248,23 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                 .exceptionallyCompose(throwable -> {
                     if (throwable.getCause() instanceof UnknownKeyException) {
                         // #maybeDecodePartitions will have set the RESOURCE_NOT_FOUND error code on the partition(s) that failed to decrypt
-                        // and will have logged the affected topic-partitions.
+                        // and will have LOGGERged the affected topic-partitions.
                         // Remove all the records from the whole fetch to avoid the possibility that the client processes an incomplete response.
                         response.responses().forEach(r -> r.partitions().forEach(p -> p.setRecords(MemoryRecords.EMPTY)));
                         return context.forwardResponse(header, response);
                     }
                     else {
                         // returning a failed stage is effectively asking the runtime to kill the connection.
-                        return logAndCreateFailedStage(throwable);
+                        return LOGGERAndCreateFailedStage(throwable);
                     }
                 });
     }
 
-    private static CompletionStage<ResponseFilterResult> logAndCreateFailedStage(Throwable throwable) {
-        log.atWarn().setMessage(log.isDebugEnabled()
+    private static CompletionStage<ResponseFilterResult> LOGGERAndCreateFailedStage(Throwable throwable) {
+        LOGGER.atWarn().setMessage(LOGGER.isDebugEnabled()
                 ? "Failed to process records, connection will be closed, cause message: {}."
                 : "Failed to process records, connection will be closed, cause message: {}. Raise log level to DEBUG to see the stack.")
-                .addArgument(throwable.getMessage()).setCause(log.isDebugEnabled() ? throwable : null).log();
+                .addArgument(throwable.getMessage()).setCause(LOGGER.isDebugEnabled() ? throwable : null).log();
         return CompletableFuture.failedStage(throwable);
     }
 
@@ -347,7 +347,7 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                     setRecords.apply(partitionData)).exceptionallyCompose(t -> {
                         var cause = t.getCause();
                         if (cause instanceof UnknownKeyException) {
-                            log.atWarn().setMessage(log.isDebugEnabled()
+                            LOGGER.atWarn().setMessage(LOGGER.isDebugEnabled()
                                     ? "Failed to decrypt record in topic-partition {}-{} owing to key not found condition. "
                                             + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or "
                                             + "'Request illegally referred to resource that does not exist' (librdkafka). " + "Cause message: {}."
@@ -357,7 +357,7 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                                             + "Raise log level to DEBUG to see the stack.")
                                     .addArgument(topicName)
                                     .addArgument(() -> partitionIndexExtractor.applyAsInt(partitionData))
-                                    .addArgument(cause.getMessage()).setCause(log.isDebugEnabled() ? cause : null).log();
+                                    .addArgument(cause.getMessage()).setCause(LOGGER.isDebugEnabled() ? cause : null).log();
                             errorsConsumer.apply(partitionData, Errors.RESOURCE_NOT_FOUND.code());
                         }
                         return CompletableFuture.failedFuture(t);
