@@ -261,7 +261,9 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
     }
 
     private static CompletionStage<ResponseFilterResult> logAndCreateFailedStage(Throwable throwable) {
-        log.atWarn().setMessage("Failed to process records, connection will be closed, cause message: {}. Raise log level to DEBUG to see the stack.")
+        log.atWarn().setMessage(log.isDebugEnabled()
+                ? "Failed to process records, connection will be closed, cause message: {}."
+                : "Failed to process records, connection will be closed, cause message: {}. Raise log level to DEBUG to see the stack.")
                 .addArgument(throwable.getMessage()).setCause(log.isDebugEnabled() ? throwable : null).log();
         return CompletableFuture.failedStage(throwable);
     }
@@ -345,10 +347,15 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                     setRecords.apply(partitionData)).exceptionallyCompose(t -> {
                         var cause = t.getCause();
                         if (cause instanceof UnknownKeyException) {
-                            log.atWarn().setMessage("Failed to decrypt record in topic-partition {}-{} owing to key not found condition. "
-                                    + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or "
-                                    + "'Request illegally referred to resource that does not exist' (librdkafka). " + "Cause message: {}. "
-                                    + "Raise log level to DEBUG to see the stack.").addArgument(topicName)
+                            log.atWarn().setMessage(log.isDebugEnabled()
+                                    ? "Failed to decrypt record in topic-partition {}-{} owing to key not found condition. "
+                                            + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or "
+                                            + "'Request illegally referred to resource that does not exist' (librdkafka). " + "Cause message: {}."
+                                    : "Failed to decrypt record in topic-partition {}-{} owing to key not found condition. "
+                                            + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or "
+                                            + "'Request illegally referred to resource that does not exist' (librdkafka). " + "Cause message: {}. "
+                                            + "Raise log level to DEBUG to see the stack.")
+                                    .addArgument(topicName)
                                     .addArgument(() -> partitionIndexExtractor.applyAsInt(partitionData))
                                     .addArgument(cause.getMessage()).setCause(log.isDebugEnabled() ? cause : null).log();
                             errorsConsumer.accept(partitionData, Errors.RESOURCE_NOT_FOUND.code());
