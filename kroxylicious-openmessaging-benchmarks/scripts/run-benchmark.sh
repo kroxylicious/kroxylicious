@@ -138,7 +138,12 @@ teardown() {
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found
     # Delete JFR PVC if one was created
-    kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found
+    kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
+    # Delete the benchmark Job (not Helm-managed so helm uninstall won't remove it)
+    kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --timeout=60s
+    # Delete vault-init Job — previously created as a Helm hook (no Helm ownership labels),
+    # so helm uninstall won't remove it
+    kubectl delete job vault-init -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     echo "Teardown complete."
 }
 
