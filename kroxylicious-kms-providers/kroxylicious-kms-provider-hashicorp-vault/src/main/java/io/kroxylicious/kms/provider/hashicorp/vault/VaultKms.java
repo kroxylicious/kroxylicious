@@ -160,9 +160,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
         catch (JsonProcessingException e) {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addArgument(edek.kekRef())
-                    .addArgument(e.getMessage())
-                    .log("Failed to build request body for key '{}', cause: {}. Increase log level to DEBUG for stacktrace");
+                    .addKeyValue("kekRef", edek.kekRef())
+                    .addKeyValue("error", e.getMessage())
+                    .log("failed to build request body for key, increase log level to DEBUG for stacktrace");
             throw new KmsException("Failed to build request body for %s".formatted(edek.kekRef()));
         }
     }
@@ -203,9 +203,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
             var responseBody = new String(bytes, StandardCharsets.UTF_8);
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addArgument(responseBody)
-                    .addArgument(e.getMessage())
-                    .log("Failed to decode Vault response as JSON, response body: {}, cause: {}. Increase log level to DEBUG for stacktrace");
+                    .addKeyValue("responseBody", responseBody)
+                    .addKeyValue("error", e.getMessage())
+                    .log("failed to decode Vault response as JSON, increase log level to DEBUG for stacktrace");
             throw new UncheckedIOException("Failed to decode Vault response as JSON", e);
         }
     }
@@ -216,13 +216,23 @@ public class VaultKms implements Kms<String, VaultEdek> {
         if (response.statusCode() == 404 || response.statusCode() == 400) {
             var uri = response.request().uri();
             var responseBody = new String(response.body(), StandardCharsets.UTF_8);
-            LOGGER.warn("Key '{}' not found in Vault, request uri: {}, HTTP status code: {}, response: {}", key, uri, response.statusCode(), responseBody);
+            LOGGER.atWarn()
+                    .addKeyValue("kekRef", key)
+                    .addKeyValue("requestUri", uri)
+                    .addKeyValue("statusCode", response.statusCode())
+                    .addKeyValue("responseBody", responseBody)
+                    .log("key not found in Vault");
             throw notFound.apply("key '%s' is not found.".formatted(key));
         }
         else if (response.statusCode() != 200) {
             var uri = response.request().uri();
             var responseBody = new String(response.body(), StandardCharsets.UTF_8);
-            LOGGER.warn("Failed to retrieve key '{}' from Vault, request uri: {}, HTTP status code: {}, response: {}", key, uri, response.statusCode(), responseBody);
+            LOGGER.atWarn()
+                    .addKeyValue("kekRef", key)
+                    .addKeyValue("requestUri", uri)
+                    .addKeyValue("statusCode", response.statusCode())
+                    .addKeyValue("responseBody", responseBody)
+                    .log("failed to retrieve key from Vault");
             throw new KmsException("fail to retrieve key '%s', HTTP status code %d.".formatted(key, response.statusCode()));
         }
         return response;
