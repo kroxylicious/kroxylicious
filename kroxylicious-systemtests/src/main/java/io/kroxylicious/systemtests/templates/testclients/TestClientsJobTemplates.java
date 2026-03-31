@@ -329,7 +329,8 @@ public class TestClientsJobTemplates {
         return envVars;
     }
 
-    private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages, Map<String, String> additionalKafkaProps, String consumerGroup) {
+    private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages, Map<String, String> additionalKafkaProps,
+                                                           String consumerGroup) {
         String additionalConfigVar = additionalKafkaProps.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("\n"));
 

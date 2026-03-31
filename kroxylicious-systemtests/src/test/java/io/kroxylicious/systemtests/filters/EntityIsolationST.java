@@ -124,7 +124,8 @@ class EntityIsolationST extends AbstractSystemTests {
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, bobKafkaProps);
         LOGGER.atInfo().setMessage("Then the messages are consumed by {}").addArgument(userBob).log();
-        List<ConsumerRecord> bobResult = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessagesForBob, Duration.ofMinutes(2), bobKafkaProps, Constants.CONSUMER_GROUP_NAME);
+        List<ConsumerRecord> bobResult = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessagesForBob, Duration.ofMinutes(2), bobKafkaProps,
+                Constants.CONSUMER_GROUP_NAME);
         LOGGER.atInfo().setMessage("Received: {}").addArgument(bobResult).log();
 
         assertAll(() -> {

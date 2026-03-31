@@ -216,7 +216,9 @@ public interface KafkaClient {
      * @param consumerGroup the consumer group
      * @return  the list of ConsumerRecords
      */
-    List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig, String consumerGroup) throws KubeClusterException;
+    List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
+                                         String consumerGroup)
+            throws KubeClusterException;
 
     /**
      * Extracts version from Docker image string.

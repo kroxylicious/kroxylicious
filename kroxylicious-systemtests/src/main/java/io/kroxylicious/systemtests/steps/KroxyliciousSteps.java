@@ -123,7 +123,8 @@ public class KroxyliciousSteps {
      * @return  the list of ConsumerRecords
      */
     public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
-        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, Map.of(), Constants.CONSUMER_GROUP_NAME);
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, Map.of(),
+                Constants.CONSUMER_GROUP_NAME);
     }
 
     /**
@@ -139,7 +140,8 @@ public class KroxyliciousSteps {
      */
     public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout,
                                                        Map<String, String> additionalConfig) {
-        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig, Constants.CONSUMER_GROUP_NAME);
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig,
+                Constants.CONSUMER_GROUP_NAME);
     }
 
     /**
