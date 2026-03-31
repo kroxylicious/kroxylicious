@@ -115,12 +115,10 @@ jobs:
           echo "==> API server version"
           kubectl version
 
-      - name: 'Propagate the MircoShift container runtime configuration to environment'
-        run: |
-          crc podman-env --root  >> $GITHUB_ENV
-
       - name: 'Build Kroxylicious Operand Container Images'
         run: |
+          eval $(crc podman-env --root)
+
           GIT_HASH="$(git rev-parse HEAD)"
           KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
           KROXYLICIOUS_IMAGE=quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}
@@ -138,6 +136,8 @@ jobs:
 
       - name: Run operator integration tests
         run: |
+          eval $(crc podman-env --root)
+
           mvn --batch-mode \
             -pl kroxylicious-operator \
             -Dcheckstyle.skip \
