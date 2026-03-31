@@ -169,6 +169,11 @@ if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
     exit 1
 fi
 
+if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
+    echo "Error: cluster-overrides file not found: ${CLUSTER_OVERRIDES}" >&2
+    exit 1
+fi
+
 METRICS_PID=""
 LOGS_PID=""
 
@@ -378,6 +383,9 @@ fi
 if [[ -n "${CLUSTER_OVERRIDES}" ]]; then
     echo "Cluster:    ${CLUSTER_OVERRIDES}"
 fi
+if [[ -n "${CLUSTER_OVERRIDES}" ]]; then
+    echo "Cluster:    ${CLUSTER_OVERRIDES}"
+fi
 if [[ ${#HELM_SET_ARGS[@]} -gt 0 ]]; then
     echo "Overrides:  ${HELM_SET_ARGS[*]}"
 fi
@@ -386,7 +394,8 @@ echo ""
 # HELM_ARGS is used for both helm install (first probe) and helm template (all probes
 # via create_benchmark_job), so it is built once here outside the deploy conditional.
 HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
-[[ -n "${PROFILE_VALUES}" ]] && HELM_ARGS+=(-f "${PROFILE_VALUES}")
+for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do HELM_ARGS+=(-f "${profile_file}"); done
+[[ -n "${CLUSTER_OVERRIDES}" ]] && HELM_ARGS+=(-f "${CLUSTER_OVERRIDES}")
 HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
 for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do HELM_ARGS+=(--set "${set_arg}"); done
 
