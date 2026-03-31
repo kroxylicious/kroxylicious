@@ -123,7 +123,8 @@ public class KroxyliciousSteps {
      * @return  the list of ConsumerRecords
      */
     public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
-        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, Map.of());
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, Map.of(),
+                Constants.CONSUMER_GROUP_NAME);
     }
 
     /**
@@ -139,7 +140,24 @@ public class KroxyliciousSteps {
      */
     public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout,
                                                        Map<String, String> additionalConfig) {
-        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig);
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig,
+                Constants.CONSUMER_GROUP_NAME);
+    }
+
+    /**
+     * Consume messages
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numberOfMessages the number of messages
+     * @param timeout the timeout
+     * @param additionalConfig the additional config
+     * @param consumerGroup the consumer group
+     * @return the list of ConsumerRecords
+     */
+    public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout,
+                                                       Map<String, String> additionalConfig, @NonNull String consumerGroup) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig, consumerGroup);
     }
 
     /**
