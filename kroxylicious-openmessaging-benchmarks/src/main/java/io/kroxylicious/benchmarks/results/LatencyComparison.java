@@ -6,6 +6,7 @@
 
 package io.kroxylicious.benchmarks.results;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -16,6 +17,40 @@ import java.util.Optional;
  */
 record LatencyComparison(String label, double baseline, double candidate,
                          double[] baselineWindows, double[] candidateWindows) {
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof LatencyComparison other)) {
+            return false;
+        }
+        return Double.compare(baseline, other.baseline) == 0
+                && Double.compare(candidate, other.candidate) == 0
+                && label.equals(other.label)
+                && Arrays.equals(baselineWindows, other.baselineWindows)
+                && Arrays.equals(candidateWindows, other.candidateWindows);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = label.hashCode();
+        result = 31 * result + Double.hashCode(baseline);
+        result = 31 * result + Double.hashCode(candidate);
+        result = 31 * result + Arrays.hashCode(baselineWindows);
+        result = 31 * result + Arrays.hashCode(candidateWindows);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "LatencyComparison[label=" + label
+                + ", baseline=" + baseline
+                + ", candidate=" + candidate
+                + ", baselineWindows=" + Arrays.toString(baselineWindows)
+                + ", candidateWindows=" + Arrays.toString(candidateWindows) + "]";
+    }
 
     double delta() {
         return candidate - baseline;

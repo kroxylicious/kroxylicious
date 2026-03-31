@@ -183,19 +183,19 @@ class ResultComparatorTest {
         @Test
         void publishLatencyDataRowsShowPValue() throws IOException {
             List<String> dataRows = extractSection(runComparison(), "Publish Latency");
-            assertThat(dataRows).allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
+            assertThat(dataRows).isNotEmpty().allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
         }
 
         @Test
         void endToEndLatencyDataRowsShowPValue() throws IOException {
             List<String> dataRows = extractSection(runComparison(), "End-to-End Latency");
-            assertThat(dataRows).allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
+            assertThat(dataRows).isNotEmpty().allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
         }
 
         @Test
         void throughputDataRowsShowPValue() throws IOException {
             List<String> dataRows = extractSection(runComparison(), "Total Throughput");
-            assertThat(dataRows).allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
+            assertThat(dataRows).isNotEmpty().allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
         }
 
         @Test
