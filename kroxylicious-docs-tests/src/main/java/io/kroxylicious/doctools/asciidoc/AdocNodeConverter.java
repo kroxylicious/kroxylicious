@@ -6,8 +6,13 @@
 
 package io.kroxylicious.doctools.asciidoc;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,6 +43,10 @@ class AdocNodeConverter {
 
     public String convertDocumentNode(Document document) {
         StringBuilder result = new StringBuilder();
+        Object docfile = document.getAttribute("docfile");
+        if (docfile != null) {
+            result.append(extractLeadingCommentBlock(Path.of(docfile.toString())));
+        }
         if (isNotBlank(document.getTitle())) {
             String text = document.getTitle();
             result
@@ -47,6 +56,36 @@ class AdocNodeConverter {
                     .append(LINE_SEPARATOR);
         }
         return result.append(document.getContent()).toString();
+    }
+
+    private String extractLeadingCommentBlock(Path sourceFile) {
+        List<String> lines;
+        try {
+            lines = Files.readAllLines(sourceFile);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        StringBuilder header = new StringBuilder();
+        boolean inCommentBlock = false;
+        for (String line : lines) {
+            if ("////".equals(line) && !inCommentBlock) {
+                inCommentBlock = true;
+                header.append(line).append(LINE_SEPARATOR);
+            }
+            else if ("////".equals(line)) {
+                header.append(line).append(LINE_SEPARATOR);
+                header.append(LINE_SEPARATOR);
+                break;
+            }
+            else if (inCommentBlock) {
+                header.append(line).append(LINE_SEPARATOR);
+            }
+            else {
+                break;
+            }
+        }
+        return header.toString();
     }
 
     private boolean isNotBlank(String title) {
