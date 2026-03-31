@@ -28,7 +28,7 @@ JFR_PVC_NAME="${HELM_RELEASE}-jfr"
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") [--profile <values-file>] [--set <key=value> ...] <scenario> <workload> <output-dir>
+Usage: $(basename "$0") [--cluster-overrides <values-file>] [--profile <values-file>] [--set <key=value> ...] [--skip-deploy] [--skip-teardown] [--producer-rate <n>] <scenario> <workload> <output-dir>
 
 Runs a single benchmark scenario end-to-end:
   1. Deploy benchmark infrastructure via Helm
@@ -47,8 +47,11 @@ Arguments:
   output-dir  Directory to write result JSON and run metadata into
 
 Options:
+  --cluster-overrides <file> Helm values file with cluster-specific settings (storage class,
+                             images, resource limits). Applied after --profile files so cluster
+                             settings always win.
   --profile <values-file>   Additional Helm values file layered on top of the scenario.
-                            May be specified multiple times; files are applied in order.
+                             May be specified multiple times; files are applied in order.
   --set <key=value>         Pass a Helm --set override (may be repeated)
   -h, --help                Show this help
 
@@ -74,10 +77,15 @@ EOF
 }
 
 PROFILE_VALUES=()
+CLUSTER_OVERRIDES=""
 HELM_SET_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --cluster-overrides)
+            CLUSTER_OVERRIDES="$2"
+            shift 2
+            ;;
         --profile)
             PROFILE_VALUES+=("$2")
             shift 2
@@ -125,6 +133,11 @@ for profile_file in "${PROFILE_VALUES[@]}"; do
         exit 1
     fi
 done
+
+if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
+    echo "Error: cluster-overrides file not found: ${CLUSTER_OVERRIDES}" >&2
+    exit 1
+fi
 
 METRICS_PID=""
 
@@ -178,6 +191,9 @@ echo "Output dir: ${OUTPUT_DIR}"
 if [[ ${#PROFILE_VALUES[@]} -gt 0 ]]; then
     echo "Profiles:   ${PROFILE_VALUES[*]}"
 fi
+if [[ -n "${CLUSTER_OVERRIDES}" ]]; then
+    echo "Cluster:    ${CLUSTER_OVERRIDES}"
+fi
 if [[ ${#HELM_SET_ARGS[@]} -gt 0 ]]; then
     echo "Overrides:  ${HELM_SET_ARGS[*]}"
 fi
@@ -194,6 +210,7 @@ fi
 echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
 HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
 for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do HELM_ARGS+=(-f "${profile_file}"); done
+[[ -n "${CLUSTER_OVERRIDES}" ]] && HELM_ARGS+=(-f "${CLUSTER_OVERRIDES}")
 HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
 for set_arg in ${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}; do HELM_ARGS+=(--set "${set_arg}"); done
 

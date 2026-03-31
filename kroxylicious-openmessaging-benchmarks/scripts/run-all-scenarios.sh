@@ -19,7 +19,7 @@ WORKLOADS=(1topic-1kb 10topics-1kb 100topics-1kb)
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") [--profile <values-file>] <output-dir>
+Usage: $(basename "$0") [--cluster-overrides <file>] [--profile <values-file>] <output-dir>
 
 Runs the baseline and proxy-no-filters scenarios across all workloads and
 produces a side-by-side comparison to quantify proxy overhead.
@@ -36,8 +36,11 @@ Arguments:
                 <output-dir>/<scenario>/<workload>/
 
 Options:
-  --profile <values-file>   Additional Helm values file layered on top of each scenario
-                            (e.g. helm/kroxylicious-benchmark/scenarios/single-node-values.yaml)
+  --cluster-overrides <file> Helm values file with cluster-specific settings (storage class,
+                             images, resource limits). Applied after --profile files so cluster
+                             settings always win. Passed through to each run-benchmark.sh call.
+  --profile <values-file>   Additional Helm values file layered on top of each scenario.
+                            May be specified multiple times; files are applied in order.
   -h, --help                Show this help
 
 Environment:
@@ -49,16 +52,22 @@ Examples:
   $(basename "$0") ./results/run-$(date +%Y%m%d-%H%M%S)/
   $(basename "$0") --profile ./helm/kroxylicious-benchmark/scenarios/single-node-values.yaml \
     ./results/run-$(date +%Y%m%d-%H%M%S)/
+  $(basename "$0") --cluster-overrides ~/my-cluster.yaml ./results/run-$(date +%Y%m%d-%H%M%S)/
 EOF
     exit 1
 }
 
-PROFILE_VALUES=""
+PROFILE_VALUES=()
+CLUSTER_OVERRIDES=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --cluster-overrides)
+            CLUSTER_OVERRIDES="$2"
+            shift 2
+            ;;
         --profile)
-            PROFILE_VALUES="$2"
+            PROFILE_VALUES+=("$2")
             shift 2
             ;;
         -h|--help)
@@ -81,8 +90,15 @@ fi
 
 OUTPUT_DIR="$1"
 
-if [[ -n "${PROFILE_VALUES}" && ! -f "${PROFILE_VALUES}" ]]; then
-    echo "Error: profile values file not found: ${PROFILE_VALUES}" >&2
+for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do
+    if [[ ! -f "${profile_file}" ]]; then
+        echo "Error: profile values file not found: ${profile_file}" >&2
+        exit 1
+    fi
+done
+
+if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
+    echo "Error: cluster-overrides file not found: ${CLUSTER_OVERRIDES}" >&2
     exit 1
 fi
 
@@ -90,15 +106,19 @@ echo "=== Running all benchmark scenarios ==="
 echo "Scenarios: ${SCENARIOS[*]}"
 echo "Workloads: ${WORKLOADS[*]}"
 echo "Output:    ${OUTPUT_DIR}"
-if [[ -n "${PROFILE_VALUES}" ]]; then
-    echo "Profile:   ${PROFILE_VALUES}"
+if [[ ${#PROFILE_VALUES[@]} -gt 0 ]]; then
+    echo "Profiles:  ${PROFILE_VALUES[*]}"
+fi
+if [[ -n "${CLUSTER_OVERRIDES}" ]]; then
+    echo "Cluster:   ${CLUSTER_OVERRIDES}"
 fi
 echo ""
 
 # --- Run all scenario/workload combinations ---
 
 RUN_BENCHMARK_ARGS=()
-[[ -n "${PROFILE_VALUES}" ]] && RUN_BENCHMARK_ARGS+=(--profile "${PROFILE_VALUES}")
+for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do RUN_BENCHMARK_ARGS+=(--profile "${profile_file}"); done
+[[ -n "${CLUSTER_OVERRIDES}" ]] && RUN_BENCHMARK_ARGS+=(--cluster-overrides "${CLUSTER_OVERRIDES}")
 
 for SCENARIO in "${SCENARIOS[@]}"; do
     for WORKLOAD in "${WORKLOADS[@]}"; do
