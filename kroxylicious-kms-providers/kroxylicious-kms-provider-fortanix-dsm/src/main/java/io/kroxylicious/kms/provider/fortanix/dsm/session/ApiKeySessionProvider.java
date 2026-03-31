@@ -202,7 +202,9 @@ public class ApiKeySessionProvider implements SessionProvider {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? t : null)
                     .addKeyValue("error", t.getMessage())
-                    .log("refresh of session failed, increase log level to DEBUG for stacktrace");
+                    .log(LOGGER.isDebugEnabled()
+                            ? "refresh of session failed"
+                            : "refresh of session failed, increase log level to DEBUG for stacktrace");
             tokenRefreshErrorCount.incrementAndGet();
             target.completeExceptionally(t);
 
@@ -300,7 +302,9 @@ public class ApiKeySessionProvider implements SessionProvider {
                             LOGGER.atWarn()
                                     .setCause(LOGGER.isDebugEnabled() ? t : null)
                                     .addKeyValue("error", t.getMessage())
-                                    .log("failed to terminate previous session (ignored), increase log level to DEBUG for stacktrace");
+                                    .log(LOGGER.isDebugEnabled()
+                                            ? "failed to terminate previous session (ignored)"
+                                            : "failed to terminate previous session (ignored), increase log level to DEBUG for stacktrace");
                             return null;
                         });
             }
