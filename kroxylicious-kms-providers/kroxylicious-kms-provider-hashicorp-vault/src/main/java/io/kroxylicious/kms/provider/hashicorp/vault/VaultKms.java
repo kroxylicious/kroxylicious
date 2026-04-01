@@ -225,7 +225,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
                     .addKeyValue("requestUri", uri)
                     .addKeyValue("statusCode", response.statusCode())
                     .addKeyValue("responseBody", responseBody)
-                    .log("key not found in Vault");
+                    .log("Key not found in Vault");
             throw notFound.apply("key '%s' is not found.".formatted(key));
         }
         else if (response.statusCode() != 200) {
@@ -236,7 +236,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
                     .addKeyValue("requestUri", uri)
                     .addKeyValue("statusCode", response.statusCode())
                     .addKeyValue("responseBody", responseBody)
-                    .log("failed to retrieve key from Vault");
+                    .log("Failed to retrieve key from Vault");
             throw new KmsException("fail to retrieve key '%s', HTTP status code %d.".formatted(key, response.statusCode()));
         }
         return response;
