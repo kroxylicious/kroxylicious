@@ -194,7 +194,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 .addKeyValue("apiVersion", apiVersion)
                 .addKeyValue("error", cause.getMessage())
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                .log("operation failed, closing connection" + (LOGGER.isDebugEnabled() ? "" : ", raise log level to DEBUG for stacktrace"));
+                .log("Operation failed, closing connection" + (LOGGER.isDebugEnabled() ? "" : ", raise log level to DEBUG for stacktrace"));
     }
 
     private class ApiVersionsHandler implements EntityIsolationProcessor<ApiVersionsRequestData, ApiVersionsResponseData, Void> {
