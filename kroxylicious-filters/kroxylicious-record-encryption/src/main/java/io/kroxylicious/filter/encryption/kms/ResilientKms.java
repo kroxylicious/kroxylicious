@@ -97,7 +97,7 @@ public class ResilientKms<K, E> implements Kms<K, E> {
                 .exceptionallyCompose(e -> {
                     if (isUnknownEntityException(e) || (e instanceof CompletionException ce && (isUnknownEntityException(ce.getCause())))) {
                         LOGGER.atDebug()
-                                .log("not retrying unknown entity exception");
+                                .log("Not retrying unknown entity exception");
                         return CompletableFuture.failedFuture(e);
                     }
                     LOGGER.atDebug()

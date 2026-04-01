@@ -111,7 +111,7 @@ public class CachingKms<K, E> implements Kms<K, E> {
             if (throwable instanceof UnknownAliasException || (throwable instanceof CompletionException && throwable.getCause() instanceof UnknownAliasException)) {
                 LOGGER.atDebug()
                         .addKeyValue("kekId", alias)
-                        .log("caching unknown alias");
+                        .log("Caching unknown alias");
                 notFoundAliasCache.put(alias, CompletableFuture.failedFuture(new UnknownAliasException("alias " + alias + " not found (cached result)")));
             }
         });
