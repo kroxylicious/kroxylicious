@@ -1,0 +1,30 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: connection-expiration
+:guide: connection-expiration
+
+[id="using-book-{context}"]
+= Connection Expiration Guide
+
+include::_modules/connection-expiration/con-about-{guide}-guide.adoc[leveloffset=+1]
+
+[role="_abstract"]
+This filter closes client connections after a configurable expiration age.
+This is useful in environments like Kubernetes where proxy instances scale up and down.
+Long-lived client connections can become stuck on old proxy instances, causing connection skew.
+By closing connections after a maximum age, clients will reconnect and be balanced across the available proxy instances.
+
+When jitter is configured, the effective deadline is randomized within `[maxAge - jitter, maxAge + jitter]` per connection to avoid thundering herd reconnection storms.
+
+//configuring the connection expiration filter
+include::_assemblies/assembly-configuring-connection-expiration-filter.adoc[leveloffset=+1]
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]

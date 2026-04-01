@@ -21,7 +21,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Entity isolation processor for FIND_COORDINATOR.
@@ -29,7 +29,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * from the request.
  */
 class FindCoordinatorEntityIsolationProcessor
-        implements EntityIsolationProcessor<FindCoordinatorRequestData, FindCoordinatorResponseData, EntityIsolation.EntityType> {
+        implements EntityIsolationProcessor<FindCoordinatorRequestData, FindCoordinatorResponseData, CoordinatorType> {
 
     private final Predicate<EntityIsolation.EntityType> shouldMap;
     private final EntityNameMapper mapper;
@@ -60,18 +60,33 @@ class FindCoordinatorEntityIsolationProcessor
                                                           FindCoordinatorRequestData request,
                                                           FilterContext filterContext,
                                                           MapperContext mapperContext) {
-        var entityType = getEntityType(request.keyType());
+        var coordinatorType = CoordinatorType.forId(request.keyType());
+        var entityType = convertCoordinatorType(coordinatorType);
         entityType.filter(shouldMap)
-                .ifPresent(rt -> {
+                .ifPresent(et -> {
                     if ((short) 0 <= header.requestApiVersion() && header.requestApiVersion() <= (short) 3) {
-                        request.setKey(mapper.map(mapperContext, rt, request.key()));
+                        request.setKey(doMap(mapperContext, coordinatorType, et, request.key()));
                     }
                     else {
-                        request.setCoordinatorKeys(request.coordinatorKeys().stream().map(k -> mapper.map(mapperContext, rt, k)).toList());
+                        request.setCoordinatorKeys(request.coordinatorKeys().stream().map(k -> doMap(mapperContext, coordinatorType, et, k)).toList());
                     }
                 });
 
         return filterContext.forwardRequest(header, request);
+    }
+
+    private String doMap(MapperContext mapperContext,
+                         CoordinatorType coordinatorType,
+                         EntityType entityType,
+                         String key) {
+        if (coordinatorType == CoordinatorType.SHARE) {
+            var split = splitShareGroupKey(key);
+            split[0] = mapper.map(mapperContext, entityType, split[0]);
+            return String.join(":", split);
+        }
+        else {
+            return mapper.map(mapperContext, entityType, key);
+        }
     }
 
     @Override
@@ -83,27 +98,37 @@ class FindCoordinatorEntityIsolationProcessor
     @SuppressWarnings("java:S2638") // Tightening UnknownNullness
     public CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
                                                             short apiVersion,
-                                                            @Nullable EntityIsolation.EntityType requestedEntityType,
+                                                            @NonNull CoordinatorType requestedCoordinatorType,
                                                             FindCoordinatorResponseData response,
                                                             FilterContext filterContext,
                                                             MapperContext mapperContext) {
-        Optional.ofNullable(requestedEntityType)
+        var requestedEntityType = convertCoordinatorType(requestedCoordinatorType);
+        requestedEntityType
                 .filter(shouldMap)
-                .ifPresent(entityType -> response.coordinators()
-                        .forEach(coordinator -> coordinator.setKey(mapper.unmap(mapperContext, requestedEntityType, coordinator.key()))));
+                .ifPresent(et -> response.coordinators()
+                        .forEach(coordinator -> coordinator.setKey(doUnmap(et, requestedCoordinatorType, mapperContext, coordinator.key()))));
 
         return filterContext.forwardResponse(header, response);
     }
 
-    @Nullable
-    @Override
-    public EntityType createCorrelatedRequestContext(FindCoordinatorRequestData request) {
-        return getEntityType(request.keyType()).orElse(null);
+    private String doUnmap(EntityType requestedEntityType,
+                           CoordinatorType coordinatorType,
+                           MapperContext mapperContext,
+                           String key) {
+        if (coordinatorType == CoordinatorType.SHARE) {
+            // From FindCoordinatorRequest.json: For key type SHARE (2), the coordinator key format is "groupId:topicId:partition".
+            var split = splitShareGroupKey(key);
+            split[0] = mapper.unmap(mapperContext, requestedEntityType, split[0]);
+            return String.join(":", split);
+        }
+        else {
+            return mapper.unmap(mapperContext, requestedEntityType, key);
+        }
     }
 
-    private Optional<EntityType> getEntityType(byte id) {
-        var coordinatorType = CoordinatorType.forId(id);
-        return convertCoordinatorType(coordinatorType);
+    @Override
+    public CoordinatorType createCorrelatedRequestContext(FindCoordinatorRequestData request) {
+        return CoordinatorType.forId(request.keyType());
     }
 
     private Optional<EntityType> convertCoordinatorType(CoordinatorType coordinatorType) {
@@ -113,4 +138,12 @@ class FindCoordinatorEntityIsolationProcessor
         };
     }
 
+    private static String[] splitShareGroupKey(String key) {
+        // From FindCoordinatorRequest.json: For key type SHARE (2), the coordinator key format is "groupId:topicId:partition".
+        var split = key.split(":", 3);
+        if (split.length != 3) {
+            throw new IllegalStateException(String.format("Invalid formation of share group key '%s'", key));
+        }
+        return split;
+    }
 }

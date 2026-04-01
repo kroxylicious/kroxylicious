@@ -1,3 +1,9 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
 :_mod-docs-content-type: CONCEPT
 
 // file included in the following:
@@ -88,3 +94,4 @@ spec:
 include::./con-virtualkafkacluster-clusterip-generate-tls-certificates.adoc[leveloffset=+1]
 include::./con-virtualkafkacluster-loadbalancer-generate-tls-certificates.adoc[leveloffset=+1]
 include::./proc-virtualkafkacluster-loadbalancer-dns-config.adoc[leveloffset=+1]
+include::./con-virtualkafkacluster-openshiftroute-generate-tls-certificates.adoc[leveloffset=+1]

@@ -109,7 +109,7 @@ class EntityIsolationFilterTest {
         RequestHeaderData requestHeader = RequestHeaderDataJsonConverter.read(definition.when().requestHeader(), requestHeaderVersion);
 
         Map<Uuid, String> topicNames = Optional.ofNullable(definition.given().topicNames()).orElse(Map.of());
-        Subject subject = new Subject(new User(definition.when().subject()));
+        Subject subject = Optional.ofNullable(definition.when().subject()).map(User::new).map(Subject::new).orElse(Subject.anonymous());
         FilterContext context = new MockFilterContext(requestHeader, request, subject, topicNames, mockUpstream);
         CompletionStage<RequestFilterResult> stage = isolationFilter.onRequest(apiKeys, version, requestHeader, request, context);
         ScenarioDefinition.RequestError expectedRequestError = definition.then().expectedRequestError();

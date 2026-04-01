@@ -59,6 +59,7 @@ import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
+import io.fabric8.openshift.api.model.operator.v1.IngressControllerStatus;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
@@ -151,6 +152,8 @@ public class KafkaProxyReconcilerIT {
     public static final String TRUSTED_CAS_PEM = "trusted-cas.pem";
     public static final String PROTOCOL_TLS_V1_3 = "TLSv1.3";
     public static final String TLS_CIPHER_SUITE_AES256GCM_SHA384 = "TLS_AES_256_GCM_SHA384";
+    // Default ingress controller domain used if we can't detect it from the platform (CRC/MicroShift).
+    public static final String DEFAULT_INGRESS_CONTROLLER_DOMAIN = "apps.crc.testing";
 
     // the initial operator image pull can take a long time and interfere with the tests
     @BeforeAll
@@ -887,12 +890,11 @@ public class KafkaProxyReconcilerIT {
         assumeThat(testActor.supports(Route.class)).withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
 
         // Given
+        var domain = getDefaultOpenShiftIngressControllerDomain();
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
         KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
 
         int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
-
-        var domain = getDefaultOpenShiftIngressControllerDomain();
 
         String ingressName = "openshiftroute";
         String routeBootstrap = "$(virtualClusterName)-bootstrap." + domain;
@@ -941,7 +943,7 @@ public class KafkaProxyReconcilerIT {
 
         int clientFacingPort = RouteClusterIngressNetworkingModel.CLIENT_FACING_ROUTE_PORT;
 
-        AWAIT.alias("proxy config - gateway configured for SNI loadbalancer ingress").untilAsserted(() -> assertProxyConfigInConfigMap(proxy)
+        AWAIT.alias("proxy config - gateway configured for route ingress").untilAsserted(() -> assertProxyConfigInConfigMap(proxy)
                 .cluster(name(cluster))
                 .gateway(name(openshiftRouteIngress))
                 .sniHostIdentifiesNode()
@@ -1198,11 +1200,19 @@ public class KafkaProxyReconcilerIT {
         String ingressControllerName = "default";
         String ingressControllerNamespace = "openshift-ingress-operator";
 
+        // Note: Real OpenShift has the IngressController API and an instance called `default` in the `openshift-ingress-operator` namespace
+        // MicroShift has the IngressController API, but no instances of the API, or a namespace of that name.
+        // Minikube has neither API nor namespace.
+        // The Fabric8 #get API treats absence of resource/namespace/api in the same manner (all return null).
         var defaultIngressController = testActor.getInNamespace(IngressController.class, ingressControllerName, ingressControllerNamespace);
-        assertThat(defaultIngressController).isNotNull();
-        var domain = defaultIngressController.getStatus().getDomain();
-        assertThat(domain).isNotNull();
-        return domain;
+
+        return Optional.ofNullable(defaultIngressController)
+                .map(IngressController::getStatus)
+                .map(IngressControllerStatus::getDomain)
+                .orElseGet(() -> {
+                    LOGGER.warn("Couldn't programmatically determine OpenShiftIngressController domain, using test default: {}", DEFAULT_INGRESS_CONTROLLER_DOMAIN);
+                    return DEFAULT_INGRESS_CONTROLLER_DOMAIN;
+                });
     }
 
     private void assertDeploymentBecomesReady(KafkaProxy proxy) {

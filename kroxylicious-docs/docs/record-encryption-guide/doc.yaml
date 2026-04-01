@@ -1,6 +1,13 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Record Encryption Guide
-description: Covers using the record encryption filter, including configuration, security and operation.
+description: Using the record encryption filter to provide encryption-at-rest for Apache Kafka®.
 tags:
+  - security
   - filter
 rank: "020"

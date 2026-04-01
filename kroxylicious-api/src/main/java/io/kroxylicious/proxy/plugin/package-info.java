@@ -5,7 +5,7 @@
  */
 
 /**
- * API for defining plugins within configurtion.
+ * API for defining plugins within configuration.
  *
  * <h2>Terminology</h2>
  * <p>A <em>plugin interface</em> is a Java {@code interface} (or possibly a {@code class)} that can be used
