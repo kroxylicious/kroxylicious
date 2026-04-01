@@ -144,15 +144,9 @@ class FilterChainFactoryTest {
             var context = new NettyFilterContext(eventLoop, pfr);
             filterChainFactory.createFilters(context, nameFilterDefinitions);
             assertThat(logCaptor.getWarnLogs())
-                    .contains("FilterDefinition with name 'myFilterDef' and type io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory "
-                            + "created a Filter instance of type class io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory$TestFilterImpl which implements the deprecated"
-                            + " onRequest(ApiKeys, RequestHeaderData, ApiMessage, FilterContext) method. This Filter implementation must be updated as the method will be "
-                            + "removed in a future release.")
-                    .contains("FilterDefinition with name 'myFilterDef' and type io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory "
-                            + "created a Filter instance of type class io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory$TestFilterImpl which implements the deprecated"
-                            + " onResponse(ApiKeys, ResponseHeaderData, ApiMessage, FilterContext) method. This Filter implementation must be updated as the method will be "
-                            + "removed in a future release.");
-
+                    .contains(
+                            "FilterDefinition created a Filter instance which implements a deprecated method. This Filter implementation must be updated as the method will be removed in a future release")
+                    .hasSize(2); // One for onRequest, one for onResponse
         }
     }
 
