@@ -55,7 +55,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
         LOGGER.atDebug()
                 .addKeyValue("keyName", wrappingKey.keyName())
                 .addKeyValue("keyVersion", wrappingKey.keyVersion())
-                .log("generating DEK pair");
+                .log("Generating DEK pair");
         byte[] bytes = generateDek();
         CompletionStage<byte[]> wrap = client.wrap(wrappingKey, bytes);
         return wrap.handle((wrappedBytes, throwable) -> {
@@ -92,7 +92,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
         LOGGER.atDebug()
                 .addKeyValue("keyName", edek.keyName())
                 .addKeyValue("keyVersion", edek.keyVersion())
-                .log("decrypting DEK pair");
+                .log("Decrypting DEK pair");
         return unwrap(edek);
     }
 
