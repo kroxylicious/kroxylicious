@@ -6,13 +6,21 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+## 0.20.0
 
+* [#3570](https://github.com/kroxylicious/kroxylicious/pull/3570): build(deps): bump netty.version from 4.2.10.Final to 4.2.12.Final
+* [#3535](https://github.com/kroxylicious/kroxylicious/issues/3535): bugfix: bootstrapServers containing whitespace parsed unexpectedly
+* [#3496](https://github.com/kroxylicious/kroxylicious/issues/3496): feat(runtime): make Netty shutdown durations configurable
+* [#3457](https://github.com/kroxylicious/kroxylicious/issues/3457): refactor(config): register DurationSerde globally on ObjectMapper rather than per-field (see [note](#note-020-duration-serializer))
+* [#3534](https://github.com/kroxylicious/kroxylicious/pull/3534): (docs) Include our Javadocs on kroxylicious.io website
+* [#3449](https://github.com/kroxylicious/kroxylicious/pull/3449): Add Connection Expiration filter that closes client connections after a configurable maximum age, helping to rebalance connections across proxy instances in dynamic environments like Kubernetes.
 * [#2697](https://github.com/kroxylicious/kroxylicious/issues/2697) EntityIsolationFilter (restricted to groupId and transactionalId entity type only)
 * [#3007](https://github.com/kroxylicious/kroxylicious/issues/3007) Allow schema validation to use a schema registry protected by an internally signed certificate.
 * [#2890](https://github.com/kroxylicious/kroxylicious/pull/2890) Update record-validation to Apicurio v3.
 * [#3383](https://github.com/kroxylicious/kroxylicious/pull/3383): fix(operator): the operator now uses Server-Side Apply for all dependent resources. This is a no-op change for users: existing deployments are unaffected and externally-applied SSA patches (e.g. annotations or env vars added by observability tooling) will now survive operator reconciles. Users upgrading from a prior release may observe one additional reconcile cycle as Kubernetes transfers field ownership to the SSA manager.
 * [#3444](https://github.com/kroxylicious/kroxylicious/pull/3444): feat(authorization): support v13 Produce with topicIds
 * [#3444](https://github.com/kroxylicious/kroxylicious/pull/3444): feat(authorization): support v13-v18 Fetch with topicIds
+* [#3358](https://github.com/kroxylicious/kroxylicious/pull/3358): feat(encryption): produce and fetch tolerate topicIds
 * [#3506](https://github.com/kroxylicious/kroxylicious/pull/3506): feat(validation): support v13+ Produce with topicIds
 * [#3448](https://github.com/kroxylicious/kroxylicious/pull/3448): feat(authorization): support authorization of group new consumer protocol group
 * [#3399](https://github.com/kroxylicious/kroxylicious/pull/3399): feat(operator): add `KafkaProxyIngress.spec.openShiftRoute`
@@ -33,6 +41,10 @@ Format `<github issue/pr number>: <short description>`.
     `V2` mode is deprecated and will be removed in a future release.
 * The operator now has the ability to enable external access to a Virtual Cluster via OpenShift Routes using `KafkaProxyIngress.spec.openShiftRoute`.
   This enables off-cluster client access on OpenShift, with graceful rejection when the Route API is unavailable.
+* The preview Authorization Filter no longer supports ConsumerGroupHeartbeat version 1 RPCs, see [#3561](https://github.com/kroxylicious/kroxylicious/issues/3561).
+* <a id="note-020-duration-serializer"></a>The Proxy now registers a custom Duration serialization/deserialization module on the config ObjectMapper, meaning Filter Config classes can use Duration and it will
+  be serialized to/from golang-style strings (e.g "1h" for 1 hour) without adding any annotations to your parameters.
+* Javadoc for public APIs will now be published on the website, alongside the other per-version documentation when we create a new release
 
 ## 0.19.0
 

@@ -1,10 +1,16 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
 :experimental:
 :kafka-version: 4.0.0
 :kafka-image: apache/kafka:{kafka-version}
 :proxy-bootstrap: localhost:9192
 include::_assets/attributes.adoc[]
 
-= Proxy Quickstart
+= Proxy Quick Start
 
 [role="_abstract"]
 Get Kroxylicious, the snappy open source proxy for Apache Kafka®, up and running in minutes.
@@ -38,7 +44,7 @@ podman pull {kafka-image}
 podman run -p 9092:9092 {kafka-image}
 ----
 +
-Otherwise, the official Apache Kafka® https://kafka.apache.org/quickstart[Quickstart] provides further
+Otherwise, the official Apache Kafka® https://kafka.apache.org/quickstart[quick start] provides further
 instructions for setting up a local cluster using the Kafka binary distribution.
 
 * **Kafka Binary Distribution**
@@ -67,7 +73,7 @@ TIP: For Windows, you might find the {AppAssetZipLink}[.zip] format easier to wo
 
 Kroxylicious uses a YAML file for configuration. You can define virtual clusters, specify target Kafka clusters, and enable filters.
 
-For this Quickstart, we'll use the example configuration file located at `+config/example-proxy-config.yaml+`. This file is pre-configured for a local Kafka cluster running on default ports.
+For this quick start, we'll use the example configuration file located at `+config/example-proxy-config.yaml+`. This file is pre-configured for a local Kafka cluster running on default ports.
 
 NOTE: If your Kafka cluster uses custom ports or runs on a different machine, you'll need to adjust the settings in the YAML file. See the {ProxyGuide} for more advanced configuration options.
 

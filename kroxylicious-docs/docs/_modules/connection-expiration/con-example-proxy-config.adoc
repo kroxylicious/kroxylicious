@@ -1,0 +1,35 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-connection-expiration-filter.adoc
+
+[id='con-example-proxy-config-{context}']
+= Example proxy configuration file
+
+[role="_abstract"]
+If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
+
+Here's a complete example of a `filterDefinitions` entry configured for Connection Expiration:
+
+[source, yaml]
+----
+filterDefinitions:
+  - name: my-connection-expiration-filter
+    type: ConnectionExpiration
+    config:
+      maxAge: "1h"
+      jitter: "5m"
+----
+where:
+
+* `maxAge` (required) is the maximum age of a connection before it will be closed. Must be a positive duration (for example, `"1h"`, `"30m"`, `"3600s"`).
+* `jitter` (optional) is the jitter to apply to the max age, randomizing the effective deadline within `[maxAge - jitter, maxAge + jitter]` per connection. Must be non-negative and not greater than `maxAge`. If omitted, no jitter is applied.
+
+Refer to the {ProxyGuide} for more information about configuring the proxy.

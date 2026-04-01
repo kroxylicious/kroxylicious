@@ -1,6 +1,13 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: SASL Inspection Guide
-description: Covers using the SASL Inspection filter.
+description: Using the SASL Inspection filter to infer the client's subject from its successful authentication exchange with a broker.
 tags:
   - filter
+  - security
 rank: "023"

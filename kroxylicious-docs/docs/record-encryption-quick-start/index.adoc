@@ -1,3 +1,9 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
 :experimental:
 :vault-chart-version: 0.32.0
 :localstack-chart-version: 0.6.27
@@ -14,13 +20,13 @@ include::_assets/attributes.adoc[]
 :quickstart: record-encryption
 
 [id="quickstart-{context}"]
-= Record Encryption Quickstart
+= Record Encryption Quick Start
 
 [role="_abstract"]
 
 Are you looking for an https://kroxylicious.io/use-cases/#encryption-at-rest[encryption-at-rest] solution for data stored in your Apache Kafka?
 
-This Quickstart guide will show you how to do that on Kubernetes ... from scratch ... without external dependencies.
+This quick start guide will show you how to do that on Kubernetes ... from scratch ... without external dependencies.
 You'll be encrypting in a snap!
 
 == Objectives
@@ -31,13 +37,13 @@ You'll be encrypting in a snap!
 * Produce/consume records to Kafka via the proxy demonstrating the transparent encryption.
 * Verify that the records are encrypted on the broker.
 
-WARNING: You *really don't* want to use this Quickstart to deploy an environment that will be used in *production*.
-The Quickstart deliberately keeps things quick and simple... there's no authentication, no TLS, no redundancy... Development purposes only - please!
+WARNING: You *really don't* want to use this quickstart to deploy an environment that will be used in *production*.
+The quickstart deliberately keeps things quick and simple... there's no authentication, no TLS, no redundancy... Development purposes only - please!
 Refer to the documentation for Kroxylicious, Strimzi and your KMS for production best practices.
 
 == Overview
 
-This diagram shows the important components that will be deployed by the Quickstart.
+This diagram shows the important components that will be deployed by the quickstart.
 Arrows on the diagrams explain the important flows between them.
 The pods shown in yellow run the kafka console producer and kafka console consumers command line applications.
 These pods are used to demonstrate the record encryption in action.
@@ -45,7 +51,7 @@ These pods are used to demonstrate the record encryption in action.
 The diagram omits the operators.
 
 .Important resources and the flows between them
-image::{realimagesdir}/quickstart-record-encryption.svg["Diagram showing the important kubernetes resources deployed by the Quickstart and the flows between them"]
+image::{realimagesdir}/quickstart-record-encryption.svg["Diagram showing the important kubernetes resources deployed by the quickstart and the flows between them"]
 
 
 == Before you begin
@@ -57,7 +63,7 @@ You'll need the following software installed:
 
 == Start Minikube
 
-Let's get the Kubernetes Cluster up and running.  Minikube defaults work just fine for this Quickstart.
+Let's get the Kubernetes Cluster up and running.  Minikube defaults work just fine for this quickstart.
 
 [source,terminal]
 ----
@@ -83,7 +89,7 @@ $ helm repo add --force-update localstack-repo https://helm.localstack.cloud
 $ helm upgrade --install localstack localstack-repo/localstack --namespace kms --create-namespace --version {localstack-chart-version} --set image.tag={localstack-tag} --set service.type=ClusterIP --wait
 ----
 
-NOTE: After installation, the LocalStack Helm chart prompts you to "Get the application URL". For this Quickstart, you can ignore these steps.
+NOTE: After installation, the LocalStack Helm chart prompts you to "Get the application URL". For this quickstart, you can ignore these steps.
 ====
 
 .HashiCorp Vault

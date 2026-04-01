@@ -1,6 +1,12 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
 $schema: https://kroxylicious.io/doc-schema.yaml
 title: Kroxylicious Operator for Kubernetes
-description: Describes how to deploy and run the Proxy in a Kubernetes environment using the Kroxylicious Operator
+description: Using the Kroxylicious Operator to deploy and run the Proxy in a Kubernetes environment.
 tags:
   - kubernetes
 rank: "020"

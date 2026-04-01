@@ -15,6 +15,8 @@ import java.util.Set;
  * For this reason, implementations of this interface should be named for the type of resource
  * (for example {@code Topic}, or {@code ConsumerGroup}) rather than the operations
  * enumerated (so not {@code TopicOperations} or {@code ConsumerGroupOperations}).
+ * The elements of the enumeration are typically verbs, such as {@code READ},
+ * {@code WRITE}, {@code DELETE}, {@code CREATE}, and so on.
  * @param <S> The self type.
  */
 public interface ResourceType<S extends Enum<S> & ResourceType<S>> {
