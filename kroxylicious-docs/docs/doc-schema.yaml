@@ -1,3 +1,9 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: https://kroxylicious.io/doc-schema.yaml
 title: Kroxylicious documentation metadata schema
