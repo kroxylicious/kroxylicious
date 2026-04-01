@@ -52,6 +52,10 @@ public abstract class ConsumerRecord {
         return recordHeaders;
     }
 
+    public long getOffset() {
+        return offset;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
