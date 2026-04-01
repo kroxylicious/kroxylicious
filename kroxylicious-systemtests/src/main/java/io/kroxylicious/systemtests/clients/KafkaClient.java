@@ -26,6 +26,7 @@ import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 
+import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -105,7 +106,7 @@ public interface KafkaClient {
      * @param message the message
      * @param numOfMessages the num of messages
      * @return  the exec result
-     * @throws KubeClusterException the kube cluster exception
+     * @throws KubeClusterException the kubernetes cluster exception
      */
     default ExecResult produceMessages(String topicName, String bootstrap, String message, int numOfMessages) throws KubeClusterException {
         return produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of());
@@ -120,7 +121,7 @@ public interface KafkaClient {
      * @param messageKey optional record key for the message. <code>null</code> means don't specify a key
      * @param numOfMessages the num of messages
      * @return  the exec result
-     * @throws KubeClusterException the kube cluster exception
+     * @throws KubeClusterException the kubernetes cluster exception
      */
     default ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages)
             throws KubeClusterException {
@@ -135,7 +136,7 @@ public interface KafkaClient {
      * @param message the message
      * @param messageKey the message key
      * @param numOfMessages the num of messages
-     * @throws KubeClusterException the kube cluster exception
+     * @throws KubeClusterException the kubernetes cluster exception
      */
     default void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages)
             throws KubeClusterException {
@@ -151,7 +152,7 @@ public interface KafkaClient {
      * @param messageKey the message key
      * @param numOfMessages the num of messages
      * @param additionalConfig the additional config
-     * @throws KubeClusterException the kube cluster exception
+     * @throws KubeClusterException the kubernetes cluster exception
      */
     default void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                             Map<String, String> additionalConfig)
@@ -168,7 +169,7 @@ public interface KafkaClient {
      * @param compressionType the compression type
      * @param numOfMessages the num of messages
      * @return  the exec result
-     * @throws KubeClusterException the kube cluster exception
+     * @throws KubeClusterException the kubernetes cluster exception
      */
     default ExecResult produceMessages(String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numOfMessages)
             throws KubeClusterException {
@@ -185,7 +186,7 @@ public interface KafkaClient {
      * @param numOfMessages the num of messages
      * @param additionalConfig the additional config
      * @return  the exec result
-     * @throws KubeClusterException the kube cluster exception
+     * @throws KubeClusterException the kubernetes cluster exception
      */
     ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
             throws KubeClusterException;
@@ -198,10 +199,10 @@ public interface KafkaClient {
      * @param numOfMessages the num of messages
      * @param timeout the timeout
      * @return  the list of ConsumerRecords
-     * @throws KubeClusterException the kube cluster exception
+     * @throws KubeClusterException the kubernetes cluster exception
      */
     default List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) throws KubeClusterException {
-        return consumeMessages(topicName, bootstrap, numOfMessages, timeout, Map.of());
+        return consumeMessages(topicName, bootstrap, numOfMessages, timeout, Map.of(), Constants.CONSUMER_GROUP_NAME);
     }
 
     /**
@@ -212,9 +213,12 @@ public interface KafkaClient {
      * @param numOfMessages the num of messages
      * @param timeout the timeout
      * @param additionalConfig the additional config
+     * @param consumerGroup the consumer group
      * @return  the list of ConsumerRecords
      */
-    List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig);
+    List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
+                                         String consumerGroup)
+            throws KubeClusterException;
 
     /**
      * Extracts version from Docker image string.

@@ -139,11 +139,13 @@ public class PythonTestClient implements KafkaClient {
     }
 
     @Override
-    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig) {
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
+                                                String consumerGroup) {
         LOGGER.atInfo().log("Consuming messages using python");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + PYTHON_TAG + TestUtils.getRandomPodNameSuffix();
         // Running consumer with parameters to get the latest N number of messages received to avoid consuming twice the same messages
         List<String> args = new ArrayList<>(List.of(PYTHON_COMMAND, CONSUMER_PATH, "-n", String.valueOf(numOfMessages), "-b", bootstrap, "-t", topicName));
+        args.addAll(List.of("-g", consumerGroup));
         additionalConfig.forEach((key, value) -> {
             args.add("-X");
             args.add(key + "=" + value);
