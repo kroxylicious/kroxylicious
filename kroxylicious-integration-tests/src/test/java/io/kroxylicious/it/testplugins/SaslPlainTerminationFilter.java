@@ -124,7 +124,9 @@ public class SaslPlainTerminationFilter
             bytes = saslServer.evaluateResponse(authBytes);
         }
         catch (Exception e) {
-            LOGGER.debug("{}: Authentication failed", context.channelDescriptor());
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .log("Authentication failed");
             saslServer.dispose();
             if (e instanceof SaslAuthenticationException sae) {
                 throw sae;
@@ -137,7 +139,10 @@ public class SaslPlainTerminationFilter
         if (saslServer.isComplete()) {
             try {
                 String authorizationId = saslServer.getAuthorizationID();
-                LOGGER.debug("{}: Authentication successful, authorizationId={}", context.channelDescriptor(), authorizationId);
+                LOGGER.atDebug()
+                        .addKeyValue("sessionId", context.sessionId())
+                        .addKeyValue("authorizationId", authorizationId)
+                        .log("Authentication successful");
                 context.clientSaslAuthenticationSuccess(saslServer.getMechanismName(), new Subject(new User(authorizationId)));
             }
             finally {
