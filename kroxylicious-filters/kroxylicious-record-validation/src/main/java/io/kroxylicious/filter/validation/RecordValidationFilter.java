@@ -109,7 +109,7 @@ class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFil
                                                                               ProduceRequestValidationResult result) {
         LOGGER.atDebug()
                 .addKeyValue("validationResult", result)
-                .log("At least one topic-partitions with the request contained invalid records. Produce request will be rejected.");
+                .log("At least one topic-partitions with the request contained invalid records. Produce request will be rejected");
         ProduceResponseData response = invalidateEntireRequest(requestTopicData, result);
         return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
     }
@@ -171,7 +171,7 @@ class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFil
         if (produceRequestValidationResult != null) {
             LOGGER.atDebug()
                     .addKeyValue("validationResult", produceRequestValidationResult)
-                    .log("augmenting invalid topic-partition details into response");
+                    .log("Augmenting invalid topic-partition details into response");
             augmentResponseWithInvalidTopicPartitions(response, produceRequestValidationResult);
             return context.forwardResponse(header, response);
         }
