@@ -10,10 +10,26 @@ Configuration:
   name: Config
   Appenders:
     Console:
+      # Pattern layout appender (text format - current default)
+      - name: STDOUT-PATTERN
+        target: SYSTEM_OUT
+        PatternLayout:
+          pattern: "%d{yyyy-MM-dd HH:mm:ss} %-5p <%t> %c{2.} - %m%replace{ %K{ctx}}{' $'}{}%n"
+      # JSON layout appender (structured JSON output)
+      - name: STDOUT-JSON
+        target: SYSTEM_OUT
+        JsonTemplateLayout:
+          eventTemplateUri: "classpath:LogstashJsonEventLayoutV1.json"
+    # Routing appender - selects between Pattern and JSON based on env var
+    Routing:
       name: STDOUT
-      target: SYSTEM_OUT
-      PatternLayout:
-        pattern: "%d{yyyy-MM-dd HH:mm:ss} %-5p <%t> %c{2.} - %m%replace{ %K{ctx}}{' $'}{}%n"
+      Routes:
+        pattern: "${env:KROXYLICIOUS_LOG_FORMAT:-text}"
+        Route:
+          - key: json
+            ref: STDOUT-JSON
+          - key: text
+            ref: STDOUT-PATTERN
   Loggers:
     Root:
       level: "${env:KROXYLICIOUS_ROOT_LOG_LEVEL:-WARN}"
