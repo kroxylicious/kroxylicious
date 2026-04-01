@@ -60,7 +60,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 LOGGER.atWarn()
                         .addKeyValue("providerType", providerType)
                         .addKeyValue("service", pluginInterface)
-                        .log("failed to find @Plugin on provider of service");
+                        .log("Failed to find @Plugin on provider of service");
             }
             else {
                 ProviderAndConfigType providerAndConfigType = new ProviderAndConfigType(provider, annotation.configType());
@@ -103,7 +103,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                             .addKeyValue("annotation", DeprecatedPluginName.class.getSimpleName())
                             .addKeyValue("oldName", annotatedClass.getAnnotation(DeprecatedPluginName.class).oldName())
                             .addKeyValue("collidingClass", classWithCollidingFqName.getName())
-                            .log("plugin implementation class is annotated with @DeprecatedPluginName which collides with another plugin implementation class, you must remove one of these classes from the class path");
+                            .log("Plugin implementation class is annotated with @DeprecatedPluginName which collides with another plugin implementation class, you must remove one of these classes from the class path");
                     throw new RuntimeException("Ambiguous plugin implementation name '" + ambiguousKey + "'");
                 }
                 else {
@@ -113,7 +113,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                             .addKeyValue("candidates", implementationClasses.stream()
                                     .map(Class::getName)
                                     .collect(Collectors.joining(", ")))
-                            .log("ambiguous reference to provider, it could refer to multiple implementations so to avoid ambiguous behaviour those fully qualified names must be used");
+                            .log("Ambiguous reference to provider, it could refer to multiple implementations so to avoid ambiguous behaviour those fully qualified names must be used");
                 }
             }
         }
@@ -199,7 +199,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                         .addKeyValue("pluginClass", pluginClass.getName())
                         .addKeyValue("oldName", instanceName)
                         .addKeyValue("newName", type.getName())
-                        .log("plugin should now be referred to using the new name, the plugin has been renamed and in the future the old name will cease to work");
+                        .log("Plugin should now be referred to using the new name, the plugin has been renamed and in the future the old name will cease to work");
             }
         }
     }
@@ -209,7 +209,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             LOGGER.atWarn()
                     .addKeyValue("pluginClass", pluginClass.getName())
                     .addKeyValue("name", instanceName)
-                    .log("plugin is deprecated");
+                    .log("Plugin is deprecated");
         }
     }
 

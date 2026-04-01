@@ -157,7 +157,7 @@ public record Configuration(
             catch (SniHostIdentifiesNodeIdentificationStrategy.UnresolvedHostException e) {
                 LOGGER.atWarn()
                         .addKeyValue("gateway", gateway.name())
-                        .log("not adding gateway due to unresolved host (associated OpenShift Route may not be ready yet)");
+                        .log("Not adding gateway due to unresolved host (associated OpenShift Route may not be ready yet)");
             }
         });
     }

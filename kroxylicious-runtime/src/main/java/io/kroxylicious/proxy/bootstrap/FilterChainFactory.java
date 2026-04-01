@@ -116,7 +116,7 @@ public class FilterChainFactory implements AutoCloseable {
                     LOGGER.atWarn()
                             .setCause(e)
                             .addKeyValue("filterName", filterDefinition.name())
-                            .log("exception while inspecting Filter implementation for deprecations");
+                            .log("Exception while inspecting Filter implementation for deprecations");
                     return new ClassDescription(false, false);
                 }
             });
