@@ -111,7 +111,7 @@ public class DecryptionDekCache<K, E> {
         if (dek != null) {
             dek.destroyForDecrypt();
             LOGGER.atTrace()
-                    .log("attempted to destroy DEK");
+                    .log("Attempted to destroy DEK");
         }
     }
 
