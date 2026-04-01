@@ -91,8 +91,8 @@ public final class DestroyableRawSecretKey implements SecretKey {
                     .addKeyValue("keyClass", source.getClass().getName())
                     .addKeyValue("error", e.getMessage())
                     .log(LOGGER.isDebugEnabled()
-                            ? "failed to destroy key"
-                            : "failed to destroy key, increase log level to DEBUG for stacktrace");
+                            ? "Failed to destroy key"
+                            : "Failed to destroy key, increase log level to DEBUG for stacktrace");
         }
         return result;
     }
