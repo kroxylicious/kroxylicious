@@ -23,7 +23,7 @@ class CheckSignificanceTest {
     @Test
     void exitZeroWhenE2eP99DeltaIsSignificant() {
         int exit = CheckSignificance.execute(path("omb-result-baseline.json"), path("omb-result-proxy.json"));
-        assertThat(exit).as("should exit 0 (significant)").isEqualTo(0);
+        assertThat(exit).as("should exit 0 (significant)").isZero();
     }
 
     @Test
