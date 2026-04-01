@@ -44,7 +44,7 @@ on:
         required: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.workflow_run.pull_requests[0].number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -56,6 +56,8 @@ jobs:
     steps:
         - name: Checkout source
           uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+          with:
+            ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
         - name: 'Test for presence of Red Hat pull-secret'
           id: pull-check
@@ -84,6 +86,8 @@ jobs:
 
       - name: Checkout source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Java
         uses: ./.github/actions/common/setup-java
