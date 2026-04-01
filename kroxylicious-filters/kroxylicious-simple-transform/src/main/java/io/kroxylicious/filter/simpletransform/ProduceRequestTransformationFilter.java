@@ -113,6 +113,6 @@ class ProduceRequestTransformationFilter implements ProduceRequestFilter {
                 .addKeyValue("failureCount", failures)
                 .addKeyValue("topicIds", () -> firstThree + (hasMore ? "..." : ""))
                 .addKeyValue("outcome", outcome)
-                .log("failed to map topic ids to names for acks=0 request");
+                .log("Failed to map topic ids to names for acks=0 request");
     }
 }
