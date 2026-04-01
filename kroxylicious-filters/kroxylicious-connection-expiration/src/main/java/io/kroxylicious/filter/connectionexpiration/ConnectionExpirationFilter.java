@@ -57,7 +57,7 @@ public class ConnectionExpirationFilter implements RequestFilter {
         if (clock.instant().isAfter(deadline)) {
             LOGGER.atInfo()
                     .setMessage("Connection expiration deadline exceeded, closing after forwarding request")
-                    .addKeyValue("channel", context.channelDescriptor())
+                    .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("deadline", deadline)
                     .addKeyValue("apiKey", apiKey)
                     .log();
