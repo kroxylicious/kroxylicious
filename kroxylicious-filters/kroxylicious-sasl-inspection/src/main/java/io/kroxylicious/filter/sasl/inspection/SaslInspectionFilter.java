@@ -224,8 +224,8 @@ class SaslInspectionFilter
                         .addKeyValue("sessionId", context.sessionId())
                         .addKeyValue("error", e::getMessage)
                         .setCause(LOGGER.isDebugEnabled() ? e : null)
-                        .log("Client sent authorization request containing a SASL response that could not be interpreted; closing connection."
-                                + (LOGGER.isDebugEnabled() ? "" : " Raise log level to DEBUG to see the stack."));
+                        .log("Client sent authorization request containing a SASL response that could not be interpreted; closing connection"
+                                + (LOGGER.isDebugEnabled() ? "" : " Raise log level to DEBUG to see the stack"));
                 return closeConnectionWithShortCircuitResponse(context, new SaslAuthenticateResponseData()
                         .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
                         .setErrorMessage("Proxy cannot extract authorizationId from SASL authenticate request"));
@@ -307,7 +307,7 @@ class SaslInspectionFilter
             if (expiredCredential) {
                 LOGGER.atInfo()
                         .addKeyValue("sessionId", context.sessionId())
-                        .log("Server has accepted an expired SASL credentials. Client must re-authenticate on the next request, or the server will disconnect.");
+                        .log("Server has accepted an expired SASL credentials. Client must re-authenticate on the next request, or the server will disconnect");
                 context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizationIdFromClient, new SaslException("expired credential"));
             }
             else {
@@ -367,7 +367,7 @@ class SaslInspectionFilter
                 if (LOGGER.isDebugEnabled()) {
                     eventBuilder = eventBuilder.setCause(throwable);
                 }
-                eventBuilder.log("Exception caught while trying to build subject" + (LOGGER.isDebugEnabled() ? "" : " (enable debug to see the stacktrace)."));
+                eventBuilder.log("Exception caught while trying to build subject" + (LOGGER.isDebugEnabled() ? "" : " (enable debug to see the stacktrace)"));
                 e = new SubjectBuildingException("SaslSubjectBuilder " + subjectBuilder.getClass() + " threw an unexpected exception", throwable);
             }
             context.clientSaslAuthenticationFailure(saslObserver.mechanismName(),
@@ -417,7 +417,7 @@ class SaslInspectionFilter
         LOGGER.atError()
                 .addKeyValue("apiKey", String.valueOf(header.apiKey()))
                 .addKeyValue("authenticationState", currentState)
-                .log("Unexpected response while in state. This may indicate an incorrectly implemented broker that does not conform to https://kafka.apache.org/protocol#sasl_handshake. Closing connection.");
+                .log("Unexpected response while in state. This may indicate an incorrectly implemented broker that does not conform to https://kafka.apache.org/protocol#sasl_handshake. Closing connection");
         return context.responseFilterResultBuilder()
                 .forward(header, response)
                 .withCloseConnection()
