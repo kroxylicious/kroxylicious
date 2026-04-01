@@ -149,7 +149,7 @@ public class ApiKeySessionProvider implements SessionProvider {
     private void scheduleCredentialRefresh(long delayMs) {
         LOGGER.atDebug()
                 .addKeyValue("delayMs", delayMs)
-                .log("scheduling refresh of Fortanix session");
+                .log("Scheduling refresh of Fortanix session");
 
         var refreshedCredFuture = new CompletableFuture<Session>();
         executorService.schedule(() -> {
@@ -214,7 +214,7 @@ public class ApiKeySessionProvider implements SessionProvider {
             var expiration = credentials.expiration();
             LOGGER.atDebug()
                     .addKeyValue("expiration", expiration)
-                    .log("obtained Fortanix DSM session");
+                    .log("Obtained Fortanix DSM session");
             tokenRefreshErrorCount.set(0);
             target.complete(credentials);
 
@@ -295,7 +295,7 @@ public class ApiKeySessionProvider implements SessionProvider {
                         .thenApply(r -> {
                             LOGGER.atDebug()
                                     .addKeyValue("statusCode", r.statusCode())
-                                    .log("terminated previous session");
+                                    .log("Terminated previous session");
                             return null;
                         })
                         .exceptionally(t -> {
