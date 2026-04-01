@@ -430,7 +430,6 @@ public class FetchFilter implements FetchRequestFilter {
     }
 
     @Override
-    @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
                                                           RequestHeaderData header,
                                                           ApiMessage body,

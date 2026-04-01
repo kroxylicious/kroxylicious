@@ -33,7 +33,7 @@ In addition to the count metrics, there are active connection gauge metrics that
 * If an error occurs whilst the proxy is attempting a connection to a broker the `kroxylicious_proxy_to_server_errors_total` metric is incremented by one.
 
 Connection and connection error metrics include the following labels: `virtual_cluster` (the virtual cluster's name) and `node_id` (the broker's node ID).
-When the client connects to the boostrap endpoint of the virtual cluster, a node ID value of `bootstrap` is recorded.
+When the client connects to the bootstrap endpoint of the virtual cluster, a node ID value of `bootstrap` is recorded.
 
 The `kroxylicious_client_to_proxy_errors_total` metric also counts connection errors that occur before a virtual cluster has been identified.
 For these specific errors, the `virtual_cluster` and `node_id` labels are set to an empty string ("").
@@ -139,7 +139,7 @@ image::{realimagesdir}/monitoring-message-counters.svg["Conceptual diagram showi
 
 Message metrics include the following labels: `virtual_cluster` (the virtual cluster's name), `node_id` (the broker's node ID), `api_key` (the message type), `api_version`, and `decoded` (a flag indicating if the message was decoded by the proxy).
 
-When the client connects to the boostrap endpoint of the virtual cluster, metrics are recorded with a node ID value of `bootstrap`.
+When the client connects to the bootstrap endpoint of the virtual cluster, metrics are recorded with a node ID value of `bootstrap`.
 
 .Kafka message metrics for proxy request and response flow
 |===
