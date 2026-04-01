@@ -6,6 +6,9 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#3564](https://github.com/kroxylicious/kroxylicious/pull/3564): build(deps): bump apicurio-registry.version from 3.1.6 to 3.2.1
+
 ## 0.20.0
 
 * [#3570](https://github.com/kroxylicious/kroxylicious/pull/3570): build(deps): bump netty.version from 4.2.10.Final to 4.2.12.Final
