@@ -17,6 +17,8 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -180,21 +182,10 @@ class ResultComparatorTest {
             assertThat(runComparison()).contains("MWU p");
         }
 
-        @Test
-        void publishLatencyDataRowsShowPValue() throws IOException {
-            List<String> dataRows = extractSection(runComparison(), "Publish Latency");
-            assertThat(dataRows).isNotEmpty().allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
-        }
-
-        @Test
-        void endToEndLatencyDataRowsShowPValue() throws IOException {
-            List<String> dataRows = extractSection(runComparison(), "End-to-End Latency");
-            assertThat(dataRows).isNotEmpty().allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
-        }
-
-        @Test
-        void throughputDataRowsShowPValue() throws IOException {
-            List<String> dataRows = extractSection(runComparison(), "Total Throughput");
+        @ParameterizedTest
+        @ValueSource(strings = { "Publish Latency", "End-to-End Latency", "Total Throughput" })
+        void dataRowsShowPValue(String section) throws IOException {
+            List<String> dataRows = extractSection(runComparison(), section);
             assertThat(dataRows).isNotEmpty().allSatisfy(row -> assertThat(row).matches(".*\\d+\\.\\d{4}.*"));
         }
 
