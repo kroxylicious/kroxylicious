@@ -31,7 +31,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @Plugin(configType = AuthorizationConfig.class)
 public class Authorization implements FilterFactory<AuthorizationConfig, Authorizer> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Authorization.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Authorization.class);
 
     private @Nullable AuthorizerService<?> authorizerService = null;
 
@@ -40,7 +40,7 @@ public class Authorization implements FilterFactory<AuthorizationConfig, Authori
     public Authorizer initialize(FilterFactoryContext context,
                                  AuthorizationConfig authorizationConfig)
             throws PluginConfigurationException {
-        LOG.warn("Authorization is an experimental Filter not yet recommended for production environments.");
+        LOGGER.warn("Authorization is an experimental Filter not yet recommended for production environments.");
         var configuration = Plugins.requireConfig(this, authorizationConfig);
         this.authorizerService = context.pluginInstance(AuthorizerService.class, configuration.authorizer());
         ((AuthorizerService) authorizerService).initialize(configuration.authorizerConfig());

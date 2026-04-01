@@ -36,7 +36,7 @@ import static io.kroxylicious.filter.authorization.AuthorizedOps.topicAuthorized
 
 class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataResponseData> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MetadataEnforcement.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetadataEnforcement.class);
 
     @Override
     short minSupportedVersion() {
@@ -140,7 +140,7 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
                     var notCreateMetadataResponse = (MetadataResponseData) notCreateResponse;
                     Errors error = Errors.forCode(notCreateMetadataResponse.errorCode());
                     if (error != Errors.NONE) {
-                        LOG.info("{}: Internal metadata response from broker has error code {}", context.sessionId(), error);
+                        LOGGER.info("{}: Internal metadata response from broker has error code {}", context.sessionId(), error);
                         return CompletableFuture.failedStage(new AuthorizationException("Internal metadata request failed with " + error));
                     }
                     var responseTopicsByExistence = notCreateMetadataResponse.topics().stream()
