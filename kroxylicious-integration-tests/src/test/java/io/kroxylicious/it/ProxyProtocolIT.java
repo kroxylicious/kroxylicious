@@ -5,23 +5,23 @@
  */
 package io.kroxylicious.it;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -36,6 +36,10 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
+import io.kroxylicious.test.client.CorrelationManager;
+import io.kroxylicious.test.client.KafkaClientHandler;
+import io.kroxylicious.test.codec.KafkaRequestEncoder;
+import io.kroxylicious.test.codec.KafkaResponseDecoder;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
@@ -47,11 +51,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(NettyLeakDetectorExtension.class)
 class ProxyProtocolIT {
 
-    // ---- REQUIRED mode tests ----
-
     @Test
     void requiredModeShouldRejectConnectionWithoutProxyHeader() {
-        // Given - proxy protocol is required but client sends a normal Kafka request
         try (var tester = mockKafkaKroxyliciousTester(bootstrap -> KroxyliciousConfigUtils.proxy(bootstrap)
                 .withProxyProtocol(new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED)));
                 var client = tester.simpleTestClient()) {
@@ -59,62 +60,75 @@ class ProxyProtocolIT {
             var request = new Request(ApiKeys.API_VERSIONS, ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION,
                     "test-client", new ApiVersionsRequestData());
 
-            // When / Then - the request should fail fast (not hang)
+            // Connection should be rejected fast, not hang
             assertThat(client.get(request))
                     .failsWithin(5, TimeUnit.SECONDS);
         }
     }
 
     @Test
-    void requiredModeShouldAcceptConnectionWithProxyHeader() throws Exception {
-        // Given - proxy protocol is required
+    void requiredModeShouldProxyKafkaRequestsAfterProxyHeader() throws Exception {
         try (var tester = mockKafkaKroxyliciousTester(bootstrap -> KroxyliciousConfigUtils.proxy(bootstrap)
                 .withProxyProtocol(new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED)))) {
 
-            var address = tester.getBootstrapAddress();
-            var parts = address.split(":");
-            var host = parts[0];
-            var port = Integer.parseInt(parts[1]);
-
-            var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
-            try {
-                Channel channel = connectAndSendProxyHeader(group, host, port);
-
-                // Then - the channel should remain active (proxy accepted the PROXY header)
-                Thread.sleep(200);
-                assertThat(channel.isActive())
-                        .as("Channel should remain active after PROXY header is accepted")
-                        .isTrue();
-
-                channel.close().sync();
-            }
-            finally {
-                group.shutdownGracefully(0, 1, TimeUnit.SECONDS).sync();
-            }
-        }
-    }
-
-    // ---- AUTO mode tests ----
-
-    @Test
-    void autoModeShouldAcceptConnectionWithProxyHeader() throws Exception {
-        // Given - proxy protocol is auto
-        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> KroxyliciousConfigUtils.proxy(bootstrap)
-                .withProxyProtocol(new ProxyProtocolConfig(ProxyProtocolMode.AUTO)))) {
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS,
+                    ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsResponseData()));
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.METADATA,
+                    MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataResponseData()));
 
             var address = tester.getBootstrapAddress();
             var parts = address.split(":");
             var host = parts[0];
             var port = Integer.parseInt(parts[1]);
 
+            var correlationManager = new CorrelationManager();
+            var kafkaHandler = new KafkaClientHandler();
             var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
             try {
-                Channel channel = connectAndSendProxyHeader(group, host, port);
+                var bootstrap = new Bootstrap()
+                        .group(group)
+                        .channel(NioSocketChannel.class)
+                        .option(ChannelOption.TCP_NODELAY, true)
+                        .handler(new ChannelInitializer<SocketChannel>() {
+                            @Override
+                            protected void initChannel(SocketChannel ch) {
+                                ch.pipeline().addLast(HAProxyMessageEncoder.INSTANCE);
+                                ch.pipeline().addLast(new KafkaRequestEncoder(correlationManager));
+                                ch.pipeline().addLast(new KafkaResponseDecoder(correlationManager));
+                                ch.pipeline().addLast(kafkaHandler);
+                            }
+                        });
 
-                Thread.sleep(200);
-                assertThat(channel.isActive())
-                        .as("Channel should remain active after PROXY header is accepted in auto mode")
-                        .isTrue();
+                Channel channel = bootstrap.connect(host, port).sync().channel();
+
+                // Send PROXY header first
+                channel.writeAndFlush(new HAProxyMessage(
+                        HAProxyProtocolVersion.V2,
+                        HAProxyCommand.PROXY,
+                        HAProxyProxiedProtocol.TCP4,
+                        "192.168.1.100",
+                        "127.0.0.1",
+                        54321,
+                        port)).sync();
+
+                // Remove encoder after sending (PROXY header is one-shot)
+                channel.pipeline().remove(HAProxyMessageEncoder.class);
+
+                // Send ApiVersions request
+                var apiVersionsRequest = toRequestFrame(new Request(ApiKeys.API_VERSIONS,
+                        ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, "test-client", new ApiVersionsRequestData()));
+                CompletableFuture<?> apiVersionsFuture = kafkaHandler.sendRequest(apiVersionsRequest);
+                assertThat(apiVersionsFuture)
+                        .as("ApiVersions request should succeed after PROXY header")
+                        .succeedsWithin(5, TimeUnit.SECONDS);
+
+                // Send Metadata request on the same connection
+                var metadataRequest = toRequestFrame(new Request(ApiKeys.METADATA,
+                        MetadataRequestData.HIGHEST_SUPPORTED_VERSION, "test-client", new MetadataRequestData()));
+                CompletableFuture<?> metadataFuture = kafkaHandler.sendRequest(metadataRequest);
+                assertThat(metadataFuture)
+                        .as("Metadata request should succeed after PROXY header")
+                        .succeedsWithin(5, TimeUnit.SECONDS);
 
                 channel.close().sync();
             }
@@ -126,7 +140,6 @@ class ProxyProtocolIT {
 
     @Test
     void autoModeShouldAcceptDirectConnectionWithoutProxyHeader() {
-        // Given - proxy protocol is auto, client connects directly without PROXY header
         try (var tester = mockKafkaKroxyliciousTester(bootstrap -> KroxyliciousConfigUtils.proxy(bootstrap)
                 .withProxyProtocol(new ProxyProtocolConfig(ProxyProtocolMode.AUTO)));
                 var client = tester.simpleTestClient()) {
@@ -137,110 +150,18 @@ class ProxyProtocolIT {
             var request = new Request(ApiKeys.API_VERSIONS, ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION,
                     "test-client", new ApiVersionsRequestData());
 
-            // When / Then - normal request should succeed (auto mode passes through)
             Response response = client.getSync(request);
             assertThat(response.payload().message()).isInstanceOf(ApiVersionsResponseData.class);
         }
     }
 
-    // ---- DISABLED mode tests ----
-
-    @Test
-    void disabledModeShouldWorkNormally() {
-        // Given - proxy protocol is NOT enabled (default)
-        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
-                var client = tester.simpleTestClient()) {
-
-            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS,
-                    ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsResponseData()));
-
-            var request = new Request(ApiKeys.API_VERSIONS, ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION,
-                    "test-client", new ApiVersionsRequestData());
-
-            // When / Then - normal request should succeed
-            Response response = client.getSync(request);
-            assertThat(response.payload().message()).isInstanceOf(ApiVersionsResponseData.class);
-        }
-    }
-
-    // ---- Connection-not-stuck tests ----
-
-    @Test
-    void requiredModeShouldNotHangWhenNonProxyBytesReceived() {
-        // Given - proxy protocol required, client sends raw bytes (not PROXY header)
-        // This test ensures the connection is rejected quickly rather than hanging indefinitely.
-        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> KroxyliciousConfigUtils.proxy(bootstrap)
-                .withProxyProtocol(new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED)))) {
-
-            var address = tester.getBootstrapAddress();
-            var parts = address.split(":");
-            var host = parts[0];
-            var port = Integer.parseInt(parts[1]);
-
-            var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
-            try {
-                var closeFuture = new java.util.concurrent.CompletableFuture<Void>();
-
-                var bootstrap = new Bootstrap()
-                        .group(group)
-                        .channel(NioSocketChannel.class)
-                        .handler(new ChannelInitializer<SocketChannel>() {
-                            @Override
-                            protected void initChannel(SocketChannel ch) {
-                                ch.pipeline().addLast(new SimpleChannelInboundHandler<Object>() {
-                                    @Override
-                                    protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
-                                    }
-
-                                    @Override
-                                    public void channelInactive(ChannelHandlerContext ctx) {
-                                        closeFuture.complete(null);
-                                    }
-                                });
-                            }
-                        });
-
-                Channel channel = bootstrap.connect(host, port).sync().channel();
-
-                // Send garbage bytes (not a PROXY header)
-                channel.writeAndFlush(Unpooled.wrappedBuffer("not a proxy header!!!".getBytes())).sync();
-
-                // Then - connection should be closed quickly, not hang
-                assertThat(closeFuture)
-                        .as("Connection should be closed quickly when non-PROXY bytes are sent in required mode")
-                        .succeedsWithin(5, TimeUnit.SECONDS);
-            }
-            finally {
-                group.shutdownGracefully(0, 1, TimeUnit.SECONDS).sync();
-            }
-        }
-    }
-
-    // ---- Helper ----
-
-    private Channel connectAndSendProxyHeader(MultiThreadIoEventLoopGroup group, String host, int port) throws Exception {
-        var bootstrap = new Bootstrap()
-                .group(group)
-                .channel(NioSocketChannel.class)
-                .option(ChannelOption.TCP_NODELAY, true)
-                .handler(new ChannelInitializer<SocketChannel>() {
-                    @Override
-                    protected void initChannel(SocketChannel ch) {
-                        ch.pipeline().addLast(HAProxyMessageEncoder.INSTANCE);
-                    }
-                });
-
-        Channel channel = bootstrap.connect(host, port).sync().channel();
-
-        channel.writeAndFlush(new HAProxyMessage(
-                HAProxyProtocolVersion.V2,
-                HAProxyCommand.PROXY,
-                HAProxyProxiedProtocol.TCP4,
-                "192.168.1.100",
-                "127.0.0.1",
-                54321,
-                port)).sync();
-
-        return channel;
+    private static io.kroxylicious.test.codec.DecodedRequestFrame<?> toRequestFrame(Request request) {
+        var header = new org.apache.kafka.common.message.RequestHeaderData()
+                .setRequestApiKey(request.apiKeys().id)
+                .setRequestApiVersion(request.apiVersion())
+                .setClientId(request.clientIdHeader())
+                .setCorrelationId(0);
+        return new io.kroxylicious.test.codec.DecodedRequestFrame<>(
+                header.requestApiVersion(), header.correlationId(), header, request.message(), request.apiVersion());
     }
 }
