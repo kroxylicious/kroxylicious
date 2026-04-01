@@ -85,7 +85,7 @@ public abstract class OpaqueFrame implements Frame {
                 .addKeyValue("bufferReadableBytes", buf.readableBytes())
                 .addKeyValue("buffer", buf)
                 .addKeyValue("output", out)
-                .log("writing frame");
+                .log("Writing frame");
         out.ensureWritable(estimateEncodedSize());
         out.writeInt(length);
         out.writeBytes(buf, length);

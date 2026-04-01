@@ -169,7 +169,7 @@ public final class KafkaProxy implements AutoCloseable {
             String message = "invalid configuration: " + String.join(",", errorMessages);
             LOGGER.atError()
                     .addKeyValue("message", message)
-                    .log("invalid configuration");
+                    .log("Invalid configuration");
             throw new IllegalConfigurationException(message);
         }
         return config;
@@ -210,7 +210,7 @@ public final class KafkaProxy implements AutoCloseable {
                         .addKeyValue("versionStatus", versionStatus)
                         .addKeyValue("jreFeatureVersion", JRE_FEATURE_VERSION)
                         .addKeyValue("testedJreVersion", TESTED_JRE_VERSIONS.first())
-                        .log("detected JRE version, running Kroxylicious is only tested on LTS releases, if you find any issues, please try to re-create them on one of the tested JREs."
+                        .log("Detected JRE version, running Kroxylicious is only tested on LTS releases, if you find any issues, please try to re-create them on one of the tested JREs."
                                 + deprecatedMessage);
             }
 
@@ -259,7 +259,7 @@ public final class KafkaProxy implements AutoCloseable {
         catch (RuntimeException e) {
             STARTUP_SHUTDOWN_LOGGER.atError()
                     .setCause(e)
-                    .log("exception during startup, shutting down");
+                    .log("Exception during startup, shutting down");
             shutdown();
             throw new LifecycleException("Startup completed exceptionally", e);
         }
@@ -319,7 +319,7 @@ public final class KafkaProxy implements AutoCloseable {
                     LOGGER.atInfo()
                             .addKeyValue("bindAddress", mc.getEffectiveBindAddress())
                             .addKeyValue("port", mc.getEffectivePort())
-                            .log("binding management endpoint");
+                            .log("Binding management endpoint");
 
                     var future = new CompletableFuture<Void>();
                     metricsBootstrap.bind(managementConfiguration.getEffectiveBindAddress(), managementConfiguration.getEffectivePort())
@@ -356,7 +356,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
         try {
             STARTUP_SHUTDOWN_LOGGER.atInfo()
-                    .log("shutting down");
+                    .log("Shutting down");
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
@@ -373,7 +373,7 @@ public final class KafkaProxy implements AutoCloseable {
                 if (t != null) {
                     STARTUP_SHUTDOWN_LOGGER.atWarn()
                             .setCause(t)
-                            .log("shutdown future completed exceptionally");
+                            .log("Shutdown future completed exceptionally");
                     throw new LifecycleException("Shutdown future completed exceptionally", t);
                 }
                 return null;
@@ -389,7 +389,7 @@ public final class KafkaProxy implements AutoCloseable {
             filterChainFactory = null;
             shutdown.complete(null);
             LOGGER.atInfo()
-                    .log("shut down completed");
+                    .log("Shut down completed");
 
         }
     }

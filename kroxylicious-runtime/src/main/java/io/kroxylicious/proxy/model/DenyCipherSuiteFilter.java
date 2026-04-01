@@ -45,14 +45,14 @@ public final class DenyCipherSuiteFilter implements CipherSuiteFilter {
                 .forEach(unsupportedCipher -> LOGGER.atWarn()
                         .addKeyValue("unsupportedCipher", unsupportedCipher)
                         .addKeyValue("supportedCiphers", supportedCiphers)
-                        .log("ignoring allowed cipher as it is not recognized by this platform"));
+                        .log("Ignoring allowed cipher as it is not recognized by this platform"));
 
         deniedCiphers.stream()
                 .filter(Predicate.not(supportedCiphers::contains))
                 .forEach(unsupportedCipher -> LOGGER.atWarn()
                         .addKeyValue("unsupportedCipher", unsupportedCipher)
                         .addKeyValue("supportedCiphers", supportedCiphers)
-                        .log("ignoring denied cipher as it is not recognized by this platform"));
+                        .log("Ignoring denied cipher as it is not recognized by this platform"));
 
         return StreamSupport.stream(actualCiphers.spliterator(), false)
                 .filter(supportedCiphers::contains)

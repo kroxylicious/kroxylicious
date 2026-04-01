@@ -37,7 +37,7 @@ public record NettySettings(Optional<Integer> workerThreadCount,
                                          @JsonProperty("unauthenticatedIdleTimeout") Optional<Duration> unauthenticatedIdleTimeout,
                                          @Deprecated(since = "0.20.0", forRemoval = true) @JsonProperty("shutdownQuietPeriodSeconds") Optional<Integer> shutdownQuietPeriodSeconds) {
         var resolvedQuietPeriod = shutdownQuietPeriod.or(() -> shutdownQuietPeriodSeconds.map(seconds -> {
-            LOGGER.atWarn().log("shutdownQuietPeriodSeconds is deprecated, use shutdownQuietPeriod (Go-style duration e.g. \"2s\") instead");
+            LOGGER.atWarn().log("ShutdownQuietPeriodSeconds is deprecated, use shutdownQuietPeriod (Go-style duration e.g. \"2s\") instead");
             return Duration.ofSeconds(seconds);
         }));
         return new NettySettings(workerThreadCount, resolvedQuietPeriod, shutdownTimeout, authenticatedIdleTimeout, unauthenticatedIdleTimeout);

@@ -96,24 +96,24 @@ class ServiceBasedPluginFactoryRegistryTest {
         return List.of(
                 Arguments.argumentSet("@Deprecated",
                         "io.kroxylicious.proxy.config.DeprecatedImplementation",
-                        "plugin is deprecated",
+                        "Plugin is deprecated",
                         Map.of("pluginClass", "io.kroxylicious.proxy.config.ServiceWithBaggage",
                                 "name", "io.kroxylicious.proxy.config.DeprecatedImplementation")),
                 Arguments.argumentSet("shouldWarnAboutRenamedPluginLoadedWithOldFqName",
                         "io.kroxylicious.proxy.config.ImplementationWithDeprecatedName",
-                        "plugin should now be referred to using the new name, the plugin has been renamed and in the future the old name will cease to work",
+                        "Plugin should now be referred to using the new name, the plugin has been renamed and in the future the old name will cease to work",
                         Map.of("pluginClass", "io.kroxylicious.proxy.config.ServiceWithBaggage",
                                 "oldName", "io.kroxylicious.proxy.config.ImplementationWithDeprecatedName",
                                 "newName", "io.kroxylicious.proxy.config.RenamedImplementation")),
                 Arguments.argumentSet("shouldWarnAboutRenamedPluginLoadedWithOldSimpleName",
                         "ImplementationWithDeprecatedName",
-                        "plugin should now be referred to using the new name, the plugin has been renamed and in the future the old name will cease to work",
+                        "Plugin should now be referred to using the new name, the plugin has been renamed and in the future the old name will cease to work",
                         Map.of("pluginClass", "io.kroxylicious.proxy.config.ServiceWithBaggage",
                                 "oldName", "ImplementationWithDeprecatedName",
                                 "newName", "io.kroxylicious.proxy.config.RenamedImplementation")),
                 Arguments.argumentSet("shouldWarnAboutRepackagedPluginLoadedWithOldFqName",
                         "io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation",
-                        "plugin should now be referred to using the new name, the plugin has been renamed and in the future the old name will cease to work",
+                        "Plugin should now be referred to using the new name, the plugin has been renamed and in the future the old name will cease to work",
                         Map.of("pluginClass", "io.kroxylicious.proxy.config.ServiceWithBaggage",
                                 "oldName", "io.kroxylicious.proxy.config.oldpkg.RepackagedImplementation",
                                 "newName", "io.kroxylicious.proxy.config.newpkg.RepackagedImplementation")));
@@ -179,7 +179,7 @@ class ServiceBasedPluginFactoryRegistryTest {
         assertThat(logCaptor.getLogEvents()).singleElement()
                 .satisfies(log -> {
                     assertThat(log.getMessage()).isEqualTo(
-                            "plugin implementation class is annotated with @DeprecatedPluginName which collides with another plugin implementation class, you must remove one of these classes from the class path");
+                            "Plugin implementation class is annotated with @DeprecatedPluginName which collides with another plugin implementation class, you must remove one of these classes from the class path");
                     assertThat(log.getKeyValuePairs())
                             .contains(Map.entry("annotatedClass", "io.kroxylicious.proxy.config.ServiceWithCollidingAliasY"))
                             .contains(Map.entry("annotation", "DeprecatedPluginName"))
@@ -197,7 +197,7 @@ class ServiceBasedPluginFactoryRegistryTest {
         assertThat(logCaptor.getLogEvents()).singleElement()
                 .satisfies(log -> {
                     assertThat(log.getMessage()).isEqualTo(
-                            "plugin implementation class is annotated with @DeprecatedPluginName which collides with another plugin implementation class, you must remove one of these classes from the class path");
+                            "Plugin implementation class is annotated with @DeprecatedPluginName which collides with another plugin implementation class, you must remove one of these classes from the class path");
                     assertThat(log.getKeyValuePairs())
                             .contains(Map.entry("annotatedClass", "io.kroxylicious.proxy.config.ServiceWithCollidingAlias2X"))
                             .contains(Map.entry("annotation", "DeprecatedPluginName"))
