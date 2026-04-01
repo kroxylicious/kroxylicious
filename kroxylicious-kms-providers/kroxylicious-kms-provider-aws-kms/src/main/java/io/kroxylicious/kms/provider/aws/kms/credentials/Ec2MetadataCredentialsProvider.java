@@ -162,7 +162,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     private void scheduleCredentialRefresh(long delay) {
         LOGGER.atDebug()
                 .addKeyValue("delayMs", delay)
-                .log("scheduling refresh of AWS credentials");
+                .log("Scheduling refresh of AWS credentials");
 
         var refreshedCredFuture = new CompletableFuture<SecurityCredentials>();
         executorService.schedule(() -> {
@@ -221,7 +221,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
             LOGGER.atDebug()
                     .addKeyValue("iamRole", config.iamRole())
                     .addKeyValue("expiration", expiration)
-                    .log("obtained AWS credentials from EC2 metadata");
+                    .log("Obtained AWS credentials from EC2 metadata");
             tokenRefreshErrorCount.set(0);
             target.complete(credentials);
 
