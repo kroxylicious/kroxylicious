@@ -64,7 +64,7 @@ public class SaslInspection implements FilterFactory<Config, Void> {
                                                           @Nullable Config config) {
         if (config == null || config.subjectBuilder() == null) {
             LOGGER.atDebug()
-                    .log("No `subjectBuilder` configured. The default SaslSubjectBuilder will be used.");
+                    .log("No `subjectBuilder` configured. The default SaslSubjectBuilder will be used");
             return DEFAULT_SUBJECT_BUILDER;
         }
         else {

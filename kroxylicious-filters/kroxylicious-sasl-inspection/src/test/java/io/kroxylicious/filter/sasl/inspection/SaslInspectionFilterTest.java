@@ -714,8 +714,7 @@ class SaslInspectionFilterTest {
         verify(context, never()).forwardRequest(any(), ArgumentMatchers.assertArg(r -> assertThat(ApiKeys.forId(r.apiKey())).isEqualTo(ApiKeys.METADATA)));
         verify(requestCloseOrTerminalStage).withCloseConnection();
         assertThat(logCaptor.getLogEvents()).singleElement()
-                .satisfies(log -> attemptedRequestWithoutAuth(log, "attempted", "closing connection with error")
-                );
+                .satisfies(log -> attemptedRequestWithoutAuth(log, "attempted", "closing connection with error"));
     }
 
     @SuppressWarnings("deprecation")
@@ -744,8 +743,7 @@ class SaslInspectionFilterTest {
                             .isEqualTo(ApiKeys.METADATA);
                 });
         assertThat(logCaptor.getLogEvents()).singleElement()
-                .satisfies(log -> attemptedRequestWithoutAuth(log, "attempted", "forwarding request")
-                );
+                .satisfies(log -> attemptedRequestWithoutAuth(log, "attempted", "forwarding request"));
     }
 
     private static void attemptedRequestWithoutAuth(LogEvent log, String expectedDisposition, String expectedOutcome) {
