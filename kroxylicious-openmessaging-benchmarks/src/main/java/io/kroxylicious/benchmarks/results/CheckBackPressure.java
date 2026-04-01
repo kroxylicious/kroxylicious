@@ -37,7 +37,7 @@ import picocli.CommandLine.Parameters;
  * composable in scripts and from {@code run-all-scenarios.sh}.
  */
 @Command(name = "check-backpressure", mixinStandardHelpOptions = true, description = "Check OMB result files for producer back-pressure indicating broker saturation.")
-@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106" })
+@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106", "java:S7476", "java:S125" })
 public class CheckBackPressure implements Callable<Integer> {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

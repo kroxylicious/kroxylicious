@@ -30,7 +30,7 @@ import picocli.CommandLine.Option;
  * dependency versions from the parent pom.
  */
 @Command(name = "collect-results", mixinStandardHelpOptions = true, description = "Collect OpenMessaging Benchmark results and metadata.")
-@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106" }) // CLI tool that intentionally writes to System.out/err
+@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106", "java:S7476", "java:S125" }) // CLI tool that intentionally writes to System.out/err
 public class CollectResults implements Callable<Integer> {
 
     @Option(names = "--generate-run-metadata", description = "Generate run-metadata.json in the given directory")
