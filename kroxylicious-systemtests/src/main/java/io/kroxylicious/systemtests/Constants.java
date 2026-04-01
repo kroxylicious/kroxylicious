@@ -26,6 +26,7 @@ public final class Constants {
     public static final String KROXYLICIOUS_ENCRYPTION_FILTER_NAME = "encryption";
     public static final String KROXYLICIOUS_AUTHORIZATION_FILTER_NAME = "authorization";
     public static final String KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME = "sasl-inspector";
+    public static final String KROXYLICIOUS_ENTITY_ISOLATION_FILTER_NAME = "entity-isolation";
     public static final String KROXYLICIOUS_TLS_CLIENT_CA_CERT = "my-cluster-clients-ca-cert";
     public static final String KROXYLICIOUS_TLS_CA_NAME = "ca.pem";
     public static final String KROXYLICIOUS_OPERATOR_SUBSCRIPTION_NAME = Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME + "-v" + Environment.KROXYLICIOUS_OPERATOR_VERSION
@@ -36,6 +37,7 @@ public final class Constants {
      * Strimzi cluster operator deployment name
      */
     public static final String STRIMZI_DEPLOYMENT_NAME = "strimzi-cluster-operator";
+
     /**
      * The default namespace used for kubernetes deployment
      */
@@ -55,10 +57,10 @@ public final class Constants {
      * Listener names for Kafka cluster
      */
     public static final String PLAIN_LISTENER_NAME = "plain";
-    /**
-     * Listener name for tls
-     */
+    public static final String ANONYMOUS_LISTENER_NAME = "anonymous";
     public static final String TLS_LISTENER_NAME = "tls";
+
+    public static final String CONSUMER_GROUP_NAME = "my-group";
 
     /**
      * Strimzi related labels and annotations
@@ -70,21 +72,15 @@ public final class Constants {
     public static final String STRIMZI_CLUSTER_LABEL = STRIMZI_DOMAIN + "cluster";
 
     /**
-     * Polls and timeouts constants
-     */
-    public static final Duration POLL_INTERVAL_FOR_RESOURCE_READINESS = Duration.ofSeconds(2);
-    /**
-     * Poll interval for resource deletion
-     */
-    public static final Duration POLL_INTERVAL_FOR_RESOURCE_DELETION = Duration.ofSeconds(1);
-
-    /**
      * Global timeout
      */
     public static final Duration GLOBAL_TIMEOUT = Duration.ofMinutes(5);
+
     /**
-     * Global Poll interval
+     * Poll intervals
      */
+    public static final Duration POLL_INTERVAL_FOR_RESOURCE_READINESS = Duration.ofSeconds(2);
+    public static final Duration POLL_INTERVAL_FOR_RESOURCE_DELETION = Duration.ofSeconds(1);
     public static final Duration GLOBAL_POLL_INTERVAL = Duration.ofSeconds(1);
     public static final Duration RECONCILIATION_INTERVAL = Duration.ofSeconds(30);
     public static final Duration GLOBAL_POLL_INTERVAL_MEDIUM = Duration.ofSeconds(10);
@@ -95,13 +91,11 @@ public final class Constants {
      */
     public static final String DEPLOYMENT = "Deployment";
     public static final String DEPLOYMENT_TYPE = "deployment-type";
-    public static final String CLUSTER_ROLE = "ClusterRole";
     public static final String CONFIG_MAP = "ConfigMap";
     public static final String JOB = "Job";
     public static final String NAMESPACE = "Namespace";
     public static final String SECRET = "Secret";
     public static final String SERVICE = "Service";
-    public static final String SERVICE_ACCOUNT = "ServiceAccount";
     public static final String STRIMZI_KAFKA_KIND = "Kafka";
     public static final String STRIMZI_KAFKA_NODE_POOL_KIND = "KafkaNodePool";
     public static final String KROXYLICIOUS_KAFKA_PROTOCOL_FILTER_KIND = "KafkaProtocolFilter";
@@ -109,6 +103,7 @@ public final class Constants {
     public static final String KROXYLICIOUS_KAFKA_PROXY_INGRESS_KIND = "KafkaProxyIngress";
     public static final String KROXYLICIOUS_KAFKA_SERVICE_KIND = "KafkaService";
     public static final String KROXYLICIOUS_VIRTUAL_KAFKA_CLUSTER_KIND = "VirtualKafkaCluster";
+
     /**
      * Service type names.
      */
@@ -130,6 +125,7 @@ public final class Constants {
     public static final String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
     public static final String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
     public static final String KAF_CLIENT_CONFIG_NAME = "kaf-client-config";
+
     /**
      * Image pull policies
      */
