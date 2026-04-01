@@ -32,7 +32,7 @@ import picocli.CommandLine.Parameters;
  * Intended for use in shell scripts to annotate sweep summary tables with noise warnings.
  */
 @Command(name = "check-significance", mixinStandardHelpOptions = true, description = "Exits 0 if the e2e-p99 delta between two OMB result files is statistically significant (MWU p < 0.05), or 1 if not.")
-@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106" }) // CLI tool that intentionally writes to System.err
+@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106", "java:S7476", "java:S125" }) // CLI tool that intentionally writes to System.err
 public class CheckSignificance implements Callable<Integer> {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
