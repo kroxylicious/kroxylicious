@@ -15,7 +15,7 @@ kroxylicious:
 
 # Vault is not needed for baseline
 vault:
-  enabled: false
+  provision: false
 
 # Use baseline driver (direct Kafka connection)
 omb:

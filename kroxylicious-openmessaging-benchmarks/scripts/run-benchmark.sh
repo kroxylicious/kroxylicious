@@ -28,7 +28,7 @@ JFR_PVC_NAME="${HELM_RELEASE}-jfr"
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") [--profile <values-file>] [--set <key=value> ...] <scenario> <workload> <output-dir>
+Usage: $(basename "$0") [--cluster-overrides <values-file>] [--profile <values-file>] [--set <key=value> ...] [--skip-deploy] [--skip-teardown] [--producer-rate <n>] <scenario> <workload> <output-dir>
 
 Runs a single benchmark scenario end-to-end:
   1. Deploy benchmark infrastructure via Helm
@@ -42,13 +42,16 @@ Results include benchmark.jfr and flamegraph.html written to output-dir.
 
 Arguments:
   scenario    Scenario name matching a file in helm/scenarios/<scenario>-values.yaml
-              Available: baseline, proxy-no-filters
+              Available: baseline, proxy-no-filters, encryption
   workload    Workload name (e.g. 1topic-1kb, 10topics-1kb, 100topics-1kb)
   output-dir  Directory to write result JSON and run metadata into
 
 Options:
-  --profile <values-file>   Additional Helm values file layered on top of the scenario
-                            (e.g. helm/kroxylicious-benchmark/scenarios/single-node-values.yaml)
+  --cluster-overrides <file> Helm values file with cluster-specific settings (storage class,
+                             images, resource limits). Applied after --profile files so cluster
+                             settings always win.
+  --profile <values-file>   Additional Helm values file layered on top of the scenario.
+                             May be specified multiple times; files are applied in order.
   --set <key=value>         Pass a Helm --set override (may be repeated)
   -h, --help                Show this help
 
@@ -65,18 +68,26 @@ Examples:
     baseline 1topic-1kb ./results/baseline/
   $(basename "$0") --set benchmark.testDurationMinutes=1 --set benchmark.warmupDurationMinutes=0 \
     baseline 1topic-1kb ./results/baseline/
+  $(basename "$0") encryption 1topic-1kb ./results/encryption/
+  $(basename "$0") --profile ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
+    encryption 1topic-1kb ./results/encryption-smoke/
   NAMESPACE=benchmarks $(basename "$0") baseline 1topic-1kb ./results/
 EOF
     exit 1
 }
 
-PROFILE_VALUES=""
+PROFILE_VALUES=()
+CLUSTER_OVERRIDES=""
 HELM_SET_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --cluster-overrides)
+            CLUSTER_OVERRIDES="$2"
+            shift 2
+            ;;
         --profile)
-            PROFILE_VALUES="$2"
+            PROFILE_VALUES+=("$2")
             shift 2
             ;;
         --set)
@@ -115,8 +126,16 @@ if [[ ! -f "${SCENARIO_VALUES}" ]]; then
     exit 1
 fi
 
-if [[ -n "${PROFILE_VALUES}" && ! -f "${PROFILE_VALUES}" ]]; then
-    echo "Error: profile values file not found: ${PROFILE_VALUES}" >&2
+# Validate each profile file exists
+for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do
+    if [[ ! -f "${profile_file}" ]]; then
+        echo "Error: profile values file not found: ${profile_file}" >&2
+        exit 1
+    fi
+done
+
+if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
+    echo "Error: cluster-overrides file not found: ${CLUSTER_OVERRIDES}" >&2
     exit 1
 fi
 
@@ -132,7 +151,12 @@ teardown() {
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found
     # Delete JFR PVC if one was created
-    kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found
+    kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
+    # Delete the benchmark Job (not Helm-managed so helm uninstall won't remove it)
+    kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --timeout=60s
+    # Delete vault-init Job — previously created as a Helm hook (no Helm ownership labels),
+    # so helm uninstall won't remove it
+    kubectl delete job vault-init -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     echo "Teardown complete."
 }
 
@@ -164,8 +188,11 @@ stop_metrics_poller() {
 echo "=== Benchmark run: ${SCENARIO} / ${WORKLOAD} ==="
 echo "Namespace:  ${NAMESPACE}"
 echo "Output dir: ${OUTPUT_DIR}"
-if [[ -n "${PROFILE_VALUES}" ]]; then
-    echo "Profile:    ${PROFILE_VALUES}"
+if [[ ${#PROFILE_VALUES[@]} -gt 0 ]]; then
+    echo "Profiles:   ${PROFILE_VALUES[*]}"
+fi
+if [[ -n "${CLUSTER_OVERRIDES}" ]]; then
+    echo "Cluster:    ${CLUSTER_OVERRIDES}"
 fi
 if [[ ${#HELM_SET_ARGS[@]} -gt 0 ]]; then
     echo "Overrides:  ${HELM_SET_ARGS[*]}"
@@ -182,14 +209,31 @@ fi
 
 echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
 HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
-[[ -n "${PROFILE_VALUES}" ]] && HELM_ARGS+=(-f "${PROFILE_VALUES}")
+for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do HELM_ARGS+=(-f "${profile_file}"); done
+[[ -n "${CLUSTER_OVERRIDES}" ]] && HELM_ARGS+=(-f "${CLUSTER_OVERRIDES}")
 HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
-for set_arg in "${HELM_SET_ARGS[@]}"; do HELM_ARGS+=(--set "${set_arg}"); done
+for set_arg in ${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}; do HELM_ARGS+=(--set "${set_arg}"); done
 
 helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}"
 
 # Register teardown to run on exit (success or failure) so we always clean up
 trap teardown EXIT
+
+# --- Wait for Vault init job (if provisioned) ---
+
+if kubectl get deployment/vault -n "${NAMESPACE}" &>/dev/null; then
+    echo "Waiting for Vault to be ready (timeout: ${POD_READY_TIMEOUT})..."
+    kubectl rollout status deployment/vault -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
+    echo "Vault is ready."
+fi
+
+if kubectl get job/vault-init -n "${NAMESPACE}" &>/dev/null; then
+    echo "Waiting for Vault init job to complete (timeout: ${POD_READY_TIMEOUT})..."
+    kubectl wait --for=condition=complete job/vault-init \
+        -n "${NAMESPACE}" \
+        --timeout="${POD_READY_TIMEOUT}"
+    echo "Vault initialisation complete."
+fi
 
 # --- Wait for Kafka ---
 
