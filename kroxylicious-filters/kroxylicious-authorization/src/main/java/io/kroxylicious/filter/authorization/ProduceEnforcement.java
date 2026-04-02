@@ -94,9 +94,8 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
         }
         else {
             LOGGER.atWarn()
-                    .setMessage("failed to map topic ids ({}) to names for acks=0 request, dropping request.")
-                    .addArgument(topicNameMapping::failures)
-                    .log();
+                    .addKeyValue("failures", topicNameMapping::failures)
+                    .log("failed to map topic ids to names for acks=0 request, dropping request.");
             return context.requestFilterResultBuilder().drop().completed();
         }
     }

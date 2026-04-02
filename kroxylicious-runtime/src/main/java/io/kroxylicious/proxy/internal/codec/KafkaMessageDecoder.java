@@ -57,9 +57,10 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
             }
             catch (Exception e) {
                 log().atError()
-                        .setMessage("{}: Error in decoder: " + e.getMessage())
-                        .addArgument(ctx)
-                        .setCause(log().isDebugEnabled() ? e : null).log();
+                        .addKeyValue("ctx", ctx)
+                        .addKeyValue("error", e.getMessage())
+                        .setCause(log().isDebugEnabled() ? e : null)
+                        .log("Error in decoder");
                 throw e;
             }
         }

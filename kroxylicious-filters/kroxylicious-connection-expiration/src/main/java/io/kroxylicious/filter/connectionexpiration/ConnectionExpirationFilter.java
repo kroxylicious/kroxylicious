@@ -56,11 +56,10 @@ public class ConnectionExpirationFilter implements RequestFilter {
                                                           FilterContext context) {
         if (clock.instant().isAfter(deadline)) {
             LOGGER.atInfo()
-                    .setMessage("Connection expiration deadline exceeded, closing after forwarding request")
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("deadline", deadline)
                     .addKeyValue("apiKey", apiKey)
-                    .log();
+                    .log("Connection expiration deadline exceeded, closing after forwarding request");
             return context.requestFilterResultBuilder()
                     .forward(header, request)
                     .withCloseConnection()
