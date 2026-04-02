@@ -38,7 +38,9 @@ class KafkaServiceSecondaryToKafkaProxyPrimaryMapper implements SecondaryToPrima
     public Set<ResourceID> toPrimaryResourceIDs(KafkaService kafkaService) {
         // we do not want to trigger reconciliation of any proxy if the ingress has not been reconciled
         if (!ResourcesUtil.isStatusFresh(kafkaService)) {
-            LOGGER.debug("Ignoring event from KafkaService with stale status: {}", ResourcesUtil.toLocalRef(kafkaService));
+            LOGGER.atDebug()
+                    .addKeyValue("kafkaService", ResourcesUtil.toLocalRef(kafkaService))
+                    .log("Ignoring event from KafkaService with stale status");
             return Set.of();
         }
         // find all virtual clusters that reference this kafkaServiceRef
@@ -51,7 +53,9 @@ class KafkaServiceSecondaryToKafkaProxyPrimaryMapper implements SecondaryToPrima
 
         Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, kafkaService, KafkaProxy.class,
                 proxy -> proxyRefs.contains(toLocalRef(proxy)));
-        LOGGER.debug("Event source KafkaService SecondaryToPrimaryMapper got {}", proxyIds);
+        LOGGER.atDebug()
+                .addKeyValue("proxyIds", proxyIds)
+                .log("Event source KafkaService SecondaryToPrimaryMapper");
         return proxyIds;
     }
 }

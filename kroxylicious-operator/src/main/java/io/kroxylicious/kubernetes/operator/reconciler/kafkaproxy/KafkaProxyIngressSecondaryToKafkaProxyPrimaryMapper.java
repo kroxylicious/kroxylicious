@@ -32,13 +32,17 @@ class KafkaProxyIngressSecondaryToKafkaProxyPrimaryMapper implements SecondaryTo
     public Set<ResourceID> toPrimaryResourceIDs(KafkaProxyIngress ingress) {
         // we do not want to trigger reconciliation of any proxy if the ingress has not been reconciled
         if (!ResourcesUtil.isStatusFresh(ingress)) {
-            LOGGER.debug("Ignoring event from ingress with stale status: {}", ResourcesUtil.toLocalRef(ingress));
+            LOGGER.atDebug()
+                    .addKeyValue("ingress", ResourcesUtil.toLocalRef(ingress))
+                    .log("Ignoring event from ingress with stale status");
             return Set.of();
         }
         // we need to reconcile all proxies when a kafka proxy ingress changes in case the proxyRef is updated, we need to update
         // the previously referenced proxy too.
         Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, ingress, KafkaProxy.class, proxy -> true);
-        LOGGER.debug("Event source KafkaProxyIngress SecondaryToPrimaryMapper got {}", proxyIds);
+        LOGGER.atDebug()
+                .addKeyValue("proxyIds", proxyIds)
+                .log("Event source KafkaProxyIngress SecondaryToPrimaryMapper");
         return proxyIds;
     }
 }

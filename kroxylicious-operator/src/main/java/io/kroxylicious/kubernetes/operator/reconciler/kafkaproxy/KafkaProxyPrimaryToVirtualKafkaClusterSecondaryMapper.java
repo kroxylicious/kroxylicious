@@ -32,7 +32,9 @@ class KafkaProxyPrimaryToVirtualKafkaClusterSecondaryMapper implements PrimaryTo
     public Set<ResourceID> toSecondaryResourceIDs(KafkaProxy proxy) {
         Set<ResourceID> virtualClustersInProxyNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, proxy, VirtualKafkaCluster.class,
                 KafkaProxyPrimaryToKafkaProtocolFilterSecondaryMapper.clusterReferences(proxy));
-        LOGGER.debug("Event source VirtualKafkaCluster PrimaryToSecondaryMapper got {}", virtualClustersInProxyNamespace);
+        LOGGER.atDebug()
+                .addKeyValue("virtualClusters", virtualClustersInProxyNamespace)
+                .log("Event source VirtualKafkaCluster PrimaryToSecondaryMapper");
         return virtualClustersInProxyNamespace;
     }
 }

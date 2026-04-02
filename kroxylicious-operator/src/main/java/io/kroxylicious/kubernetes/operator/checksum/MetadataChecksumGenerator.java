@@ -28,7 +28,9 @@ public interface MetadataChecksumGenerator {
 
     default void appendMetadata(HasMetadata entity) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("appendMetadata for: {}", ResourcesUtil.namespacedSlug(entity));
+            LOGGER.atDebug()
+                    .addKeyValue("entity", ResourcesUtil.namespacedSlug(entity))
+                    .log("appendMetadata for entity");
         }
         ObjectMeta objectMeta = entity.getMetadata();
         appendString(Objects.requireNonNull(objectMeta.getUid(), KubernetesResourceUtil.getName(objectMeta) + " is missing a UID"));
