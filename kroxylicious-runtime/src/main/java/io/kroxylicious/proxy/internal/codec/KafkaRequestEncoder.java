@@ -60,7 +60,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
                 .addKeyValue("apiKey", ApiKeys.forId(apiKey))
                 .addKeyValue("downstreamCorrelationId", downstreamCorrelationId)
                 .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
-                .log("assigned upstream correlation id");
+                .log("Assigned upstream correlation id");
         out.writerIndex(wi);
     }
 

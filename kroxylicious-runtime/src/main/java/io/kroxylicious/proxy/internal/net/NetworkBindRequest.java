@@ -57,14 +57,14 @@ public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
                 LOGGER.atDebug()
                         .addKeyValue("bindAddress", bindingAddress.get())
                         .addKeyValue("port", port)
-                        .log("binding");
+                        .log("Binding");
                 bind = serverBootstrap.bind(bindingAddress.get(), port);
             }
             else {
                 LOGGER.atDebug()
                         .addKeyValue("bindAddress", "<any>")
                         .addKeyValue("port", port)
-                        .log("binding");
+                        .log("Binding");
                 bind = serverBootstrap.bind(port);
             }
             bind.addListener((ChannelFutureListener) channelFuture -> executorService.execute(() -> {

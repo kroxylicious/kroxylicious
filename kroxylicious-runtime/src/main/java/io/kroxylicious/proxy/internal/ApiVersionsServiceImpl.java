@@ -101,7 +101,7 @@ public class ApiVersionsServiceImpl {
                     .addKeyValue("sessionId", sessionId)
                     .addKeyValue("apiKey", apiKey)
                     .addKeyValue("currentMinVersion", key.minVersion())
-                    .log("min version downgraded to v0 to support KAFKA-18659");
+                    .log("Min version downgraded to v0 to support KAFKA-18659");
             key.setMinVersion(apiKey.messageType.lowestDeprecatedVersion());
         }
         else if (mutualMin != key.minVersion()) {
@@ -110,7 +110,7 @@ public class ApiVersionsServiceImpl {
                     .addKeyValue("apiKey", apiKey)
                     .addKeyValue("newMinVersion", mutualMin)
                     .addKeyValue("oldMinVersion", key.minVersion())
-                    .log("min version changed");
+                    .log("Min version changed");
             key.setMinVersion(mutualMin);
         }
         else {
@@ -118,7 +118,7 @@ public class ApiVersionsServiceImpl {
                     .addKeyValue("sessionId", sessionId)
                     .addKeyValue("apiKey", apiKey)
                     .addKeyValue("minVersion", mutualMin)
-                    .log("min version unchanged");
+                    .log("Min version unchanged");
         }
 
         short mutualMax = (short) Math.min(
@@ -130,7 +130,7 @@ public class ApiVersionsServiceImpl {
                     .addKeyValue("apiKey", apiKey)
                     .addKeyValue("newMaxVersion", mutualMax)
                     .addKeyValue("oldMaxVersion", key.maxVersion())
-                    .log("max version changed");
+                    .log("Max version changed");
             key.setMaxVersion(mutualMax);
         }
         else {
@@ -138,7 +138,7 @@ public class ApiVersionsServiceImpl {
                     .addKeyValue("sessionId", sessionId)
                     .addKeyValue("apiKey", apiKey)
                     .addKeyValue("maxVersion", mutualMax)
-                    .log("max version unchanged");
+                    .log("Max version unchanged");
         }
     }
 

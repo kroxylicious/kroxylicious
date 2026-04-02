@@ -78,7 +78,7 @@ public class EagerMetadataLearner implements RequestFilter {
                         }
                         LOGGER.atInfo()
                                 .addKeyValue("sessionId", context.sessionId())
-                                .log("closing upstream bootstrap connection now that endpoint reconciliation is complete");
+                                .log("Closing upstream bootstrap connection now that endpoint reconciliation is complete");
                     });
             return future;
         }

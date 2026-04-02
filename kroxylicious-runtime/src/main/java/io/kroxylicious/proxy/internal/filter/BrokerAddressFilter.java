@@ -173,7 +173,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
                 .addKeyValue("incomingHost", incomingHost)
                 .addKeyValue("incomingPort", incomingPort)
                 .addKeyValue("advertisedAddress", advertisedAddress)
-                .log("rewriting broker address in response");
+                .log("Rewriting broker address in response");
         hostSetter.accept(broker, advertisedAddress.host());
         portSetter.accept(broker, advertisedAddress.port());
     }
@@ -184,7 +184,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
                 .thenCompose(u -> {
                     LOGGER.atDebug()
                             .addKeyValue("virtualCluster", listenerModel)
-                            .log("endpoint reconciliation complete");
+                            .log("Endpoint reconciliation complete");
                     return context.responseFilterResultBuilder().forward(header, data).completed();
                 });
     }

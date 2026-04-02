@@ -28,7 +28,7 @@ public class StableKroxyliciousLinkGenerator {
     StableKroxyliciousLinkGenerator() {
         this(() -> {
             LOGGER.atInfo()
-                    .log("loading links from: classpath:META-INF/stablelinks.properties");
+                    .log("Loading links from: classpath:META-INF/stablelinks.properties");
             return StableKroxyliciousLinkGenerator.class.getClassLoader().getResourceAsStream("META-INF/stablelinks.properties");
         });
     }

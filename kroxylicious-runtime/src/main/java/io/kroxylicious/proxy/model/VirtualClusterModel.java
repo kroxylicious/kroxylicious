@@ -113,7 +113,7 @@ public class VirtualClusterModel {
 
         LOGGER.atInfo()
                 .addKeyValue("virtualCluster", clusterName)
-                .log("gateway summary");
+                .log("Gateway summary");
 
         gateways.forEach((name, gateway) -> {
             var downstreamBootstrap = gateway.getClusterBootstrapAddress();
@@ -123,7 +123,7 @@ public class VirtualClusterModel {
                     .addKeyValue("gateway", name)
                     .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary)
                     .addKeyValue("upstream", upstreamHostPort + upstreamTlsSummary)
-                    .log("gateway configuration");
+                    .log("Gateway configuration");
         });
     }
 
@@ -241,14 +241,14 @@ public class VirtualClusterModel {
                     .forEach(unsupportedProtocol -> LOGGER.atWarn()
                             .addKeyValue("unsupportedProtocol", unsupportedProtocol)
                             .addKeyValue("supportedProtocols", supportedProtocols)
-                            .log("ignoring allowed protocol as it is not recognized by this platform"));
+                            .log("Ignoring allowed protocol as it is not recognized by this platform"));
 
             deniedProtocols.stream()
                     .filter(Predicate.not(supportedProtocols::contains))
                     .forEach(unsupportedProtocol -> LOGGER.atWarn()
                             .addKeyValue("unsupportedProtocol", unsupportedProtocol)
                             .addKeyValue("supportedProtocols", supportedProtocols)
-                            .log("ignoring denied protocol as it is not recognized by this platform"));
+                            .log("Ignoring denied protocol as it is not recognized by this platform"));
 
             var protocolsToUse = allowedProtocols.stream()
                     .filter(supportedProtocols::contains)

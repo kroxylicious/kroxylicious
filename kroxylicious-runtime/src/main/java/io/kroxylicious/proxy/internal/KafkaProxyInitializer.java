@@ -94,7 +94,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         LOGGER.atTrace()
                 .addKeyValue("remote", ch.remoteAddress())
                 .addKeyValue("local", ch.localAddress())
-                .log("connection from client");
+                .log("Connection from client");
 
         if (tls) {
             initTlsChannel(ch);
@@ -137,7 +137,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     // deep inheritance tree of SniHandler not something we can fix, throwable is the right choice as we are forwarding it on.
     @SuppressWarnings({ "java:S110", "java:S1181" })
     private void initTlsChannel(Channel ch) {
-        LOGGER.atDebug().log("adding SSL/SNI handler");
+        LOGGER.atDebug().log("Adding SSL/SNI handler");
         ch.pipeline().addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
             try {
                 Endpoint endpoint = Endpoint.createEndpoint(ch, tls);
@@ -150,7 +150,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                     .addKeyValue("endpoint", endpoint)
                                     .addKeyValue("sniHostname", sniHostname)
                                     .addKeyValue("error", t.getMessage())
-                                    .log("exception resolving Virtual Cluster Binding");
+                                    .log("Exception resolving Virtual Cluster Binding");
                             promise.setFailure(t);
                             return null;
                         }
@@ -208,7 +208,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {
-            LOGGER.atDebug().log("adding haproxy handlers");
+            LOGGER.atDebug().log("Adding haproxy handlers");
             pipeline.addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
             // HAProxyMessageHandler intercepts HAProxyMessage and forwards it to the state machine,
             // preventing it from propagating to filters that only expect Kafka protocol messages
@@ -248,7 +248,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         LOGGER.atDebug()
                 .addKeyValue("channelId", () -> ch.toString())
                 .addKeyValue("pipeline", pipeline)
-                .log("initial pipeline");
+                .log("Initial pipeline");
     }
 
     private KafkaMessageListener buildMetricsMessageListenerForDecode(EndpointBinding binding, VirtualClusterModel virtualCluster) {

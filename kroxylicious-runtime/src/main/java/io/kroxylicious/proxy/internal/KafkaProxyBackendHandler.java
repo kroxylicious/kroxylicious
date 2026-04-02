@@ -74,7 +74,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.atTrace()
                 .addKeyValue("context", ctx)
-                .log("channel active");
+                .log("Channel active");
         if (proxyChannelStateMachine.virtualCluster().getUpstreamSslContext().isEmpty()) {
             proxyChannelStateMachine.onServerActive();
         }

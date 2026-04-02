@@ -244,7 +244,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                 .addKeyValue("apiKey", decodedFrame.apiKey())
                 .addKeyValue("filter", filterDescriptor())
                 .addKeyValue("frame", decodedFrame)
-                .log("dispatching upstream response to filter");
+                .log("Dispatching upstream response to filter");
         var stage = filterAndInvoker.invoker().onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
                 decodedFrame.header(), decodedFrame.body(), filterContext);
         return stage.toCompletableFuture();
@@ -312,7 +312,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                 .addKeyValue("apiKey", decodedFrame.apiKey())
                 .addKeyValue("filter", filterDescriptor())
                 .addKeyValue("frame", decodedFrame)
-                .log("dispatching downstream request to filter");
+                .log("Dispatching downstream request to filter");
         var stage = filterAndInvoker.invoker().onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
                 decodedFrame.body(), filterContext);
         return stage.toCompletableFuture();
@@ -333,7 +333,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("channelDescriptor", channelDescriptor())
                     .addKeyValue("filter", filterDescriptor())
                     .addKeyValue("apiKey", decodedFrame.apiKey())
-                    .log("filter drops response");
+                    .log("Filter drops response");
             return responseFilterResult;
         }
 
@@ -360,7 +360,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("channelDescriptor", channelDescriptor())
                     .addKeyValue("filter", filterDescriptor())
                     .addKeyValue("apiKey", decodedFrame.apiKey())
-                    .log("filter drops request");
+                    .log("Filter drops request");
             // When a request is dropped, trigger reading the next request to keep the channel active
             inboundChannel.read();
             return requestFilterResult;
@@ -479,7 +479,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                 .addKeyValue("channelDescriptor", channelDescriptor())
                 .addKeyValue("filter", filterDescriptor())
                 .addKeyValue("frame", decodedFrame)
-                .log("filter forwarding request");
+                .log("Filter forwarding request");
 
         ctx.fireChannelRead(decodedFrame);
         ctx.fireChannelReadComplete();
@@ -536,7 +536,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                 .addKeyValue("channelDescriptor", channelDescriptor())
                 .addKeyValue("filter", filterDescriptor())
                 .addKeyValue("message", () -> msgDescriptor(decodedFrame))
-                .log("filter forwarding response");
+                .log("Filter forwarding response");
         ctx.write(decodedFrame, promise);
     }
 
@@ -552,7 +552,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                 .addKeyValue("channelDescriptor", channelDescriptor())
                 .addKeyValue("filter", filterDescriptor())
                 .addKeyValue("message", () -> msgDescriptor(decodedRequestFrame))
-                .log("filter sending short-circuit response");
+                .log("Filter sending short-circuit response");
         ctx.write(responseFrame, ctx.voidPromise());
         ctx.flush();
     }
@@ -575,14 +575,14 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("channelDescriptor", channelDescriptor())
                     .addKeyValue("filter", filterDescriptor())
                     .addKeyValue("apiKey", decodedFrame.apiKey())
-                    .log("filter attempted to short-circuit respond to message with no response in Kafka Protocol, dropping response");
+                    .log("Filter attempted to short-circuit respond to message with no response in Kafka Protocol, dropping response");
         }
     }
 
     private void closeConnection() {
         ctx.close().addListener(future -> LOGGER.atDebug()
                 .addKeyValue("channelDescriptor", channelDescriptor())
-                .log("channel closed"));
+                .log("Channel closed"));
     }
 
     private String channelDescriptor() {
@@ -600,7 +600,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("apiKey", decodedFrame.apiKey())
                     .addKeyValue("filter", filterDescriptor())
                     .addKeyValue("frame", decodedFrame)
-                    .log("completed response for internal request to filter");
+                    .log("Completed response for internal request to filter");
         }
         else {
             LOGGER.atTrace()
@@ -608,7 +608,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("apiKey", decodedFrame.apiKey())
                     .addKeyValue("filter", filterDescriptor())
                     .addKeyValue("frame", decodedFrame)
-                    .log("response for internal request to filter was already completed");
+                    .log("Response for internal request to filter was already completed");
         }
     }
 
@@ -672,7 +672,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("filter", filterDescriptor())
                     .addKeyValue("mechanism", mechanism)
                     .addKeyValue("subject", subject)
-                    .log("filter announces client has passed SASL authentication");
+                    .log("Filter announces client has passed SASL authentication");
 
             proxyChannelStateMachine.onSessionSaslAuthenticated();
 
@@ -691,7 +691,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("authorizedId", authorizedId)
                     .addKeyValue("error", exception.toString())
                     .setCause(LOGGER.isDebugEnabled() ? exception : null)
-                    .log("filter announces client has failed SASL authentication" +
+                    .log("Filter announces client has failed SASL authentication" +
                             (LOGGER.isDebugEnabled() ? "" : ", increase log level to DEBUG for stacktrace"));
             proxyChannelStateMachine.clientSaslAuthenticationFailure();
         }
@@ -748,7 +748,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("channelDescriptor", FilterHandler.this.channelDescriptor())
                     .addKeyValue("filter", filterDescriptor())
                     .addKeyValue("message", () -> msgDescriptor(frame))
-                    .log("filter sending request");
+                    .log("Filter sending request");
             Objects.requireNonNull(ctx).fireChannelRead(frame);
             return filterPromise.minimalCompletionStage();
         }

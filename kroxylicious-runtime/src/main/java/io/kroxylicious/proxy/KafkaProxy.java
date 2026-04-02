@@ -210,7 +210,7 @@ public final class KafkaProxy implements AutoCloseable {
                         .addKeyValue("versionStatus", versionStatus)
                         .addKeyValue("jreFeatureVersion", JRE_FEATURE_VERSION)
                         .addKeyValue("testedJreVersion", TESTED_JRE_VERSIONS.first())
-                        .log("Detected JRE version, running Kroxylicious is only tested on LTS releases, if you find any issues, please try to re-create them on one of the tested JREs."
+                        .log("Detected JRE version, running Kroxylicious is only tested on LTS releases, if you find any issues, please try to re-create them on one of the tested JREs"
                                 + deprecatedMessage);
             }
 
