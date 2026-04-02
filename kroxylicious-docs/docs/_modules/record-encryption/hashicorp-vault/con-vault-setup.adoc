@@ -23,7 +23,7 @@ It must be {hashicorp-vault}/docs/secrets/transit#setup[enabled] before it can b
 The Vault Transit Engine URL is required so the filter knows the location of the Transit Engine within the
 Vault instance.
 
-The URL is formed from the concatenation of the `Api Address` (reported by Vault reported by during
+The URL is formed from the concatenation of the `Api Address` (reported by Vault during
 {hashicorp-vault}/tutorials/getting-started/getting-started-dev-server#starting-the-dev-server[startup^]) with the
 complete path to Transit Engine, including the name of the engine itself. 
 
