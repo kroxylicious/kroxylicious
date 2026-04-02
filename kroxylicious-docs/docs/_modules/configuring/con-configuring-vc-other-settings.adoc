@@ -23,10 +23,12 @@ The `logFrames` property controls logging of the decoded requests and responses.
 virtualClusters:
   - name: my-cluster-proxy
     # ...
-    logNetwork: true <1>
-    logFrames: true <2>
+    logNetwork: true
+    logFrames: true
     # ...
 ----
-<1> Enables low-level network logging for the virtual cluster.
-<2> Enables low-level protocol frame logging for the virtual cluster.
+where:
+
+* `logNetwork` enables low-level network logging for the virtual cluster.
+* `logFrames` enables low-level protocol frame logging for the virtual cluster.
 

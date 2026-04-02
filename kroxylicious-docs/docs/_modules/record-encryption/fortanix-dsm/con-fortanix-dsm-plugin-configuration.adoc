@@ -19,13 +19,15 @@ KMS setup.
 
 [source, yaml]
 ----
-kms: FortanixDsmKmsService                                    # <1>
+kms: FortanixDsmKmsService
 kmsConfig:
-  endpointUrl: <Fortanix DSM Cluster URL>                     # <2>
+  endpointUrl: <Fortanix DSM Cluster URL>
   apiKeySessionProvider:
     apiKey:
-      passwordFile: /opt/fortanix-dsm/api-key                 # <3>
+      passwordFile: /opt/fortanix-dsm/api-key
 ----
-<1> Specifies the name of the KMS provider. Use `FortanixDsmKmsService`.
-<2> xref:con-fortanix-dsm-setup-{context}[Fortanix DSM Cluster URL] including the protocol part, such as `https:` or `http:`.
-<3> File containing the API key.
+where:
+
+* `kms` specifies the name of the KMS provider. Use `FortanixDsmKmsService`.
+* `endpointUrl` provides xref:con-fortanix-dsm-setup-{context}[Fortanix DSM Cluster URL] including the protocol part, such as `https:` or `http:`.
+* `passwordFile` is a reference to a file containing the API key.

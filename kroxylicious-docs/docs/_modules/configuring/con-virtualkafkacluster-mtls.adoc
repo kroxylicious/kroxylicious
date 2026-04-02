@@ -17,7 +17,7 @@
 You can configure a virtual cluster ingress to request or require Kafka clients to authenticate to the proxy using TLS.
 This configuration is known as mutual TLS (mTLS), because both the client and the proxy authenticate each other using TLS.
 
-.Example `VirtualKafkaCluster` configuration requiring clients to present a trusted certificate
+.Example `VirtualKafkaCluster` configuration requiring clients to present a trusted certificate provided from a `ConfigMap`
 [source,yaml]
 ----
 kind: VirtualKafkaCluster
@@ -31,22 +31,41 @@ spec:
       tls:
         certificateRef:
           # ...
-        trustAnchorRef: # <1>
-          kind: ConfigMap # <2>
-          name: trusted-cas # <3>
-          key: trusted-cas.pem # <4>
-        tlsClientAuthentication: REQUIRED <5>
+        trustAnchorRef:
+          kind: ConfigMap
+          name: trusted-cas
+          key: trusted-cas.pem
+        tlsClientAuthentication: REQUIRED
 ----
-<1> References a separate Kubernetes resource containing the trusted CA certificates.
-<2> The `kind` is optional and defaults to `ConfigMap`. To reference a key in a `Secret`, set `kind` to `Secret`. For example:
-+
+where:
+
+* `trustAnchorRef`  references a separate Kubernetes resource containing the CA certificates to trust.
+** `kind` is optional and defaults to `ConfigMap`.
+* `tlsClientAuthentication`  specifies whether client authentication is required (`REQUIRED`), requested (`REQUESTED`), or disabled (`NONE`). If a `trustAnchorRef` is specified, the default is `REQUIRED`.
+
+.Example `VirtualKafkaCluster` configuration requiring clients to present a trusted certificate provided from a `Secret`
+
 [source,yaml]
 ----
-    trustAnchorRef:
-      kind: Secret
-      name: trusted-cas
-      key: trusted-cas.pem
+kind: VirtualKafkaCluster
+metadata:
+  # ...
+spec:
+  # ...
+  ingresses:
+    - ingressRef:
+        name: cluster-ip
+      tls:
+        certificateRef:
+          # ...
+        trustAnchorRef:
+          kind: Secret
+          name: trusted-cas
+          key: trusted-cas.pem
+        tlsClientAuthentication: REQUIRED
 ----
-<3> Name of the resource of the given `kind`, which must exist in the same namespace as the `VirtualKafkaCluster`.
-<4> Key identifying the entry in the given resource. The corresponding value must be a set of CA certificates. Supported formats for the bundle are: `PEM`, `PKCS#12`, and `JKS`.
-<5> Specifies whether client authentication is required (`REQUIRED`), requested (`REQUESTED`), or disabled (`NONE`). If a `trustAnchorRef` is specified, the default is `REQUIRED`.
+where:
+
+* `trustAnchorRef` references a separate Kubernetes resource containing the trusted CA certificates.
+** `kind` specifies `Secret`.
+* `tlsClientAuthentication` specifies whether client authentication is required (`REQUIRED`), requested (`REQUESTED`), or disabled (`NONE`). If a `trustAnchorRef` is specified, the default is `REQUIRED`.
