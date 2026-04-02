@@ -47,7 +47,7 @@ public record ManagedIdentityCredentialsConfig(@JsonProperty(required = true) St
                         "identityServiceEndpoint {} does not begin with http://, production installations should not use HTTPS as Azure Instance Metadata Service (IMDS) endpoint is not TLS enabled",
                         identityServiceEndpoint);
             }
-            LOGGER.warn("identityServiceEndpoint {} has been configured, this property should not be used in production", identityServiceEndpoint);
+            LOGGER.warn("Identity service endpoint {} has been configured, this property should not be used in production", identityServiceEndpoint);
         }
     }
 

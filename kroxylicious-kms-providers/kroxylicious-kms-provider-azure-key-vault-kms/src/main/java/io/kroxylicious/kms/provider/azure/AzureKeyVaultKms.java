@@ -157,7 +157,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
                 throw new KmsException("get key returned null for: '" + alias + "'");
             }
             else {
-                LOGGER.debug("resolved alias {} to {}", alias, response);
+                LOGGER.debug("Resolved alias {} to {}", alias, response);
                 JsonWebKey key = response.key();
                 SupportedKeyType keyType = validateKeyAndExtractType(alias, response, key);
                 return WrappingKey.parse(encryptingKeyVaultName, alias, response.key().keyId(), keyType);
