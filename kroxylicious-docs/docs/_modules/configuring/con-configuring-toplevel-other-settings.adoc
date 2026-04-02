@@ -26,8 +26,8 @@ management:
 ----
 where:
 
-* `bindAddress` is the address the HTTP server should bind to. Defaults to `0.0.0.0`.
-* `port` is the port the HTTP server should bind to. Defaults to `9190`.
+* `bindAddress` specifies the address the HTTP server binds to. Defaults to `0.0.0.0`.
+* `port` specifies the port the HTTP server binds to. Defaults to `9190`.
 * `endpoints` defines the services exposed by the management interface.
-** `prometheus` If present and not null, exposes a Prometheus scrape endpoint at path `/metrics`.
+** `prometheus`, if present and not null, exposes a Prometheus scrape endpoint at `/metrics`.
 

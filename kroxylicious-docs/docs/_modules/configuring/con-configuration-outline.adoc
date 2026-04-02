@@ -38,15 +38,15 @@ virtualClusters:
 ----
 where:
 
-* `filterDefinitions` defines the list of filter definitions. Each filter definition comprises:
-** A `name` which identifies the filter definition. Name is required. It must be unique amongst all the other filters in the list.
+* `filterDefinitions` lists filter definitions. Each definition comprises:
+** (Required) A `name` that identifies the filter. Must be unique within the list.
 ** A `type` that specifies the filter implementation class. Required.
-** `config` provides configuration to the filter. Usually required for non-trivial filters.
-   The configuration required depends on the filter implementation.
+** `config` provides filter configuration for non-trivial filters.
+   The required configuration depends on the filter implementation.
 * `defaultFilters` defines an ordered list of filters that the traffic sent to the virtual cluster will pass through.
-  It's possible to override this list at the virtual cluster level.
-* `virtualClusters` List of virtual clusters definition providing cluster-specific configurations.
-** A `name` which identifies the virtual cluster. Name is required. It must be unique amongst all the other virtual cluster in the list.
-** `targetCluster` Configuration of the actual Kafka cluster that is proxied by the 'my-cluster-proxy' virtual cluster.
-** `gateways` Configuration of the gateways for this virtual cluster.
-** `subjectBuilder` (Optional) Configuration for the transport subject builder.
+  You can override this list at the virtual cluster level.
+* `virtualClusters` defines the virtual clusters and their cluster-specific configurations.
+** (Required) A `name` that identifies the virtual cluster. Must be unique within the list.
+** `targetCluster` defines the Kafka cluster that the virtual cluster (`my-cluster-proxy`) proxies.
+** `gateways` defines the gateways configuration for this virtual cluster.
+** `subjectBuilder` (Optional) defines the transport subject builder configuration.

@@ -50,9 +50,9 @@ spec:
 ----
 where:
 
-* `unauthenticatedIdleTimeout` Disconnect connections that remain unauthenticated for more than 30 seconds.
+* `unauthenticatedIdleTimeout` specifies the maximum idle time allowed for unauthenticated connections before they are disconnected.
 
-.Example: Both timeouts configured
+.Example `KafkaProxy` configuration with unauthenticated and authenticated idle timeouts
 [source,yaml]
 ----
 kind: KafkaProxy

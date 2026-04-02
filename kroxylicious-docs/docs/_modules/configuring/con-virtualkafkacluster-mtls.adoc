@@ -39,8 +39,8 @@ spec:
 ----
 where:
 
-* `trustAnchorRef` references a separate Kubernetes resource containing the trusted CA certificates.
-** `kind` The `kind` is optional and defaults to `ConfigMap`.
+* `trustAnchorRef`  references a separate Kubernetes resource containing the CA certificates to trust.
+** `kind` is optional and defaults to `ConfigMap`.
 * `tlsClientAuthentication`  specifies whether client authentication is required (`REQUIRED`), requested (`REQUESTED`), or disabled (`NONE`). If a `trustAnchorRef` is specified, the default is `REQUIRED`.
 
 .Example `VirtualKafkaCluster` configuration requiring clients to present a trusted certificate provided from a `Secret`
