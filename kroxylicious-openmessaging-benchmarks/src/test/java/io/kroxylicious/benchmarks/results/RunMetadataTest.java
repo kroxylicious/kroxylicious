@@ -11,7 +11,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -258,10 +257,7 @@ class RunMetadataTest {
         when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
         when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
 
-        Map<String, Object> probeContext = Map.of(
-                "scenario", "proxy-no-filters",
-                "workload", "1topic-1kb",
-                "targetRate", 50000);
+        RunMetadata.ProbeContext probeContext = new RunMetadata.ProbeContext("proxy-no-filters", "1topic-1kb", 50000);
 
         RunMetadata.generate(tempDir, probeContext, runner);
 

@@ -14,11 +14,19 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Represents the relevant metrics from an OpenMessaging Benchmark result JSON file.
  * <p>
- * Latency fields use the pre-aggregated scalars that OMB computes from a full-run
- * accumulated HDR histogram — these are the true percentiles over all messages, not
- * a roll-up of per-sample-window values.
+ * <b>Latency scalars</b> ({@code aggregated*} JSON fields) are pre-aggregated by OMB from
+ * a full-run accumulated HDR histogram — these are the true percentiles over all messages,
+ * not a roll-up of per-sample-window values. Units are milliseconds.
  * <p>
- * Throughput fields are per-interval arrays; the mean is returned as the representative value.
+ * <b>Throughput arrays</b> ({@code publishRate}, {@code consumeRate}) contain one entry per
+ * sample window. Each element is the mean rate for that window in msgs/sec
+ * <em>per producer (or consumer) per topic</em> — i.e. a single logical producer's rate,
+ * not the cluster-wide total. To get the total publish rate across all producers and topics,
+ * multiply by {@code topics × producersPerTopic}; this is what {@link #getPublishRate()} returns.
+ * <p>
+ * <b>Publish delay</b> ({@code aggregatedPublishDelayLatency*} JSON fields) measures the time
+ * producers spent blocked waiting to enqueue a message. Values above ~1ms indicate producers
+ * are back-pressured by the broker. Units are nanoseconds.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OmbResult {
