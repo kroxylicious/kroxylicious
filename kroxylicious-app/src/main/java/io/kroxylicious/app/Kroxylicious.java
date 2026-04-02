@@ -80,7 +80,9 @@ public class Kroxylicious implements Callable<Integer> {
             }
         }
         catch (Exception e) {
-            LOGGER.error("Exception on startup", e);
+            LOGGER.atError()
+                    .setCause(e)
+                    .log("Exception on startup");
             throw e;
         }
 

@@ -268,8 +268,8 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                 .addKeyValue("error", throwable.getMessage())
                 .setCause(LOGGER.isDebugEnabled() ? throwable : null)
                 .log(LOGGER.isDebugEnabled()
-                ? "Failed to process records, connection will be closed"
-                : "Failed to process records, connection will be closed. Raise log level to DEBUG to see the stack.");
+                        ? "Failed to process records, connection will be closed"
+                        : "Failed to process records, connection will be closed. Raise log level to DEBUG to see the stack.");
         return CompletableFuture.failedStage(throwable);
     }
 
@@ -363,8 +363,8 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                                     .addKeyValue("error", cause.getMessage())
                                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
                                     .log(LOGGER.isDebugEnabled()
-                                    ? msgPrefix
-                                    : msgPrefix + " Raise log level to DEBUG to see the stack.");
+                                            ? msgPrefix
+                                            : msgPrefix + " Raise log level to DEBUG to see the stack.");
                             errorsConsumer.accept(partitionData, Errors.RESOURCE_NOT_FOUND.code());
                         }
                         return CompletableFuture.failedFuture(t);

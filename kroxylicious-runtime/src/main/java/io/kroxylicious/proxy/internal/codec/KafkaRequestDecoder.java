@@ -103,12 +103,18 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             DecodedBufer result = decodeRequest(ctx, in, headerVersion, sof);
             ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, result.accessor());
             if (log().isTraceEnabled()) {
-                log().trace("{}: body {}", ctx, body);
+                log().atTrace()
+                        .addKeyValue("ctx", ctx)
+                        .addKeyValue("body", body)
+                        .log("Decoded");
             }
 
             frame = new DecodedRequestFrame<>(apiVersion, correlationId, decodeResponse, result.header(), body);
             if (log().isTraceEnabled()) {
-                log().trace("{}: frame {}", ctx, frame);
+                log().atTrace()
+                        .addKeyValue("ctx", ctx)
+                        .addKeyValue("frame", frame)
+                        .log("Result frame");
             }
         }
         else {
@@ -131,7 +137,10 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private DecodedBufer decodeRequest(ChannelHandlerContext ctx, ByteBuf in, short headerVersion, int sof) {
         if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("{}: headerVersion {}", ctx, headerVersion);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("headerVersion", headerVersion)
+                    .log("Decode");
         }
         in.readerIndex(sof);
 
@@ -141,7 +150,10 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         final ByteBufAccessorImpl accessor = new ByteBufAccessorImpl(in);
         RequestHeaderData header = readHeader(headerVersion, accessor);
         if (log().isTraceEnabled()) {
-            log().trace("{}: header: {}", ctx, header);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("header", header)
+                    .log("Decode");
         }
         return new DecodedBufer(header, accessor);
     }
@@ -151,7 +163,10 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     private short readApiVersion(ChannelHandlerContext ctx, ByteBuf in) {
         short apiVersion = in.readShort();
         if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("{}: apiVersion: {}", ctx, apiVersion);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("apiVersion", apiVersion)
+                    .log("Read");
         }
         return apiVersion;
     }
@@ -159,7 +174,11 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     private ApiKeys readApiKey(ChannelHandlerContext ctx, short apiId) {
         ApiKeys apiKey = ApiKeys.forId(apiId);
         if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("{}: apiKey: {} {}", ctx, apiId, apiKey);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("apiId", apiId)
+                    .addKeyValue("apiKey", apiKey)
+                    .log("Lookup");
         }
         return apiKey;
     }
@@ -167,7 +186,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     private DecodedRequestFrame<ApiVersionsRequestData> createV0ApiVersionRequestFrame(ChannelHandlerContext ctx,
                                                                                        int correlationId) {
         if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("{}: downgrading apiVersion request to v0", ctx);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .log("downgrading apiVersion request to v0");
         }
         return ApiVersionsDowngradeFilter.downgradeApiVersionsFrame(correlationId);
     }

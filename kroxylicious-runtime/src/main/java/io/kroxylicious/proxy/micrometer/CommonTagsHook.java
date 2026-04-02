@@ -53,7 +53,9 @@ public class CommonTagsHook implements MicrometerConfigurationHookService<Common
         public void configure(MeterRegistry targetRegistry) {
             List<Tag> tags = config.commonTags.entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).toList();
             targetRegistry.config().commonTags(tags);
-            log.info("configured micrometer registry with tags: {}", tags);
+            log.atInfo()
+                    .addKeyValue("tags", tags)
+                    .log("configured micrometer registry");
         }
     }
 
