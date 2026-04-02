@@ -127,7 +127,10 @@ public class ProxyDeploymentDependentResource
         String encoded = checksumGenerator.encode();
 
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Checksum: {} generated for KafkaProxy: {}", encoded, KubernetesResourceUtil.getName(primary));
+            LOGGER.atDebug()
+                    .addKeyValue("checksum", encoded)
+                    .addKeyValue("kafkaProxyName", KubernetesResourceUtil.getName(primary))
+                    .log("Checksum generated for KafkaProxy");
         }
         return encoded;
     }
@@ -285,7 +288,10 @@ public class ProxyDeploymentDependentResource
     public static String getOperandImage() {
         var envImage = System.getenv().get(KROXYLICIOUS_IMAGE_ENV_VAR);
         if (envImage != null && !envImage.isBlank()) {
-            LOGGER.info("Using Kroxylicious operand image ({}) from environment variable {}", envImage, KROXYLICIOUS_IMAGE_ENV_VAR);
+            LOGGER.atInfo()
+                    .addKeyValue("image", envImage)
+                    .addKeyValue("envVar", KROXYLICIOUS_IMAGE_ENV_VAR)
+                    .log("Using Kroxylicious operand image from environment variable");
             return envImage;
         }
         else {
@@ -309,7 +315,10 @@ public class ProxyDeploymentDependentResource
             if (image == null || image.isEmpty()) {
                 throw new IllegalStateException("Classpath resource %s does not contain expected property %s".formatted(name, key));
             }
-            LOGGER.info("Using Kroxylicious operand image ({}) from properties file {} on classpath", image, name);
+            LOGGER.atInfo()
+                    .addKeyValue("image", image)
+                    .addKeyValue("propertiesFile", name)
+                    .log("Using Kroxylicious operand image from properties file on classpath");
             return image;
         }
         catch (IOException ioe) {

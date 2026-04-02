@@ -81,7 +81,9 @@ public class KafkaProxyIngressReconciler implements
             throws Exception {
 
         var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
-        LOGGER.debug("spec.proxyRef.name resolves to: {}", proxyOpt);
+        LOGGER.atDebug()
+                .addKeyValue("proxy", proxyOpt)
+                .log("spec.proxyRef.name resolves to");
 
         var isIngressSpecUsingOpenshiftRoute = ingress.getSpec().getOpenShiftRoute() != null;
         var isOpenShiftRouteApiAvailable = context.getClient().supports(Route.class);
@@ -101,7 +103,10 @@ public class KafkaProxyIngressReconciler implements
         }
 
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{}", namespace(ingress), name(ingress));
+            LOGGER.atInfo()
+                    .addKeyValue("namespace", namespace(ingress))
+                    .addKeyValue("name", name(ingress))
+                    .log("Completed reconciliation");
         }
 
         return updateControl;
@@ -158,7 +163,11 @@ public class KafkaProxyIngressReconciler implements
         ErrorStatusUpdateControl<KafkaProxyIngress> uc = ErrorStatusUpdateControl
                 .patchStatus(statusFactory.newUnknownConditionStatusPatch(ingress, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(ingress), name(ingress), e.toString());
+            LOGGER.atInfo()
+                    .addKeyValue("namespace", namespace(ingress))
+                    .addKeyValue("name", name(ingress))
+                    .addKeyValue("error", e.toString())
+                    .log("Completed reconciliation with error");
         }
         return uc;
     }

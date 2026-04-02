@@ -106,7 +106,9 @@ public final class KafkaServiceReconciler implements
         APIGroup strimziKafkaApiGroup = context.getClient().getApiGroup(STRIMZI_KAFKA_GROUP_NAME);
 
         if (strimziKafkaApiGroup != null) {
-            LOGGER.debug("Adding `kafkas.strimzi.io.kafkas` informer because the Strimzi Kafka CRD is present in namespace: {}", context.getClient().getNamespace());
+            LOGGER.atDebug()
+                    .addKeyValue("namespace", context.getClient().getNamespace())
+                    .log("Adding kafkas.strimzi.io.kafkas informer because the Strimzi Kafka CRD is present in namespace");
             InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
                     Kafka.class,
                     KafkaService.class)
@@ -187,7 +189,10 @@ public final class KafkaServiceReconciler implements
         UpdateControl<KafkaService> uc = UpdateControl.patchResourceAndStatus(updatedService);
 
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{}", namespace(service), name(service));
+            LOGGER.atInfo()
+                    .addKeyValue("namespace", namespace(service))
+                    .addKeyValue("name", name(service))
+                    .log("Completed reconciliation");
         }
         return uc;
     }
@@ -198,7 +203,11 @@ public final class KafkaServiceReconciler implements
         ErrorStatusUpdateControl<KafkaService> uc = ErrorStatusUpdateControl
                 .patchStatus(statusFactory.newUnknownConditionStatusPatch(service, ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(service), name(service), e.toString());
+            LOGGER.atInfo()
+                    .addKeyValue("namespace", namespace(service))
+                    .addKeyValue("name", name(service))
+                    .addKeyValue("error", e.toString())
+                    .log("Completed reconciliation with error");
         }
         return uc;
     }
