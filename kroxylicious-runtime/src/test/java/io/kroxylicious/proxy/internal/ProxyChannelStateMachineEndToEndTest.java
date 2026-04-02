@@ -769,7 +769,7 @@ class ProxyChannelStateMachineEndToEndTest {
      * Integration test to verify handler ordering in the complete pipeline after filters are installed.
      *
      * Critical ordering requirements:
-     * - HAProxyMessageHandler (if present) must come before FilterHandler instances
+     * - HaProxyMessageHandler (if present) must come before FilterHandler instances
      * - FilterHandler instances must come before KafkaProxyFrontendHandler
      *
      * This ensures:
@@ -790,7 +790,7 @@ class ProxyChannelStateMachineEndToEndTest {
         List<String> handlerNames = pipeline.names();
 
         // Find positions of critical handlers
-        int haProxyHandlerIndex = handlerNames.indexOf("HAProxyMessageHandler");
+        int haProxyHandlerIndex = handlerNames.indexOf("HaProxyMessageHandler");
         int frontendHandlerIndex = findHandlerIndex(handlerNames, handler);
 
         // Find first filter handler (they're named "filter-N-FilterName")
@@ -799,7 +799,7 @@ class ProxyChannelStateMachineEndToEndTest {
         // Assert ordering if handlers exist
         if (haProxyHandlerIndex >= 0 && firstFilterIndex >= 0) {
             assertThat(haProxyHandlerIndex)
-                    .as("HAProxyMessageHandler (at index %d) must come before first filter (at index %d) in pipeline: %s",
+                    .as("HaProxyMessageHandler (at index %d) must come before first filter (at index %d) in pipeline: %s",
                             haProxyHandlerIndex, firstFilterIndex, handlerNames)
                     .isLessThan(firstFilterIndex);
         }

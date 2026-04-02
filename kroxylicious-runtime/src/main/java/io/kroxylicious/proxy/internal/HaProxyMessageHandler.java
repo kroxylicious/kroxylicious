@@ -25,13 +25,13 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
  * All other messages are passed through unchanged to the next handler in the pipeline.
  * </p>
  */
-public class HAProxyMessageHandler extends SimpleChannelInboundHandler<HAProxyMessage> {
+public class HaProxyMessageHandler extends SimpleChannelInboundHandler<HAProxyMessage> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(HAProxyMessageHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(HaProxyMessageHandler.class);
 
     private final ProxyChannelStateMachine proxyChannelStateMachine;
 
-    public HAProxyMessageHandler(ProxyChannelStateMachine proxyChannelStateMachine) {
+    public HaProxyMessageHandler(ProxyChannelStateMachine proxyChannelStateMachine) {
         super(HAProxyMessage.class, true);
         this.proxyChannelStateMachine = proxyChannelStateMachine;
     }

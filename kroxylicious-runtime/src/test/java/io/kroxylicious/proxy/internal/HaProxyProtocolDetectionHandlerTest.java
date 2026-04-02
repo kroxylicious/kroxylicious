@@ -44,7 +44,7 @@ class HaProxyProtocolDetectionHandlerTest {
         // Detection handler should have removed itself
         assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
-        // HAProxyMessageHandler consumes the message and forwards to state machine
+        // HaProxyMessageHandler consumes the message and forwards to state machine
         verify(pcsm).onHAProxyMessageReceived(any(HAProxyMessage.class));
     }
 
@@ -79,7 +79,7 @@ class HaProxyProtocolDetectionHandlerTest {
         // Detection handler should have removed itself
         assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
-        // HAProxyMessageHandler consumes the message and forwards to state machine
+        // HaProxyMessageHandler consumes the message and forwards to state machine
         verify(pcsm).onHAProxyMessageReceived(any(HAProxyMessage.class));
     }
 
@@ -150,7 +150,7 @@ class HaProxyProtocolDetectionHandlerTest {
         // Should have detected PROXY header (decoder auto-removes after decoding)
         assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
-        // HAProxyMessageHandler consumes the message and forwards to state machine
+        // HaProxyMessageHandler consumes the message and forwards to state machine
         verify(pcsm).onHAProxyMessageReceived(any(HAProxyMessage.class));
     }
 

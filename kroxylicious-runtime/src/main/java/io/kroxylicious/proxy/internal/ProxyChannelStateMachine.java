@@ -379,7 +379,7 @@ public class ProxyChannelStateMachine {
 
     /**
      * Notify the state machine that an HaProxy PROXY protocol message has been received.
-     * Called by {@link HAProxyMessageHandler} — this is the only entry point for HaProxy messages.
+     * Called by {@link HaProxyMessageHandler} — this is the only entry point for HaProxy messages.
      * <p>
      * If the frontend handler is already active (PLAIN path), transitions immediately
      * to the {@link ProxyChannelState.HaProxy} state. Otherwise (TLS path), defers the

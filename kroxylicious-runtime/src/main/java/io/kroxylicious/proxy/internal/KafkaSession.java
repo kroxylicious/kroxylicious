@@ -23,7 +23,7 @@ public class KafkaSession {
 
     /**
      * The HaProxy PROXY-protocol message received for this session, if any.
-     * Captured by {@link HAProxyMessageHandler} before the SSL/binding handshake
+     * Captured by {@link HaProxyMessageHandler} before the SSL/binding handshake
      * completes so it is available when the state machine becomes active.
      */
     @Nullable

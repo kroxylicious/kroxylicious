@@ -344,7 +344,7 @@ class ProxyChannelStateMachineTest {
         // where the PROXY header arrives before the SSL handshake / SNI resolution completes)
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Startup.class);
 
-        // When - HAProxyMessageHandler calls onHAProxyMessageReceived before channelActive fires
+        // When - HaProxyMessageHandler calls onHAProxyMessageReceived before channelActive fires
         proxyChannelStateMachine.onHAProxyMessageReceived(HA_PROXY_MESSAGE);
 
         // Then - pending flag set, state unchanged, no crash

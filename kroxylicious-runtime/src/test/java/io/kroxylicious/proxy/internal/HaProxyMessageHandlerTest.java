@@ -42,11 +42,11 @@ class HaProxyMessageHandlerTest {
     @Mock
     private ChannelHandlerContext ctx;
 
-    private HAProxyMessageHandler handler;
+    private HaProxyMessageHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new HAProxyMessageHandler(proxyChannelStateMachine);
+        handler = new HaProxyMessageHandler(proxyChannelStateMachine);
     }
 
     @Test
