@@ -86,6 +86,7 @@ public class EncryptionDekCache<K, E> {
         return dekManager.generateDek(cacheKey.kek(), cipherSpecResolver.fromName(cacheKey.cipherSpec()))
                 .thenApply(dek -> {
                     LOGGER.atTrace()
+                            .addKeyValue("dek", dek)
                             .log("Adding DEK to cache");
                     dek.destroyForDecrypt();
                     return dek;
@@ -103,6 +104,7 @@ public class EncryptionDekCache<K, E> {
         if (dek != null) {
             dek.destroyForEncrypt();
             LOGGER.atTrace()
+                    .addKeyValue("dek", dek)
                     .log("Attempted to destroy DEK");
         }
     }
