@@ -73,7 +73,7 @@ bin/kroxylicious-start.sh
 }
 ----
 
-NOTE: MDC (Mapped Diagnostic Context) fields like `sessionId` and `clientId` appear as top-level fields in JSON output.
+NOTE: Structured logging parameters like `sessionId` and `clientId` appear as top-level fields in JSON output.
 
 .Switching back to text format
 
