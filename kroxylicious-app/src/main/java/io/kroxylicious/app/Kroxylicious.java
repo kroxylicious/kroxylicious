@@ -107,7 +107,9 @@ public class Kroxylicious implements Callable<Integer> {
         new BannerLogger().log();
         String[] versions = new VersionProvider().getVersion();
         for (String version : versions) {
-            LOGGER.info("{}", version);
+            LOGGER.atInfo()
+                    .addKeyValue("version", version)
+                    .log("Kroxylicious version");
         }
         features.warnings().forEach(LOGGER::warn);
         LOGGER.atInfo()
