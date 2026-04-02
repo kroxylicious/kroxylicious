@@ -132,6 +132,10 @@ public class ResourcesUtil {
                 .build();
     }
 
+    public static String kind(HasMetadata resource) {
+        return resource.getKind();
+    }
+
     public static String name(HasMetadata resource) {
         return resource.getMetadata().getName();
     }

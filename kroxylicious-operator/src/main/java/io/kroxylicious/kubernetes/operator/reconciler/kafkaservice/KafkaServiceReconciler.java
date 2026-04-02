@@ -33,6 +33,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
+import io.kroxylicious.kubernetes.operator.LoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourceCheckResult;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
@@ -107,7 +108,7 @@ public final class KafkaServiceReconciler implements
 
         if (strimziKafkaApiGroup != null) {
             LOGGER.atDebug()
-                    .addKeyValue("namespace", context.getClient().getNamespace())
+                    .addKeyValue(LoggingKeys.NAMESPACE, context.getClient().getNamespace())
                     .log("Adding kafkas.strimzi.io.kafkas informer because the Strimzi Kafka CRD is present in namespace");
             InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
                     Kafka.class,
@@ -190,8 +191,8 @@ public final class KafkaServiceReconciler implements
 
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
-                    .addKeyValue("namespace", namespace(service))
-                    .addKeyValue("name", name(service))
+                    .addKeyValue(LoggingKeys.NAMESPACE, namespace(service))
+                    .addKeyValue(LoggingKeys.NAME, name(service))
                     .log("Completed reconciliation");
         }
         return uc;
@@ -204,9 +205,9 @@ public final class KafkaServiceReconciler implements
                 .patchStatus(statusFactory.newUnknownConditionStatusPatch(service, ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
-                    .addKeyValue("namespace", namespace(service))
-                    .addKeyValue("name", name(service))
-                    .addKeyValue("error", e.toString())
+                    .addKeyValue(LoggingKeys.NAMESPACE, namespace(service))
+                    .addKeyValue(LoggingKeys.NAME, name(service))
+                    .addKeyValue(LoggingKeys.ERROR, e.toString())
                     .log("Completed reconciliation with error");
         }
         return uc;

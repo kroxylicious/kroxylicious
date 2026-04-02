@@ -55,6 +55,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.ingresses.LoadBalancerIngressPointsBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.LoggingKeys;
 import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
@@ -137,8 +138,8 @@ public final class VirtualKafkaClusterReconciler implements
         }
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
-                    .addKeyValue("namespace", namespace(cluster))
-                    .addKeyValue("name", name(cluster))
+                    .addKeyValue(LoggingKeys.NAMESPACE, namespace(cluster))
+                    .addKeyValue(LoggingKeys.NAME, name(cluster))
                     .log("Completed reconciliation");
         }
         return reconciliationResult;
@@ -493,9 +494,9 @@ public final class VirtualKafkaClusterReconciler implements
                 .patchStatus(statusFactory.newUnknownConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
-                    .addKeyValue("namespace", namespace(cluster))
-                    .addKeyValue("name", name(cluster))
-                    .addKeyValue("error", e.toString())
+                    .addKeyValue(LoggingKeys.NAMESPACE, namespace(cluster))
+                    .addKeyValue(LoggingKeys.NAME, name(cluster))
+                    .addKeyValue(LoggingKeys.ERROR, e.toString())
                     .log("Completed reconciliation with error");
         }
         return uc;
