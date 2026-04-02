@@ -173,18 +173,28 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 actionsWithSupportedResourceTypes)
                 .thenApply(authz -> {
                     if (!authz.denied().isEmpty()) {
-                        LOGGER.info("DENY {} to {}", authz.denied(), authz.subject());
+                        LOGGER.atInfo()
+                                .addKeyValue("deniedActions", authz.denied())
+                                .addKeyValue("subject", authz.subject())
+                                .log("Authorization DENY decision");
                     }
                     else if (!authz.allowed().isEmpty()) {
-                        LOGGER.debug("ALLOW {} to {}", authz.allowed(), authz.subject());
+                        LOGGER.atDebug()
+                                .addKeyValue("allowedActions", authz.allowed())
+                                .addKeyValue("subject", authz.subject())
+                                .log("Authorization ALLOW decision");
                     }
                     else if (actions.isEmpty()) {
-                        LOGGER.debug("ALLOW {} no authorizable actions", authz.subject());
+                        LOGGER.atDebug()
+                                .addKeyValue("subject", authz.subject())
+                                .log("Authorization ALLOW decision with no authorizable actions");
                     }
                     if (!actionsWithUnsupportedResourceTypes.isEmpty()) {
-                        LOGGER.debug("ALLOW {} to {} (due to resource types not being supported by {})",
-                                actionsWithUnsupportedResourceTypes, authz.subject(),
-                                authorizer.getClass().getName());
+                        LOGGER.atDebug()
+                                .addKeyValue("unsupportedActions", actionsWithUnsupportedResourceTypes)
+                                .addKeyValue("subject", authz.subject())
+                                .addKeyValue("authorizerClass", authorizer.getClass().getName())
+                                .log("Authorization ALLOW decision for unsupported resource types");
                         authz = new AuthorizeResult(authz.subject(),
                                 Stream.concat(authz.allowed().stream(), actionsWithUnsupportedResourceTypes.stream()).collect(Collectors.toUnmodifiableList()),
                                 authz.denied());
@@ -194,11 +204,15 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     }
 
     static void nonAuthorizableRequest(FilterContext context) {
-        LOGGER.debug("NON-AUTHORIZABLE request from {}", context.authenticatedSubject());
+        LOGGER.atDebug()
+                .addKeyValue("subject", context.authenticatedSubject())
+                .log("Non-authorizable request");
     }
 
     static void nonAuthorizableResponse(FilterContext context) {
-        LOGGER.debug("NON-AUTHORIZABLE response from {}", context.authenticatedSubject());
+        LOGGER.atDebug()
+                .addKeyValue("subject", context.authenticatedSubject())
+                .log("Non-authorizable response");
     }
 
     <R> void pushInflightState(RequestHeaderData header, InflightState<R> inflightState) {
@@ -263,22 +277,20 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
     private void logUnsupportedVersion(ApiKeys apiKey, RequestHeaderData header) {
         if (isApiSupported(apiKey)) {
-            LOGGER.warn("Filter of type {} does not support {} API version {} used in request."
-                    + " It supports version {} to {} (inclusive) of this API."
-                    + " This error is due to a misconfigured, buggy, or possibly malicious client.",
-                    getClass().getName(),
-                    apiKey,
-                    header.requestApiVersion(),
-                    minSupportedApiVersion(apiKey),
-                    maxSupportedApiVersion(apiKey));
+            LOGGER.atWarn()
+                    .addKeyValue("filterClass", getClass().getName())
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("requestApiVersion", header.requestApiVersion())
+                    .addKeyValue("minSupportedVersion", minSupportedApiVersion(apiKey))
+                    .addKeyValue("maxSupportedVersion", maxSupportedApiVersion(apiKey))
+                    .log("Filter does not support API version used in request. This error is due to a misconfigured, buggy, or possibly malicious client");
         }
         else {
-            LOGGER.warn("Filter of type {} does not support {} API version {} used in request."
-                    + " It does not support version this API at all."
-                    + " This error is due to a misconfigured, buggy, or possibly malicious client.",
-                    getClass().getName(),
-                    apiKey,
-                    header.requestApiVersion());
+            LOGGER.atWarn()
+                    .addKeyValue("filterClass", getClass().getName())
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("requestApiVersion", header.requestApiVersion())
+                    .log("Filter does not support this API at all. This error is due to a misconfigured, buggy, or possibly malicious client");
         }
     }
 
@@ -329,9 +341,12 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         var minMetadataVersion = apiVersion.minVersion();
         var maxMetadataVersion = apiVersion.maxVersion();
         if (maxMetadataVersion < 4) {
-            LOGGER.error("Filter {} requires the broker to support at least METADATA API version 4. "
-                    + "The connected broker supports only {}-{}.",
-                    AuthorizationFilter.class.getName(), minMetadataVersion, maxMetadataVersion);
+            LOGGER.atError()
+                    .addKeyValue("filterClass", AuthorizationFilter.class.getName())
+                    .addKeyValue("requiredMinVersion", (short) 4)
+                    .addKeyValue("brokerMinVersion", minMetadataVersion)
+                    .addKeyValue("brokerMaxVersion", maxMetadataVersion)
+                    .log("Filter requires broker to support at least METADATA API version 4. Connected broker does not meet requirements");
             return context.responseFilterResultBuilder().withCloseConnection().completed();
         }
         this.useMetadataVersion = (short) Math.min(ApiKeys.METADATA.latestVersion(), maxMetadataVersion);
