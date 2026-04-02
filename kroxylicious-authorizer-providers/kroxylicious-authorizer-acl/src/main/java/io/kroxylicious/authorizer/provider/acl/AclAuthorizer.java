@@ -302,31 +302,25 @@ public class AclAuthorizer implements Authorizer {
                                                         @Nullable Decision whenNotFound) {
         assert whenFound != whenNotFound;
         for (var p : subject.principals()) {
-
-            Decision foundDecision;
-            var grant = allowPerPrincipal.matchingOperations(new ResourceMatcherNameEquals<>(p.getClass(), p.name()));
-            if (grant != null) {
-                foundDecision = decision(action, grant, whenFound);
-                if (foundDecision != null) {
-                    return foundDecision;
-                }
-            }
-            grant = allowPerPrincipal.matchingOperations(new ResourceMatcherAnyOfType<>(p.getClass()));
-            if (grant != null) {
-                foundDecision = decision(action, grant, whenFound);
-                if (foundDecision != null) {
-                    return foundDecision;
-                }
-            }
-            grant = allowPerPrincipal.matchingOperations(new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
-            if (grant != null) {
-                foundDecision = decision(action, grant, whenFound);
-                if (foundDecision != null) {
-                    return foundDecision;
+            for (var matcher : principalMatchers(p)) {
+                var grant = allowPerPrincipal.matchingOperations(matcher);
+                if (grant != null) {
+                    Decision foundDecision = decision(action, grant, whenFound);
+                    if (foundDecision != null) {
+                        return foundDecision;
+                    }
                 }
             }
         }
         return whenNotFound;
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private static List<Key> principalMatchers(Principal p) {
+        return List.of(
+                new ResourceMatcherNameEquals<>(p.getClass(), p.name()),
+                new ResourceMatcherAnyOfType<>(p.getClass()),
+                new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
     }
 
     @Nullable
