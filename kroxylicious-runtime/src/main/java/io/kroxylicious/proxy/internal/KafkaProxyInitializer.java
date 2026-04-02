@@ -246,7 +246,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         addLoggingErrorHandler(pipeline);
 
         LOGGER.atDebug()
-                .addKeyValue("channelId", () -> ch.toString())
+                .addKeyValue("channelId", ch::toString)
                 .addKeyValue("pipeline", pipeline)
                 .log("Initial pipeline");
     }

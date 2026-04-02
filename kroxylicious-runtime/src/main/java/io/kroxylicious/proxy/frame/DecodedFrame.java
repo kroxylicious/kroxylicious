@@ -112,8 +112,8 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         LOGGER.atTrace()
                 .addKeyValue("frameType", getClass().getSimpleName())
                 .addKeyValue("encodedSize", encodedSize)
-                .addKeyValue("header", () -> header.toString())
-                .addKeyValue("body", () -> body.toString())
+                .addKeyValue("header", header::toString)
+                .addKeyValue("body", body::toString)
                 .addKeyValue("output", out)
                 .log("Writing frame");
         out.ensureWritable(encodedSize);
