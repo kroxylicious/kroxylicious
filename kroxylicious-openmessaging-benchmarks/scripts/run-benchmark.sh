@@ -68,9 +68,9 @@ Examples:
     baseline 1topic-1kb ./results/baseline/
   $(basename "$0") --set benchmark.testDurationMinutes=1 --set benchmark.warmupDurationMinutes=0 \
     baseline 1topic-1kb ./results/baseline/
+  $(basename "$0") encryption 1topic-1kb ./results/encryption/
   $(basename "$0") --profile ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
-    --profile ./helm/kroxylicious-benchmark/scenarios/aws-kms-values.yaml \
-    encryption 1topic-1kb ./results/encryption-aws/
+    encryption 1topic-1kb ./results/encryption-smoke/
   NAMESPACE=benchmarks $(basename "$0") baseline 1topic-1kb ./results/
 EOF
     exit 1
