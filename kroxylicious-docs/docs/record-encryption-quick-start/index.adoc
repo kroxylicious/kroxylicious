@@ -166,7 +166,7 @@ $ kubectl apply -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-ka
 $ kubectl wait -n kafka kafka/my-cluster --for=condition=Ready --timeout=300s
 ----
 
-We'll need the bootstrap server address of the kafka cluster later, so let's assign a variable containing it now.
+We'll need the bootstrap server address of the Kafka cluster later, so let's assign a variable containing it now.
 
 [source,terminal]
 ----
