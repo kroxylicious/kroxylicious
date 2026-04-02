@@ -108,7 +108,8 @@ public class ResultComparator {
     private static boolean printLatencyRow(PrintStream out, LatencyComparison c, SignificanceTester.Result sig) {
         boolean notSignificant = sig != null && !sig.significant();
         String pctChange = String.format("%+.1f%%", c.pct());
-        String pValue = sig == null ? "            " : String.format("%9.4f%s", sig.pValue(), notSignificant ? "[1]" : "   ");
+        String noiseMarker = notSignificant ? "[1]" : "   ";
+        String pValue = sig == null ? "            " : String.format("%9.4f%s", sig.pValue(), noiseMarker);
         out.printf("  %-25s %12.2f %12.2f %12.2f %10s %12s%n",
                 c.label(), c.baseline(), c.candidate(), c.delta(), pctChange, pValue);
         return notSignificant;

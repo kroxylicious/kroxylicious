@@ -6,7 +6,7 @@
 
 package io.kroxylicious.benchmarks.results;
 
-///usr/bin/env jbang "$0" "$@" ; exit $?
+///usr/bin/env jbang "$0" "$@" ; exit $? // NOSONAR
 //JAVA 21+
 //DEPS com.fasterxml.jackson.core:jackson-core:${jackson.version}
 //DEPS com.fasterxml.jackson.core:jackson-databind:${jackson.version}
