@@ -22,7 +22,7 @@ kroxylicious:
 
 # Vault is not needed for no-filters scenario
 vault:
-  enabled: false
+  provision: false
 
 # Use baseline driver (bootstrap switches via _helpers.tpl when proxy enabled)
 omb:
