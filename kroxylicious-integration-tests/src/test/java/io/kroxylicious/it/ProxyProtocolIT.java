@@ -83,8 +83,7 @@ class ProxyProtocolIT {
 
             var correlationManager = new CorrelationManager();
             var kafkaHandler = new KafkaClientHandler();
-            var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
-            try {
+            try (var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())) {
                 var bootstrap = new Bootstrap()
                         .group(group)
                         .channel(NioSocketChannel.class)
@@ -131,9 +130,6 @@ class ProxyProtocolIT {
                         .succeedsWithin(5, TimeUnit.SECONDS);
 
                 channel.close().sync();
-            }
-            finally {
-                group.shutdownGracefully(0, 1, TimeUnit.SECONDS).sync();
             }
         }
     }

@@ -40,7 +40,7 @@ public record HaProxyContext(
      * after the message is released.
      * </p>
      *
-     * @param msg the decoded HaProxy message
+     * @param msg the decoded proxy message
      * @return an immutable context snapshot
      */
     public static HaProxyContext from(HAProxyMessage msg) {

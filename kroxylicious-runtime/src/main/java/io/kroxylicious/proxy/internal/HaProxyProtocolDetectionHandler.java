@@ -31,6 +31,9 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HaProxyProtocolDetectionHandler.class);
 
+    private static final String HAPROXY_MESSAGE_DECODER_HANDLER_NAME = "HAProxyMessageDecoder";
+    private static final String HAPROXY_MESSAGE_HANDLER_NAME = "HaProxyMessageHandler";
+
     private final ProxyProtocolMode mode;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
 
@@ -56,8 +59,8 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
         if (proxyDetected) {
             LOGGER.debug("{}: PROXY protocol detected, adding decoder", ctx.channel());
             String thisName = ctx.name();
-            ctx.pipeline().addAfter(thisName, "HAProxyMessageDecoder", new HAProxyMessageDecoder());
-            ctx.pipeline().addAfter("HAProxyMessageDecoder", "HaProxyMessageHandler",
+            ctx.pipeline().addAfter(thisName, HAPROXY_MESSAGE_DECODER_HANDLER_NAME, new HAProxyMessageDecoder());
+            ctx.pipeline().addAfter(HAPROXY_MESSAGE_DECODER_HANDLER_NAME, HAPROXY_MESSAGE_HANDLER_NAME,
                     new HaProxyMessageHandler(proxyChannelStateMachine));
             ctx.pipeline().remove(this);
             ctx.fireChannelRead(buf);

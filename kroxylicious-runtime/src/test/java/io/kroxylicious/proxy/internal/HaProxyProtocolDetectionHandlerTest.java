@@ -122,7 +122,7 @@ class HaProxyProtocolDetectionHandlerTest {
     }
 
     @Test
-    void shouldPassThroughNonByteBufMessages() throws Exception {
+    void shouldPassThroughNonByteBufMessages() {
         var pcsm = mock(ProxyChannelStateMachine.class);
         var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, pcsm);
         var channel = new EmbeddedChannel(handler);
