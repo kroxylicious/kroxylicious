@@ -21,6 +21,12 @@ public class BackPressureAnalyser {
     /** 1ms in nanoseconds — delay above this indicates producer back-pressure. */
     public static final long THRESHOLD_NS = Duration.ofMillis(1).toNanos();
 
+    /**
+     * Heuristic: suggested sweep starts at this fraction of the saturated rate,
+     * to ensure the sweep range brackets the saturation knee.
+     */
+    static final double SWEEP_START_RATE_FRACTION = 0.75;
+
     public record LabelledResult(String label, OmbResult result) {}
 
     public record Report(String label, double delayAvgNs, double delayP99Ns, boolean saturated,
@@ -33,7 +39,7 @@ public class BackPressureAnalyser {
                     OmbResult r = lr.result();
                     // Round to the nearest 1000 msg/sec for clean sweep boundaries.
                     long maxRate = Math.max(1000L, Math.round(r.getPublishRate() / 1000.0) * 1000L);
-                    long minRate = maxRate / 2;
+                    long minRate = Math.round(maxRate * SWEEP_START_RATE_FRACTION / 1000.0) * 1000L;
                     return new Report(lr.label(), r.getPublishDelayLatencyAvgNs(),
                             r.getPublishDelayLatency99pctNs(), true, maxRate, minRate);
                 })
