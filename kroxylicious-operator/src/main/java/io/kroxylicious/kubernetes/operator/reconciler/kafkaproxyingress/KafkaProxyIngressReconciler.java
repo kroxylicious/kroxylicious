@@ -83,7 +83,7 @@ public class KafkaProxyIngressReconciler implements
         var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
         LOGGER.atDebug()
                 .addKeyValue("proxy", proxyOpt)
-                .log("spec.proxyRef.name resolves to");
+                .log("Spec.proxyRef.name resolves to");
 
         var isIngressSpecUsingOpenshiftRoute = ingress.getSpec().getOpenShiftRoute() != null;
         var isOpenShiftRouteApiAvailable = context.getClient().supports(Route.class);
