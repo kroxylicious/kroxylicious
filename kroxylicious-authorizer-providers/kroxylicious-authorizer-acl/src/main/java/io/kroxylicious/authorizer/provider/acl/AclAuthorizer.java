@@ -315,12 +315,12 @@ public class AclAuthorizer implements Authorizer {
         return whenNotFound;
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    private static List<Key> principalMatchers(Principal p) {
+    @SuppressWarnings("unchecked")
+    private static List<OrderedKey<Principal>> principalMatchers(Principal p) {
         return List.of(
-                new ResourceMatcherNameEquals<>(p.getClass(), p.name()),
-                new ResourceMatcherAnyOfType<>(p.getClass()),
-                new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
+                (OrderedKey<Principal>) new ResourceMatcherNameEquals<>(p.getClass(), p.name()),
+                (OrderedKey<Principal>) new ResourceMatcherAnyOfType<>(p.getClass()),
+                (OrderedKey<Principal>) new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
     }
 
     @Nullable
