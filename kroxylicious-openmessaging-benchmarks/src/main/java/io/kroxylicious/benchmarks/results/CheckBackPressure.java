@@ -100,7 +100,7 @@ public class CheckBackPressure implements Callable<Integer> {
         System.out.println("Producers were blocking on full send buffers — single-partition saturation");
         System.out.println("at the broker is masking overhead measurements.");
         System.out.println();
-        System.out.println("Consider a rate sweep to find the saturation knee:");
+        System.out.println("Suggested rate sweep to find the saturation knee (adjust --min-rate/--max-rate as needed):");
         Report first = saturated.get(0);
         System.out.println("  " + scriptsDir + "/rate-sweep.sh \\");
         if (resolvedWorkload != null) {
