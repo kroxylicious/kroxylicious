@@ -222,14 +222,14 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                 }).exceptionallyCompose(throwable -> {
                     if (throwable.getCause() instanceof UnknownKeyException) {
                         // #maybeDecodePartitions will have set the RESOURCE_NOT_FOUND error code on the partition(s) that failed to decrypt
-                        // and will have LOGGERged the affected topic-partitions.
+                        // and will have logged the affected topic-partitions.
                         // Remove all the records from the whole fetch to avoid the possibility that the client processes an incomplete response.
                         response.responses().forEach(topicResponse -> topicResponse.partitions().forEach(p -> p.setRecords(MemoryRecords.EMPTY)));
                         return context.forwardResponse(header, response);
                     }
                     else {
                         // returning a failed stage is effectively asking the runtime to kill the connection.
-                        return LOGGERAndCreateFailedStage(throwable);
+                        return logAndCreateFailedStage(throwable);
                     }
                 }));
     }
@@ -248,19 +248,19 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                 .exceptionallyCompose(throwable -> {
                     if (throwable.getCause() instanceof UnknownKeyException) {
                         // #maybeDecodePartitions will have set the RESOURCE_NOT_FOUND error code on the partition(s) that failed to decrypt
-                        // and will have LOGGERged the affected topic-partitions.
+                        // and will have logged the affected topic-partitions.
                         // Remove all the records from the whole fetch to avoid the possibility that the client processes an incomplete response.
                         response.responses().forEach(r -> r.partitions().forEach(p -> p.setRecords(MemoryRecords.EMPTY)));
                         return context.forwardResponse(header, response);
                     }
                     else {
                         // returning a failed stage is effectively asking the runtime to kill the connection.
-                        return LOGGERAndCreateFailedStage(throwable);
+                        return logAndCreateFailedStage(throwable);
                     }
                 });
     }
 
-    private static CompletionStage<ResponseFilterResult> LOGGERAndCreateFailedStage(Throwable throwable) {
+    private static CompletionStage<ResponseFilterResult> logAndCreateFailedStage(Throwable throwable) {
         LOGGER.atWarn().setMessage(LOGGER.isDebugEnabled()
                 ? "Failed to process records, connection will be closed, cause message: {}."
                 : "Failed to process records, connection will be closed, cause message: {}. Raise log level to DEBUG to see the stack.")
