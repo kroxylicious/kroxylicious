@@ -38,7 +38,7 @@ public record Oauth2ClientCredentialsConfig(@JsonProperty(required = true) URI o
         Objects.requireNonNull(clientSecret, "clientSecret cannot be null");
         Objects.requireNonNull(scope, "scope cannot be null");
         if (!oauthEndpoint.getScheme().equalsIgnoreCase("https")) {
-            LOGGER.warn("oauthEndpoint {} does not begin with https://, production installations should use a secure endpoint", oauthEndpoint);
+            LOGGER.warn("OAuth endpoint {} does not begin with https://, production installations should use a secure endpoint", oauthEndpoint);
         }
         // check that getting password doesn't throw
         clientSecret.getProvidedPassword();
