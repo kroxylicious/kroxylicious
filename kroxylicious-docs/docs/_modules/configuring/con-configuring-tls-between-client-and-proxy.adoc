@@ -41,9 +41,9 @@ spec:
 where:
 
 * `proxyRef` identifies the `KafkaProxy` resource that this virtual cluster is part of. It must be in the same namespace as the `VirtualKafkaCluster`.
-* `targetKafkaServiceRef` is the virtual cluster names the `KafkaService` to be proxied. It must be in the same namespace as the `VirtualKafkaCluster`.
-* `ingresses` defines how the traffic flows into the virtual cluster.
-** `ingressRef` is the virtual cluster can be exposed by one or more ingresses. Each ingress must reference a `KafkaProxyIngress` in the same namespace as the `VirtualKafkaCluster`.
+* `targetKafkaServiceRef` identifies the `KafkaService` that is proxied by this virtual cluster. It must be in the same namespace as the `VirtualKafkaCluster`.
+* `ingresses` defines how traffic flows into the virtual cluster.
+** `ingressRef` references a `KafkaProxyIngress`. A virtual cluster can be exposed by one or more ingresses, each of which must exist in the same namespace as the `VirtualKafkaCluster`.
 ** If the referenced ingress requires TLS, the `tls`  property must provide a TLS server certificate to use.
 
 .Example `KafkaProxyIngress` configuration for TLS
@@ -62,6 +62,6 @@ spec:
 ----
 where:
 
-* `proxyRef` specifies the `KafkaProxy` which this ingress belongs. The ingress must reference a `KafkaProxy` in the same namespace as the `KafkaProxyIngress`.
+* `proxyRef` identifies the `KafkaProxy` that this ingress belongs. It must be in the same namespace as the `KafkaProxyIngress`.
 * `clusterIP` exposes the proxy to Kafka clients inside the same Kubernetes cluster using a `ClusterIP` service.
-** `protocol` specifies that the ingress uses `TLS` as the transport protocol.
+** `protocol` specifies the transport protocol used by the ingress. In this example, it is set to `TLS`.

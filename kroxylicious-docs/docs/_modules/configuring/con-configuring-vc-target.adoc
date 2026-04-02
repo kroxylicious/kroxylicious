@@ -59,4 +59,4 @@ virtualClusters:
 ----
 where:
 
-* `strategy` provides the strategy for bootstrap server selection.
+* `strategy` specifies the strategy for bootstrap server selection.

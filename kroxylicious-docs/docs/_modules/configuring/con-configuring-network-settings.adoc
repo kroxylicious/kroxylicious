@@ -31,10 +31,11 @@ virtualClusters:
 where:
 
 * `proxy` defines network settings for the proxy listener that handles client connections.
-** `workerThreadCount` defines the number of Netty worker threads for handling concurrent connections. Defaults to twice the number of available processors.
+* `management` defines network settings for the management HTTP server and can be configured independently of the proxy listener.
+* For both `proxy` and `management`:
+** `workerThreadCount` defines the number of Netty worker threads used to handle concurrent connections. Defaults to twice the number of available processors.
 ** `shutdownQuietPeriod` defines the grace period during which the proxy continues to accept and complete in-flight requests before shutting down. If no new requests arrive during this window, shutdown proceeds. Defaults to `2s` if not specified. Uses Go-style duration format (for example, `30s`, `5m`).
-** `shutdownTimeout` defines the maximum time allowed for the proxy to complete shutdown. If shutdown does not complete within this period, it is forced. Defaults to `15s` if not specified. Uses Go-style duration format.
-* `management` defines network settings for the management HTTP server. Can be configured independently of the proxy listener settings.
+** `shutdownTimeout` defines the maximum time period allowed for the proxy to complete shutdown before it is forced. Defaults to `15s` if not specified. Uses Go-style duration format.
 
 Supported duration units are: `h` (hours), `m` (minutes), `s` (seconds), `ms` (milliseconds), `μs` or `us` (microseconds), and `ns` (nanoseconds).
 Units can be combined, for example `1m30s`.

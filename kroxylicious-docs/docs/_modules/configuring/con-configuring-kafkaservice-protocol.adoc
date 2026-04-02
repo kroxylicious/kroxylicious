@@ -34,7 +34,7 @@ spec:
 ----
 where:
 
-* `protocols`  configures the TLS protocol versions
+* `protocols`  configures the TLS protocol versions.
 ** `allowed` lists the versions of TLS which are permitted.
 
 The `protocols` property also supports `deny`, if you prefer to list the versions to exclude instead.

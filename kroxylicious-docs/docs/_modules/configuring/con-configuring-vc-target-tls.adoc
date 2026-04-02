@@ -151,7 +151,7 @@ virtualClusters:
 where:
 
 * `cipherSuites` configures the cipher suites.
-** `allowed` lists the cipher suites which are permitted in preference order.
+** `allowed` lists the permitted cipher suites in preference order.
 
 .Example restricting cipher suites using a deny list
 

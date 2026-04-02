@@ -35,9 +35,9 @@ spec:
 ----
 where:
 
-* `bootstrapServers` The `bootstrapServers` property is a comma-separated list of addresses in `<host>:<port>` format. Including multiple broker addresses helps clients connect when one is unavailable.
+* `bootstrapServers` specifies a comma-separated list of addresses in `<host>:<port>` format. Including multiple broker addresses helps clients connect when one is unavailable.
 * `nodeIdRanges` declares the IDs of all the broker nodes in the Kafka cluster
 * `name` is optional, but specifying it can make errors easier to diagnose.
-* `start` The start of the ID range, inclusive.
-* `end` The end of the ID range, inclusive.
+* `start` defines the start of the ID range, inclusive.
+* `end` defines the end of the ID range, inclusive.
 

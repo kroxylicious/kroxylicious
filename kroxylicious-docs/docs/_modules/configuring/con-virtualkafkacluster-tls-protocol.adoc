@@ -41,7 +41,7 @@ where:
 * `protocols` configures the TLS protocol versions used by the proxy.
 ** `allowed` lists the protocol versions explicitly allowed for TLS negotiation.
 
-Alternatively, you can use `denied` to specify protocol versions to exclude.
+Alternatively, use `denied` to specify protocol versions to exclude.
 
 The names of the TLS protocol versions supported depend on the JVM in the proxy container image.
 

@@ -98,7 +98,7 @@ spec:
 ----
 where:
 
-* `protocol` Defines the connection protocol as `TLS` to enable encrypted communication between clients and the proxy.
+* `protocol` defines the connection protocol as `TLS` to enable encrypted communication between clients and the proxy.
 
 When using TLS, specify a xref:con-virtualkafkacluster-clusterip-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource using a `certificateRef`.
 
