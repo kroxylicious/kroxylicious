@@ -74,8 +74,8 @@ public class CheckBackPressure implements Callable<Integer> {
         for (LabelledResult lr : labelled) {
             double delayMs = lr.result().getPublishDelayLatencyAvgNs() / 1_000_000.0;
             double p99Ms = lr.result().getPublishDelayLatency99pctNs() / 1_000_000.0;
-            boolean sat = saturated.stream().anyMatch(r -> r.label().equals(lr.label()));
-            if (sat) {
+            boolean isSaturated = saturated.stream().anyMatch(r -> r.label().equals(lr.label()));
+            if (isSaturated) {
                 System.out.printf("  %-30s  delay avg %8.1f ms  p99 %8.1f ms  *** BACK-PRESSURE ***%n",
                         lr.label(), delayMs, p99Ms);
             }

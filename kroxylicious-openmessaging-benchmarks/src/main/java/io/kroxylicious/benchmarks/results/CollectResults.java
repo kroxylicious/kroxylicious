@@ -15,8 +15,6 @@ package io.kroxylicious.benchmarks.results;
 //DEPS com.github.spotbugs:spotbugs-annotations:${spotbugs-annotations.version}
 //SOURCES RunMetadata.java
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.concurrent.Callable;
 
 import picocli.CommandLine;
@@ -57,17 +55,7 @@ public class CollectResults implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         if (metadataDir != null) {
-            Map<String, Object> probeContext = new LinkedHashMap<>();
-            if (scenario != null) {
-                probeContext.put("scenario", scenario);
-            }
-            if (workload != null) {
-                probeContext.put("workload", workload);
-            }
-            if (targetRate != null) {
-                probeContext.put("targetRate", targetRate);
-            }
-            RunMetadata.generate(metadataDir, probeContext);
+            RunMetadata.generate(metadataDir, new RunMetadata.ProbeContext(scenario, workload, targetRate));
             System.out.println("Generated " + metadataDir.resolve("run-metadata.json"));
             return 0;
         }

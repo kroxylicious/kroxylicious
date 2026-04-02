@@ -6,6 +6,7 @@
 
 package io.kroxylicious.benchmarks.results;
 
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -18,7 +19,7 @@ import java.util.List;
 public class BackPressureAnalyser {
 
     /** 1ms in nanoseconds — delay above this indicates producer back-pressure. */
-    public static final double THRESHOLD_NS = 1_000_000.0;
+    public static final long THRESHOLD_NS = Duration.ofMillis(1).toNanos();
 
     public record LabelledResult(String label, OmbResult result) {}
 
@@ -30,8 +31,9 @@ public class BackPressureAnalyser {
                 .filter(lr -> lr.result().getPublishDelayLatencyAvgNs() > THRESHOLD_NS)
                 .map(lr -> {
                     OmbResult r = lr.result();
-                    long maxRate = Math.round(r.getPublishRate() / 1000.0) * 1000L;
-                    long minRate = Math.round(maxRate * 0.5);
+                    // Round to the nearest 1000 msg/sec for clean sweep boundaries.
+                    long maxRate = Math.max(1000L, Math.round(r.getPublishRate() / 1000.0) * 1000L);
+                    long minRate = maxRate / 2;
                     return new Report(lr.label(), r.getPublishDelayLatencyAvgNs(),
                             r.getPublishDelayLatency99pctNs(), true, maxRate, minRate);
                 })
