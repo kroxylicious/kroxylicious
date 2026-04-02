@@ -7,7 +7,7 @@
 package io.kroxylicious.proxy.config;
 
 /**
- * Configuration for the HAProxy PROXY protocol.
+ * Configuration for the HaProxy PROXY protocol.
  * <p>
  * Supports three modes via the {@code mode} property:
  * <ul>

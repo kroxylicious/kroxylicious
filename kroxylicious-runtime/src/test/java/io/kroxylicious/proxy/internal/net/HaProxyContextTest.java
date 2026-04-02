@@ -20,7 +20,7 @@ import io.netty.handler.codec.haproxy.HAProxyTLV;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class HAProxyContextTest {
+class HaProxyContextTest {
 
     @Test
     void shouldExtractFieldsFromHAProxyMessage() {
@@ -35,7 +35,7 @@ class HAProxyContextTest {
                 9092);
 
         // When
-        var context = HAProxyContext.from(msg);
+        var context = HaProxyContext.from(msg);
 
         // Then
         assertThat(context.sourceAddress()).isEqualTo("192.168.1.100");
@@ -60,7 +60,7 @@ class HAProxyContextTest {
                 8080);
 
         // When
-        var context = HAProxyContext.from(msg);
+        var context = HaProxyContext.from(msg);
         msg.release();
 
         // Then — context remains usable after message release
@@ -88,7 +88,7 @@ class HAProxyContextTest {
                 List.of(tlv));
 
         // When
-        var context = HAProxyContext.from(msg);
+        var context = HaProxyContext.from(msg);
         msg.release();
 
         // Then — TLV content is a deep copy, safe after release

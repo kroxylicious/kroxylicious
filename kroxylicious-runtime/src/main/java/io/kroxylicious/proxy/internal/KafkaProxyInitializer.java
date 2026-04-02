@@ -98,8 +98,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         if (proxyProtocolMode != ProxyProtocolMode.DISABLED) {
             LOGGER.debug("Adding PROXY protocol detection handler (mode={})", proxyProtocolMode);
-            ch.pipeline().addLast("HAProxyProtocolDetectionHandler",
-                    new HAProxyProtocolDetectionHandler(proxyProtocolMode, proxyChannelStateMachine));
+            ch.pipeline().addLast("HaProxyProtocolDetectionHandler",
+                    new HaProxyProtocolDetectionHandler(proxyProtocolMode, proxyChannelStateMachine));
         }
 
         if (tls) {

@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.config;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Controls how Kroxylicious handles HAProxy PROXY protocol headers on incoming connections.
+ * Controls how Kroxylicious handles HaProxy PROXY protocol headers on incoming connections.
  *
  * @see <a href="https://www.haproxy.org/download/3.3/doc/proxy-protocol.txt">PROXY protocol specification</a>
  */

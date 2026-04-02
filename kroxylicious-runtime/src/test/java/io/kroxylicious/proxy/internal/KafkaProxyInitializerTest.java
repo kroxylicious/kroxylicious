@@ -291,7 +291,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline).addLast(eq("HAProxyProtocolDetectionHandler"), isA(HAProxyProtocolDetectionHandler.class));
+        verify(channelPipeline).addLast(eq("HaProxyProtocolDetectionHandler"), isA(HaProxyProtocolDetectionHandler.class));
     }
 
     @ParameterizedTest
@@ -304,7 +304,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline).addLast(eq("HAProxyProtocolDetectionHandler"), isA(HAProxyProtocolDetectionHandler.class));
+        verify(channelPipeline).addLast(eq("HaProxyProtocolDetectionHandler"), isA(HaProxyProtocolDetectionHandler.class));
     }
 
     @Test
@@ -316,7 +316,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline, never()).addLast(eq("HAProxyProtocolDetectionHandler"), any());
+        verify(channelPipeline, never()).addLast(eq("HaProxyProtocolDetectionHandler"), any());
     }
 
     @Test

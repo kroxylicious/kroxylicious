@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
-class HAProxyMessageHandlerTest {
+class HaProxyMessageHandlerTest {
 
     private static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(
             HAProxyProtocolVersion.V2,
@@ -70,7 +70,7 @@ class HAProxyMessageHandlerTest {
         handler.channelRead(ctx, kafkaFrame);
 
         // Then
-        // Should NOT interact with state machine for non-HAProxy messages
+        // Should NOT interact with state machine for non-HaProxy messages
         verifyNoInteractions(proxyChannelStateMachine);
         // Should propagate to next handler
         verify(ctx).fireChannelRead(kafkaFrame);

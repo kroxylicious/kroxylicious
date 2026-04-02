@@ -193,7 +193,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
         if (haProxy) {
             proxyChannelStateMachine.forceState(
-                    new ProxyChannelState.HAProxy(),
+                    new ProxyChannelState.HaProxy(),
                     handler,
                     backendHandler,
                     TEST_SESSION);

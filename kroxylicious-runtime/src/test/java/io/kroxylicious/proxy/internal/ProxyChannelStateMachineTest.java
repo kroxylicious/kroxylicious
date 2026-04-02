@@ -334,7 +334,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onHAProxyMessageReceived(HA_PROXY_MESSAGE);
 
         // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.HAProxy.class);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.HaProxy.class);
         assertThat(proxyChannelStateMachine.kafkaSession().haProxyContext()).isNotNull();
     }
 
@@ -353,15 +353,15 @@ class ProxyChannelStateMachineTest {
 
     @Test
     void onClientActiveShouldReplayHAProxyMessageStoredInKafkaSession() {
-        // Given - HAProxy message arrived before channelActive (TLS pipeline scenario).
+        // Given - HaProxy message arrived before channelActive (TLS pipeline scenario).
         // onHAProxyMessageReceived extracts context and flags for replay when onClientActive fires.
         proxyChannelStateMachine.onHAProxyMessageReceived(HA_PROXY_MESSAGE);
 
         // When
         proxyChannelStateMachine.onClientActive(frontendHandler);
 
-        // Then - state machine transitions through ClientActive → HAProxy
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.HAProxy.class);
+        // Then - state machine transitions through ClientActive → HaProxy
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.HaProxy.class);
         assertThat(proxyChannelStateMachine.kafkaSession().haProxyContext()).isNotNull();
         verify(frontendHandler).inClientActive();
     }
@@ -829,7 +829,7 @@ class ProxyChannelStateMachineTest {
 
     private void stateMachineInHAProxy() {
         proxyChannelStateMachine.forceState(
-                new ProxyChannelState.HAProxy(),
+                new ProxyChannelState.HaProxy(),
                 frontendHandler,
                 null,
                 TEST_KAFKA_SESSION);

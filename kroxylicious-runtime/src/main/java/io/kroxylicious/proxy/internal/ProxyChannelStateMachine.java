@@ -65,7 +65,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  *     {@link ProxyChannelState.ClientActive ClientActive} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  ╭───┤
  *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives a PROXY header
- *  │  {@link ProxyChannelState.HAProxy HAProxy} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  │  {@link ProxyChannelState.HaProxy HaProxy} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  ╰───┤
  *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any other KRPC request
  *     {@link ProxyChannelState.SelectingServer SelectingServer} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
@@ -184,9 +184,9 @@ public class ProxyChannelStateMachine {
     private TransportSubjectBuilder transportSubjectBuilder;
     private final ClientSubjectManager clientSubjectManager = new ClientSubjectManager();
     /**
-     * Whether an HAProxy message was received before the frontend handler was active
+     * Whether an HaProxy message was received before the frontend handler was active
      * (TLS pipeline). The context is extracted eagerly into {@link KafkaSession};
-     * this flag triggers the {@link ProxyChannelState.HAProxy} state transition
+     * this flag triggers the {@link ProxyChannelState.HaProxy} state transition
      * when {@link #onClientActive(KafkaProxyFrontendHandler)} fires.
      */
     private boolean haProxyMessagePending;
@@ -208,7 +208,7 @@ public class ProxyChannelStateMachine {
     public ProxyChannelStateMachine(KafkaSession kafkaSession) {
         this.kafkaSession = kafkaSession;
         // Placeholder until onBindingResolution() is called; needed because onClientException()
-        // can be triggered before binding is resolved (e.g. bad HAProxy header in TLS pipeline).
+        // can be triggered before binding is resolved (e.g. bad HaProxy header in TLS pipeline).
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
     }
 
@@ -362,13 +362,13 @@ public class ProxyChannelStateMachine {
                     .addArgument(this.frontendHandler.remotePort())
                     .log();
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
-            // Replay HAProxy state transition deferred from the TLS pipeline.
+            // Replay HaProxy state transition deferred from the TLS pipeline.
             // The context was already extracted into KafkaSession; we just
-            // need to transition ClientActive → HAProxy.
+            // need to transition ClientActive → HaProxy.
             if (haProxyMessagePending) {
                 haProxyMessagePending = false;
                 if (state instanceof ProxyChannelState.ClientActive clientActive) {
-                    toHAProxy(clientActive.toHAProxy());
+                    toHAProxy(clientActive.toHaProxy());
                 }
             }
         }
@@ -378,20 +378,20 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * Notify the state machine that an HAProxy PROXY protocol message has been received.
-     * Called by {@link HAProxyMessageHandler} — this is the only entry point for HAProxy messages.
+     * Notify the state machine that an HaProxy PROXY protocol message has been received.
+     * Called by {@link HAProxyMessageHandler} — this is the only entry point for HaProxy messages.
      * <p>
      * If the frontend handler is already active (PLAIN path), transitions immediately
-     * to the {@link ProxyChannelState.HAProxy} state. Otherwise (TLS path), defers the
+     * to the {@link ProxyChannelState.HaProxy} state. Otherwise (TLS path), defers the
      * transition until {@link #onClientActive(KafkaProxyFrontendHandler)} fires.
      * </p>
      *
-     * @param msg the decoded HAProxy message (context is extracted, message is not released here)
+     * @param msg the decoded HaProxy message (context is extracted, message is not released here)
      */
     void onHAProxyMessageReceived(HAProxyMessage msg) {
         kafkaSession.setHAProxyContext(msg);
         if (state instanceof ProxyChannelState.ClientActive clientActive) {
-            toHAProxy(clientActive.toHAProxy());
+            toHAProxy(clientActive.toHaProxy());
         }
         else {
             haProxyMessagePending = true;
@@ -562,7 +562,7 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     void onClientException(@Nullable Throwable cause) {
         // endpointBinding may be null if the error occurs before binding resolution
-        // (e.g. bad HAProxy header during TLS handshake, before SNI completes).
+        // (e.g. bad HaProxy header during TLS handshake, before SNI completes).
         var tlsEnabled = endpointBinding != null
                 && endpointGateway().getDownstreamSslContext().isPresent();
         ApiException errorCodeEx;
@@ -708,7 +708,7 @@ public class ProxyChannelStateMachine {
         if (state() instanceof ProxyChannelState.ClientActive clientActive) {
             return onClientRequestInClientActiveState(msg, clientActive);
         }
-        else if (state() instanceof ProxyChannelState.HAProxy haProxy) {
+        else if (state() instanceof ProxyChannelState.HaProxy haProxy) {
             return onClientRequestInHAProxyState(msg, haProxy);
         }
         else if (state() instanceof ProxyChannelState.SelectingServer) {
@@ -719,7 +719,7 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    private boolean onClientRequestInHAProxyState(Object msg, ProxyChannelState.HAProxy haProxy) {
+    private boolean onClientRequestInHAProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
         return transitionClientRequest(msg, haProxy::toSelectingServer);
     }
 
@@ -744,7 +744,7 @@ public class ProxyChannelStateMachine {
         return transitionClientRequest(msg, clientActive::toSelectingServer);
     }
 
-    private void toHAProxy(ProxyChannelState.HAProxy haProxy) {
+    private void toHAProxy(ProxyChannelState.HaProxy haProxy) {
         setState(haProxy);
     }
 

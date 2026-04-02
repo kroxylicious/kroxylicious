@@ -391,7 +391,7 @@ class KafkaProxyFrontendHandlerTest {
                     "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT);
             haProxyMsg.retain();
             inboundChannel.writeInbound(haProxyMsg);
-            assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.HAProxy.class);
+            assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.HaProxy.class);
         }
 
         if (sendSasl) {

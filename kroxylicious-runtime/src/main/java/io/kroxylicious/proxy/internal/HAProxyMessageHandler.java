@@ -38,7 +38,7 @@ public class HAProxyMessageHandler extends SimpleChannelInboundHandler<HAProxyMe
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, HAProxyMessage haProxyMessage) {
-        LOGGER.debug("{}: Received HAProxy message: sourceAddress={}, sourcePort={}, destinationAddress={}, destinationPort={}",
+        LOGGER.debug("{}: Received HaProxy message: sourceAddress={}, sourcePort={}, destinationAddress={}, destinationPort={}",
                 ctx.channel(),
                 haProxyMessage.sourceAddress(),
                 haProxyMessage.sourcePort(),
@@ -46,7 +46,7 @@ public class HAProxyMessageHandler extends SimpleChannelInboundHandler<HAProxyMe
                 haProxyMessage.destinationPort());
 
         // Extract context into KafkaSession and signal the state machine.
-        // The HAProxyContext deep-copies all fields, so it remains valid
+        // The HaProxyContext deep-copies all fields, so it remains valid
         // after SimpleChannelInboundHandler releases the message.
         proxyChannelStateMachine.onHAProxyMessageReceived(haProxyMessage);
 

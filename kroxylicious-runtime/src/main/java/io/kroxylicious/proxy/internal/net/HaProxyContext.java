@@ -13,7 +13,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
 /**
- * Immutable snapshot of a decoded HAProxy PROXY protocol header.
+ * Immutable snapshot of a decoded PROXY protocol header.
  * <p>
  * Captures the source/destination addresses, ports and any TLV extensions
  * from the Netty {@link HAProxyMessage} so that the reference-counted
@@ -24,9 +24,9 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
  * @param destinationAddress the destination address the client connected to
  * @param sourcePort         the original client port
  * @param destinationPort    the destination port
- * @param tlvs               HAProxy v2 TLV extensions keyed by type name, values are {@code byte[]}
+ * @param tlvs               HaProxy v2 TLV extensions keyed by type name, values are {@code byte[]}
  */
-public record HAProxyContext(
+public record HaProxyContext(
                              String sourceAddress,
                              String destinationAddress,
                              int sourcePort,
@@ -34,22 +34,22 @@ public record HAProxyContext(
                              Map<String, byte[]> tlvs) {
 
     /**
-     * Creates an {@link HAProxyContext} from a Netty {@link HAProxyMessage}.
+     * Creates an {@link HaProxyContext} from a Netty {@link HAProxyMessage}.
      * <p>
      * TLV content is deep-copied so the returned context is safe to use
      * after the message is released.
      * </p>
      *
-     * @param msg the decoded HAProxy message
+     * @param msg the decoded HaProxy message
      * @return an immutable context snapshot
      */
-    public static HAProxyContext from(HAProxyMessage msg) {
+    public static HaProxyContext from(HAProxyMessage msg) {
         Map<String, byte[]> tlvs = msg.tlvs().stream()
                 .collect(
                         Collectors.toMap(
                                 t -> t.type().name(),
                                 t -> ByteBufUtil.getBytes(t.content())));
-        return new HAProxyContext(
+        return new HaProxyContext(
                 msg.sourceAddress(),
                 msg.destinationAddress(),
                 msg.sourcePort(),

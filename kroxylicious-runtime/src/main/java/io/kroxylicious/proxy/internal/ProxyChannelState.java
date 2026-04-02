@@ -11,6 +11,7 @@ import java.util.Objects;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -19,7 +20,7 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.HAProxy;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup;
 
@@ -29,7 +30,7 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup;
 sealed interface ProxyChannelState permits
         Startup,
         ClientActive,
-        HAProxy,
+        HaProxy,
         SelectingServer,
         Connecting,
         Forwarding,
@@ -53,11 +54,11 @@ sealed interface ProxyChannelState permits
     record ClientActive() implements ProxyChannelState {
 
         /**
-         * Transition to {@link HAProxy}, because a PROXY header has been received
-         * @return The HAProxy state
+         * Transition to {@link HaProxy}, because a PROXY header has been received
+         * @return The HaProxy state
          */
-        public HAProxy toHAProxy() {
-            return new HAProxy();
+        public HaProxy toHaProxy() {
+            return new HaProxy();
         }
 
         /**
@@ -74,9 +75,9 @@ sealed interface ProxyChannelState permits
     /**
      * A PROXY protocol header has been received on the channel.
      * The connection metadata is captured in the {@link KafkaSession}'s
-     * {@link io.kroxylicious.proxy.internal.net.HAProxyContext}.
+     * {@link HaProxyContext}.
      */
-    record HAProxy()
+    record HaProxy()
             implements ProxyChannelState {
 
         /**

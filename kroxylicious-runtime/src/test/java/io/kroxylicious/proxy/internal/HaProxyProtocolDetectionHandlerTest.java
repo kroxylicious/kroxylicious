@@ -21,7 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-class HAProxyProtocolDetectionHandlerTest {
+class HaProxyProtocolDetectionHandlerTest {
 
     // PROXY protocol v2 binary signature (12 bytes)
     private static final byte[] PROXY_V2_SIGNATURE = {
@@ -36,13 +36,13 @@ class HAProxyProtocolDetectionHandlerTest {
     @Test
     void requiredModeShouldAddDecoderWhenProxyV2Detected() {
         var pcsm = mock(ProxyChannelStateMachine.class);
-        var handler = new HAProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, pcsm);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, pcsm);
         var channel = new EmbeddedChannel(handler);
 
         channel.writeInbound(Unpooled.wrappedBuffer(PROXY_V2_TCP4_HEADER));
 
         // Detection handler should have removed itself
-        assertThat(channel.pipeline().get(HAProxyProtocolDetectionHandler.class)).isNull();
+        assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
         // HAProxyMessageHandler consumes the message and forwards to state machine
         verify(pcsm).onHAProxyMessageReceived(any(HAProxyMessage.class));
@@ -51,7 +51,7 @@ class HAProxyProtocolDetectionHandlerTest {
     @Test
     void requiredModeShouldCloseChannelWhenNonProxyBytesReceived() {
         var pcsm = mock(ProxyChannelStateMachine.class);
-        var handler = new HAProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, pcsm);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, pcsm);
         var channel = new EmbeddedChannel(handler);
 
         channel.writeInbound(Unpooled.wrappedBuffer("not a proxy header at all!".getBytes()));
@@ -71,13 +71,13 @@ class HAProxyProtocolDetectionHandlerTest {
     @Test
     void autoModeShouldAddDecoderWhenProxyV2Detected() {
         var pcsm = mock(ProxyChannelStateMachine.class);
-        var handler = new HAProxyProtocolDetectionHandler(ProxyProtocolMode.AUTO, pcsm);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.AUTO, pcsm);
         var channel = new EmbeddedChannel(handler);
 
         channel.writeInbound(Unpooled.wrappedBuffer(PROXY_V2_TCP4_HEADER));
 
         // Detection handler should have removed itself
-        assertThat(channel.pipeline().get(HAProxyProtocolDetectionHandler.class)).isNull();
+        assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
         // HAProxyMessageHandler consumes the message and forwards to state machine
         verify(pcsm).onHAProxyMessageReceived(any(HAProxyMessage.class));
@@ -86,7 +86,7 @@ class HAProxyProtocolDetectionHandlerTest {
     @Test
     void autoModeShouldPassThroughWhenNonProxyBytesReceived() {
         var pcsm = mock(ProxyChannelStateMachine.class);
-        var handler = new HAProxyProtocolDetectionHandler(ProxyProtocolMode.AUTO, pcsm);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.AUTO, pcsm);
         var channel = new EmbeddedChannel(handler);
 
         byte[] kafkaBytes = "some kafka data!".getBytes();
@@ -96,7 +96,7 @@ class HAProxyProtocolDetectionHandlerTest {
         assertThat(channel.isOpen()).isTrue();
 
         // Detection handler should have removed itself
-        assertThat(channel.pipeline().get(HAProxyProtocolDetectionHandler.class)).isNull();
+        assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
         // No decoder should have been added
         assertThat(channel.pipeline().get(HAProxyMessageDecoder.class)).isNull();
@@ -113,7 +113,7 @@ class HAProxyProtocolDetectionHandlerTest {
     @Test
     void autoModeShouldNotCallStateMachineWhenNonProxyBytesReceived() {
         var pcsm = mock(ProxyChannelStateMachine.class);
-        var handler = new HAProxyProtocolDetectionHandler(ProxyProtocolMode.AUTO, pcsm);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.AUTO, pcsm);
         var channel = new EmbeddedChannel(handler);
 
         channel.writeInbound(Unpooled.wrappedBuffer("kafka bytes here".getBytes()));
@@ -124,14 +124,14 @@ class HAProxyProtocolDetectionHandlerTest {
     @Test
     void shouldPassThroughNonByteBufMessages() throws Exception {
         var pcsm = mock(ProxyChannelStateMachine.class);
-        var handler = new HAProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, pcsm);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, pcsm);
         var channel = new EmbeddedChannel(handler);
 
         String stringMsg = "hello";
         channel.writeInbound(stringMsg);
 
         // Should pass through without removal
-        assertThat(channel.pipeline().get(HAProxyProtocolDetectionHandler.class)).isNotNull();
+        assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNotNull();
         assertThat((Object) channel.readInbound()).isEqualTo(stringMsg);
     }
 
@@ -140,7 +140,7 @@ class HAProxyProtocolDetectionHandlerTest {
     @Test
     void autoModeShouldDetectProxyV1Header() {
         var pcsm = mock(ProxyChannelStateMachine.class);
-        var handler = new HAProxyProtocolDetectionHandler(ProxyProtocolMode.AUTO, pcsm);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.AUTO, pcsm);
         var channel = new EmbeddedChannel(handler);
 
         // PROXY v1 text header
@@ -148,7 +148,7 @@ class HAProxyProtocolDetectionHandlerTest {
         channel.writeInbound(Unpooled.wrappedBuffer(v1Header.getBytes()));
 
         // Should have detected PROXY header (decoder auto-removes after decoding)
-        assertThat(channel.pipeline().get(HAProxyProtocolDetectionHandler.class)).isNull();
+        assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
         // HAProxyMessageHandler consumes the message and forwards to state machine
         verify(pcsm).onHAProxyMessageReceived(any(HAProxyMessage.class));

@@ -46,7 +46,7 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxylici
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for HAProxy PROXY protocol support.
+ * Integration tests for HaProxy PROXY protocol support.
  */
 @ExtendWith(NettyLeakDetectorExtension.class)
 class ProxyProtocolIT {

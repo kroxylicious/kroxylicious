@@ -11,7 +11,7 @@ import java.util.UUID;
 
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
-import io.kroxylicious.proxy.internal.net.HAProxyContext;
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -22,12 +22,12 @@ public class KafkaSession {
     private KafkaSessionState currentState;
 
     /**
-     * The HAProxy PROXY-protocol message received for this session, if any.
+     * The HaProxy PROXY-protocol message received for this session, if any.
      * Captured by {@link HAProxyMessageHandler} before the SSL/binding handshake
      * completes so it is available when the state machine becomes active.
      */
     @Nullable
-    private HAProxyContext haProxyContext;
+    private HaProxyContext haProxyContext;
 
     public KafkaSession(KafkaSessionState currentState) {
         this(null, currentState);
@@ -58,25 +58,25 @@ public class KafkaSession {
     }
 
     /**
-     * Extract connection metadata from the HAProxy PROXY-protocol message
-     * and store it as the session's {@link HAProxyContext}.
+     * Extract connection metadata from the HaProxy PROXY-protocol message
+     * and store it as the session's {@link HaProxyContext}.
      * <p>
-     * The {@link HAProxyContext} deep-copies all fields (including TLV content)
+     * The {@link HaProxyContext} deep-copies all fields (including TLV content)
      * so it remains valid regardless of the raw message's reference-count lifecycle.
      * The raw message is <b>not</b> released here — Netty's pipeline manages that.
      * </p>
      *
-     * @param msg the decoded HAProxy message
+     * @param msg the decoded HaProxy message
      */
     public void setHAProxyContext(HAProxyMessage msg) {
-        haProxyContext = HAProxyContext.from(msg);
+        haProxyContext = HaProxyContext.from(msg);
     }
 
     /**
-     * @return the HAProxy message received for this session, or {@code null} if none.
+     * @return the HaProxy message received for this session, or {@code null} if none.
      */
     @Nullable
-    public HAProxyContext haProxyContext() {
+    public HaProxyContext haProxyContext() {
         return haProxyContext;
     }
 

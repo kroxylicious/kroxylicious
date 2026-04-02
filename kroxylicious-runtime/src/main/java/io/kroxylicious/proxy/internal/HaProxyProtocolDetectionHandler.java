@@ -27,14 +27,14 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
  * This handler removes itself from the pipeline after the first read.
  * </p>
  */
-public class HAProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapter {
+public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(HAProxyProtocolDetectionHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(HaProxyProtocolDetectionHandler.class);
 
     private final ProxyProtocolMode mode;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
 
-    public HAProxyProtocolDetectionHandler(ProxyProtocolMode mode, ProxyChannelStateMachine proxyChannelStateMachine) {
+    public HaProxyProtocolDetectionHandler(ProxyProtocolMode mode, ProxyChannelStateMachine proxyChannelStateMachine) {
         this.mode = mode;
         this.proxyChannelStateMachine = proxyChannelStateMachine;
     }
