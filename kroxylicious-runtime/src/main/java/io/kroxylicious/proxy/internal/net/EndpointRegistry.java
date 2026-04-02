@@ -242,14 +242,14 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     private void rollbackRelatedBindings(EndpointGateway virtualClusterModel, Throwable originalFailure, CompletableFuture<Endpoint> future) {
         LOGGER.atWarn()
                 .setCause(originalFailure)
-                .log("registration error");
+                .log("Registration error");
         deregisterBinding(virtualClusterModel, vcb -> vcb.endpointGateway().equals(virtualClusterModel))
                 .handle((result, throwable) -> {
                     if (throwable != null) {
                         LOGGER.atWarn()
                                 .setCause(throwable)
                                 .addKeyValue("originalError", originalFailure.getMessage())
-                                .log("secondary error occurred whilst handling a previous registration error");
+                                .log("Secondary error occurred whilst handling a previous registration error");
                     }
                     registeredVirtualClusters.remove(virtualClusterModel);
                     future.completeExceptionally(originalFailure);

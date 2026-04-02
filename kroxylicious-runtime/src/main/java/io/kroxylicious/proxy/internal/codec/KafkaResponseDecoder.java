@@ -58,7 +58,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
                 .addKeyValue("context", ctx)
                 .addKeyValue("correlation", correlation)
                 .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
-                .log("recovered correlation");
+                .log("Recovered correlation");
         int correlationId = correlation.downstreamCorrelationId();
         in.writerIndex(ri);
         in.writeInt(correlationId);

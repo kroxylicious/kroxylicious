@@ -223,7 +223,7 @@ public class ProxyChannelStateMachine {
                 .addKeyValue("state", state)
                 .addKeyValue("frontendHandler", frontendHandler)
                 .addKeyValue("backendHandler", backendHandler)
-                .log("forcing state");
+                .log("Forcing state");
         this.state = state;
         this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
@@ -331,7 +331,7 @@ public class ProxyChannelStateMachine {
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("remoteHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
                     .addKeyValue("remotePort", this.frontendHandler.remotePort())
-                    .log("allocated session ID for downstream connection");
+                    .log("Allocated session ID for downstream connection");
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
         else {
@@ -379,7 +379,7 @@ public class ProxyChannelStateMachine {
             LOGGER.atError()
                     .addKeyValue("state", state)
                     .addKeyValue("message", msg)
-                    .log("unexpected event, closing channels with no client response");
+                    .log("Unexpected event, closing channels with no client response");
             toClosed(null);
         }
     }
@@ -518,7 +518,7 @@ public class ProxyChannelStateMachine {
                     .addKeyValue("maxFrameSizeBytes", e.getMaxFrameSizeBytes())
                     .addKeyValue("receivedFrameSizeBytes", e.getReceivedFrameSizeBytes())
                     .addKeyValue("hint", tlsHint)
-                    .log("received over-sized frame from client, other possible causes are: an oversized Kafka frame, or something unexpected like an HTTP request");
+                    .log("Received over-sized frame from client, other possible causes are: an oversized Kafka frame, or something unexpected like an HTTP request");
             errorCodeEx = Errors.INVALID_REQUEST.exception();
         }
         else {
@@ -627,7 +627,7 @@ public class ProxyChannelStateMachine {
                 .addKeyValue("remote", connecting.remote())
                 .addKeyValue("clientHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
                 .addKeyValue("clientPort", this.frontendHandler.remotePort())
-                .log("upstream connection established for client");
+                .log("Upstream connection established for client");
     }
 
     @SuppressWarnings("java:S5738")
@@ -749,7 +749,7 @@ public class ProxyChannelStateMachine {
         LOGGER.atTrace()
                 .addKeyValue("stateMachine", this)
                 .addKeyValue("targetState", state)
-                .log("transitioning to state");
+                .log("Transitioning to state");
         this.state = state;
     }
 

@@ -275,7 +275,7 @@ public class KafkaProxyFrontendHandler
         Channel clientChannel = clientCtx().channel();
         LOGGER.atTrace()
                 .addKeyValue("channelId", clientChannel.id())
-                .log("channelActive");
+                .log("ChannelActive");
         // install filters before first read
         List<FilterAndInvoker> filters = buildFilters();
         addFiltersToPipeline(filters, clientCtx().pipeline(), clientCtx().channel());
@@ -348,7 +348,7 @@ public class KafkaProxyFrontendHandler
         LOGGER.atDebug()
                 .addKeyValue("sessionId", this.proxyChannelStateMachine.sessionId())
                 .addKeyValue("remote", remote)
-                .log("connecting to backend broker");
+                .log("Connecting to backend broker");
         this.proxyChannelStateMachine.onInitiateConnect(remote);
     }
 
@@ -365,7 +365,7 @@ public class KafkaProxyFrontendHandler
         LOGGER.atDebug()
                 .addKeyValue("sessionId", this.proxyChannelStateMachine.sessionId())
                 .addKeyValue("remote", remote)
-                .log("connecting to outbound");
+                .log("Connecting to outbound");
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
         Channel outboundChannel = serverTcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
@@ -397,13 +397,13 @@ public class KafkaProxyFrontendHandler
 
         LOGGER.atDebug()
                 .addKeyValue("pipeline", pipeline)
-                .log("configured broker channel pipeline");
+                .log("Configured broker channel pipeline");
 
         serverTcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
                 LOGGER.atTrace()
                         .addKeyValue("channelId", clientCtx().channel().id())
-                        .log("outbound connected");
+                        .log("Outbound connected");
                 // This branch does not cause the transition to Connected:
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }

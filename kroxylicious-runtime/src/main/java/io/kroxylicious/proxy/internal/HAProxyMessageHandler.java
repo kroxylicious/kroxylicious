@@ -44,7 +44,7 @@ public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
                     .addKeyValue("sourcePort", haProxyMessage.sourcePort())
                     .addKeyValue("destinationAddress", haProxyMessage.destinationAddress())
                     .addKeyValue("destinationPort", haProxyMessage.destinationPort())
-                    .log("received HAProxy message");
+                    .log("Received HAProxy message");
             // Forward to state machine for processing - do not propagate to filters
             proxyChannelStateMachine.onClientRequest(haProxyMessage);
         }

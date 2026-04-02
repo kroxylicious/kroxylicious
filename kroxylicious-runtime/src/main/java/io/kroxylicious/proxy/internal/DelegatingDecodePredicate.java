@@ -45,7 +45,7 @@ class DelegatingDecodePredicate implements DecodePredicate {
     public void setDelegate(DecodePredicate delegate) {
         LOGGER.atDebug()
                 .addKeyValue("delegate", delegate)
-                .log("setting delegate");
+                .log("Setting delegate");
         this.delegate = delegate;
     }
 

@@ -64,14 +64,14 @@ public class CorrelationManager {
         LOGGER.atTrace()
                 .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
                 .addKeyValue("downstreamCorrelationId", downstreamCorrelationId)
-                .log("allocated upstream id for downstream id");
+                .log("Allocated upstream id for downstream id");
         if (hasResponse) {
             Correlation existing = this.brokerRequests.put(upstreamCorrelationId,
                     new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise));
             if (existing != null) {
                 LOGGER.atError()
                         .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
-                        .log("duplicate upstream correlation id");
+                        .log("Duplicate upstream correlation id");
             }
         }
         return upstreamCorrelationId;

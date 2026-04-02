@@ -63,7 +63,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                 .addKeyValue("context", ctx)
                 .addKeyValue("apiKey", apiKey)
                 .addKeyValue("downstreamCorrelationId", correlationId)
-                .log("received request");
+                .log("Received request");
 
         var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
 
@@ -72,14 +72,14 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                 .addKeyValue("apiVersion", apiVersion)
                 .addKeyValue("decodeRequest", decodeRequest)
                 .addKeyValue("predicate", decodePredicate)
-                .log("decode request decision");
+                .log("Decode request decision");
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
         LOGGER.atDebug()
                 .addKeyValue("apiKey", apiKey)
                 .addKeyValue("apiVersion", apiVersion)
                 .addKeyValue("decodeResponse", decodeResponse)
                 .addKeyValue("predicate", decodePredicate)
-                .log("decode response decision");
+                .log("Decode response decision");
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
 
         final RequestFrame frame;
