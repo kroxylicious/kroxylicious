@@ -46,7 +46,10 @@ class KafkaProxyPrimaryToKafkaProtocolFilterSecondaryMapper implements PrimaryTo
                 .flatMap(cluster -> Optional.ofNullable(cluster.getSpec().getFilterRefs()).orElse(List.of()).stream())
                 .map(filter -> new ResourceID(filter.getName(), namespace(proxy)))
                 .collect(Collectors.toSet());
-        LOGGER.debug("KafkaProxy {} has references to filters {}", ResourceID.fromResource(proxy), filterReferences);
+        LOGGER.atDebug()
+                .addKeyValue("kafkaProxy", ResourceID.fromResource(proxy))
+                .addKeyValue("filterReferences", filterReferences)
+                .log("KafkaProxy has references to filters");
         return filterReferences;
     }
 }
