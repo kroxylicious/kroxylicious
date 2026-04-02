@@ -146,15 +146,15 @@ class FilterChainFactoryTest {
             filterChainFactory.createFilters(context, nameFilterDefinitions);
             assertThat(logCaptor.getLogEvents())
                     .hasSize(2)
-                    .allSatisfy(log -> {
-                        assertThat(log.getMessage()).isEqualTo(
+                    .allSatisfy(logEvent -> {
+                        assertThat(logEvent.getMessage()).isEqualTo(
                                 "FilterDefinition created a Filter instance which implements a deprecated method. This Filter implementation must be updated as the method will be removed in a future release");
-                        assertThat(log.getKeyValuePairs())
+                        assertThat(logEvent.getKeyValuePairs())
                                 .contains(Map.entry("filterName", "myFilterDef"))
                                 .contains(Map.entry("filterDefinitionType", "io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory"))
                                 .contains(Map.entry("filterClass", DeprecatedMethodsFilterFactory.TestFilterImpl.class));
                     })
-                    .extracting(log -> log.getKeyValuePairs().stream()
+                    .extracting(logEvent -> logEvent.getKeyValuePairs().stream()
                             .filter(e -> e.getKey().equals("method"))
                             .map(Map.Entry::getValue)
                             .findFirst()
