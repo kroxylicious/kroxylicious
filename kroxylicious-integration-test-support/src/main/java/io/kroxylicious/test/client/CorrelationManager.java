@@ -45,7 +45,9 @@ public class CorrelationManager {
                                  int correlationId, CompletableFuture<SequencedResponse> responseFuture, short responseApiVersion) {
         Correlation existing = this.brokerRequests.put(correlationId, new Correlation(apiKey, apiVersion, responseFuture, responseApiVersion));
         if (existing != null) {
-            LOGGER.error("Duplicate upstream correlation id {}", correlationId);
+            LOGGER.atError()
+                    .addKeyValue("upstreamCorrelationId", correlationId)
+                    .log("Duplicate correlation");
         }
     }
 

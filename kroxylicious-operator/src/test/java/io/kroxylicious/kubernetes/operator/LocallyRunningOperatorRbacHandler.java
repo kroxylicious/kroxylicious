@@ -139,16 +139,22 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
         try (var adminClient = OperatorTestUtils.kubeClient()) {
             // The test framework itself needs these roles.
             clusterRoles.forEach(r -> {
-                LOGGER.trace("Creating/patching: {}", name(r));
+                LOGGER.atTrace()
+                        .addKeyValue("resourceName", name(r))
+                        .log("Creating/patching");
                 adminClient.resource(r).createOr(EditReplacePatchable::patch);
             });
 
             roleBindings.forEach(roleBinding -> {
-                LOGGER.trace("Creating role binding: {}", name(roleBinding));
+                LOGGER.atTrace()
+                        .addKeyValue("resourceName", name(roleBinding))
+                        .log("Creating role binding");
                 adminClient.resource(roleBinding).createOr(EditReplacePatchable::patch);
             });
 
-            LOGGER.info("Applied Operator RBAC rules rewritten in terms of user {}.", impersonatedUser);
+            LOGGER.atInfo()
+                    .addKeyValue("user", impersonatedUser)
+                    .log("Applied Operator RBAC rules rewritten in terms of user");
         }
     }
 

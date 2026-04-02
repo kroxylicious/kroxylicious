@@ -40,7 +40,7 @@ public class Authorization implements FilterFactory<AuthorizationConfig, Authori
     public Authorizer initialize(FilterFactoryContext context,
                                  AuthorizationConfig authorizationConfig)
             throws PluginConfigurationException {
-        LOGGER.warn("Authorization is an experimental Filter not yet recommended for production environments");
+        LOGGER.atWarn().log("Authorization is an experimental Filter not yet recommended for production environments");
         var configuration = Plugins.requireConfig(this, authorizationConfig);
         this.authorizerService = context.pluginInstance(AuthorizerService.class, configuration.authorizer());
         ((AuthorizerService) authorizerService).initialize(configuration.authorizerConfig());

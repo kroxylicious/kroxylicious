@@ -70,11 +70,20 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             short apiVersion = correlation.apiVersion();
             var accessor = new ByteBufAccessorImpl(in);
             short headerVersion = apiKey.responseHeaderVersion(apiVersion);
-            log().trace("{}: Header version: {}", ctx, headerVersion);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("headerVersion", headerVersion)
+                    .log("Read");
             ResponseHeaderData header = readHeader(headerVersion, accessor);
-            log().trace("{}: Header: {}", ctx, header);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("header", header)
+                    .log("Read");
             ApiMessageVersion body = decodeBody(apiKey, apiVersion, accessor);
-            log().trace("{}: Body: {}", ctx, body);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("body", body)
+                    .log("Read");
             Filter recipient = correlation.recipient();
             if (recipient == null) {
                 frame = new DecodedResponseFrame<>(body.apiVersion(), correlationId, header, body.apiMessage());
@@ -86,7 +95,9 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         else {
             frame = opaqueFrame(correlation.apiKey(), correlation.apiVersion(), in, correlationId, length);
         }
-        log().trace("{}: Frame: {}", ctx, frame);
+        log().atTrace()
+                .addKeyValue("ctx", ctx)
+                .log("Result frame");
         return frame;
     }
 

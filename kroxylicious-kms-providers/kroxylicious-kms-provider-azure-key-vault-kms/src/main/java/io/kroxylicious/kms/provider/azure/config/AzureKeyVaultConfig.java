@@ -73,7 +73,9 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
             throw new IllegalArgumentException("keyVaultHost is blank");
         }
         if (!kvScheme().equals("https")) {
-            LOGGER.warn("Key vault scheme {} is not https, production installations should use a secure endpoint", keyVaultScheme());
+            LOGGER.atWarn()
+                    .addKeyValue("scheme", keyVaultScheme())
+                    .log("Key vault scheme is not https, production installations should use a secure endpoint");
         }
     }
 

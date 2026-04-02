@@ -507,7 +507,7 @@ public class KafkaProxyReconciler implements
                             .addKeyValue("resource", ResourcesUtil.slug(proxy))
                             .addKeyValue("namespace", ResourcesUtil.namespace(proxy))
                             .log("No spec, please add an empty one. "
-                            + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
+                                    + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
                 }
             }
             else {

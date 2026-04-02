@@ -44,7 +44,11 @@ class ApiVersionMaxVersionLimiter implements ApiVersionsResponseTransformer {
                                         + limit + " imposed by this transformer");
                     }
                     if (version.maxVersion() > limit) {
-                        logger.debug("Downgrading max version {} for {} to {}", version.maxVersion(), apiKeyLimit.getKey().name(), limit);
+                        logger.atDebug()
+                                .addKeyValue("apiKey", apiKeyLimit.getKey().name())
+                                .addKeyValue("fromVersion", version.maxVersion())
+                                .addKeyValue("toVersion", limit)
+                                .log("Downgrading max version");
                         version.setMaxVersion(limit);
                     }
                 }

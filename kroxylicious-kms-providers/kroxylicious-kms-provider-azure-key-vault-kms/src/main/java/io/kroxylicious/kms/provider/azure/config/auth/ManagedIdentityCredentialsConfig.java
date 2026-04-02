@@ -43,11 +43,13 @@ public record ManagedIdentityCredentialsConfig(@JsonProperty(required = true) St
         Objects.requireNonNull(targetResource, "targetResource cannot be null");
         if (identityServiceEndpoint != null) {
             if (!identityServiceEndpoint.getScheme().equalsIgnoreCase("http")) {
-                LOGGER.warn(
-                        "identityServiceEndpoint {} does not begin with http://, production installations should not use HTTPS as Azure Instance Metadata Service (IMDS) endpoint is not TLS enabled",
-                        identityServiceEndpoint);
+                LOGGER.atWarn()
+                        .addKeyValue("endpoint", identityServiceEndpoint)
+                        .log("Endpoint does not begin with http://, production installations should not use HTTPS as Azure Instance Metadata Service (IMDS) endpoint is not TLS enabled");
             }
-            LOGGER.warn("Identity service endpoint {} has been configured, this property should not be used in production", identityServiceEndpoint);
+            LOGGER.atWarn()
+                    .addKeyValue("endpoint", identityServiceEndpoint)
+                    .log("Identity service endpoint has been configured, this property should not be used in production");
         }
     }
 

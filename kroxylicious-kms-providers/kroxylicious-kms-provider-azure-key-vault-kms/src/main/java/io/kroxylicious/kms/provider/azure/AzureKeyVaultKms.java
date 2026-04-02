@@ -145,7 +145,9 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
      */
     @Override
     public CompletionStage<WrappingKey> resolveAlias(String alias) {
-        LOGGER.debug("Resolving alias {}", alias);
+        LOGGER.atDebug()
+                .addKeyValue("alias", alias)
+                .log("Resolving");
         return client.getKey(encryptingKeyVaultName, alias).handle((response, throwable) -> {
             if (throwable != null) {
                 if (isInstanceOfOrCompletionExceptionWithCauseSatisfying(throwable, UnexpectedHttpStatusCodeException.class, e -> e.getStatusCode() == 404)) {
@@ -157,7 +159,10 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
                 throw new KmsException("get key returned null for: '" + alias + "'");
             }
             else {
-                LOGGER.debug("Resolved alias {} to {}", alias, response);
+                LOGGER.atDebug()
+                        .addKeyValue("alias", alias)
+                        .addKeyValue("response", response)
+                        .log("Resolved");
                 JsonWebKey key = response.key();
                 SupportedKeyType keyType = validateKeyAndExtractType(alias, response, key);
                 return WrappingKey.parse(encryptingKeyVaultName, alias, response.key().keyId(), keyType);
