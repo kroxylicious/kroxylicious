@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.bootstrap;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -143,10 +144,24 @@ class FilterChainFactoryTest {
         try (var filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions)) {
             var context = new NettyFilterContext(eventLoop, pfr);
             filterChainFactory.createFilters(context, nameFilterDefinitions);
-            assertThat(logCaptor.getWarnLogs())
-                    .contains(
-                            "FilterDefinition created a Filter instance which implements a deprecated method. This Filter implementation must be updated as the method will be removed in a future release")
-                    .hasSize(2); // One for onRequest, one for onResponse
+            assertThat(logCaptor.getLogEvents())
+                    .hasSize(2)
+                    .allSatisfy(log -> {
+                        assertThat(log.getMessage()).isEqualTo(
+                                "FilterDefinition created a Filter instance which implements a deprecated method. This Filter implementation must be updated as the method will be removed in a future release");
+                        assertThat(log.getKeyValuePairs())
+                                .contains(Map.entry("filterName", "myFilterDef"))
+                                .contains(Map.entry("filterDefinitionType", "io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory"))
+                                .contains(Map.entry("filterClass", DeprecatedMethodsFilterFactory.TestFilterImpl.class));
+                    })
+                    .extracting(log -> log.getKeyValuePairs().stream()
+                            .filter(e -> e.getKey().equals("method"))
+                            .map(Map.Entry::getValue)
+                            .findFirst()
+                            .orElse(null))
+                    .containsExactlyInAnyOrder(
+                            "onRequest(ApiKeys, RequestHeaderData, ApiMessage, FilterContext)",
+                            "onResponse(ApiKeys, ResponseHeaderData, ApiMessage, FilterContext)");
         }
     }
 
