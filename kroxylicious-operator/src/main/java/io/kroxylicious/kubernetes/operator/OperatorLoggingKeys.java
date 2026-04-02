@@ -9,9 +9,9 @@ package io.kroxylicious.kubernetes.operator;
 /**
  * Common keys for use with structured logging.
  */
-public class LoggingKeys {
+public class OperatorLoggingKeys {
 
-    private LoggingKeys() {
+    private OperatorLoggingKeys() {
     }
 
     public static final String NAMESPACE = "namespace";
