@@ -17,6 +17,7 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.LoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -27,12 +28,11 @@ public interface MetadataChecksumGenerator {
     String NO_CHECKSUM_SPECIFIED = "";
 
     default void appendMetadata(HasMetadata entity) {
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.atDebug()
-                    .addKeyValue("resource", ResourcesUtil.slug(entity))
-                    .addKeyValue("namespace", ResourcesUtil.namespace(entity))
-                    .log("AppendMetadata for entity");
-        }
+        LOGGER.atDebug()
+                .addKeyValue(LoggingKeys.KIND, ResourcesUtil.kind(entity))
+                .addKeyValue(LoggingKeys.NAME, ResourcesUtil.name(entity))
+                .addKeyValue(LoggingKeys.NAMESPACE, ResourcesUtil.namespace(entity))
+                .log("AppendMetadata for entity");
         ObjectMeta objectMeta = entity.getMetadata();
         appendString(Objects.requireNonNull(objectMeta.getUid(), KubernetesResourceUtil.getName(objectMeta) + " is missing a UID"));
         appendVersionSpecifier(objectMeta);

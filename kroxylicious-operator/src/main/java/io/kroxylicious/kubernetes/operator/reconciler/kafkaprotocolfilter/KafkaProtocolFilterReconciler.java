@@ -37,6 +37,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.LoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
@@ -197,8 +198,8 @@ public class KafkaProtocolFilterReconciler implements
 
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
-                    .addKeyValue("namespace", namespace(filter))
-                    .addKeyValue("name", name(filter))
+                    .addKeyValue(LoggingKeys.NAMESPACE, namespace(filter))
+                    .addKeyValue(LoggingKeys.NAME, name(filter))
                     .log("Completed reconciliation");
         }
         return UpdateControl.patchResourceAndStatus(patch);
@@ -214,9 +215,9 @@ public class KafkaProtocolFilterReconciler implements
                 .patchStatus(statusFactory.newUnknownConditionStatusPatch(filter, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
-                    .addKeyValue("namespace", namespace(filter))
-                    .addKeyValue("name", name(filter))
-                    .addKeyValue("error", e.toString())
+                    .addKeyValue(LoggingKeys.NAMESPACE, namespace(filter))
+                    .addKeyValue(LoggingKeys.NAME, name(filter))
+                    .addKeyValue(LoggingKeys.ERROR, e.toString())
                     .log("Completed reconciliation with error");
         }
         return uc;

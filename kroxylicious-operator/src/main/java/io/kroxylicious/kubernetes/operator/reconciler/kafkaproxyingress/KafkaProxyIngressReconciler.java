@@ -28,6 +28,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.operator.LoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
@@ -104,8 +105,8 @@ public class KafkaProxyIngressReconciler implements
 
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
-                    .addKeyValue("namespace", namespace(ingress))
-                    .addKeyValue("name", name(ingress))
+                    .addKeyValue(LoggingKeys.NAMESPACE, namespace(ingress))
+                    .addKeyValue(LoggingKeys.NAME, name(ingress))
                     .log("Completed reconciliation");
         }
 
@@ -164,9 +165,9 @@ public class KafkaProxyIngressReconciler implements
                 .patchStatus(statusFactory.newUnknownConditionStatusPatch(ingress, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
-                    .addKeyValue("namespace", namespace(ingress))
-                    .addKeyValue("name", name(ingress))
-                    .addKeyValue("error", e.toString())
+                    .addKeyValue(LoggingKeys.NAMESPACE, namespace(ingress))
+                    .addKeyValue(LoggingKeys.NAME, name(ingress))
+                    .addKeyValue(LoggingKeys.ERROR, e.toString())
                     .log("Completed reconciliation with error");
         }
         return uc;

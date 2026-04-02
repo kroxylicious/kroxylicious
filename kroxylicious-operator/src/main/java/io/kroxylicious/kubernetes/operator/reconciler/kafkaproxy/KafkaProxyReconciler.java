@@ -66,6 +66,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.operator.DeploymentReadyCondition;
+import io.kroxylicious.kubernetes.operator.LoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
@@ -452,8 +453,8 @@ public class KafkaProxyReconciler implements
         var uc = UpdateControl.patchStatus(statusFactory.newTrueConditionStatusPatch(primary, Condition.Type.Ready, readyReplicas));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
-                    .addKeyValue("namespace", namespace(primary))
-                    .addKeyValue("name", name(primary))
+                    .addKeyValue(LoggingKeys.NAMESPACE, namespace(primary))
+                    .addKeyValue(LoggingKeys.NAME, name(primary))
                     .log("Completed reconciliation");
         }
         return uc;
@@ -469,8 +470,8 @@ public class KafkaProxyReconciler implements
         if (e instanceof StaleReferentStatusException || e instanceof OperatorException && e.getCause() instanceof StaleReferentStatusException) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.atDebug()
-                        .addKeyValue("namespace", namespace(proxy))
-                        .addKeyValue("name", name(proxy))
+                        .addKeyValue(LoggingKeys.NAMESPACE, namespace(proxy))
+                        .addKeyValue(LoggingKeys.NAME, name(proxy))
                         .setCause(e)
                         .log("Completed reconciliation with stale referent");
             }
@@ -479,9 +480,9 @@ public class KafkaProxyReconciler implements
         var uc = ErrorStatusUpdateControl.patchStatus(statusFactory.newUnknownConditionStatusPatch(proxy, Condition.Type.Ready, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
-                    .addKeyValue("namespace", namespace(proxy))
-                    .addKeyValue("name", name(proxy))
-                    .addKeyValue("error", e.toString())
+                    .addKeyValue(LoggingKeys.NAMESPACE, namespace(proxy))
+                    .addKeyValue(LoggingKeys.NAME, name(proxy))
+                    .addKeyValue(LoggingKeys.ERROR, e.toString())
                     .log("Completed reconciliation with error");
         }
         return uc;
@@ -504,8 +505,9 @@ public class KafkaProxyReconciler implements
             if (proxy.getSpec() == null) {
                 if (resourcesWithAbsentSpecs.asMap().putIfAbsent(uid, true) == null) {
                     log.atWarn()
-                            .addKeyValue("resource", ResourcesUtil.slug(proxy))
-                            .addKeyValue("namespace", ResourcesUtil.namespace(proxy))
+                            .addKeyValue(LoggingKeys.KIND, ResourcesUtil.kind(proxy))
+                            .addKeyValue(LoggingKeys.NAME, ResourcesUtil.name(proxy))
+                            .addKeyValue(LoggingKeys.NAMESPACE, ResourcesUtil.namespace(proxy))
                             .log("No spec, please add an empty one. "
                                     + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
                 }
