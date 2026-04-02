@@ -503,8 +503,11 @@ public class KafkaProxyReconciler implements
         resourceUid.ifPresent(uid -> {
             if (proxy.getSpec() == null) {
                 if (resourcesWithAbsentSpecs.asMap().putIfAbsent(uid, true) == null) {
-                    log.warn("{} has no spec, please add an empty one. "
-                            + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.", ResourcesUtil.namespacedSlug(proxy));
+                    log.atWarn()
+                            .addKeyValue("resource", ResourcesUtil.slug(proxy))
+                            .addKeyValue("namespace", ResourcesUtil.namespace(proxy))
+                            .log("No spec, please add an empty one. "
+                            + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
                 }
             }
             else {
