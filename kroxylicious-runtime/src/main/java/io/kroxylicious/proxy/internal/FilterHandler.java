@@ -592,10 +592,6 @@ public class FilterHandler extends ChannelDuplexHandler {
                 .log("Channel closed"));
     }
 
-    private String channelDescriptor() {
-        return ctx.channel().toString();
-    }
-
     @SuppressWarnings("unchecked")
     private void completeInternalResponse(InternalResponseFrame<?> decodedFrame) {
         CompletableFuture<ApiMessage> p = (CompletableFuture<ApiMessage>) decodedFrame
@@ -636,7 +632,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public String channelDescriptor() {
-            return FilterHandler.this.channelDescriptor();
+            return Objects.requireNonNull(ctx).channel().toString();
         }
 
         @Override
