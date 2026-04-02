@@ -116,7 +116,9 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
     private static CompletionStage<RequestFilterResult> maybeRespondWithUnknownTopicId(RequestHeaderData header, ProduceRequestData request, FilterContext context,
                                                                                        TopicNameMapping topicNameMapping) {
         if (request.acks() == 0) {
-            LOGGER.debug("a topic id lookup failed for zero-ack produce request, dropping request: {}", topicNameMapping.failures());
+            LOGGER.atDebug()
+                    .addKeyValue("failures", topicNameMapping.failures())
+                    .log("Topic ID lookup failed for zero-ack produce request, dropping request");
             return context.requestFilterResultBuilder().drop().completed();
         }
         else {

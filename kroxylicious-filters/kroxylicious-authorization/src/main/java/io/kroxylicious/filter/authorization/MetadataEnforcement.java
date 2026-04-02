@@ -140,7 +140,10 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
                     var notCreateMetadataResponse = (MetadataResponseData) notCreateResponse;
                     Errors error = Errors.forCode(notCreateMetadataResponse.errorCode());
                     if (error != Errors.NONE) {
-                        LOGGER.info("{}: Internal metadata response from broker has error code {}", context.sessionId(), error);
+                        LOGGER.atInfo()
+                                .addKeyValue("sessionId", context.sessionId())
+                                .addKeyValue("errorCode", error)
+                                .log("Internal metadata response from broker has error code");
                         return CompletableFuture.failedStage(new AuthorizationException("Internal metadata request failed with " + error));
                     }
                     var responseTopicsByExistence = notCreateMetadataResponse.topics().stream()
