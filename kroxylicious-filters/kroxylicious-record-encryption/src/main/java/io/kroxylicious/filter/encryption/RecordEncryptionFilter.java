@@ -174,8 +174,9 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                     }).toList();
                     return RecordEncryptionUtil.join(futures).thenApply(x -> request);
                 }).exceptionallyCompose(throwable -> {
-                    LOGGER.atWarn().setMessage("failed to encrypt records, cause message: {}").addArgument(throwable.getMessage())
-                            .setCause(LOGGER.isDebugEnabled() ? throwable : null).log();
+                    LOGGER.atWarn().addKeyValue("error", throwable.getMessage())
+                            .setCause(LOGGER.isDebugEnabled() ? throwable : null)
+                            .log("failed to encrypt records");
                     return CompletableFuture.failedStage(throwable);
                 });
     }
@@ -263,10 +264,12 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
     }
 
     private static CompletionStage<ResponseFilterResult> logAndCreateFailedStage(Throwable throwable) {
-        LOGGER.atWarn().setMessage(LOGGER.isDebugEnabled()
-                ? "Failed to process records, connection will be closed, cause message: {}."
-                : "Failed to process records, connection will be closed, cause message: {}. Raise log level to DEBUG to see the stack.")
-                .addArgument(throwable.getMessage()).setCause(LOGGER.isDebugEnabled() ? throwable : null).log();
+        LOGGER.atWarn()
+                .addKeyValue("error", throwable.getMessage())
+                .setCause(LOGGER.isDebugEnabled() ? throwable : null)
+                .log(LOGGER.isDebugEnabled()
+                ? "Failed to process records, connection will be closed"
+                : "Failed to process records, connection will be closed. Raise log level to DEBUG to see the stack.");
         return CompletableFuture.failedStage(throwable);
     }
 
@@ -349,17 +352,19 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                     setRecords.apply(partitionData)).exceptionallyCompose(t -> {
                         var cause = t.getCause();
                         if (cause instanceof UnknownKeyException) {
-                            LOGGER.atWarn().setMessage(LOGGER.isDebugEnabled()
-                                    ? "Failed to decrypt record in topic-partition {}-{} owing to key not found condition. "
-                                            + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or "
-                                            + "'Request illegally referred to resource that does not exist' (librdkafka). " + "Cause message: {}."
-                                    : "Failed to decrypt record in topic-partition {}-{} owing to key not found condition. "
-                                            + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or "
-                                            + "'Request illegally referred to resource that does not exist' (librdkafka). " + "Cause message: {}. "
-                                            + "Raise log level to DEBUG to see the stack.")
-                                    .addArgument(topicName)
-                                    .addArgument(() -> partitionIndexExtractor.applyAsInt(partitionData))
-                                    .addArgument(cause.getMessage()).setCause(LOGGER.isDebugEnabled() ? cause : null).log();
+                            String msgPrefix = "Failed to decrypt record owing to key not found condition. "
+                                    + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). "
+                                    + "Client may see a message like "
+                                    + "'Unexpected error code 91 while fetching at offset' (java) "
+                                    + "or 'Request illegally referred to resource that does not exist' (librdkafka).";
+                            LOGGER.atWarn()
+                                    .addKeyValue("topicName", topicName)
+                                    .addKeyValue("partition", () -> partitionIndexExtractor.applyAsInt(partitionData))
+                                    .addKeyValue("error", cause.getMessage())
+                                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                                    .log(LOGGER.isDebugEnabled()
+                                    ? msgPrefix
+                                    : msgPrefix + " Raise log level to DEBUG to see the stack.");
                             errorsConsumer.apply(partitionData, Errors.RESOURCE_NOT_FOUND.code());
                         }
                         return CompletableFuture.failedFuture(t);

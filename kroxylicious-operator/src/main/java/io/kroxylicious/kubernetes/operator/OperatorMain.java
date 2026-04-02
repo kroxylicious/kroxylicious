@@ -130,17 +130,16 @@ public class OperatorMain {
         operator.start();
         var versionInfo = VersionInfo.VERSION_INFO;
         LOGGER.atInfo()
-                .setMessage("Platform: Java {}({}) running on {} {}/{}")
-                .addArgument(Runtime::version)
-                .addArgument(() -> System.getProperty("java.vendor"))
-                .addArgument(() -> System.getProperty("os.name"))
-                .addArgument(() -> System.getProperty("os.version"))
-                .addArgument(() -> System.getProperty("os.arch"))
-                .log();
-        LOGGER.atInfo().setMessage("Operator started (version: {}, commit id: {})")
-                .addArgument(versionInfo::version)
-                .addArgument(versionInfo::commitId)
-                .log();
+                .addKeyValue("javaVersion", Runtime::version)
+                .addKeyValue("javaVendor", () -> System.getProperty("java.vendor"))
+                .addKeyValue("osName", () -> System.getProperty("os.name"))
+                .addKeyValue("osVersion", () -> System.getProperty("os.version"))
+                .addKeyValue("osArch", () -> System.getProperty("os.arch"))
+                .log("Java platform");
+        LOGGER.atInfo()
+                .addKeyValue("version", versionInfo::version)
+                .addKeyValue("commitId", versionInfo::commitId)
+                .log("Operator started");
         versionInfoMetric(versionInfo);
 
         Optional.ofNullable(watchedNamespaces)
