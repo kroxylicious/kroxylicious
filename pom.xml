@@ -1364,6 +1364,27 @@
             </build>
         </profile>
         <profile>
+            <id>errorprone-fail-on-warnings</id>
+            <activation>
+                <property>
+                    <name>failOnWarnings</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <compilerArgs combine.children="append">
+                                <arg>-Werror</arg>
+                            </compilerArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <!-- note CI is deliberately defined after qa so that it can replace the formatter config plugin -->
             <!-- see https://maven.apache.org/guides/introduction/introduction-to-profiles.html#profile-order -->
             <id>ci</id>
