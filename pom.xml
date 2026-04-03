@@ -98,7 +98,7 @@
         <json-unit-assertj.version>5.1.0</json-unit-assertj.version>
 
         <!-- Error Prone -->
-        <errorprone.version>2.32.0</errorprone.version>
+        <errorprone.version>2.48.0</errorprone.version>
         <errorprone.skip>false</errorprone.skip>
     </properties>
 
@@ -1318,12 +1318,25 @@
                             </execution>
                         </executions>
                     </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>errorprone-jdk-compatible</id>
+            <activation>
+                <!-- Activate Error Prone on JDK 17+ -->
+                <!-- JDK 25+ requires the should-stop compiler flag due to javac policy change -->
+                <jdk>[17,)</jdk>
+            </activation>
+            <build>
+                <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-compiler-plugin</artifactId>
                         <configuration>
                             <compilerArgs combine.children="append">
                                 <arg>-XDcompilePolicy=simple</arg>
+                                <arg>--should-stop=ifError=FLOW</arg>
                                 <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-sources/.*</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
