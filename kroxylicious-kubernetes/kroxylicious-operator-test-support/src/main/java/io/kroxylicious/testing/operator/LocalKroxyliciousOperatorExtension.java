@@ -84,9 +84,12 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     private final List<Class<? extends HasMetadata>> additionalCleanupTypes;
     private final Runnable imagePreloader;
 
-    // mutable per-class state
+    // mutable per-class state — set in beforeAll(), null before lifecycle starts
+    @Nullable
     private LocallyRunningOperatorRbacHandler rbacHandler;
+    @Nullable
     private LocallyRunOperatorExtension localOperatorExtension;
+    @Nullable
     private LocallyRunningOperatorRbacHandler.TestActor testActor;
 
     private LocalKroxyliciousOperatorExtension(Builder builder) {
