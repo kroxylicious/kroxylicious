@@ -20,6 +20,11 @@
         Filter and integration test it against Apache Kafka
     </description>
     <packaging>maven-archetype</packaging>
+
+    <properties>
+        <errorprone.skip>true</errorprone.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

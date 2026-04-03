@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.BiFunction;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
@@ -334,7 +334,7 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
 
     private <T> CompletionStage<List<T>> maybeDecodePartitions(String topicName, List<T> partitions, FilterContext context, Function<T, BaseRecords> recordExtractor,
                                                                ToIntFunction<T> partitionIndexExtractor, Function<T, Function<MemoryRecords, T>> setRecords,
-                                                               BiFunction<T, Short, T> errorsConsumer) {
+                                                               BiConsumer<T, Short> errorsConsumer) {
         List<CompletionStage<T>> result = new ArrayList<>(partitions.size());
         for (T partitionData : partitions) {
             BaseRecords records = recordExtractor.apply(partitionData);
@@ -351,7 +351,7 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                                     + "Raise log level to DEBUG to see the stack.").addArgument(topicName)
                                     .addArgument(() -> partitionIndexExtractor.applyAsInt(partitionData))
                                     .addArgument(cause.getMessage()).setCause(log.isDebugEnabled() ? cause : null).log();
-                            errorsConsumer.apply(partitionData, Errors.RESOURCE_NOT_FOUND.code());
+                            errorsConsumer.accept(partitionData, Errors.RESOURCE_NOT_FOUND.code());
                         }
                         return CompletableFuture.failedFuture(t);
                     });

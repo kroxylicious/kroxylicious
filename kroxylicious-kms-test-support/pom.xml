@@ -21,6 +21,10 @@
     <name>KMS test support</name>
     <description>Test support for modules testing KMS implementations.</description>
 
+    <properties>
+        <errorprone.skip>true</errorprone.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

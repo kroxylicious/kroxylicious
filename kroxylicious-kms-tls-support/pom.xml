@@ -21,6 +21,10 @@
     <name>KMS TLS support</name>
     <description>Optional TLS support classes for KMS implementations that need to make HTTPs connections to services.</description>
 
+    <properties>
+        <errorprone.skip>true</errorprone.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

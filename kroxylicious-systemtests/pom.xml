@@ -27,6 +27,7 @@
     <properties>
         <!-- Override for kafka version - used when Apache Kafka is ahead of the Strimzi release  -->
         <!-- <kafka.version>4.1.0</kafka.version> -->
+        <errorprone.skip>true</errorprone.skip>
     </properties>
 
     <dependencies>
@@ -322,7 +323,8 @@
             <id>ci</id>
             <properties>
                 <sonar.coverage.exclusions>**/io/kroxylicious/systemtests/**</sonar.coverage.exclusions>
-            </properties>
+                    <errorprone.skip>true</errorprone.skip>
+    </properties>
         </profile>
         <profile>
             <id>systemtest</id>

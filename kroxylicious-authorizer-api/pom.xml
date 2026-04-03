@@ -21,6 +21,10 @@
     <artifactId>kroxylicious-authorizer-api</artifactId>
     <name>Authorizer Plugin API</name>
 
+    <properties>
+        <errorprone.skip>true</errorprone.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

@@ -115,12 +115,16 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
                 .map(MapperContext::authenticatedSubject)
                 .flatMap(a -> a.uniquePrincipalOfType(uniquePrincipalType));
 
-        principalOpt.orElseThrow(() -> new EntityMapperException(
-                "The PrincipalEntityNameMapper requires an authenticated subject with a unique principal of type %s with a non-empty name, got subject %s"
-                        .formatted(
-                                uniquePrincipalType.getSimpleName(), mapperContext.authenticatedSubject())));
+        if (principalOpt.isEmpty()) {
+            throw new EntityMapperException(
+                    "The PrincipalEntityNameMapper requires an authenticated subject with a unique principal of type %s with a non-empty name, got subject %s"
+                            .formatted(
+                                    uniquePrincipalType.getSimpleName(), mapperContext.authenticatedSubject()));
+        }
+        else {
+            var principal = principalOpt.get();
 
-        principalOpt.map(Principal::name).ifPresent(name -> {
+            var name = principal.name();
             if (name.contains(separator)) {
                 throw new EntityMapperException(
                         "Principal '%s' is unacceptable as it contains the mapping separator '%s'".formatted(principalOpt.get(), separator));
@@ -129,9 +133,9 @@ class PrincipalEntityNameMapper implements EntityNameMapper {
                 throw new EntityMapperException(
                         "Principal '%s' is unacceptable as it contains characters outside ASCII alphanumerics, '.', '_' and '-'".formatted(principalOpt.get()));
             }
-        });
 
-        return principalOpt.orElseThrow();
+            return principal;
+        }
     }
 
     private static boolean isIllegalKafkaName(String separator) {
