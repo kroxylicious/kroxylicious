@@ -136,7 +136,7 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
 
     public HeaderAssert singleHeader() {
         isNotNull();
-        headersAssert().singleElement();
+        headersAssert().hasSize(1);
         return HeaderAssert.assertThat(actual.headers()[0])
                 .describedAs("record header");
     }

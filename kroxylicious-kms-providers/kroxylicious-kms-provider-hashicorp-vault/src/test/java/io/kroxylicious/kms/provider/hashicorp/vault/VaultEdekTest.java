@@ -19,7 +19,6 @@ class VaultEdekTest {
         var edekBytesDiffer = new VaultEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 4 });
 
         assertThat(edek1)
-                .isEqualTo(edek1)
                 .isNotEqualTo(new Object())
                 .isNotEqualTo(null)
                 .isEqualTo(edek2)

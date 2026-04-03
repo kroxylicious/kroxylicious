@@ -27,6 +27,8 @@
         <io.kroxylicious.operator.image.archive>target/kroxylicious-operator.img.tar.gz</io.kroxylicious.operator.image.archive>
         <sonar.projectName>Kroxylicious Operator</sonar.projectName>
         <sonar.projectkey>kroxylicious_kroxylicious</sonar.projectkey>
+        <!-- Error Prone disabled - fabric8 builders not compatible with -XDcompilePolicy=simple -->
+        <errorprone.skip>true</errorprone.skip>
     </properties>
 
     <dependencyManagement>
@@ -308,6 +310,15 @@
     </dependencies>
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- Override parent's Error Prone compiler args (breaks fabric8 builders) -->
+                    <compilerArgs combine.self="override"/>
+                    <annotationProcessorPaths combine.self="override"/>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>

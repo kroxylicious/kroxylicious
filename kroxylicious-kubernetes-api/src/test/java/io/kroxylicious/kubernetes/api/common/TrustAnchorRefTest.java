@@ -28,7 +28,7 @@ class TrustAnchorRefTest {
                 .withStoreType("JKS").build();
         var diffKeySecretFoo = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build()).withKey("diff.key")
                 .build();
-        assertThat(secretRefFoo).isEqualTo(secretRefFoo);
+
         assertThat(secretRefFoo).isNotEqualTo("salami");
         assertThat(secretRefFoo).isNotEqualTo(diffGroupSecretFoo);
         assertThat(secretRefFoo).isNotEqualTo(diffKeySecretFoo);

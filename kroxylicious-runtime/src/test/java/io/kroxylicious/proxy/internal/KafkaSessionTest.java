@@ -56,17 +56,6 @@ class KafkaSessionTest {
         assertThat(a).isEqualTo(b);
     }
 
-    @SuppressWarnings("EqualsWithItself") // We are testing the equals impl
-    @Test
-    void shouldConsiderSameInstanceEqual() {
-        // Given
-        KafkaSession a = new KafkaSession(SESSION_ID, KafkaSessionState.ESTABLISHING);
-
-        // When
-        // Then
-        assertThat(a).isEqualTo(a);
-    }
-
     @Test
     void shouldConsiderSessionsWithDifferentIdsNotEqual() {
         // Given

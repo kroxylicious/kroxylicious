@@ -23,6 +23,9 @@
     <description>An API for interacting with Key Management Systems (KMSes).</description>
     <packaging>jar</packaging>
 
+    <properties>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.slf4j</groupId>

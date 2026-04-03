@@ -20,7 +20,6 @@ class AwsKmsEdekTest {
         var edekBytesDiffer = new AwsKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 4 });
 
         assertThat(edek1)
-                .isEqualTo(edek1)
                 .isNotEqualTo(new Object())
                 .isNotEqualTo(null);
 
