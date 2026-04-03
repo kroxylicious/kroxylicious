@@ -379,11 +379,8 @@ public class AclAuthorizer implements Authorizer {
                 if (decision == Decision.DENY) {
                     deniedActions.add(action);
                 }
-                else if (decision == Decision.ALLOW) {
-                    allowedActions.add(action);
-                }
                 else {
-                    throw new IllegalStateException();
+                    allowedActions.add(action);
                 }
             }
         }
