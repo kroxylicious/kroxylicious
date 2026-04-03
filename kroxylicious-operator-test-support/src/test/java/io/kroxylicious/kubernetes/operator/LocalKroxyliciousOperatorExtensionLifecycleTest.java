@@ -9,6 +9,7 @@ package io.kroxylicious.kubernetes.operator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -204,6 +205,35 @@ class LocalKroxyliciousOperatorExtensionLifecycleTest {
         order.verify(localOp).afterAll(context);
         order.verify(teardownAction).execute();
         order.verify(localRbac).afterEach(context);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateStatusRefetchesBeforeApplyingMutator() throws Exception {
+        // Given
+        var setup = extensionWithMockActor(defaultBuilder(), List.of());
+        var actor = setup.actor();
+
+        KafkaProxy stale = mock(KafkaProxy.class);
+        when(stale.getMetadata()).thenReturn(new io.fabric8.kubernetes.api.model.ObjectMetaBuilder().withName("my-proxy").build());
+
+        KafkaProxy fresh = mock(KafkaProxy.class);
+        when(actor.get(KafkaProxy.class, "my-proxy")).thenReturn(fresh);
+
+        KafkaProxy patched = mock(KafkaProxy.class);
+        when(actor.patchStatus(fresh)).thenReturn(patched);
+
+        UnaryOperator<KafkaProxy> mutator = mock(UnaryOperator.class);
+        when(mutator.apply(fresh)).thenReturn(fresh);
+
+        // When
+        KafkaProxy result = setup.extension().updateStatus(KafkaProxy.class, "my-proxy", mutator);
+
+        // Then — mutator receives the re-fetched object, not the stale one
+        verify(actor).get(KafkaProxy.class, "my-proxy");
+        verify(mutator).apply(fresh);
+        verify(actor).patchStatus(fresh);
+        assertThat(result).isSameAs(patched);
     }
 
     // ---- helpers ----
