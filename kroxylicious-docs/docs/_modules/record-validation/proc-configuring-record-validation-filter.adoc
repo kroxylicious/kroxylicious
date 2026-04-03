@@ -48,7 +48,7 @@ Choose one of the following rule types:
 
 * *Schema validation*, to validate record keys or values against a schema stored in an Apicurio Registry.
 * *JSON syntax validation*, to validate that record keys or values contain syntactically valid JSON.
-* *JWS signature validation*, to validate a JSON Web Signature (JWS) provided in a Kafka record header.
+* *JWS Signature validation*, to validate a JSON Web Signature (JWS) provided in a Kafka record header.
 +
 The following examples show how to configure each rule type.
 +
@@ -110,7 +110,7 @@ allowEmpty: true
 +
 This rule rejects records that contain syntactically invalid JSON in the record key or value.
 +
-Example JWS signature validation rule:
+Example JWS Signature validation rule:
 +
 --
 [source,yaml]
@@ -151,11 +151,11 @@ jwsSignatureValidation:
 
 * `jwsSignatureValidation.trustedJsonWebKeySet` specifies the set of JSON Web Keys (JWK) used to verify
   https://datatracker.ietf.org/doc/html/rfc7515[JSON Web Signature (JWS)] signatures.
-* The JWS signature validation rule verifies the JWS only and does not perform
+* The JWS Signature validation rule verifies the JWS only and does not perform
   https://datatracker.ietf.org/doc/html/rfc7519[JSON Web Token (JWT)]
   claim validation. Token claims such as expiration and issuer are not checked.
 * `jwsSignatureValidation.algorithms.allowed` and `jwsSignatureValidation.algorithms.denied` specify which signature algorithms are permitted.
-** If both `allowed` and `denied` are omitted or empty, all algorithms are blocked and JWS signature verification fails.
+** If both `allowed` and `denied` are omitted or empty, all algorithms are blocked and JWS Signature verification fails.
 ** If only `allowed` is specified, only the algorithms listed in `allowed` are permitted.
 ** If only `denied` is specified, all algorithms except those listed in `denied` are permitted.
 ** If both `allowed` and `denied` are specified, only the algorithms listed in `allowed` are permitted.

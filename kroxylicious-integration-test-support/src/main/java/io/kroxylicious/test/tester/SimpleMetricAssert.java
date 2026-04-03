@@ -60,7 +60,7 @@ public class SimpleMetricAssert extends AbstractAssert<SimpleMetricAssert, Simpl
     public static class SimpleMetricListAssert extends FactoryBasedNavigableListAssert<SimpleMetricListAssert, List<SimpleMetric>, SimpleMetric, SimpleMetricAssert> {
         private SimpleMetricListAssert(List<SimpleMetric> simpleMetrics) {
             super(simpleMetrics, SimpleMetricListAssert.class, SimpleMetricAssert::new);
-            describedAs(simpleMetrics == null ? "empty metric list" : "metrics");
+            var unused = describedAs(simpleMetrics == null ? "empty metric list" : "metrics");
 
         }
 

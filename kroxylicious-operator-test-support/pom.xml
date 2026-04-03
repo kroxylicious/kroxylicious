@@ -26,6 +26,9 @@
         resources easier.
     </description>
 
+    <properties>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
