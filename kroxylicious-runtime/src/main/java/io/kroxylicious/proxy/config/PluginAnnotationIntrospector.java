@@ -67,7 +67,7 @@ class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
         return new FakeJsonTypeIdResolver();
     }
 
-    private static class FakeJsonTypeInfo implements JsonTypeInfo {
+    static class FakeJsonTypeInfo implements JsonTypeInfo {
 
         private final PluginImplConfig pc;
 
@@ -82,17 +82,17 @@ class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
             }
             return Objects.equals(use(), that.use())
                     && Objects.equals(include(), that.include())
-                    && Objects.equals(property(), that.property())
                     && Objects.equals(defaultImpl(), that.defaultImpl())
                     && Objects.equals(visible(), that.visible())
-                    && Objects.equals(requireTypeIdForSubtypes(), that.requireTypeIdForSubtypes());
+                    && Objects.equals(requireTypeIdForSubtypes(), that.requireTypeIdForSubtypes())
+                    && Objects.equals(property(), that.property());
         }
 
         @Override
         public int hashCode() {
             return Objects.hash(use(), include(),
-                    property(), defaultImpl(),
-                    visible(), requireTypeIdForSubtypes());
+                    defaultImpl(), visible(),
+                    requireTypeIdForSubtypes(), property());
         }
 
         @Override
@@ -131,7 +131,7 @@ class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
         }
     }
 
-    private static class FakeJsonTypeIdResolver implements JsonTypeIdResolver {
+    static class FakeJsonTypeIdResolver implements JsonTypeIdResolver {
         @Override
         public Class<? extends Annotation> annotationType() {
             return JsonTypeIdResolver.class;
