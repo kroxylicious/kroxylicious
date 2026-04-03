@@ -323,6 +323,14 @@ public class AclAuthorizer implements Authorizer {
                 (OrderedKey<Principal>) new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
     }
 
+    @SuppressWarnings("unchecked")
+    private static List<OrderedKey<?>> resourceMatchers(Action action) {
+        return List.of(
+                (OrderedKey<?>) new ResourceMatcherNameEquals<>(action.resourceTypeClass(), action.resourceName()),
+                (OrderedKey<?>) new ResourceMatcherAnyOfType<>(action.resourceTypeClass()),
+                (OrderedKey<?>) new ResourceMatcherNameStarts<>(action.resourceTypeClass(), action.resourceName()));
+    }
+
     @Nullable
     private static Decision decision(Action action,
                                      ResourceGrants grants,
@@ -331,19 +339,11 @@ public class AclAuthorizer implements Authorizer {
         var typeNameMap = grants.nameMatches();
         ResourceType<?> resourceType = action.operation();
         if (typeNameMap != null) {
-            operations = typeNameMap.matchingOperations(new ResourceMatcherNameEquals<>(action.resourceTypeClass(),
-                    action.resourceName()));
-            if (isFound(operations, resourceType)) {
-                return whenFound;
-            }
-            operations = typeNameMap.matchingOperations(new ResourceMatcherAnyOfType<>(action.resourceTypeClass()));
-            if (isFound(operations, resourceType)) {
-                return whenFound;
-            }
-            operations = typeNameMap.matchingOperations(new ResourceMatcherNameStarts<>(action.resourceTypeClass(),
-                    action.resourceName()));
-            if (isFound(operations, resourceType)) {
-                return whenFound;
+            for (var matcher : resourceMatchers(action)) {
+                operations = typeNameMap.matchingOperations((OrderedKey) matcher);
+                if (isFound(operations, resourceType)) {
+                    return whenFound;
+                }
             }
         }
         var patternMatch = grants.patternMatches();
