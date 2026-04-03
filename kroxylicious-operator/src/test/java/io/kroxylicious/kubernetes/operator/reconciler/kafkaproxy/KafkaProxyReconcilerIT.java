@@ -19,9 +19,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
@@ -31,6 +28,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
@@ -1457,32 +1456,34 @@ public class KafkaProxyReconcilerIT {
         assertDeploymentBecomesReady(proxyA);
     }
 
-    // the KafkaProxyReconciler only operates on Clusters that have been reconciled, ie metadata.status == status.observedGeneration
-    private VirtualKafkaCluster updateStatusObservedGeneration(VirtualKafkaCluster clusterBar) {
-        clusterBar.setStatus(new VirtualKafkaClusterStatusBuilder().withObservedGeneration(generation(clusterBar)).build());
-        return operator.patchStatus(clusterBar);
+    private VirtualKafkaCluster updateStatusObservedGeneration(VirtualKafkaCluster cluster) {
+        return operator.updateStatus(VirtualKafkaCluster.class, name(cluster), fresh -> {
+            fresh.setStatus(new VirtualKafkaClusterStatusBuilder().withObservedGeneration(generation(fresh)).build());
+            return fresh;
+        });
     }
 
-    // the KafkaProxyReconciler only operates on KafkaProtocolFilters that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaProtocolFilter updateStatusObservedGeneration(KafkaProtocolFilter filter) {
-        filter.setStatus(new KafkaProtocolFilterStatusBuilder().withObservedGeneration(generation(filter)).build());
-        return operator.patchStatus(filter);
+        return operator.updateStatus(KafkaProtocolFilter.class, name(filter), fresh -> {
+            fresh.setStatus(new KafkaProtocolFilterStatusBuilder().withObservedGeneration(generation(fresh)).build());
+            return fresh;
+        });
     }
 
-    // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaService updateStatusObservedGeneration(KafkaService service, String bootstrapServers) {
-        // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
-        KafkaService fresh = operator.get(KafkaService.class, name(service));
-        fresh.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
-                .withBootstrapServers(bootstrapServers)
-                .build());
-        return operator.patchStatus(fresh);
+        return operator.updateStatus(KafkaService.class, name(service), fresh -> {
+            fresh.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
+                    .withBootstrapServers(bootstrapServers)
+                    .build());
+            return fresh;
+        });
     }
 
-    // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaProxyIngress updateStatusObservedGeneration(KafkaProxyIngress ingress) {
-        ingress.setStatus(new KafkaProxyIngressStatusBuilder().withObservedGeneration(generation(ingress)).build());
-        return operator.patchStatus(ingress);
+        return operator.updateStatus(KafkaProxyIngress.class, name(ingress), fresh -> {
+            fresh.setStatus(new KafkaProxyIngressStatusBuilder().withObservedGeneration(generation(fresh)).build());
+            return fresh;
+        });
     }
 
     private void assertDeploymentIsRemoved(KafkaProxy proxy) {

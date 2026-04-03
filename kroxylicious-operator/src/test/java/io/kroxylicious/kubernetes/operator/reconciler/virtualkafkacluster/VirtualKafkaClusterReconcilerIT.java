@@ -53,6 +53,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
 import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -618,24 +619,27 @@ class VirtualKafkaClusterReconcilerIT {
         // @formatter:on
     }
 
-    // the KafkaProxyReconciler only operates on KafkaProtocolFilters that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaProtocolFilter updateStatusObservedGeneration(KafkaProtocolFilter filter) {
-        filter.setStatus(new KafkaProtocolFilterStatusBuilder().withObservedGeneration(generation(filter)).build());
-        return operator.patchStatus(filter);
+        return operator.updateStatus(KafkaProtocolFilter.class, name(filter), fresh -> {
+            fresh.setStatus(new KafkaProtocolFilterStatusBuilder().withObservedGeneration(generation(fresh)).build());
+            return fresh;
+        });
     }
 
-    // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
-    private KafkaService updateStatusObservedGeneration(KafkaService filter, String bootstrapServers) {
-        filter.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(filter))
-                .withBootstrapServers(bootstrapServers)
-                .build());
-        return operator.patchStatus(filter);
+    private KafkaService updateStatusObservedGeneration(KafkaService service, String bootstrapServers) {
+        return operator.updateStatus(KafkaService.class, name(service), fresh -> {
+            fresh.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
+                    .withBootstrapServers(bootstrapServers)
+                    .build());
+            return fresh;
+        });
     }
 
-    // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaProxyIngress updateStatusObservedGeneration(KafkaProxyIngress ingress) {
-        ingress.setStatus(new KafkaProxyIngressStatusBuilder().withObservedGeneration(generation(ingress)).build());
-        return operator.patchStatus(ingress);
+        return operator.updateStatus(KafkaProxyIngress.class, name(ingress), fresh -> {
+            fresh.setStatus(new KafkaProxyIngressStatusBuilder().withObservedGeneration(generation(fresh)).build());
+            return fresh;
+        });
     }
 
 }
