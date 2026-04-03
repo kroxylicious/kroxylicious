@@ -323,8 +323,7 @@
             <id>ci</id>
             <properties>
                 <sonar.coverage.exclusions>**/io/kroxylicious/systemtests/**</sonar.coverage.exclusions>
-                    <errorprone.skip>true</errorprone.skip>
-    </properties>
+            </properties>
         </profile>
         <profile>
             <id>systemtest</id>
