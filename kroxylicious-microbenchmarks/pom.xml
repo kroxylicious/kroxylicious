@@ -25,7 +25,6 @@
         <jmh.version>1.37</jmh.version>
         <uberjar.name>microbenchmarks</uberjar.name>
         <sonar.skip>true</sonar.skip>
-        <errorprone.skip>true</errorprone.skip>
     </properties>
 
     <dependencies>

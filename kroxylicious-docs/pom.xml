@@ -28,7 +28,6 @@
 
     <properties>
         <jsoup.version>1.22.1</jsoup.version>
-        <errorprone.skip>true</errorprone.skip>
     </properties>
 
     <dependencies>

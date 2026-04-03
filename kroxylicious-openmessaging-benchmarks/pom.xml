@@ -26,7 +26,6 @@
 
     <properties>
         <helm.chart.directory>${project.basedir}/helm/kroxylicious-benchmark</helm.chart.directory>
-        <errorprone.skip>true</errorprone.skip>
     </properties>
 
     <dependencies>
