@@ -28,6 +28,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
@@ -81,7 +82,9 @@ public class KafkaProxyIngressReconciler implements
             throws Exception {
 
         var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
-        LOGGER.debug("spec.proxyRef.name resolves to: {}", proxyOpt);
+        LOGGER.atDebug()
+                .addKeyValue("to", proxyOpt)
+                .log("Resolved spec.proxyRef.name");
 
         var isIngressSpecUsingOpenshiftRoute = ingress.getSpec().getOpenShiftRoute() != null;
         var isOpenShiftRouteApiAvailable = context.getClient().supports(Route.class);
@@ -101,7 +104,10 @@ public class KafkaProxyIngressReconciler implements
         }
 
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{}", namespace(ingress), name(ingress));
+            LOGGER.atInfo()
+                    .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(ingress))
+                    .addKeyValue(OperatorLoggingKeys.NAME, name(ingress))
+                    .log("Completed reconciliation");
         }
 
         return updateControl;
@@ -158,7 +164,11 @@ public class KafkaProxyIngressReconciler implements
         ErrorStatusUpdateControl<KafkaProxyIngress> uc = ErrorStatusUpdateControl
                 .patchStatus(statusFactory.newUnknownConditionStatusPatch(ingress, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(ingress), name(ingress), e.toString());
+            LOGGER.atInfo()
+                    .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(ingress))
+                    .addKeyValue(OperatorLoggingKeys.NAME, name(ingress))
+                    .addKeyValue(OperatorLoggingKeys.ERROR, e.toString())
+                    .log("Completed reconciliation with error");
         }
         return uc;
     }

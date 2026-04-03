@@ -195,14 +195,14 @@ class AuthorizationFilterTest {
                     .isNotEmpty()
                     .allSatisfy(event -> {
                         if ("INFO".equalsIgnoreCase(event.getLevel())) {
-                            assertThat(event.getFormattedMessage())
-                                    .startsWith("DENY")
-                                    .doesNotContain("[]");
+                            assertThat(event.getMessage())
+                                    .contains("Authorization DENY decision");
+                            assertThat(event.getKeyValuePairs())
+                                    .anyMatch(entry -> entry.getKey().equals("deniedActions"));
                         }
                         else if ("DEBUG".equalsIgnoreCase(event.getLevel())) {
-                            assertThat(event.getFormattedMessage())
-                                    .containsAnyOf("ALLOW", "NON-AUTHORIZABLE")
-                                    .doesNotContain("[]");
+                            assertThat(event.getMessage())
+                                    .containsAnyOf("Authorization ALLOW decision", "Non-authorizable");
                         }
                         else {
                             // false positive `fail` is annotated `CanIgnoreReturnValue` which is not supposed to trigger the warnings

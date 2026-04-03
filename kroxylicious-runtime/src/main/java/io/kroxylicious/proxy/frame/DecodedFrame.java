@@ -102,13 +102,17 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     @Override
     public final void encode(ByteBufAccessor out) {
         if (headerAndBodyEncodedLength < 0) {
-            LOGGER.warn("Encoding estimation should happen before encoding, if possible");
+            LOGGER.atWarn()
+                    .log("Encoding estimation should happen before encoding, if possible");
         }
         final int encodedSize = estimateEncodedSize();
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Writing {} with 4 byte length ({}) plus bytes of header {}, and body {} to {}",
-                    getClass().getSimpleName(), encodedSize, header, body, out);
-        }
+        LOGGER.atTrace()
+                .addKeyValue("frameType", getClass().getSimpleName())
+                .addKeyValue("encodedSize", encodedSize)
+                .addKeyValue("header", header::toString)
+                .addKeyValue("body", body::toString)
+                .addKeyValue("output", out)
+                .log("Writing frame");
         out.ensureWritable(encodedSize);
         final int initialIndex = out.writerIndex();
         out.writeInt(headerAndBodyEncodedLength);

@@ -104,7 +104,9 @@ public class OperatorMain {
             new OperatorMain().start();
         }
         catch (Exception e) {
-            LOGGER.error("Operator has thrown exception during startup. Will now exit.", e);
+            LOGGER.atError()
+                    .setCause(e)
+                    .log("Operator has thrown exception during startup. Will now exit");
             System.exit(1);
         }
     }
@@ -128,21 +130,22 @@ public class OperatorMain {
         operator.start();
         var versionInfo = VersionInfo.VERSION_INFO;
         LOGGER.atInfo()
-                .setMessage("Platform: Java {}({}) running on {} {}/{}")
-                .addArgument(Runtime::version)
-                .addArgument(() -> System.getProperty("java.vendor"))
-                .addArgument(() -> System.getProperty("os.name"))
-                .addArgument(() -> System.getProperty("os.version"))
-                .addArgument(() -> System.getProperty("os.arch"))
-                .log();
-        LOGGER.atInfo().setMessage("Operator started (version: {}, commit id: {})")
-                .addArgument(versionInfo::version)
-                .addArgument(versionInfo::commitId)
-                .log();
+                .addKeyValue("javaVersion", Runtime::version)
+                .addKeyValue("javaVendor", () -> System.getProperty("java.vendor"))
+                .addKeyValue("osName", () -> System.getProperty("os.name"))
+                .addKeyValue("osVersion", () -> System.getProperty("os.version"))
+                .addKeyValue("osArch", () -> System.getProperty("os.arch"))
+                .log("Java platform");
+        LOGGER.atInfo()
+                .addKeyValue("version", versionInfo::version)
+                .addKeyValue("commitId", versionInfo::commitId)
+                .log("Operator started");
         versionInfoMetric(versionInfo);
 
         Optional.ofNullable(watchedNamespaces)
-                .ifPresentOrElse(tns -> LOGGER.info("Watching namespaces: {}", tns), () -> LOGGER.info("Watching all namespaces."));
+                .ifPresentOrElse(
+                        tns -> LOGGER.atInfo().addKeyValue("namespaces", tns).log("Watching namespaces"),
+                        () -> LOGGER.atInfo().log("Watching all namespaces"));
     }
 
     @NonNull
@@ -168,7 +171,9 @@ public class OperatorMain {
         }
         catch (Exception e) {
             sc = 400;
-            LOGGER.error("Ignoring exception caught while getting operator health info", e);
+            LOGGER.atError()
+                    .setCause(e)
+                    .log("Ignoring exception caught while getting operator health info");
         }
         (sc != 200 ? LOGGER.atWarn() : LOGGER.atDebug()).log("Responding {} to GET {}", sc, HTTP_PATH_LIVEZ);
         return sc;
@@ -177,7 +182,7 @@ public class OperatorMain {
     void stop() {
         operator.stop();
         managementServer.stop(0); // TODO maybe this should be configurable
-        LOGGER.info("Operator stopped.");
+        LOGGER.atInfo().log("Operator stopped");
     }
 
     private MicrometerMetrics enablePrometheusMetrics() {
@@ -221,9 +226,10 @@ public class OperatorMain {
             bindToPort = parse.port();
         }
         else if (!bindAddress.isEmpty()) {
-            LOGGER.warn("{} env var is set but does not contain `:` assuming hostname only and binding to default port ({})",
-                    BIND_ADDRESS_VAR_NAME,
-                    DEFAULT_MANAGEMENT_PORT);
+            LOGGER.atWarn()
+                    .addKeyValue("envVar", BIND_ADDRESS_VAR_NAME)
+                    .addKeyValue("defaultPort", DEFAULT_MANAGEMENT_PORT)
+                    .log("Environment variable is set but does not contain ':' assuming hostname only and binding to default port");
             bindToInterface = bindAddress;
             bindToPort = DEFAULT_MANAGEMENT_PORT;
         }
@@ -232,7 +238,10 @@ public class OperatorMain {
             bindToPort = DEFAULT_MANAGEMENT_PORT;
         }
 
-        LOGGER.info("Starting management server on: {}:{}", bindToInterface, bindToPort);
+        LOGGER.atInfo()
+                .addKeyValue("interface", bindToInterface)
+                .addKeyValue("port", bindToPort)
+                .log("Starting management server");
         return new InetSocketAddress(bindToInterface, bindToPort);
     }
 

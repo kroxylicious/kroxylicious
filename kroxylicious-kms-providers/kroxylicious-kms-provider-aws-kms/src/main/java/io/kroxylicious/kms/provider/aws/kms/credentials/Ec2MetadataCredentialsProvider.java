@@ -160,7 +160,9 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     private void scheduleCredentialRefresh(long delay) {
-        LOGGER.debug("Scheduling refresh of AWS credentials in {}ms", delay);
+        LOGGER.atDebug()
+                .addKeyValue("delayMs", delay)
+                .log("Scheduling refresh of AWS credentials");
 
         var refreshedCredFuture = new CompletableFuture<SecurityCredentials>();
         executorService.schedule(() -> {
@@ -202,7 +204,13 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     private void propagateResultToFuture(SecurityCredentials credentials, Throwable t, CompletableFuture<SecurityCredentials> target) {
         final long refreshDelay;
         if (t != null) {
-            LOGGER.warn("Refresh of EC2 credentials failed. Is IAM role {} assigned to this EC2 instance?", config.iamRole(), t);
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? t : null)
+                    .addKeyValue("iamRole", config.iamRole())
+                    .addKeyValue("error", t.getMessage())
+                    .log(LOGGER.isDebugEnabled()
+                            ? "refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance?"
+                            : "refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance? Increase log level to DEBUG for stacktrace");
             tokenRefreshErrorCount.incrementAndGet();
             target.completeExceptionally(t);
 
@@ -210,7 +218,10 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
         }
         else {
             var expiration = credentials.expiration();
-            LOGGER.debug("Obtained AWS credentials from EC2 metadata using IAM role {}, expiry {}", config.iamRole(), expiration);
+            LOGGER.atDebug()
+                    .addKeyValue("iamRole", config.iamRole())
+                    .addKeyValue("expiration", expiration)
+                    .log("Obtained AWS credentials from EC2 metadata");
             tokenRefreshErrorCount.set(0);
             target.complete(credentials);
 
@@ -256,7 +267,9 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     private SecurityCredentials checkSuccessfulState(SecurityCredentials sc) {
-        LOGGER.debug("AWS returned security credential : {} ", sc);
+        LOGGER.atDebug()
+                .addKeyValue("credential", sc::toString)
+                .log("AWS returned security credential");
         if (!"success".equals(sc.code().toLowerCase(Locale.ROOT))) {
             throw new KmsException(
                     "Unexpected code value in SecurityCredentials object returned from AWS.  Expecting code='Success', got code='%s'".formatted(sc.code()));

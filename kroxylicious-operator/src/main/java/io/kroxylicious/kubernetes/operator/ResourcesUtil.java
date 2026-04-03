@@ -132,6 +132,10 @@ public class ResourcesUtil {
                 .build();
     }
 
+    public static String kind(HasMetadata resource) {
+        return resource.getKind();
+    }
+
     public static String name(HasMetadata resource) {
         return resource.getMetadata().getName();
     }
@@ -338,10 +342,6 @@ public class ResourcesUtil {
         return slug(ref) + " in namespace '" + namespace(resource) + "'";
     }
 
-    public static String namespacedSlug(HasMetadata resource) {
-        return slug(resource) + " in namespace '" + namespace(resource) + "'";
-    }
-
     private static String slug(LocalRef<?> ref) {
         String group = ref.getGroup();
         String name = ref.getName();
@@ -350,7 +350,7 @@ public class ResourcesUtil {
         return kind + groupString + "/" + name;
     }
 
-    private static String slug(HasMetadata ref) {
+    public static String slug(HasMetadata ref) {
         String group = group(ref);
         String name = name(ref);
         String groupString = group.isEmpty() ? "" : "." + group;

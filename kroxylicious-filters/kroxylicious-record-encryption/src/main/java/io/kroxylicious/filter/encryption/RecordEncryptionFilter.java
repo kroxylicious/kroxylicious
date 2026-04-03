@@ -70,7 +70,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  * @param <K> The type of KEK reference
  */
 class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFilter, ShareFetchResponseFilter {
-    private static final Logger log = getLogger(RecordEncryptionFilter.class);
+    private static final Logger LOGGER = getLogger(RecordEncryptionFilter.class);
     private final TopicNameBasedKekSelector<K> kekSelector;
     private final EncryptionManager<K> encryptionManager;
     private final DecryptionManager decryptionManager;
@@ -116,7 +116,9 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
     private static CompletionStage<RequestFilterResult> maybeRespondWithUnknownTopicId(RequestHeaderData header, ProduceRequestData request, FilterContext context,
                                                                                        TopicNameMapping topicNameMapping) {
         if (request.acks() == 0) {
-            log.debug("a topic id lookup failed for zero-ack produce request, dropping request: {}", topicNameMapping.failures());
+            LOGGER.atDebug()
+                    .addKeyValue("failures", topicNameMapping.failures())
+                    .log("Topic ID lookup failed for zero-ack produce request, dropping request");
             return context.requestFilterResultBuilder().drop().completed();
         }
         else {
@@ -172,8 +174,9 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                     }).toList();
                     return RecordEncryptionUtil.join(futures).thenApply(x -> request);
                 }).exceptionallyCompose(throwable -> {
-                    log.atWarn().setMessage("failed to encrypt records, cause message: {}").addArgument(throwable.getMessage())
-                            .setCause(log.isDebugEnabled() ? throwable : null).log();
+                    LOGGER.atWarn().addKeyValue("error", throwable.getMessage())
+                            .setCause(LOGGER.isDebugEnabled() ? throwable : null)
+                            .log("failed to encrypt records");
                     return CompletableFuture.failedStage(throwable);
                 });
     }
@@ -261,8 +264,12 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
     }
 
     private static CompletionStage<ResponseFilterResult> logAndCreateFailedStage(Throwable throwable) {
-        log.atWarn().setMessage("Failed to process records, connection will be closed, cause message: {}. Raise log level to DEBUG to see the stack.")
-                .addArgument(throwable.getMessage()).setCause(log.isDebugEnabled() ? throwable : null).log();
+        LOGGER.atWarn()
+                .addKeyValue("error", throwable.getMessage())
+                .setCause(LOGGER.isDebugEnabled() ? throwable : null)
+                .log(LOGGER.isDebugEnabled()
+                        ? "Failed to process records, connection will be closed"
+                        : "Failed to process records, connection will be closed. Raise log level to DEBUG to see the stack.");
         return CompletableFuture.failedStage(throwable);
     }
 
@@ -345,12 +352,19 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                     setRecords.apply(partitionData)).exceptionallyCompose(t -> {
                         var cause = t.getCause();
                         if (cause instanceof UnknownKeyException) {
-                            log.atWarn().setMessage("Failed to decrypt record in topic-partition {}-{} owing to key not found condition. "
-                                    + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or "
-                                    + "'Request illegally referred to resource that does not exist' (librdkafka). " + "Cause message: {}. "
-                                    + "Raise log level to DEBUG to see the stack.").addArgument(topicName)
-                                    .addArgument(() -> partitionIndexExtractor.applyAsInt(partitionData))
-                                    .addArgument(cause.getMessage()).setCause(log.isDebugEnabled() ? cause : null).log();
+                            String msgPrefix = "Failed to decrypt record owing to key not found condition. "
+                                    + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). "
+                                    + "Client may see a message like "
+                                    + "'Unexpected error code 91 while fetching at offset' (java) "
+                                    + "or 'Request illegally referred to resource that does not exist' (librdkafka).";
+                            LOGGER.atWarn()
+                                    .addKeyValue("topicName", topicName)
+                                    .addKeyValue("partition", () -> partitionIndexExtractor.applyAsInt(partitionData))
+                                    .addKeyValue("error", cause.getMessage())
+                                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                                    .log(LOGGER.isDebugEnabled()
+                                            ? msgPrefix
+                                            : msgPrefix + " Raise log level to DEBUG to see the stack.");
                             errorsConsumer.apply(partitionData, Errors.RESOURCE_NOT_FOUND.code());
                         }
                         return CompletableFuture.failedFuture(t);

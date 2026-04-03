@@ -88,12 +88,11 @@ class SaslInspectionFilter
                     String disposition = currentState.isStarted() ? "completed" : "attempted";
                     String outcome = authenticationRequired ? "closing connection with error" : "forwarding request";
                     LOGGER.atInfo()
-                            .setMessage("{}: Client attempted {} request without having {} SASL authentication: {}")
-                            .addArgument(context.sessionId())
-                            .addArgument(apiKey)
-                            .addArgument(disposition)
-                            .addArgument(outcome)
-                            .log();
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("apiKey", String.valueOf(apiKey))
+                            .addKeyValue("authenticationDisposition", disposition)
+                            .addKeyValue("outcome", outcome)
+                            .log("Client attempted request without having SASL authentication");
                 }
                 if (!authenticationRequired || currentState.isFinishedSuccessfully()) {
                     yield context.forwardRequest(header, request);
@@ -118,11 +117,10 @@ class SaslInspectionFilter
                 saslObserver = saslObserverFactory.createObserver();
                 // If we support this mechanism then forward to the server to check whether it does
                 LOGGER.atInfo()
-                        .setMessage("Client '{}' on channel {} chosen SASL mechanism '{}'")
-                        .addArgument(header::clientId)
-                        .addArgument(context::channelDescriptor)
-                        .addArgument(saslObserver::mechanismName)
-                        .log();
+                        .addKeyValue("clientId", header::clientId)
+                        .addKeyValue("sessionId", context.sessionId())
+                        .addKeyValue("mechanism", saslObserver::mechanismName)
+                        .log("Client chosen SASL mechanism");
             }
             else {
                 // If we do not support this mechanism then we need to find out what mechanisms the server has enabled
@@ -131,24 +129,22 @@ class SaslInspectionFilter
                 saslObserver = PROBING_SASL_OBSERVER;
                 request.setMechanism(saslObserver.mechanismName());
                 LOGGER.atInfo()
-                        .setMessage("Client '{}' on channel {} proposes SASL mechanism '{}' {} this filter, proposing mechanism '{}' to server")
-                        .addArgument(header::clientId)
-                        .addArgument(context::channelDescriptor)
-                        .addArgument(request::mechanism)
-                        .addArgument(() -> observerFactoryMap.containsKey(request.mechanism()) ? "not enabled for" : "not supported by")
-                        .addArgument(saslObserver::mechanismName)
-                        .log();
+                        .addKeyValue("clientId", header::clientId)
+                        .addKeyValue("sessionId", context.sessionId())
+                        .addKeyValue("clientMechanism", request::mechanism)
+                        .addKeyValue("mechanismStatus", () -> observerFactoryMap.containsKey(request.mechanism()) ? "not enabled for" : "not supported by")
+                        .addKeyValue("proposedMechanism", saslObserver::mechanismName)
+                        .log("Client proposes SASL mechanism not supported/enabled by filter, proposing probe mechanism to server");
             }
             currentState = handshakeRequestState.nextState(saslObserver);
             return context.forwardRequest(header, request);
         }
         else {
             LOGGER.atInfo()
-                    .setMessage("Client '{}' on channel {} sent SaslHandshakeRequest unexpectedly, while in state {}")
-                    .addArgument(header::clientId)
-                    .addArgument(context::channelDescriptor)
-                    .addArgument(() -> this.currentState)
-                    .log();
+                    .addKeyValue("clientId", header::clientId)
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("authenticationState", () -> this.currentState)
+                    .log("Client sent SaslHandshakeRequest unexpectedly");
             return context.requestFilterResultBuilder().shortCircuitResponse(
                     new SaslHandshakeResponseData()
                             .setErrorCode(Errors.ILLEGAL_SASL_STATE.code()))
@@ -180,10 +176,9 @@ class SaslInspectionFilter
                                                                                      FilterContext context,
                                                                                      State.AwaitingHandshakeResponse currentState) {
         LOGGER.atInfo()
-                .setMessage("Server accepts proposed SASL mechanism '{}' on channel {}")
-                .addArgument(currentState.saslObserver().mechanismName())
-                .addArgument(context::channelDescriptor)
-                .log();
+                .addKeyValue("mechanism", currentState.saslObserver().mechanismName())
+                .addKeyValue("sessionId", context.sessionId())
+                .log("Server accepts proposed SASL mechanism");
         this.currentState = currentState.nextState();
         return context.forwardResponse(header, response);
     }
@@ -194,13 +189,11 @@ class SaslInspectionFilter
         var commonMechanisms = new ArrayList<>(observerFactoryMap.keySet());
         commonMechanisms.retainAll(response.mechanisms());
         LOGGER.atInfo()
-                .setMessage("Server rejects proposed SASL mechanism '{}' on channel {} with error {}; supports {}; common mechanisms {}")
-                .addArgument(() -> commonMechanisms)
-                .addArgument(context::channelDescriptor)
-                .addArgument(() -> Errors.forCode(response.errorCode()).name())
-                .addArgument(response::mechanisms)
-                .addArgument(() -> commonMechanisms)
-                .log();
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("errorCode", () -> Errors.forCode(response.errorCode()).name())
+                .addKeyValue("serverMechanisms", response::mechanisms)
+                .addKeyValue("commonMechanisms", () -> commonMechanisms)
+                .log("Server rejects proposed SASL mechanism");
         response.setErrorCode(Errors.UNSUPPORTED_SASL_MECHANISM.code())
                 .setMechanisms(commonMechanisms);
         return context.responseFilterResultBuilder()
@@ -219,24 +212,20 @@ class SaslInspectionFilter
                 if (acquiredAuthorizationId) {
                     var authId = getAuthorizationIdOrNull(state.saslObserver());
                     LOGGER.atInfo()
-                            .setMessage("Client '{}' on channel {} sent {} authorizationId '{}'; forwarding to server")
-                            .addArgument(header::clientId)
-                            .addArgument(context::channelDescriptor)
-                            .addArgument(request)
-                            .addArgument(authId)
-                            .log();
+                            .addKeyValue("clientId", header::clientId)
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("authorizationId", authId)
+                            .log("Client sent SaslAuthenticateRequest with authorizationId; forwarding to server");
                 }
             }
             catch (SaslException e) {
                 LOGGER.atInfo()
-                        .setMessage(
-                                "Client '{}' on channel {} sent {} an authorization request containing a SASL response that could not be interpreted; closing connection. Cause message: {}. Raise log level to DEBUG to see the stack.")
-                        .addArgument(header::clientId)
-                        .addArgument(context::channelDescriptor)
-                        .addArgument(request)
-                        .addArgument(e::getMessage)
+                        .addKeyValue("clientId", header::clientId)
+                        .addKeyValue("sessionId", context.sessionId())
+                        .addKeyValue("error", e::getMessage)
                         .setCause(LOGGER.isDebugEnabled() ? e : null)
-                        .log();
+                        .log("Client sent authorization request containing a SASL response that could not be interpreted; closing connection"
+                                + (LOGGER.isDebugEnabled() ? "" : " Raise log level to DEBUG to see the stack"));
                 return closeConnectionWithShortCircuitResponse(context, new SaslAuthenticateResponseData()
                         .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
                         .setErrorMessage("Proxy cannot extract authorizationId from SASL authenticate request"));
@@ -246,11 +235,11 @@ class SaslInspectionFilter
             return context.forwardRequest(header, request);
         }
         else {
-            LOGGER.atInfo().setMessage("Client '{}' on channel {} sent SaslAuthenticateRequest unexpectedly, while in state {}")
-                    .addArgument(header::clientId)
-                    .addArgument(context::channelDescriptor)
-                    .addArgument(() -> this.currentState)
-                    .log();
+            LOGGER.atInfo()
+                    .addKeyValue("clientId", header::clientId)
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("authenticationState", () -> this.currentState)
+                    .log("Client sent SaslAuthenticateRequest unexpectedly");
             return closeConnectionWithShortCircuitResponse(context, new SaslAuthenticateResponseData()
                     .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
                     .setErrorMessage("SaslHandshake has not been performed"));
@@ -265,10 +254,14 @@ class SaslInspectionFilter
         return this.handleSaslAuthenticateResponse(header, brokerResponse, context)
                 .thenApply(clientFacingResponse -> {
                     if (currentState.isFinishedSuccessfully()) {
-                        LOGGER.info("{}: Authentication successful", context.sessionId());
+                        LOGGER.atInfo()
+                                .addKeyValue("sessionId", context.sessionId())
+                                .log("Authentication successful");
                     }
                     else if (currentState.isFinishedUnsuccessfully()) {
-                        LOGGER.info("{}: Authentication failed", context.sessionId());
+                        LOGGER.atInfo()
+                                .addKeyValue("sessionId", context.sessionId())
+                                .log("Authentication failed");
                     }
                     return clientFacingResponse;
                 });
@@ -313,10 +306,8 @@ class SaslInspectionFilter
             var expiredCredential = state.saslObserver().zeroLengthSessionImpliesAuthnFailure() && response.sessionLifetimeMs() == 0;
             if (expiredCredential) {
                 LOGGER.atInfo()
-                        .setMessage(
-                                "Server has accepted an expired SASL credentials on channel {}. Client must re-authenticate on the next request, or the server will disconnect.")
-                        .addArgument(context::channelDescriptor)
-                        .log();
+                        .addKeyValue("sessionId", context.sessionId())
+                        .log("Server has accepted an expired SASL credentials. Client must re-authenticate on the next request, or the server will disconnect");
                 context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizationIdFromClient, new SaslException("expired credential"));
             }
             else {
@@ -358,10 +349,9 @@ class SaslInspectionFilter
 
         return subjectCompletionStage.thenCompose(subject -> {
             LOGGER.atInfo()
-                    .setMessage("Server accepts SASL credentials for client on channel {}, announcing that client has authorizationId {}")
-                    .addArgument(context::channelDescriptor)
-                    .addArgument(authorizationIdFromClient)
-                    .log();
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("authorizationId", authorizationIdFromClient)
+                    .log("Server accepts SASL credentials for client, announcing authentication success");
             context.clientSaslAuthenticationSuccess(saslObserver.mechanismName(),
                     subject);
             currentState = state.nextState(saslObserver.isFinished());
@@ -373,12 +363,11 @@ class SaslInspectionFilter
             }
             else {
                 LoggingEventBuilder eventBuilder = LOGGER.atWarn()
-                        .setMessage("Exception caught while trying to build subject (enable debug to see the stacktrace). {}")
-                        .addArgument(throwable.getMessage());
+                        .addKeyValue("error", throwable.getMessage());
                 if (LOGGER.isDebugEnabled()) {
                     eventBuilder = eventBuilder.setCause(throwable);
                 }
-                eventBuilder.log();
+                eventBuilder.log("Exception caught while trying to build subject" + (LOGGER.isDebugEnabled() ? "" : " (enable debug to see the stacktrace)"));
                 e = new SubjectBuildingException("SaslSubjectBuilder " + subjectBuilder.getClass() + " threw an unexpected exception", throwable);
             }
             context.clientSaslAuthenticationFailure(saslObserver.mechanismName(),
@@ -393,10 +382,9 @@ class SaslInspectionFilter
                                                                               State.AwaitingAuthenticateResponse state) {
         Errors error = Errors.forCode(response.errorCode());
         LOGGER.atInfo()
-                .setMessage("Server rejects SASL credentials with error {} for client on channel {}")
-                .addArgument(error::name)
-                .addArgument(context::channelDescriptor)
-                .log();
+                .addKeyValue("errorCode", error::name)
+                .addKeyValue("sessionId", context.sessionId())
+                .log("Server rejects SASL credentials");
         var authorizedId = getAuthorizationIdOrNull(state.saslObserver());
         context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizedId, new SaslException("authentication failed", error.exception()));
         return context.responseFilterResultBuilder()
@@ -426,10 +414,10 @@ class SaslInspectionFilter
     private CompletionStage<ResponseFilterResult> closeConnectionWithResponse(ResponseHeaderData header,
                                                                               ApiMessage response,
                                                                               FilterContext context) {
-        LOGGER.error(
-                "Unexpected {} response while in state {}. This may indicate an incorrectly implemented broker that does not conform to https://kafka.apache.org/protocol#sasl_handshake. Closing connection.",
-                header.apiKey(),
-                currentState);
+        LOGGER.atError()
+                .addKeyValue("apiKey", String.valueOf(header.apiKey()))
+                .addKeyValue("authenticationState", currentState)
+                .log("Unexpected response while in state. This may indicate an incorrectly implemented broker that does not conform to https://kafka.apache.org/protocol#sasl_handshake. Closing connection");
         return context.responseFilterResultBuilder()
                 .forward(header, response)
                 .withCloseConnection()

@@ -30,7 +30,7 @@ import static org.apache.kafka.common.protocol.Errors.TRANSACTIONAL_ID_AUTHORIZA
 import static org.apache.kafka.common.protocol.Errors.UNKNOWN_TOPIC_ID;
 
 class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceResponseData> {
-    private static final Logger log = LoggerFactory.getLogger(ProduceEnforcement.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProduceEnforcement.class);
 
     @Override
     short minSupportedVersion() {
@@ -93,10 +93,9 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
             return context.requestFilterResultBuilder().errorResponse(header, request, UNKNOWN_TOPIC_ID.exception()).completed();
         }
         else {
-            log.atWarn()
-                    .setMessage("failed to map topic ids ({}) to names for acks=0 request, dropping request.")
-                    .addArgument(topicNameMapping::failures)
-                    .log();
+            LOGGER.atWarn()
+                    .addKeyValue("failures", topicNameMapping::failures)
+                    .log("failed to map topic ids to names for acks=0 request, dropping request.");
             return context.requestFilterResultBuilder().drop().completed();
         }
     }
