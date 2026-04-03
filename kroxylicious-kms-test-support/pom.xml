@@ -22,7 +22,6 @@
     <description>Test support for modules testing KMS implementations.</description>
 
     <properties>
-        <errorprone.skip>true</errorprone.skip>
     </properties>
 
     <dependencies>

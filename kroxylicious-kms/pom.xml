@@ -24,7 +24,6 @@
     <packaging>jar</packaging>
 
     <properties>
-        <errorprone.skip>true</errorprone.skip>
     </properties>
 
     <dependencies>
