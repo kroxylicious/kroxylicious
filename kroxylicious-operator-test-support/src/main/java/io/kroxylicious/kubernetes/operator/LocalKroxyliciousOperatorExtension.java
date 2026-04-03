@@ -11,10 +11,12 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
@@ -279,6 +281,25 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     @NonNull
     public <T extends HasMetadata> T patchStatus(@NonNull T resource) {
         return testActor.patchStatus(resource);
+    }
+
+    /**
+     * Re-fetches the resource to get the latest {@code resourceVersion}, applies the given
+     * status mutator, then patches the status. This avoids 409 Conflict errors when the
+     * operator has reconciled (and bumped {@code resourceVersion}) between resource creation
+     * and status patching.
+     *
+     * @param type the resource class
+     * @param name the resource name
+     * @param statusMutator a function that sets the desired status on the fresh resource and returns it
+     * @return the resource after status patching
+     */
+    @NonNull
+    public <T extends HasMetadata> T updateStatus(@NonNull Class<T> type, @NonNull String name, @NonNull UnaryOperator<T> statusMutator) {
+        T fresh = Objects.requireNonNull(testActor.get(type, name),
+                () -> "expected %s '%s' to exist".formatted(type.getSimpleName(), name));
+        T mutated = statusMutator.apply(fresh);
+        return testActor.patchStatus(mutated);
     }
 
     public <T extends HasMetadata> boolean delete(@NonNull T resource) {
