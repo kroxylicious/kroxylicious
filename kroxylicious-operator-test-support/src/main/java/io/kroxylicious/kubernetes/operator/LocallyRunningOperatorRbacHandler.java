@@ -93,6 +93,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     private final List<ClusterRoleBinding> roleBindings;
 
     // Lazily set when testActor() is called; closed in afterAll.
+    @Nullable
     private KubernetesClient testActorClient;
 
     public LocallyRunningOperatorRbacHandler(String resourceDirectory, String... clusterRoleFileGlobs) {
