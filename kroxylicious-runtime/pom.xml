@@ -24,7 +24,6 @@
     <properties>
         <libs.dir>libs</libs.dir>
         <release.version>${project.version}</release.version>
-        <errorprone.skip>true</errorprone.skip>
     </properties>
 
     <name>Proxy runtime</name>

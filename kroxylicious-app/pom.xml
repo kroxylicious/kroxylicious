@@ -26,7 +26,6 @@
     <properties>
         <!-- derived from snappy's resource-config.json -->
         <native.library.include.patterns>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</native.library.include.patterns>
-        <errorprone.skip>true</errorprone.skip>
     </properties>
 
     <dependencies>
