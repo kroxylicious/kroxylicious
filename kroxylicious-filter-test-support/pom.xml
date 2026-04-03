@@ -22,10 +22,6 @@
     <name>Filter unit test support</name>
     <description>Support code to simplify writing unit tests for filter implementations</description>
 
-    <properties>
-        <errorprone.skip>true</errorprone.skip>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

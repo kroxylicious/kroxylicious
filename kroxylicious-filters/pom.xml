@@ -21,10 +21,6 @@
     <description>Filter implementations</description>
     <packaging>pom</packaging>
 
-    <properties>
-        <errorprone.skip>true</errorprone.skip>
-    </properties>
-
     <modules>
         <module>kroxylicious-record-encryption</module>
         <module>kroxylicious-multitenant</module>
