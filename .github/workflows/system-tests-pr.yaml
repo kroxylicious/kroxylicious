@@ -1,4 +1,3 @@
-
 #
 #  Licensed to the Apache Software Foundation (ASF) under one or more
 #  contributor license agreements. See the NOTICE file distributed with
@@ -44,8 +43,49 @@ jobs:
   build_images:
     uses: ./.github/workflows/build-kroxylicious-container-images.yaml
 
+  set_variables:
+    runs-on: ubuntu-latest
+    outputs:
+      kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}
+      fortanix: ${{ steps.fortanixKMS.outputs.fortanix }}
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: 'Discover test clients'
+        working-directory: kroxylicious-systemtests
+        id: discover
+        run: |
+          client_types=$(grep -oE '^\s+[A-Z][A-Z0-9_]+' ./src/main/java/io/kroxylicious/systemtests/enums/KafkaClientType.java \
+            | tr -d ' ' \
+            | tr '[:upper:]' '[:lower:]' \
+            | paste -sd ',')
+          TEST_CLIENTS="[$(echo "$client_types" | sed 's/[^,]*/"&"/g')]"
+          echo "test_clients=$TEST_CLIENTS" >> $GITHUB_OUTPUT
+      - uses: snnaplab/get-labels-action@f426df40304808ace3b5282d4f036515f7609576
+        with:
+          number: ${{ github.event.pull_request.number }}
+      - name: 'Set kafka client'
+        id: kafkaClient
+        run: |
+          KAFKA_CLIENTS=${{ steps.discover.outputs.test_clients }}
+          PR_LABELS=${{ env.LABELS }}
+          KAFKA_CLIENT=$(echo "${PR_LABELS[@]},${KAFKA_CLIENTS[@]}" | sed 's/,/\n/g; s/\[//g; s/\]//g; s/test\/system-test\///g' | sort | uniq -d)
+          KAFKA_CLIENT=$([[ -z $KAFKA_CLIENT ]] && echo 'strimzi_test_client' || echo $KAFKA_CLIENT)
+          echo "kafka_client=$KAFKA_CLIENT" >> "$GITHUB_OUTPUT"
+          echo "$KAFKA_CLIENT"
+      - name: 'Set Fortanix KMS'
+        id: fortanixKMS
+        run: |
+          PR_LABELS=${{ env.LABELS }}
+          FORTANIX=$([[ ${PR_LABELS[*]} =~ 'fortanix' ]] && echo 'true' || echo 'false')
+          echo "fortanix=$FORTANIX" >> "$GITHUB_OUTPUT"
+          echo "$FORTANIX"
+
   run_system_tests:
-    needs: build_images
+    needs: [build_images,set_variables]
     uses: ./.github/workflows/run-system-tests.yaml
     with:
-      kafkaClient: 'strimzi_test_client'
+      kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}
+      testFortanixKMS: ${{ needs.set_variables.outputs.fortanix }}
