@@ -302,31 +302,33 @@ public class AclAuthorizer implements Authorizer {
                                                         @Nullable Decision whenNotFound) {
         assert whenFound != whenNotFound;
         for (var p : subject.principals()) {
-
-            Decision foundDecision;
-            var grant = allowPerPrincipal.matchingOperations(new ResourceMatcherNameEquals<>(p.getClass(), p.name()));
-            if (grant != null) {
-                foundDecision = decision(action, grant, whenFound);
-                if (foundDecision != null) {
-                    return foundDecision;
-                }
-            }
-            grant = allowPerPrincipal.matchingOperations(new ResourceMatcherAnyOfType<>(p.getClass()));
-            if (grant != null) {
-                foundDecision = decision(action, grant, whenFound);
-                if (foundDecision != null) {
-                    return foundDecision;
-                }
-            }
-            grant = allowPerPrincipal.matchingOperations(new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
-            if (grant != null) {
-                foundDecision = decision(action, grant, whenFound);
-                if (foundDecision != null) {
-                    return foundDecision;
+            for (var matcher : principalMatchers(p)) {
+                var grant = allowPerPrincipal.matchingOperations(matcher);
+                if (grant != null) {
+                    Decision foundDecision = decision(action, grant, whenFound);
+                    if (foundDecision != null) {
+                        return foundDecision;
+                    }
                 }
             }
         }
         return whenNotFound;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<OrderedKey<Principal>> principalMatchers(Principal p) {
+        return List.of(
+                (OrderedKey<Principal>) new ResourceMatcherNameEquals<>(p.getClass(), p.name()),
+                (OrderedKey<Principal>) new ResourceMatcherAnyOfType<>(p.getClass()),
+                (OrderedKey<Principal>) new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<OrderedKey<?>> resourceMatchers(Action action) {
+        return List.of(
+                (OrderedKey<?>) new ResourceMatcherNameEquals<>(action.resourceTypeClass(), action.resourceName()),
+                (OrderedKey<?>) new ResourceMatcherAnyOfType<>(action.resourceTypeClass()),
+                (OrderedKey<?>) new ResourceMatcherNameStarts<>(action.resourceTypeClass(), action.resourceName()));
     }
 
     @Nullable
@@ -337,19 +339,11 @@ public class AclAuthorizer implements Authorizer {
         var typeNameMap = grants.nameMatches();
         ResourceType<?> resourceType = action.operation();
         if (typeNameMap != null) {
-            operations = typeNameMap.matchingOperations(new ResourceMatcherNameEquals<>(action.resourceTypeClass(),
-                    action.resourceName()));
-            if (isFound(operations, resourceType)) {
-                return whenFound;
-            }
-            operations = typeNameMap.matchingOperations(new ResourceMatcherAnyOfType<>(action.resourceTypeClass()));
-            if (isFound(operations, resourceType)) {
-                return whenFound;
-            }
-            operations = typeNameMap.matchingOperations(new ResourceMatcherNameStarts<>(action.resourceTypeClass(),
-                    action.resourceName()));
-            if (isFound(operations, resourceType)) {
-                return whenFound;
+            for (var matcher : resourceMatchers(action)) {
+                operations = typeNameMap.matchingOperations((OrderedKey) matcher);
+                if (isFound(operations, resourceType)) {
+                    return whenFound;
+                }
             }
         }
         var patternMatch = grants.patternMatches();
@@ -385,11 +379,8 @@ public class AclAuthorizer implements Authorizer {
                 if (decision == Decision.DENY) {
                     deniedActions.add(action);
                 }
-                else if (decision == Decision.ALLOW) {
-                    allowedActions.add(action);
-                }
                 else {
-                    throw new IllegalStateException();
+                    allowedActions.add(action);
                 }
             }
         }
