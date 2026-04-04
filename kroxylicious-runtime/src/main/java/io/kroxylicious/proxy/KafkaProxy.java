@@ -57,6 +57,7 @@ import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
+import io.kroxylicious.proxy.internal.VirtualClusterState;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
@@ -246,10 +247,17 @@ public final class KafkaProxy implements AutoCloseable {
                             .toArray(CompletableFuture[]::new))
                     .join();
 
+            virtualClusterModels.forEach(vc -> vc.stateMachine().transitionTo(VirtualClusterState.SERVING));
+
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is started");
             return this;
         }
         catch (RuntimeException e) {
+            virtualClusterModels.forEach(vc -> {
+                if (vc.stateMachine().currentState() == VirtualClusterState.INITIALIZING) {
+                    vc.stateMachine().transitionTo(VirtualClusterState.FAILED);
+                }
+            });
             STARTUP_SHUTDOWN_LOGGER.error("Exception during startup, shutting down", e);
             shutdown();
             throw new LifecycleException("Startup completed exceptionally", e);
@@ -344,6 +352,11 @@ public final class KafkaProxy implements AutoCloseable {
         }
         try {
             STARTUP_SHUTDOWN_LOGGER.info("Shutting down");
+            virtualClusterModels.forEach(vc -> {
+                if (vc.stateMachine().currentState() == VirtualClusterState.SERVING) {
+                    vc.stateMachine().transitionTo(VirtualClusterState.DRAINING);
+                }
+            });
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();

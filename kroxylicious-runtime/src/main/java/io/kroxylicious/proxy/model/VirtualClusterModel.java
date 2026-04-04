@@ -44,6 +44,7 @@ import io.kroxylicious.proxy.config.tls.SslContextBuildException;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.internal.VirtualClusterStateMachine;
 import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
@@ -76,6 +77,7 @@ public class VirtualClusterModel {
     private final Optional<SslContext> upstreamSslContext;
     private final CacheConfiguration topicNameCacheConfig;
     private final @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig;
+    private final VirtualClusterStateMachine stateMachine;
     // lazily initialize to delay statistics registration until after the meter registry has been configured
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
@@ -102,6 +104,7 @@ public class VirtualClusterModel {
         this.filters = filters;
         this.topicNameCacheConfig = topicNameCacheConfig;
         this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
+        this.stateMachine = new VirtualClusterStateMachine(clusterName);
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
@@ -153,6 +156,10 @@ public class VirtualClusterModel {
 
     public String getClusterName() {
         return clusterName;
+    }
+
+    public VirtualClusterStateMachine stateMachine() {
+        return stateMachine;
     }
 
     public boolean isLogNetwork() {
