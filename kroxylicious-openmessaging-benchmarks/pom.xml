@@ -26,6 +26,14 @@
 
     <properties>
         <helm.chart.directory>${project.basedir}/helm/kroxylicious-benchmark</helm.chart.directory>
+        <!--
+            JBang entry-point files use //DEPS and //SOURCES directives that Sonar flags as
+            commented-out code (S125). These comments are not removable — they are required
+            JBang syntax. Exclude all JBang entry-point classes from S125 analysis.
+        -->
+        <sonar.issue.ignore.multicriteria>jbang-s125</sonar.issue.ignore.multicriteria>
+        <sonar.issue.ignore.multicriteria.jbang-s125.ruleKey>java:S125</sonar.issue.ignore.multicriteria.jbang-s125.ruleKey>
+        <sonar.issue.ignore.multicriteria.jbang-s125.resourceKey>**/results/Check*.java</sonar.issue.ignore.multicriteria.jbang-s125.resourceKey>
     </properties>
 
     <dependencies>
@@ -81,6 +89,11 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
+            <version>3.6.1</version>
         </dependency>
     </dependencies>
 

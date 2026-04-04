@@ -48,6 +48,7 @@ class JBangCompileTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {
+            "io/kroxylicious/benchmarks/results/CheckSignificance.java",
             "io/kroxylicious/benchmarks/results/CompareResults.java",
             "io/kroxylicious/benchmarks/results/CollectResults.java"
     })
