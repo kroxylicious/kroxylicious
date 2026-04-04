@@ -122,6 +122,17 @@
         <dependency>
             <groupId>io.apicurio</groupId>
             <artifactId>apicurio-registry-schema-resolver</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.kiota</groupId>
+                    <artifactId>kiota-http-vertx</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.kiota</groupId>
+            <artifactId>kiota-http-jdk</artifactId>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 
