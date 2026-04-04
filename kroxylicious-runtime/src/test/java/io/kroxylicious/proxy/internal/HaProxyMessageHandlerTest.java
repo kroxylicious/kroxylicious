@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
-class HAProxyMessageHandlerTest {
+class HaProxyMessageHandlerTest {
 
     private static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(
             HAProxyProtocolVersion.V2,
@@ -42,11 +42,11 @@ class HAProxyMessageHandlerTest {
     @Mock
     private ChannelHandlerContext ctx;
 
-    private HAProxyMessageHandler handler;
+    private HaProxyMessageHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new HAProxyMessageHandler(proxyChannelStateMachine);
+        handler = new HaProxyMessageHandler(proxyChannelStateMachine);
     }
 
     @Test
@@ -54,11 +54,11 @@ class HAProxyMessageHandlerTest {
         // When
         handler.channelRead(ctx, HA_PROXY_MESSAGE);
 
-        // Then
-        verify(proxyChannelStateMachine).onClientRequest(HA_PROXY_MESSAGE);
+        // Then - state machine is signalled
+        verify(proxyChannelStateMachine).onHAProxyMessageReceived(HA_PROXY_MESSAGE);
         verifyNoMoreInteractions(proxyChannelStateMachine);
-        // Should NOT propagate to next handler
-        verifyNoInteractions(ctx);
+        // Should trigger another read for the Kafka layer
+        verify(ctx).read();
     }
 
     @Test
@@ -70,7 +70,7 @@ class HAProxyMessageHandlerTest {
         handler.channelRead(ctx, kafkaFrame);
 
         // Then
-        // Should NOT interact with state machine for non-HAProxy messages
+        // Should NOT interact with state machine for non-HaProxy messages
         verifyNoInteractions(proxyChannelStateMachine);
         // Should propagate to next handler
         verify(ctx).fireChannelRead(kafkaFrame);

@@ -19,7 +19,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
@@ -31,6 +30,7 @@ import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
@@ -55,7 +55,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
     public static final String PRE_SESSION_IDLE_HANDLER = "preSessionIdleHandler";
 
-    private final boolean haproxyProtocol;
+    private final ProxyProtocolMode proxyProtocolMode;
     private final boolean tls;
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
@@ -74,12 +74,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
-                                 boolean haproxyProtocol,
+                                 ProxyProtocolMode proxyProtocolMode,
                                  ApiVersionsServiceImpl apiVersionsService,
                                  Optional<NettySettings> proxyNettySettings) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
-        this.haproxyProtocol = haproxyProtocol;
+        this.proxyProtocolMode = proxyProtocolMode;
         this.tls = tls;
         this.bindingResolver = bindingResolver;
         this.filterChainFactory = filterChainFactory;
@@ -93,17 +93,26 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     public void initChannel(Channel ch) {
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        var proxyChannelStateMachine = new ProxyChannelStateMachine(kafkaSession);
+
+        if (proxyProtocolMode != ProxyProtocolMode.DISABLED) {
+            LOGGER.debug("Adding PROXY protocol detection handler (mode={})", proxyProtocolMode);
+            ch.pipeline().addLast("HaProxyProtocolDetectionHandler",
+                    new HaProxyProtocolDetectionHandler(proxyProtocolMode, proxyChannelStateMachine));
+        }
+
         if (tls) {
-            initTlsChannel(ch);
+            initTlsChannel(ch, proxyChannelStateMachine);
         }
         else {
-            initPlainChannel(ch);
+            initPlainChannel(ch, proxyChannelStateMachine);
         }
         addIdleHandlerToPipeline(ch.pipeline());
         addLoggingErrorHandler(ch.pipeline());
     }
 
-    private void initPlainChannel(Channel ch) {
+    private void initPlainChannel(Channel ch, ProxyChannelStateMachine proxyChannelStateMachine) {
         ch.pipeline().addLast("plainResolver", new ChannelInboundHandlerAdapter() {
             @SuppressWarnings("java:S1181")
             @Override
@@ -116,7 +125,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                 return null;
                             }
                             try {
-                                KafkaProxyInitializer.this.addHandlers(ch, binding);
+                                KafkaProxyInitializer.this.addHandlers(ch, binding, proxyChannelStateMachine);
                                 ctx.fireChannelActive();
                             }
                             catch (Throwable t1) {
@@ -133,7 +142,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     // deep inheritance tree of SniHandler not something we can fix, throwable is the right choice as we are forwarding it on.
     @SuppressWarnings({ "java:S110", "java:S1181" })
-    private void initTlsChannel(Channel ch) {
+    private void initTlsChannel(Channel ch, ProxyChannelStateMachine proxyChannelStateMachine) {
         LOGGER.debug("Adding SSL/SNI handler");
         ch.pipeline().addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
             try {
@@ -153,7 +162,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
                         }
                         else {
-                            KafkaProxyInitializer.this.addHandlers(ch, binding);
+                            KafkaProxyInitializer.this.addHandlers(ch, binding, proxyChannelStateMachine);
                             promise.setSuccess(sslContext.get());
                         }
                     }
@@ -188,7 +197,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     @VisibleForTesting
-    void addHandlers(Channel ch, EndpointBinding binding) {
+    void addHandlers(Channel ch, EndpointBinding binding, ProxyChannelStateMachine proxyChannelStateMachine) {
         var virtualCluster = binding.endpointGateway().virtualCluster();
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
@@ -197,16 +206,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         }
 
         TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder);
-
-        // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
-        if (haproxyProtocol) {
-            LOGGER.debug("Adding haproxy handlers");
-            pipeline.addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
-            // HAProxyMessageHandler intercepts HAProxyMessage and forwards it to the state machine,
-            // preventing it from propagating to filters that only expect Kafka protocol messages
-            pipeline.addLast("HAProxyMessageHandler", new HAProxyMessageHandler(proxyChannelStateMachine));
-        }
+        proxyChannelStateMachine.onBindingResolution(binding, subjectBuilder);
 
         var dp = new DelegatingDecodePredicate();
         // The decoder, this only cares about the filters

@@ -28,6 +28,7 @@ dependency-reduced-pom.xml
 .idea/kubernetes-settings.xml
 .idea/sonarlint.xml
 .idea/copilot.*
+.idea/go.imports.xml
 
  # AWS User-specific
 .idea/**/aws.xml

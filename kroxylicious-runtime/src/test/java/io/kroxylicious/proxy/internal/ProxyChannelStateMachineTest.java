@@ -112,7 +112,8 @@ class ProxyChannelStateMachineTest {
         when(endpointBinding.nodeId()).thenReturn(null);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
+        proxyChannelStateMachine = new ProxyChannelStateMachine(new KafkaSession(KafkaSessionState.ESTABLISHING));
+        proxyChannelStateMachine.onBindingResolution(endpointBinding, new DefaultSubjectBuilder(List.of()));
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
     }
 
@@ -325,18 +326,44 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inClientActiveShouldCaptureHaProxyState() {
+    void inClientActiveShouldCaptureHAProxyState() {
         // Given
         stateMachineInClientActive();
 
         // When
-        proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
+        proxyChannelStateMachine.onHAProxyMessageReceived(HA_PROXY_MESSAGE);
 
         // Then
-        assertThat(proxyChannelStateMachine.state())
-                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.HaProxy.class))
-                .extracting(ProxyChannelState.HaProxy::haProxyMessage)
-                .isSameAs(HA_PROXY_MESSAGE);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.HaProxy.class);
+        assertThat(proxyChannelStateMachine.kafkaSession().haProxyContext()).isNotNull();
+    }
+
+    @Test
+    void inStartingShouldSilentlyAcceptHAProxyMessageWhenFrontendHandlerNotYetAdded() {
+        // Given - PCSM is in STARTING state with no frontend handler (simulates TLS pipeline
+        // where the PROXY header arrives before the SSL handshake / SNI resolution completes)
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Startup.class);
+
+        // When - HaProxyMessageHandler calls onHAProxyMessageReceived before channelActive fires
+        proxyChannelStateMachine.onHAProxyMessageReceived(HA_PROXY_MESSAGE);
+
+        // Then - pending flag set, state unchanged, no crash
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Startup.class);
+    }
+
+    @Test
+    void onClientActiveShouldReplayHAProxyMessageStoredInKafkaSession() {
+        // Given - HaProxy message arrived before channelActive (TLS pipeline scenario).
+        // onHAProxyMessageReceived extracts context and flags for replay when onClientActive fires.
+        proxyChannelStateMachine.onHAProxyMessageReceived(HA_PROXY_MESSAGE);
+
+        // When
+        proxyChannelStateMachine.onClientActive(frontendHandler);
+
+        // Then - state machine transitions through ClientActive → HaProxy
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.HaProxy.class);
+        assertThat(proxyChannelStateMachine.kafkaSession().haProxyContext()).isNotNull();
+        verify(frontendHandler).inClientActive();
     }
 
     @Test
@@ -357,9 +384,9 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inHaProxyShouldBufferWhenOnClientApiVersionsRequest() {
+    void inHAProxyShouldBufferWhenOnClientApiVersionsRequest() {
         // Given
-        stateMachineInHaProxy();
+        stateMachineInHAProxy();
         var msg = apiVersionsRequest();
 
         // When
@@ -374,9 +401,9 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inHaProxyShouldCloseOnHaProxyMsg() {
+    void inHAProxyShouldCloseOnHAProxyMsg() {
         // Given
-        stateMachineInHaProxy();
+        stateMachineInHAProxy();
 
         // When
         proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
@@ -388,9 +415,9 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inHaProxyShouldBufferWhenOnClientMetadataRequest() {
+    void inHAProxyShouldBufferWhenOnClientMetadataRequest() {
         // Given
-        stateMachineInHaProxy();
+        stateMachineInHAProxy();
         var msg = metadataRequest();
 
         // When
@@ -594,7 +621,7 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
-        assertThat(proxyChannelStateMachine.getKafkaSession().currentState()).isEqualTo(KafkaSessionState.TERMINATING);
+        assertThat(proxyChannelStateMachine.kafkaSession().currentState()).isEqualTo(KafkaSessionState.TERMINATING);
         verify(frontendHandler).inClosed(null);
         verify(backendHandler).inClosed();
     }
@@ -762,8 +789,8 @@ class ProxyChannelStateMachineTest {
                 argumentSet("STARTING TLS off ", (Runnable) () -> {
                     // no Op
                 }, false),
-                argumentSet("HA Proxy TLS on", (Runnable) this::stateMachineInHaProxy, true),
-                argumentSet("HA Proxy TLS off ", (Runnable) this::stateMachineInHaProxy, false),
+                argumentSet("HA Proxy TLS on", (Runnable) this::stateMachineInHAProxy, true),
+                argumentSet("HA Proxy TLS off ", (Runnable) this::stateMachineInHAProxy, false),
                 argumentSet("Selecting Server TLS on", (Runnable) this::stateMachineInSelectingServer, true),
                 argumentSet("Selecting Server TLS off ", (Runnable) this::stateMachineInSelectingServer, false),
                 argumentSet("Connecting TLS on", (Runnable) this::stateMachineInConnecting, true),
@@ -778,7 +805,7 @@ class ProxyChannelStateMachineTest {
 
     public Stream<Arguments> givenStates() {
         return Stream.of(
-                argumentSet("HA Proxy", (Runnable) this::stateMachineInHaProxy),
+                argumentSet("HA Proxy", (Runnable) this::stateMachineInHAProxy),
                 argumentSet("Connecting", (Runnable) this::stateMachineInConnecting),
                 argumentSet("ClientActive ", (Runnable) this::stateMachineInClientActive),
                 argumentSet("Forwarding", (Runnable) this::stateMachineInForwarding),
@@ -800,9 +827,9 @@ class ProxyChannelStateMachineTest {
                 TEST_KAFKA_SESSION);
     }
 
-    private void stateMachineInHaProxy() {
+    private void stateMachineInHAProxy() {
         proxyChannelStateMachine.forceState(
-                new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                new ProxyChannelState.HaProxy(),
                 frontendHandler,
                 null,
                 TEST_KAFKA_SESSION);
@@ -810,7 +837,7 @@ class ProxyChannelStateMachineTest {
 
     private void stateMachineInSelectingServer() {
         proxyChannelStateMachine.forceState(
-                new ProxyChannelState.SelectingServer(null, null, null),
+                new ProxyChannelState.SelectingServer(null, null),
                 frontendHandler,
                 null,
                 TEST_KAFKA_SESSION);
@@ -818,14 +845,14 @@ class ProxyChannelStateMachineTest {
 
     private void stateMachineInConnecting() {
         proxyChannelStateMachine.forceState(
-                new ProxyChannelState.Connecting(null, null, null, new HostPort("localhost", 9089)),
+                new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 backendHandler,
                 TEST_KAFKA_SESSION);
     }
 
     private ProxyChannelState.Forwarding stateMachineInForwarding() {
-        var forwarding = new ProxyChannelState.Forwarding(null, null, null);
+        var forwarding = new ProxyChannelState.Forwarding(null, null);
         proxyChannelStateMachine.forceState(
                 forwarding,
                 frontendHandler,

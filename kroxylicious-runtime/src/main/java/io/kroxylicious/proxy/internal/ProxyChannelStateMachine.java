@@ -94,8 +94,8 @@ import static org.slf4j.LoggerFactory.getLogger;
  * several of the session states and is independent of them.</p>
  *
  * <p>
- *     When either side of the proxy stats applying back pressure the proxy should propagate that fact to teh other peer.
- *     Thus when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
+ *     When either side of the proxy starts applying back pressure the proxy should propagate that fact to the other peer.
+ *     Thus, when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
  * </p>
  */
 @SuppressWarnings("java:S1133")
@@ -125,19 +125,30 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    // Connection metrics
-    private final Counter clientToProxyErrorCounter;
-    private final Counter clientToProxyDisconnectsIdleCounter;
-    private final Counter clientToProxyDisconnectsClientClosedCounter;
-    private final Counter clientToProxyDisconnectsServerClosedCounter;
-    private final Counter clientToProxyConnectionCounter;
-    private final Counter proxyToServerConnectionCounter;
-    private final Counter proxyToServerErrorCounter;
-    private final Timer serverToProxyBackpressureMeter;
-    private final Timer clientToProxyBackPressureMeter;
+    // Connection metrics - initialized in onBindingResolution(), except clientToProxyErrorCounter
+    // which has a placeholder until binding is resolved (can be called before binding for early errors)
+    private Counter clientToProxyErrorCounter;
+    @Nullable
+    private Counter clientToProxyDisconnectsIdleCounter;
+    @Nullable
+    private Counter clientToProxyDisconnectsClientClosedCounter;
+    @Nullable
+    private Counter clientToProxyDisconnectsServerClosedCounter;
+    @Nullable
+    private Counter clientToProxyConnectionCounter;
+    @Nullable
+    private Counter proxyToServerConnectionCounter;
+    @Nullable
+    private Counter proxyToServerErrorCounter;
+    @Nullable
+    private Timer serverToProxyBackpressureMeter;
+    @Nullable
+    private Timer clientToProxyBackPressureMeter;
 
-    private final ActivationToken clientToProxyConnectionToken;
-    private final ActivationToken proxyToServerConnectionToken;
+    @Nullable
+    private ActivationToken clientToProxyConnectionToken;
+    @Nullable
+    private ActivationToken proxyToServerConnectionToken;
 
     @VisibleForTesting
     @Nullable
@@ -147,7 +158,8 @@ public class ProxyChannelStateMachine {
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
-    private final EndpointBinding endpointBinding;
+    @Nullable
+    private EndpointBinding endpointBinding;
 
     @NonNull
     // Ideally this would be final, however that breaks forceState which is used heavily in testing.
@@ -168,8 +180,16 @@ public class ProxyChannelStateMachine {
     boolean serverReadsBlocked;
     @VisibleForTesting
     boolean clientReadsBlocked;
-    private final TransportSubjectBuilder transportSubjectBuilder;
+    @Nullable
+    private TransportSubjectBuilder transportSubjectBuilder;
     private final ClientSubjectManager clientSubjectManager = new ClientSubjectManager();
+    /**
+     * Whether an HaProxy message was received before the frontend handler was active
+     * (TLS pipeline). The context is extracted eagerly into {@link KafkaSession};
+     * this flag triggers the {@link ProxyChannelState.HaProxy} state transition
+     * when {@link #onClientActive(KafkaProxyFrontendHandler)} fires.
+     */
+    private boolean haProxyMessagePending;
     private int progressionLatch = -1;
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
@@ -185,13 +205,24 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
-    public ProxyChannelStateMachine(EndpointBinding endpointBinding,
-                                    TransportSubjectBuilder transportSubjectBuilder) {
+    public ProxyChannelStateMachine(KafkaSession kafkaSession) {
+        this.kafkaSession = kafkaSession;
+        // Placeholder until onBindingResolution() is called; needed because onClientException()
+        // can be triggered before binding is resolved (e.g. bad HaProxy header in TLS pipeline).
+        this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
+    }
+
+    /**
+     * Called once the endpoint binding has been resolved (after SNI/plain resolver completes).
+     * Initialises all binding-dependent state and metrics.
+     *
+     * @param endpointBinding the resolved binding
+     * @param transportSubjectBuilder the subject builder for this virtual cluster
+     */
+    public void onBindingResolution(EndpointBinding endpointBinding, TransportSubjectBuilder transportSubjectBuilder) {
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
-        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-
         var nodeId = endpointBinding.nodeId();
         String clusterName = virtualCluster.getClusterName();
         VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
@@ -200,6 +231,7 @@ public class ProxyChannelStateMachine {
         clientToProxyDisconnectsIdleCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.IDLE_TIMEOUT.label()).withTags();
         clientToProxyDisconnectsClientClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.CLIENT_CLOSED.label()).withTags();
         clientToProxyDisconnectsServerClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.SERVER_CLOSED.label()).withTags();
+        io.micrometer.core.instrument.Metrics.globalRegistry.remove(clientToProxyErrorCounter);
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
         proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
         proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
@@ -330,9 +362,39 @@ public class ProxyChannelStateMachine {
                     .addArgument(this.frontendHandler.remotePort())
                     .log();
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
+            // Replay HaProxy state transition deferred from the TLS pipeline.
+            // The context was already extracted into KafkaSession; we just
+            // need to transition ClientActive → HaProxy.
+            if (haProxyMessagePending) {
+                haProxyMessagePending = false;
+                if (state instanceof ProxyChannelState.ClientActive clientActive) {
+                    toHAProxy(clientActive.toHaProxy());
+                }
+            }
         }
         else {
             illegalState("Client activation while not in the start state");
+        }
+    }
+
+    /**
+     * Notify the state machine that an HaProxy PROXY protocol message has been received.
+     * Called by {@link HaProxyMessageHandler} — this is the only entry point for HaProxy messages.
+     * <p>
+     * If the frontend handler is already active (PLAIN path), transitions immediately
+     * to the {@link ProxyChannelState.HaProxy} state. Otherwise (TLS path), defers the
+     * transition until {@link #onClientActive(KafkaProxyFrontendHandler)} fires.
+     * </p>
+     *
+     * @param msg the decoded HaProxy message (context is extracted, message is not released here)
+     */
+    void onHAProxyMessageReceived(HAProxyMessage msg) {
+        kafkaSession.setHAProxyContext(msg);
+        if (state instanceof ProxyChannelState.ClientActive clientActive) {
+            toHAProxy(clientActive.toHaProxy());
+        }
+        else {
+            haProxyMessagePending = true;
         }
     }
 
@@ -416,7 +478,10 @@ public class ProxyChannelStateMachine {
      */
     void onClientRequest(
                          Object msg) {
-        Objects.requireNonNull(frontendHandler);
+        if (frontendHandler == null) {
+            illegalState("Message received before client active: " + (msg == null ? "null" : msg.getClass()));
+            return;
+        }
         if (state() instanceof Forwarding) { // post-backend connection
             messageFromClient(msg);
         }
@@ -496,7 +561,10 @@ public class ProxyChannelStateMachine {
      */
     @SuppressWarnings("java:S5738")
     void onClientException(@Nullable Throwable cause) {
-        var tlsEnabled = endpointGateway().getDownstreamSslContext().isPresent();
+        // endpointBinding may be null if the error occurs before binding resolution
+        // (e.g. bad HaProxy header during TLS handshake, before SNI completes).
+        var tlsEnabled = endpointBinding != null
+                && endpointGateway().getDownstreamSslContext().isPresent();
         ApiException errorCodeEx;
         if (cause instanceof DecoderException de
                 && de.getCause() instanceof FrameOversizedException e) {
@@ -533,7 +601,7 @@ public class ProxyChannelStateMachine {
     /**
      * @return Return the session for this connection.
      */
-    public KafkaSession getKafkaSession() {
+    public KafkaSession kafkaSession() {
         return kafkaSession;
     }
 
@@ -641,7 +709,7 @@ public class ProxyChannelStateMachine {
             return onClientRequestInClientActiveState(msg, clientActive);
         }
         else if (state() instanceof ProxyChannelState.HaProxy haProxy) {
-            return onClientRequestInHaProxyState(msg, haProxy);
+            return onClientRequestInHAProxyState(msg, haProxy);
         }
         else if (state() instanceof ProxyChannelState.SelectingServer) {
             return msg instanceof RequestFrame;
@@ -651,7 +719,7 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    private boolean onClientRequestInHaProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
+    private boolean onClientRequestInHAProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
         return transitionClientRequest(msg, haProxy::toSelectingServer);
     }
 
@@ -673,16 +741,10 @@ public class ProxyChannelStateMachine {
     }
 
     private boolean onClientRequestInClientActiveState(Object msg, ProxyChannelState.ClientActive clientActive) {
-        if (msg instanceof HAProxyMessage haProxyMessage) {
-            toHaProxy(clientActive.toHaProxy(haProxyMessage));
-            return true;
-        }
-        else {
-            return transitionClientRequest(msg, clientActive::toSelectingServer);
-        }
+        return transitionClientRequest(msg, clientActive::toSelectingServer);
     }
 
-    private void toHaProxy(ProxyChannelState.HaProxy haProxy) {
+    private void toHAProxy(ProxyChannelState.HaProxy haProxy) {
         setState(haProxy);
     }
 
@@ -708,28 +770,39 @@ public class ProxyChannelStateMachine {
         // Close the server connection
         if (backendHandler != null) {
             backendHandler.inClosed();
-            proxyToServerConnectionToken.release();
+            // token is guaranteed non-null: backendHandler is set in toConnecting(), which
+            // can only be reached after onClientActive(), which requires onBindingResolution()
+            Objects.requireNonNull(proxyToServerConnectionToken).release();
         }
 
         // Close the client connection with any error code
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
             frontendHandler.inClosed(errorCodeEx);
-            clientToProxyConnectionToken.release();
+            // token is guaranteed non-null: frontendHandler is set in onClientActive(), which
+            // requires onBindingResolution() to have been called first
+            Objects.requireNonNull(clientToProxyConnectionToken).release();
         }
     }
 
     private void incrementAppropriateDisconnectsMetric(@Nullable DisconnectCause disconnectCause) {
-        // Increment disconnect counter based on cause (if not an error)
+        // Increment disconnect counter based on cause (if not an error).
+        // Counters may be null if binding was never resolved (connection dropped before addHandlers).
         if (disconnectCause != null) {
             switch (disconnectCause) {
                 case IDLE_TIMEOUT:
-                    clientToProxyDisconnectsIdleCounter.increment();
+                    if (clientToProxyDisconnectsIdleCounter != null) {
+                        clientToProxyDisconnectsIdleCounter.increment();
+                    }
                     break;
                 case CLIENT_CLOSED:
-                    clientToProxyDisconnectsClientClosedCounter.increment();
+                    if (clientToProxyDisconnectsClientClosedCounter != null) {
+                        clientToProxyDisconnectsClientClosedCounter.increment();
+                    }
                     break;
                 case SERVER_CLOSED:
-                    clientToProxyDisconnectsServerClosedCounter.increment();
+                    if (clientToProxyDisconnectsServerClosedCounter != null) {
+                        clientToProxyDisconnectsServerClosedCounter.increment();
+                    }
                     break;
             }
         }

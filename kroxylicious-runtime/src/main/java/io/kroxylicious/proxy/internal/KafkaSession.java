@@ -9,13 +9,25 @@ package io.kroxylicious.proxy.internal;
 import java.util.Objects;
 import java.util.UUID;
 
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaSession {
+
     private final String sessionId;
     private KafkaSessionState currentState;
+
+    /**
+     * The HaProxy PROXY-protocol message received for this session, if any.
+     * Captured by {@link HaProxyMessageHandler} before the SSL/binding handshake
+     * completes so it is available when the state machine becomes active.
+     */
+    @Nullable
+    private HaProxyContext haProxyContext;
 
     public KafkaSession(KafkaSessionState currentState) {
         this(null, currentState);
@@ -43,6 +55,29 @@ public class KafkaSession {
 
     public KafkaSessionState currentState() {
         return currentState;
+    }
+
+    /**
+     * Extract connection metadata from the HaProxy PROXY-protocol message
+     * and store it as the session's {@link HaProxyContext}.
+     * <p>
+     * The {@link HaProxyContext} deep-copies all fields (including TLV content)
+     * so it remains valid regardless of the raw message's reference-count lifecycle.
+     * The raw message is <b>not</b> released here — Netty's pipeline manages that.
+     * </p>
+     *
+     * @param msg the decoded HaProxy message
+     */
+    public void setHAProxyContext(HAProxyMessage msg) {
+        haProxyContext = HaProxyContext.from(msg);
+    }
+
+    /**
+     * @return the HaProxy message received for this session, or {@code null} if none.
+     */
+    @Nullable
+    public HaProxyContext haProxyContext() {
+        return haProxyContext;
     }
 
     @Override
