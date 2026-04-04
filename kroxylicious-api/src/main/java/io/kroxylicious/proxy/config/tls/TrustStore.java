@@ -44,7 +44,7 @@ public record TrustStore(@JsonProperty(required = true) String storeFile,
      * @param storeType specifies the server key type. Legal values are those types supported by the platform {@link KeyStore},
      *         and PEM (for X-509 certificates express in PEM format).
      */
-    public TrustStore(String storeFile, PasswordProvider storePasswordProvider, String storeType) {
+    public TrustStore(String storeFile, @Nullable PasswordProvider storePasswordProvider, @Nullable String storeType) {
         this(storeFile, storePasswordProvider, storeType, null);
     }
 
