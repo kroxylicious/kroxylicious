@@ -22,6 +22,9 @@
     <description>KMS provider implementations</description>
     <packaging>pom</packaging>
 
+    <properties>
+    </properties>
+
     <modules>
         <module>kroxylicious-kms-provider-aws-kms</module>
         <module>kroxylicious-kms-provider-aws-kms-test-support</module>

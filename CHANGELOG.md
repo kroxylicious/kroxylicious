@@ -7,6 +7,8 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3565](https://github.com/kroxylicious/kroxylicious/pull/3514): build(deps): bump kubernetes-client.version from 7.5.2 to 7.6.1
+* [#3514](https://github.com/kroxylicious/kroxylicious/pull/3514): build(deps): build(deps-dev): bump org.yaml:snakeyaml from 2.5 to 2.6
 * [#3564](https://github.com/kroxylicious/kroxylicious/pull/3564): build(deps): bump apicurio-registry.version from 3.1.6 to 3.2.1
 
 ## 0.20.0

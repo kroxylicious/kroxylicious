@@ -79,7 +79,7 @@ public interface ResponseFilter extends Filter {
      * @see io.kroxylicious.proxy.filter Creating Filter Result objects
      * @see io.kroxylicious.proxy.filter Thread Safety
      */
-    @SuppressWarnings("deprecated")
+    @SuppressWarnings("deprecation")
     default CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
                                                              short apiVersion,
                                                              ResponseHeaderData header,

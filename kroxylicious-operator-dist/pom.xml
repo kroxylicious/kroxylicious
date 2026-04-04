@@ -21,6 +21,10 @@
     <description>Assembles the operator assets for release</description>
     <packaging>pom</packaging>
 
+    <properties>
+        <errorprone.skip>true</errorprone.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

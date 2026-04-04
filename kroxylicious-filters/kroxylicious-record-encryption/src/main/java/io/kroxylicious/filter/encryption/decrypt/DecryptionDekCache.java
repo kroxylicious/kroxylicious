@@ -71,7 +71,7 @@ public class DecryptionDekCache<K, E> {
                               @Nullable Executor dekCacheExecutor,
                               int dekCacheMaxItems) {
         this.dekManager = Objects.requireNonNull(dekManager);
-        Caffeine<Object, Object> cache = Caffeine.<CacheKey<E>, Dek<E>> newBuilder();
+        Caffeine<Object, Object> cache = Caffeine.newBuilder();
         if (dekCacheMaxItems != NO_MAX_CACHE_SIZE) {
             cache.maximumSize(dekCacheMaxItems);
         }

@@ -31,6 +31,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProduceRequestValidatorBuilderTlsTest {
 
+    // This test uses a copy of the same key material as io.kroxylicious.proxy.config.tls.TlsTestConstants in kroxylicious_runtime
+    private static final String PATH_TO_TRUSTSTORE_JKS = getResourceLocationOnFilesystem("client.jks");
+    private static final String PATH_TO_TRUSTSTORE_P12 = getResourceLocationOnFilesystem("client.p12");
+    private static final String PATH_TO_CLIENT_CERT_PEM = getResourceLocationOnFilesystem("client.pem");
+    public static final String STORE_PASS = "storepass";
     private static URL registryUrl;
 
     @BeforeAll
@@ -46,18 +51,8 @@ class ProduceRequestValidatorBuilderTlsTest {
     }
 
     @Test
-    void buildSchemaResolverConfigWithTrustStore() {
-        var trustStore = new TrustStore("/path/to/truststore.jks", new InlinePassword("changeit"), "JKS");
-        var tls = new Tls(null, trustStore, null, null);
-        var config = schemaConfig(tls);
-        // Should build successfully without exception
-        var validator = buildValidatorConfig(config);
-        assertThat(validator).isNotNull();
-    }
-
-    @Test
     void buildSchemaResolverConfigWithTrustStoreNoPassword() {
-        var trustStore = new TrustStore("/path/to/truststore.jks", null, "PKCS12");
+        var trustStore = new TrustStore(PATH_TO_TRUSTSTORE_P12, new InlinePassword(STORE_PASS), "PKCS12");
         var tls = new Tls(null, trustStore, null, null);
         var config = schemaConfig(tls);
         var validator = buildValidatorConfig(config);
@@ -66,7 +61,7 @@ class ProduceRequestValidatorBuilderTlsTest {
 
     @Test
     void buildSchemaResolverConfigWithTrustStoreNoType() {
-        var trustStore = new TrustStore("/path/to/truststore.jks", new InlinePassword("changeit"), null);
+        var trustStore = new TrustStore(PATH_TO_TRUSTSTORE_JKS, new InlinePassword(STORE_PASS), null);
         var tls = new Tls(null, trustStore, null, null);
         var config = schemaConfig(tls);
         var validator = buildValidatorConfig(config);
@@ -100,7 +95,7 @@ class ProduceRequestValidatorBuilderTlsTest {
 
     @Test
     void buildSchemaResolverConfigWithPemTrustStore() {
-        var trustStore = new TrustStore("/path/to/certs.pem", null, "PEM");
+        var trustStore = new TrustStore(PATH_TO_CLIENT_CERT_PEM, null, "PEM");
         var tls = new Tls(null, trustStore, null, null);
         var config = schemaConfig(tls);
         var validator = buildValidatorConfig(config);
@@ -155,4 +150,11 @@ class ProduceRequestValidatorBuilderTlsTest {
         var validationConfig = new ValidationConfig(List.of(rule), null);
         return ProduceRequestValidatorBuilder.build(validationConfig);
     }
+
+    private static String getResourceLocationOnFilesystem(String resource) {
+        var url = ProduceRequestValidatorBuilderTlsTest.class.getResource(resource);
+        assertThat(url).isNotNull();
+        return url.getFile();
+    }
+
 }

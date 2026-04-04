@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.config;
 
 import java.lang.annotation.Annotation;
+import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.OptBoolean;
@@ -48,43 +49,7 @@ class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
      * @return The fake annotation instance
      */
     private static JsonTypeInfo synthesizeJsonTypeInfo(PluginImplConfig pc) {
-        return new JsonTypeInfo() {
-
-            @Override
-            public Class<? extends Annotation> annotationType() {
-                return JsonTypeInfo.class;
-            }
-
-            @Override
-            public Id use() {
-                return Id.NAME;
-            }
-
-            @Override
-            public As include() {
-                return As.EXTERNAL_PROPERTY;
-            }
-
-            @Override
-            public String property() {
-                return pc.implNameProperty();
-            }
-
-            @Override
-            public Class<?> defaultImpl() {
-                return JsonTypeInfo.class;
-            }
-
-            @Override
-            public boolean visible() {
-                return false;
-            }
-
-            @Override
-            public OptBoolean requireTypeIdForSubtypes() {
-                return OptBoolean.DEFAULT;
-            }
-        };
+        return new FakeJsonTypeInfo(pc);
     }
 
     /**
@@ -99,17 +64,95 @@ class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
      * @return The annotation instance.
      */
     private static JsonTypeIdResolver synthesizeJsonTypeIdResolver() {
-        return new JsonTypeIdResolver() {
-            @Override
-            public Class<? extends Annotation> annotationType() {
-                return JsonTypeIdResolver.class;
-            }
-
-            @Override
-            public Class<? extends TypeIdResolver> value() {
-                return PluginConfigTypeIdResolver.class;
-            }
-        };
+        return new FakeJsonTypeIdResolver();
     }
 
+    static class FakeJsonTypeInfo implements JsonTypeInfo {
+
+        private final PluginImplConfig pc;
+
+        FakeJsonTypeInfo(PluginImplConfig pc) {
+            this.pc = pc;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof JsonTypeInfo that)) {
+                return false;
+            }
+            return Objects.equals(use(), that.use())
+                    && Objects.equals(include(), that.include())
+                    && Objects.equals(defaultImpl(), that.defaultImpl())
+                    && Objects.equals(visible(), that.visible())
+                    && Objects.equals(requireTypeIdForSubtypes(), that.requireTypeIdForSubtypes())
+                    && Objects.equals(property(), that.property());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(use(), include(),
+                    defaultImpl(), visible(),
+                    requireTypeIdForSubtypes(), property());
+        }
+
+        @Override
+        public Class<? extends Annotation> annotationType() {
+            return JsonTypeInfo.class;
+        }
+
+        @Override
+        public Id use() {
+            return Id.NAME;
+        }
+
+        @Override
+        public As include() {
+            return As.EXTERNAL_PROPERTY;
+        }
+
+        @Override
+        public String property() {
+            return pc.implNameProperty();
+        }
+
+        @Override
+        public Class<?> defaultImpl() {
+            return JsonTypeInfo.class;
+        }
+
+        @Override
+        public boolean visible() {
+            return false;
+        }
+
+        @Override
+        public OptBoolean requireTypeIdForSubtypes() {
+            return OptBoolean.DEFAULT;
+        }
+    }
+
+    static class FakeJsonTypeIdResolver implements JsonTypeIdResolver {
+        @Override
+        public Class<? extends Annotation> annotationType() {
+            return JsonTypeIdResolver.class;
+        }
+
+        @Override
+        public Class<? extends TypeIdResolver> value() {
+            return PluginConfigTypeIdResolver.class;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof JsonTypeIdResolver that)) {
+                return false;
+            }
+            return Objects.equals(value(), that.value());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(value());
+        }
+    }
 }

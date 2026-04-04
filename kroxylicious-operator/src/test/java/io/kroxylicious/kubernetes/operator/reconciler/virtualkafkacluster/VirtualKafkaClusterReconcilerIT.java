@@ -651,22 +651,28 @@ class VirtualKafkaClusterReconcilerIT {
 
     // the KafkaProxyReconciler only operates on KafkaProtocolFilters that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaProtocolFilter updateStatusObservedGeneration(KafkaProtocolFilter filter) {
-        filter.setStatus(new KafkaProtocolFilterStatusBuilder().withObservedGeneration(generation(filter)).build());
-        return testActor.patchStatus(filter);
+        // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
+        KafkaProtocolFilter fresh = testActor.get(KafkaProtocolFilter.class, ResourcesUtil.name(filter));
+        fresh.setStatus(new KafkaProtocolFilterStatusBuilder().withObservedGeneration(generation(fresh)).build());
+        return testActor.patchStatus(fresh);
     }
 
     // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
-    private KafkaService updateStatusObservedGeneration(KafkaService filter, String bootstrapServers) {
-        filter.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(filter))
+    private KafkaService updateStatusObservedGeneration(KafkaService service, String bootstrapServers) {
+        // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
+        KafkaService fresh = testActor.get(KafkaService.class, ResourcesUtil.name(service));
+        fresh.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
                 .withBootstrapServers(bootstrapServers)
                 .build());
-        return testActor.patchStatus(filter);
+        return testActor.patchStatus(fresh);
     }
 
     // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaProxyIngress updateStatusObservedGeneration(KafkaProxyIngress ingress) {
-        ingress.setStatus(new KafkaProxyIngressStatusBuilder().withObservedGeneration(generation(ingress)).build());
-        return testActor.patchStatus(ingress);
+        // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
+        KafkaProxyIngress fresh = testActor.get(KafkaProxyIngress.class, ResourcesUtil.name(ingress));
+        fresh.setStatus(new KafkaProxyIngressStatusBuilder().withObservedGeneration(generation(fresh)).build());
+        return testActor.patchStatus(fresh);
     }
 
 }
