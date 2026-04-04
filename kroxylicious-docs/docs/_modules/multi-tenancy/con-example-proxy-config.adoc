@@ -26,9 +26,13 @@ filterDefinitions:
     type: MultiTenant
     config:
       prefixResourceNameSeparator: "." # <1>
+      prefixResourceName: "myprefix" # <2>
 ----
 <1> The separator used for the prefix.
 If a separator is not specified, `-` is the default.
+<2> (Optional) A custom prefix for resource names.
+If specified, this value is used instead of the virtual cluster name as the prefix.
+If not specified, the virtual cluster name is used (default behavior).
 +
 NOTE: Currently, only the prefix with separator is validated.
 

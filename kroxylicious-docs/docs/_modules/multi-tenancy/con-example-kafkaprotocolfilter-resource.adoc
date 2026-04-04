@@ -18,18 +18,22 @@ If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProtoc
 
 Here's a complete example of a `KafkaProtocolFilter` resource configured for record validation:
 
-.Example `KafkaProtocolFilter` resource for record validation
+.Example `KafkaProtocolFilter` resource for multi-tenancy
 [source,yaml]
 ----
 kind: KafkaProtocolFilter
 metadata:
-  name: my-validation-filter
+  name: my-multi-tenant-filter
 spec:
   type: MultiTenant
   configTemplate:
     prefixResourceNameSeparator: "." # <1>
+    prefixResourceName: "myprefix" # <2>
 ----
 <1> The separator used for the prefix.
 If a separator is not specified, `-` is the default.
+<2> (Optional) A custom prefix for resource names.
+If specified, this value is used instead of the virtual cluster name as the prefix.
+If not specified, the virtual cluster name is used (default behavior).
 
 Refer to the {OperatorGuide} for more information about configuration on Kubernetes.
