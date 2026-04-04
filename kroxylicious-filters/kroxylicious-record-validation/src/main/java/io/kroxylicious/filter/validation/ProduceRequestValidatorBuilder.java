@@ -82,6 +82,7 @@ class ProduceRequestValidatorBuilder {
     private static Map<String, Object> buildSchemaResolverConfig(SchemaValidationConfig config) {
         Map<String, Object> resolverConfig = new HashMap<>();
         resolverConfig.put(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString());
+        resolverConfig.put(SchemaResolverConfig.HTTP_ADAPTER, "JDK");
 
         Tls tls = config.tls();
         if (tls != null) {
