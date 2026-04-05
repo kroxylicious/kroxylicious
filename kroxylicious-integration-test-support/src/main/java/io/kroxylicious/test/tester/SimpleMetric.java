@@ -27,7 +27,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public record SimpleMetric(String name, Map<String, String> labels, double value) {
 
-    // https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md
+    // https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md
     // note: RE doesn't handle escaping within label values
     @SuppressWarnings("java:S5852") //
     private static final Pattern PROM_TEXT_EXPOSITION_PATTERN = Pattern
