@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.authorization;
 
+import io.kroxylicious.filter.authorization.AuthorizationLoggingKeys;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -141,8 +142,8 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
                     Errors error = Errors.forCode(notCreateMetadataResponse.errorCode());
                     if (error != Errors.NONE) {
                         LOGGER.atInfo()
-                                .addKeyValue("sessionId", context.sessionId())
-                                .addKeyValue("errorCode", error)
+                                .addKeyValue(AuthorizationLoggingKeys.SESSION_ID, context.sessionId())
+                                .addKeyValue(AuthorizationLoggingKeys.ERROR_CODE, error)
                                 .log("Internal metadata response from broker has error code");
                         return CompletableFuture.failedStage(new AuthorizationException("Internal metadata request failed with " + error));
                     }

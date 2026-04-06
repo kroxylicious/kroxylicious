@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.authorization;
 
+import io.kroxylicious.filter.authorization.AuthorizationLoggingKeys;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
@@ -94,7 +95,7 @@ class ProduceEnforcement extends ApiEnforcement<ProduceRequestData, ProduceRespo
         }
         else {
             LOGGER.atWarn()
-                    .addKeyValue("failures", topicNameMapping::failures)
+                    .addKeyValue(AuthorizationLoggingKeys.FAILURES, topicNameMapping::failures)
                     .log("failed to map topic ids to names for acks=0 request, dropping request.");
             return context.requestFilterResultBuilder().drop().completed();
         }
