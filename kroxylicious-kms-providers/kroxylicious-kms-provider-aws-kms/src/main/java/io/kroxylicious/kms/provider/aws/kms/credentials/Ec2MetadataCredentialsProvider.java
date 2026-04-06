@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kms.provider.aws.kms.credentials;
 
+import io.kroxylicious.kms.provider.aws.kms.AwsKmsLoggingKeys;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -161,7 +162,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
 
     private void scheduleCredentialRefresh(long delay) {
         LOGGER.atDebug()
-                .addKeyValue("delayMs", delay)
+                .addKeyValue(AwsKmsLoggingKeys.DELAY_MS, delay)
                 .log("Scheduling refresh of AWS credentials");
 
         var refreshedCredFuture = new CompletableFuture<SecurityCredentials>();
@@ -206,8 +207,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
         if (t != null) {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? t : null)
-                    .addKeyValue("iamRole", config.iamRole())
-                    .addKeyValue("error", t.getMessage())
+                    .addKeyValue(AwsKmsLoggingKeys.IAM_ROLE, config.iamRole())
+                    .addKeyValue(AwsKmsLoggingKeys.ERROR, t.getMessage())
                     .log(LOGGER.isDebugEnabled()
                             ? "refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance?"
                             : "refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance? Increase log level to DEBUG for stacktrace");
@@ -219,8 +220,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
         else {
             var expiration = credentials.expiration();
             LOGGER.atDebug()
-                    .addKeyValue("iamRole", config.iamRole())
-                    .addKeyValue("expiration", expiration)
+                    .addKeyValue(AwsKmsLoggingKeys.IAM_ROLE, config.iamRole())
+                    .addKeyValue(AwsKmsLoggingKeys.EXPIRATION, expiration)
                     .log("Obtained AWS credentials from EC2 metadata");
             tokenRefreshErrorCount.set(0);
             target.complete(credentials);
@@ -268,7 +269,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
 
     private SecurityCredentials checkSuccessfulState(SecurityCredentials sc) {
         LOGGER.atDebug()
-                .addKeyValue("credential", sc::toString)
+                .addKeyValue(AwsKmsLoggingKeys.CREDENTIAL, sc::toString)
                 .log("AWS returned security credential");
         if (!"success".equals(sc.code().toLowerCase(Locale.ROOT))) {
             throw new KmsException(
