@@ -5,6 +5,7 @@
  */
 
 package io.kroxylicious.kafka.transform;
+nimport io.kroxylicious.kafka.transform.TransformLoggingKeys;
 
 import java.util.Objects;
 import java.util.Set;
@@ -38,7 +39,7 @@ class ApiVersionRemover implements ApiVersionsResponseTransformer {
                 boolean remove = apiIdsToRemove.contains(x.apiKey());
                 if (remove) {
                     LOGGER.atDebug()
-                            .addKeyValue("apiKey", x.apiKey())
+                            .addKeyValue(TransformLoggingKeys.API_KEY, x.apiKey())
                             .log("Removing api versions");
                 }
                 return remove;
