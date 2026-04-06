@@ -15,12 +15,9 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
-import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.StrimziKafkaRef;
-import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 class StrimziCaCertificateSecondaryToKafkaServicePrimary implements SecondaryToPrimaryMapper<Secret> {

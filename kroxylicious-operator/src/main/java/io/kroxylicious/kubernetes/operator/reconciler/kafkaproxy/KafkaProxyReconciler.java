@@ -64,7 +64,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.StrimziTrustAnchorRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.tls.TrustAnchor;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.operator.DeploymentReadyCondition;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
@@ -357,9 +357,7 @@ public class KafkaProxyReconciler implements
                 .map(KafkaServiceSpec::getTls)
                 .map(serviceTls -> ConfigurationFragment.combine(
                         buildKeyProvider(serviceTls.getCertificateRef(), CLIENT_CERTS_BASE_DIR),
-                        buildTrustProvider(false,
-                                kafkaServiceRef.getSpec().getStrimziKafkaRef() != null ? kafkaServiceRef : serviceTls.getTrustAnchorRef(),
-                                null, CLIENT_TRUSTED_CERTS_BASE_DIR),
+                        buildTrustProvider(false, kafkaServiceRef, null, CLIENT_TRUSTED_CERTS_BASE_DIR),
                         (keyProviderOpt, trustProvider) -> Optional.of(
                                 new Tls(keyProviderOpt.orElse(null),
                                         trustProvider.orElse(null),
@@ -406,7 +404,7 @@ public class KafkaProxyReconciler implements
 
         TrustResource trustResource = null;
         if (refObj instanceof KafkaService serviceRef) {
-            StrimziTrustAnchorRef ref = serviceRef.getStatus().getStrimziTrustAnchorRef();
+            TrustAnchor ref = serviceRef.getStatus().getTls().getTrustAnchor();
             trustResource = new TrustResource(ref.getName() + "-cluster-ca-cert", ref.getKey(), ref.getStoreType(), true);
         }
         else if (refObj instanceof TrustAnchorRef trustAnchorRef) {

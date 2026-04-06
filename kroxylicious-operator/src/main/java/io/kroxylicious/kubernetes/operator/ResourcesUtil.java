@@ -727,7 +727,10 @@ public class ResourcesUtil {
         if (clusterCaSecret == null) {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REFS_NOT_FOUND,
-                    "%s: referenced %s not found".formatted("status.trustAnchorRef.name", strimziKafkaRef.getRef().getName() + "-cluster-ca-cert")), List.of());
+                    "%s: referenced %s not found in namespace %s".formatted("status.tls.trustAnchor",
+                            strimziKafkaRef.getRef().getName() + "-cluster-ca-cert",
+                            resource.getMetadata().getNamespace())),
+                    List.of());
         }
 
         if (!clusterCaSecret.getData().containsKey("ca.crt")) {
