@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.simpletransform;
 
+import io.kroxylicious.filter.simpletransform.SimpleTransformLoggingKeys;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
@@ -65,7 +66,7 @@ class FetchResponseTransformationFilter implements FetchResponseFilter {
             Errors error = getError(topicNameMapping, topicData);
             if (name.isEmpty()) {
                 LOGGER.atDebug()
-                        .addKeyValue("topicName", topicData.topic())
+                        .addKeyValue(SimpleTransformLoggingKeys.TOPIC_NAME, topicData.topic())
                         .addKeyValue("topicId", topicData.topicId())
                         .addKeyValue("errorCode", error.name())
                         .log("Failed to retrieve topicName for topicData, replacing all partitions with error responses");
