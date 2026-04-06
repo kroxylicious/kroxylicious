@@ -13,22 +13,22 @@ public class FortanixDsmLoggingKeys {
 
     private FortanixDsmLoggingKeys() {
     }
-    
+
     /**
      * Delay ms.
      */
     public static final String DELAY_MS = "delayMs";
-    
+
     /**
      * Error.
      */
     public static final String ERROR = "error";
-    
+
     /**
      * Expiration.
      */
     public static final String EXPIRATION = "expiration";
-    
+
     /**
      * Status code.
      */
