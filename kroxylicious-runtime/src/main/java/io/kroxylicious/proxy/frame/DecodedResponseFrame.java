@@ -20,6 +20,7 @@ public class DecodedResponseFrame<B extends ApiMessage>
         super(apiVersion, correlationId, header, body);
     }
 
+    @Override
     public short headerVersion() {
         return ApiKeys.forId(apiKeyId()).messageType.responseHeaderVersion(apiVersion);
     }

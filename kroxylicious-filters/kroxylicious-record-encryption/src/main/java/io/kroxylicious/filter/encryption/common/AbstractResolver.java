@@ -79,6 +79,7 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
         return lookup(idMapping, "id", id);
     }
 
+    @Override
     public byte toSerializedId(@NonNull T impl) {
         // Don't just call impl.serializedId because that doesn't check that this result knows about the id
         Objects.requireNonNull(impl);

@@ -33,5 +33,6 @@ public interface NetworkBindingOperationProcessor extends AutoCloseable {
     /**
      * Closes the processor.
      */
+    @Override
     void close();
 }

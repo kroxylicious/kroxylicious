@@ -47,6 +47,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
         return apiKey().messageType.requestHeaderVersion(apiVersion);
     }
 
+    @Override
     public CompletableFuture<SequencedResponse> getResponseFuture() {
         return responseFuture;
     }

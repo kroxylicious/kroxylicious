@@ -69,14 +69,17 @@ public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
             throw new IllegalStateException("not implemented!");
         }
 
+        @Override
         public FilterFactoryContext getContext() {
             return context;
         }
 
+        @Override
         public ExampleConfig getExampleConfig() {
             return null;
         }
 
+        @Override
         public Class<? extends FilterFactory> getContributorClass() {
             return contributorClass;
         }

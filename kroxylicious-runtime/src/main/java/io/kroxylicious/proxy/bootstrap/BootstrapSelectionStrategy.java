@@ -27,6 +27,7 @@ import io.kroxylicious.proxy.service.HostPort;
 })
 public interface BootstrapSelectionStrategy extends Function<List<HostPort>, HostPort> {
 
+    @Override
     @JsonIgnore
     HostPort apply(List<HostPort> hostPorts);
 

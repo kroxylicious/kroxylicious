@@ -128,6 +128,7 @@ class KroxyliciousClients implements Closeable {
         return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]), clientSslContext);
     }
 
+    @Override
     public void close() {
         List<Exception> exceptions = new ArrayList<>();
         try {
