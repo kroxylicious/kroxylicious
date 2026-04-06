@@ -15,7 +15,15 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * A reference, used in a kubernetes resource, to a KafkaProxy resource in the same namespace.
+ * A reference, used in a Kubernetes resource, to a {@link KafkaProxy} resource in the same namespace.
+ *
+ * <p>This is a statically-typed ref: {@code group} ({@code "kroxylicious.io"}) and
+ * {@code kind} ({@code "KafkaProxy"}) are hardcoded constants and are not serialized
+ * to JSON. Only {@code name} appears in the CRD schema.</p>
+ *
+ * <p>Despite being a distinct Java class, a {@code ProxyRef} is considered equal to any
+ * other {@link LocalRef} subclass instance (e.g. {@link AnyLocalRef}) that carries the
+ * same {@code group}, {@code kind} and {@code name} values. See {@link LocalRef} for details.</p>
  */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
 @com.fasterxml.jackson.annotation.JsonPropertyOrder({ "name" })
