@@ -5,6 +5,7 @@
  */
 
 package io.kroxylicious.filter.validation;
+nimport io.kroxylicious.filter.validation.RecordValidationLoggingKeys;
 
 import java.util.HashMap;
 import java.util.List;
@@ -108,7 +109,7 @@ class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFil
                                                                               FilterContext context,
                                                                               ProduceRequestValidationResult result) {
         LOGGER.atDebug()
-                .addKeyValue("validationResult", result)
+                .addKeyValue(RecordValidationLoggingKeys.VALIDATION_RESULT, result)
                 .log("At least one topic-partitions with the request contained invalid records. Produce request will be rejected");
         ProduceResponseData response = invalidateEntireRequest(requestTopicData, result);
         return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
@@ -170,7 +171,7 @@ class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFil
         ProduceRequestValidationResult produceRequestValidationResult = correlatedResults.remove(header.correlationId());
         if (produceRequestValidationResult != null) {
             LOGGER.atDebug()
-                    .addKeyValue("validationResult", produceRequestValidationResult)
+                    .addKeyValue(RecordValidationLoggingKeys.VALIDATION_RESULT, produceRequestValidationResult)
                     .log("Augmenting invalid topic-partition details into response");
             augmentResponseWithInvalidTopicPartitions(response, produceRequestValidationResult);
             return context.forwardResponse(header, response);
