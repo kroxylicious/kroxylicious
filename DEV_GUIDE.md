@@ -80,6 +80,7 @@ The running of the tests can be controlled with the following Maven properties:
 | `-DskipSTs=true`   | skip system tests                                                                         |
 | `-DskipDTs=true`   | skip documentation tests                                                                  |
 | `-DskipTests=true` | skip all tests                                                                            |
+| `-DfailOnWarnings` | fail on javac warnings (ignored if `-Dquick`, see below)                                  |
 | `-Pdebug`          | enables logging so you can see what the Kafka clients, Proxy and in VM brokers are up to. |
 
 The kafka environment used by the integrations tests can be _defaulted_ with these two environment variables.

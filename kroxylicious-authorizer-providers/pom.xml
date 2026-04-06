@@ -23,6 +23,9 @@
     <description>Authorizer provider implementations</description>
     <packaging>pom</packaging>
 
+    <properties>
+    </properties>
+
     <modules>
         <module>kroxylicious-authorizer-acl</module>
     </modules>

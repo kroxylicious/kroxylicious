@@ -40,7 +40,7 @@ To confirm the issue, check the proxy logs for entries like the following:
 ----
 Failed to decrypt record in topic-partition <topic>-<partition> owing to key not found condition.
 This will be reported to the client as a RESOURCE_NOT_FOUND(91).
-Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or or 'Request illegally referred to resource that does not exist' (librdkafka).
+Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or 'Request illegally referred to resource that does not exist' (librdkafka).
 Cause message: key 'd691a642-d8b4-4445-b668-d390df7000bb' is not found (AWS error: ErrorResponse{type='KMSInvalidStateException', message='arn:aws:kms:us-east-1:000000000000:key/d691a642-d8b4-4445-b668-d390df7000bb is pending deletion.'}).
 Raise log level to DEBUG to see the stack.
 ----

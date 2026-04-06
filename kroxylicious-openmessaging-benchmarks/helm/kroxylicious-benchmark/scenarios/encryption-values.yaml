@@ -1,0 +1,40 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Encryption Scenario: Kroxylicious proxy with record encryption filter backed by HashiCorp Vault
+#
+# This scenario measures the overhead of proxying through Kroxylicious with
+# end-to-end record encryption enabled. All records are encrypted using a KEK
+# stored in a Vault transit engine provisioned as part of the benchmark.
+#
+# Comparison with baseline and proxy-no-filters reveals the cost of encryption.
+#
+# Prerequisites:
+#   - Strimzi operator installed
+#   - Kroxylicious operator installed
+#
+# To use an alternative KMS (e.g. AWS KMS, external Vault), layer a --profile
+# that sets vault.provision=false and overrides encryption.kms.type and
+# encryption.kms.config.
+
+scenario: encryption
+
+# Enable Kroxylicious proxy
+kroxylicious:
+  enabled: true
+
+# Provision a Vault instance to back the encryption filter
+vault:
+  provision: true
+
+# Enable the record encryption filter
+encryption:
+  enabled: true
+
+# Use the proxy OMB driver (benchmark connects via Kroxylicious)
+omb:
+  driver: baseline
+  workload: 1topic-1kb

@@ -47,7 +47,6 @@ class FortanixDsmKmsEdekTest {
         var edekIvBytesDiffer = new FortanixDsmKmsEdek("keyref", ANOTHER_IV, new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
 
         assertThat(edek1)
-                .isEqualTo(edek1)
                 .isNotEqualTo(new Object())
                 .isNotEqualTo(null);
 

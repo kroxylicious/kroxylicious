@@ -17,3 +17,14 @@ updates:
     labels:
       - "dependencies"
       - "dev/github_actions"
+  # from the docs: For GitHub Actions, use the value /. Dependabot will search the /.github/workflows directory, as well as the action.yml/action.yaml file from the root directory.
+  # we need custom configuration to scan the other directories that contain action.yaml files
+  - package-ecosystem: "github-actions"
+    # directories supports globbing
+    directories: 
+      - "/.github/actions/common/*"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "dev/github_actions"

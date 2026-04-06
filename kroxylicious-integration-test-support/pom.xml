@@ -23,6 +23,10 @@
     <name>Integration test support</name>
     <description>Support code to simplify writing integration tests for filters</description>
 
+    <properties>
+        <errorprone.skip>true</errorprone.skip>
+    </properties>
+
     <dependencies>
 
         <!-- project dependencies - runtime and compile -->
@@ -208,6 +212,14 @@
                 <configuration>
                     <parameters>true</parameters>
                     <proc>full</proc>
+                    <!-- Add sundrio to annotation processors (in addition to Error Prone from parent) -->
+                    <annotationProcessorPaths combine.children="append">
+                        <path>
+                            <groupId>io.sundr</groupId>
+                            <artifactId>builder-annotations</artifactId>
+                            <version>${sundr-builder-annotations.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>

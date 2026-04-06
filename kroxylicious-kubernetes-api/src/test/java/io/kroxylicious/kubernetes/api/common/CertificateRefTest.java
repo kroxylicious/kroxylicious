@@ -21,7 +21,6 @@ class CertificateRefTest {
         var secretRefFoo2 = new CertificateRefBuilder().withName("foo").withKind("Secret").withGroup("").build();
         var cmRefFoo = new CertificateRefBuilder().withName("foo").withKind("ConfigMap").withGroup("").build();
         var diffGroupSecretFoo = new CertificateRefBuilder().withName("foo").withKind("Secret").withGroup("not.the.usual.group").build();
-        assertThat(secretRefFoo).isEqualTo(secretRefFoo);
 
         assertThat(secretRefFoo).isNotEqualTo("salami");
         assertThat(secretRefFoo).isNotEqualTo(diffGroupSecretFoo);

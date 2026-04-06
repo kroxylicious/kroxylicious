@@ -389,4 +389,155 @@ class HelmTemplateRenderingTest {
                 .contains("kafka-kafka-bootstrap:9092");
     }
 
+    @Test
+    void shouldRenderVaultResourcesWhenProvisionEnabled() throws IOException {
+        // When: Rendering with vault provisioning enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("vault.provision", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+
+        // Then: Vault Deployment, Service, and init Job should all be rendered
+        assertThat(HelmUtils.findResourceTyped(resources, "Deployment", "vault"))
+                .as("Vault Deployment should render when vault.provision=true")
+                .isNotNull();
+        assertThat(HelmUtils.findResourceTyped(resources, "Service", "vault"))
+                .as("Vault Service should render when vault.provision=true")
+                .isNotNull();
+        assertThat(HelmUtils.findResourceTyped(resources, "Job", "vault-init"))
+                .as("Vault init Job should render when vault.provision=true")
+                .isNotNull();
+    }
+
+    @Test
+    void shouldNotRenderVaultResourcesWhenProvisionDisabled() throws IOException {
+        // When: Rendering with default values (vault.provision=false)
+        String yaml = HelmUtils.renderTemplate();
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+
+        // Then: No Vault resources should be rendered
+        assertThat(HelmUtils.findResourceTyped(resources, "Deployment", "vault"))
+                .as("Vault Deployment should not render when vault.provision=false (default)")
+                .isNull();
+        assertThat(HelmUtils.findResourceTyped(resources, "Service", "vault"))
+                .as("Vault Service should not render when vault.provision=false (default)")
+                .isNull();
+        assertThat(HelmUtils.findResourceTyped(resources, "Job", "vault-init"))
+                .as("Vault init Job should not render when vault.provision=false (default)")
+                .isNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void vaultInitJobShouldConfigureVaultAddress() throws IOException {
+        // When: Rendering with vault provisioning enabled
+        String yaml = HelmUtils.renderTemplate(Map.of("vault.provision", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource initJob = HelmUtils.findResourceTyped(resources, "Job", "vault-init");
+
+        // Then: The init container should point VAULT_ADDR at the in-cluster service
+        assertThat(initJob).isNotNull();
+        Map<String, Object> templateSpec = HelmUtils.getNestedMap(initJob.get("spec"), "template", "spec");
+        List<Map<String, Object>> containers = (List<Map<String, Object>>) templateSpec.get("containers");
+        assertThat(containers).isNotEmpty();
+        List<Map<String, Object>> env = (List<Map<String, Object>>) containers.get(0).get("env");
+        assertThat(env).anySatisfy(e -> assertThat(e)
+                .containsEntry("name", "VAULT_ADDR")
+                .containsEntry("value", "http://vault:8200"));
+    }
+
+    @Test
+    void shouldRenderEncryptionFilterWhenEnabled() throws IOException {
+        // When: Rendering with encryption enabled
+        String yaml = HelmUtils.renderTemplate(Map.of(
+                "kroxylicious.enabled", "true",
+                "vault.provision", "true",
+                "encryption.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+
+        // Then: KafkaProtocolFilter should be rendered with the correct API version
+        GenericKubernetesResource filter = HelmUtils.findResourceTyped(resources, "KafkaProtocolFilter", "record-encryption");
+        assertThat(filter).as("KafkaProtocolFilter should render when encryption.enabled=true").isNotNull();
+        assertThat(filter.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void encryptionFilterShouldConfigureVaultKmsAndKekSelector() throws IOException {
+        // When: Rendering with encryption enabled (default vault KMS config)
+        String yaml = HelmUtils.renderTemplate(Map.of(
+                "kroxylicious.enabled", "true",
+                "vault.provision", "true",
+                "encryption.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource filter = HelmUtils.findResourceTyped(resources, "KafkaProtocolFilter", "record-encryption");
+        assertThat(filter).isNotNull();
+
+        // Then: Filter spec should reference Vault KMS and TemplateKekSelector with default KEK name
+        Map<String, Object> spec = filter.get("spec");
+        assertThat(spec).containsEntry("type", "io.kroxylicious.filter.encryption.RecordEncryption");
+        Map<String, Object> configTemplate = (Map<String, Object>) spec.get("configTemplate");
+        assertThat(configTemplate)
+                .containsEntry("kms", "io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService")
+                .containsEntry("selector", "io.kroxylicious.filter.encryption.TemplateKekSelector");
+        Map<String, Object> selectorConfig = (Map<String, Object>) configTemplate.get("selectorConfig");
+        assertThat(selectorConfig).containsEntry("template", "benchmark-kek");
+    }
+
+    @Test
+    void shouldNotRenderEncryptionFilterWhenDisabled() throws IOException {
+        // When: Rendering with default values (encryption.enabled=false)
+        String yaml = HelmUtils.renderTemplate();
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+
+        // Then: No KafkaProtocolFilter should be rendered
+        assertThat(HelmUtils.findResourceTyped(resources, "KafkaProtocolFilter", "record-encryption"))
+                .as("KafkaProtocolFilter should not render when encryption.enabled=false (default)")
+                .isNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldAddFilterRefsToVirtualKafkaClusterWhenEncryptionEnabled() throws IOException {
+        // When: Rendering with both kroxylicious and encryption enabled
+        String yaml = HelmUtils.renderTemplate(Map.of(
+                "kroxylicious.enabled", "true",
+                "encryption.enabled", "true"));
+        List<GenericKubernetesResource> resources = HelmUtils.parseKubernetesResourcesTyped(yaml);
+        GenericKubernetesResource vkc = HelmUtils.findResourceTyped(resources, "VirtualKafkaCluster", "kafka");
+        assertThat(vkc).isNotNull();
+
+        // Then: VirtualKafkaCluster should reference the encryption filter
+        Map<String, Object> spec = vkc.get("spec");
+        List<Map<String, Object>> filterRefs = (List<Map<String, Object>>) spec.get("filterRefs");
+        assertThat(filterRefs)
+                .as("VirtualKafkaCluster should have filterRefs pointing to the encryption filter")
+                .isNotNull()
+                .anySatisfy(ref -> assertThat(ref).containsEntry("name", "record-encryption"));
+    }
+
+    @Test
+    void encryptionScenarioShouldRenderAllRequiredResources() throws IOException {
+        // When: Rendering the full encryption scenario values file
+        List<GenericKubernetesResource> resources = renderEncryptionScenarioResources();
+
+        // Then: All required resources should be present
+        assertThat(HelmUtils.findResourceTyped(resources, "Deployment", "vault"))
+                .as("Vault Deployment should be present in encryption scenario").isNotNull();
+        assertThat(HelmUtils.findResourceTyped(resources, "Service", "vault"))
+                .as("Vault Service should be present in encryption scenario").isNotNull();
+        assertThat(HelmUtils.findResourceTyped(resources, "Job", "vault-init"))
+                .as("Vault init Job should be present in encryption scenario").isNotNull();
+        assertThat(HelmUtils.findResourceTyped(resources, "KafkaProtocolFilter", "record-encryption"))
+                .as("KafkaProtocolFilter should be present in encryption scenario").isNotNull();
+        assertThat(HelmUtils.findResourceTyped(resources, "KafkaProxy", "benchmark-proxy"))
+                .as("KafkaProxy should be present in encryption scenario").isNotNull();
+        assertThat(HelmUtils.findResourceTyped(resources, "VirtualKafkaCluster", "kafka"))
+                .as("VirtualKafkaCluster should be present in encryption scenario").isNotNull();
+    }
+
+    private List<GenericKubernetesResource> renderEncryptionScenarioResources() throws IOException {
+        Path encryptionValues = Paths.get("helm/kroxylicious-benchmark/scenarios/encryption-values.yaml").toAbsolutePath();
+        String yaml = HelmUtils.renderTemplate(List.of(encryptionValues), Map.of());
+        return HelmUtils.parseKubernetesResourcesTyped(yaml);
+    }
+
 }
