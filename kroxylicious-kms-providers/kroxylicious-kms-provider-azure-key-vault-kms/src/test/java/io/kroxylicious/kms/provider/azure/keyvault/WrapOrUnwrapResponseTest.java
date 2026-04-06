@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class WrapOrUnwrapResponseTest {
 
-    public static final byte[] CARRIED_BYTES = { 1, 2, 3 };
+    private static final byte[] CARRIED_BYTES = { 1, 2, 3 };
 
     @Test
     void deserializeResponse() throws JsonProcessingException {
