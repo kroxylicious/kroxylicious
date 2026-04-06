@@ -212,7 +212,8 @@ public final class KafkaServiceReconciler implements
                                         + service.getSpec().getStrimziKafkaRef().getListenerName()));
             }
             else {
-                updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs, checksumGenerator.encode(), service.getSpec().getBootstrapServers(), trustAnchorInfo);
+                updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs, checksumGenerator.encode(), service.getSpec().getBootstrapServers(),
+                        trustAnchorInfo);
             }
         }
 
