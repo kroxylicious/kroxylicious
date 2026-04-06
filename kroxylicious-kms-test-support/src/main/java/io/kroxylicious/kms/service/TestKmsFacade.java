@@ -62,6 +62,7 @@ public interface TestKmsFacade<C, K, E> extends AutoCloseable {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     default void close() {
         stop();
     }

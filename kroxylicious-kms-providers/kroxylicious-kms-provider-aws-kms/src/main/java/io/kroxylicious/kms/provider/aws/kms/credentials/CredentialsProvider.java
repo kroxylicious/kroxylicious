@@ -21,6 +21,7 @@ public interface CredentialsProvider extends Closeable {
      */
     CompletionStage<? extends Credentials> getCredentials();
 
+    @Override
     default void close() {
     }
 }

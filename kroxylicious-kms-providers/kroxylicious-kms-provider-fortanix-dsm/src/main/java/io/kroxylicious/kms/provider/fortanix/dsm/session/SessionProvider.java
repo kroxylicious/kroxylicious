@@ -21,6 +21,7 @@ public interface SessionProvider extends Closeable {
      */
     CompletionStage<Session> getSession();
 
+    @Override
     default void close() {
     }
 }

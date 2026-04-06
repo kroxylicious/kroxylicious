@@ -50,6 +50,7 @@ public class AzureKeyVaultKmsTestKmsFacade extends AbstractAzureKeyVaultKmsTestK
         return DockerClientFactory.instance().isDockerAvailable();
     }
 
+    @Override
     public void startKms() {
         this.kms = startKeyVault();
         this.oauthServer = startMockOauthServer();
@@ -61,6 +62,7 @@ public class AzureKeyVaultKmsTestKmsFacade extends AbstractAzureKeyVaultKmsTestK
         return oauthServerContainer;
     }
 
+    @Override
     public void stopKms() {
         if (kms != null) {
             kms.stop();

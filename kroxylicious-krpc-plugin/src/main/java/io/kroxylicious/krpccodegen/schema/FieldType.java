@@ -408,5 +408,6 @@ public interface FieldType {
     /**
      * Convert the field type to a JSON string.
      */
+    @Override
     String toString();
 }
