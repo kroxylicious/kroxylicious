@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kms.provider.azure;
 
+import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
@@ -53,8 +54,8 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
     @Override
     public CompletionStage<DekPair<AzureKeyVaultEdek>> generateDekPair(WrappingKey wrappingKey) {
         LOGGER.atDebug()
-                .addKeyValue("keyName", wrappingKey.keyName())
-                .addKeyValue("keyVersion", wrappingKey.keyVersion())
+                .addKeyValue(AzureLoggingKeys.KEY_NAME, wrappingKey.keyName())
+                .addKeyValue(AzureLoggingKeys.KEY_VERSION, wrappingKey.keyVersion())
                 .log("Generating DEK pair");
         byte[] bytes = generateDek();
         CompletionStage<byte[]> wrap = client.wrap(wrappingKey, bytes);
@@ -90,8 +91,8 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
     @Override
     public CompletionStage<SecretKey> decryptEdek(AzureKeyVaultEdek edek) {
         LOGGER.atDebug()
-                .addKeyValue("keyName", edek.keyName())
-                .addKeyValue("keyVersion", edek.keyVersion())
+                .addKeyValue(AzureLoggingKeys.KEY_NAME, edek.keyName())
+                .addKeyValue(AzureLoggingKeys.KEY_VERSION, edek.keyVersion())
                 .log("Decrypting DEK pair");
         return unwrap(edek);
     }
@@ -146,7 +147,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
     @Override
     public CompletionStage<WrappingKey> resolveAlias(String alias) {
         LOGGER.atDebug()
-                .addKeyValue("alias", alias)
+                .addKeyValue(AzureLoggingKeys.ALIAS, alias)
                 .log("Resolving");
         return client.getKey(encryptingKeyVaultName, alias).handle((response, throwable) -> {
             if (throwable != null) {
@@ -160,8 +161,8 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
             }
             else {
                 LOGGER.atDebug()
-                        .addKeyValue("alias", alias)
-                        .addKeyValue("response", response)
+                        .addKeyValue(AzureLoggingKeys.ALIAS, alias)
+                        .addKeyValue(AzureLoggingKeys.RESPONSE, response)
                         .log("Resolved");
                 JsonWebKey key = response.key();
                 SupportedKeyType keyType = validateKeyAndExtractType(alias, response, key);

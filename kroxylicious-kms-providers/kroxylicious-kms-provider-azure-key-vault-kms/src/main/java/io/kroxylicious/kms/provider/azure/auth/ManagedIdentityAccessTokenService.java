@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kms.provider.azure.auth;
 
+import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -96,7 +97,7 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
     private static AccessTokenResponse getAccessTokenResponse(HttpResponse<String> r) {
         if (r.statusCode() != 200) {
             LOGGER.atWarn()
-                    .addKeyValue("statusCode", r.statusCode())
+                    .addKeyValue(AzureLoggingKeys.STATUS_CODE, r.statusCode())
                     .log("GET Managed Identity token failed, received unexpected status code");
             throw new UnexpectedHttpStatusCodeException(r);
         }
@@ -113,7 +114,7 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
             catch (JsonProcessingException e) {
                 LOGGER.atWarn()
                         .setCause(LOGGER.isDebugEnabled() ? e : null)
-                        .addKeyValue("error", e.getMessage())
+                        .addKeyValue(AzureLoggingKeys.ERROR, e.getMessage())
                         .log(LOGGER.isDebugEnabled()
                                 ? "GET Managed Identity token failed, failed to parse access token response"
                                 : "GET Managed Identity token failed, failed to parse access token response, increase log level to DEBUG for stacktrace");

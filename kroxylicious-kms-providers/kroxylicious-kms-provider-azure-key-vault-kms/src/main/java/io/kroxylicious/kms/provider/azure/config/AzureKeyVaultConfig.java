@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kms.provider.azure.config;
 
+import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.net.URI;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -74,7 +75,7 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
         }
         if (!kvScheme().equals("https")) {
             LOGGER.atWarn()
-                    .addKeyValue("scheme", keyVaultScheme())
+                    .addKeyValue(AzureLoggingKeys.SCHEME, keyVaultScheme())
                     .log("Key vault scheme is not https, production installations should use a secure endpoint");
         }
     }

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kms.provider.azure.config.auth;
 
+import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.net.URI;
 import java.util.Objects;
 
@@ -39,7 +40,7 @@ public record Oauth2ClientCredentialsConfig(@JsonProperty(required = true) URI o
         Objects.requireNonNull(scope, "scope cannot be null");
         if (!oauthEndpoint.getScheme().equalsIgnoreCase("https")) {
             LOGGER.atWarn()
-                    .addKeyValue("endpoint", oauthEndpoint)
+                    .addKeyValue(AzureLoggingKeys.ENDPOINT, oauthEndpoint)
                     .log("OAuth endpoint does not begin with https://, production installations should use a secure endpoint");
         }
         // check that getting password doesn't throw
