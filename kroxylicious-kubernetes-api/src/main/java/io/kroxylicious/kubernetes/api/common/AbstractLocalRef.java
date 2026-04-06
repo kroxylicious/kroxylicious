@@ -16,9 +16,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <em>not</em> known at compile time and must therefore be supplied by the user and
  * serialized to JSON.
  *
- * <p>It exists solely to share the Jackson field declarations and accessor implementations 
- * between {@link AnyLocalRef} and other dynamically-typed ref classes such as {@link CertificateRef}, 
- * which may reference resources of different kinds depending on the operator environment 
+ * <p>It exists solely to share the Jackson field declarations and accessor implementations
+ * between {@link AnyLocalRef} and other dynamically-typed ref classes such as {@link CertificateRef},
+ * which may reference resources of different kinds depending on the operator environment
  * (e.g. a Kubernetes {@code Secret} or a cert-manager {@code Certificate}).</p>
  *
  */
