@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption;
 
+import io.kroxylicious.filter.encryption.RecordEncryptionLoggingKeys;
 import java.security.Provider;
 import java.time.Duration;
 import java.util.Arrays;
@@ -90,15 +91,15 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
                 Cipher cipher = cipherFunc.apply(CipherSpecResolver.ALL.fromName(cipherSpec));
                 String provider = Optional.ofNullable(cipher.getProvider()).map(Provider::getName).orElse("(no provider)");
                 LOGGER.atInfo()
-                        .addKeyValue("cipherSpec", cipherSpec)
-                        .addKeyValue("provider", provider)
-                        .addKeyValue("cipherAlgorithm", cipher.getAlgorithm())
+                        .addKeyValue(RecordEncryptionLoggingKeys.CIPHER_SPEC, cipherSpec)
+                        .addKeyValue(RecordEncryptionLoggingKeys.PROVIDER, provider)
+                        .addKeyValue(RecordEncryptionLoggingKeys.CIPHER_ALGORITHM, cipher.getAlgorithm())
                         .log("Loaded cipher from provider for CipherSpec");
                 return Stream.empty();
             }
             catch (Exception e) {
                 LOGGER.atError()
-                        .addKeyValue("cipherSpec", cipherSpec)
+                        .addKeyValue(RecordEncryptionLoggingKeys.CIPHER_SPEC, cipherSpec)
                         .setCause(e)
                         .log("A Cipher could not be constructed for CipherSpec");
                 return Stream.of(cipherSpec);
@@ -117,7 +118,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
             throws PluginConfigurationException {
         Objects.requireNonNull(configuration, "configuration must not be null");
         LOGGER.atDebug()
-                .addKeyValue("encryptionBuffer", configuration.encryptionBuffer())
+                .addKeyValue(RecordEncryptionLoggingKeys.ENCRYPTION_BUFFER, configuration.encryptionBuffer())
                 .log("Record encryption buffer size configuration");
         checkCipherSuite();
         KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
@@ -176,7 +177,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     private static <K, E> Kms<K, E> wrapWithCachingKms(RecordEncryptionConfig configuration, Kms<K, E> resilientKms) {
         KmsCacheConfig config = configuration.kmsCache();
         LOGGER.atDebug()
-                .addKeyValue("kmsCacheConfig", config)
+                .addKeyValue(RecordEncryptionLoggingKeys.KMS_CACHE_CONFIG, config)
                 .log("KMS cache configuration");
         return CachingKms.wrap(resilientKms, config.decryptedDekCacheSize(), config.decryptedDekExpireAfterAccessDuration(), config.resolvedAliasCacheSize(),
                 config.resolvedAliasExpireAfterWriteDuration(), config.resolvedAliasRefreshAfterWriteDuration(), config.notFoundAliasExpireAfterWriteDuration());
