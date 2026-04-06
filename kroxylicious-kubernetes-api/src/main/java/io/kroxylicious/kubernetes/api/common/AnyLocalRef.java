@@ -7,8 +7,18 @@
 package io.kroxylicious.kubernetes.api.common;
 
 /**
- * A reference, used in a kubernetes resource, to some kubernetes resource in the same namespace.
- * This is used for references where the kind and group are not known statically.
+ * A generic reference, used in a Kubernetes resource, to some other Kubernetes resource
+ * in the same namespace, where the {@code group} and {@code kind} of the target are
+ * <em>not</em> known statically.
+ *
+ * <p>All three fields ({@code group}, {@code kind}, {@code name}) are serialized to JSON
+ * and must be supplied by the user. When the target resource type <em>is</em> known at
+ * compile time, prefer a statically-typed subclass such as {@link ProxyRef} or
+ * {@link FilterRef} instead.</p>
+ *
+ * <p>Despite being a different Java class, an {@code AnyLocalRef} is considered equal to
+ * any other {@link LocalRef} subclass instance that carries the same {@code group},
+ * {@code kind} and {@code name} values. See {@link LocalRef} for details.</p>
  */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
 @com.fasterxml.jackson.annotation.JsonPropertyOrder({ "group", "kind", "name" })
