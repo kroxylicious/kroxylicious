@@ -30,6 +30,7 @@ class CreatePartitionsEnforcement extends ApiEnforcement<CreatePartitionsRequest
         return 3;
     }
 
+    @Override
     CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
                                                    CreatePartitionsRequestData request,
                                                    FilterContext context,

@@ -89,6 +89,7 @@ public final class MessageSpec implements Named {
         return struct;
     }
 
+    @Override
     @JsonProperty("name")
     public String name() {
         return struct.name();

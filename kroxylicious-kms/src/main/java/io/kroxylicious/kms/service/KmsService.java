@@ -47,6 +47,7 @@ public interface KmsService<C, K, E> extends AutoCloseable {
      * Close implementations must tolerate the closing of service that has not been initialized or
      * one for which initialization did not fully complete without further exception.
      */
+    @Override
     default void close() {
     }
 }

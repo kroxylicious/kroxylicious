@@ -23,10 +23,12 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 class ListTransactionsEnforcement extends ApiEnforcement<ListTransactionsRequestData, ListTransactionsResponseData> {
 
+    @Override
     short minSupportedVersion() {
         return 0;
     }
 
+    @Override
     short maxSupportedVersion() {
         return 2;
     }

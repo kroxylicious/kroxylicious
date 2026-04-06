@@ -43,6 +43,7 @@ public class KroxyliciousApp implements Runnable {
         thread.start();
     }
 
+    @Override
     public void run() {
         LOGGER.info("Launching kroxylicious app");
         Path parentPath = getProjectRoot();

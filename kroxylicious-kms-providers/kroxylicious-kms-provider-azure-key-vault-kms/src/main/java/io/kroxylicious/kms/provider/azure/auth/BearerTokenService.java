@@ -18,5 +18,6 @@ public interface BearerTokenService extends AutoCloseable {
      */
     CompletionStage<BearerToken> getBearerToken();
 
+    @Override
     void close();
 }

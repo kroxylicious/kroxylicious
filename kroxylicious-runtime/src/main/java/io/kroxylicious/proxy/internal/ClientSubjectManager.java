@@ -118,6 +118,7 @@ public class ClientSubjectManager implements
         this.subject = Subject.anonymous();
     }
 
+    @Override
     public Optional<ClientTlsContext> clientTlsContext() {
         return proxyCertificate != null ? Optional.of(this) : Optional.empty();
     }
