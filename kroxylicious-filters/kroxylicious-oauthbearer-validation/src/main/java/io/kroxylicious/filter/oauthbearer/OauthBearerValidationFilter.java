@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.oauthbearer;
 
+import io.kroxylicious.filter.oauthbearer.OAuthBearerValidationLoggingKeys;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -109,7 +110,7 @@ public class OauthBearerValidationFilter
         }
         catch (SaslException e) {
             LOGGER.atDebug()
-                    .addKeyValue("error", e.getMessage())
+                    .addKeyValue(OAuthBearerValidationLoggingKeys.ERROR, e.getMessage())
                     .setCause(e)
                     .log("SASL error");
             notifyThrowable(context, e);
@@ -150,7 +151,7 @@ public class OauthBearerValidationFilter
                                     .setErrorCode(SASL_AUTHENTICATION_FAILED.code())
                                     .setErrorMessage(e.getMessage());
                             LOGGER.atDebug()
-                                    .addKeyValue("error", e.getMessage())
+                                    .addKeyValue(OAuthBearerValidationLoggingKeys.ERROR, e.getMessage())
                                     .setCause(e)
                                     .log("SASL Authentication failed");
                             notifyThrowable(context, cause);
@@ -158,7 +159,7 @@ public class OauthBearerValidationFilter
                         }
                         else {
                             LOGGER.atDebug()
-                                    .addKeyValue("error", e.getMessage())
+                                    .addKeyValue(OAuthBearerValidationLoggingKeys.ERROR, e.getMessage())
                                     .setCause(e)
                                     .log("SASL error");
                             if (e instanceof CompletionException) {
