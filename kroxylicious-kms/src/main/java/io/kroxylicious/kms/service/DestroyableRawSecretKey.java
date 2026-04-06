@@ -5,6 +5,7 @@
  */
 
 package io.kroxylicious.kms.service;
+nimport io.kroxylicious.kms.service.KmsLoggingKeys;
 
 import java.util.Arrays;
 import java.util.Locale;
@@ -88,8 +89,8 @@ public final class DestroyableRawSecretKey implements SecretKey {
         catch (DestroyFailedException e) {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addKeyValue("keyClass", source.getClass().getName())
-                    .addKeyValue("error", e.getMessage())
+                    .addKeyValue(KmsLoggingKeys.KEY_CLASS, source.getClass().getName())
+                    .addKeyValue(KmsLoggingKeys.ERROR, e.getMessage())
                     .log(LOGGER.isDebugEnabled()
                             ? "Failed to destroy key"
                             : "Failed to destroy key, increase log level to DEBUG for stacktrace");
