@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -248,7 +249,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                     if (throwable != null) {
                         LOGGER.atWarn()
                                 .setCause(throwable)
-                                .addKeyValue("originalError", originalFailure.getMessage())
+                                .addKeyValue(RuntimeLoggingKeys.ORIGINAL_ERROR, originalFailure.getMessage())
                                 .log("Secondary error occurred whilst handling a previous registration error");
                     }
                     registeredVirtualClusters.remove(virtualClusterModel);

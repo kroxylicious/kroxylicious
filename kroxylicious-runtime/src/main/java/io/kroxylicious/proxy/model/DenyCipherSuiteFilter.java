@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.model;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,15 +44,15 @@ public final class DenyCipherSuiteFilter implements CipherSuiteFilter {
         StreamSupport.stream(actualCiphers.spliterator(), false)
                 .filter(Predicate.not(supportedCiphers::contains))
                 .forEach(unsupportedCipher -> LOGGER.atWarn()
-                        .addKeyValue("unsupportedCipher", unsupportedCipher)
-                        .addKeyValue("supportedCiphers", supportedCiphers)
+                        .addKeyValue(RuntimeLoggingKeys.UNSUPPORTED_CIPHER, unsupportedCipher)
+                        .addKeyValue(RuntimeLoggingKeys.SUPPORTED_CIPHERS, supportedCiphers)
                         .log("Ignoring allowed cipher as it is not recognized by this platform"));
 
         deniedCiphers.stream()
                 .filter(Predicate.not(supportedCiphers::contains))
                 .forEach(unsupportedCipher -> LOGGER.atWarn()
-                        .addKeyValue("unsupportedCipher", unsupportedCipher)
-                        .addKeyValue("supportedCiphers", supportedCiphers)
+                        .addKeyValue(RuntimeLoggingKeys.UNSUPPORTED_CIPHER, unsupportedCipher)
+                        .addKeyValue(RuntimeLoggingKeys.SUPPORTED_CIPHERS, supportedCiphers)
                         .log("Ignoring denied cipher as it is not recognized by this platform"));
 
         return StreamSupport.stream(actualCiphers.spliterator(), false)

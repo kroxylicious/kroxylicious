@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -55,15 +56,15 @@ public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
             ChannelFuture bind;
             if (bindingAddress.isPresent()) {
                 LOGGER.atDebug()
-                        .addKeyValue("bindAddress", bindingAddress.get())
-                        .addKeyValue("port", port)
+                        .addKeyValue(RuntimeLoggingKeys.BIND_ADDRESS, bindingAddress.get())
+                        .addKeyValue(RuntimeLoggingKeys.PORT, port)
                         .log("Binding");
                 bind = serverBootstrap.bind(bindingAddress.get(), port);
             }
             else {
                 LOGGER.atDebug()
-                        .addKeyValue("bindAddress", "<any>")
-                        .addKeyValue("port", port)
+                        .addKeyValue(RuntimeLoggingKeys.BIND_ADDRESS, "<any>")
+                        .addKeyValue(RuntimeLoggingKeys.PORT, port)
                         .log("Binding");
                 bind = serverBootstrap.bind(port);
             }

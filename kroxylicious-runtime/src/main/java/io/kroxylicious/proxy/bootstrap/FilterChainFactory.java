@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.bootstrap;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -115,7 +116,7 @@ public class FilterChainFactory implements AutoCloseable {
                 catch (Exception e) {
                     LOGGER.atWarn()
                             .setCause(e)
-                            .addKeyValue("filterName", filterDefinition.name())
+                            .addKeyValue(RuntimeLoggingKeys.FILTER_NAME, filterDefinition.name())
                             .log("Exception while inspecting Filter implementation for deprecations");
                     return new ClassDescription(false, false);
                 }
@@ -124,10 +125,10 @@ public class FilterChainFactory implements AutoCloseable {
 
         private void logDeprecation(Class<? extends Filter> filterClass, String methodName, Class<? extends ApiMessage> headerType) {
             LOGGER.atWarn()
-                    .addKeyValue("filterName", filterDefinition.name())
-                    .addKeyValue("filterDefinitionType", filterDefinition.type())
-                    .addKeyValue("filterClass", filterClass)
-                    .addKeyValue("method", methodName + "(ApiKeys, " + headerType.getSimpleName() + ", ApiMessage, FilterContext)")
+                    .addKeyValue(RuntimeLoggingKeys.FILTER_NAME, filterDefinition.name())
+                    .addKeyValue(RuntimeLoggingKeys.FILTER_DEFINITION_TYPE, filterDefinition.type())
+                    .addKeyValue(RuntimeLoggingKeys.FILTER_CLASS, filterClass)
+                    .addKeyValue(RuntimeLoggingKeys.METHOD, methodName + "(ApiKeys, " + headerType.getSimpleName() + ", ApiMessage, FilterContext)")
                     .log("FilterDefinition created a Filter instance which implements a deprecated method. This Filter implementation must be updated as the method will be removed in a future release");
         }
 

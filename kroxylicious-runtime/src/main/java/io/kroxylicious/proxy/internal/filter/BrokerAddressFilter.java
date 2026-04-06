@@ -38,6 +38,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ShareAcknowledgeResponseFilter;
 import io.kroxylicious.proxy.filter.ShareFetchResponseFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -169,10 +170,10 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         var advertisedAddress = listenerModel.getAdvertisedBrokerAddress(nodeId);
 
         LOGGER.atTrace()
-                .addKeyValue("sessionId", context.sessionId())
-                .addKeyValue("incomingHost", incomingHost)
-                .addKeyValue("incomingPort", incomingPort)
-                .addKeyValue("advertisedAddress", advertisedAddress)
+                .addKeyValue(RuntimeLoggingKeys.SESSION_ID, context.sessionId())
+                .addKeyValue(RuntimeLoggingKeys.INCOMING_HOST, incomingHost)
+                .addKeyValue(RuntimeLoggingKeys.INCOMING_PORT, incomingPort)
+                .addKeyValue(RuntimeLoggingKeys.ADVERTISED_ADDRESS, advertisedAddress)
                 .log("Rewriting broker address in response");
         hostSetter.accept(broker, advertisedAddress.host());
         portSetter.accept(broker, advertisedAddress.port());
@@ -183,7 +184,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         return reconciler.reconcile(listenerModel, nodeMap).toCompletableFuture()
                 .thenCompose(u -> {
                     LOGGER.atDebug()
-                            .addKeyValue("virtualCluster", listenerModel)
+                            .addKeyValue(RuntimeLoggingKeys.VIRTUAL_CLUSTER, listenerModel)
                             .log("Endpoint reconciliation complete");
                     return context.responseFilterResultBuilder().forward(header, data).completed();
                 });

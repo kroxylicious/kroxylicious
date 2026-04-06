@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
@@ -62,7 +63,7 @@ public class ResponseOrderer extends ChannelDuplexHandler {
             Integer oldestCorrelationId = inflightCorrelationIds.peekFirst();
             if (oldestCorrelationId == null) {
                 logger.atWarn()
-                        .addKeyValue("frame", msg)
+                        .addKeyValue(RuntimeLoggingKeys.FRAME, msg)
                         .log("Handling a Frame, but we have no inflight correlation ids, continuing to write");
                 super.write(ctx, msg, promise);
             }

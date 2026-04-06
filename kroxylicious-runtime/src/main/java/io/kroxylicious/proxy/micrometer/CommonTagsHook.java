@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.List;
 import java.util.Map;
 
@@ -54,7 +55,7 @@ public class CommonTagsHook implements MicrometerConfigurationHookService<Common
             List<Tag> tags = config.commonTags.entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).toList();
             targetRegistry.config().commonTags(tags);
             log.atInfo()
-                    .addKeyValue("tags", tags)
+                    .addKeyValue(RuntimeLoggingKeys.TAGS, tags)
                     .log("configured micrometer registry");
         }
     }

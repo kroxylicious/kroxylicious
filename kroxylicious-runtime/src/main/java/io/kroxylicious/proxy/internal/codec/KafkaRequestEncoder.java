@@ -14,6 +14,7 @@ import io.netty.channel.ChannelHandlerContext;
 
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -56,10 +57,10 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);
         LOGGER.atDebug()
-                .addKeyValue("context", ctx)
-                .addKeyValue("apiKey", ApiKeys.forId(apiKey))
-                .addKeyValue("downstreamCorrelationId", downstreamCorrelationId)
-                .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
+                .addKeyValue(RuntimeLoggingKeys.CONTEXT, ctx)
+                .addKeyValue(RuntimeLoggingKeys.API_KEY, ApiKeys.forId(apiKey))
+                .addKeyValue(RuntimeLoggingKeys.DOWNSTREAM_CORRELATION_ID, downstreamCorrelationId)
+                .addKeyValue(RuntimeLoggingKeys.UPSTREAM_CORRELATION_ID, upstreamCorrelationId)
                 .log("Assigned upstream correlation id");
         out.writerIndex(wi);
     }

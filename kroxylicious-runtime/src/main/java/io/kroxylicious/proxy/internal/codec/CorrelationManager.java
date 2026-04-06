@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -62,15 +63,15 @@ public class CorrelationManager {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
         LOGGER.atTrace()
-                .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
-                .addKeyValue("downstreamCorrelationId", downstreamCorrelationId)
+                .addKeyValue(RuntimeLoggingKeys.UPSTREAM_CORRELATION_ID, upstreamCorrelationId)
+                .addKeyValue(RuntimeLoggingKeys.DOWNSTREAM_CORRELATION_ID, downstreamCorrelationId)
                 .log("Allocated upstream id for downstream id");
         if (hasResponse) {
             Correlation existing = this.brokerRequests.put(upstreamCorrelationId,
                     new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise));
             if (existing != null) {
                 LOGGER.atError()
-                        .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
+                        .addKeyValue(RuntimeLoggingKeys.UPSTREAM_CORRELATION_ID, upstreamCorrelationId)
                         .log("Duplicate upstream correlation id");
             }
         }
