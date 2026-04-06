@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.test.codec;
 
+import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -42,43 +43,43 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         ApiKeys apiKey = ApiKeys.forId(apiId);
         if (log().isTraceEnabled()) { // avoid boxing
             log().atTrace()
-                    .addKeyValue("apiId", apiId)
-                    .addKeyValue("apiKey", apiKey)
-                    .addKeyValue("ctx", ctx)
+                    .addKeyValue(TestSupportLoggingKeys.API_ID, apiId)
+                    .addKeyValue(TestSupportLoggingKeys.API_KEY, apiKey)
+                    .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
                     .log("Read");
         }
         short apiVersion = in.readShort();
         if (log().isTraceEnabled()) { // avoid boxing
             log().atTrace()
-                    .addKeyValue("ctx", ctx)
-                    .addKeyValue("apiVersion", apiVersion)
+                    .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
+                    .addKeyValue(TestSupportLoggingKeys.API_VERSION, apiVersion)
                     .log("Read");
         }
         int correlationId = in.readInt();
         LOGGER.atDebug()
-                .addKeyValue("ctx", ctx)
-                .addKeyValue("apiKey", apiKey)
-                .addKeyValue("correlationId", correlationId)
+                .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
+                .addKeyValue(TestSupportLoggingKeys.API_KEY, apiKey)
+                .addKeyValue(TestSupportLoggingKeys.CORRELATION_ID, correlationId)
                 .log("downstream", ctx, apiKey, correlationId);
 
         RequestHeaderData header;
         var decodeRequest = true;
         LOGGER.atDebug()
-                .addKeyValue("apiKey", apiKey)
-                .addKeyValue("apiVersion", apiVersion)
-                .addKeyValue("decodeRequest", decodeRequest)
+                .addKeyValue(TestSupportLoggingKeys.API_KEY, apiKey)
+                .addKeyValue(TestSupportLoggingKeys.API_VERSION, apiVersion)
+                .addKeyValue(TestSupportLoggingKeys.DECODE_REQUEST, decodeRequest)
                 .log("Decode request?", apiKey, apiVersion, decodeRequest);
         boolean decodeResponse = true;
         LOGGER.atDebug()
-                .addKeyValue("apiKey", apiKey)
-                .addKeyValue("apiVersion", apiVersion)
-                .addKeyValue("decodeResponse", decodeResponse)
+                .addKeyValue(TestSupportLoggingKeys.API_KEY, apiKey)
+                .addKeyValue(TestSupportLoggingKeys.API_VERSION, apiVersion)
+                .addKeyValue(TestSupportLoggingKeys.DECODE_RESPONSE, decodeResponse)
                 .log("Decode response? {}", apiKey, apiVersion, decodeResponse);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         if (log().isTraceEnabled()) { // avoid boxing
             log().atTrace()
-                    .addKeyValue("ctx", ctx)
-                    .addKeyValue("headerVersion", headerVersion)
+                    .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
+                    .addKeyValue(TestSupportLoggingKeys.HEADER_VERSION, headerVersion)
                     .log("headerVersion");
         }
         in.readerIndex(sof);
@@ -86,24 +87,24 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         header = readHeader(headerVersion, acc);
         if (log().isTraceEnabled()) {
             log().atTrace()
-                    .addKeyValue("ctx", ctx)
-                    .addKeyValue("header", header)
+                    .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
+                    .addKeyValue(TestSupportLoggingKeys.HEADER, header)
                     .log("Read", ctx, header);
         }
         final Frame frame;
         ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, acc);
         if (log().isTraceEnabled()) {
             log().atTrace()
-                    .addKeyValue("ctx", ctx)
-                    .addKeyValue("body", body)
+                    .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
+                    .addKeyValue(TestSupportLoggingKeys.BODY, body)
                     .log("body");
         }
 
         frame = new DecodedRequestFrame<>(apiVersion, correlationId, header, body, apiVersion);
         if (log().isTraceEnabled()) {
             log().atTrace()
-                    .addKeyValue("ctx", ctx)
-                    .addKeyValue("frame", frame)
+                    .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
+                    .addKeyValue(TestSupportLoggingKeys.FRAME, frame)
                     .log("frame");
         }
 

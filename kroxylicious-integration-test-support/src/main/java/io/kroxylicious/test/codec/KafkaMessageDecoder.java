@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.test.codec;
 
+import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -40,9 +41,9 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 int readable = in.readableBytes();
                 if (log().isTraceEnabled()) { // avoid boxing
                     log().atTrace()
-                            .addKeyValue("ctx", ctx)
-                            .addKeyValue("frameSize", frameSize)
-                            .addKeyValue("readableBytes", readable)
+                            .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
+                            .addKeyValue(TestSupportLoggingKeys.FRAME_SIZE, frameSize)
+                            .addKeyValue(TestSupportLoggingKeys.READABLE_BYTES, readable)
                             .log("Pre-decode");
                 }
                 if (readable >= frameSize) { // We can read the whole frame
@@ -52,9 +53,9 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                             slice, // Prevent decodeHeaderAndBody() from reading beyond the frame
                             frameSize));
                     log().atTrace()
-                            .addKeyValue("ctx", ctx)
-                            .addKeyValue("readableBytes", in.readableBytes())
-                            .addKeyValue("alreadyRead", in.readerIndex() - idx)
+                            .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
+                            .addKeyValue(TestSupportLoggingKeys.READABLE_BYTES, in.readableBytes())
+                            .addKeyValue(TestSupportLoggingKeys.ALREADY_READ, in.readerIndex() - idx)
                             .log("Post-decode");
                     if (slice.readableBytes() > 0) {
                         throw new KafkaCodecException("decodeHeaderAndBody did not read all of the buffer " + slice);
@@ -67,7 +68,7 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
             }
             catch (Exception e) {
                 log().atError()
-                        .addKeyValue("ctx", ctx)
+                        .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
                         .setCause(e)
                         .log("Error in decoder");
                 throw new KafkaCodecException("Error decoding KafkaMessage", e);

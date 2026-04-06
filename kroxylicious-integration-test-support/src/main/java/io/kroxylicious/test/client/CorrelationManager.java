@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.test.client;
 
+import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +47,7 @@ public class CorrelationManager {
         Correlation existing = this.brokerRequests.put(correlationId, new Correlation(apiKey, apiVersion, responseFuture, responseApiVersion));
         if (existing != null) {
             LOGGER.atError()
-                    .addKeyValue("upstreamCorrelationId", correlationId)
+                    .addKeyValue(TestSupportLoggingKeys.UPSTREAM_CORRELATION_ID, correlationId)
                     .log("Duplicate correlation");
         }
     }
