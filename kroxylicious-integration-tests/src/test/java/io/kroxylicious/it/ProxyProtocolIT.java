@@ -40,6 +40,7 @@ import io.kroxylicious.proxy.config.ProxyProtocolConfig;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tls.CertificateGenerator;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
@@ -48,7 +49,6 @@ import io.kroxylicious.test.client.KafkaClientHandler;
 import io.kroxylicious.test.codec.KafkaRequestEncoder;
 import io.kroxylicious.test.codec.KafkaResponseDecoder;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
@@ -164,10 +164,10 @@ class ProxyProtocolIT {
 
     @Test
     void tlsRequiredModeShouldProxyKafkaRequestsAfterProxyHeader() throws Exception {
-        var certGenerator = new KeytoolCertificateGenerator();
-        certGenerator.generateSelfSignedCertificateEntry("test@kroxylicious.io", "localhost", "KI", "kroxylicious.io", null, null, "US");
+        var keys = CertificateGenerator.generate();
+        var keystore = keys.jksServerKeystore();
 
-        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> buildTlsProxyProtocolConfig(bootstrap, certGenerator, ProxyProtocolMode.REQUIRED))) {
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> buildTlsProxyProtocolConfig(bootstrap, keystore, ProxyProtocolMode.REQUIRED))) {
 
             tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS,
                     ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsResponseData()));
@@ -233,10 +233,10 @@ class ProxyProtocolIT {
 
     @Test
     void tlsRequiredModeShouldRejectTlsConnectionWithoutProxyHeader() throws Exception {
-        var certGenerator = new KeytoolCertificateGenerator();
-        certGenerator.generateSelfSignedCertificateEntry("test@kroxylicious.io", "localhost", "KI", "kroxylicious.io", null, null, "US");
+        var keys = CertificateGenerator.generate();
+        var keystore = keys.jksServerKeystore();
 
-        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> buildTlsProxyProtocolConfig(bootstrap, certGenerator, ProxyProtocolMode.REQUIRED));
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> buildTlsProxyProtocolConfig(bootstrap, keystore, ProxyProtocolMode.REQUIRED));
                 var client = tester.simpleTestClient()) {
 
             var request = new Request(ApiKeys.API_VERSIONS, ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION,
@@ -250,10 +250,10 @@ class ProxyProtocolIT {
 
     @Test
     void tlsAllowedModeShouldAcceptDirectTlsConnectionWithoutProxyHeader() throws Exception {
-        var certGenerator = new KeytoolCertificateGenerator();
-        certGenerator.generateSelfSignedCertificateEntry("test@kroxylicious.io", "localhost", "KI", "kroxylicious.io", null, null, "US");
+        var keys = CertificateGenerator.generate();
+        var keystore = keys.jksServerKeystore();
 
-        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> buildTlsProxyProtocolConfig(bootstrap, certGenerator, ProxyProtocolMode.ALLOWED));
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> buildTlsProxyProtocolConfig(bootstrap, keystore, ProxyProtocolMode.ALLOWED));
                 var client = tester.simpleTestClient()) {
 
             tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS,
@@ -269,7 +269,7 @@ class ProxyProtocolIT {
 
     // ---- Helpers ----
 
-    private static ConfigurationBuilder buildTlsProxyProtocolConfig(String mockBootstrap, KeytoolCertificateGenerator certGenerator,
+    private static ConfigurationBuilder buildTlsProxyProtocolConfig(String mockBootstrap, CertificateGenerator.KeyStore keystore,
                                                                     ProxyProtocolMode mode) {
         return KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(new VirtualClusterBuilder()
@@ -277,11 +277,13 @@ class ProxyProtocolIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(mockBootstrap)
                         .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", 9192))
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", 49592))
                                 .withNewTls()
                                 .withNewKeyStoreKey()
-                                .withStoreFile(certGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(certGenerator.getPassword())
+                                .withStoreFile(keystore.path().toString())
+                                .withStoreType(keystore.type())
+                                .withNewInlinePasswordStoreProvider(keystore.storePassword())
+                                .withNewInlinePasswordKeyProvider(keystore.keyPassword())
                                 .endKeyStoreKey()
                                 .endTls()
                                 .build())
