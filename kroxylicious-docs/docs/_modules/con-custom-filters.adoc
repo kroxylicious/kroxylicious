@@ -390,7 +390,7 @@ public class FetchFilter implements FetchRequestFilter {
         var stage = context.sendRequest(metadataRequestHeader, metadataRequest);
         // Use response to mutate the fetch request.
         return stage.thenApply(metadataResponse -> mutateFetchRequest(metadataResponse, request))
-                     // We use another computation stage to forward the mutated request.
+                     // Forward the mutated request.
                     .thenCompose(mutatedFetchRequest -> context.forwardRequest(header, mutatedFetchRequest));
     }
 }
