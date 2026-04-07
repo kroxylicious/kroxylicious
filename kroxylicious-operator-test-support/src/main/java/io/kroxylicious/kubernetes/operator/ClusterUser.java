@@ -9,6 +9,7 @@ package io.kroxylicious.kubernetes.operator;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 
@@ -22,6 +23,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Kubernetes client scoped to the RBAC of a regular user, not the operator itself.
  * Using this explicitly in tests makes clear which operations represent user actions
  * and which represent operator reactions, which matters for reasoning about RBAC.
+ * <p>
+ * Obtain instances via {@link LocalKroxyliciousOperatorExtension#clusterUser()}.
  */
 public class ClusterUser {
 
@@ -35,22 +38,46 @@ public class ClusterUser {
 
     @NonNull
     public <T extends HasMetadata> T create(@NonNull T resource) {
-        return client.resource(resource).inNamespace(namespace).create();
+        try {
+            return client.resource(resource).inNamespace(namespace).create();
+        }
+        catch (KubernetesClientException e) {
+            throw new KubernetesClientException(
+                    "ClusterUser failed to create %s/%s".formatted(resource.getKind(), resource.getMetadata().getName()), e);
+        }
     }
 
     @Nullable
     public <T extends HasMetadata> T get(@NonNull Class<T> type, @NonNull String name) {
-        return client.resources(type).inNamespace(namespace).withName(name).get();
+        try {
+            return client.resources(type).inNamespace(namespace).withName(name).get();
+        }
+        catch (KubernetesClientException e) {
+            throw new KubernetesClientException(
+                    "ClusterUser failed to get %s/%s".formatted(type.getSimpleName(), name), e);
+        }
     }
 
     @NonNull
     public <T extends HasMetadata> T replace(@NonNull T resource) {
-        return client.resource(resource).inNamespace(namespace).update();
+        try {
+            return client.resource(resource).inNamespace(namespace).update();
+        }
+        catch (KubernetesClientException e) {
+            throw new KubernetesClientException(
+                    "ClusterUser failed to replace %s/%s".formatted(resource.getKind(), resource.getMetadata().getName()), e);
+        }
     }
 
     public <T extends HasMetadata> boolean delete(@NonNull T resource) {
-        var result = client.resource(resource).inNamespace(namespace).delete();
-        return result.size() == 1 && result.get(0).getCauses().isEmpty();
+        try {
+            var result = client.resource(resource).inNamespace(namespace).delete();
+            return result.size() == 1 && result.get(0).getCauses().isEmpty();
+        }
+        catch (KubernetesClientException e) {
+            throw new KubernetesClientException(
+                    "ClusterUser failed to delete %s/%s".formatted(resource.getKind(), resource.getMetadata().getName()), e);
+        }
     }
 
     @NonNull
