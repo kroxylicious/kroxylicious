@@ -458,6 +458,22 @@ if [[ "${SKIP_DEPLOY}" == "false" ]]; then
     echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
     helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" --timeout 300s
 
+    # --- Wait for Vault init job (if provisioned) ---
+
+    if kubectl get deployment/vault -n "${NAMESPACE}" &>/dev/null; then
+        echo "Waiting for Vault to be ready (timeout: ${POD_READY_TIMEOUT})..."
+        kubectl rollout status deployment/vault -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
+        echo "Vault is ready."
+    fi
+
+    if kubectl get job/vault-init -n "${NAMESPACE}" &>/dev/null; then
+        echo "Waiting for Vault init job to complete (timeout: ${POD_READY_TIMEOUT})..."
+        kubectl wait --for=condition=complete job/vault-init \
+            -n "${NAMESPACE}" \
+            --timeout="${POD_READY_TIMEOUT}"
+        echo "Vault initialisation complete."
+    fi
+
     # --- Wait for Kafka ---
 
     echo "Waiting for Kafka cluster to be ready (timeout: ${KAFKA_READY_TIMEOUT})..."
@@ -487,63 +503,6 @@ else
     check_workers_healthy
     reset_topics
 fi
-
-# --- Deploy ---
-
-echo "--- Deploying benchmark infrastructure (${SCENARIO}) ---"
-HELM_ARGS=(-n "${NAMESPACE}" -f "${SCENARIO_VALUES}")
-for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do HELM_ARGS+=(-f "${profile_file}"); done
-[[ -n "${CLUSTER_OVERRIDES}" ]] && HELM_ARGS+=(-f "${CLUSTER_OVERRIDES}")
-HELM_ARGS+=(--set omb.workload="${WORKLOAD}")
-for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do HELM_ARGS+=(--set "${set_arg}"); done
-
-helm install "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" --timeout 300s
-
-# Register teardown to run on exit (success or failure) so we always clean up.
-# Skipped when --skip-teardown is set, leaving infrastructure up for debugging.
-if [[ "${SKIP_TEARDOWN}" == "false" ]]; then
-    trap teardown EXIT
-fi
-
-# --- Wait for Vault init job (if provisioned) ---
-
-if kubectl get deployment/vault -n "${NAMESPACE}" &>/dev/null; then
-    echo "Waiting for Vault to be ready (timeout: ${POD_READY_TIMEOUT})..."
-    kubectl rollout status deployment/vault -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
-    echo "Vault is ready."
-fi
-
-if kubectl get job/vault-init -n "${NAMESPACE}" &>/dev/null; then
-    echo "Waiting for Vault init job to complete (timeout: ${POD_READY_TIMEOUT})..."
-    kubectl wait --for=condition=complete job/vault-init \
-        -n "${NAMESPACE}" \
-        --timeout="${POD_READY_TIMEOUT}"
-    echo "Vault initialisation complete."
-fi
-
-# --- Wait for Kafka ---
-
-echo "Waiting for Kafka cluster to be ready (timeout: ${KAFKA_READY_TIMEOUT})..."
-kubectl wait kafka/kafka \
-    --for=condition=Ready \
-    --timeout="${KAFKA_READY_TIMEOUT}" \
-    -n "${NAMESPACE}"
-echo "Kafka is ready."
-
-# --- Wait for OMB pods ---
-
-echo "Waiting for OMB workers to be ready..."
-kubectl rollout status statefulset/omb-worker -n "${NAMESPACE}" --timeout="${POD_READY_TIMEOUT}"
-
-echo "Waiting for OMB benchmark pod to be ready..."
-kubectl wait --for=condition=ready pod \
-    -l app=omb-benchmark \
-    -n "${NAMESPACE}" \
-    --timeout="${POD_READY_TIMEOUT}"
-echo "OMB pods are ready."
-
-# Note: the benchmark starts automatically inside the Job pod (no kubectl exec needed).
-# run-benchmark.sh waits for the .done marker file written when the benchmark exits.
 
 # --- Start JFR and async-profiler recording on proxy pod (if present, first run only) ---
 
