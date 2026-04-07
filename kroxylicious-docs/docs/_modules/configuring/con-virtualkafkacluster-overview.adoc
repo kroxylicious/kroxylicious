@@ -77,22 +77,24 @@ spec:
   ingresses:
     - ingressRef:
         name: cluster-ip
+      tls:
         certificateRef:
           name: 'cluster-ip-server-cert'
           kind: Secret
     - ingressRef:
         name: load-balancer
-        certificateRef:
-          name: 'external-server-cert'
-          kind: Secret
+      tls:
+          certificateRef:
+            name: 'external-server-cert'
+            kind: Secret
   filterRefs:
     - name: my-filter-1
     - name: my-filter-2
 ----
 where:
 
-* `name` References a secret containing the server certificate for the `clusterIP` ingress.
-* `name` References a secret containing the server certificate for the `loadBalancer` ingress.
+* `name` in the ingress named `cluster-ip` references a `Secret` containing the server certificate for the `clusterIP` ingress.
+* `name` in the ingress named `load-balancer` references a `Secret` containing the server certificate for the `loadBalancer` ingress.
 
 include::./con-virtualkafkacluster-clusterip-generate-tls-certificates.adoc[leveloffset=+1]
 include::./con-virtualkafkacluster-loadbalancer-generate-tls-certificates.adoc[leveloffset=+1]
