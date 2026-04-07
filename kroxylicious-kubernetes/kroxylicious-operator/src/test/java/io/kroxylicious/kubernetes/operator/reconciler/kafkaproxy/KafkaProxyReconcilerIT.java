@@ -961,13 +961,13 @@ public class KafkaProxyReconcilerIT {
         String initialChecksum = deploymentPodTemplateChecksum(proxy);
 
         // When - OpenShift assigns a host to the bootstrap route
-        Route bootstrapRoute = clusterUser.get(Route.class, bootstrapRouteName);
-        Route routeWithHost = new RouteBuilder(bootstrapRoute)
+        // Use updateStatus to re-fetch the latest resourceVersion, because the OpenShift
+        // ingress controller may have modified the Route since we last read it.
+        operator.updateStatus(Route.class, bootstrapRouteName, route -> new RouteBuilder(route)
                 .withNewStatus()
                 .addNewIngress().withHost(bootstrapRouteName + ".apps-crc.testing").endIngress()
                 .endStatus()
-                .build();
-        operator.patchStatus(routeWithHost);
+                .build());
 
         // Then - deployment pod template checksum should change so the proxy is restarted
         AWAIT.alias("deployment checksum updated after route host assignment")
