@@ -33,39 +33,4 @@ public class EntityIsolationLoggingKeys {
      * The Kafka transactional ID.
      */
     public static final String TRANSACTIONAL_ID = "transactionalId";
-    /**
-     * The api key.
-     */
-    public static final String API_KEY = "apiKey";
-
-    /**
-     * The api version.
-     */
-    public static final String API_VERSION = "apiVersion";
-
-    /**
-     * The max version.
-     */
-    public static final String MAX_VERSION = "maxVersion";
-
-    /**
-     * The message.
-     */
-    public static final String MESSAGE = "message";
-
-    /**
-     * The min version.
-     */
-    public static final String MIN_VERSION = "minVersion";
-
-    /**
-     * The session id.
-     */
-    public static final String SESSION_ID = "sessionId";
-
-    /**
-     * The subject.
-     */
-    public static final String SUBJECT = "subject";
-
 }

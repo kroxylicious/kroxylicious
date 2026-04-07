@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.filter.entityisolation;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolationLoggingKeys;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -169,30 +168,30 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
     private static void log(FilterContext context, String description, ApiKeys apiKey, ApiMessage message) {
         boolean mayContainSecret = message instanceof DescribeConfigsResponseData;
         LOGGER.atDebug()
-                .addKeyValue(EntityIsolationLoggingKeys.SESSION_ID, context.sessionId())
-                .addKeyValue(EntityIsolationLoggingKeys.SUBJECT, context::authenticatedSubject)
-                .addKeyValue(EntityIsolationLoggingKeys.API_KEY, apiKey)
-                .addKeyValue(EntityIsolationLoggingKeys.MESSAGE, mayContainSecret ? "<redacted>" : message)
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("subject", context::authenticatedSubject)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("message", mayContainSecret ? "<redacted>" : message)
                 .log(description);
     }
 
     private static void logUnexpectedApiVersion(FilterContext context, ApiKeys apiKey, short apiVersion, short minVersion, short maxVersion) {
         LOGGER.atWarn()
-                .addKeyValue(EntityIsolationLoggingKeys.SESSION_ID, context.sessionId())
-                .addKeyValue(EntityIsolationLoggingKeys.SUBJECT, context::authenticatedSubject)
-                .addKeyValue(EntityIsolationLoggingKeys.API_KEY, apiKey)
-                .addKeyValue(EntityIsolationLoggingKeys.API_VERSION, apiVersion)
-                .addKeyValue(EntityIsolationLoggingKeys.MIN_VERSION, minVersion)
-                .addKeyValue(EntityIsolationLoggingKeys.MAX_VERSION, maxVersion)
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("subject", context::authenticatedSubject)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("minVersion", minVersion)
+                .addKeyValue("maxVersion", maxVersion)
                 .log("API version falls outside range known to this filter, closing connection");
     }
 
     private static void logMappingException(FilterContext context, ApiKeys apiKey, short apiVersion, Throwable cause) {
         LOGGER.atWarn()
-                .addKeyValue(EntityIsolationLoggingKeys.SESSION_ID, context.sessionId())
-                .addKeyValue(EntityIsolationLoggingKeys.SUBJECT, context::authenticatedSubject)
-                .addKeyValue(EntityIsolationLoggingKeys.API_KEY, apiKey)
-                .addKeyValue(EntityIsolationLoggingKeys.API_VERSION, apiVersion)
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("subject", context::authenticatedSubject)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
                 .addKeyValue(EntityIsolationLoggingKeys.ERROR, cause.getMessage())
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .log("Operation failed, closing connection" + (LOGGER.isDebugEnabled() ? "" : ", raise log level to DEBUG for stacktrace"));
