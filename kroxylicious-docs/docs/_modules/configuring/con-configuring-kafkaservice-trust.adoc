@@ -59,4 +59,4 @@ spec:
 ----
 * `name` is the name of the `Secret` providing the CA certificates. The resource must exist in the same namespace as the `KafkaService`
 * `kind` must be `Secret`.
-* `key` The `key` identifies the entry in the given resource. The corresponding value must be a PEM-encoded set of CA certificates.
+* `key` identifies the entry in the resource. The value must be a PEM-encoded set of CA certificates.

@@ -35,7 +35,7 @@ spec:
 where:
 
 * `protocols`  configures the TLS protocol versions.
-** `allowed` lists the versions of TLS which are permitted.
+** `allowed` lists the permitted TLS versions.
 
 The `protocols` property also supports `deny`, if you prefer to list the versions to exclude instead.
 The names of the TLS protocol versions supported depend on the JVM in the proxy container image.
