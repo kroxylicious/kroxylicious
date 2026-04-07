@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.test.codec;
 
-import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import org.slf4j.Logger;
 
 import io.netty.buffer.ByteBuf;
@@ -46,9 +45,9 @@ public abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByte
     @Override
     protected void encode(ChannelHandlerContext ctx, F frame, ByteBuf out) throws Exception {
         log().atTrace()
-                .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
-                .addKeyValue(TestSupportLoggingKeys.FRAME, frame)
-                .addKeyValue(TestSupportLoggingKeys.OUT, out)
+                .addKeyValue("ctx", ctx)
+                .addKeyValue("frame", frame)
+                .addKeyValue("out", out)
                 .log("Encoding");
         frame.encode(new ByteBufAccessorImpl(out));
     }

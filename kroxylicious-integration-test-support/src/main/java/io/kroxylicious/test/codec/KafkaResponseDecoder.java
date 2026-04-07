@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.test.codec;
 
-import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -55,9 +54,9 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         }
         else if (LOGGER.isDebugEnabled()) {
             LOGGER.atDebug()
-                    .addKeyValue(TestSupportLoggingKeys.UPSTREAM_CORRELATION_ID, correlationId)
-                    .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
-                    .addKeyValue(TestSupportLoggingKeys.CORRELATION, correlation)
+                    .addKeyValue("upstreamCorrelationId", correlationId)
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("correlation", correlation)
                     .log("Recovered correlation");
         }
         try {
@@ -70,8 +69,8 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
             frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
             log().atTrace()
-                    .addKeyValue(TestSupportLoggingKeys.CTX, ctx)
-                    .addKeyValue(TestSupportLoggingKeys.FRAME, frame)
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("frame", frame)
                     .log("Result");
             if (in.readableBytes() != 0) {
                 throw new IllegalStateException("Unread bytes remaining in frame, potentially response api version differs from expectation");

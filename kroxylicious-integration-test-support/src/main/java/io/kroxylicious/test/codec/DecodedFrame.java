@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.test.codec;
 
-import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import java.util.Objects;
 
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -129,11 +128,11 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         final int encodedSize = estimateEncodedSize();
         if (LOGGER.isTraceEnabled()) {
             LOGGER.atTrace()
-                    .addKeyValue(TestSupportLoggingKeys.FRAME_CLASS, getClass().getSimpleName())
-                    .addKeyValue(TestSupportLoggingKeys.ENCODED_SIZE, encodedSize)
-                    .addKeyValue(TestSupportLoggingKeys.HEADER, header)
-                    .addKeyValue(TestSupportLoggingKeys.BODY, body)
-                    .addKeyValue(TestSupportLoggingKeys.OUT, out)
+                    .addKeyValue("frameClass", getClass().getSimpleName())
+                    .addKeyValue("encodedSize", encodedSize)
+                    .addKeyValue("header", header)
+                    .addKeyValue("body", body)
+                    .addKeyValue("out", out)
                     .log("Writing");
         }
         out.ensureWritable(encodedSize);
