@@ -57,6 +57,7 @@ public final class KafkaServiceReconciler implements
 
     public static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
     public static final String CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "configmapsTrustAnchorRef";
+    public static final String SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsStrimziTrustAnchorRef";
     public static final String SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsTrustAnchorRef";
     public static final String STRIMZI_KAFKA_EVENT_SOURCE_NAME = "kafkas";
     public static final String STRIMZI_KAFKA_GROUP_NAME = "kafka.strimzi.io";
@@ -100,7 +101,7 @@ public final class KafkaServiceReconciler implements
         InformerEventSourceConfiguration<Secret> serviceToStrimziCaCertificate = InformerEventSourceConfiguration.from(
                 Secret.class,
                 KafkaService.class)
-                .withName(SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+                .withName(SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToStrimziCaCertificateSecondary())
                 .withSecondaryToPrimaryMapper(new StrimziCaCertificateSecondaryToKafkaServicePrimary(context))
                 .build();

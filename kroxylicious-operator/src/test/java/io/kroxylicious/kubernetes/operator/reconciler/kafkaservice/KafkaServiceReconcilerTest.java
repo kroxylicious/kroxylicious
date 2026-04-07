@@ -328,7 +328,7 @@ class KafkaServiceReconcilerTest {
             mockGetKafka(context, Optional.of(KAFKA));
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("strimziKafkaRef missing listener name",
-                    new KafkaServiceBuilder(SERVICE).editSpec()
+                    new KafkaServiceBuilder(SERVICE).withNewSpec()
                             .editStrimziKafkaRef()
                             .editRef()
                             .withGroup("kafka.strimzi.io")
@@ -356,7 +356,7 @@ class KafkaServiceReconcilerTest {
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(KAFKA));
             result.add(Arguments.argumentSet("unsupported strimziKafkaRef kind",
-                    new KafkaServiceBuilder(SERVICE).editSpec()
+                    new KafkaServiceBuilder(SERVICE).withNewSpec()
                             .editStrimziKafkaRef()
                             .editRef()
                             .withKind("Unsupported")
@@ -382,7 +382,7 @@ class KafkaServiceReconcilerTest {
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(UNSUPPORTED_KAFKA));
             result.add(Arguments.argumentSet("listeners not present",
-                    new KafkaServiceBuilder(SERVICE).editSpec()
+                    new KafkaServiceBuilder(SERVICE).withNewSpec()
                             .editStrimziKafkaRef()
                             .editRef()
                             .withGroup("kafka.strimzi.io")

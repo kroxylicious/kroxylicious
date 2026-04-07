@@ -31,7 +31,6 @@ import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaStatus;
-import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
@@ -638,14 +637,6 @@ public class ResourcesUtil {
         else {
             return new ResourceCheckResult<>(null, List.of(kafka));
         }
-    }
-
-    private static boolean isSpecifiedListenerPlain(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
-        Optional<GenericKafkaListener> listener = kafka.getSpec().getKafka().getListeners().stream()
-                .filter(listenerStatus -> listenerStatus.getName()
-                        .equals(strimziKafkaRef.getListenerName()))
-                .findFirst();
-        return !listener.map(GenericKafkaListener::isTls).orElse(false);
     }
 
     private static boolean isListenerPresentInSpec(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
