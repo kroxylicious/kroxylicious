@@ -5,7 +5,6 @@
  */
 
 package io.kroxylicious.kafka.transform;
-nimport io.kroxylicious.kafka.transform.TransformLoggingKeys;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -46,9 +45,9 @@ class ApiVersionMaxVersionLimiter implements ApiVersionsResponseTransformer {
                     }
                     if (version.maxVersion() > limit) {
                         logger.atDebug()
-                                .addKeyValue(TransformLoggingKeys.API_KEY, apiKeyLimit.getKey().name())
-                                .addKeyValue(TransformLoggingKeys.FROM_VERSION, version.maxVersion())
-                                .addKeyValue(TransformLoggingKeys.TO_VERSION, limit)
+                                .addKeyValue("apiKey", apiKeyLimit.getKey().name())
+                                .addKeyValue("fromVersion", version.maxVersion())
+                                .addKeyValue("toVersion", limit)
                                 .log("Downgrading max version");
                         version.setMaxVersion(limit);
                     }
