@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.provider.fortanix.dsm.session;
 
-import io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmLoggingKeys;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
@@ -149,7 +148,7 @@ public class ApiKeySessionProvider implements SessionProvider {
 
     private void scheduleCredentialRefresh(long delayMs) {
         LOGGER.atDebug()
-                .addKeyValue(FortanixDsmLoggingKeys.DELAY_MS, delayMs)
+                .addKeyValue("delayMs", delayMs)
                 .log("Scheduling refresh of Fortanix session");
 
         var refreshedCredFuture = new CompletableFuture<Session>();
@@ -202,7 +201,7 @@ public class ApiKeySessionProvider implements SessionProvider {
         if (t != null) {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? t : null)
-                    .addKeyValue(FortanixDsmLoggingKeys.ERROR, t.getMessage())
+                    .addKeyValue("error", t.getMessage())
                     .log(LOGGER.isDebugEnabled()
                             ? "refresh of session failed"
                             : "refresh of session failed, increase log level to DEBUG for stacktrace");
@@ -214,7 +213,7 @@ public class ApiKeySessionProvider implements SessionProvider {
         else {
             var expiration = credentials.expiration();
             LOGGER.atDebug()
-                    .addKeyValue(FortanixDsmLoggingKeys.EXPIRATION, expiration)
+                    .addKeyValue("expiration", expiration)
                     .log("Obtained Fortanix DSM session");
             tokenRefreshErrorCount.set(0);
             target.complete(credentials);
@@ -295,14 +294,14 @@ public class ApiKeySessionProvider implements SessionProvider {
                         .thenApply(ApiKeySessionProvider::checkResponseStatus)
                         .thenApply(r -> {
                             LOGGER.atDebug()
-                                    .addKeyValue(FortanixDsmLoggingKeys.STATUS_CODE, r.statusCode())
+                                    .addKeyValue("statusCode", r.statusCode())
                                     .log("Terminated previous session");
                             return null;
                         })
                         .exceptionally(t -> {
                             LOGGER.atWarn()
                                     .setCause(LOGGER.isDebugEnabled() ? t : null)
-                                    .addKeyValue(FortanixDsmLoggingKeys.ERROR, t.getMessage())
+                                    .addKeyValue("error", t.getMessage())
                                     .log(LOGGER.isDebugEnabled()
                                             ? "failed to terminate previous session (ignored)"
                                             : "failed to terminate previous session (ignored), increase log level to DEBUG for stacktrace");
