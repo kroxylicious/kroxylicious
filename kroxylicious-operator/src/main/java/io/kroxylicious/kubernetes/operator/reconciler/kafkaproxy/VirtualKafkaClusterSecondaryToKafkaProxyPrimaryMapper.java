@@ -32,13 +32,17 @@ public class VirtualKafkaClusterSecondaryToKafkaProxyPrimaryMapper implements Se
     public Set<ResourceID> toPrimaryResourceIDs(VirtualKafkaCluster cluster) {
         // we do not want to trigger reconciliation of any proxy if the cluster has not been reconciled
         if (!ResourcesUtil.isStatusFresh(cluster)) {
-            LOGGER.debug("Ignoring event from cluster with stale status: {}", ResourcesUtil.toLocalRef(cluster));
+            LOGGER.atDebug()
+                    .addKeyValue("cluster", ResourcesUtil.toLocalRef(cluster))
+                    .log("Ignoring event from cluster with stale status");
             return Set.of();
         }
         // we need to reconcile all proxies when a virtual kafka cluster changes in case the proxyRef is updated, we need to update
         // the previously referenced proxy too.
         Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, cluster, KafkaProxy.class, proxy -> true);
-        LOGGER.debug("Event source VirtualKafkaCluster SecondaryToPrimaryMapper got {}", proxyIds);
+        LOGGER.atDebug()
+                .addKeyValue("proxyIds", proxyIds)
+                .log("Event source VirtualKafkaCluster SecondaryToPrimaryMapper");
         return proxyIds;
     }
 }

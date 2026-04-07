@@ -37,7 +37,9 @@ class ApiVersionRemover implements ApiVersionsResponseTransformer {
             data.apiKeys().removeIf(x -> {
                 boolean remove = apiIdsToRemove.contains(x.apiKey());
                 if (remove) {
-                    LOGGER.debug("Removing api versions for key {}", x.apiKey());
+                    LOGGER.atDebug()
+                            .addKeyValue("apiKey", x.apiKey())
+                            .log("Removing api versions");
                 }
                 return remove;
             });

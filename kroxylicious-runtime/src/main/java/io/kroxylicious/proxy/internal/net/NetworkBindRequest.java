@@ -54,11 +54,17 @@ public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
             var bindingAddress = endpoint.bindingAddress();
             ChannelFuture bind;
             if (bindingAddress.isPresent()) {
-                LOGGER.debug("Binding {}:{}", bindingAddress.get(), port);
+                LOGGER.atDebug()
+                        .addKeyValue("bindAddress", bindingAddress.get())
+                        .addKeyValue("port", port)
+                        .log("Binding");
                 bind = serverBootstrap.bind(bindingAddress.get(), port);
             }
             else {
-                LOGGER.debug("Binding <any>:{}", port);
+                LOGGER.atDebug()
+                        .addKeyValue("bindAddress", "<any>")
+                        .addKeyValue("port", port)
+                        .log("Binding");
                 bind = serverBootstrap.bind(port);
             }
             bind.addListener((ChannelFutureListener) channelFuture -> executorService.execute(() -> {

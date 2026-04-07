@@ -33,6 +33,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourceCheckResult;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
@@ -106,7 +107,9 @@ public final class KafkaServiceReconciler implements
         APIGroup strimziKafkaApiGroup = context.getClient().getApiGroup(STRIMZI_KAFKA_GROUP_NAME);
 
         if (strimziKafkaApiGroup != null) {
-            LOGGER.debug("Adding `kafkas.strimzi.io.kafkas` informer because the Strimzi Kafka CRD is present in namespace: {}", context.getClient().getNamespace());
+            LOGGER.atDebug()
+                    .addKeyValue(OperatorLoggingKeys.NAMESPACE, context.getClient().getNamespace())
+                    .log("Adding kafkas.strimzi.io.kafkas informer because the Strimzi Kafka CRD is present in namespace");
             InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
                     Kafka.class,
                     KafkaService.class)
@@ -187,7 +190,10 @@ public final class KafkaServiceReconciler implements
         UpdateControl<KafkaService> uc = UpdateControl.patchResourceAndStatus(updatedService);
 
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{}", namespace(service), name(service));
+            LOGGER.atInfo()
+                    .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(service))
+                    .addKeyValue(OperatorLoggingKeys.NAME, name(service))
+                    .log("Completed reconciliation");
         }
         return uc;
     }
@@ -198,7 +204,11 @@ public final class KafkaServiceReconciler implements
         ErrorStatusUpdateControl<KafkaService> uc = ErrorStatusUpdateControl
                 .patchStatus(statusFactory.newUnknownConditionStatusPatch(service, ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(service), name(service), e.toString());
+            LOGGER.atInfo()
+                    .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(service))
+                    .addKeyValue(OperatorLoggingKeys.NAME, name(service))
+                    .addKeyValue(OperatorLoggingKeys.ERROR, e.toString())
+                    .log("Completed reconciliation with error");
         }
         return uc;
     }

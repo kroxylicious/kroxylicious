@@ -41,7 +41,9 @@ public class SaslV0RejectionHandler extends ChannelDuplexHandler {
         Frame frame = (Frame) msg;
         if (frame.apiKeyId() == ApiKeys.SASL_HANDSHAKE.id && frame.apiVersion() == (short) 0) {
             if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn("{}: SASL V0 handshake is not implemented by the proxy, your client is using an ancient SASL api version", ctx.channel().id());
+                LOGGER.atWarn()
+                        .addKeyValue("channelId", ctx.channel().id())
+                        .log("SASL V0 handshake is not implemented by the proxy, your client is using an ancient SASL api version");
             }
             ctx.writeAndFlush(unsupportedVersionFrame(frame)).addListener(ChannelFutureListener.CLOSE);
         }

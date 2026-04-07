@@ -39,7 +39,11 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 int frameSize = in.readInt();
                 int readable = in.readableBytes();
                 if (log().isTraceEnabled()) { // avoid boxing
-                    log().trace("{}: Frame of {} bytes ({} readable)", ctx, frameSize, readable);
+                    log().atTrace()
+                            .addKeyValue("ctx", ctx)
+                            .addKeyValue("frameSize", frameSize)
+                            .addKeyValue("readableBytes", readable)
+                            .log("Pre-decode");
                 }
                 if (readable >= frameSize) { // We can read the whole frame
                     var idx = in.readerIndex();
@@ -47,7 +51,11 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                     out.add(decodeHeaderAndBody(ctx,
                             slice, // Prevent decodeHeaderAndBody() from reading beyond the frame
                             frameSize));
-                    log().trace("{}: readable: {}, having read {}", ctx, in.readableBytes(), in.readerIndex() - idx);
+                    log().atTrace()
+                            .addKeyValue("ctx", ctx)
+                            .addKeyValue("readableBytes", in.readableBytes())
+                            .addKeyValue("alreadyRead", in.readerIndex() - idx)
+                            .log("Post-decode");
                     if (slice.readableBytes() > 0) {
                         throw new KafkaCodecException("decodeHeaderAndBody did not read all of the buffer " + slice);
                     }
@@ -58,7 +66,10 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 }
             }
             catch (Exception e) {
-                log().error("{}: Error in decoder", ctx, e);
+                log().atError()
+                        .addKeyValue("ctx", ctx)
+                        .setCause(e)
+                        .log("Error in decoder");
                 throw new KafkaCodecException("Error decoding KafkaMessage", e);
             }
         }

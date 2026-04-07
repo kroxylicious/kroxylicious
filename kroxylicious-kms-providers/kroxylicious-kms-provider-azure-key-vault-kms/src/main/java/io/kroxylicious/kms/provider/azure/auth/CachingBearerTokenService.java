@@ -39,7 +39,7 @@ public class CachingBearerTokenService implements BearerTokenService {
     private final BearerTokenService delegate;
     private final AtomicReference<State> state;
     private final Clock clock;
-    private static final Logger LOG = LoggerFactory.getLogger(CachingBearerTokenService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CachingBearerTokenService.class);
 
     public CachingBearerTokenService(BearerTokenService delegate, Clock clock) {
         this(delegate, new State.Initial(new CompletableFuture<>()), clock);
@@ -147,7 +147,10 @@ public class CachingBearerTokenService implements BearerTokenService {
     private <T extends State> boolean transition(State currentState, T toState, Consumer<T> onTransition) {
         boolean transitioned = state.compareAndSet(currentState, toState);
         if (transitioned) {
-            LOG.debug("transitioned from {} to {}", currentState, toState);
+            LOGGER.atDebug()
+                    .addKeyValue("fromState", currentState)
+                    .addKeyValue("toState", toState)
+                    .log("Transitioned state");
             onTransition.accept(toState);
         }
         return transitioned;
@@ -213,7 +216,10 @@ public class CachingBearerTokenService implements BearerTokenService {
     }
 
     private void onRefreshFailed(Throwable t, State.Refreshing refreshing) {
-        LOG.debug("refresh completed exceptionally", t);
+        LOGGER.atDebug()
+                .setCause(t)
+                .addKeyValue("error", t.getMessage())
+                .log("Refresh completed exceptionally");
         if (refreshing.current() != null) {
             // continue with existing token if it exists
             transitionToSteady(refreshing, refreshing.current(), steady -> refreshing.promise().completeExceptionally(t));
@@ -224,7 +230,8 @@ public class CachingBearerTokenService implements BearerTokenService {
     }
 
     private void onRefreshComplete(BearerToken token, State.Refreshing refreshing) {
-        LOG.debug("refresh completed successfully");
+        LOGGER.atDebug()
+                .log("Refresh completed successfully");
         transitionToSteady(refreshing, token, steady -> refreshing.promise().complete(token));
     }
 

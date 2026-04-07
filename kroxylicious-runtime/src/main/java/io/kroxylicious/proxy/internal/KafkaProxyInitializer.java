@@ -91,7 +91,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     @Override
     public void initChannel(Channel ch) {
-        LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
+        LOGGER.atTrace()
+                .addKeyValue("remote", ch.remoteAddress())
+                .addKeyValue("local", ch.localAddress())
+                .log("Connection from client");
 
         if (tls) {
             initTlsChannel(ch);
@@ -134,7 +137,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     // deep inheritance tree of SniHandler not something we can fix, throwable is the right choice as we are forwarding it on.
     @SuppressWarnings({ "java:S110", "java:S1181" })
     private void initTlsChannel(Channel ch) {
-        LOGGER.debug("Adding SSL/SNI handler");
+        LOGGER.atDebug().log("Adding SSL/SNI handler");
         ch.pipeline().addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
             try {
                 Endpoint endpoint = Endpoint.createEndpoint(ch, tls);
@@ -143,7 +146,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 stage.handle((binding, t) -> {
                     try {
                         if (t != null) {
-                            LOGGER.warn("Exception resolving Virtual Cluster Binding for endpoint {} and sniHostname {}: {}", endpoint, sniHostname, t.getMessage());
+                            LOGGER.atWarn()
+                                    .addKeyValue("endpoint", endpoint)
+                                    .addKeyValue("sniHostname", sniHostname)
+                                    .addKeyValue("error", t.getMessage())
+                                    .log("Exception resolving Virtual Cluster Binding");
                             promise.setFailure(t);
                             return null;
                         }
@@ -201,7 +208,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {
-            LOGGER.debug("Adding haproxy handlers");
+            LOGGER.atDebug().log("Adding haproxy handlers");
             pipeline.addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
             // HAProxyMessageHandler intercepts HAProxyMessage and forwards it to the state machine,
             // preventing it from propagating to filters that only expect Kafka protocol messages
@@ -238,7 +245,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);
 
-        LOGGER.debug("{}: Initial pipeline: {}", ch, pipeline);
+        LOGGER.atDebug()
+                .addKeyValue("channelId", ch::toString)
+                .addKeyValue("pipeline", pipeline)
+                .log("Initial pipeline");
     }
 
     private KafkaMessageListener buildMetricsMessageListenerForDecode(EndpointBinding binding, VirtualClusterModel virtualCluster) {
@@ -283,7 +293,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                    .log("An exceptionCaught() event was caught by the error handler {}: {}. Increase log level to DEBUG for stacktrace",
+                    .log(LOGGER.isDebugEnabled()
+                            ? "An exceptionCaught() event was caught by the error handler {}: {}"
+                            : "An exceptionCaught() event was caught by the error handler {}: {}. Increase log level to DEBUG for stacktrace",
                             cause.getClass().getSimpleName(), cause.getMessage());
         }
     }
