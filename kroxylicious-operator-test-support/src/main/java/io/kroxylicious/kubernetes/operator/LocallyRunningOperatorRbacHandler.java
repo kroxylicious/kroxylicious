@@ -209,7 +209,10 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     @NonNull
     public KubernetesClient operatorClient() {
         return OperatorTestUtils.kubeClient(
-                new KubernetesClientBuilder().editOrNewConfig().withImpersonateUsername(impersonatedUser).endConfig());
+                new KubernetesClientBuilder().editOrNewConfig()
+                        .withImpersonateUsername(impersonatedUser)
+                        .withUserAgent("kroxylicious-operator/test")
+                        .endConfig());
     }
 
     /**
