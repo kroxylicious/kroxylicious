@@ -6,6 +6,7 @@
 
 package io.kroxylicious.it.testplugins;
 
+import io.kroxylicious.it.IntegrationTestLoggingKeys;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
@@ -125,7 +126,7 @@ public class SaslPlainTerminationFilter
         }
         catch (Exception e) {
             LOGGER.atDebug()
-                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue(IntegrationTestLoggingKeys.SESSION_ID, context.sessionId())
                     .log("Authentication failed");
             saslServer.dispose();
             if (e instanceof SaslAuthenticationException sae) {
@@ -140,8 +141,8 @@ public class SaslPlainTerminationFilter
             try {
                 String authorizationId = saslServer.getAuthorizationID();
                 LOGGER.atDebug()
-                        .addKeyValue("sessionId", context.sessionId())
-                        .addKeyValue("authorizationId", authorizationId)
+                        .addKeyValue(IntegrationTestLoggingKeys.SESSION_ID, context.sessionId())
+                        .addKeyValue(IntegrationTestLoggingKeys.AUTHORIZATION_ID, authorizationId)
                         .log("Authentication successful");
                 context.clientSaslAuthenticationSuccess(saslServer.getMechanismName(), new Subject(new User(authorizationId)));
             }
