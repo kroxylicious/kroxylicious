@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultTestSupportLoggingKeys;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -234,9 +233,9 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
             }
             else {
                 LOGGER.atWarn()
-                        .addKeyValue(VaultTestSupportLoggingKeys.STATUS_CODE, response.statusCode())
-                        .addKeyValue(VaultTestSupportLoggingKeys.URL, response.uri())
-                        .addKeyValue(VaultTestSupportLoggingKeys.BODY, response.body())
+                        .addKeyValue("statusCode", response.statusCode())
+                        .addKeyValue("url", response.uri())
+                        .addKeyValue("body", response.body())
                         .log("Received unexpected status code");
                 return false;
             }
@@ -279,9 +278,9 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
             var response = vaultClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 204) {
                 LOGGER.atWarn()
-                        .addKeyValue(VaultTestSupportLoggingKeys.STATUS_CODE, response.statusCode())
-                        .addKeyValue(VaultTestSupportLoggingKeys.URL, response.uri())
-                        .addKeyValue(VaultTestSupportLoggingKeys.BODY, response.body())
+                        .addKeyValue("statusCode", response.statusCode())
+                        .addKeyValue("url", response.uri())
+                        .addKeyValue("body", response.body())
                         .log("Received unexpected status code");
                 throw new IllegalStateException("Unexpected response : %d to request %s".formatted(response.statusCode(), request.uri()));
             }
