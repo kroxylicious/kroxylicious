@@ -5,7 +5,6 @@
  */
 
 package io.kroxylicious.filter.connectionexpiration;
-nimport io.kroxylicious.filter.connectionexpiration.ConnectionExpirationLoggingKeys;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -57,9 +56,9 @@ public class ConnectionExpirationFilter implements RequestFilter {
                                                           FilterContext context) {
         if (clock.instant().isAfter(deadline)) {
             LOGGER.atInfo()
-                    .addKeyValue(ConnectionExpirationLoggingKeys.SESSION_ID, context.sessionId())
-                    .addKeyValue(ConnectionExpirationLoggingKeys.DEADLINE, deadline)
-                    .addKeyValue(ConnectionExpirationLoggingKeys.API_KEY, apiKey)
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("deadline", deadline)
+                    .addKeyValue("apiKey", apiKey)
                     .log("Connection expiration deadline exceeded, closing after forwarding request");
             return context.requestFilterResultBuilder()
                     .forward(header, request)
