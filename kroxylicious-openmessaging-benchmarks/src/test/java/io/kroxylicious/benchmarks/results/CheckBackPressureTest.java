@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.benchmarks.results.BackPressureAnalyser.LabelledResult;
 import io.kroxylicious.benchmarks.results.BackPressureAnalyser.Report;
+import io.kroxylicious.benchmarks.results.cli.CheckBackPressure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

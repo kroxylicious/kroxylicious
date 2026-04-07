@@ -148,7 +148,7 @@ mvn -q process-sources -pl kroxylicious-openmessaging-benchmarks -f "${SCRIPT_DI
 echo "=== Comparing ${BASELINE_SCENARIO} vs ${CANDIDATE_SCENARIO} ==="
 echo ""
 
-FILTERED="${SCRIPT_DIR}/../target/jbang/generated-sources/io/kroxylicious/benchmarks/results/CompareResults.java"
+FILTERED="${SCRIPT_DIR}/../target/jbang/generated-sources/io/kroxylicious/benchmarks/results/cli/CompareResults.java"
 if [[ ! -f "${FILTERED}" ]]; then
     echo "Warning: comparison tooling not available after mvn process-sources, skipping." >&2
 else

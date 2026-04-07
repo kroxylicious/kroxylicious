@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.benchmarks.results;
+package io.kroxylicious.benchmarks.results.cli;
 
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 21+
@@ -12,15 +12,18 @@ package io.kroxylicious.benchmarks.results;
 //DEPS com.fasterxml.jackson.core:jackson-databind:${jackson.version}
 //DEPS info.picocli:picocli:${picocli.version}
 //DEPS org.apache.commons:commons-math3:3.6.1
-//SOURCES OmbResult.java
-//SOURCES LatencyComparison.java
-//SOURCES ResultComparator.java
-//SOURCES SignificanceTester.java
+//SOURCES ../OmbResult.java
+//SOURCES ../LatencyComparison.java
+//SOURCES ../ResultComparator.java
+//SOURCES ../SignificanceTester.java
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.kroxylicious.benchmarks.results.OmbResult;
+import io.kroxylicious.benchmarks.results.ResultComparator;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;

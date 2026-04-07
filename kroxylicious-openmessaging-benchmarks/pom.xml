@@ -33,7 +33,7 @@
         -->
         <sonar.issue.ignore.multicriteria>jbang-s125</sonar.issue.ignore.multicriteria>
         <sonar.issue.ignore.multicriteria.jbang-s125.ruleKey>java:S125</sonar.issue.ignore.multicriteria.jbang-s125.ruleKey>
-        <sonar.issue.ignore.multicriteria.jbang-s125.resourceKey>**/results/Check*.java</sonar.issue.ignore.multicriteria.jbang-s125.resourceKey>
+        <sonar.issue.ignore.multicriteria.jbang-s125.resourceKey>**/results/cli/*.java</sonar.issue.ignore.multicriteria.jbang-s125.resourceKey>
     </properties>
 
     <dependencies>

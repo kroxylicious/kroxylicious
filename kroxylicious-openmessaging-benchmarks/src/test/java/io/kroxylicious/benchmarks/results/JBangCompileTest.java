@@ -48,9 +48,9 @@ class JBangCompileTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {
-            "io/kroxylicious/benchmarks/results/CheckSignificance.java",
-            "io/kroxylicious/benchmarks/results/CompareResults.java",
-            "io/kroxylicious/benchmarks/results/CollectResults.java"
+            "io/kroxylicious/benchmarks/results/cli/CheckSignificance.java",
+            "io/kroxylicious/benchmarks/results/cli/CompareResults.java",
+            "io/kroxylicious/benchmarks/results/cli/CollectResults.java"
     })
     void jbangEntryPointCompiles(String entryPoint) {
         Path sourceFile = GENERATED_SOURCES.resolve(entryPoint);

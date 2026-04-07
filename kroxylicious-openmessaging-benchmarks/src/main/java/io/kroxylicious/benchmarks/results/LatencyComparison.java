@@ -15,8 +15,8 @@ import java.util.Optional;
  * Rendering is separated from computation: callers build a {@code LatencyComparison} first,
  * then pass it to a render method. Significance is computed on demand via {@link #assess}.
  */
-record LatencyComparison(String label, double baseline, double candidate,
-                         double[] baselineWindows, double[] candidateWindows) {
+public record LatencyComparison(String label, double baseline, double candidate,
+                                double[] baselineWindows, double[] candidateWindows) {
 
     @Override
     public boolean equals(Object o) {
@@ -52,15 +52,15 @@ record LatencyComparison(String label, double baseline, double candidate,
                 + ", candidateWindows=" + Arrays.toString(candidateWindows) + "]";
     }
 
-    double delta() {
+    public double delta() {
         return candidate - baseline;
     }
 
-    double pct() {
+    public double pct() {
         return baseline != 0 ? delta() / baseline * 100.0 : 0.0;
     }
 
-    Optional<SignificanceTester.Result> assess(SignificanceTester tester) {
+    public Optional<SignificanceTester.Result> assess(SignificanceTester tester) {
         if (baselineWindows == null || candidateWindows == null) {
             return Optional.empty();
         }

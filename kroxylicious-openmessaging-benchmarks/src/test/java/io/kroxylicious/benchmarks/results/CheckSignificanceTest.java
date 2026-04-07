@@ -10,6 +10,8 @@ import java.net.URL;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.benchmarks.results.cli.CheckSignificance;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CheckSignificanceTest {

@@ -4,16 +4,16 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.benchmarks.results;
+package io.kroxylicious.benchmarks.results.cli;
 
-///usr/bin/env jbang "$0" "$@" ; exit $? // NOSONAR
+///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 21+
 //DEPS com.fasterxml.jackson.core:jackson-core:${jackson.version}
 //DEPS com.fasterxml.jackson.core:jackson-databind:${jackson.version}
 //DEPS info.picocli:picocli:${picocli.version}
-//SOURCES OmbResult.java
-//SOURCES BackPressureAnalyser.java
-//SOURCES RunMetadataResult.java
+//SOURCES ../OmbResult.java
+//SOURCES ../BackPressureAnalyser.java
+//SOURCES ../RunMetadataResult.java
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -22,8 +22,11 @@ import java.util.concurrent.Callable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.benchmarks.results.BackPressureAnalyser;
 import io.kroxylicious.benchmarks.results.BackPressureAnalyser.LabelledResult;
 import io.kroxylicious.benchmarks.results.BackPressureAnalyser.Report;
+import io.kroxylicious.benchmarks.results.OmbResult;
+import io.kroxylicious.benchmarks.results.RunMetadataResult;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -55,7 +58,7 @@ public class CheckBackPressure implements Callable<Integer> {
         System.exit(execute(args));
     }
 
-    static int execute(String... args) {
+    public static int execute(String... args) {
         return new CommandLine(new CheckBackPressure()).execute(args);
     }
 
