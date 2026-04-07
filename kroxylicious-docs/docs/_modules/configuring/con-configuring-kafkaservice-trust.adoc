@@ -21,7 +21,7 @@ IMPORTANT: It is good practice to configure trust explicitly, even when proxied 
 
 This example configures a `KafkaService` to trust TLS certificates signed by any Certificate Authority (CA) listed in the `trusted-cas.pem` entry of the `ConfigMap` named `trusted-cas`.
 
-.Example `KafkaService` configuration for trusting certificates.
+.Example `KafkaService` configuration for trusting certificates provided by a `ConfigMap`
 [source,yaml]
 ----
 kind: KafkaService
@@ -30,21 +30,33 @@ metadata:
 spec:
   bootstrapServers: kafka.example.com:9092
   tls:
-    trustAnchorRef: # <1>
-      kind: ConfigMap # <2>
-      name: trusted-cas # <3>
-      key: trusted-cas.pem # <4>
+    trustAnchorRef:
+      name: trusted-cas
+      kind: ConfigMap
+      key: trusted-cas.pem
     # ...
 ----
-<1> The `trustAnchorRef` property references a separate Kubernetes resource which contains the CA certificates to be trusted
-<2> The `kind` is optional and defaults to `ConfigMap`. To reference a key in a `Secret`, set `kind` to `Secret`. For example:
-+
+where:
+* `trustAnchorRef`  references a separate Kubernetes resource containing the CA certificates to trust.
+* `name` is the name of the `ConfigMap` providing the CA certificates. The resource must exist in the same namespace as the `KafkaService`
+* `kind` is optional and defaults to `ConfigMap`.
+* `key` identifies the entry in the resource. The value must be a PEM-encoded set of CA certificates.
+
+.Example `KafkaService` configuration for trusting certificates provided by a `Secret`
 [source,yaml]
 ----
+kind: KafkaService
+metadata:
+  # ...
+spec:
+  bootstrapServers: kafka.example.com:9092
+  tls:
     trustAnchorRef:
       kind: Secret
       name: trusted-cas
       key: trusted-cas.pem
+    # ...
 ----
-<3> The `name` of the resource of the given `kind`. This resource must exist in the same namespace as the `KafkaService`
-<4> The `key` identifies the entry in the given resource. The corresponding value must be a PEM-encoded set of CA certificates.
+* `name` is the name of the `Secret` providing the CA certificates. The resource must exist in the same namespace as the `KafkaService`
+* `kind` must be `Secret`.
+* `key` identifies the entry in the resource. The value must be a PEM-encoded set of CA certificates.

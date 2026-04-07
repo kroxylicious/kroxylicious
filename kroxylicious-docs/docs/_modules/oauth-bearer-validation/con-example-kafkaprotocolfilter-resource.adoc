@@ -27,26 +27,30 @@ metadata:
 spec:
   type: OauthBearerValidation
   configTemplate:
-      jwksEndpointUrl: https://oauth/JWKS   #<1>
-      jwksEndpointRefreshMs: 3600000        #<2>
-      jwksEndpointRetryBackoffMs: 100       #<3>
-      jwksEndpointRetryBackoffMaxMs: 10000  #<4>
-      scopeClaimName: scope                 #<5>
-      subClaimName: sub                     #<6>
-      authenticateBackOffMaxMs: 60000       #<7>
-      authenticateCacheMaxSize: 1000        #<8>
-      expectedAudience: https://first.audience, https//second.audience #<9>
-      expectedIssuer: https://your-domain.auth/ #<10>
+      jwksEndpointUrl: https://oauth/JWKS
+      jwksEndpointRefreshMs: 3600000
+      jwksEndpointRetryBackoffMs: 100
+      jwksEndpointRetryBackoffMaxMs: 10000
+      scopeClaimName: scope
+      subClaimName: sub
+      authenticateBackOffMaxMs: 60000
+      authenticateCacheMaxSize: 1000
+      expectedAudience: https://first.audience, https//second.audience
+      expectedIssuer: https://your-domain.auth/
 ----
-<1> The OAuth/OIDC provider URL from which the provider's JWKS (JSON Web Key Set) can be retrieved.
-<2> The (optional) value in milliseconds for the broker to wait between refreshing its JWKS (JSON Web Key Set) cache that contains the keys to verify the signature of the JWT.
-<3> The (optional) value in milliseconds for the initial wait between JWKS (JSON Web Key Set) retrieval attempts from the external authentication provider.
-<4> The (optional) value in milliseconds for the maximum wait between attempts to retrieve the JWKS (JSON Web Key Set) from the external authentication provider.
-<5> This (optional) setting can provide a different name to use for the scope included in the JWT payload's claims.
-<6> This (optional) setting can provide a different name to use for the subject included in the JWT payload's claims.
-<7> The (optional) maximum value in milliseconds to limit the client sending authenticate request. Setting 0 will never limit the client. Otherwise, an exponential delay is added to each authenticate request until the authenticateBackOffMaxMs has been reached.
-<8> The (optional) maximum number of failed tokens kept in cache.
-<9> The (optional) comma-delimited setting for the broker to use to verify that the JWT was issued for one of the expected audiences.
-<10> The (optional) setting for the broker to use to verify that the JWT was created by the expected issuer.
+where:
+
+* `jwksEndpointUrl` (Required) specifies the OAuth/OIDC provider URL from which the provider's JSON Web Key Set (JWKS) is retrieved. 
+The following properties are optional:
+
+* `jwksEndpointRefreshMs` specifies the interval, in milliseconds, between refreshes of the JWKS cache used to verify JWT signatures.
+* `jwksEndpointRetryBackoffMs` specifies the initial delay, in milliseconds, between attempts to retrieve the JWKS from the external authentication provider.
+* `jwksEndpointRetryBackoffMaxMs` specifies the maximum delay, in milliseconds, between JWKS retrieval attempts.
+* `scopeClaimName` specifies an alternative claim name for the scope in the JWT payload.
+* `subClaimName` specifies an alternative claim name for the subject in the JWT payload.
+* `authenticateBackOffMaxMs` specifies the maximum backoff time, in milliseconds, applied to repeated authentication attempts. A value of 0 disables backoff. Otherwise, an exponential delay is added to each authenticate request until the `authenticateBackOffMaxMs` has been reached.
+* `authenticateCacheMaxSize` specifies the maximum number of failed tokens retained in the cache.
+* `expectedAudience` specifies a comma-delimited list of valid audiences used to verify the JWT.
+* `expectedIssuer` specifies the expected issuer used to verify the JWT.
 
 Refer to the {OperatorGuide} for more information about configuration on Kubernetes.

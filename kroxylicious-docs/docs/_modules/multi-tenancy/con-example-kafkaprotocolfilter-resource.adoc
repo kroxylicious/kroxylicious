@@ -27,9 +27,10 @@ metadata:
 spec:
   type: MultiTenant
   configTemplate:
-    prefixResourceNameSeparator: "." # <1>
+    prefixResourceNameSeparator: "."
 ----
-<1> The separator used for the prefix.
-If a separator is not specified, `-` is the default.
+where:
+
+* `prefixResourceNameSeparator` defines the separator used for the prefix. If a separator is not specified, `-` is the default.
 
 Refer to the {OperatorGuide} for more information about configuration on Kubernetes.
