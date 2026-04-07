@@ -521,6 +521,41 @@ Certificate of Origin (DCO)](./DCO.txt).
 This can be done using `git commit -s` for each commit
 in your pull request. Alternatively, to signoff a bunch of commits you can use `git rebase --signoff _your-branch_`.
 
+To signoff all your commits you can install a prepare-commit-msg git hook:
+
+```
+cat << 'EOF' > .git/hooks/prepare-commit-msg && chmod +x .git/hooks/prepare-commit-msg
+#!/bin/sh
+
+NAME=$(git config user.name)
+EMAIL=$(git config user.email)
+
+if [ -z "$NAME" ]; then
+    echo "empty git config user.name"
+    exit 1
+fi
+
+if [ -z "$EMAIL" ]; then
+    echo "empty git config user.email"
+    exit 1
+fi
+echo "Do you sign off this commit according to the DCO? (y/n):" > /dev/tty
+read -r CONFIRM < /dev/tty
+
+case "$CONFIRM" in
+    [yY] | [yY][eE][sS] )
+        echo "Adding Signed-off-by trailer..."
+        git interpret-trailers --if-exists doNothing --trailer \
+            "Signed-off-by: $NAME <$EMAIL>" \
+            --in-place "$1"
+        ;;
+    * )
+        echo "Commit signed-off skipped."
+        ;;
+esac
+EOF
+```
+
 # Development Guide for Kroxylicious Operator
 
 This is the development guide for Kroxylicious operator for Kubernetes.
