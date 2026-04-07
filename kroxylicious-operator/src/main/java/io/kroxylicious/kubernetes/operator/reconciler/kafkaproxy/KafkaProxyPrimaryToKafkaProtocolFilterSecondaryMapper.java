@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
-import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -48,8 +47,8 @@ class KafkaProxyPrimaryToKafkaProtocolFilterSecondaryMapper implements PrimaryTo
                 .map(filter -> new ResourceID(filter.getName(), namespace(proxy)))
                 .collect(Collectors.toSet());
         LOGGER.atDebug()
-                .addKeyValue(OperatorLoggingKeys.KAFKA_PROXY, ResourceID.fromResource(proxy))
-                .addKeyValue(OperatorLoggingKeys.FILTER_REFERENCES, filterReferences)
+                .addKeyValue("kafkaProxy", ResourceID.fromResource(proxy))
+                .addKeyValue("filterReferences", filterReferences)
                 .log("KafkaProxy has references to filters");
         return filterReferences;
     }

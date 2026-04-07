@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
-import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -50,7 +49,7 @@ class KafkaProxyPrimaryToKafkaServiceSecondaryMapper implements PrimaryToSeconda
         Set<ResourceID> kafkaServiceRefs = ResourcesUtil.filteredResourceIdsInSameNamespace(context, primary, KafkaService.class,
                 cluster -> clusterRefs.contains(toLocalRef(cluster)));
         LOGGER.atDebug()
-                .addKeyValue(OperatorLoggingKeys.KAFKA_SERVICE_REFS, kafkaServiceRefs)
+                .addKeyValue("kafkaServiceRefs", kafkaServiceRefs)
                 .log("Event source KafkaService PrimaryToSecondaryMapper");
         return kafkaServiceRefs;
     }

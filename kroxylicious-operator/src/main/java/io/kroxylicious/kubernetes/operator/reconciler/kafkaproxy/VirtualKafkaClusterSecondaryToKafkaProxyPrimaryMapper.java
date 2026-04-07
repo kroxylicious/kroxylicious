@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
-import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -34,7 +33,7 @@ public class VirtualKafkaClusterSecondaryToKafkaProxyPrimaryMapper implements Se
         // we do not want to trigger reconciliation of any proxy if the cluster has not been reconciled
         if (!ResourcesUtil.isStatusFresh(cluster)) {
             LOGGER.atDebug()
-                    .addKeyValue(OperatorLoggingKeys.CLUSTER, ResourcesUtil.toLocalRef(cluster))
+                    .addKeyValue("cluster", ResourcesUtil.toLocalRef(cluster))
                     .log("Ignoring event from cluster with stale status");
             return Set.of();
         }
@@ -42,7 +41,7 @@ public class VirtualKafkaClusterSecondaryToKafkaProxyPrimaryMapper implements Se
         // the previously referenced proxy too.
         Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, cluster, KafkaProxy.class, proxy -> true);
         LOGGER.atDebug()
-                .addKeyValue(OperatorLoggingKeys.PROXY_IDS, proxyIds)
+                .addKeyValue("proxyIds", proxyIds)
                 .log("Event source VirtualKafkaCluster SecondaryToPrimaryMapper");
         return proxyIds;
     }

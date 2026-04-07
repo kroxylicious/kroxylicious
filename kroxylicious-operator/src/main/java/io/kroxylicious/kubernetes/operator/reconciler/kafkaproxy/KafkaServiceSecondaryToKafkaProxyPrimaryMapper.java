@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
-import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -40,7 +39,7 @@ class KafkaServiceSecondaryToKafkaProxyPrimaryMapper implements SecondaryToPrima
         // we do not want to trigger reconciliation of any proxy if the ingress has not been reconciled
         if (!ResourcesUtil.isStatusFresh(kafkaService)) {
             LOGGER.atDebug()
-                    .addKeyValue(OperatorLoggingKeys.KAFKA_SERVICE, ResourcesUtil.toLocalRef(kafkaService))
+                    .addKeyValue("kafkaService", ResourcesUtil.toLocalRef(kafkaService))
                     .log("Ignoring event from KafkaService with stale status");
             return Set.of();
         }
@@ -55,7 +54,7 @@ class KafkaServiceSecondaryToKafkaProxyPrimaryMapper implements SecondaryToPrima
         Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, kafkaService, KafkaProxy.class,
                 proxy -> proxyRefs.contains(toLocalRef(proxy)));
         LOGGER.atDebug()
-                .addKeyValue(OperatorLoggingKeys.PROXY_IDS, proxyIds)
+                .addKeyValue("proxyIds", proxyIds)
                 .log("Event source KafkaService SecondaryToPrimaryMapper");
         return proxyIds;
     }

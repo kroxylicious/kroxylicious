@@ -481,8 +481,8 @@ public final class VirtualKafkaClusterReconciler implements
     static void logIgnoredEvent(HasMetadata hasMetadata) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.atDebug()
-                    .addKeyValue(OperatorLoggingKeys.KIND, HasMetadata.getKind(hasMetadata.getClass()))
-                    .addKeyValue(OperatorLoggingKeys.RESOURCE, ResourcesUtil.toLocalRef(hasMetadata))
+                    .addKeyValue("kind", HasMetadata.getKind(hasMetadata.getClass()))
+                    .addKeyValue("resource", ResourcesUtil.toLocalRef(hasMetadata))
                     .log("Ignoring event from resource with stale status");
         }
     }
