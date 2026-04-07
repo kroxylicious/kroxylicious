@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultLoggingKeys;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -161,8 +160,8 @@ public class VaultKms implements Kms<String, VaultEdek> {
         catch (JsonProcessingException e) {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addKeyValue(VaultLoggingKeys.KEK_REF, edek.kekRef())
-                    .addKeyValue(VaultLoggingKeys.ERROR, e.getMessage())
+                    .addKeyValue("kekRef", edek.kekRef())
+                    .addKeyValue("error", e.getMessage())
                     .log(LOGGER.isDebugEnabled()
                             ? "failed to build request body for key"
                             : "failed to build request body for key, increase log level to DEBUG for stacktrace");
@@ -206,8 +205,8 @@ public class VaultKms implements Kms<String, VaultEdek> {
             var responseBody = new String(bytes, StandardCharsets.UTF_8);
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addKeyValue(VaultLoggingKeys.RESPONSE_BODY, responseBody)
-                    .addKeyValue(VaultLoggingKeys.ERROR, e.getMessage())
+                    .addKeyValue("responseBody", responseBody)
+                    .addKeyValue("error", e.getMessage())
                     .log(LOGGER.isDebugEnabled()
                             ? "failed to decode Vault response as JSON"
                             : "failed to decode Vault response as JSON, increase log level to DEBUG for stacktrace");
@@ -222,10 +221,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
             var uri = response.request().uri();
             var responseBody = new String(response.body(), StandardCharsets.UTF_8);
             LOGGER.atWarn()
-                    .addKeyValue(VaultLoggingKeys.KEK_REF, key)
-                    .addKeyValue(VaultLoggingKeys.REQUEST_URI, uri)
-                    .addKeyValue(VaultLoggingKeys.STATUS_CODE, response.statusCode())
-                    .addKeyValue(VaultLoggingKeys.RESPONSE_BODY, responseBody)
+                    .addKeyValue("kekRef", key)
+                    .addKeyValue("requestUri", uri)
+                    .addKeyValue("statusCode", response.statusCode())
+                    .addKeyValue("responseBody", responseBody)
                     .log("Key not found in Vault");
             throw notFound.apply("key '%s' is not found.".formatted(key));
         }
@@ -233,10 +232,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
             var uri = response.request().uri();
             var responseBody = new String(response.body(), StandardCharsets.UTF_8);
             LOGGER.atWarn()
-                    .addKeyValue(VaultLoggingKeys.KEK_REF, key)
-                    .addKeyValue(VaultLoggingKeys.REQUEST_URI, uri)
-                    .addKeyValue(VaultLoggingKeys.STATUS_CODE, response.statusCode())
-                    .addKeyValue(VaultLoggingKeys.RESPONSE_BODY, responseBody)
+                    .addKeyValue("kekRef", key)
+                    .addKeyValue("requestUri", uri)
+                    .addKeyValue("statusCode", response.statusCode())
+                    .addKeyValue("responseBody", responseBody)
                     .log("Failed to retrieve key from Vault");
             throw new KmsException("fail to retrieve key '%s', HTTP status code %d.".formatted(key, response.statusCode()));
         }
