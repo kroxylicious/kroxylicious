@@ -69,16 +69,16 @@ where:
 * `filterDefinitions` provides a list of named filter configurations.
 ** `name` identifies the filter
 ** `type` provides the type of filter, which is the Record Encryption filter using Vault as the KMS in this example.
-** `config` The configuration specific to the type of filter.
-*** `tls` If required, you can provide TLS configuration used to establish the connection to the KMS, with key names under which TLS certificates are stored.
+** `config` defines configuration specific to the type of filter.
+* `tls` specifies the TLS configuration used to establish a connection to the KMS, including the key names under which TLS certificates are stored.
 * `virtualClusters` specifies the virtual cluster defintions.
-** `name` The name of the virtual cluster.
+** `name` defines the name of the virtual cluster.
 ** `targetCluster` defines the physical upstream cluster.
-*** `bootstrapServers` The bootstrap addresses of the Kafka Cluster being proxied.
-*** `strategy` defines the strategy used for selecting an address from 'bootstrapServers' when the proxy receives a client connection. Options are 'round-robin' (default) or 'random'.
+*** `bootstrapServers` defines the bootstrap addresses of the Kafka Cluster being proxied.
+*** `strategy` defines the strategy used for selecting an address from `bootstrapServers` when the proxy receives a client connection. Options are `round-robin` (default) or `random`.
 *** `tls` provides TLS configuration for the connection to the target cluster.
-* `gateways` defines the gateway(s) of the virtual cluster defining how the virtual cluster is presented to the network.
-** `sniHostIdentifiesNode` The identification scheme used to route traffic to brokers, which can be `sniHostIdentifiesNode` or `portIdentifiesNode`.
+* `gateways` defines how the virtual cluster is exposed to the network.
+** The gateway routing scheme is configured using either `sniHostIdentifiesNode` or `portIdentifiesNode`.
 ** `bootstrapAddress` defines the hostname and port of the bootstrap used by the Kafka clients to connect to the gateway. The hostname must be resolved by the clients.
 ** `tls` defines the TLS configuration used by the gateway for securing connections with the clients.
 
