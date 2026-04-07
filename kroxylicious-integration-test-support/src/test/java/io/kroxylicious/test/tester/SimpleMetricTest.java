@@ -59,7 +59,7 @@ class SimpleMetricTest {
                         List.of()),
                 Arguments.of("metric value in scientific format with negative exponent",
                         """
-                               metric_with_scientific_format_negative_exponent{} -1.23456789E-10""",
+                                metric_with_scientific_format_negative_exponent{} -1.23456789E-10""",
                         List.of(new SimpleMetric("metric_with_scientific_format_negative_exponent", Map.of(), -1.23456789E-10))),
                 Arguments.of("no metrics - comments only",
                         """
