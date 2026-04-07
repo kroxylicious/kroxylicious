@@ -24,10 +24,12 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 class ListOffsetsEnforcement extends ApiEnforcement<ListOffsetsRequestData, ListOffsetsResponseData> {
 
+    @Override
     short minSupportedVersion() {
         return 1;
     }
 
+    @Override
     short maxSupportedVersion() {
         return 11;
     }

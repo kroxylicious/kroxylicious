@@ -49,14 +49,17 @@ public class RequiresConfigFactory implements FilterFactory<ExampleConfig, Examp
             throw new IllegalStateException("not implemented!");
         }
 
+        @Override
         public FilterFactoryContext getContext() {
             return context;
         }
 
+        @Override
         public ExampleConfig getExampleConfig() {
             return exampleConfig;
         }
 
+        @Override
         public Class<? extends FilterFactory> getContributorClass() {
             return contributorClass;
         }

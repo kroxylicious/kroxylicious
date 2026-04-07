@@ -343,6 +343,7 @@ public interface KroxyliciousTester extends Closeable {
     /**
      * Close the Kroxylicious server under test and any other resources that need cleaning.
      */
+    @Override
     void close();
 
     /**

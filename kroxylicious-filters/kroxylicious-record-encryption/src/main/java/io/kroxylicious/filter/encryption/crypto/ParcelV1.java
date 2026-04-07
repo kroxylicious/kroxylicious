@@ -47,17 +47,20 @@ public class ParcelV1 implements Parcel {
         return ParcelVersion.V1;
     }
 
+    @Override
     public int sizeOfParcel(@NonNull Set<RecordField> recordFields, @NonNull Record kafkaRecord) {
         int size = sizeOfRecordValue(recordFields, kafkaRecord);
         size += sizeOfHeaders(recordFields, kafkaRecord);
         return size;
     }
 
+    @Override
     public void writeParcel(@NonNull Set<RecordField> recordFields, @NonNull Record kafkaRecord, @NonNull ByteBuffer parcel) {
         writeRecordValue(recordFields, kafkaRecord, parcel);
         writeHeaders(recordFields, kafkaRecord, parcel);
     }
 
+    @Override
     public void readParcel(@NonNull ByteBuffer parcel,
                            @NonNull Record encryptedRecord,
                            @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {

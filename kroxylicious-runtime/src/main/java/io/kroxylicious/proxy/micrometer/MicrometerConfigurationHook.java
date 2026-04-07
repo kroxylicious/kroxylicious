@@ -19,6 +19,7 @@ public interface MicrometerConfigurationHook extends AutoCloseable {
      * Releases resources that may have been registered by this hook.  Implementations
      * of this method must not throw unchecked exceptions.
      */
+    @Override
     default void close() {
     }
 

@@ -111,28 +111,52 @@ public final class JwsTestUtils {
     }
 
     public static final String VALID_JWS_USING_ECDSA_JWK_PAYLOAD = "Message signed with JWK";
-    public static final byte[] VALID_JWS_USING_ECDSA_JWK = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, false, false)
+    private static final byte[] VALID_JWS_USING_ECDSA_JWK = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, false, false)
             .getBytes(StandardCharsets.UTF_8);
 
     public static final String VALID_JWS_USING_MISSING_ECDSA_JWK_PAYLOAD = "Message signed with missing JWK";
-    public static final byte[] VALID_JWS_USING_MISSING_ECDSA_JWK = generateJws(MISSING_ECDSA_SIGN_JWKS, VALID_JWS_USING_MISSING_ECDSA_JWK_PAYLOAD, false, false)
+    private static final byte[] VALID_JWS_USING_MISSING_ECDSA_JWK = generateJws(MISSING_ECDSA_SIGN_JWKS, VALID_JWS_USING_MISSING_ECDSA_JWK_PAYLOAD, false, false)
             .getBytes(StandardCharsets.UTF_8);
 
     public static final String VALID_JWS_USING_RSA_JWK_PAYLOAD = "Message signed with RSA JWK";
-    public static final byte[] VALID_JWS_USING_RSA_JWK = generateJws(RSA_SIGN_JWKS, VALID_JWS_USING_RSA_JWK_PAYLOAD, false, false).getBytes(StandardCharsets.UTF_8);
+    private static final byte[] VALID_JWS_USING_RSA_JWK = generateJws(RSA_SIGN_JWKS, VALID_JWS_USING_RSA_JWK_PAYLOAD, false, false).getBytes(StandardCharsets.UTF_8);
 
     public static final String VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD = "Message signed with JWK that will be content detached";
-    public static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD,
+    private static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD,
             true,
             false)
             .getBytes(StandardCharsets.UTF_8);
 
     public static final String VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD = "Message signed with JWK that will be content detached and unencoded";
-    public static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED = generateJws(ECDSA_SIGN_JWKS,
+    private static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED = generateJws(ECDSA_SIGN_JWKS,
             VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD, true, true)
             .getBytes(StandardCharsets.UTF_8);
 
-    public static final byte[] INVALID_JWS = "This is a non JWS value".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] INVALID_JWS = "This is a non JWS value".getBytes(StandardCharsets.UTF_8);
+
+    public static byte[] validJwsUsingEcdsaJwk() {
+        return VALID_JWS_USING_ECDSA_JWK.clone();
+    }
+
+    public static byte[] validJwsUsingMissingEcdsaJwk() {
+        return VALID_JWS_USING_MISSING_ECDSA_JWK.clone();
+    }
+
+    public static byte[] validJwsUsingRsaJwk() {
+        return VALID_JWS_USING_RSA_JWK.clone();
+    }
+
+    public static byte[] validJwsUsingEcdsaJwkAndContentDetached() {
+        return VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED.clone();
+    }
+
+    public static byte[] validJwsUsingEcdsaJwkAndUnencodedContentDetached() {
+        return VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED.clone();
+    }
+
+    public static byte[] invalidJws() {
+        return INVALID_JWS.clone();
+    }
 
     public static String generateJws(JsonWebKeySet jwks, String payload, boolean isContentDetached, boolean useUnencodedPayload) {
         try {

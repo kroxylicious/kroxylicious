@@ -18,6 +18,7 @@ public interface TransportSubjectBuilderService<C> extends AutoCloseable {
 
     TransportSubjectBuilder build();
 
+    @Override
     default void close() {
     }
 }
