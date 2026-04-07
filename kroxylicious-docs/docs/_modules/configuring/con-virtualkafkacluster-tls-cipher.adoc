@@ -41,7 +41,7 @@ spec:
 where:
 
 * `cipherSuites` configures the cipher suites used by the proxy.
-** `allowed` lists the cipher suites explicitly allowed for TLS negotiation.
+** `allowed` lists the cipher suites which are permitted, in preference order.
 
 Alternatively, you can use `denied` to specify cipher suites to exclude.
 The names of the cipher suites supported depend on the JVM in the proxy container image.
