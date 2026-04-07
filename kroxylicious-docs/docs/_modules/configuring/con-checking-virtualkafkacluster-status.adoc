@@ -44,8 +44,8 @@ where:
 
 * The `status.observedGeneration` in the status matches the `metadata.generation`, indicating that the status is up-to-date for the latest `spec`.
 * The `conditions` array reports any issues with the resource.
-** `ResolvedRefs` defines the condition type to report any issues with referenced resources.
-** The status value of `True` means that all referenced resources exist.
+** `ResolvedRefs` is the condition type used to report any issues with referenced resources.
+** `status` value of the condition. If `True`, all references resources resolve correctly. `False` indicates there are issues.
 
 A status value of `False` means that one or more of the referenced resources is missing. In this case, the condition includes `reason` and `message` properties with more details.
 
