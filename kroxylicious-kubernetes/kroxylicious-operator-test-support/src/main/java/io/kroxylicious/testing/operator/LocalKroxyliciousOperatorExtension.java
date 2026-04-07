@@ -42,6 +42,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A JUnit 5 extension that runs a Kroxylicious operator locally for integration testing.
@@ -296,7 +297,6 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         T mutated = statusMutator.apply(fresh);
         return testActor.patchStatus(mutated);
     }
-
 
     public static Builder builder() {
         return new Builder();

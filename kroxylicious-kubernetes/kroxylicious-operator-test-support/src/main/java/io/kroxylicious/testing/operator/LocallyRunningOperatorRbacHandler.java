@@ -244,16 +244,19 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             }
 
             @NonNull
+            @Override
             public <T extends HasMetadata> T getInNamespace(@NonNull Class<T> type, @NonNull String name, @NonNull String namespace) {
                 return testActorClient.resources(type).inNamespace(namespace).withName(name).get();
             }
 
             @NonNull
+            @Override
             public <T extends HasMetadata> T replace(@NonNull T resource) {
                 return client.resource(resource).inNamespace(operatorExtension.getNamespace()).update();
             }
 
             @NonNull
+            @Override
             public <T extends HasMetadata> T patchStatus(@NonNull T resource) {
                 return client.resource(resource).inNamespace(operatorExtension.getNamespace()).patchStatus();
             }
@@ -271,6 +274,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
                 return client.resources(type).inNamespace(operatorExtension.getNamespace());
             }
 
+            @Override
             public <T extends KubernetesResource> boolean supports(Class<T> type) {
                 return testActorClient.supports(type);
             }
