@@ -232,7 +232,7 @@ class ProxyProtocolIT {
     }
 
     @Test
-    void tlsRequiredModeShouldRejectTlsConnectionWithoutProxyHeader() throws Exception {
+    void tlsRequiredModeShouldRejectTlsConnectionWithoutProxyHeader() {
         var keys = CertificateGenerator.generate();
         var keystore = keys.jksServerKeystore();
 
@@ -249,7 +249,7 @@ class ProxyProtocolIT {
     }
 
     @Test
-    void tlsAllowedModeShouldAcceptDirectTlsConnectionWithoutProxyHeader() throws Exception {
+    void tlsAllowedModeShouldAcceptDirectTlsConnectionWithoutProxyHeader() {
         var keys = CertificateGenerator.generate();
         var keystore = keys.jksServerKeystore();
 
