@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.utils;
 
+import io.kroxylicious.systemtests.utils.SystemTestsLoggingKeys;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -254,7 +255,7 @@ public class DeploymentUtils {
         }
 
         if (Environment.TEST_CLIENTS_PULL_SECRET != null && !Environment.TEST_CLIENTS_PULL_SECRET.isEmpty()) {
-            LOGGER.atInfo().addKeyValue("secret", Environment.TEST_CLIENTS_PULL_SECRET).setMessage("Creating '{}' secret").log();
+            LOGGER.atInfo().addKeyValue(SystemTestsLoggingKeys.SECRET, Environment.TEST_CLIENTS_PULL_SECRET).setMessage("Creating '{}' secret").log();
             copySecretInToNamespace(namespace, Environment.TEST_CLIENTS_PULL_SECRET);
         }
     }
