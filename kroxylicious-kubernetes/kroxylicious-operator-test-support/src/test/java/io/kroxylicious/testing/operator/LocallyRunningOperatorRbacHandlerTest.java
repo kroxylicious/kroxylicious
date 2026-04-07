@@ -244,6 +244,20 @@ class LocallyRunningOperatorRbacHandlerTest {
         Assertions.assertDoesNotThrow(() -> handler.afterAll(mock(ExtensionContext.class)));
     }
 
+    // ---- operatorClient userAgent ----
+
+    @Test
+    void operatorClientShouldHaveKroxyliciousUserAgent() throws Exception {
+        Files.writeString(tempDir.resolve("role.ClusterRole.yaml"), clusterRoleYaml("test-role"));
+        var handler = new LocallyRunningOperatorRbacHandler(tempDir, this::freshClient, "*.ClusterRole.yaml");
+        handler.beforeEach(mock(ExtensionContext.class));
+
+        try (var operatorClient = handler.operatorClient()) {
+            assertThat(operatorClient.getConfiguration().getUserAgent())
+                    .contains("kroxylicious-operator");
+        }
+    }
+
     // ---- helpers ----
 
     /** Returns a fresh client pointing at the same mock server each call, so try-with-resources in the handler doesn't close the shared {@link #kubeClient}. */
