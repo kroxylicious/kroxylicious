@@ -30,8 +30,8 @@ where:
 
 * `kms` specifies the name of the KMS provider. Use `AwsKmsService`.
 * `kmsConfig` specifies the configuration of the KMS service.
-** `endpointUrl` AWS KMS endpoint URL, which must include the `https://` scheme.
+** `endpointUrl` specifies the AWS KMS endpoint URL, which must include the `https://` scheme.
 ** `longTermCredentials` configures the KMS to authenticate long term credentials.
-*** `accessKeyId` References a file containing containing the AWS access key ID.
-*** `secretAccessKey` References a file containing AWS secret access key.
-** `region` defines the AWS region identifier, such as `us-east-1`, specifying where your KMS resources are located. This must match the region of the KMS endpoint you're using.
+*** `accessKeyId` references a file containing containing the AWS access key ID.
+*** `secretAccessKey` references a file containing AWS secret access key.
+** `region` defines the AWS region identifier where KMS resources are located, such as `us-east-1`. This must match the region of the KMS endpoint you're using.

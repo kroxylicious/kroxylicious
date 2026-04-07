@@ -32,9 +32,9 @@ where:
 
 * `kms` specifies the name of the KMS provider. Use `VaultKmsService`.
 * `kmsConfig` specifies configuration specific to the VaultKmsService.
-** `vaultTransitEngineUrl` xref:con-vault-setup-{context}[Vault Transit Engine URL] including the protocol part, such as `https:` or `http:`.
+** `vaultTransitEngineUrl` provides the  xref:con-vault-setup-{context}[Vault Transit Engine URL] including the protocol part, such as `https:` or `http:`.
 ** `tls` (Optional) TLS trust configuration.
-** `vaultToken` File containing the Vault Token.
+** `vaultToken` references a file containing the Vault Token.
 
 include::../../../_snippets/snip-tls-client-keystore.adoc[]
 

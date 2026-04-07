@@ -20,7 +20,7 @@ trust:
 where:
 
 * `storeFile` specifies PKCS#12 file
-* `storeType` specifies what the keystore file type is. Supported values include `PKCS12` and `JKS`.
-* `storePassword` Optionally, a keystore file password may be specified.
+* `storeType` specifies the keystore file type. Supported values include `PKCS12` and `JKS`.
+* `storePassword` (Optional) specifies a keystore file password.
 
 

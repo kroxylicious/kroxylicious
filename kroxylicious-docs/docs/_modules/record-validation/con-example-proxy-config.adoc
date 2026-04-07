@@ -39,7 +39,7 @@ filterDefinitions:
 ----
 where:
 
-* `topicNames` provides the list of  topic names to which the validation rules will be applied.
+* `topicNames` provides the list of topic names to which the validation rules are applied.
 * `keyRule` provides the validation rules that are applied to the record's key.
 * `valueRule` provides the validation rules that are applied to the record's value.
 * `defaultRule` provides the default rule that is applied to any topics for which there is no explicit rule defined.

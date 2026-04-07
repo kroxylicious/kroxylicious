@@ -55,12 +55,12 @@ where:
 * `kms` specifies the KMS service name.
 * `kmsConfig` specifies configuration specific to the KMS provider.
 * `selector` specifies the Key Encryption Key (KEK) selector to use. The `$(topicName)` is a literal understood by the proxy. For example, if using the `TemplateKekSelector` with the template `KEK-$(topicName)`, create a key for every topic that is to be encrypted with the key name matching the topic name, prefixed by the string `KEK-`.
-** `template` The template for deriving the KEK, based on a specific topic name.
-* `unresolvedKeyPolicy` specifies policy governing the behaviour when the KMS does not contain a key. The default is `PASSTHROUGH_UNENCRYPTED` which causes the record to be forwarded, unencrypted, to the target cluster. Users can alternatively specify `REJECT` which will cause the entire produce request to be rejected. This is a safer alternative if you know that all traffic sent to the Virtual Cluster should be encrypted because unencrypted data will never be forwarded.
-* `experimental` field provides experimental configuration settings.
-** `encryptionDekRefreshAfterWriteSeconds` specify how long after creation of a DEK before it becomes eligible for rotation. On the **next** encryption request, the cache will asynchronously create a new DEK.  Encryption requests will continue to use the old DEK until the new DEK is ready.
-** `encryptionDekExpireAfterWriteSeconds` specify how long after creation of a DEK until it is removed from the cache. This setting puts an upper bound on how long a DEK can remain cached.
-** `maxEncryptionsPerDek` specify the maximum number of records any DEK should be used to encrypt. After this limit is hit, that DEK will be destroyed and a new one created.
+** `template` specifies the template for deriving the KEK, based on a specific topic name.
+* `unresolvedKeyPolicy` specifies policy governing the behaviour when the KMS does not contain a key. The default is `PASSTHROUGH_UNENCRYPTED` which causes the record to be forwarded, unencrypted, to the target cluster. Users can alternatively specify `REJECT` which will cause the entire produce request to be rejected. If all traffic sent to the virtual cluster must be encrypted, this is a safer alternative because unencrypted data is never forwarded.
+* `experimental` defines experimental configuration settings.
+** `encryptionDekRefreshAfterWriteSeconds` specifies how long after creation of a DEK before it becomes eligible for rotation. On the **next** encryption request, the cache asynchronously creates a new DEK.  Encryption requests continue to use the old DEK until the new DEK is ready.
+** `encryptionDekExpireAfterWriteSeconds` specifies how long after creation of a DEK until it is removed from the cache. This setting puts an upper bound on how long a DEK can remain cached.
+** `maxEncryptionsPerDek` specifies the maximum number of records any DEK can encrypt. After this limit is reached, that DEK is destroyed and a new DEK is created.
 +
 `encryptionDekRefreshAfterWriteSeconds` and `encryptionDekExpireAfterWriteSeconds` properties govern the _originator usage period_ of the DEK, which is the amount of time the DEK remains valid for encrypting records.  Shortening this period helps limit the impact if the DEK key material is leaked. However, shorter periods increase the number of KMS API calls, which might affect produce and consume latency and raise KMS provider costs.
 +

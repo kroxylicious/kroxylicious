@@ -31,6 +31,6 @@ spec:
 ----
 where:
 
-* `prefixResourceNameSeparator` is the separator used for the prefix. If a separator is not specified, `-` is the default.
+* `prefixResourceNameSeparator` defines the separator used for the prefix. If a separator is not specified, `-` is the default.
 
 Refer to the {OperatorGuide} for more information about configuration on Kubernetes.
