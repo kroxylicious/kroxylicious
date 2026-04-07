@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.provider.azure.config.auth;
 
-import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.net.URI;
 import java.util.Objects;
 
@@ -45,11 +44,11 @@ public record ManagedIdentityCredentialsConfig(@JsonProperty(required = true) St
         if (identityServiceEndpoint != null) {
             if (!identityServiceEndpoint.getScheme().equalsIgnoreCase("http")) {
                 LOGGER.atWarn()
-                        .addKeyValue(AzureLoggingKeys.ENDPOINT, identityServiceEndpoint)
+                        .addKeyValue("endpoint", identityServiceEndpoint)
                         .log("Endpoint does not begin with http://, production installations should not use HTTPS as Azure Instance Metadata Service (IMDS) endpoint is not TLS enabled");
             }
             LOGGER.atWarn()
-                    .addKeyValue(AzureLoggingKeys.ENDPOINT, identityServiceEndpoint)
+                    .addKeyValue("endpoint", identityServiceEndpoint)
                     .log("Identity service endpoint has been configured, this property should not be used in production");
         }
     }

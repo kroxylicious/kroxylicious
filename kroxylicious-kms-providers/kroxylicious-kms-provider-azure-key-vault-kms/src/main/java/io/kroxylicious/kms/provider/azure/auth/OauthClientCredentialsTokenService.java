@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.provider.azure.auth;
 
-import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -121,7 +120,7 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
     private static AccessTokenResponse getAccessTokenResponse(HttpResponse<String> r) {
         if (r.statusCode() != 200) {
             LOGGER.atWarn()
-                    .addKeyValue(AzureLoggingKeys.STATUS_CODE, r.statusCode())
+                    .addKeyValue("statusCode", r.statusCode())
                     .log("GET Microsoft Identity Platform OAuth 2.0 token failed, received unexpected response code");
             throw new UnexpectedHttpStatusCodeException(r);
         }
@@ -138,7 +137,7 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
             catch (JsonProcessingException e) {
                 LOGGER.atWarn()
                         .setCause(LOGGER.isDebugEnabled() ? e : null)
-                        .addKeyValue(AzureLoggingKeys.ERROR, e.getMessage())
+                        .addKeyValue("error", e.getMessage())
                         .log(LOGGER.isDebugEnabled()
                                 ? "GET Microsoft Identity Platform OAuth 2.0 token failed, error parsing response body"
                                 : "GET Microsoft Identity Platform OAuth 2.0 token failed, error parsing response body, increase log level to DEBUG for stacktrace");

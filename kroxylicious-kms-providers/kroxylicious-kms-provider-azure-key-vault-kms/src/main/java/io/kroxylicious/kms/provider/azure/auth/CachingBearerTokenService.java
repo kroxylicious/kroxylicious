@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.kms.provider.azure.auth;
 
-import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.time.Clock;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -149,8 +148,8 @@ public class CachingBearerTokenService implements BearerTokenService {
         boolean transitioned = state.compareAndSet(currentState, toState);
         if (transitioned) {
             LOGGER.atDebug()
-                    .addKeyValue(AzureLoggingKeys.FROM_STATE, currentState)
-                    .addKeyValue(AzureLoggingKeys.TO_STATE, toState)
+                    .addKeyValue("fromState", currentState)
+                    .addKeyValue("toState", toState)
                     .log("Transitioned state");
             onTransition.accept(toState);
         }
@@ -219,7 +218,7 @@ public class CachingBearerTokenService implements BearerTokenService {
     private void onRefreshFailed(Throwable t, State.Refreshing refreshing) {
         LOGGER.atDebug()
                 .setCause(t)
-                .addKeyValue(AzureLoggingKeys.ERROR, t.getMessage())
+                .addKeyValue("error", t.getMessage())
                 .log("Refresh completed exceptionally");
         if (refreshing.current() != null) {
             // continue with existing token if it exists
