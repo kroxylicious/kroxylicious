@@ -7,18 +7,26 @@
 package io.kroxylicious.kubernetes.operator;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.dsl.NamespaceableResource;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+// No explicit namespace cleanup needed: each test instance gets a fresh in-memory mock client.
 @EnableKubernetesMockClient(crud = true)
 class ClusterUserTest {
 
@@ -98,5 +106,73 @@ class ClusterUserTest {
 
         assertThat(items).hasSize(1);
         assertThat(items.get(0).getMetadata().getName()).isEqualTo("my-proxy");
+    }
+
+    @Nested
+    class ErrorContextWrapping {
+
+        @SuppressWarnings("unchecked")
+        @Test
+        void createWrapsExceptionWithResourceContext() {
+            KubernetesClient mockClient = mock(KubernetesClient.class);
+            NamespaceableResource<KafkaProxy> mockResource = mock(NamespaceableResource.class);
+            when(mockClient.resource(any(KafkaProxy.class))).thenReturn(mockResource);
+            when(mockResource.inNamespace(NAMESPACE)).thenReturn(mockResource);
+            when(mockResource.create()).thenThrow(new KubernetesClientException("forbidden"));
+
+            var user = new ClusterUser(mockClient, NAMESPACE);
+            KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
+
+            assertThatThrownBy(() -> user.create(proxy))
+                    .isInstanceOf(KubernetesClientException.class)
+                    .hasMessageContaining("ClusterUser")
+                    .hasMessageContaining("create")
+                    .hasMessageContaining("KafkaProxy")
+                    .hasMessageContaining("my-proxy")
+                    .hasCauseInstanceOf(KubernetesClientException.class);
+        }
+
+        @SuppressWarnings("unchecked")
+        @Test
+        void replaceWrapsExceptionWithResourceContext() {
+            KubernetesClient mockClient = mock(KubernetesClient.class);
+            NamespaceableResource<KafkaProxy> mockResource = mock(NamespaceableResource.class);
+            when(mockClient.resource(any(KafkaProxy.class))).thenReturn(mockResource);
+            when(mockResource.inNamespace(NAMESPACE)).thenReturn(mockResource);
+            when(mockResource.update()).thenThrow(new KubernetesClientException("conflict"));
+
+            var user = new ClusterUser(mockClient, NAMESPACE);
+            KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
+
+            assertThatThrownBy(() -> user.replace(proxy))
+                    .isInstanceOf(KubernetesClientException.class)
+                    .hasMessageContaining("ClusterUser")
+                    .hasMessageContaining("replace")
+                    .hasMessageContaining("KafkaProxy")
+                    .hasMessageContaining("my-proxy")
+                    .hasCauseInstanceOf(KubernetesClientException.class);
+        }
+
+        @SuppressWarnings("unchecked")
+        @Test
+        void deleteWrapsExceptionWithResourceContext() {
+            KubernetesClient mockClient = mock(KubernetesClient.class);
+            NamespaceableResource<KafkaProxy> mockResource = mock(NamespaceableResource.class);
+            when(mockClient.resource(any(KafkaProxy.class))).thenReturn(mockResource);
+            when(mockResource.inNamespace(NAMESPACE)).thenReturn(mockResource);
+            when(mockResource.delete()).thenThrow(new KubernetesClientException("not found"));
+
+            var user = new ClusterUser(mockClient, NAMESPACE);
+            KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
+
+            assertThatThrownBy(() -> user.delete(proxy))
+                    .isInstanceOf(KubernetesClientException.class)
+                    .hasMessageContaining("ClusterUser")
+                    .hasMessageContaining("delete")
+                    .hasMessageContaining("KafkaProxy")
+                    .hasMessageContaining("my-proxy")
+                    .hasCauseInstanceOf(KubernetesClientException.class);
+        }
+
     }
 }
