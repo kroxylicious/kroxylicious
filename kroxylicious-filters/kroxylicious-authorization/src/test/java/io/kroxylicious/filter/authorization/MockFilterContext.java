@@ -139,11 +139,6 @@ public record MockFilterContext(ApiMessage header, ApiMessage message, Subject s
     }
 
     @Override
-    public void clientSaslAuthenticationSuccess(@NonNull String mechanism, @NonNull String authorizedId) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void clientSaslAuthenticationSuccess(@NonNull String mechanism, @NonNull Subject subject) {
         throw new UnsupportedOperationException();
     }

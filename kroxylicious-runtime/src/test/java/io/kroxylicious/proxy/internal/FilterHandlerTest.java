@@ -1256,31 +1256,6 @@ class FilterHandlerTest extends FilterHarness {
         return future;
     }
 
-    @SuppressWarnings("deprecation") // We're testing that the deprecated method still works
-    @Test
-    void shouldUpdateClientSaslContextOnSaslAuthSuccessWithAuthzId() {
-        // Given
-        SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setSessionLifetimeMs(10_000);
-        buildChannel((SaslAuthenticateRequestFilter) (apiVersion, header, request, context) -> {
-            context.clientSaslAuthenticationSuccess(ScramMechanism.SCRAM_SHA_512.mechanismName(), AUTHORIZATION_ID);
-            return context.requestFilterResultBuilder().shortCircuitResponse(responseData).completed();
-        });
-
-        // When
-        writeRequest(new SaslAuthenticateRequestData().setAuthBytes("Let me IN!".getBytes(UTF_8)));
-
-        // Then
-        DecodedResponseFrame<?> propagated = channel.readOutbound();
-        assertThat(propagated.body()).isEqualTo(responseData);
-
-        assertThat(proxyChannelStateMachine.clientSaslContext())
-                .isNotEmpty()
-                .hasValueSatisfying(saslContext -> {
-                    assertThat(saslContext.authorizationId()).isEqualTo(AUTHORIZATION_ID);
-                    assertThat(saslContext.mechanismName()).isEqualTo(ScramMechanism.SCRAM_SHA_512.mechanismName());
-                });
-    }
-
     @Test
     void shouldUpdateClientSaslContextOnSaslAuthSuccessWithSubject() {
         // Given

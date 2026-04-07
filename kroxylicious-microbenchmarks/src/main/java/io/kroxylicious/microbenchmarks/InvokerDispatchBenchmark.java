@@ -196,11 +196,6 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public void clientSaslAuthenticationSuccess(String mechanism, String authorizedId) {
-
-        }
-
-        @Override
         public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
 
         }
