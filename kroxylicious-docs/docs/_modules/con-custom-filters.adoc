@@ -275,13 +275,13 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
                                                                  ResponseHeaderData header,
                                                                  FetchResponseData response,
                                                                  FilterContext context) {
-        mutateResponse(response, context); //<1>
-        return context.forwardResponse(header, response); //<2>
+        // We mutate the response object. For example, you could alter the records that have been fetched.
+        mutateResponse(response, context);
+        // We forward the response, sending it towards the client, invoking Filters downstream of this one.
+        return context.forwardResponse(header, response);
     }
 }
 ----
-<1> We mutate the response object. For example, you could alter the records that have been fetched.
-<2> We forward the response, sending it towards the client, invoking Filters downstream of this one.
 
 NOTE: We can only forward the response and header objects passed into the `onFetchResponse`. New instances are not
 supported.
@@ -304,8 +304,10 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
 
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
                                                                       FilterContext context) {
+
+        // Create a new instance of the corresponding response data and populate it. Note you may need to use the `apiVersion` to check which fields can be set at this request's API version.
         CreateTopicsResponseData response = new CreateTopicsResponseData();
-        CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection(); // <1>
+        CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection();
         request.topics().forEach(creatableTopic -> {
             CreateTopicsResponseData.CreatableTopicResult result = new CreateTopicsResponseData.CreatableTopicResult();
             result.setErrorCode(Errors.INVALID_TOPIC_EXCEPTION.code()).setErrorMessage(ERROR_MESSAGE);
@@ -313,13 +315,11 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
             topics.add(result);
         });
         response.setTopics(topics);
-        return context.requestFilterResultBuilder().shortCircuitResponse(response).completed(); // <2>
+        // We generate a short-circuit response that will send it towards the client, invoking Filters downstream of this one.
+        return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
     }
 }
 ----
-<1> Create a new instance of the corresponding response data and populate it. Note you may need to use the `apiVersion`
-to check which fields can be set at this request's API version.
-<2> We generate a short-circuit response that will send it towards the client, invoking Filters downstream of this one.
 
 This will respond to all Create Topic requests with an error response without forwarding any of those requests to the Cluster.
 
@@ -342,15 +342,14 @@ public class DisallowAlterConfigs implements AlterConfigsRequestFilter {
                         .setErrorCode(Errors.INVALID_CONFIG.code())
                         .setErrorMessage("This service does not allow this operation - closing connection"))
                 .toList());
+        // We enable the close connection option on the builder.  This will cause Kroxylicious to close the connection after the response is sent to the client.
         return context.requestFilterResultBuilder()
                          .shortCircuitResponse(response)
-                         .withCloseConnection() // <1>
+                         .withCloseConnection()
                          .completed();
     }
 }
 ----
-<1> We enable the close connection option on the builder.  This will cause Kroxylicious to close the connection
-after the response is sent to the client.
 
 ==== Sending asynchronous requests to the Cluster
 
@@ -378,24 +377,24 @@ public class FetchFilter implements FetchRequestFilter {
                                                                RequestHeaderData header,
                                                                FetchRequestData request,
                                                                FilterContext context) {
-        var metadataRequestHeader = new RequestHeaderData().setRequestApiVersion(METADATA_VERSION_SUPPORTING_TOPIC_IDS); // <1>
-        var metadataRequest = new MetadataRequestData(); // <2>
+        // Create a header with a compatible API version.
+        // The version must be supported by both the Kafka client used by Kroxylicious and the target cluster.
+        var metadataRequestHeader = new RequestHeaderData().setRequestApiVersion(METADATA_VERSION_SUPPORTING_TOPIC_IDS);
+        // Build a metadata request matching the chosen API version.  
+        // Refer to the {kafka-protocol}[Kafka Protocol Guide] for more details.
+        var metadataRequest = new MetadataRequestData();
         var topic = new MetadataRequestData.MetadataRequestTopic();
         topic.setTopicId(Uuid.randomUuid());
         metadataRequest.topics().add(topic);
-        var stage = context.sendRequest(metadataRequestHeader, metadataRequest); // <3>
-        return stage.thenApply(metadataResponse -> mutateFetchRequest(metadataResponse, request)) // <4>
-                    .thenCompose(mutatedFetchRequest -> context.forwardRequest(header, mutatedFetchRequest)); // <5>
+        // Send request asynchronously to the cluster and obtain a CompletionStage containing the response.
+        var stage = context.sendRequest(metadataRequestHeader, metadataRequest);
+        // Use response to mutate the fetch request.
+        return stage.thenApply(metadataResponse -> mutateFetchRequest(metadataResponse, request))
+                     // Forward the mutated request.
+                    .thenCompose(mutatedFetchRequest -> context.forwardRequest(header, mutatedFetchRequest));
     }
 }
 ----
-<1> We construct a header object for the asynchronous request.  It is important to specify the API version of the request
-that is to be used.  The version chosen must be a version known to the Kafka Client used by Kroxylicious
-and must be an API version supported by the Target Cluster.
-<2> We construct a new request object. When constructing the request object, care needs to be taken to ensure the request is populated with the structure which matches the API version you have chosen.  Refer to the {kafka-protocol}[Kafka Protocol Guide] for more details.
-<3> We asynchronously send the request towards the Cluster and obtain a CompletionStage which will contain the response.
-<4> We use a computation stage to mutate the filtered fetch request using the response from the request sent at <3>.
-<5> We use another computation stage to forward the mutated request.
 
 As you have read above, we need to know the API version we want our request to be encoded at. Your filter can discover
 what versions of an API the Kafka Cluster supports.  To do this use the

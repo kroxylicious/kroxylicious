@@ -32,14 +32,16 @@ spec:
       tls:
         certificateRef:
           # ...
-        protocols: # <1>
-          allow: # <2>
+        protocols:
+          allowed:
             - TLSv1.3
 ----
-<1> Configures the TLS protocol versions used by the proxy.
-<2> Lists the protocol versions explicitly allowed for TLS negotiation.
+where:
 
-Alternatively, you can use `deny` to specify protocol versions to exclude.
+* `protocols` configures the TLS protocol versions used by the proxy.
+** `allowed` lists the protocol versions explicitly allowed for TLS negotiation.
+
+Alternatively, use `denied` to specify protocol versions to exclude.
 
 The names of the TLS protocol versions supported depend on the JVM in the proxy container image.
 
