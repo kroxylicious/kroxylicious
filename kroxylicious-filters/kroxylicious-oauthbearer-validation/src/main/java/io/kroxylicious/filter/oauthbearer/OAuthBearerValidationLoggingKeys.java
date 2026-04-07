@@ -28,4 +28,9 @@ public class OAuthBearerValidationLoggingKeys {
      * Outcome of the validation attempt.
      */
     public static final String OUTCOME = "outcome";
+    /**
+     * The sasl state.
+     */
+    public static final String SASL_STATE = "saslState";
+
 }

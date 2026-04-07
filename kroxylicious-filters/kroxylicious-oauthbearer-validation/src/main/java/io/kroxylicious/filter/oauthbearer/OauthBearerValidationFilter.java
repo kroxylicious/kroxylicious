@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.oauthbearer;
 
+import io.kroxylicious.filter.oauthbearer.OAuthBearerValidationLoggingKeys;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -92,7 +93,7 @@ public class OauthBearerValidationFilter
         // in any case, handshake if SASL server is initiated is a protocol violation
         if (this.saslServer != null) {
             LOGGER.atDebug()
-                    .addKeyValue("saslState", "ILLEGAL_SASL_STATE")
+                    .addKeyValue(OAuthBearerValidationLoggingKeys.SASL_STATE, "ILLEGAL_SASL_STATE")
                     .log("SASL error: Handshake request with a not null SASL server");
             return context.requestFilterResultBuilder()
                     .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(ILLEGAL_SASL_STATE.code()))
@@ -135,7 +136,7 @@ public class OauthBearerValidationFilter
                         .setErrorCode(ILLEGAL_SASL_STATE.code())
                         .setErrorMessage("Unexpected SASL request");
                 LOGGER.atDebug()
-                        .addKeyValue("saslState", "ILLEGAL_SASL_STATE")
+                        .addKeyValue(OAuthBearerValidationLoggingKeys.SASL_STATE, "ILLEGAL_SASL_STATE")
                         .log("SASL invalid state");
                 notifyThrowable(context, INVALID_SASL_STATE_EXCEPTION);
                 return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
