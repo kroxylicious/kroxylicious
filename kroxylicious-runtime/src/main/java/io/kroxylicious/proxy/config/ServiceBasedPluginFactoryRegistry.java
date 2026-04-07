@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.config;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -59,8 +58,8 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             Plugin annotation = providerType.getAnnotation(Plugin.class);
             if (annotation == null) {
                 LOGGER.atWarn()
-                        .addKeyValue(RuntimeLoggingKeys.PROVIDER_TYPE, providerType)
-                        .addKeyValue(RuntimeLoggingKeys.SERVICE, pluginInterface)
+                        .addKeyValue("providerType", providerType)
+                        .addKeyValue("service", pluginInterface)
                         .log("Failed to find @Plugin on provider of service");
             }
             else {
@@ -100,18 +99,18 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                     var annotatedClass = entry.getKey();
                     var classWithCollidingFqName = entry.getValue();
                     LOGGER.atWarn()
-                            .addKeyValue(RuntimeLoggingKeys.ANNOTATED_CLASS, annotatedClass.getName())
-                            .addKeyValue(RuntimeLoggingKeys.ANNOTATION, DeprecatedPluginName.class.getSimpleName())
-                            .addKeyValue(RuntimeLoggingKeys.OLD_NAME, annotatedClass.getAnnotation(DeprecatedPluginName.class).oldName())
-                            .addKeyValue(RuntimeLoggingKeys.COLLIDING_CLASS, classWithCollidingFqName.getName())
+                            .addKeyValue("annotatedClass", annotatedClass.getName())
+                            .addKeyValue("annotation", DeprecatedPluginName.class.getSimpleName())
+                            .addKeyValue("oldName", annotatedClass.getAnnotation(DeprecatedPluginName.class).oldName())
+                            .addKeyValue("collidingClass", classWithCollidingFqName.getName())
                             .log("Plugin implementation class is annotated with @DeprecatedPluginName which collides with another plugin implementation class, you must remove one of these classes from the class path");
                     throw new RuntimeException("Ambiguous plugin implementation name '" + ambiguousKey + "'");
                 }
                 else {
                     LOGGER.atWarn()
-                            .addKeyValue(RuntimeLoggingKeys.AMBIGUOUS_KEY, ambiguousKey)
-                            .addKeyValue(RuntimeLoggingKeys.PLUGIN_INTERFACE, pluginInterface.getSimpleName())
-                            .addKeyValue(RuntimeLoggingKeys.CANDIDATES, implementationClasses.stream()
+                            .addKeyValue("ambiguousKey", ambiguousKey)
+                            .addKeyValue("pluginInterface", pluginInterface.getSimpleName())
+                            .addKeyValue("candidates", implementationClasses.stream()
                                     .map(Class::getName)
                                     .collect(Collectors.joining(", ")))
                             .log("Ambiguous reference to provider, it could refer to multiple implementations so to avoid ambiguous behaviour those fully qualified names must be used");
@@ -128,7 +127,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             String oldName = providerType.getAnnotation(DeprecatedPluginName.class).oldName();
             if (oldName.equals(providerType.getName())) {
                 LOGGER.atWarn()
-                        .addKeyValue(RuntimeLoggingKeys.PROVIDER_TYPE, providerType.getName())
+                        .addKeyValue("providerType", providerType.getName())
                         .log("@DeprecatedPluginName annotation specifies an oldName == newName, this annotation is not being used correctly");
             }
             else {
@@ -197,9 +196,9 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             DeprecatedPluginName deprecatedName = type.getAnnotation(DeprecatedPluginName.class);
             if (isOldInstanceName(instanceName, deprecatedName, type)) {
                 LOGGER.atWarn()
-                        .addKeyValue(RuntimeLoggingKeys.PLUGIN_CLASS, pluginClass.getName())
-                        .addKeyValue(RuntimeLoggingKeys.OLD_NAME, instanceName)
-                        .addKeyValue(RuntimeLoggingKeys.NEW_NAME, type.getName())
+                        .addKeyValue("pluginClass", pluginClass.getName())
+                        .addKeyValue("oldName", instanceName)
+                        .addKeyValue("newName", type.getName())
                         .log("Plugin should now be referred to using the new name, the plugin has been renamed and in the future the old name will cease to work");
             }
         }
@@ -208,8 +207,8 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
     private static <P> void maybeWarnAboutDeprecatedPluginClass(String instanceName, Class<?> type, Class<P> pluginClass) {
         if (type.isAnnotationPresent(Deprecated.class)) {
             LOGGER.atWarn()
-                    .addKeyValue(RuntimeLoggingKeys.PLUGIN_CLASS, pluginClass.getName())
-                    .addKeyValue(RuntimeLoggingKeys.NAME, instanceName)
+                    .addKeyValue("pluginClass", pluginClass.getName())
+                    .addKeyValue("name", instanceName)
                     .log("Plugin is deprecated");
         }
     }

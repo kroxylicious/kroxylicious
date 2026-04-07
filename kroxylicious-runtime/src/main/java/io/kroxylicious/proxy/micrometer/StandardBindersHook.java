@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -72,7 +71,7 @@ public class StandardBindersHook implements MicrometerConfigurationHookService<S
                     this.closeableBinders.add(closeable);
                 }
                 log.atInfo()
-                        .addKeyValue(RuntimeLoggingKeys.BINDER, binderName)
+                        .addKeyValue("binder", binderName)
                         .log("bound to micrometer registry");
             }
 
@@ -86,7 +85,7 @@ public class StandardBindersHook implements MicrometerConfigurationHookService<S
                 }
                 catch (Exception e) {
                     log.atWarn()
-                            .addKeyValue(RuntimeLoggingKeys.CLOSEABLE, closeable.getClass())
+                            .addKeyValue("closeable", closeable.getClass())
                             .setCause(e)
                             .log("Ignoring exception whilst closing standard binder", e);
                 }

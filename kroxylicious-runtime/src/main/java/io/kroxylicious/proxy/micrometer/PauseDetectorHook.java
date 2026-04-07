@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.beans.ConstructorProperties;
 import java.time.Duration;
 import java.util.Objects;
@@ -72,8 +71,8 @@ public class PauseDetectorHook implements MicrometerConfigurationHookService<Pau
             final PauseDetector pauseDetector = new ClockDriftPauseDetector(config.getSleepInterval(), config.getPauseThreshold());
             targetRegistry.config().pauseDetector(pauseDetector);
             log.atInfo()
-                    .addKeyValue(RuntimeLoggingKeys.SLEEP_INTERVAL_MS, config.getSleepInterval().toMillis())
-                    .addKeyValue(RuntimeLoggingKeys.PAUSE_THRESHOLD_MS, config.getPauseThreshold().toMillis())
+                    .addKeyValue("sleepIntervalMs", config.getSleepInterval().toMillis())
+                    .addKeyValue("pauseThresholdMs", config.getPauseThreshold().toMillis())
                     .log("Configured pause detector on micrometer registry");
         }
     }

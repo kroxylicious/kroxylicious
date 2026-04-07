@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.frame;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Objects;
 
 import org.slf4j.Logger;
@@ -81,11 +80,11 @@ public abstract class OpaqueFrame implements Frame {
     @Override
     public void encode(ByteBufAccessor out) {
         LOGGER.atTrace()
-                .addKeyValue(RuntimeLoggingKeys.FRAME_TYPE, getClass().getSimpleName())
-                .addKeyValue(RuntimeLoggingKeys.LENGTH, length)
-                .addKeyValue(RuntimeLoggingKeys.BUFFER_READABLE_BYTES, buf.readableBytes())
-                .addKeyValue(RuntimeLoggingKeys.BUFFER, buf)
-                .addKeyValue(RuntimeLoggingKeys.OUTPUT, out)
+                .addKeyValue("frameType", getClass().getSimpleName())
+                .addKeyValue("length", length)
+                .addKeyValue("bufferReadableBytes", buf.readableBytes())
+                .addKeyValue("buffer", buf)
+                .addKeyValue("output", out)
                 .log("Writing frame");
         out.ensureWritable(estimateEncodedSize());
         out.writeInt(length);

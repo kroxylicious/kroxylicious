@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -99,26 +98,26 @@ public class ApiVersionsServiceImpl {
         if (ApiKeys.PRODUCE.equals(apiKey)
                 && key.minVersion() <= apiKey.messageType.lowestSupportedVersion()) {
             LOGGER.atTrace()
-                    .addKeyValue(RuntimeLoggingKeys.SESSION_ID, sessionId)
-                    .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
-                    .addKeyValue(RuntimeLoggingKeys.CURRENT_MIN_VERSION, key.minVersion())
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("currentMinVersion", key.minVersion())
                     .log("Min version downgraded to v0 to support KAFKA-18659");
             key.setMinVersion(apiKey.messageType.lowestDeprecatedVersion());
         }
         else if (mutualMin != key.minVersion()) {
             LOGGER.atTrace()
-                    .addKeyValue(RuntimeLoggingKeys.SESSION_ID, sessionId)
-                    .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
-                    .addKeyValue(RuntimeLoggingKeys.NEW_MIN_VERSION, mutualMin)
-                    .addKeyValue(RuntimeLoggingKeys.OLD_MIN_VERSION, key.minVersion())
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("newMinVersion", mutualMin)
+                    .addKeyValue("oldMinVersion", key.minVersion())
                     .log("Min version changed");
             key.setMinVersion(mutualMin);
         }
         else {
             LOGGER.atTrace()
-                    .addKeyValue(RuntimeLoggingKeys.SESSION_ID, sessionId)
-                    .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
-                    .addKeyValue(RuntimeLoggingKeys.MIN_VERSION, mutualMin)
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("minVersion", mutualMin)
                     .log("Min version unchanged");
         }
 
@@ -127,18 +126,18 @@ public class ApiVersionsServiceImpl {
                 apiKeysShortFunction.apply(apiKey));
         if (mutualMax != key.maxVersion()) {
             LOGGER.atTrace()
-                    .addKeyValue(RuntimeLoggingKeys.SESSION_ID, sessionId)
-                    .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
-                    .addKeyValue(RuntimeLoggingKeys.NEW_MAX_VERSION, mutualMax)
-                    .addKeyValue(RuntimeLoggingKeys.OLD_MAX_VERSION, key.maxVersion())
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("newMaxVersion", mutualMax)
+                    .addKeyValue("oldMaxVersion", key.maxVersion())
                     .log("Max version changed");
             key.setMaxVersion(mutualMax);
         }
         else {
             LOGGER.atTrace()
-                    .addKeyValue(RuntimeLoggingKeys.SESSION_ID, sessionId)
-                    .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
-                    .addKeyValue(RuntimeLoggingKeys.MAX_VERSION, mutualMax)
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("maxVersion", mutualMax)
                     .log("Max version unchanged");
         }
     }

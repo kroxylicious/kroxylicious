@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.admin;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -100,7 +99,7 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
             catch (Exception e) {
                 LOGGER.atError()
                         .setCause(e)
-                        .addKeyValue(RuntimeLoggingKeys.ROUTE, req.uri())
+                        .addKeyValue("route", req.uri())
                         .log("Exception while invoking endpoint");
                 return responseWithStatus(req, INTERNAL_SERVER_ERROR);
             }

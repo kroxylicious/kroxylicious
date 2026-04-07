@@ -30,7 +30,6 @@ import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
@@ -221,9 +220,9 @@ public class ProxyChannelStateMachine {
     @VisibleForTesting
     void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler, KafkaSession kafkaSession) {
         LOGGER.atInfo()
-                .addKeyValue(RuntimeLoggingKeys.STATE, state)
-                .addKeyValue(RuntimeLoggingKeys.FRONTEND_HANDLER, frontendHandler)
-                .addKeyValue(RuntimeLoggingKeys.BACKEND_HANDLER, backendHandler)
+                .addKeyValue("state", state)
+                .addKeyValue("frontendHandler", frontendHandler)
+                .addKeyValue("backendHandler", backendHandler)
                 .log("Forcing state");
         this.state = state;
         this.kafkaSession = kafkaSession;
@@ -329,9 +328,9 @@ public class ProxyChannelStateMachine {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
             LOGGER.atDebug()
-                    .addKeyValue(RuntimeLoggingKeys.SESSION_ID, kafkaSession.sessionId())
-                    .addKeyValue(RuntimeLoggingKeys.REMOTE_HOST, Objects.requireNonNull(this.frontendHandler).remoteHost())
-                    .addKeyValue(RuntimeLoggingKeys.REMOTE_PORT, this.frontendHandler.remotePort())
+                    .addKeyValue("sessionId", kafkaSession.sessionId())
+                    .addKeyValue("remoteHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
+                    .addKeyValue("remotePort", this.frontendHandler.remotePort())
                     .log("Allocated session ID for downstream connection");
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
@@ -378,8 +377,8 @@ public class ProxyChannelStateMachine {
     void illegalState(String msg) {
         if (!(state instanceof Closed)) {
             LOGGER.atError()
-                    .addKeyValue(RuntimeLoggingKeys.STATE, state)
-                    .addKeyValue(RuntimeLoggingKeys.MESSAGE, msg)
+                    .addKeyValue("state", state)
+                    .addKeyValue("message", msg)
                     .log("Unexpected event, closing channels with no client response");
             toClosed(null);
         }
@@ -490,7 +489,7 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     void onServerException(@Nullable Throwable cause) {
         LOGGER.atWarn()
-                .addKeyValue(RuntimeLoggingKeys.ERROR, cause != null ? cause.getMessage() : "")
+                .addKeyValue("error", cause != null ? cause.getMessage() : "")
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .log(LOGGER.isDebugEnabled()
                         ? "exception from server channel"
@@ -516,15 +515,15 @@ public class ProxyChannelStateMachine {
                             + StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)
                             + ").";
             LOGGER.atWarn()
-                    .addKeyValue(RuntimeLoggingKeys.MAX_FRAME_SIZE_BYTES, e.getMaxFrameSizeBytes())
-                    .addKeyValue(RuntimeLoggingKeys.RECEIVED_FRAME_SIZE_BYTES, e.getReceivedFrameSizeBytes())
-                    .addKeyValue(RuntimeLoggingKeys.HINT, tlsHint)
+                    .addKeyValue("maxFrameSizeBytes", e.getMaxFrameSizeBytes())
+                    .addKeyValue("receivedFrameSizeBytes", e.getReceivedFrameSizeBytes())
+                    .addKeyValue("hint", tlsHint)
                     .log("Received over-sized frame from client, other possible causes are: an oversized Kafka frame, or something unexpected like an HTTP request");
             errorCodeEx = Errors.INVALID_REQUEST.exception();
         }
         else {
             LOGGER.atWarn()
-                    .addKeyValue(RuntimeLoggingKeys.ERROR, cause != null ? cause.getMessage() : "")
+                    .addKeyValue("error", cause != null ? cause.getMessage() : "")
                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
                     .log(LOGGER.isDebugEnabled()
                             ? "exception from client channel"
@@ -624,10 +623,10 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()
-                .addKeyValue(RuntimeLoggingKeys.SESSION_ID, kafkaSession.sessionId())
-                .addKeyValue(RuntimeLoggingKeys.REMOTE, connecting.remote())
-                .addKeyValue(RuntimeLoggingKeys.CLIENT_HOST, Objects.requireNonNull(this.frontendHandler).remoteHost())
-                .addKeyValue(RuntimeLoggingKeys.CLIENT_PORT, this.frontendHandler.remotePort())
+                .addKeyValue("sessionId", kafkaSession.sessionId())
+                .addKeyValue("remote", connecting.remote())
+                .addKeyValue("clientHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
+                .addKeyValue("clientPort", this.frontendHandler.remotePort())
                 .log("Upstream connection established for client");
     }
 
@@ -748,8 +747,8 @@ public class ProxyChannelStateMachine {
 
     private void setState(ProxyChannelState state) {
         LOGGER.atTrace()
-                .addKeyValue(RuntimeLoggingKeys.STATE_MACHINE, this)
-                .addKeyValue(RuntimeLoggingKeys.TARGET_STATE, state)
+                .addKeyValue("stateMachine", this)
+                .addKeyValue("targetState", state)
                 .log("Transitioning to state");
         this.state = state;
     }

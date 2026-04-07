@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import org.slf4j.Logger;
 
 import io.netty.buffer.ByteBuf;
@@ -52,9 +51,9 @@ abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder
     @Override
     protected void encode(ChannelHandlerContext ctx, F frame, ByteBuf out) throws Exception {
         log().atTrace()
-                .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
-                .addKeyValue(RuntimeLoggingKeys.FRAME, frame)
-                .addKeyValue(RuntimeLoggingKeys.OUT, out)
+                .addKeyValue("ctx", ctx)
+                .addKeyValue("frame", frame)
+                .addKeyValue("out", out)
                 .log("Encoding");
         var beforeIndex = out.writerIndex();
         frame.encode(new ByteBufAccessorImpl(out));

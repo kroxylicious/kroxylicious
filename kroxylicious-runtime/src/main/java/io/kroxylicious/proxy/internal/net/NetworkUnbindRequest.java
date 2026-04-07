@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.net;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -42,20 +41,20 @@ public class NetworkUnbindRequest extends NetworkBindingOperation<Void> {
         try {
             var addr = channel.localAddress();
             LOGGER.atInfo()
-                    .addKeyValue(RuntimeLoggingKeys.ADDRESS, addr)
+                    .addKeyValue("address", addr)
                     .log("Unbinding");
 
             channel.close().addListener((ChannelFutureListener) channelFuture -> executorService.execute(() -> {
                 if (channelFuture.cause() != null) {
                     LOGGER.atDebug()
                             .setCause(channelFuture.cause())
-                            .addKeyValue(RuntimeLoggingKeys.ADDRESS, addr)
+                            .addKeyValue("address", addr)
                             .log("Unbind failed");
                     future.completeExceptionally(channelFuture.cause());
                 }
                 else {
                     LOGGER.atInfo()
-                            .addKeyValue(RuntimeLoggingKeys.ADDRESS, addr)
+                            .addKeyValue("address", addr)
                             .log("Unbound");
                     future.complete(null);
                 }

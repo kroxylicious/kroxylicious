@@ -32,7 +32,6 @@ import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
@@ -93,8 +92,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @Override
     public void initChannel(Channel ch) {
         LOGGER.atTrace()
-                .addKeyValue(RuntimeLoggingKeys.REMOTE, ch.remoteAddress())
-                .addKeyValue(RuntimeLoggingKeys.LOCAL, ch.localAddress())
+                .addKeyValue("remote", ch.remoteAddress())
+                .addKeyValue("local", ch.localAddress())
                 .log("Connection from client");
 
         if (tls) {
@@ -148,9 +147,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                     try {
                         if (t != null) {
                             LOGGER.atWarn()
-                                    .addKeyValue(RuntimeLoggingKeys.ENDPOINT, endpoint)
-                                    .addKeyValue(RuntimeLoggingKeys.SNI_HOSTNAME, sniHostname)
-                                    .addKeyValue(RuntimeLoggingKeys.ERROR, t.getMessage())
+                                    .addKeyValue("endpoint", endpoint)
+                                    .addKeyValue("sniHostname", sniHostname)
+                                    .addKeyValue("error", t.getMessage())
                                     .log("Exception resolving Virtual Cluster Binding");
                             promise.setFailure(t);
                             return null;
@@ -247,8 +246,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         addLoggingErrorHandler(pipeline);
 
         LOGGER.atDebug()
-                .addKeyValue(RuntimeLoggingKeys.CHANNEL_ID, ch::toString)
-                .addKeyValue(RuntimeLoggingKeys.PIPELINE, pipeline)
+                .addKeyValue("channelId", ch::toString)
+                .addKeyValue("pipeline", pipeline)
                 .log("Initial pipeline");
     }
 

@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,11 +39,11 @@ public class HAProxyMessageHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage haProxyMessage) {
             LOGGER.atDebug()
-                    .addKeyValue(RuntimeLoggingKeys.CHANNEL_ID, () -> ctx.channel().toString())
-                    .addKeyValue(RuntimeLoggingKeys.SOURCE_ADDRESS, haProxyMessage.sourceAddress())
-                    .addKeyValue(RuntimeLoggingKeys.SOURCE_PORT, haProxyMessage.sourcePort())
-                    .addKeyValue(RuntimeLoggingKeys.DESTINATION_ADDRESS, haProxyMessage.destinationAddress())
-                    .addKeyValue(RuntimeLoggingKeys.DESTINATION_PORT, haProxyMessage.destinationPort())
+                    .addKeyValue("channelId", () -> ctx.channel().toString())
+                    .addKeyValue("sourceAddress", haProxyMessage.sourceAddress())
+                    .addKeyValue("sourcePort", haProxyMessage.sourcePort())
+                    .addKeyValue("destinationAddress", haProxyMessage.destinationAddress())
+                    .addKeyValue("destinationPort", haProxyMessage.destinationPort())
                     .log("Received HAProxy message");
             // Forward to state machine for processing - do not propagate to filters
             proxyChannelStateMachine.onClientRequest(haProxyMessage);

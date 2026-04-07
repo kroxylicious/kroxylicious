@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.frame;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -111,11 +110,11 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         }
         final int encodedSize = estimateEncodedSize();
         LOGGER.atTrace()
-                .addKeyValue(RuntimeLoggingKeys.FRAME_TYPE, getClass().getSimpleName())
-                .addKeyValue(RuntimeLoggingKeys.ENCODED_SIZE, encodedSize)
-                .addKeyValue(RuntimeLoggingKeys.HEADER, header::toString)
-                .addKeyValue(RuntimeLoggingKeys.BODY, body::toString)
-                .addKeyValue(RuntimeLoggingKeys.OUTPUT, out)
+                .addKeyValue("frameType", getClass().getSimpleName())
+                .addKeyValue("encodedSize", encodedSize)
+                .addKeyValue("header", header::toString)
+                .addKeyValue("body", body::toString)
+                .addKeyValue("output", out)
                 .log("Writing frame");
         out.ensureWritable(encodedSize);
         final int initialIndex = out.writerIndex();

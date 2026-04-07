@@ -54,7 +54,6 @@ import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
@@ -169,7 +168,7 @@ public final class KafkaProxy implements AutoCloseable {
         if (!errorMessages.isEmpty()) {
             String message = "invalid configuration: " + String.join(",", errorMessages);
             LOGGER.atError()
-                    .addKeyValue(RuntimeLoggingKeys.MESSAGE, message)
+                    .addKeyValue("message", message)
                     .log("Invalid configuration");
             throw new IllegalConfigurationException(message);
         }
@@ -208,9 +207,9 @@ public final class KafkaProxy implements AutoCloseable {
                 }
 
                 STARTUP_SHUTDOWN_LOGGER.atWarn()
-                        .addKeyValue(RuntimeLoggingKeys.VERSION_STATUS, versionStatus)
-                        .addKeyValue(RuntimeLoggingKeys.JRE_FEATURE_VERSION, JRE_FEATURE_VERSION)
-                        .addKeyValue(RuntimeLoggingKeys.TESTED_JRE_VERSION, TESTED_JRE_VERSIONS.first())
+                        .addKeyValue("versionStatus", versionStatus)
+                        .addKeyValue("jreFeatureVersion", JRE_FEATURE_VERSION)
+                        .addKeyValue("testedJreVersion", TESTED_JRE_VERSIONS.first())
                         .log("Detected JRE version, running Kroxylicious is only tested on LTS releases, if you find any issues, please try to re-create them on one of the tested JREs"
                                 + deprecatedMessage);
             }
@@ -318,8 +317,8 @@ public final class KafkaProxy implements AutoCloseable {
                             .channel(eventGroupConfig.clazz())
                             .childHandler(new ManagementInitializer(meterRegistries, mc));
                     LOGGER.atInfo()
-                            .addKeyValue(RuntimeLoggingKeys.BIND_ADDRESS, mc.getEffectiveBindAddress())
-                            .addKeyValue(RuntimeLoggingKeys.PORT, mc.getEffectivePort())
+                            .addKeyValue("bindAddress", mc.getEffectiveBindAddress())
+                            .addKeyValue("port", mc.getEffectivePort())
                             .log("Binding management endpoint");
 
                     var future = new CompletableFuture<Void>();

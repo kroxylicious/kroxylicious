@@ -22,7 +22,6 @@ import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -61,25 +60,25 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         final int startOfMessage = in.readerIndex();
         int correlationId = in.readInt();
         LOGGER.atDebug()
-                .addKeyValue(RuntimeLoggingKeys.CONTEXT, ctx)
-                .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
-                .addKeyValue(RuntimeLoggingKeys.DOWNSTREAM_CORRELATION_ID, correlationId)
+                .addKeyValue("context", ctx)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("downstreamCorrelationId", correlationId)
                 .log("Received request");
 
         var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
 
         LOGGER.atDebug()
-                .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
-                .addKeyValue(RuntimeLoggingKeys.API_VERSION, apiVersion)
-                .addKeyValue(RuntimeLoggingKeys.DECODE_REQUEST, decodeRequest)
-                .addKeyValue(RuntimeLoggingKeys.PREDICATE, decodePredicate)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("decodeRequest", decodeRequest)
+                .addKeyValue("predicate", decodePredicate)
                 .log("Decode request decision");
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
         LOGGER.atDebug()
-                .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
-                .addKeyValue(RuntimeLoggingKeys.API_VERSION, apiVersion)
-                .addKeyValue(RuntimeLoggingKeys.DECODE_RESPONSE, decodeResponse)
-                .addKeyValue(RuntimeLoggingKeys.PREDICATE, decodePredicate)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("decodeResponse", decodeResponse)
+                .addKeyValue("predicate", decodePredicate)
                 .log("Decode response decision");
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
 
@@ -105,16 +104,16 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, result.accessor());
             if (log().isTraceEnabled()) {
                 log().atTrace()
-                        .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
-                        .addKeyValue(RuntimeLoggingKeys.BODY, body)
+                        .addKeyValue("ctx", ctx)
+                        .addKeyValue("body", body)
                         .log("Decoded");
             }
 
             frame = new DecodedRequestFrame<>(apiVersion, correlationId, decodeResponse, result.header(), body);
             if (log().isTraceEnabled()) {
                 log().atTrace()
-                        .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
-                        .addKeyValue(RuntimeLoggingKeys.FRAME, frame)
+                        .addKeyValue("ctx", ctx)
+                        .addKeyValue("frame", frame)
                         .log("Result frame");
             }
         }
@@ -139,8 +138,8 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     private DecodedBufer decodeRequest(ChannelHandlerContext ctx, ByteBuf in, short headerVersion, int sof) {
         if (log().isTraceEnabled()) { // avoid boxing
             log().atTrace()
-                    .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
-                    .addKeyValue(RuntimeLoggingKeys.HEADER_VERSION, headerVersion)
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("headerVersion", headerVersion)
                     .log("Decode");
         }
         in.readerIndex(sof);
@@ -152,8 +151,8 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         RequestHeaderData header = readHeader(headerVersion, accessor);
         if (log().isTraceEnabled()) {
             log().atTrace()
-                    .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
-                    .addKeyValue(RuntimeLoggingKeys.HEADER, header)
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("header", header)
                     .log("Decode");
         }
         return new DecodedBufer(header, accessor);
@@ -165,8 +164,8 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         short apiVersion = in.readShort();
         if (log().isTraceEnabled()) { // avoid boxing
             log().atTrace()
-                    .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
-                    .addKeyValue(RuntimeLoggingKeys.API_VERSION, apiVersion)
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("apiVersion", apiVersion)
                     .log("Read");
         }
         return apiVersion;
@@ -176,9 +175,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         ApiKeys apiKey = ApiKeys.forId(apiId);
         if (log().isTraceEnabled()) { // avoid boxing
             log().atTrace()
-                    .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
-                    .addKeyValue(RuntimeLoggingKeys.API_ID, apiId)
-                    .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("apiId", apiId)
+                    .addKeyValue("apiKey", apiKey)
                     .log("Lookup");
         }
         return apiKey;
@@ -188,7 +187,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                                                                                        int correlationId) {
         if (log().isTraceEnabled()) { // avoid boxing
             log().atTrace()
-                    .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
+                    .addKeyValue("ctx", ctx)
                     .log("downgrading apiVersion request to v0");
         }
         return ApiVersionsDowngradeFilter.downgradeApiVersionsFrame(correlationId);

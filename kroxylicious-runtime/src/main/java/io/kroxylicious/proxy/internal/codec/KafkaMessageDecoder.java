@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -46,9 +45,9 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 int readable = in.readableBytes();
                 if (log().isTraceEnabled()) { // avoid boxing
                     log().atTrace()
-                            .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
-                            .addKeyValue(RuntimeLoggingKeys.FRAME_SIZE, frameSize)
-                            .addKeyValue(RuntimeLoggingKeys.READABLE, readable)
+                            .addKeyValue("ctx", ctx)
+                            .addKeyValue("frameSize", frameSize)
+                            .addKeyValue("readable", readable)
                             .log("Read frame size");
                 }
                 // TODO handle too-large frames
@@ -62,8 +61,8 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
             }
             catch (Exception e) {
                 log().atError()
-                        .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
-                        .addKeyValue(RuntimeLoggingKeys.ERROR, e.getMessage())
+                        .addKeyValue("ctx", ctx)
+                        .addKeyValue("error", e.getMessage())
                         .setCause(log().isDebugEnabled() ? e : null)
                         .log("Error in decoder");
                 throw e;
@@ -86,9 +85,9 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
     private void validateRead(ChannelHandlerContext ctx, ByteBuf in, List<Object> out, int frameSize) {
         var idx = readSingleFrame(ctx, in, out, frameSize);
         log().atTrace()
-                .addKeyValue(RuntimeLoggingKeys.CTX, ctx)
-                .addKeyValue(RuntimeLoggingKeys.READABLE, in.readableBytes())
-                .addKeyValue(RuntimeLoggingKeys.ALREADY_READ, in.readerIndex() - idx)
+                .addKeyValue("ctx", ctx)
+                .addKeyValue("readable", in.readableBytes())
+                .addKeyValue("alreadyRead", in.readerIndex() - idx)
                 .log("Validate read");
         if (in.readerIndex() - idx != frameSize) {
             throw new IllegalStateException("decodeHeaderAndBody did not read all of the buffer " + in);

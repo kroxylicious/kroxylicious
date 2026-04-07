@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -78,7 +77,7 @@ public class EagerMetadataLearner implements RequestFilter {
 
                         }
                         LOGGER.atInfo()
-                                .addKeyValue(RuntimeLoggingKeys.SESSION_ID, context.sessionId())
+                                .addKeyValue("sessionId", context.sessionId())
                                 .log("Closing upstream bootstrap connection now that endpoint reconciliation is complete");
                     });
             return future;

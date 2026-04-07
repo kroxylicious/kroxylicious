@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -36,9 +35,9 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
                 if (stage == null) {
                     if (logger.isWarnEnabled()) {
                         logger.atWarn()
-                                .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
-                                .addKeyValue(RuntimeLoggingKeys.API_VERSION, apiVersion)
-                                .addKeyValue(RuntimeLoggingKeys.SESSION_ID, filterContext.sessionId())
+                                .addKeyValue("apiKey", apiKey)
+                                .addKeyValue("apiVersion", apiVersion)
+                                .addKeyValue("sessionId", filterContext.sessionId())
                                 .log("invoker onRequest returned null, Filters should always return a CompletionStage");
                     }
                     return CompletableFuture.failedFuture(new IllegalStateException("invoker onRequest returned null for apiKey " + apiKey));
@@ -62,9 +61,9 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
                 if (stage == null) {
                     if (logger.isWarnEnabled()) {
                         logger.atWarn()
-                                .addKeyValue(RuntimeLoggingKeys.API_KEY, apiKey)
-                                .addKeyValue(RuntimeLoggingKeys.API_VERSION, apiVersion)
-                                .addKeyValue(RuntimeLoggingKeys.SESSION_ID, filterContext.sessionId())
+                                .addKeyValue("apiKey", apiKey)
+                                .addKeyValue("apiVersion", apiVersion)
+                                .addKeyValue("sessionId", filterContext.sessionId())
                                 .log("invoker onResponse returned null, Filters should always return a CompletionStage");
                     }
                     return CompletableFuture.failedFuture(new IllegalStateException("invoker onResponse returned null for apiKey " + apiKey));

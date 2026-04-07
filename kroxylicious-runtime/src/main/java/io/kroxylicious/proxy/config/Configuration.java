@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.config;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -157,7 +156,7 @@ public record Configuration(
             }
             catch (SniHostIdentifiesNodeIdentificationStrategy.UnresolvedHostException e) {
                 LOGGER.atWarn()
-                        .addKeyValue(RuntimeLoggingKeys.GATEWAY, gateway.name())
+                        .addKeyValue("gateway", gateway.name())
                         .log("Not adding gateway due to unresolved host (associated OpenShift Route may not be ready yet)");
             }
         });

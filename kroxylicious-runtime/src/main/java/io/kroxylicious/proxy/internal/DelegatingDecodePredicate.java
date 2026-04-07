@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -45,7 +44,7 @@ class DelegatingDecodePredicate implements DecodePredicate {
 
     public void setDelegate(DecodePredicate delegate) {
         LOGGER.atDebug()
-                .addKeyValue(RuntimeLoggingKeys.DELEGATE, delegate)
+                .addKeyValue("delegate", delegate)
                 .log("Setting delegate");
         this.delegate = delegate;
     }

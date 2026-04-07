@@ -45,7 +45,6 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -113,7 +112,7 @@ public class VirtualClusterModel {
         var upstreamTlsSummary = generateTlsSummary(targetCluster.tls());
 
         LOGGER.atInfo()
-                .addKeyValue(RuntimeLoggingKeys.VIRTUAL_CLUSTER, clusterName)
+                .addKeyValue("virtualCluster", clusterName)
                 .log("Gateway summary");
 
         gateways.forEach((name, gateway) -> {
@@ -121,9 +120,9 @@ public class VirtualClusterModel {
             var downstreamTlsSummary = generateTlsSummary(gateway.getTls());
 
             LOGGER.atInfo()
-                    .addKeyValue(RuntimeLoggingKeys.GATEWAY, name)
-                    .addKeyValue(RuntimeLoggingKeys.DOWNSTREAM, downstreamBootstrap + downstreamTlsSummary)
-                    .addKeyValue(RuntimeLoggingKeys.UPSTREAM, upstreamHostPort + upstreamTlsSummary)
+                    .addKeyValue("gateway", name)
+                    .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary)
+                    .addKeyValue("upstream", upstreamHostPort + upstreamTlsSummary)
                     .log("Gateway configuration");
         });
     }
@@ -240,15 +239,15 @@ public class VirtualClusterModel {
             allowedProtocols.stream()
                     .filter(Predicate.not(supportedProtocols::contains))
                     .forEach(unsupportedProtocol -> LOGGER.atWarn()
-                            .addKeyValue(RuntimeLoggingKeys.UNSUPPORTED_PROTOCOL, unsupportedProtocol)
-                            .addKeyValue(RuntimeLoggingKeys.SUPPORTED_PROTOCOLS, supportedProtocols)
+                            .addKeyValue("unsupportedProtocol", unsupportedProtocol)
+                            .addKeyValue("supportedProtocols", supportedProtocols)
                             .log("Ignoring allowed protocol as it is not recognized by this platform"));
 
             deniedProtocols.stream()
                     .filter(Predicate.not(supportedProtocols::contains))
                     .forEach(unsupportedProtocol -> LOGGER.atWarn()
-                            .addKeyValue(RuntimeLoggingKeys.UNSUPPORTED_PROTOCOL, unsupportedProtocol)
-                            .addKeyValue(RuntimeLoggingKeys.SUPPORTED_PROTOCOLS, supportedProtocols)
+                            .addKeyValue("unsupportedProtocol", unsupportedProtocol)
+                            .addKeyValue("supportedProtocols", supportedProtocols)
                             .log("Ignoring denied protocol as it is not recognized by this platform"));
 
             var protocolsToUse = allowedProtocols.stream()

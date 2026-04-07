@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -43,7 +42,7 @@ public class SaslV0RejectionHandler extends ChannelDuplexHandler {
         if (frame.apiKeyId() == ApiKeys.SASL_HANDSHAKE.id && frame.apiVersion() == (short) 0) {
             if (LOGGER.isWarnEnabled()) {
                 LOGGER.atWarn()
-                        .addKeyValue(RuntimeLoggingKeys.CHANNEL_ID, ctx.channel().id())
+                        .addKeyValue("channelId", ctx.channel().id())
                         .log("SASL V0 handshake is not implemented by the proxy, your client is using an ancient SASL api version");
             }
             ctx.writeAndFlush(unsupportedVersionFrame(frame)).addListener(ChannelFutureListener.CLOSE);

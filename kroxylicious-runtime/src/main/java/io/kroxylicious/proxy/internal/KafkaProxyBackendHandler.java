@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Objects;
 
 import org.slf4j.Logger;
@@ -74,7 +73,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.atTrace()
-                .addKeyValue(RuntimeLoggingKeys.CONTEXT, ctx)
+                .addKeyValue("context", ctx)
                 .log("Channel active");
         if (proxyChannelStateMachine.virtualCluster().getUpstreamSslContext().isEmpty()) {
             proxyChannelStateMachine.onServerActive();
