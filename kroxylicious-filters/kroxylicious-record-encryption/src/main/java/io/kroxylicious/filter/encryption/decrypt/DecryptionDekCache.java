@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption.decrypt;
 
-import io.kroxylicious.filter.encryption.RecordEncryptionLoggingKeys;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -112,7 +111,7 @@ public class DecryptionDekCache<K, E> {
         if (dek != null) {
             dek.destroyForDecrypt();
             LOGGER.atTrace()
-                    .addKeyValue(RecordEncryptionLoggingKeys.DEK, dek)
+                    .addKeyValue("dek", dek)
                     .log("Attempted to destroy DEK");
         }
     }

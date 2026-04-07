@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption.kms;
 
-import io.kroxylicious.filter.encryption.RecordEncryptionLoggingKeys;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -111,7 +110,7 @@ public class CachingKms<K, E> implements Kms<K, E> {
         resolved.whenComplete((k, throwable) -> {
             if (throwable instanceof UnknownAliasException || (throwable instanceof CompletionException && throwable.getCause() instanceof UnknownAliasException)) {
                 LOGGER.atDebug()
-                        .addKeyValue(RecordEncryptionLoggingKeys.KEK_ID, alias)
+                        .addKeyValue("kekId", alias)
                         .log("Caching unknown alias");
                 notFoundAliasCache.put(alias, CompletableFuture.failedFuture(new UnknownAliasException("alias " + alias + " not found (cached result)")));
             }

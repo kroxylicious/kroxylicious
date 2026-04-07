@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption;
 
-import io.kroxylicious.filter.encryption.RecordEncryptionLoggingKeys;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -118,7 +117,7 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                                                                                        TopicNameMapping topicNameMapping) {
         if (request.acks() == 0) {
             LOGGER.atDebug()
-                    .addKeyValue(RecordEncryptionLoggingKeys.FAILURES, topicNameMapping.failures())
+                    .addKeyValue("failures", topicNameMapping.failures())
                     .log("Topic ID lookup failed for zero-ack produce request, dropping request");
             return context.requestFilterResultBuilder().drop().completed();
         }
@@ -175,7 +174,7 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                     }).toList();
                     return RecordEncryptionUtil.join(futures).thenApply(x -> request);
                 }).exceptionallyCompose(throwable -> {
-                    LOGGER.atWarn().addKeyValue(RecordEncryptionLoggingKeys.ERROR, throwable.getMessage())
+                    LOGGER.atWarn().addKeyValue("error", throwable.getMessage())
                             .setCause(LOGGER.isDebugEnabled() ? throwable : null)
                             .log("failed to encrypt records");
                     return CompletableFuture.failedStage(throwable);
@@ -266,7 +265,7 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
 
     private static CompletionStage<ResponseFilterResult> logAndCreateFailedStage(Throwable throwable) {
         LOGGER.atWarn()
-                .addKeyValue(RecordEncryptionLoggingKeys.ERROR, throwable.getMessage())
+                .addKeyValue("error", throwable.getMessage())
                 .setCause(LOGGER.isDebugEnabled() ? throwable : null)
                 .log(LOGGER.isDebugEnabled()
                         ? "Failed to process records, connection will be closed"
@@ -359,9 +358,9 @@ class RecordEncryptionFilter<K> implements ProduceRequestFilter, FetchResponseFi
                                     + "'Unexpected error code 91 while fetching at offset' (java) "
                                     + "or 'Request illegally referred to resource that does not exist' (librdkafka).";
                             LOGGER.atWarn()
-                                    .addKeyValue(RecordEncryptionLoggingKeys.TOPIC_NAME, topicName)
-                                    .addKeyValue(RecordEncryptionLoggingKeys.PARTITION, () -> partitionIndexExtractor.applyAsInt(partitionData))
-                                    .addKeyValue(RecordEncryptionLoggingKeys.ERROR, cause.getMessage())
+                                    .addKeyValue("topicName", topicName)
+                                    .addKeyValue("partition", () -> partitionIndexExtractor.applyAsInt(partitionData))
+                                    .addKeyValue("error", cause.getMessage())
                                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
                                     .log(LOGGER.isDebugEnabled()
                                             ? msgPrefix

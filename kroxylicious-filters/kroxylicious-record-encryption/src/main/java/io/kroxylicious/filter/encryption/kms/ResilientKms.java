@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption.kms;
 
-import io.kroxylicious.filter.encryption.RecordEncryptionLoggingKeys;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -102,8 +101,8 @@ public class ResilientKms<K, E> implements Kms<K, E> {
                         return CompletableFuture.failedFuture(e);
                     }
                     LOGGER.atDebug()
-                            .addKeyValue(RecordEncryptionLoggingKeys.KMS_OPERATION, name)
-                            .addKeyValue(RecordEncryptionLoggingKeys.ATTEMPT, attempt)
+                            .addKeyValue("kmsOperation", name)
+                            .addKeyValue("attempt", attempt)
                             .setCause(e)
                             .log("KMS operation failed attempt");
                     return retry(name, operation, attempt + 1, e);
