@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
-import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -18,6 +17,7 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 class KafkaProtocolFilterSecondaryToKafkaProxyPrimaryMapper implements SecondaryToPrimaryMapper<KafkaProtocolFilter> {

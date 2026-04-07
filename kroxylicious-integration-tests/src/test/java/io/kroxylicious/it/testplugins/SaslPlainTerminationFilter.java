@@ -6,7 +6,6 @@
 
 package io.kroxylicious.it.testplugins;
 
-import io.kroxylicious.it.IntegrationTestLoggingKeys;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 
@@ -27,6 +26,7 @@ import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.it.IntegrationTestLoggingKeys;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;

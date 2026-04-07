@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.app;
 
-import io.kroxylicious.app.AppLoggingKeys;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;

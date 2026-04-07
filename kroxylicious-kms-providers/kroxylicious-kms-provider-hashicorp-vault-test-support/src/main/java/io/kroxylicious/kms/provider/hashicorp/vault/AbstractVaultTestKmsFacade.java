@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultTestSupportLoggingKeys;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
