@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.simpletransform;
 
-import io.kroxylicious.filter.simpletransform.SimpleTransformLoggingKeys;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
@@ -111,9 +110,9 @@ class ProduceRequestTransformationFilter implements ProduceRequestFilter {
         int failures = topicNameMapping.failures().size();
         boolean hasMore = failures > MAX_TOPIC_IDS_TO_LOG;
         LOGGER.atWarn()
-                .addKeyValue(SimpleTransformLoggingKeys.FAILURE_COUNT, failures)
-                .addKeyValue(SimpleTransformLoggingKeys.TOPIC_IDS, () -> firstThree + (hasMore ? "..." : ""))
-                .addKeyValue(SimpleTransformLoggingKeys.OUTCOME, outcome)
+                .addKeyValue("failureCount", failures)
+                .addKeyValue("topicIds", () -> firstThree + (hasMore ? "..." : ""))
+                .addKeyValue("outcome", outcome)
                 .log("Failed to map topic ids to names for acks=0 request");
     }
 }
