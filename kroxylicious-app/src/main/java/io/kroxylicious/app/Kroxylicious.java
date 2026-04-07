@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.app;
 
-import io.kroxylicious.app.AppLoggingKeys;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -111,16 +110,16 @@ public class Kroxylicious implements Callable<Integer> {
         String[] versions = new VersionProvider().getVersion();
         for (String version : versions) {
             LOGGER.atInfo()
-                    .addKeyValue(AppLoggingKeys.VERSION, version)
+                    .addKeyValue("version", version)
                     .log("Kroxylicious version");
         }
         features.warnings().forEach(LOGGER::warn);
         LOGGER.atInfo()
-                .addKeyValue(AppLoggingKeys.JAVA_VERSION, Runtime::version)
-                .addKeyValue(AppLoggingKeys.JAVA_VENDOR, () -> System.getProperty("java.vendor"))
-                .addKeyValue(AppLoggingKeys.OS_NAME, () -> System.getProperty("os.name"))
-                .addKeyValue(AppLoggingKeys.OS_VERSION, () -> System.getProperty("os.version"))
-                .addKeyValue(AppLoggingKeys.OS_ARCH, () -> System.getProperty("os.arch"))
+                .addKeyValue("javaVersion", Runtime::version)
+                .addKeyValue("javaVendor", () -> System.getProperty("java.vendor"))
+                .addKeyValue("osName", () -> System.getProperty("os.name"))
+                .addKeyValue("osVersion", () -> System.getProperty("os.version"))
+                .addKeyValue("osArch", () -> System.getProperty("os.arch"))
                 .log("Java Platform");
     }
 
