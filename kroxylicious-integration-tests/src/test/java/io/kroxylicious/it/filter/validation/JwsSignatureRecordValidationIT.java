@@ -21,6 +21,7 @@ import io.kroxylicious.filter.validation.RecordValidation;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.test.jws.JwsTestUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -28,12 +29,8 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
 import static io.kroxylicious.test.jws.JwsTestUtils.JWS_HEADER_NAME;
 import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED;
 import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD;
 import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_PAYLOAD;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_MISSING_ECDSA_JWK;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_RSA_JWK;
 import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_RSA_JWK_PAYLOAD;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -52,7 +49,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
-                    EMPTY_STRING, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK))));
+                    EMPTY_STRING, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, List.of(new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwk()))));
             assertThatFutureSucceeds(result);
 
             var records = consumeAll(tester, topic);
@@ -63,7 +60,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
             assertThat(records)
                     .singleElement()
-                    .satisfies(record -> hasJwsHeaderWithValue(record, VALID_JWS_USING_ECDSA_JWK));
+                    .satisfies(record -> hasJwsHeaderWithValue(record, JwsTestUtils.validJwsUsingEcdsaJwk()));
         }
     }
 
@@ -92,7 +89,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
-                    EMPTY_STRING, VALID_JWS_USING_RSA_JWK_PAYLOAD, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK))));
+                    EMPTY_STRING, VALID_JWS_USING_RSA_JWK_PAYLOAD, List.of(new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingRsaJwk()))));
             assertThatFutureSucceeds(result);
 
             var records = consumeAll(tester, topic);
@@ -103,7 +100,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
             assertThat(records)
                     .singleElement()
-                    .satisfies(record -> hasJwsHeaderWithValue(record, VALID_JWS_USING_RSA_JWK));
+                    .satisfies(record -> hasJwsHeaderWithValue(record, JwsTestUtils.validJwsUsingRsaJwk()));
         }
     }
 
@@ -115,7 +112,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
                     EMPTY_STRING, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD,
-                    List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED))));
+                    List.of(new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwkAndUnencodedContentDetached()))));
             assertThatFutureSucceeds(result);
 
             var records = consumeAll(tester, topic);
@@ -126,7 +123,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
 
             assertThat(records)
                     .singleElement()
-                    .satisfies(record -> hasJwsHeaderWithValue(record, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED));
+                    .satisfies(record -> hasJwsHeaderWithValue(record, JwsTestUtils.validJwsUsingEcdsaJwkAndUnencodedContentDetached()));
         }
     }
 
@@ -163,7 +160,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
-                    EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_MISSING_ECDSA_JWK))));
+                    EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingMissingEcdsaJwk()))));
             assertThatFutureFails(result, InvalidRecordException.class,
                     "Could not select a valid JWK that matches the algorithm constraints");
         }
@@ -176,7 +173,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
-                    EMPTY_STRING, VALID_JWS_USING_RSA_JWK_PAYLOAD, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK))));
+                    EMPTY_STRING, VALID_JWS_USING_RSA_JWK_PAYLOAD, List.of(new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingRsaJwk()))));
             assertThatFutureFails(result, InvalidRecordException.class,
                     "Could not select a valid JWK that matches the algorithm constraints");
         }
@@ -189,7 +186,7 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
-                    EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED))));
+                    EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwkAndUnencodedContentDetached()))));
             assertThatFutureFails(result, InvalidRecordException.class, "JWS Signature was invalid");
         }
     }

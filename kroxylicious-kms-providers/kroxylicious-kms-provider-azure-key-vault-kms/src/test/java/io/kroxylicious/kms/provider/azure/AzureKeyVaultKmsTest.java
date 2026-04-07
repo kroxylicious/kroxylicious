@@ -52,9 +52,9 @@ class AzureKeyVaultKmsTest {
 
     public static final String KEY_NAME = "my-key";
     public static final List<String> REQUIRED_KEY_OPS = List.of("wrapKey", "unwrapKey");
-    public static final byte[] WRAPPED_DEK_BYTES = { 1, 2, 3 };
+    private static final byte[] WRAPPED_DEK_BYTES = { 1, 2, 3 };
     // 32 byte DEK
-    public static final byte[] DEK_BYTES = Base64.getDecoder().decode("y6f9E5vVqJOFc5B/Rhp5v5V54/1AsLq11AxlurL6qNA=");
+    private static final byte[] DEK_BYTES = Base64.getDecoder().decode("y6f9E5vVqJOFc5B/Rhp5v5V54/1AsLq11AxlurL6qNA=");
     public static final String VAULT_NAME = "myvault";
     public static final SupportedKeyType SUPPORTED_KEY_TYPE = SupportedKeyType.OCT;
 
