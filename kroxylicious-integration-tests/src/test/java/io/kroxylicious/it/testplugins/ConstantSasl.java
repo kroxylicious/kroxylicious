@@ -21,7 +21,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A filter for testing purposes which simply calls
- * {@link io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(String, String)} or
+ * {@link io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(String, io.kroxylicious.proxy.authentication.Subject)} or
  * {@link io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationFailure(String, String, Exception)}
  * when it first observes a specific request type.
  *

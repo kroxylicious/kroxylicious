@@ -8,11 +8,9 @@ package io.kroxylicious.proxy.internal;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -33,7 +31,6 @@ import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
-import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -84,8 +81,6 @@ public class FilterHandler extends ChannelDuplexHandler {
      */
     private @Nullable ChannelHandlerContext ctx;
     private @Nullable PromiseFactory promiseFactory;
-
-    private static final AtomicBoolean deprecationWarningEmitted = new AtomicBoolean(false);
 
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
@@ -649,19 +644,6 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public Optional<ClientTlsContext> clientTlsContext() {
             return proxyChannelStateMachine.clientTlsContext();
-        }
-
-        @Override
-        public void clientSaslAuthenticationSuccess(String mechanism,
-                                                    String authorizedId) {
-            if (deprecationWarningEmitted.compareAndSet(false, true)) {
-                LOGGER.warn("Deprecated clientSaslAuthenticationSuccess(String mechanism, String authorizedId) was invoked by filter '{}'. Instead call "
-                        + "clientSaslAuthenticationSuccess(String mechanism, Subject subject), ensuring that the Subject contains a {} principal with "
-                        + "name equal to authorizedId",
-                        filterAndInvoker.filterName(),
-                        User.class.getName());
-            }
-            clientSaslAuthenticationSuccess(mechanism, new Subject(Set.of(new User(authorizedId))));
         }
 
         @Override

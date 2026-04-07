@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
 import io.kroxylicious.filter.oauthbearer.sasl.BackoffStrategy;
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -177,7 +179,7 @@ public class OauthBearerValidationFilter
                                                                             SaslAuthenticateResponseData response, FilterContext context) {
         if (response.errorCode() == NONE.code()) {
             this.validateAuthentication = false;
-            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, Objects.requireNonNull(authorizationId));
+            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, new Subject(new User(Objects.requireNonNull(authorizationId))));
         }
         return context.forwardResponse(header, response);
     }
