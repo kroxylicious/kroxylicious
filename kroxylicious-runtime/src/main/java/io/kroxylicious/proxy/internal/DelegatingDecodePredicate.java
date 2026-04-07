@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

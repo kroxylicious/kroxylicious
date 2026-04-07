@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -20,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 /**
  * An internal filter that causes the system to eagerly learn the cluster's topology by spontaneously emitting

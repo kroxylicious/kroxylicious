@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption.kms;
 
+import io.kroxylicious.filter.encryption.RecordEncryptionLoggingKeys;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -19,7 +20,6 @@ import javax.crypto.SecretKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.filter.encryption.common.RecordEncryptionLoggingKeys;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;

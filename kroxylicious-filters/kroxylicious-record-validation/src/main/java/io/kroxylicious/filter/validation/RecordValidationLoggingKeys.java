@@ -9,7 +9,7 @@ package io.kroxylicious.filter.validation;
 /**
  * Common keys for structured logging in kroxylicious-record-validation.
  */
-class RecordValidationLoggingKeys {
+public class RecordValidationLoggingKeys {
 
     private RecordValidationLoggingKeys() {
     }

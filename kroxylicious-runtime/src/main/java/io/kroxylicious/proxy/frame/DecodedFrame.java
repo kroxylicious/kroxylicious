@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.frame;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,8 +19,6 @@ import org.slf4j.LoggerFactory;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
-
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

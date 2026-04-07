@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

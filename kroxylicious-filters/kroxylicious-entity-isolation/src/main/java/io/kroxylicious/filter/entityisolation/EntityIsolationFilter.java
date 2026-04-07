@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.filter.entityisolation;
 
+import io.kroxylicious.filter.entityisolation.EntityIsolationLoggingKeys;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;

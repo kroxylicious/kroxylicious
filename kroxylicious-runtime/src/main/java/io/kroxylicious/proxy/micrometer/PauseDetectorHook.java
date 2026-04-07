@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.beans.ConstructorProperties;
 import java.time.Duration;
 import java.util.Objects;
@@ -18,7 +19,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.distribution.pause.ClockDriftPauseDetector;
 import io.micrometer.core.instrument.distribution.pause.PauseDetector;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 import edu.umd.cs.findbugs.annotations.Nullable;

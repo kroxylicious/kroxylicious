@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;

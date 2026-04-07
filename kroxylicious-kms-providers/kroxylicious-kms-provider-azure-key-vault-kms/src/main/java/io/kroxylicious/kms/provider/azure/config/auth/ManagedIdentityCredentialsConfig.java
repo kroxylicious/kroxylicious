@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kms.provider.azure.config.auth;
 
+import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.net.URI;
 import java.util.Objects;
 
@@ -15,8 +16,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-
-import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

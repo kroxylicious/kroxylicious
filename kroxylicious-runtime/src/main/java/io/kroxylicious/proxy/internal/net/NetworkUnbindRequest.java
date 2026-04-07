@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -16,8 +17,6 @@ import org.slf4j.LoggerFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
-
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 /**
  * Request for a network endpoint to be unbound.

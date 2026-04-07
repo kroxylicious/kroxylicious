@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.test.codec;
 
+import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -17,7 +18,6 @@ import io.netty.channel.ChannelHandlerContext;
 
 import io.kroxylicious.test.client.CorrelationManager;
 import io.kroxylicious.test.client.SequencedResponse;
-import io.kroxylicious.test.support.TestSupportLoggingKeys;
 
 /**
  * KafkaResponseDecoder

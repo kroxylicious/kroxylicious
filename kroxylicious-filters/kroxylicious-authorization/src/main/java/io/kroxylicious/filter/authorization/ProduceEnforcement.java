@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.authorization;
 
+import io.kroxylicious.filter.authorization.AuthorizationLoggingKeys;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;

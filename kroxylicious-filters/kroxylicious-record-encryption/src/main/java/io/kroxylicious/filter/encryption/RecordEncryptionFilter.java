@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption;
 
+import io.kroxylicious.filter.encryption.RecordEncryptionLoggingKeys;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -42,7 +43,6 @@ import io.micrometer.core.instrument.Meter;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
-import io.kroxylicious.filter.encryption.common.RecordEncryptionLoggingKeys;
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;

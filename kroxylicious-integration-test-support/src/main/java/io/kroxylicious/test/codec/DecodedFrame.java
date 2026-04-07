@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.test.codec;
 
+import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import java.util.Objects;
 
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -13,8 +14,6 @@ import org.apache.kafka.common.protocol.MessageSizeAccumulator;
 import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.kroxylicious.test.support.TestSupportLoggingKeys;
 
 /**
  * A frame that has been decoded.

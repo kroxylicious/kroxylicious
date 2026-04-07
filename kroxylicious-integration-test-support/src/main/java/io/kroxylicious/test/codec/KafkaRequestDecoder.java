@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.test.codec;
 
+import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -14,8 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-
-import io.kroxylicious.test.support.TestSupportLoggingKeys;
 
 /**
  * Decoder for Kafka Requests

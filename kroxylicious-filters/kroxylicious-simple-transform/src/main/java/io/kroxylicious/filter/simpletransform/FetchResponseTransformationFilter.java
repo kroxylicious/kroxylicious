@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.simpletransform;
 
+import io.kroxylicious.filter.simpletransform.SimpleTransformLoggingKeys;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;

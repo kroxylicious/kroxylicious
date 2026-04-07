@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;

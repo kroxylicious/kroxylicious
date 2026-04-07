@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.kms.provider.azure.auth;
 
+import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.time.Clock;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -17,7 +18,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;

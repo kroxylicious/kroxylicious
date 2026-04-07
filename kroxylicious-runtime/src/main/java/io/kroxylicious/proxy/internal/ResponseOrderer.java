@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;

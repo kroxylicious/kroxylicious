@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.model;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -16,8 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.handler.ssl.CipherSuiteFilter;
-
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

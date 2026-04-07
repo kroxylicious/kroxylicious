@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption.encrypt;
 
+import io.kroxylicious.filter.encryption.RecordEncryptionLoggingKeys;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -21,7 +22,6 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
-import io.kroxylicious.filter.encryption.common.RecordEncryptionLoggingKeys;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
 import io.kroxylicious.filter.encryption.dek.Dek;

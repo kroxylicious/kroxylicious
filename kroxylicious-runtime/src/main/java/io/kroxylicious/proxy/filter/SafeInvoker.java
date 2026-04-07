@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.filter;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -15,8 +16,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 /**
  * Wraps a delegate invoker so that onRequest and onResponse can be safely called even if this

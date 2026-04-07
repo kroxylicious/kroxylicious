@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import org.slf4j.Logger;
 
 import io.netty.buffer.ByteBuf;
@@ -12,7 +13,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 
 import io.kroxylicious.proxy.frame.Frame;
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

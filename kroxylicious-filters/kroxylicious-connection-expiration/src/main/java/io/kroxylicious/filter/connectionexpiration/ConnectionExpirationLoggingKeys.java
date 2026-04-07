@@ -9,7 +9,7 @@ package io.kroxylicious.filter.connectionexpiration;
 /**
  * Common keys for structured logging in kroxylicious-connection-expiration.
  */
-class ConnectionExpirationLoggingKeys {
+public class ConnectionExpirationLoggingKeys {
 
     private ConnectionExpirationLoggingKeys() {
     }

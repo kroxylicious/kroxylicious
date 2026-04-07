@@ -9,7 +9,7 @@ package io.kroxylicious.kms.service;
 /**
  * Common keys for structured logging in kroxylicious-kms.
  */
-class KmsLoggingKeys {
+public class KmsLoggingKeys {
 
     private KmsLoggingKeys() {
     }

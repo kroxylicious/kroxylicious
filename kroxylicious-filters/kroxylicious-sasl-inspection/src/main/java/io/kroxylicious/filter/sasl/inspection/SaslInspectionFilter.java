@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.sasl.inspection;
 
+import io.kroxylicious.filter.sasl.inspection.SaslInspectionLoggingKeys;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;

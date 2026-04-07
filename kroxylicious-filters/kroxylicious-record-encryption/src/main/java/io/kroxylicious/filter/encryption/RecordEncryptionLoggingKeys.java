@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.encryption.common;
+package io.kroxylicious.filter.encryption;
 
 /**
  * Common keys for structured logging in kroxylicious-record-encryption.

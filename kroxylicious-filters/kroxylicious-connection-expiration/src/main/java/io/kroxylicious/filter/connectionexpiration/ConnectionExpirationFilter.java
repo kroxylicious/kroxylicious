@@ -5,6 +5,7 @@
  */
 
 package io.kroxylicious.filter.connectionexpiration;
+nimport io.kroxylicious.filter.connectionexpiration.ConnectionExpirationLoggingKeys;
 
 import java.time.Clock;
 import java.time.Duration;

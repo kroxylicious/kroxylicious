@@ -7,6 +7,7 @@
 
 package io.kroxylicious.filter.authorization;
 
+import io.kroxylicious.filter.authorization.AuthorizationLoggingKeys;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -17,8 +18,6 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 /**
  * Request for a network endpoint to be bound.

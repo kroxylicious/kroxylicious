@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kms.provider.azure;
 
+import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;

@@ -5,6 +5,7 @@
  */
 
 package io.kroxylicious.filter.validation;
+nimport io.kroxylicious.filter.validation.RecordValidationLoggingKeys;
 
 import java.util.HashMap;
 import java.util.List;
