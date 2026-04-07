@@ -46,6 +46,7 @@ class RecordEncryptorTest {
                           Dek.Decryptor decryptor,
                           Serde<ByteBuffer> edekSerde)
             implements Closeable {
+        @Override
         public void close() {
             encryptor.close();
             decryptor.close();

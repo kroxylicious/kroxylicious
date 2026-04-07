@@ -30,14 +30,17 @@ import static org.apache.kafka.common.requests.FetchResponse.partitionResponse;
 class FetchEnforcement extends ApiEnforcement<FetchRequestData, FetchResponseData> {
 
     // lowest version supported by proxy
+    @Override
     short minSupportedVersion() {
         return 4;
     }
 
+    @Override
     short maxSupportedVersion() {
         return 18;
     }
 
+    @Override
     CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
                                                    FetchRequestData request,
                                                    FilterContext context,

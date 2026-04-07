@@ -20,19 +20,14 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.validation.validators.Result;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.test.jws.JwsTestUtils;
 
 import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
-import static io.kroxylicious.test.jws.JwsTestUtils.INVALID_JWS;
 import static io.kroxylicious.test.jws.JwsTestUtils.JWS_HEADER_NAME;
 import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
 import static io.kroxylicious.test.jws.JwsTestUtils.RSA_VERIFY_JWKS;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED;
 import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED;
 import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_MISSING_ECDSA_JWK;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_RSA_JWK;
 import static io.kroxylicious.test.record.RecordTestUtils.record;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,7 +44,7 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void jwsSignedWithEcdsaJwkPassesValidation() {
-        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwk()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
         CompletionStage<Result> future = validator.validate(record.key(), record, true);
@@ -61,7 +56,7 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void jwsSignedWithEcdsaJwkPassesValidationWithDefaultConfig() {
-        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwk()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, null), new JwsSignatureBytebufValidator.JwsContentOptions(null));
         CompletionStage<Result> future = validator.validate(record.key(), record, true);
@@ -73,7 +68,7 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void jwsSignedWithRsaJwkPassesValidation() {
-        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK));
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingRsaJwk()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(RSA_VERIFY_JWKS, PERMIT_RS256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
@@ -97,7 +92,7 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void jwsSignedWithEcdsaJwkAndJwsSignedWithRsaJwkBothPassValidationWithNoConstraints() {
-        Record ecdsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
+        Record ecdsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwk()));
 
         BytebufValidator ecdsaValidator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ALL,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
@@ -107,7 +102,7 @@ public class JwsSignatureBytebufValidatorTest {
                 .succeedsWithin(Duration.ofSeconds(1))
                 .returns(true, Result::valid);
 
-        Record rsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK));
+        Record rsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingRsaJwk()));
 
         BytebufValidator rsaValidator = BytebufValidators.jwsSignatureValidator(RSA_VERIFY_JWKS, PERMIT_ALL,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
@@ -120,7 +115,7 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void jwsSignedWithEcdsaJwkPassesValidationWithConstraintsAndMultiKeyJwks() {
-        Record ecdsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
+        Record ecdsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwk()));
 
         BytebufValidator ecdsaAndRsaValidator = BytebufValidators.jwsSignatureValidator(RSA_AND_ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
@@ -133,8 +128,8 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void jwsSignedWithEcdsaJwkAndJwsSignedWithRsaJwkBothPassValidationWithConstraintsAndMultiKeyJwks() {
-        Record ecdsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
-        Record rsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK));
+        Record ecdsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwk()));
+        Record rsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingRsaJwk()));
 
         BytebufValidator ecdsaAndRsaValidator = BytebufValidators.jwsSignatureValidator(RSA_AND_ECDSA_VERIFY_JWKS, PERMIT_ES256_AND_RS256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
@@ -152,7 +147,8 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void jwsSignedWithEcdsaJwkAndUsingContentDetachedPassesValidation() {
-        Record record = record(VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED));
+        Record record = record(VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD,
+                new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwkAndContentDetached()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(true));
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
@@ -165,7 +161,7 @@ public class JwsSignatureBytebufValidatorTest {
     @Test
     void jwsSignedWithEcdsaJwkAndUsingUnencodedContentDetachedPassesValidation() {
         Record record = record(VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD,
-                new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED));
+                new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwkAndUnencodedContentDetached()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(true));
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
@@ -177,7 +173,7 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void invalidJwsFailsValidation() {
-        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, INVALID_JWS));
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.invalidJws()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
@@ -189,7 +185,7 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void missingJwsHeaderFailsValidation() {
-        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, INVALID_JWS));
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.invalidJws()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
@@ -225,7 +221,7 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void jwsSignedWithMissingEcdsaJwkFailsValidation() {
-        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_MISSING_ECDSA_JWK));
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingMissingEcdsaJwk()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
@@ -237,7 +233,7 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void jwsSignedWithRsaJwkFailsValidationDueToEcdsaConstraints() {
-        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK));
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingRsaJwk()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(RSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
@@ -249,7 +245,7 @@ public class JwsSignatureBytebufValidatorTest {
 
     @Test
     void jwsSignedWithEcdsaJwkAndUsingContentDetachedFailsValidationWithEmptyBuffer() {
-        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED));
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwkAndContentDetached()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(false));
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
@@ -263,7 +259,7 @@ public class JwsSignatureBytebufValidatorTest {
     void jwsSignedWithEcdsaJwkAndUsingUnencodedContentDetachedFailsValidationWhenPayloadIsEncoded() {
         String base64EncodedPayload = Base64.getEncoder()
                 .encodeToString(VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD.getBytes(StandardCharsets.UTF_8));
-        Record record = record(base64EncodedPayload, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED));
+        Record record = record(base64EncodedPayload, new RecordHeader(JWS_HEADER_NAME, JwsTestUtils.validJwsUsingEcdsaJwkAndUnencodedContentDetached()));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_VERIFY_JWKS, PERMIT_ES256,
                 new JwsSignatureBytebufValidator.JwsHeaderOptions(JWS_HEADER_NAME, true), new JwsSignatureBytebufValidator.JwsContentOptions(true));
         CompletionStage<Result> future = validator.validate(record.value(), record, false);

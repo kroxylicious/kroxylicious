@@ -292,6 +292,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         return clients(virtualCluster, DEFAULT_GATEWAY_NAME).consumer(keySerde, valueSerde, additionalConfig);
     }
 
+    @Override
     public void restartProxy() {
         try {
             proxy.close();

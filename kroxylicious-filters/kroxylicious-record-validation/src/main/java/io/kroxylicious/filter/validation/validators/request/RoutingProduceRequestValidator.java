@@ -53,6 +53,7 @@ public class RoutingProduceRequestValidator implements ProduceRequestValidator {
         this.defaultValidator = defaultValidator;
     }
 
+    @Override
     public CompletionStage<ProduceRequestValidationResult> validateRequest(List<NamedTopicProduceData> topicData) {
         CompletableFuture<TopicValidationResult>[] results = topicData.stream()
                 .map(this::validateTopicProduceData)

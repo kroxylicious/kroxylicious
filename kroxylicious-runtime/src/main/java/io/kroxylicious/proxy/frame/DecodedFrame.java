@@ -57,6 +57,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         return correlationId;
     }
 
+    @Override
     public short apiKeyId() {
         return body.apiKey();
     }
@@ -65,10 +66,12 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         return ApiKeys.forId(apiKeyId());
     }
 
+    @Override
     public short apiVersion() {
         return apiVersion;
     }
 
+    @Override
     public boolean isDecoded() {
         return true;
     }

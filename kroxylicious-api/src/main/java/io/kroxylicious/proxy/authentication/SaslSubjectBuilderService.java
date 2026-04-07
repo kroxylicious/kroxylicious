@@ -11,6 +11,7 @@ public interface SaslSubjectBuilderService<C> extends AutoCloseable {
 
     SaslSubjectBuilder build();
 
+    @Override
     default void close() {
     }
 }

@@ -136,6 +136,7 @@ public class WrapperV2 implements Wrapper {
         buffer.position(buffer.position() + paramsBuffer.limit());
     }
 
+    @Override
     public <E, T> T readSpecAndEdek(ByteBuffer wrapper, Serde<E> serde, BiFunction<CipherManager, E, T> function) {
         CipherManager cipherManager = cipherSpecResolver.fromSerializedId(wrapper.get());
         var edekLength = ByteUtils.readUnsignedVarint(wrapper);

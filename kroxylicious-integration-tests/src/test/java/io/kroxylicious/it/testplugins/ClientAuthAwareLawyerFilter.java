@@ -43,8 +43,8 @@ public class ClientAuthAwareLawyerFilter
     public static final String HEADER_KEY_AUTHENTICATED_SUBJECT = headerName(ClientAuthAwareLawyerFilter.class, "#authenticatedSubject");
     public static final String HEADER_KEY_CLIENT_SASL_MECH_NAME = headerName(ClientAuthAwareLawyerFilter.class, "#clientSaslContext.mechanismName");
 
-    public static final byte[] TRUE = { 1 };
-    public static final byte[] FALSE = { 0 };
+    private static final byte[] TRUE = { 1 };
+    private static final byte[] FALSE = { 0 };
     private static final Map<String, Function<FilterContext, byte[]>> HEADERS = Map.of(
             HEADER_KEY_CLIENT_TLS_IS_PRESENT,
             context -> context.clientTlsContext().isPresent() ? TRUE : FALSE,
@@ -80,6 +80,14 @@ public class ClientAuthAwareLawyerFilter
         return x509Certificate.getSubjectX500Principal()
                 .getName(X500Principal.RFC1779,
                         Map.of("1.2.840.113549.1.9.1", "emailAddress"));
+    }
+
+    public static byte[] trueValue() {
+        return TRUE.clone();
+    }
+
+    public static byte[] falseValue() {
+        return FALSE.clone();
     }
 
     @NonNull

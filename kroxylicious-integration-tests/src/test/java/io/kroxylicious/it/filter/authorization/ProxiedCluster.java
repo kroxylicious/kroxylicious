@@ -67,6 +67,7 @@ public final class ProxiedCluster implements BaseClusterFixture {
         return rulesFile;
     }
 
+    @Override
     public void close() {
         tester.close();
     }

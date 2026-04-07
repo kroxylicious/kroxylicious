@@ -9,7 +9,17 @@ package io.kroxylicious.kubernetes.api.common;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
 
 /**
- * A reference, used in a kubernetes resource, to a resource containing a private key and certificate.
+ * A reference, used in a Kubernetes resource, to a resource that provides a private key
+ * and certificate (e.g. a Kubernetes {@code Secret} or a cert-manager {@code Certificate}).
+ *
+ * <p>This is a dynamically-typed ref: the target resource type is not fixed, so
+ * {@code group}, {@code kind} and {@code name} are all serialized to JSON and must be
+ * supplied by the user. This allows references to TLS credentials stored in different
+ * resource types depending on the operator environment.</p>
+ *
+ * <p>Despite being a distinct Java class, a {@code CertificateRef} is considered equal to
+ * any other {@link LocalRef} subclass instance (e.g. {@link AnyLocalRef}) that carries the
+ * same {@code group}, {@code kind} and {@code name} values. See {@link LocalRef} for details.</p>
  */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
 @com.fasterxml.jackson.annotation.JsonPropertyOrder({ "group", "kind", "name" })
