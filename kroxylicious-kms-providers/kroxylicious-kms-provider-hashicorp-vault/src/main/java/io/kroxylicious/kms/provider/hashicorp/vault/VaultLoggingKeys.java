@@ -13,27 +13,27 @@ public class VaultLoggingKeys {
 
     private VaultLoggingKeys() {
     }
-
+    
     /**
      * Error.
      */
     public static final String ERROR = "error";
-
+    
     /**
      * Kek ref.
      */
     public static final String KEK_REF = "kekRef";
-
+    
     /**
      * Request uri.
      */
     public static final String REQUEST_URI = "requestUri";
-
+    
     /**
      * Response body.
      */
     public static final String RESPONSE_BODY = "responseBody";
-
+    
     /**
      * Status code.
      */

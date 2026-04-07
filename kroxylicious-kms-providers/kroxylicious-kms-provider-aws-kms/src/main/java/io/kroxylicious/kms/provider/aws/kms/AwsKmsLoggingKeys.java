@@ -13,27 +13,27 @@ public class AwsKmsLoggingKeys {
 
     private AwsKmsLoggingKeys() {
     }
-
+    
     /**
      * Credential.
      */
     public static final String CREDENTIAL = "credential";
-
+    
     /**
      * Delay ms.
      */
     public static final String DELAY_MS = "delayMs";
-
+    
     /**
      * Error.
      */
     public static final String ERROR = "error";
-
+    
     /**
      * Expiration.
      */
     public static final String EXPIRATION = "expiration";
-
+    
     /**
      * Iam role.
      */
