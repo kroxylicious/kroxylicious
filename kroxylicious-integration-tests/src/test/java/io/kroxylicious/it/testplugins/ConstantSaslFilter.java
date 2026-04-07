@@ -43,7 +43,8 @@ public class ConstantSaslFilter implements RequestFilter {
         if (!finished && apiKey == config.api()) {
             if (config.exceptionClassName() == null) {
                 if (config.principalType() == null) {
-                    context.clientSaslAuthenticationSuccess(Objects.requireNonNull(config.mechanism()), new Subject(new User(Objects.requireNonNull(config.authorizedId()))));
+                    context.clientSaslAuthenticationSuccess(Objects.requireNonNull(config.mechanism()),
+                            new Subject(new User(Objects.requireNonNull(config.authorizedId()))));
                 }
                 else {
                     try {
