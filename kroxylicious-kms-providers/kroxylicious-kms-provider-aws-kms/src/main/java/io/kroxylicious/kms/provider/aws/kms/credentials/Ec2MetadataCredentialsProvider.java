@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.provider.aws.kms.credentials;
 
-import io.kroxylicious.kms.provider.aws.kms.AwsKmsLoggingKeys;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -41,6 +40,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import io.kroxylicious.kms.provider.aws.kms.AwsKmsLoggingKeys;
 import io.kroxylicious.kms.provider.aws.kms.config.Ec2MetadataCredentialsProviderConfig;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;

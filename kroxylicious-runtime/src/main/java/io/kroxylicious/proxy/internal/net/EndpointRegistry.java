@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.net;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +30,7 @@ import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 

@@ -9,7 +9,7 @@ package io.kroxylicious.kafka.transform;
 /**
  * Common keys for structured logging in kroxylicious-kafka-message-tools.
  */
-public class TransformLoggingKeys {
+class TransformLoggingKeys {
 
     private TransformLoggingKeys() {
     }

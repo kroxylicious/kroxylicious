@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;

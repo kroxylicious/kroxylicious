@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.test.client;
 
-import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +14,8 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.test.support.TestSupportLoggingKeys;
 
 /**
  * Tracks api version for requests

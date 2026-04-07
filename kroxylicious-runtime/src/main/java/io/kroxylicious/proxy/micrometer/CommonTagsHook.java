@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.List;
 import java.util.Map;
 
@@ -17,6 +16,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 import edu.umd.cs.findbugs.annotations.Nullable;

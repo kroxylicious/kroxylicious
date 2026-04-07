@@ -5,7 +5,6 @@
  */
 
 package io.kroxylicious.kms.service;
-nimport io.kroxylicious.kms.service.KmsLoggingKeys;
 
 import java.util.Arrays;
 import java.util.Locale;

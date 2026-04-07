@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.admin;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +27,8 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
+
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;

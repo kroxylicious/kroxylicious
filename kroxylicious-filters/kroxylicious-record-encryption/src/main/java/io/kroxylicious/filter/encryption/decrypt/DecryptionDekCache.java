@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption.decrypt;
 
-import io.kroxylicious.filter.encryption.RecordEncryptionLoggingKeys;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -22,6 +21,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
+import io.kroxylicious.filter.encryption.common.RecordEncryptionLoggingKeys;
 import io.kroxylicious.filter.encryption.dek.CipherManager;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;

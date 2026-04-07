@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.provider.fortanix.dsm.session;
 
-import io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmLoggingKeys;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
@@ -39,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmLoggingKeys;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.ApiKeySessionProviderConfig;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.KmsException;

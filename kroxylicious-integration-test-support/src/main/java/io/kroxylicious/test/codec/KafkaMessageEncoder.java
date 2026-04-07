@@ -5,12 +5,13 @@
  */
 package io.kroxylicious.test.codec;
 
-import io.kroxylicious.test.support.TestSupportLoggingKeys;
 import org.slf4j.Logger;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
+
+import io.kroxylicious.test.support.TestSupportLoggingKeys;
 
 /**
  * Abstraction for request and response encoders.

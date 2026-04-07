@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption;
 
-import io.kroxylicious.filter.encryption.RecordEncryptionLoggingKeys;
 import java.security.Provider;
 import java.time.Duration;
 import java.util.Arrays;
@@ -28,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
+import io.kroxylicious.filter.encryption.common.RecordEncryptionLoggingKeys;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 import io.kroxylicious.filter.encryption.config.EncryptionBufferConfig;
 import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;

@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.provider.azure.auth;
 
-import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -29,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kms.provider.azure.AzureLoggingKeys;
 import io.kroxylicious.kms.provider.azure.MalformedResponseBodyException;
 import io.kroxylicious.kms.provider.azure.UnexpectedHttpStatusCodeException;
 import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;

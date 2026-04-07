@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.frame;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.Objects;
 
 import org.slf4j.Logger;
@@ -13,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
 
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**

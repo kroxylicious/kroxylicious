@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -16,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.internal.RuntimeLoggingKeys;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
