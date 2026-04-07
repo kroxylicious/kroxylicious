@@ -35,23 +35,6 @@ include::../../_snippets/snip-idle-timeout-duration-format.adoc[]
 
 == Configuration examples
 
-.Example: Unauthenticated timeout only
-[source,yaml]
-----
-kind: KafkaProxy
-apiVersion: kroxylicious.io/v1alpha1
-metadata:
-  namespace: my-proxy
-  name: simple
-spec:
-  network:
-    proxy:
-      unauthenticatedIdleTimeout: 30s
-----
-where:
-
-* `unauthenticatedIdleTimeout` specifies the maximum idle time allowed for unauthenticated connections before they are disconnected.
-
 .Example `KafkaProxy` configuration with unauthenticated and authenticated idle timeouts
 [source,yaml]
 ----
@@ -68,8 +51,8 @@ spec:
 ----
 where:
 
-* `unauthenticatedIdleTimeout` Disconnect unauthenticated connections after 30 seconds of inactivity.
-* `authenticatedIdleTimeout` Disconnect authenticated connections after 10 minutes of inactivity.
+* `unauthenticatedIdleTimeout` Disconnect unauthenticated connections after 30 seconds of inactivity. If omitted, or zero, no idle timeout is applied.
+* `authenticatedIdleTimeout` Disconnect authenticated connections after 10 minutes of inactivity. If omitted, or zero, no idle timeout is applied.
 
 == Monitoring idle disconnects
 
