@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
@@ -128,8 +129,8 @@ public class ProxyDeploymentDependentResource
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.atDebug()
-                    .addKeyValue("checksum", encoded)
-                    .addKeyValue("kafkaProxyName", KubernetesResourceUtil.getName(primary))
+                    .addKeyValue(OperatorLoggingKeys.CHECKSUM, encoded)
+                    .addKeyValue(OperatorLoggingKeys.KAFKA_PROXY_NAME, KubernetesResourceUtil.getName(primary))
                     .log("Checksum generated for KafkaProxy");
         }
         return encoded;
@@ -289,8 +290,8 @@ public class ProxyDeploymentDependentResource
         var envImage = System.getenv().get(KROXYLICIOUS_IMAGE_ENV_VAR);
         if (envImage != null && !envImage.isBlank()) {
             LOGGER.atInfo()
-                    .addKeyValue("image", envImage)
-                    .addKeyValue("envVar", KROXYLICIOUS_IMAGE_ENV_VAR)
+                    .addKeyValue(OperatorLoggingKeys.IMAGE, envImage)
+                    .addKeyValue(OperatorLoggingKeys.ENV_VAR, KROXYLICIOUS_IMAGE_ENV_VAR)
                     .log("Using Kroxylicious operand image from environment variable");
             return envImage;
         }
@@ -316,8 +317,8 @@ public class ProxyDeploymentDependentResource
                 throw new IllegalStateException("Classpath resource %s does not contain expected property %s".formatted(name, key));
             }
             LOGGER.atInfo()
-                    .addKeyValue("image", image)
-                    .addKeyValue("propertiesFile", name)
+                    .addKeyValue(OperatorLoggingKeys.IMAGE, image)
+                    .addKeyValue(OperatorLoggingKeys.PROPERTIES_FILE, name)
                     .log("Using Kroxylicious operand image from properties file on classpath");
             return image;
         }

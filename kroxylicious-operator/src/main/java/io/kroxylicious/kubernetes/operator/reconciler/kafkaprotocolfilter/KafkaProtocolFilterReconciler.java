@@ -105,9 +105,9 @@ public class KafkaProtocolFilterReconciler implements
                             .map(name -> new ResourceID(name, ResourcesUtil.namespace(filter)))
                             .collect(Collectors.toSet());
                     LOGGER.atDebug()
-                            .addKeyValue("filterName", ResourcesUtil.name(filter))
-                            .addKeyValue("secondaryClass", secondaryClass.getName())
-                            .addKeyValue("resourceIds", resourceIds)
+                            .addKeyValue(OperatorLoggingKeys.FILTER_NAME, ResourcesUtil.name(filter))
+                            .addKeyValue(OperatorLoggingKeys.SECONDARY_CLASS, secondaryClass.getName())
+                            .addKeyValue(OperatorLoggingKeys.RESOURCE_IDS, resourceIds)
                             .log("Filter references secondary resources");
                     return resourceIds;
                 })
@@ -123,9 +123,9 @@ public class KafkaProtocolFilterReconciler implements
                                         .anyMatch(secretNameFromVolume -> secretNameFromVolume.equals(ResourcesUtil.name(secret)));
                             });
                     LOGGER.atDebug()
-                            .addKeyValue("secondaryClass", secondaryClass.getName())
-                            .addKeyValue("secretName", ResourcesUtil.name(secret))
-                            .addKeyValue("resourceIds", resourceIds)
+                            .addKeyValue(OperatorLoggingKeys.SECONDARY_CLASS, secondaryClass.getName())
+                            .addKeyValue(OperatorLoggingKeys.SECRET_NAME, ResourcesUtil.name(secret))
+                            .addKeyValue(OperatorLoggingKeys.RESOURCE_IDS, resourceIds)
                             .log("Secondary resource referenced by Filters");
                     return resourceIds;
                 })
@@ -139,12 +139,12 @@ public class KafkaProtocolFilterReconciler implements
 
         Map<String, Secret> existingSecretsByName = context.getSecondaryResourcesAsStream(Secret.class).collect(toByNameMap());
         LOGGER.atDebug()
-                .addKeyValue("secrets", existingSecretsByName.keySet())
+                .addKeyValue(OperatorLoggingKeys.SECRETS, existingSecretsByName.keySet())
                 .log("Existing secrets");
 
         Map<String, ConfigMap> existingConfigMapsByName = context.getSecondaryResourcesAsStream(ConfigMap.class).collect(toByNameMap());
         LOGGER.atDebug()
-                .addKeyValue("configMaps", existingConfigMapsByName.keySet())
+                .addKeyValue(OperatorLoggingKeys.CONFIG_MAPS, existingConfigMapsByName.keySet())
                 .log("Existing config maps");
 
         var interpolationResult = secureConfigInterpolator.interpolate(filter.getSpec().getConfigTemplate());
@@ -154,7 +154,7 @@ public class KafkaProtocolFilterReconciler implements
                         .stream())
                 .collect(Collectors.toCollection(TreeSet::new));
         LOGGER.atDebug()
-                .addKeyValue("secrets", referencedSecrets)
+                .addKeyValue(OperatorLoggingKeys.SECRETS, referencedSecrets)
                 .log("Referenced secrets");
 
         var referencedConfigMaps = interpolationResult.volumes().stream()
@@ -163,7 +163,7 @@ public class KafkaProtocolFilterReconciler implements
                         .stream())
                 .collect(Collectors.toCollection(TreeSet::new));
         LOGGER.atDebug()
-                .addKeyValue("configMaps", referencedConfigMaps)
+                .addKeyValue(OperatorLoggingKeys.CONFIG_MAPS, referencedConfigMaps)
                 .log("Referenced config maps");
 
         KafkaProtocolFilter patch;

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -33,7 +34,7 @@ class KafkaProxyPrimaryToVirtualKafkaClusterSecondaryMapper implements PrimaryTo
         Set<ResourceID> virtualClustersInProxyNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, proxy, VirtualKafkaCluster.class,
                 KafkaProxyPrimaryToKafkaProtocolFilterSecondaryMapper.clusterReferences(proxy));
         LOGGER.atDebug()
-                .addKeyValue("virtualClusters", virtualClustersInProxyNamespace)
+                .addKeyValue(OperatorLoggingKeys.VIRTUAL_CLUSTERS, virtualClustersInProxyNamespace)
                 .log("Event source VirtualKafkaCluster PrimaryToSecondaryMapper");
         return virtualClustersInProxyNamespace;
     }

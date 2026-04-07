@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -36,7 +37,7 @@ class KafkaProxyPrimaryToKafkaProxyIngressSecondaryMapper implements PrimaryToSe
         Set<ResourceID> ingressesInProxyNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, primary, KafkaProxyIngress.class,
                 ingressReferences(primary));
         LOGGER.atDebug()
-                .addKeyValue("ingresses", ingressesInProxyNamespace)
+                .addKeyValue(OperatorLoggingKeys.INGRESSES, ingressesInProxyNamespace)
                 .log("Event source KafkaProxyIngress PrimaryToSecondaryMapper");
         return ingressesInProxyNamespace;
     }

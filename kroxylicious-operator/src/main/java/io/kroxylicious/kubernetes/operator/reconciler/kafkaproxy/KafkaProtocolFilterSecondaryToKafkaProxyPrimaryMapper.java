@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -33,7 +34,7 @@ class KafkaProtocolFilterSecondaryToKafkaProxyPrimaryMapper implements Secondary
         // we do not want to trigger reconciliation of any proxy if the filter has not been reconciled
         if (!ResourcesUtil.isStatusFresh(filter)) {
             LOGGER.atDebug()
-                    .addKeyValue("filter", ResourcesUtil.toLocalRef(filter))
+                    .addKeyValue(OperatorLoggingKeys.FILTER, ResourcesUtil.toLocalRef(filter))
                     .log("Ignoring event from filter with stale status");
             return Set.of();
         }
@@ -41,7 +42,7 @@ class KafkaProtocolFilterSecondaryToKafkaProxyPrimaryMapper implements Secondary
         // so when a filter changes we reconcile all the proxies in the same namespace
         Set<ResourceID> proxiesInFilterNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, filter, KafkaProxy.class, proxy -> true);
         LOGGER.atDebug()
-                .addKeyValue("proxyIds", proxiesInFilterNamespace)
+                .addKeyValue(OperatorLoggingKeys.PROXY_IDS, proxiesInFilterNamespace)
                 .log("Event source SecondaryToPrimaryMapper");
         return proxiesInFilterNamespace;
     }

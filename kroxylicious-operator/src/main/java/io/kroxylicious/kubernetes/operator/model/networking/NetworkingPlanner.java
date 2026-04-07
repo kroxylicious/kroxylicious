@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.model.networking;
 
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -143,8 +144,8 @@ public class NetworkingPlanner {
         }
         catch (NetworkPlanningException e) {
             LOGGER.atWarn()
-                    .addKeyValue("ingress", name(ingress))
-                    .addKeyValue("cluster", name(cluster))
+                    .addKeyValue(OperatorLoggingKeys.INGRESS, name(ingress))
+                    .addKeyValue(OperatorLoggingKeys.CLUSTER, name(cluster))
                     .setCause(e)
                     .log("Skipping ingress for cluster due to planning exception");
             return Stream.empty();

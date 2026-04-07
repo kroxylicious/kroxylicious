@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Clock;
@@ -130,21 +131,21 @@ public class OperatorMain {
         operator.start();
         var versionInfo = VersionInfo.VERSION_INFO;
         LOGGER.atInfo()
-                .addKeyValue("javaVersion", Runtime::version)
-                .addKeyValue("javaVendor", () -> System.getProperty("java.vendor"))
-                .addKeyValue("osName", () -> System.getProperty("os.name"))
-                .addKeyValue("osVersion", () -> System.getProperty("os.version"))
-                .addKeyValue("osArch", () -> System.getProperty("os.arch"))
+                .addKeyValue(OperatorLoggingKeys.JAVA_VERSION, Runtime::version)
+                .addKeyValue(OperatorLoggingKeys.JAVA_VENDOR, () -> System.getProperty("java.vendor"))
+                .addKeyValue(OperatorLoggingKeys.OS_NAME, () -> System.getProperty("os.name"))
+                .addKeyValue(OperatorLoggingKeys.OS_VERSION, () -> System.getProperty("os.version"))
+                .addKeyValue(OperatorLoggingKeys.OS_ARCH, () -> System.getProperty("os.arch"))
                 .log("Java platform");
         LOGGER.atInfo()
-                .addKeyValue("version", versionInfo::version)
-                .addKeyValue("commitId", versionInfo::commitId)
+                .addKeyValue(OperatorLoggingKeys.VERSION, versionInfo::version)
+                .addKeyValue(OperatorLoggingKeys.COMMIT_ID, versionInfo::commitId)
                 .log("Operator started");
         versionInfoMetric(versionInfo);
 
         Optional.ofNullable(watchedNamespaces)
                 .ifPresentOrElse(
-                        tns -> LOGGER.atInfo().addKeyValue("namespaces", tns).log("Watching namespaces"),
+                        tns -> LOGGER.atInfo().addKeyValue(OperatorLoggingKeys.NAMESPACES, tns).log("Watching namespaces"),
                         () -> LOGGER.atInfo().log("Watching all namespaces"));
     }
 
@@ -227,8 +228,8 @@ public class OperatorMain {
         }
         else if (!bindAddress.isEmpty()) {
             LOGGER.atWarn()
-                    .addKeyValue("envVar", BIND_ADDRESS_VAR_NAME)
-                    .addKeyValue("defaultPort", DEFAULT_MANAGEMENT_PORT)
+                    .addKeyValue(OperatorLoggingKeys.ENV_VAR, BIND_ADDRESS_VAR_NAME)
+                    .addKeyValue(OperatorLoggingKeys.DEFAULT_PORT, DEFAULT_MANAGEMENT_PORT)
                     .log("Environment variable is set but does not contain ':' assuming hostname only and binding to default port");
             bindToInterface = bindAddress;
             bindToPort = DEFAULT_MANAGEMENT_PORT;
@@ -239,8 +240,8 @@ public class OperatorMain {
         }
 
         LOGGER.atInfo()
-                .addKeyValue("interface", bindToInterface)
-                .addKeyValue("port", bindToPort)
+                .addKeyValue(OperatorLoggingKeys.INTERFACE, bindToInterface)
+                .addKeyValue(OperatorLoggingKeys.PORT, bindToPort)
                 .log("Starting management server");
         return new InetSocketAddress(bindToInterface, bindToPort);
     }

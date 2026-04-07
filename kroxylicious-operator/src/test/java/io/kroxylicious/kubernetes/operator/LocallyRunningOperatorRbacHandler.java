@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -140,20 +141,20 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             // The test framework itself needs these roles.
             clusterRoles.forEach(r -> {
                 LOGGER.atTrace()
-                        .addKeyValue("resourceName", name(r))
+                        .addKeyValue(OperatorLoggingKeys.RESOURCE_NAME, name(r))
                         .log("Creating/patching");
                 adminClient.resource(r).createOr(EditReplacePatchable::patch);
             });
 
             roleBindings.forEach(roleBinding -> {
                 LOGGER.atTrace()
-                        .addKeyValue("resourceName", name(roleBinding))
+                        .addKeyValue(OperatorLoggingKeys.RESOURCE_NAME, name(roleBinding))
                         .log("Creating role binding");
                 adminClient.resource(roleBinding).createOr(EditReplacePatchable::patch);
             });
 
             LOGGER.atInfo()
-                    .addKeyValue("user", impersonatedUser)
+                    .addKeyValue(OperatorLoggingKeys.USER, impersonatedUser)
                     .log("Applied Operator RBAC rules rewritten in terms of user");
         }
     }
