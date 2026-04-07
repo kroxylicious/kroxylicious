@@ -29,7 +29,7 @@ filterDefinitions:
 ----
 where:
 
-* `prefixResourceNameSeparator` is the separator used for the prefix. If a separator is not specified, `-` is the default.
+* `prefixResourceNameSeparator` defines the separator used for the prefix. If a separator is not specified, `-` is the default.
 
 NOTE: Currently, only the prefix with separator is validated.
 

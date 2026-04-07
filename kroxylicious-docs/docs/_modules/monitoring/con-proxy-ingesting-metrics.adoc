@@ -30,4 +30,4 @@ scrape_configs:
 ----
 where:
 
-* `targets` specified the host that is running the Kroxylicious instance and the port number assigned to management.
+* `targets` specifies the host that is running the Kroxylicious instance and the port number assigned to management.

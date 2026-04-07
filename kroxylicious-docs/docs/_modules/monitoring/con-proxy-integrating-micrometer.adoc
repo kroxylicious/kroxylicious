@@ -40,7 +40,7 @@ where:
 * `type` specifies the `CommonTagsHook` type to add common tags to all metrics.
 * `config` specifies configuration for the hook which may be `commonTags` or `binderName`
 ** `zone` adds common tag zone `euc-1a` to all metrics in the global registry included with Micrometer, which appears as a label in Prometheus.
-* `type` Specifies the `StandardBindersHook` type to register standard Micrometer binders.
+* `type` specifies the `StandardBindersHook` type to register standard Micrometer binders.
 ** Registers the `JvmGcMetrics` binder with the global registry.
 
 Prometheus is connected to the Micrometer global registry, so filters can record metrics against it as part of the Prometheus scrape data.
