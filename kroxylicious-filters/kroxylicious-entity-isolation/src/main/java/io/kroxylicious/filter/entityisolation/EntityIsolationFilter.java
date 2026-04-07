@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.filter.entityisolation;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolationLoggingKeys;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -193,7 +192,7 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
                 .addKeyValue("subject", context::authenticatedSubject)
                 .addKeyValue("apiKey", apiKey)
                 .addKeyValue("apiVersion", apiVersion)
-                .addKeyValue(EntityIsolationLoggingKeys.ERROR, cause.getMessage())
+                .addKeyValue("error", cause.getMessage())
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .log("Operation failed, closing connection" + (LOGGER.isDebugEnabled() ? "" : ", raise log level to DEBUG for stacktrace"));
     }
