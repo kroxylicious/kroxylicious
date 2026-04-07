@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.utils;
 
+import io.kroxylicious.systemtests.utils.SystemTestsLoggingKeys;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;

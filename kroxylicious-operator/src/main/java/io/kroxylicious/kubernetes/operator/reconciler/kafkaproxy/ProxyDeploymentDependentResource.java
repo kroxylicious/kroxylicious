@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
@@ -39,7 +40,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.ProxyContainer;
 import io.kroxylicious.kubernetes.operator.Annotations;
-import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;

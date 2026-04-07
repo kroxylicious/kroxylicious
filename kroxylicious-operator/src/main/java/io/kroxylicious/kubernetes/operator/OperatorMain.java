@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Clock;

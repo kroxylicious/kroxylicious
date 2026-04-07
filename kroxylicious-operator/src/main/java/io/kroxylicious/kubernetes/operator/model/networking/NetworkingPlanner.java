@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.model.networking;
 
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,7 +25,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRo
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
-import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterIngressNetworkingModelResult;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterNetworkingModel;
