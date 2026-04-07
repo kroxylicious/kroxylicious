@@ -380,7 +380,8 @@ public class FetchFilter implements FetchRequestFilter {
         // Create a header with a compatible API version.
         // The version must be supported by both the Kafka client used by Kroxylicious and the target cluster.
         var metadataRequestHeader = new RequestHeaderData().setRequestApiVersion(METADATA_VERSION_SUPPORTING_TOPIC_IDS);
-        // We construct a new request object. When constructing the request object, care needs to be taken to ensure the request is populated with the structure which matches the API version you have chosen.  Refer to the {kafka-protocol}[Kafka Protocol Guide] for more details.
+        // Build a metadata request matching the chosen API version.  
+        // Refer to the {kafka-protocol}[Kafka Protocol Guide] for more details.
         var metadataRequest = new MetadataRequestData();
         var topic = new MetadataRequestData.MetadataRequestTopic();
         topic.setTopicId(Uuid.randomUuid());
