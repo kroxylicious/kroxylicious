@@ -57,6 +57,7 @@ jobs:
         working-directory: kroxylicious-systemtests
         id: discover
         run: |
+          # WARNING: possible coupling between java class and shell script
           client_types=$(grep -oE '^\s+[A-Z][A-Z0-9_]+' ./src/main/java/io/kroxylicious/systemtests/enums/KafkaClientType.java \
             | tr -d ' ' \
             | tr '[:upper:]' '[:lower:]' \
