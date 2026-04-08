@@ -88,7 +88,7 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
-    void shouldTransitionToStoppedAfterShutdown() throws Exception {
+    void shouldTransitionToStoppedAfterShutdown() {
         // given
         var config = """
                    virtualClusters:
