@@ -97,6 +97,39 @@ public class VirtualClusterLifecycleManager {
         });
     }
 
+    /**
+     * Begins shutdown: transitions serving clusters to draining and
+     * failed/initializing clusters directly to stopped.
+     */
+    public void beginShutdown() {
+        transition(current -> {
+            if (current instanceof Serving s) {
+                return s.toDraining();
+            }
+            if (current instanceof Failed s) {
+                return s.toStopped();
+            }
+            if (current instanceof Initializing s) {
+                return s.toFailed(new IllegalStateException("Shutdown before initialization completed")).toStopped();
+            }
+            // Draining or Stopped — no-op
+            return current;
+        });
+    }
+
+    /**
+     * Completes shutdown: transitions draining clusters to stopped.
+     */
+    public void completeShutdown() {
+        transition(current -> {
+            if (current instanceof Draining s) {
+                return s.toStopped();
+            }
+            // already Stopped — no-op
+            return current;
+        });
+    }
+
     public VirtualClusterLifecycleState getState() {
         return state.get();
     }
