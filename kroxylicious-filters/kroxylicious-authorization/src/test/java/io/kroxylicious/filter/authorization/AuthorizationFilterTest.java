@@ -51,9 +51,7 @@ import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 
 import nl.altindag.log.LogCaptor;
 
-import static java.util.EnumSet.complementOf;
-import static java.util.EnumSet.copyOf;
-import static java.util.EnumSet.of;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.when;
@@ -299,7 +297,7 @@ class AuthorizationFilterTest {
 
     @Test
     void shouldSupportApis() {
-        EnumSet<ApiKeys> allVersionsSupported = of(ApiKeys.API_VERSIONS,
+        EnumSet<ApiKeys> allVersionsSupported = EnumSet.of(ApiKeys.API_VERSIONS,
                 ApiKeys.PRODUCE,
                 ApiKeys.SASL_HANDSHAKE,
                 ApiKeys.SASL_AUTHENTICATE,
@@ -336,7 +334,7 @@ class AuthorizationFilterTest {
         EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.ADD_PARTITIONS_TO_TXN,
                 ApiKeys.CONSUMER_GROUP_HEARTBEAT,
                 ApiKeys.INIT_PRODUCER_ID);
-        EnumSet<ApiKeys> noVersionsSupported = complementOf(unionOf(allVersionsSupported, someVersionsSupported));
+        EnumSet<ApiKeys> noVersionsSupported = EnumSet.complementOf(unionOf(allVersionsSupported, someVersionsSupported));
         for (ApiKeys apiKey : allVersionsSupported) {
 
             assertThat(AuthorizationFilter.isApiSupported(apiKey))
@@ -376,7 +374,7 @@ class AuthorizationFilterTest {
     }
 
     private static EnumSet<ApiKeys> unionOf(EnumSet<ApiKeys> allVersionsSupported, EnumSet<ApiKeys> someVersionsSupported) {
-        var t = copyOf(allVersionsSupported);
+        var t = EnumSet.copyOf(allVersionsSupported);
         t.addAll(someVersionsSupported);
         return t;
     }

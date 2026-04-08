@@ -38,8 +38,7 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.newBuilder;
+import io.kroxylicious.test.tester.KroxyliciousTesters;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -58,7 +57,7 @@ class KroxyliciousIT {
         SubprocessKroxyliciousFactory kroxyliciousFactory = new SubprocessKroxyliciousFactory(tempDir, (features, processBuilder) -> {
             // no-op so that io is not inherited
         }, List.of());
-        var tester = kroxyliciousTester(proxy("fake:9092").withDevelopment(Map.of("a", "b")), kroxyliciousFactory);
+        var tester = KroxyliciousTesters.kroxyliciousTester(proxy("fake:9092").withDevelopment(Map.of("a", "b")), kroxyliciousFactory);
         Process lastProcess = kroxyliciousFactory.lastProcess;
         assertThat(lastProcess).isNotNull();
         assertThat(lastProcess.onExit()).succeedsWithin(5, TimeUnit.SECONDS);
@@ -73,7 +72,7 @@ class KroxyliciousIT {
         SubprocessKroxyliciousFactory kroxyliciousFactory = new SubprocessKroxyliciousFactory(tempDir, (features, processBuilder) -> {
             processBuilder.environment().put(prefixUnlockPropertyName(Feature.TEST_ONLY_CONFIGURATION), "false");
         }, List.of());
-        var tester = kroxyliciousTester(proxy("fake:9092").withDevelopment(Map.of("a", "b")), kroxyliciousFactory);
+        var tester = KroxyliciousTesters.kroxyliciousTester(proxy("fake:9092").withDevelopment(Map.of("a", "b")), kroxyliciousFactory);
         Process lastProcess = kroxyliciousFactory.lastProcess;
         assertThat(lastProcess).isNotNull();
         assertThat(lastProcess.onExit()).succeedsWithin(5, TimeUnit.SECONDS);
@@ -89,10 +88,10 @@ class KroxyliciousIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        try (var tester = newBuilder(proxy(cluster).withDevelopment(Map.of("a", "b")))
+        try (var tester = KroxyliciousTesters.newBuilder(proxy(cluster).withDevelopment(Map.of("a", "b")))
                 .setKroxyliciousFactory(new SubprocessKroxyliciousFactory(tempDir))
                 .setFeatures(Features.builder().enable(Feature.TEST_ONLY_CONFIGURATION).build())
-                .createDefaultKroxyliciousTester();
+                .createDefaultKroxyliciousTesters.kroxyliciousTester();
                 var producer = tester.producer(Map.of(
                         ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                         ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
@@ -107,10 +106,10 @@ class KroxyliciousIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        try (var tester = newBuilder(proxy(cluster).withDevelopment(Map.of("a", "b")))
+        try (var tester = KroxyliciousTesters.newBuilder(proxy(cluster).withDevelopment(Map.of("a", "b")))
                 .setKroxyliciousFactory(new SubprocessKroxyliciousFactory(tempDir, (features, processBuilder) -> processBuilder.inheritIO(),
                         List.of("-D" + prefixUnlockPropertyName(Feature.TEST_ONLY_CONFIGURATION) + "=true")))
-                .createDefaultKroxyliciousTester();
+                .createDefaultKroxyliciousTesters.kroxyliciousTester();
                 var producer = tester.producer(Map.of(
                         ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                         ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
@@ -125,7 +124,7 @@ class KroxyliciousIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        try (var tester = kroxyliciousTester(proxy(cluster), new SubprocessKroxyliciousFactory(tempDir));
+        try (var tester = KroxyliciousTesters.kroxyliciousTester(proxy(cluster), new SubprocessKroxyliciousFactory(tempDir));
                 var producer = tester.producer(Map.of(
                         ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                         ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
