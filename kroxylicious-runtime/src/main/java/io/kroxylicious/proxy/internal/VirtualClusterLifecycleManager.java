@@ -97,39 +97,6 @@ public class VirtualClusterLifecycleManager {
         });
     }
 
-    /**
-     * Begins shutdown: transitions serving clusters to draining and
-     * failed/initializing clusters directly to stopped.
-     */
-    public void beginShutdown() {
-        transition(current -> {
-            if (current instanceof Serving s) {
-                return s.toDraining();
-            }
-            if (current instanceof Failed s) {
-                return s.toStopped();
-            }
-            if (current instanceof Initializing s) {
-                return s.toFailed(new IllegalStateException("Shutdown before initialization completed")).toStopped();
-            }
-            // Draining or Stopped — no-op
-            return current;
-        });
-    }
-
-    /**
-     * Completes shutdown: transitions draining clusters to stopped.
-     */
-    public void completeShutdown() {
-        transition(current -> {
-            if (current instanceof Draining s) {
-                return s.toStopped();
-            }
-            // already Stopped — no-op
-            return current;
-        });
-    }
-
     public VirtualClusterLifecycleState getState() {
         return state.get();
     }
@@ -140,8 +107,9 @@ public class VirtualClusterLifecycleManager {
 
     private void transition(UnaryOperator<VirtualClusterLifecycleState> transitionFn) {
         VirtualClusterLifecycleState previous = state.getAndUpdate(transitionFn);
-        VirtualClusterLifecycleState current = state.get();
-        LOGGER.atInfo()
+        VirtualClusterLifecycleState current = transitionFn.apply(previous);
+        var logBuilder = (current instanceof Initializing || current instanceof Stopped) ? LOGGER.atInfo() : LOGGER.atDebug();
+        logBuilder
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("from", previous.getClass().getSimpleName())
                 .addKeyValue("to", current.getClass().getSimpleName())

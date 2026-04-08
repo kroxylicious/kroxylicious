@@ -59,6 +59,7 @@ import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleManager;
+import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
@@ -270,6 +271,7 @@ public final class KafkaProxy implements AutoCloseable {
             STARTUP_SHUTDOWN_LOGGER.atError()
                     .setCause(e)
                     .log("Exception during startup, shutting down");
+            lifecycleManagers.values().forEach(m -> m.initializationFailed(e));
             shutdown();
             throw new LifecycleException("Startup completed exceptionally", e);
         }
@@ -418,11 +420,22 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     private void transitionAllToDraining() {
-        lifecycleManagers.values().forEach(VirtualClusterLifecycleManager::beginShutdown);
+        lifecycleManagers.values().forEach(m -> {
+            if (m.getState() instanceof VirtualClusterLifecycleState.Serving) {
+                m.startDraining();
+            }
+            else if (m.getState() instanceof VirtualClusterLifecycleState.Failed) {
+                m.stop();
+            }
+        });
     }
 
     private void transitionAllToStopped() {
-        lifecycleManagers.values().forEach(VirtualClusterLifecycleManager::completeShutdown);
+        lifecycleManagers.values().forEach(m -> {
+            if (m.getState() instanceof VirtualClusterLifecycleState.Draining) {
+                m.drainComplete();
+            }
+        });
     }
 
     @Override
