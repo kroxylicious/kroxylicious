@@ -106,6 +106,8 @@ class OperatorAssertionsTest {
                 List.of(),
                 false,
                 Optional.empty(),
+                null,
+                null,
                 null);
 
         // When

@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -40,8 +41,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param useIoUring true to use iouring
  * @param development Development options
  * @param network Controls aspects of network configuration for the proxy.
+ * @param onVirtualClusterFailure Controls behavior when virtual clusters fail during startup.
+ * @param drainTimeout How long to wait for connections to drain during shutdown.
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network",
+        "onVirtualClusterFailure", "drainTimeout" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
@@ -50,7 +54,11 @@ public record Configuration(
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
-                            @Nullable NetworkDefinition network) {
+                            @Nullable NetworkDefinition network,
+                            @Nullable OnVirtualClusterFailure onVirtualClusterFailure,
+                            @Nullable Duration drainTimeout) {
+
+    private static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(60);
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
@@ -202,6 +210,14 @@ public record Configuration(
                 // Note: filterDefinitionsByName.get() returns non-null because of constructor post condition
                 .map(filterDefinitionsByName::get)
                 .toList();
+    }
+
+    public VirtualClusterFailurePolicy effectiveFailurePolicy() {
+        return onVirtualClusterFailure != null ? onVirtualClusterFailure.serve() : VirtualClusterFailurePolicy.NONE;
+    }
+
+    public Duration effectiveDrainTimeout() {
+        return drainTimeout != null ? drainTimeout : DEFAULT_DRAIN_TIMEOUT;
     }
 
 }

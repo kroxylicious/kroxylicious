@@ -18,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
@@ -52,13 +51,20 @@ import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.VirtualClusterFailurePolicy;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
+import io.kroxylicious.proxy.internal.ConnectionDrainManager;
+import io.kroxylicious.proxy.internal.ConnectionTracker;
+import io.kroxylicious.proxy.internal.InFlightMessageTracker;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.internal.lifecycle.VirtualClusterLifecycle;
+import io.kroxylicious.proxy.internal.lifecycle.VirtualClusterLifecycleManager;
+import io.kroxylicious.proxy.internal.lifecycle.VirtualClusterLifecycleState;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
@@ -149,6 +155,10 @@ public final class KafkaProxy implements AutoCloseable {
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
+    private @Nullable VirtualClusterLifecycleManager lifecycleManager;
+    private @Nullable ConnectionTracker connectionTracker;
+    private @Nullable InFlightMessageTracker inFlightTracker;
+    private @Nullable ConnectionDrainManager connectionDrainManager;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
@@ -229,25 +239,67 @@ public final class KafkaProxy implements AutoCloseable {
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
+            this.lifecycleManager = new VirtualClusterLifecycleManager();
+            this.connectionTracker = new ConnectionTracker();
+            this.inFlightTracker = new InFlightMessageTracker();
+            this.connectionDrainManager = new ConnectionDrainManager(connectionTracker, inFlightTracker);
+
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings,
+                            lifecycleManager, connectionTracker, inFlightTracker));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings,
+                            lifecycleManager, connectionTracker, inFlightTracker));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
-            // TODO: startup/shutdown should return a completionstage
-            CompletableFuture.allOf(
-                    Stream.concat(Stream.of(managementFuture),
-                            virtualClusterModels.stream()
-                                    .flatMap(vc -> vc.gateways().values().stream())
-                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture()))
-                            .toArray(CompletableFuture[]::new))
-                    .join();
+            // Management listener must succeed regardless of failure policy
+            managementFuture.join();
+
+            // Register each virtual cluster individually with per-VC error handling
+            for (VirtualClusterModel vc : virtualClusterModels) {
+                VirtualClusterLifecycle lifecycle = lifecycleManager.register(vc.getClusterName());
+                try {
+                    CompletableFuture.allOf(
+                            vc.gateways().values().stream()
+                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture())
+                                    .toArray(CompletableFuture[]::new))
+                            .join();
+                    lifecycle.transitionTo(VirtualClusterLifecycleState.SERVING);
+                }
+                catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    lifecycle.transitionToFailed(cause);
+                }
+            }
+
+            // Apply failure policy
+            var failedLifecycles = lifecycleManager.all().stream().filter(lc -> lc.state() == VirtualClusterLifecycleState.FAILED).toList();
+            if (!failedLifecycles.isEmpty()) {
+                long servingCount = lifecycleManager.all().stream().filter(lc -> lc.state() == VirtualClusterLifecycleState.SERVING).count();
+                Throwable firstCause = failedLifecycles.stream()
+                        .flatMap(lc -> lc.failureCause().stream())
+                        .findFirst()
+                        .orElse(new RuntimeException("Unknown failure"));
+                if (config.effectiveFailurePolicy() == VirtualClusterFailurePolicy.NONE) {
+                    throw new LifecycleException("%d virtual cluster(s) failed to start".formatted(failedLifecycles.size()), firstCause);
+                }
+                else if (servingCount == 0) {
+                    throw new LifecycleException("All %d virtual cluster(s) failed to start".formatted(failedLifecycles.size()), firstCause);
+                }
+                else {
+                    STARTUP_SHUTDOWN_LOGGER.warn("{} virtual cluster(s) failed, {} serving", failedLifecycles.size(), servingCount);
+                }
+            }
 
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is started");
             return this;
+        }
+        catch (LifecycleException e) {
+            STARTUP_SHUTDOWN_LOGGER.error("Exception during startup, shutting down", e);
+            shutdown();
+            throw e;
         }
         catch (RuntimeException e) {
             STARTUP_SHUTDOWN_LOGGER.error("Exception during startup, shutting down", e);
@@ -336,6 +388,67 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     /**
+     * Gracefully drains all active client connections before shutdown.
+     * <p>
+     * This method orchestrates the connection drain in three phases:
+     * <ol>
+     *   <li><b>FAILED → STOPPED:</b> Virtual clusters already in a FAILED state are transitioned
+     *       directly to STOPPED since they have no active connections to drain.</li>
+     *   <li><b>SERVING → DRAINING:</b> Healthy virtual clusters are transitioned to DRAINING,
+     *       which causes new incoming connections to be rejected. For each draining cluster,
+     *       the {@link ConnectionDrainManager} disables autoRead on downstream channels (preventing
+     *       new requests), waits for in-flight requests to complete, and then closes the channels.</li>
+     *   <li><b>DRAINING → STOPPED:</b> Once drain completes (or the configured
+     *       {@code drainTimeout} elapses), each virtual cluster is transitioned to STOPPED.</li>
+     * </ol>
+     * <p>
+     * If the lifecycle manager or connection drain manager is not initialized (e.g., startup
+     * was never called), this method is a no-op.
+     */
+    private void drainConnections() {
+        if (lifecycleManager == null || connectionDrainManager == null) {
+            return;
+        }
+
+        // Transition FAILED VCs to STOPPED immediately
+        lifecycleManager.all().stream()
+                .filter(lc -> lc.state() == VirtualClusterLifecycleState.FAILED)
+                .forEach(lc -> lc.transitionTo(VirtualClusterLifecycleState.STOPPED));
+
+        // Transition SERVING VCs to DRAINING — new connections will be rejected
+        var drainingLifecycles = lifecycleManager.all().stream()
+                .filter(lc -> lc.state() == VirtualClusterLifecycleState.SERVING)
+                .toList();
+        drainingLifecycles.forEach(lc -> lc.transitionTo(VirtualClusterLifecycleState.DRAINING));
+
+        // Drain connections for each DRAINING VC using ConnectionDrainManager
+        Duration drainTimeout = config.effectiveDrainTimeout();
+        var drainFutures = drainingLifecycles.stream()
+                .map(lc -> connectionDrainManager.gracefullyDrainConnections(lc.clusterName(), drainTimeout)
+                        .whenComplete((v, t) -> {
+                            if (t != null) {
+                                STARTUP_SHUTDOWN_LOGGER.warn("Error draining connections for virtual cluster '{}'",
+                                        lc.clusterName(), t);
+                            }
+                            lc.transitionTo(VirtualClusterLifecycleState.STOPPED);
+                        }))
+                .toArray(CompletableFuture[]::new);
+
+        try {
+            CompletableFuture.allOf(drainFutures).join();
+            STARTUP_SHUTDOWN_LOGGER.info("All connections drained successfully");
+        }
+        catch (Exception e) {
+            STARTUP_SHUTDOWN_LOGGER.warn("Connection drain completed with errors", e);
+        }
+
+        // Transition any remaining DRAINING VCs to STOPPED (safety net)
+        lifecycleManager.all().stream()
+                .filter(lc -> lc.state() == VirtualClusterLifecycleState.DRAINING)
+                .forEach(lc -> lc.transitionTo(VirtualClusterLifecycleState.STOPPED));
+    }
+
+    /**
      * Shuts down a running proxy.
      */
     public void shutdown() {
@@ -344,6 +457,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
         try {
             STARTUP_SHUTDOWN_LOGGER.info("Shutting down");
+            drainConnections();
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
@@ -368,6 +482,13 @@ public final class KafkaProxy implements AutoCloseable {
             }
         }
         finally {
+            if (connectionDrainManager != null) {
+                connectionDrainManager.close();
+            }
+            lifecycleManager = null;
+            connectionTracker = null;
+            inFlightTracker = null;
+            connectionDrainManager = null;
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;

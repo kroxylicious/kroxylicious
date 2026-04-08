@@ -550,6 +550,11 @@ public class KafkaProxyFrontendHandler
         proxyChannelStateMachine.onClientWritable();
     }
 
+    @Nullable
+    Channel channel() {
+        return clientCtx != null ? clientCtx.channel() : null;
+    }
+
     private ChannelHandlerContext clientCtx() {
         return Objects.requireNonNull(this.clientCtx, "clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
     }

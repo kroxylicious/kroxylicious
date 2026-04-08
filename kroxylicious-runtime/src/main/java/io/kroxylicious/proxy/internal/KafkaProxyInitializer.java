@@ -34,6 +34,7 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
+import io.kroxylicious.proxy.internal.lifecycle.VirtualClusterLifecycleManager;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
@@ -67,6 +68,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Counter clientToProxyErrorCounter;
     @Nullable
     private final Long unauthenticatedIdleMillis;
+    private final VirtualClusterLifecycleManager lifecycleManager;
+    @Nullable
+    private final ConnectionTracker connectionTracker;
+    @Nullable
+    private final InFlightMessageTracker inFlightTracker;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
@@ -76,7 +82,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
                                  ApiVersionsServiceImpl apiVersionsService,
-                                 Optional<NettySettings> proxyNettySettings) {
+                                 Optional<NettySettings> proxyNettySettings,
+                                 VirtualClusterLifecycleManager lifecycleManager,
+                                 @Nullable ConnectionTracker connectionTracker,
+                                 @Nullable InFlightMessageTracker inFlightTracker) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
@@ -86,6 +95,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
+        this.lifecycleManager = lifecycleManager;
+        this.connectionTracker = connectionTracker;
+        this.inFlightTracker = inFlightTracker;
         unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
     }
 
@@ -116,6 +128,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                 return null;
                             }
                             try {
+                                var clusterName = binding.endpointGateway().virtualCluster().getClusterName();
+                                if (!lifecycleManager.isAcceptingConnections(clusterName)) {
+                                    LOGGER.debug("Rejecting connection for virtual cluster '{}' — not in SERVING state", clusterName);
+                                    ctx.close();
+                                    return null;
+                                }
                                 KafkaProxyInitializer.this.addHandlers(ch, binding);
                                 ctx.fireChannelActive();
                             }
@@ -148,6 +166,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                             return null;
                         }
                         var gateway = binding.endpointGateway();
+                        var clusterName = gateway.virtualCluster().getClusterName();
+                        if (!lifecycleManager.isAcceptingConnections(clusterName)) {
+                            LOGGER.debug("Rejecting TLS connection for virtual cluster '{}' — not in SERVING state", clusterName);
+                            promise.setFailure(new IllegalStateException(
+                                    "Virtual cluster '%s' is not accepting connections".formatted(clusterName)));
+                            return null;
+                        }
                         var sslContext = gateway.getDownstreamSslContext();
                         if (sslContext.isEmpty()) {
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
@@ -197,7 +222,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         }
 
         TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder);
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, connectionTracker, inFlightTracker);
 
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {

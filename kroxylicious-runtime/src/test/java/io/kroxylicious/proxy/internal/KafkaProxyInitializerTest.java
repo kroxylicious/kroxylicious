@@ -340,6 +340,9 @@ class KafkaProxyInitializerTest {
     @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
+        var lifecycleManager = new io.kroxylicious.proxy.internal.lifecycle.VirtualClusterLifecycleManager();
+        var lifecycle = lifecycleManager.register("testCluster");
+        lifecycle.transitionTo(io.kroxylicious.proxy.internal.lifecycle.VirtualClusterLifecycleState.SERVING);
         return new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
@@ -347,7 +350,10 @@ class KafkaProxyInitializerTest {
                 (virtualCluster, upstreamNodes) -> null,
                 false,
                 new ApiVersionsServiceImpl(),
-                Optional.ofNullable(proxyNettySettings));
+                Optional.ofNullable(proxyNettySettings),
+                lifecycleManager,
+                null,
+                null);
     }
 
     private void assertErrorHandlerAdded() {

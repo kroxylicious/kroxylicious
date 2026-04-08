@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
@@ -148,6 +149,10 @@ public class ProxyChannelStateMachine {
     Timer.Sample serverBackpressureTimer;
 
     private final EndpointBinding endpointBinding;
+    @Nullable
+    private final ConnectionTracker connectionTracker;
+    @Nullable
+    private final InFlightMessageTracker inFlightTracker;
 
     @NonNull
     // Ideally this would be final, however that breaks forceState which is used heavily in testing.
@@ -187,8 +192,17 @@ public class ProxyChannelStateMachine {
 
     public ProxyChannelStateMachine(EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder) {
+        this(endpointBinding, transportSubjectBuilder, null, null);
+    }
+
+    public ProxyChannelStateMachine(EndpointBinding endpointBinding,
+                                    TransportSubjectBuilder transportSubjectBuilder,
+                                    @Nullable ConnectionTracker connectionTracker,
+                                    @Nullable InFlightMessageTracker inFlightTracker) {
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
+        this.connectionTracker = connectionTracker;
+        this.inFlightTracker = inFlightTracker;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
         kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
 
@@ -383,6 +397,12 @@ public class ProxyChannelStateMachine {
      * @param msg the object received from the upstream
      */
     void messageFromServer(Object msg) {
+        if (inFlightTracker != null && frontendHandler != null) {
+            Channel ch = frontendHandler.channel();
+            if (ch != null) {
+                inFlightTracker.onResponseReceived(clusterName(), ch);
+            }
+        }
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
     }
 
@@ -398,6 +418,12 @@ public class ProxyChannelStateMachine {
      * @param msg the RPC received from the upstream
      */
     void messageFromClient(Object msg) {
+        if (inFlightTracker != null && frontendHandler != null && msg instanceof RequestFrame) {
+            Channel ch = frontendHandler.channel();
+            if (ch != null) {
+                inFlightTracker.onRequestSent(clusterName(), ch);
+            }
+        }
         Objects.requireNonNull(backendHandler).forwardToServer(msg);
     }
 
@@ -583,6 +609,13 @@ public class ProxyChannelStateMachine {
         }
         frontendHandler.inClientActive();
 
+        if (connectionTracker != null) {
+            Channel ch = frontendHandler.channel();
+            if (ch != null) {
+                connectionTracker.onDownstreamConnectionEstablished(clusterName(), ch);
+            }
+        }
+
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
     }
@@ -703,6 +736,19 @@ public class ProxyChannelStateMachine {
         setState(new Closed());
 
         incrementAppropriateDisconnectsMetric(disconnectCause);
+
+        // Track downstream connection closure
+        if (frontendHandler != null) {
+            Channel ch = frontendHandler.channel();
+            if (ch != null) {
+                if (connectionTracker != null) {
+                    connectionTracker.onDownstreamConnectionClosed(clusterName(), ch);
+                }
+                if (inFlightTracker != null) {
+                    inFlightTracker.onChannelClosed(clusterName(), ch);
+                }
+            }
+        }
 
         kafkaSession.transitionTo(KafkaSessionState.TERMINATING);
         // Close the server connection
