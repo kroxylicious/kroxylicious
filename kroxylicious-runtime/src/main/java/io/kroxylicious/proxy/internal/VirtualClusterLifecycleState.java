@@ -65,13 +65,6 @@ public sealed interface VirtualClusterLifecycleState {
             return new Stopped(null);
         }
 
-        /**
-         * Drain complete, cluster reinitialising with new configuration.
-         * @return the new initializing state
-         */
-        public Initializing toInitializing() {
-            return new Initializing();
-        }
     }
 
     /** Configuration was not viable. All resources have been released. */
@@ -87,14 +80,6 @@ public sealed interface VirtualClusterLifecycleState {
          */
         public Stopped toStopped() {
             return new Stopped(cause);
-        }
-
-        /**
-         * A retry is requested with corrected configuration.
-         * @return the new initializing state
-         */
-        public Initializing toInitializing() {
-            return new Initializing();
         }
     }
 
