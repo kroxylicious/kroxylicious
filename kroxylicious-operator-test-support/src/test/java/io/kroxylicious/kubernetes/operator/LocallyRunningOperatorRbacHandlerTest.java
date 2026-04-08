@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.javaoperatorsdk.operator.junit.AbstractOperatorExtension;
 
+import static io.kroxylicious.kubernetes.operator.KubernetesResourceUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -82,11 +83,11 @@ class LocallyRunningOperatorRbacHandlerTest {
         handler.beforeEach(mock(ExtensionContext.class));
 
         var roleNames = kubeClient.rbac().clusterRoles().list().getItems().stream()
-                .map(r -> r.getMetadata().getName()).toList();
+                .map(r -> name(r)).toList();
         assertThat(roleNames).contains("test-role");
 
         var bindingNames = kubeClient.rbac().clusterRoleBindings().list().getItems().stream()
-                .map(b -> b.getMetadata().getName()).toList();
+                .map(b -> name(b)).toList();
         assertThat(bindingNames).anyMatch(name -> name.contains("test-role"));
     }
 
@@ -99,7 +100,7 @@ class LocallyRunningOperatorRbacHandlerTest {
         handler.beforeEach(mock(ExtensionContext.class));
 
         var roleNames = kubeClient.rbac().clusterRoles().list().getItems().stream()
-                .map(r -> r.getMetadata().getName()).toList();
+                .map(r -> name(r)).toList();
         assertThat(roleNames).contains("matched-role").doesNotContain("unmatched-role");
     }
 
@@ -114,7 +115,7 @@ class LocallyRunningOperatorRbacHandlerTest {
 
         // The ClusterRoleBinding from the file should NOT have been created (only handler-generated bindings)
         var bindingNames = kubeClient.rbac().clusterRoleBindings().list().getItems().stream()
-                .map(b -> b.getMetadata().getName()).toList();
+                .map(b -> name(b)).toList();
         assertThat(bindingNames).isNotEmpty().doesNotContain("my-binding");
     }
 
@@ -129,12 +130,12 @@ class LocallyRunningOperatorRbacHandlerTest {
         handler.beforeEach(context);
 
         assertThat(kubeClient.rbac().clusterRoles().list().getItems().stream()
-                .map(r -> r.getMetadata().getName()).toList()).contains("cleanup-role");
+                .map(r -> name(r)).toList()).contains("cleanup-role");
 
         handler.afterEach(context);
 
         assertThat(kubeClient.rbac().clusterRoles().list().getItems().stream()
-                .map(r -> r.getMetadata().getName()).toList()).doesNotContain("cleanup-role");
+                .map(r -> name(r)).toList()).doesNotContain("cleanup-role");
         assertThat(kubeClient.rbac().clusterRoleBindings().list().getItems()).isEmpty();
     }
 
@@ -211,7 +212,7 @@ class LocallyRunningOperatorRbacHandlerTest {
         var items = actor.resources(ConfigMap.class).list().getItems();
 
         // Then
-        assertThat(items).extracting(cm -> cm.getMetadata().getName()).contains("my-map");
+        assertThat(items).extracting(cm -> name(cm)).contains("my-map");
     }
 
     // ---- afterAll ----

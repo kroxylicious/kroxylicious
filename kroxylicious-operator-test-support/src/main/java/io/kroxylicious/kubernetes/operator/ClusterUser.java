@@ -16,6 +16,8 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.kubernetes.operator.KubernetesResourceUtil.name;
+
 /**
  * Represents a cluster user interacting with Kubernetes resources in a specific namespace.
  * <p>
@@ -43,7 +45,7 @@ public class ClusterUser {
         }
         catch (KubernetesClientException e) {
             throw new KubernetesClientException(
-                    "ClusterUser failed to create %s/%s".formatted(resource.getKind(), resource.getMetadata().getName()), e);
+                    "ClusterUser failed to create %s/%s".formatted(resource.getKind(), name(resource)), e);
         }
     }
 
@@ -65,7 +67,7 @@ public class ClusterUser {
         }
         catch (KubernetesClientException e) {
             throw new KubernetesClientException(
-                    "ClusterUser failed to replace %s/%s".formatted(resource.getKind(), resource.getMetadata().getName()), e);
+                    "ClusterUser failed to replace %s/%s".formatted(resource.getKind(), name(resource)), e);
         }
     }
 
@@ -76,7 +78,7 @@ public class ClusterUser {
         }
         catch (KubernetesClientException e) {
             throw new KubernetesClientException(
-                    "ClusterUser failed to delete %s/%s".formatted(resource.getKind(), resource.getMetadata().getName()), e);
+                    "ClusterUser failed to delete %s/%s".formatted(resource.getKind(), name(resource)), e);
         }
     }
 
