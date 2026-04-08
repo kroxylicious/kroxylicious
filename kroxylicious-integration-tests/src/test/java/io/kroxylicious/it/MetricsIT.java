@@ -45,6 +45,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.google.common.math.LongMath;
+
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.micrometer.core.instrument.Metrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -920,7 +922,7 @@ class MetricsIT {
 
     @NonNull
     private String getRandomCounterName() {
-        return "test_metric_" + Math.abs(new Random().nextLong()) + "_total";
+        return "test_metric_" + LongMath.saturatedAbs(new Random().nextLong()) + "_total";
     }
 
     private ConfigurationBuilder configWithMetrics(KafkaCluster cluster) {

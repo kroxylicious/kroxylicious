@@ -21,6 +21,8 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 
+import com.google.common.math.IntMath;
+
 import io.kroxylicious.test.assertj.MemoryRecordsAssert;
 import io.kroxylicious.test.assertj.RecordBatchAssert;
 import io.kroxylicious.test.record.RecordTestUtils;
@@ -124,8 +126,8 @@ class RecordStreamTest {
                 .firstRecord()
                 .hasKeyEqualTo("prefixhello")
                 .hasValueEqualTo("prefixworld")
-                .hasOffsetEqualTo(Math.abs("prefix".hashCode()) + baseOffset)
-                .hasTimestampEqualTo(Math.abs("prefix".hashCode()) + 42L);
+                .hasOffsetEqualTo(IntMath.saturatedAbs("prefix".hashCode()) + baseOffset)
+                .hasTimestampEqualTo(IntMath.saturatedAbs("prefix".hashCode()) + 42L);
     }
 
     @Test
@@ -147,14 +149,14 @@ class RecordStreamTest {
         batch.firstRecord()
                 .hasKeyEqualTo(index + "hello")
                 .hasValueEqualTo(index + "world")
-                .hasOffsetEqualTo(Math.abs(Integer.hashCode(index)) + baseOffset)
-                .hasTimestampEqualTo(Math.abs(Integer.hashCode(index)) + 42L);
+                .hasOffsetEqualTo(IntMath.saturatedAbs(Integer.hashCode(index)) + baseOffset)
+                .hasTimestampEqualTo(IntMath.saturatedAbs(Integer.hashCode(index)) + 42L);
         index++;
         batch.lastRecord()
                 .hasKeyEqualTo(index + "HELLO")
                 .hasValueEqualTo(index + "WORLD")
-                .hasOffsetEqualTo(Math.abs(Integer.hashCode(index)) + baseOffset + 1)
-                .hasTimestampEqualTo(Math.abs(Integer.hashCode(index)) + 65L);
+                .hasOffsetEqualTo(IntMath.saturatedAbs(Integer.hashCode(index)) + baseOffset + 1)
+                .hasTimestampEqualTo(IntMath.saturatedAbs(Integer.hashCode(index)) + 65L);
     }
 
     @Test
@@ -176,14 +178,14 @@ class RecordStreamTest {
         batch.firstRecord()
                 .hasKeyEqualTo(index + "hello")
                 .hasValueEqualTo(index + "world")
-                .hasOffsetEqualTo(Math.abs(Integer.hashCode(index)) + baseOffset)
-                .hasTimestampEqualTo(Math.abs(Integer.hashCode(index)) + 42L);
+                .hasOffsetEqualTo(IntMath.saturatedAbs(Integer.hashCode(index)) + baseOffset)
+                .hasTimestampEqualTo(IntMath.saturatedAbs(Integer.hashCode(index)) + 42L);
         index++;
         batch.lastRecord()
                 .hasKeyEqualTo(index + "HELLO")
                 .hasValueEqualTo(index + "WORLD")
-                .hasOffsetEqualTo(Math.abs(Integer.hashCode(index)) + baseOffset + 1)
-                .hasTimestampEqualTo(Math.abs(Integer.hashCode(index)) + 65L);
+                .hasOffsetEqualTo(IntMath.saturatedAbs(Integer.hashCode(index)) + baseOffset + 1)
+                .hasTimestampEqualTo(IntMath.saturatedAbs(Integer.hashCode(index)) + 65L);
     }
 
     private static ByteBuffer prefix(String prefix, ByteBuffer buffer) {
@@ -214,12 +216,12 @@ class RecordStreamTest {
 
         @Override
         public long transformOffset(Record record) {
-            return Math.abs(state.hashCode()) + record.offset();
+            return IntMath.saturatedAbs(state.hashCode()) + record.offset();
         }
 
         @Override
         public long transformTimestamp(Record record) {
-            return Math.abs(state.hashCode()) + record.timestamp();
+            return IntMath.saturatedAbs(state.hashCode()) + record.timestamp();
         }
 
         @Nullable
