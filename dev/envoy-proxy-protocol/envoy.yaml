@@ -1,0 +1,97 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Envoy config for PROXY protocol v2 testing with Kroxylicious.
+#
+# Envoy listens on 49192-49195 inside Docker (same ports Kroxylicious advertises).
+# Each connection gets a PROXY protocol v2 header prepended and is forwarded
+# to Kroxylicious on the host at the same ports.
+#
+# Clients run inside Docker on the same network and connect to envoy:49192.
+
+static_resources:
+  listeners:
+    - name: kroxy_bootstrap
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 49192 }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.tcp_proxy
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+                stat_prefix: kroxy_bootstrap
+                cluster: kroxy_bootstrap
+
+    - name: kroxy_broker_0
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 49193 }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.tcp_proxy
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+                stat_prefix: kroxy_broker_0
+                cluster: kroxy_broker_0
+
+    - name: kroxy_broker_1
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 49194 }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.tcp_proxy
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+                stat_prefix: kroxy_broker_1
+                cluster: kroxy_broker_1
+
+  clusters:
+    - name: kroxy_bootstrap
+      connect_timeout: 5s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      transport_socket: &proxy_protocol_transport
+        name: envoy.transport_sockets.upstream_proxy_protocol
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.proxy_protocol.v3.ProxyProtocolUpstreamTransport
+          config:
+            version: V2
+          transport_socket:
+            name: envoy.transport_sockets.raw_buffer
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.raw_buffer.v3.RawBuffer
+      load_assignment:
+        cluster_name: kroxy_bootstrap
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: host.docker.internal, port_value: 49192 }
+
+    - name: kroxy_broker_0
+      connect_timeout: 5s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      transport_socket: *proxy_protocol_transport
+      load_assignment:
+        cluster_name: kroxy_broker_0
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: host.docker.internal, port_value: 49193 }
+
+    - name: kroxy_broker_1
+      connect_timeout: 5s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      transport_socket: *proxy_protocol_transport
+      load_assignment:
+        cluster_name: kroxy_broker_1
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: host.docker.internal, port_value: 49194 }
