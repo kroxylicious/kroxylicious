@@ -63,9 +63,12 @@ jobs:
             | paste -sd ',')
           TEST_CLIENTS="[$(echo "$client_types" | sed 's/[^,]*/"&"/g')]"
           echo "test_clients=$TEST_CLIENTS" >> $GITHUB_OUTPUT
-      - uses: snnaplab/get-labels-action@f426df40304808ace3b5282d4f036515f7609576
-        with:
-          number: ${{ github.event.pull_request.number }}
+      - name: 'Get PR labels'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_LABELS=[$(echo $(gh api --jq '.labels.[].name' /repos/{owner}/{repo}/pulls/${{ github.event.pull_request.number }}) | sed 's/ /,/g')]
+          echo "LABELS=$PR_LABELS" >> "$GITHUB_ENV"
       - name: 'Set kafka client'
         id: kafkaClient
         run: |
