@@ -69,8 +69,8 @@ jobs:
       - name: 'Set kafka client'
         id: kafkaClient
         run: |
-          KAFKA_CLIENTS=${{ steps.discover.outputs.test_clients }}
-          PR_LABELS=${{ env.LABELS }}
+          KAFKA_CLIENTS="${{ steps.discover.outputs.test_clients }}"
+          PR_LABELS="${{ env.LABELS }}"
           KAFKA_CLIENT=$(echo "${PR_LABELS[@]},${KAFKA_CLIENTS[@]}" | sed 's/,/\n/g; s/\[//g; s/\]//g; s/test\/system-test\///g' | sort | uniq -d)
           KAFKA_CLIENT=$([[ -z $KAFKA_CLIENT ]] && echo 'strimzi_test_client' || echo $KAFKA_CLIENT)
           echo "kafka_client=$KAFKA_CLIENT" >> "$GITHUB_OUTPUT"
@@ -78,7 +78,7 @@ jobs:
       - name: 'Set Fortanix KMS'
         id: fortanixKMS
         run: |
-          PR_LABELS=${{ env.LABELS }}
+          PR_LABELS="${{ env.LABELS }}"
           FORTANIX=$([[ ${PR_LABELS[*]} =~ 'fortanix' ]] && echo 'true' || echo 'false')
           echo "fortanix=$FORTANIX" >> "$GITHUB_OUTPUT"
           echo "$FORTANIX"
