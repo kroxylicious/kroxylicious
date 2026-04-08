@@ -111,14 +111,19 @@ public class VirtualClusterModel {
         var upstreamHostPort = targetCluster.bootstrapServersList();
         var upstreamTlsSummary = generateTlsSummary(targetCluster.tls());
 
-        LOGGER.info("Virtual Cluster '{}' - gateway summary", clusterName);
+        LOGGER.atInfo()
+                .addKeyValue("virtualCluster", clusterName)
+                .log("Gateway summary");
 
         gateways.forEach((name, gateway) -> {
             var downstreamBootstrap = gateway.getClusterBootstrapAddress();
             var downstreamTlsSummary = generateTlsSummary(gateway.getTls());
 
-            LOGGER.info("Gateway: {}, Downstream {}{} => Upstream {}{}",
-                    name, downstreamBootstrap, downstreamTlsSummary, upstreamHostPort, upstreamTlsSummary);
+            LOGGER.atInfo()
+                    .addKeyValue("gateway", name)
+                    .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary)
+                    .addKeyValue("upstream", upstreamHostPort + upstreamTlsSummary)
+                    .log("Gateway configuration");
         });
     }
 
@@ -233,13 +238,17 @@ public class VirtualClusterModel {
 
             allowedProtocols.stream()
                     .filter(Predicate.not(supportedProtocols::contains))
-                    .forEach(unsupportedProtocol -> LOGGER.warn("Ignoring allowed protocol '{}' as it is not recognized by this platform (supported protocols: {})",
-                            unsupportedProtocol, supportedProtocols));
+                    .forEach(unsupportedProtocol -> LOGGER.atWarn()
+                            .addKeyValue("unsupportedProtocol", unsupportedProtocol)
+                            .addKeyValue("supportedProtocols", supportedProtocols)
+                            .log("Ignoring allowed protocol as it is not recognized by this platform"));
 
             deniedProtocols.stream()
                     .filter(Predicate.not(supportedProtocols::contains))
-                    .forEach(unsupportedProtocol -> LOGGER.warn("Ignoring denied protocol '{}' as it is not recognized by this platform (supported protocols: {})",
-                            unsupportedProtocol, supportedProtocols));
+                    .forEach(unsupportedProtocol -> LOGGER.atWarn()
+                            .addKeyValue("unsupportedProtocol", unsupportedProtocol)
+                            .addKeyValue("supportedProtocols", supportedProtocols)
+                            .log("Ignoring denied protocol as it is not recognized by this platform"));
 
             var protocolsToUse = allowedProtocols.stream()
                     .filter(supportedProtocols::contains)

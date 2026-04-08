@@ -53,7 +53,11 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             throw new AssertionError("Missing correlation id " + correlationId);
         }
         else if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Recovered correlation {} for upstream correlation id {}", ctx, correlation, correlationId);
+            LOGGER.atDebug()
+                    .addKeyValue("upstreamCorrelationId", correlationId)
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("correlation", correlation)
+                    .log("Recovered correlation");
         }
         try {
             final DecodedResponseFrame<?> frame;
@@ -64,7 +68,10 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             ResponseHeaderData header = readHeader(headerVersion, accessor);
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
             frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
-            log().trace("{}: Frame: {}", ctx, frame);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("frame", frame)
+                    .log("Result");
             if (in.readableBytes() != 0) {
                 throw new IllegalStateException("Unread bytes remaining in frame, potentially response api version differs from expectation");
             }

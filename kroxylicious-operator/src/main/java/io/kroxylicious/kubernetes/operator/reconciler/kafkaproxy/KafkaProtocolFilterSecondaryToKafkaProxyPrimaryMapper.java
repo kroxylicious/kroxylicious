@@ -32,13 +32,17 @@ class KafkaProtocolFilterSecondaryToKafkaProxyPrimaryMapper implements Secondary
     public Set<ResourceID> toPrimaryResourceIDs(KafkaProtocolFilter filter) {
         // we do not want to trigger reconciliation of any proxy if the filter has not been reconciled
         if (!ResourcesUtil.isStatusFresh(filter)) {
-            LOGGER.debug("Ignoring event from filter with stale status: {}", ResourcesUtil.toLocalRef(filter));
+            LOGGER.atDebug()
+                    .addKeyValue("filter", ResourcesUtil.toLocalRef(filter))
+                    .log("Ignoring event from filter with stale status");
             return Set.of();
         }
         // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
         // so when a filter changes we reconcile all the proxies in the same namespace
         Set<ResourceID> proxiesInFilterNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, filter, KafkaProxy.class, proxy -> true);
-        LOGGER.debug("Event source SecondaryToPrimaryMapper got {}", proxiesInFilterNamespace);
+        LOGGER.atDebug()
+                .addKeyValue("proxyIds", proxiesInFilterNamespace)
+                .log("Event source SecondaryToPrimaryMapper");
         return proxiesInFilterNamespace;
     }
 }

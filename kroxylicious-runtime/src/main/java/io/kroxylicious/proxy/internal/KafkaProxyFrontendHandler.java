@@ -213,7 +213,9 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        LOGGER.trace("INACTIVE on inbound {}", ctx.channel());
+        LOGGER.atTrace()
+                .addKeyValue("channelId", () -> ctx.channel().toString())
+                .log("INACTIVE on inbound");
         proxyChannelStateMachine.onClientInactive();
     }
 
@@ -271,7 +273,9 @@ public class KafkaProxyFrontendHandler
      */
     void inClientActive() {
         Channel clientChannel = clientCtx().channel();
-        LOGGER.trace("{}: channelActive", clientChannel.id());
+        LOGGER.atTrace()
+                .addKeyValue("channelId", clientChannel.id())
+                .log("ChannelActive");
         // install filters before first read
         List<FilterAndInvoker> filters = buildFilters();
         addFiltersToPipeline(filters, clientCtx().pipeline(), clientCtx().channel());
@@ -341,10 +345,10 @@ public class KafkaProxyFrontendHandler
      */
     void initiateConnect(
                          HostPort remote) {
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Connecting to backend broker {}",
-                    this.proxyChannelStateMachine.sessionId(), remote);
-        }
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", this.proxyChannelStateMachine.sessionId())
+                .addKeyValue("remote", remote)
+                .log("Connecting to backend broker");
         this.proxyChannelStateMachine.onInitiateConnect(remote);
     }
 
@@ -358,10 +362,10 @@ public class KafkaProxyFrontendHandler
         // Start the upstream connection attempt.
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
 
-        LOGGER.atDebug().setMessage("{}: Connecting to outbound {}")
-                .addArgument(this.proxyChannelStateMachine::sessionId)
-                .addArgument(remote)
-                .log();
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", this.proxyChannelStateMachine.sessionId())
+                .addKeyValue("remote", remote)
+                .log("Connecting to outbound");
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
         Channel outboundChannel = serverTcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
@@ -391,11 +395,15 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("ssl", handler);
         });
 
-        LOGGER.debug("Configured broker channel pipeline: {}", pipeline);
+        LOGGER.atDebug()
+                .addKeyValue("pipeline", pipeline)
+                .log("Configured broker channel pipeline");
 
         serverTcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
-                LOGGER.trace("{}: Outbound connected", clientCtx().channel().id());
+                LOGGER.atTrace()
+                        .addKeyValue("channelId", clientCtx().channel().id())
+                        .log("Outbound connected");
                 // This branch does not cause the transition to Connected:
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }

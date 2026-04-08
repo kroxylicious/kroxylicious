@@ -16,32 +16,33 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class NettySettingsTest {
 
     private static final Optional<Duration> NEGATIVE = Optional.of(Duration.ofSeconds(-1));
-    private static final Optional<Duration> EMPTY = Optional.empty();
+    private static final Optional<Integer> EMPTY_INT = Optional.empty();
+    private static final Optional<Duration> EMPTY_DURATION = Optional.empty();
 
     @Test
     void shouldRejectNegativeShutdownQuietPeriod() {
-        assertThatThrownBy(() -> new NettySettings(Optional.empty(), NEGATIVE, EMPTY, EMPTY, EMPTY))
+        assertThatThrownBy(() -> new NettySettings(EMPTY_INT, NEGATIVE, EMPTY_DURATION, EMPTY_DURATION, EMPTY_DURATION))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("shutdownQuietPeriod");
     }
 
     @Test
     void shouldRejectNegativeShutdownTimeout() {
-        assertThatThrownBy(() -> new NettySettings(Optional.empty(), EMPTY, NEGATIVE, EMPTY, EMPTY))
+        assertThatThrownBy(() -> new NettySettings(EMPTY_INT, EMPTY_DURATION, NEGATIVE, EMPTY_DURATION, EMPTY_DURATION))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("shutdownTimeout");
     }
 
     @Test
     void shouldRejectNegativeAuthenticatedIdleTimeout() {
-        assertThatThrownBy(() -> new NettySettings(Optional.empty(), EMPTY, EMPTY, NEGATIVE, EMPTY))
+        assertThatThrownBy(() -> new NettySettings(EMPTY_INT, EMPTY_DURATION, EMPTY_DURATION, NEGATIVE, EMPTY_DURATION))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("authenticatedIdleTimeout");
     }
 
     @Test
     void shouldRejectNegativeUnauthenticatedIdleTimeout() {
-        assertThatThrownBy(() -> new NettySettings(Optional.empty(), EMPTY, EMPTY, EMPTY, NEGATIVE))
+        assertThatThrownBy(() -> new NettySettings(EMPTY_INT, EMPTY_DURATION, EMPTY_DURATION, EMPTY_DURATION, NEGATIVE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("unauthenticatedIdleTimeout");
     }

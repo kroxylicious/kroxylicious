@@ -110,9 +110,9 @@ public class DecryptionDekCache<K, E> {
                                     RemovalCause removalCause) {
         if (dek != null) {
             dek.destroyForDecrypt();
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("Attempted to destroy DEK: {}", dek);
-            }
+            LOGGER.atTrace()
+                    .addKeyValue("dek", dek)
+                    .log("Attempted to destroy DEK");
         }
     }
 

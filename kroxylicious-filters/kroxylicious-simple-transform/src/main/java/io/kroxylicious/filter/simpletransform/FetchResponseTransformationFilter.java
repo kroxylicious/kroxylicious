@@ -64,8 +64,11 @@ class FetchResponseTransformationFilter implements FetchResponseFilter {
             Optional<String> name = getName(topicNameMapping, topicData);
             Errors error = getError(topicNameMapping, topicData);
             if (name.isEmpty()) {
-                LOGGER.debug("Failed to retrieve topicName for topicData with name: {} and topicId: {}, replacing all partitions with error responses with code {}",
-                        topicData.topic(), topicData.topicId(), error.name());
+                LOGGER.atDebug()
+                        .addKeyValue("topicName", topicData.topic())
+                        .addKeyValue("topicId", topicData.topicId())
+                        .addKeyValue("errorCode", error.name())
+                        .log("Failed to retrieve topicName for topicData, replacing all partitions with error responses");
             }
             List<FetchResponseData.PartitionData> partitionData = topicData.partitions().stream().map(partition -> name.map(s -> transformRecords(context, partition, s))
                     .orElseGet(() -> partitionResponse(partition.partitionIndex(), error))).toList();

@@ -140,8 +140,11 @@ public class TlsHttpClientConfigurator implements UnaryOperator<Builder> {
             if (allowed != null && !allowed.isEmpty()) {
                 allowed.stream()
                         .filter(Predicate.not(supported::contains))
-                        .forEach(unsupported -> LOGGER.warn("Ignoring allowed {} '{}' as it is not recognized by this platform (supported: {})",
-                                subject, unsupported, supported));
+                        .forEach(unsupported -> LOGGER.atWarn()
+                                .addKeyValue("subject", subject)
+                                .addKeyValue("unsupported", unsupported)
+                                .addKeyValue("supported", supported)
+                                .log("Ignoring allowed item as it is not recognized by this platform"));
                 result = allowed.stream()
                         .filter(supported::contains)
                         .toList();
@@ -151,9 +154,11 @@ public class TlsHttpClientConfigurator implements UnaryOperator<Builder> {
             if (denied != null) {
                 denied.stream()
                         .filter(Predicate.not(supported::contains))
-                        .forEach(unsupported -> LOGGER.warn(
-                                "Ignoring denied {}} '{}' as it is not recognized by this platform (supported: {})",
-                                subject, unsupported, supported));
+                        .forEach(unsupported -> LOGGER.atWarn()
+                                .addKeyValue("subject", subject)
+                                .addKeyValue("unsupported", unsupported)
+                                .addKeyValue("supported", supported)
+                                .log("Ignoring denied item as it is not recognized by this platform"));
                 result = result.stream()
                         .filter(Predicate.not(denied::contains))
                         .toList();

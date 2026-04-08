@@ -368,13 +368,6 @@ public class MockFilterContext implements FilterContext {
     }
 
     @Override
-    public void clientSaslAuthenticationSuccess(String mechanism, String authorizedId) {
-        synchronized (clientSaslGestureInvocations) {
-            clientSaslGestureInvocations.add(new ClientSaslGestureInvocation.DeprecatedAuthenticationSuccess(mechanism, authorizedId));
-        }
-    }
-
-    @Override
     public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
         synchronized (clientSaslGestureInvocations) {
             clientSaslGestureInvocations.add(new ClientSaslGestureInvocation.AuthenticationSuccess(mechanism, subject));
@@ -615,8 +608,6 @@ public class MockFilterContext implements FilterContext {
     }
 
     public sealed interface ClientSaslGestureInvocation {
-        record DeprecatedAuthenticationSuccess(String mechanism, String authorizedId) implements ClientSaslGestureInvocation {}
-
         record AuthenticationSuccess(String mechanism, Subject subject) implements ClientSaslGestureInvocation {}
 
         record AuthenticationFailure(@Nullable String mechanism, @Nullable String authorizedId, Exception exception) implements ClientSaslGestureInvocation {}

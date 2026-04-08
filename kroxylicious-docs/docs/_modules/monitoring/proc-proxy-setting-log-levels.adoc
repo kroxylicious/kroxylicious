@@ -33,3 +33,55 @@ KROXYLICIOUS_ROOT_LOG_LEVEL="DEBUG"
 ----
 
 NOTE: Setting the root log level to `DEBUG` or `TRACE` will produce very verbose logs.
+
+[id='proc-proxy-json-log-format-{context}']
+== Switching to JSON log format
+
+By default, Kroxylicious outputs logs in human-readable text format. You can switch to structured JSON output for integration with log aggregation systems.
+
+.Procedure
+
+. Set the `KROXYLICIOUS_LOG_FORMAT` environment variable:
++
+[source,bash]
+----
+export KROXYLICIOUS_LOG_FORMAT=json
+----
+
+. Start Kroxylicious:
++
+[source,bash]
+----
+bin/kroxylicious-start.sh
+----
+
+.Expected output (JSON format)
+
+[source,json]
+----
+{
+  "@version": "1",
+  "@timestamp": "2026-04-01T14:25:30.123Z",
+  "message": "Connection established",
+  "logger_name": "io.kroxylicious.proxy.internal.FilterHandler",
+  "thread_name": "kafka-request-handler-1",
+  "level": "INFO",
+  "level_value": 20000,
+  "stack_trace": null,
+  "sessionId": "abc-123",
+  "clientId": "producer-1"
+}
+----
+
+NOTE: Structured logging parameters like `sessionId` and `clientId` appear as top-level fields in JSON output.
+
+.Switching back to text format
+
+Remove the environment variable or set it to `text`:
+
+[source,bash]
+----
+unset KROXYLICIOUS_LOG_FORMAT
+# or
+export KROXYLICIOUS_LOG_FORMAT=text
+----

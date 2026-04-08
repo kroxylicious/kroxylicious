@@ -48,7 +48,9 @@ class KafkaProxyPrimaryToKafkaServiceSecondaryMapper implements PrimaryToSeconda
 
         Set<ResourceID> kafkaServiceRefs = ResourcesUtil.filteredResourceIdsInSameNamespace(context, primary, KafkaService.class,
                 cluster -> clusterRefs.contains(toLocalRef(cluster)));
-        LOGGER.debug("Event source KafkaService PrimaryToSecondaryMapper got {}", kafkaServiceRefs);
+        LOGGER.atDebug()
+                .addKeyValue("kafkaServiceRefs", kafkaServiceRefs)
+                .log("Event source KafkaService PrimaryToSecondaryMapper");
         return kafkaServiceRefs;
     }
 }
