@@ -8,13 +8,13 @@ package io.kroxylicious.proxy.config;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Configuration for how the proxy handles virtual cluster failures during startup.
+ * Configuration for how the proxy handles virtual clusters that reach the terminal {@code stopped} state.
  *
  * @param serve the failure policy to apply
  */
-public record OnVirtualClusterFailure(@Nullable VirtualClusterFailurePolicy serve) {
+public record OnVirtualClusterStopped(@Nullable VirtualClusterFailurePolicy serve) {
 
-    public OnVirtualClusterFailure {
+    public OnVirtualClusterStopped {
         if (serve == null) {
             serve = VirtualClusterFailurePolicy.NONE;
         }

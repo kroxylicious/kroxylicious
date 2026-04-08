@@ -31,8 +31,8 @@ public class VirtualClusterLifecycle {
     private static final Map<VirtualClusterLifecycleState, Set<VirtualClusterLifecycleState>> LEGAL_TRANSITIONS = Map.of(
             INITIALIZING, Set.of(SERVING, FAILED),
             SERVING, Set.of(DRAINING),
-            DRAINING, Set.of(STOPPED),
-            FAILED, Set.of(STOPPED));
+            DRAINING, Set.of(STOPPED, INITIALIZING),
+            FAILED, Set.of(STOPPED, INITIALIZING));
 
     private final String clusterName;
     private volatile VirtualClusterLifecycleState state;

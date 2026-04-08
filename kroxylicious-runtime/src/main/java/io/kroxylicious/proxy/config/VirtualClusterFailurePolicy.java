@@ -8,15 +8,15 @@ package io.kroxylicious.proxy.config;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Policy for handling virtual cluster startup failures.
+ * Policy for handling virtual clusters that reach the terminal {@code stopped} state.
  */
 public enum VirtualClusterFailurePolicy {
 
-    /** Any virtual cluster failure kills the proxy. This is the default. */
+    /** Any virtual cluster reaching stopped kills the proxy. This is the default. */
     @JsonProperty("none")
     NONE,
 
-    /** Serve healthy virtual clusters, report failed ones. */
-    @JsonProperty("remaining")
-    REMAINING
+    /** Serve virtual clusters that initialised successfully, report stopped ones. */
+    @JsonProperty("successful")
+    SUCCESSFUL
 }

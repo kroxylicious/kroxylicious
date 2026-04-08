@@ -274,22 +274,26 @@ public final class KafkaProxy implements AutoCloseable {
                 }
             }
 
-            // Apply failure policy
+            // Transition FAILED VCs to STOPPED — no recovery mechanism exists today
             var failedLifecycles = lifecycleManager.all().stream().filter(lc -> lc.state() == VirtualClusterLifecycleState.FAILED).toList();
-            if (!failedLifecycles.isEmpty()) {
+            failedLifecycles.forEach(lc -> lc.transitionTo(VirtualClusterLifecycleState.STOPPED));
+
+            // Apply failure policy based on VCs that reached the terminal STOPPED state
+            var stoppedLifecycles = lifecycleManager.all().stream().filter(lc -> lc.state() == VirtualClusterLifecycleState.STOPPED).toList();
+            if (!stoppedLifecycles.isEmpty()) {
                 long servingCount = lifecycleManager.all().stream().filter(lc -> lc.state() == VirtualClusterLifecycleState.SERVING).count();
                 Throwable firstCause = failedLifecycles.stream()
                         .flatMap(lc -> lc.failureCause().stream())
                         .findFirst()
                         .orElse(new RuntimeException("Unknown failure"));
                 if (config.effectiveFailurePolicy() == VirtualClusterFailurePolicy.NONE) {
-                    throw new LifecycleException("%d virtual cluster(s) failed to start".formatted(failedLifecycles.size()), firstCause);
+                    throw new LifecycleException("%d virtual cluster(s) failed to start".formatted(stoppedLifecycles.size()), firstCause);
                 }
                 else if (servingCount == 0) {
-                    throw new LifecycleException("All %d virtual cluster(s) failed to start".formatted(failedLifecycles.size()), firstCause);
+                    throw new LifecycleException("All %d virtual cluster(s) failed to start".formatted(stoppedLifecycles.size()), firstCause);
                 }
                 else {
-                    STARTUP_SHUTDOWN_LOGGER.warn("{} virtual cluster(s) failed, {} serving", failedLifecycles.size(), servingCount);
+                    STARTUP_SHUTDOWN_LOGGER.warn("{} virtual cluster(s) stopped, {} serving", stoppedLifecycles.size(), servingCount);
                 }
             }
 
@@ -410,7 +414,7 @@ public final class KafkaProxy implements AutoCloseable {
             return;
         }
 
-        // Transition FAILED VCs to STOPPED immediately
+        // Safety net: transition any remaining FAILED VCs to STOPPED (normally handled at startup)
         lifecycleManager.all().stream()
                 .filter(lc -> lc.state() == VirtualClusterLifecycleState.FAILED)
                 .forEach(lc -> lc.transitionTo(VirtualClusterLifecycleState.STOPPED));

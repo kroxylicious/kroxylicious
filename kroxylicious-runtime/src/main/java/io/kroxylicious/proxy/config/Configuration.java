@@ -41,11 +41,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param useIoUring true to use iouring
  * @param development Development options
  * @param network Controls aspects of network configuration for the proxy.
- * @param onVirtualClusterFailure Controls behavior when virtual clusters fail during startup.
+ * @param onVirtualClusterStopped Controls behavior when virtual clusters reach the terminal stopped state.
  * @param drainTimeout How long to wait for connections to drain during shutdown.
  */
 @JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network",
-        "onVirtualClusterFailure", "drainTimeout" })
+        "onVirtualClusterStopped", "drainTimeout" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
@@ -55,7 +55,7 @@ public record Configuration(
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
                             @Nullable NetworkDefinition network,
-                            @Nullable OnVirtualClusterFailure onVirtualClusterFailure,
+                            @Nullable OnVirtualClusterStopped onVirtualClusterStopped,
                             @Nullable Duration drainTimeout) {
 
     private static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(60);
@@ -213,7 +213,7 @@ public record Configuration(
     }
 
     public VirtualClusterFailurePolicy effectiveFailurePolicy() {
-        return onVirtualClusterFailure != null ? onVirtualClusterFailure.serve() : VirtualClusterFailurePolicy.NONE;
+        return onVirtualClusterStopped != null ? onVirtualClusterStopped.serve() : VirtualClusterFailurePolicy.NONE;
     }
 
     public Duration effectiveDrainTimeout() {

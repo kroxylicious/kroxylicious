@@ -76,6 +76,24 @@ class VirtualClusterLifecycleTest {
         assertThat(lifecycle.failureCause()).isEmpty();
     }
 
+    // Reload/recovery transitions
+
+    @Test
+    void drainingToInitializingIsLegal() {
+        lifecycle.transitionTo(SERVING);
+        lifecycle.transitionTo(DRAINING);
+        lifecycle.transitionTo(INITIALIZING);
+        assertThat(lifecycle.state()).isEqualTo(INITIALIZING);
+    }
+
+    @Test
+    void failedToInitializingIsLegal() {
+        lifecycle.transitionToFailed(new RuntimeException("oops"));
+        lifecycle.transitionTo(INITIALIZING);
+        assertThat(lifecycle.state()).isEqualTo(INITIALIZING);
+        assertThat(lifecycle.failureCause()).isEmpty();
+    }
+
     // Illegal transitions
 
     @Test

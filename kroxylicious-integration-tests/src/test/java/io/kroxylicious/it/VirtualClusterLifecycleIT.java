@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.LifecycleException;
-import io.kroxylicious.proxy.config.OnVirtualClusterFailure;
+import io.kroxylicious.proxy.config.OnVirtualClusterStopped;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterFailurePolicy;
 import io.kroxylicious.proxy.service.HostPort;
@@ -235,7 +235,7 @@ class VirtualClusterLifecycleIT extends BaseIT {
                                     new HostPort("localhost", occupiedPort))
                                     .build())
                             .build())
-                    .withOnVirtualClusterFailure(new OnVirtualClusterFailure(VirtualClusterFailurePolicy.REMAINING));
+                    .withOnVirtualClusterStopped(new OnVirtualClusterStopped(VirtualClusterFailurePolicy.SUCCESSFUL));
 
             // The proxy should start successfully despite one VC failing
             try (var tester = kroxyliciousTester(config);
@@ -279,7 +279,7 @@ class VirtualClusterLifecycleIT extends BaseIT {
                                     new HostPort("localhost", occupiedPort))
                                     .build())
                             .build())
-                    .withOnVirtualClusterFailure(new OnVirtualClusterFailure(VirtualClusterFailurePolicy.NONE));
+                    .withOnVirtualClusterStopped(new OnVirtualClusterStopped(VirtualClusterFailurePolicy.NONE));
 
             // With NONE policy, any VC failure should cause startup to fail
             assertThatThrownBy(() -> kroxyliciousTester(config).close())
@@ -387,9 +387,9 @@ class VirtualClusterLifecycleIT extends BaseIT {
                                         new HostPort("localhost", port2))
                                         .build())
                                 .build())
-                        .withOnVirtualClusterFailure(new OnVirtualClusterFailure(VirtualClusterFailurePolicy.REMAINING));
+                        .withOnVirtualClusterStopped(new OnVirtualClusterStopped(VirtualClusterFailurePolicy.SUCCESSFUL));
 
-                // Even with REMAINING policy, all VCs failing should cause startup to fail
+                // Even with SUCCESSFUL policy, all VCs failing should cause startup to fail
                 assertThatThrownBy(() -> kroxyliciousTester(config).close())
                         .isInstanceOf(LifecycleException.class)
                         .hasMessageContaining("All");
