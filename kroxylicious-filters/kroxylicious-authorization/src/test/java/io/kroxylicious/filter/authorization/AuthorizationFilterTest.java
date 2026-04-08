@@ -51,7 +51,6 @@ import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
 
 import nl.altindag.log.LogCaptor;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.when;
