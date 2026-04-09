@@ -37,6 +37,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
@@ -103,7 +104,11 @@ public class KafkaProtocolFilterReconciler implements
                     Set<ResourceID> resourceIds = resourceNameExtractor.apply(interpolationResult)
                             .map(name -> new ResourceID(name, ResourcesUtil.namespace(filter)))
                             .collect(Collectors.toSet());
-                    LOGGER.debug("Filter {} references {}(s) {}", ResourcesUtil.name(filter), secondaryClass.getName(), resourceIds);
+                    LOGGER.atDebug()
+                            .addKeyValue("filterName", ResourcesUtil.name(filter))
+                            .addKeyValue("secondaryClass", secondaryClass.getName())
+                            .addKeyValue("resourceIds", resourceIds)
+                            .log("Filter references secondary resources");
                     return resourceIds;
                 })
                 .withSecondaryToPrimaryMapper(secret -> {
@@ -117,7 +122,11 @@ public class KafkaProtocolFilterReconciler implements
                                 return resourceNameExtractor.apply(interpolationResult)
                                         .anyMatch(secretNameFromVolume -> secretNameFromVolume.equals(ResourcesUtil.name(secret)));
                             });
-                    LOGGER.debug("{} {} referenced by Filters {}", secondaryClass.getName(), ResourcesUtil.name(secret), resourceIds);
+                    LOGGER.atDebug()
+                            .addKeyValue("secondaryClass", secondaryClass.getName())
+                            .addKeyValue("secretName", ResourcesUtil.name(secret))
+                            .addKeyValue("resourceIds", resourceIds)
+                            .log("Secondary resource referenced by Filters");
                     return resourceIds;
                 })
                 .build();
@@ -129,10 +138,14 @@ public class KafkaProtocolFilterReconciler implements
                                                         Context<KafkaProtocolFilter> context) {
 
         Map<String, Secret> existingSecretsByName = context.getSecondaryResourcesAsStream(Secret.class).collect(toByNameMap());
-        LOGGER.debug("Existing secrets: {}", existingSecretsByName.keySet());
+        LOGGER.atDebug()
+                .addKeyValue("secrets", existingSecretsByName.keySet())
+                .log("Existing secrets");
 
         Map<String, ConfigMap> existingConfigMapsByName = context.getSecondaryResourcesAsStream(ConfigMap.class).collect(toByNameMap());
-        LOGGER.debug("Existing configmaps: {}", existingConfigMapsByName.keySet());
+        LOGGER.atDebug()
+                .addKeyValue("configMaps", existingConfigMapsByName.keySet())
+                .log("Existing config maps");
 
         var interpolationResult = secureConfigInterpolator.interpolate(filter.getSpec().getConfigTemplate());
         var referencedSecrets = interpolationResult.volumes().stream()
@@ -140,14 +153,18 @@ public class KafkaProtocolFilterReconciler implements
                         .map(SecretVolumeSource::getSecretName)
                         .stream())
                 .collect(Collectors.toCollection(TreeSet::new));
-        LOGGER.debug("Referenced secrets: {}", referencedSecrets);
+        LOGGER.atDebug()
+                .addKeyValue("secrets", referencedSecrets)
+                .log("Referenced secrets");
 
         var referencedConfigMaps = interpolationResult.volumes().stream()
                 .flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
                         .map(ConfigMapVolumeSource::getName)
                         .stream())
                 .collect(Collectors.toCollection(TreeSet::new));
-        LOGGER.debug("Referenced configmaps: {}", referencedConfigMaps);
+        LOGGER.atDebug()
+                .addKeyValue("configMaps", referencedConfigMaps)
+                .log("Referenced config maps");
 
         KafkaProtocolFilter patch;
         if (existingSecretsByName.keySet().containsAll(referencedSecrets)
@@ -180,7 +197,10 @@ public class KafkaProtocolFilterReconciler implements
         }
 
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{}", namespace(filter), name(filter));
+            LOGGER.atInfo()
+                    .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(filter))
+                    .addKeyValue(OperatorLoggingKeys.NAME, name(filter))
+                    .log("Completed reconciliation");
         }
         return UpdateControl.patchResourceAndStatus(patch);
     }
@@ -194,7 +214,11 @@ public class KafkaProtocolFilterReconciler implements
         ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl
                 .patchStatus(statusFactory.newUnknownConditionStatusPatch(filter, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(filter), name(filter), e.toString());
+            LOGGER.atInfo()
+                    .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(filter))
+                    .addKeyValue(OperatorLoggingKeys.NAME, name(filter))
+                    .addKeyValue(OperatorLoggingKeys.ERROR, e.toString())
+                    .log("Completed reconciliation with error");
         }
         return uc;
     }

@@ -59,7 +59,7 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
 
     private final Oauth2ClientCredentialsConfig oauth2ClientCredentialsConfig;
     private final Clock clock;
-    private static final Logger LOG = LoggerFactory.getLogger(OauthClientCredentialsTokenService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OauthClientCredentialsTokenService.class);
 
     private final HttpClient httpClient;
 
@@ -119,20 +119,28 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
 
     private static AccessTokenResponse getAccessTokenResponse(HttpResponse<String> r) {
         if (r.statusCode() != 200) {
-            LOG.warn("GET Microsoft Identity Platform OAuth 2.0 token failed. Received unexpected response code {}", r.statusCode());
+            LOGGER.atWarn()
+                    .addKeyValue("statusCode", r.statusCode())
+                    .log("GET Microsoft Identity Platform OAuth 2.0 token failed, received unexpected response code");
             throw new UnexpectedHttpStatusCodeException(r);
         }
         else {
             String body = r.body();
             if (body == null || body.isEmpty()) {
-                LOG.warn("GET Microsoft Identity Platform OAuth 2.0 token failed. Received empty response body");
+                LOGGER.atWarn()
+                        .log("GET Microsoft Identity Platform OAuth 2.0 token failed, received empty response body");
                 throw new MalformedResponseBodyException("response body is null or empty");
             }
             try {
                 return MAPPER.readValue(body, AccessTokenResponse.class);
             }
             catch (JsonProcessingException e) {
-                LOG.warn("GET Microsoft Identity Platform OAuth 2.0 token failed. Error parsing response body");
+                LOGGER.atWarn()
+                        .setCause(LOGGER.isDebugEnabled() ? e : null)
+                        .addKeyValue("error", e.getMessage())
+                        .log(LOGGER.isDebugEnabled()
+                                ? "GET Microsoft Identity Platform OAuth 2.0 token failed, error parsing response body"
+                                : "GET Microsoft Identity Platform OAuth 2.0 token failed, error parsing response body, increase log level to DEBUG for stacktrace");
                 throw new MalformedResponseBodyException("failed to decode response body", e);
             }
         }

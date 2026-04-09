@@ -41,39 +41,70 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         var apiId = in.readShort();
         ApiKeys apiKey = ApiKeys.forId(apiId);
         if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("{}: apiKey: {} {}", ctx, apiId, apiKey);
+            log().atTrace()
+                    .addKeyValue("apiId", apiId)
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("ctx", ctx)
+                    .log("Read");
         }
         short apiVersion = in.readShort();
         if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("{}: apiVersion: {}", ctx, apiVersion);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("apiVersion", apiVersion)
+                    .log("Read");
         }
         int correlationId = in.readInt();
-        LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
+        LOGGER.atDebug()
+                .addKeyValue("ctx", ctx)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("correlationId", correlationId)
+                .log("downstream", ctx, apiKey, correlationId);
 
         RequestHeaderData header;
         var decodeRequest = true;
-        LOGGER.debug("Decode {}/v{} request? {}", apiKey, apiVersion, decodeRequest);
+        LOGGER.atDebug()
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("decodeRequest", decodeRequest)
+                .log("Decode request?", apiKey, apiVersion, decodeRequest);
         boolean decodeResponse = true;
-        LOGGER.debug("Decode {}/v{} response? {}", apiKey, apiVersion, decodeResponse);
+        LOGGER.atDebug()
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("decodeResponse", decodeResponse)
+                .log("Decode response? {}", apiKey, apiVersion, decodeResponse);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("{}: headerVersion {}", ctx, headerVersion);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("headerVersion", headerVersion)
+                    .log("headerVersion");
         }
         in.readerIndex(sof);
         ByteBufAccessorImpl acc = new ByteBufAccessorImpl(in);
         header = readHeader(headerVersion, acc);
         if (log().isTraceEnabled()) {
-            log().trace("{}: header: {}", ctx, header);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("header", header)
+                    .log("Read", ctx, header);
         }
         final Frame frame;
         ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, acc);
         if (log().isTraceEnabled()) {
-            log().trace("{}: body {}", ctx, body);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("body", body)
+                    .log("body");
         }
 
         frame = new DecodedRequestFrame<>(apiVersion, correlationId, header, body, apiVersion);
         if (log().isTraceEnabled()) {
-            log().trace("{}: frame {}", ctx, frame);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("frame", frame)
+                    .log("frame");
         }
 
         return frame;

@@ -95,6 +95,20 @@
             <property name="classes" value="java.lang.Boolean"/>
         </module>
 
+        <!-- Enforce structured logging with addKeyValue instead of parameterized logging -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="(LOGGER|LOG)\.(info|debug|warn|error|trace)\([^)]*\{[^\}]*\}" />
+            <property name="message" value="Use fluent API with addKeyValue() instead of parameterized logging with '{''}'. Example: LOGGER.atInfo().addKeyValue(&quot;key&quot;, value).log(&quot;message&quot;). [not required for tests]" />
+            <property name="ignoreComments" value="true" />
+        </module>
+
+        <!-- Standardize logger naming to LOGGER (not LOG) -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="^\s*(private\s+)?static\s+final\s+Logger\s+LOG\s*=" />
+            <property name="message" value="Logger should be named LOGGER (not LOG) for consistency. [not required for tests]" />
+            <property name="ignoreComments" value="true" />
+        </module>
+
         <module name="IllegalImport">
             <!-- we shouldn't be relying on class shaded into TC for dependencies -->
             <property name="illegalPkgs" value="org.testcontainers.shaded"/>

@@ -19,7 +19,6 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
-import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
@@ -185,27 +184,6 @@ public interface FilterContext {
      * may be arbitrarily interleaved during the lifetime of a given filter instance.
      *
      * @param mechanism The SASL mechanism used
-     * @param authorizedId The authorizedId
-     *
-     * @deprecated Callers should use {@link #clientSaslAuthenticationSuccess(String, Subject)}
-     * to announce authentication outcomes instead of this method.
-     * When this method is used the result of {@link #authenticatedSubject()} will be a non-empty Optional
-     * with a {@link Subject} having a single {@link User} principal with the given {@code authorizedId}
-     */
-    @Deprecated(since = "0.18")
-    void clientSaslAuthenticationSuccess(String mechanism,
-                                         String authorizedId);
-
-    /**
-     * Allows a filter (typically one which implements {@link SaslAuthenticateRequestFilter})
-     * to announce a successful authentication outcome with the Kafka client to other plugins.
-     * After calling this method the results of {@link #clientSaslContext()}
-     * and {@link #authenticatedSubject()} will both be non-empty for this and other filters.
-     *
-     * In order to support reauthentication, calls to this method and
-     * {@link #clientSaslAuthenticationFailure(String, String, Exception)}
-     * may be arbitrarily interleaved during the lifetime of a given filter instance.
-     * @param mechanism The SASL mechanism used
      * @param subject The subject
      */
     void clientSaslAuthenticationSuccess(String mechanism,
@@ -219,7 +197,7 @@ public interface FilterContext {
      * It is the filter's responsibility to return the right error response to a client, and/or disconnect.
      *
      * In order to support reauthentication, calls to this method and
-     * {@link #clientSaslAuthenticationSuccess(String, String)}
+     * {@link #clientSaslAuthenticationSuccess(String, Subject)}
      * may be arbitrarily interleaved during the lifetime of a given filter instance.
      * @param mechanism The SASL mechanism used, or null if this is not known.
      * @param authorizedId The authorizedId, or null if this is not known.

@@ -35,7 +35,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AzureKeyVaultKms.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AzureKeyVaultKms.class);
 
     private static final List<String> REQUIRED_OPERATIONS = List.of("wrapKey", "unwrapKey");
     private static final int AES_256_KEY_SIZE = 32;
@@ -52,7 +52,10 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
 
     @Override
     public CompletionStage<DekPair<AzureKeyVaultEdek>> generateDekPair(WrappingKey wrappingKey) {
-        LOG.debug("Generating dek pair for key version {}", wrappingKey);
+        LOGGER.atDebug()
+                .addKeyValue("keyName", wrappingKey.keyName())
+                .addKeyValue("keyVersion", wrappingKey.keyVersion())
+                .log("Generating DEK pair");
         byte[] bytes = generateDek();
         CompletionStage<byte[]> wrap = client.wrap(wrappingKey, bytes);
         return wrap.handle((wrappedBytes, throwable) -> {
@@ -86,7 +89,10 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
 
     @Override
     public CompletionStage<SecretKey> decryptEdek(AzureKeyVaultEdek edek) {
-        LOG.debug("Decrypting dek pair for key version {}", edek);
+        LOGGER.atDebug()
+                .addKeyValue("keyName", edek.keyName())
+                .addKeyValue("keyVersion", edek.keyVersion())
+                .log("Decrypting DEK pair");
         return unwrap(edek);
     }
 
@@ -139,7 +145,9 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
      */
     @Override
     public CompletionStage<WrappingKey> resolveAlias(String alias) {
-        LOG.debug("Resolving alias {}", alias);
+        LOGGER.atDebug()
+                .addKeyValue("alias", alias)
+                .log("Resolving");
         return client.getKey(encryptingKeyVaultName, alias).handle((response, throwable) -> {
             if (throwable != null) {
                 if (isInstanceOfOrCompletionExceptionWithCauseSatisfying(throwable, UnexpectedHttpStatusCodeException.class, e -> e.getStatusCode() == 404)) {
@@ -151,7 +159,10 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
                 throw new KmsException("get key returned null for: '" + alias + "'");
             }
             else {
-                LOG.debug("resolved alias {} to {}", alias, response);
+                LOGGER.atDebug()
+                        .addKeyValue("alias", alias)
+                        .addKeyValue("response", response)
+                        .log("Resolved");
                 JsonWebKey key = response.key();
                 SupportedKeyType keyType = validateKeyAndExtractType(alias, response, key);
                 return WrappingKey.parse(encryptingKeyVaultName, alias, response.key().keyId(), keyType);

@@ -32,7 +32,9 @@ public interface VersionInfo {
         }
         catch (IOException e) {
             var logger = LoggerFactory.getLogger(Info.class);
-            logger.warn("Failed to retrieve version information (ignored)", e);
+            logger.atWarn()
+                    .setCause(e)
+                    .log("Failed to retrieve version information (ignored)");
         }
         return Info.UNKNOWN_VERSION_INFO;
     }

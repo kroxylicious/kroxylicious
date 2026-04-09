@@ -232,8 +232,11 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
                 return true;
             }
             else {
-                LOGGER.atWarn().addArgument(response.statusCode()).addArgument(response.uri()).addArgument(response.body())
-                        .log("Received unexpected status code: {} from: {}. Response body: {}");
+                LOGGER.atWarn()
+                        .addKeyValue("statusCode", response.statusCode())
+                        .addKeyValue("url", response.uri())
+                        .addKeyValue("body", response.body())
+                        .log("Received unexpected status code");
                 return false;
             }
         }
@@ -274,8 +277,11 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         try {
             var response = vaultClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 204) {
-                LOGGER.atWarn().addArgument(response.statusCode()).addArgument(response.uri()).addArgument(response.body())
-                        .log("Received unexpected status code: {} from: {}. Response body: {}");
+                LOGGER.atWarn()
+                        .addKeyValue("statusCode", response.statusCode())
+                        .addKeyValue("url", response.uri())
+                        .addKeyValue("body", response.body())
+                        .log("Received unexpected status code");
                 throw new IllegalStateException("Unexpected response : %d to request %s".formatted(response.statusCode(), request.uri()));
             }
         }

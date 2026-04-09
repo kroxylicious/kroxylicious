@@ -94,7 +94,9 @@ public class ClientSubjectManager implements
                 this.subject = newSubject;
             }
             else {
-                LOGGER.warn("Failed to build subject from transport information; client will be treated as anonymous", error);
+                LOGGER.atWarn()
+                        .setCause(error)
+                        .log("Failed to build subject from transport information; client will be treated as anonymous");
                 this.subject = Subject.anonymous();
             }
             this.mechanismName = null;

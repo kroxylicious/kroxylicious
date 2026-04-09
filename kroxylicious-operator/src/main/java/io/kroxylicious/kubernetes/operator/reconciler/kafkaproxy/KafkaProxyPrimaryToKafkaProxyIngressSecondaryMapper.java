@@ -35,7 +35,9 @@ class KafkaProxyPrimaryToKafkaProxyIngressSecondaryMapper implements PrimaryToSe
     public Set<ResourceID> toSecondaryResourceIDs(KafkaProxy primary) {
         Set<ResourceID> ingressesInProxyNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, primary, KafkaProxyIngress.class,
                 ingressReferences(primary));
-        LOGGER.debug("Event source KafkaProxyIngress PrimaryToSecondaryMapper got {}", ingressesInProxyNamespace);
+        LOGGER.atDebug()
+                .addKeyValue("ingresses", ingressesInProxyNamespace)
+                .log("Event source KafkaProxyIngress PrimaryToSecondaryMapper");
         return ingressesInProxyNamespace;
     }
 

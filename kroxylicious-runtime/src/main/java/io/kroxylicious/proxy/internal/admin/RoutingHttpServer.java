@@ -97,7 +97,10 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
                 return routes.get(req.uri()).apply(req);
             }
             catch (Exception e) {
-                LOGGER.error("exception while invoking endpoint for route {}", req.uri(), e);
+                LOGGER.atError()
+                        .setCause(e)
+                        .addKeyValue("route", req.uri())
+                        .log("Exception while invoking endpoint");
                 return responseWithStatus(req, INTERNAL_SERVER_ERROR);
             }
         }
@@ -121,7 +124,9 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        LOGGER.error("exception caught in MetricsServer", cause);
+        LOGGER.atError()
+                .setCause(cause)
+                .log("Exception caught in MetricsServer");
         ctx.close();
     }
 

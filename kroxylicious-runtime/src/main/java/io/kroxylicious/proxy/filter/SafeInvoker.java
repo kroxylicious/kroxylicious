@@ -34,8 +34,11 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
                 CompletionStage<RequestFilterResult> stage = invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
                 if (stage == null) {
                     if (logger.isWarnEnabled()) {
-                        logger.warn("invoker onRequest returned null for apiKey {}, apiVersion {}, sessionId {} ," +
-                                " Filters should always return a CompletionStage", apiKey, apiVersion, filterContext.sessionId());
+                        logger.atWarn()
+                                .addKeyValue("apiKey", apiKey)
+                                .addKeyValue("apiVersion", apiVersion)
+                                .addKeyValue("sessionId", filterContext.sessionId())
+                                .log("invoker onRequest returned null, Filters should always return a CompletionStage");
                     }
                     return CompletableFuture.failedFuture(new IllegalStateException("invoker onRequest returned null for apiKey " + apiKey));
                 }
@@ -57,8 +60,11 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
                 CompletionStage<ResponseFilterResult> stage = invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
                 if (stage == null) {
                     if (logger.isWarnEnabled()) {
-                        logger.warn("invoker onResponse returned null for apiKey {}, apiVersion {}, sessionId {}," +
-                                " Filters should always return a CompletionStage", apiKey, apiVersion, filterContext.sessionId());
+                        logger.atWarn()
+                                .addKeyValue("apiKey", apiKey)
+                                .addKeyValue("apiVersion", apiVersion)
+                                .addKeyValue("sessionId", filterContext.sessionId())
+                                .log("invoker onResponse returned null, Filters should always return a CompletionStage");
                     }
                     return CompletableFuture.failedFuture(new IllegalStateException("invoker onResponse returned null for apiKey " + apiKey));
                 }

@@ -138,15 +138,6 @@ record MockFilterContext(ApiMessage header, ApiMessage message, Subject subject,
         return Optional.empty();
     }
 
-    /**
-     * @deprecated for removal
-     */
-    @Override
-    @Deprecated(forRemoval = true, since = "0.18")
-    public void clientSaslAuthenticationSuccess(@NonNull String mechanism, @NonNull String authorizedId) {
-        throw new UnsupportedOperationException();
-    }
-
     @Override
     public void clientSaslAuthenticationSuccess(@NonNull String mechanism, @NonNull Subject subject) {
         throw new UnsupportedOperationException();

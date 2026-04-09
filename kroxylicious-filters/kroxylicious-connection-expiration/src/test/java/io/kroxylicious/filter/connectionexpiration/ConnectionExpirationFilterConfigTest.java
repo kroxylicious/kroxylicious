@@ -37,7 +37,8 @@ class ConnectionExpirationFilterConfigTest {
 
     @Test
     void shouldRejectNegativeMaxAge() {
-        assertThatThrownBy(() -> new ConnectionExpirationFilterConfig(Duration.ofSeconds(-60), null))
+        Duration negativeDuration = Duration.ofSeconds(-60);
+        assertThatThrownBy(() -> new ConnectionExpirationFilterConfig(negativeDuration, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("maxAge must be positive");
     }
@@ -51,14 +52,18 @@ class ConnectionExpirationFilterConfigTest {
 
     @Test
     void shouldRejectNegativeJitter() {
-        assertThatThrownBy(() -> new ConnectionExpirationFilterConfig(Duration.ofSeconds(300), Duration.ofSeconds(-1)))
+        Duration maxAge = Duration.ofSeconds(300);
+        Duration negativeJitter = Duration.ofSeconds(-1);
+        assertThatThrownBy(() -> new ConnectionExpirationFilterConfig(maxAge, negativeJitter))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("jitter must not be negative");
     }
 
     @Test
     void shouldRejectJitterGreaterThanMaxAge() {
-        assertThatThrownBy(() -> new ConnectionExpirationFilterConfig(Duration.ofSeconds(60), Duration.ofSeconds(120)))
+        Duration maxAge = Duration.ofSeconds(60);
+        Duration jitter = Duration.ofSeconds(120);
+        assertThatThrownBy(() -> new ConnectionExpirationFilterConfig(maxAge, jitter))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("jitter must not be greater than maxAge");
     }

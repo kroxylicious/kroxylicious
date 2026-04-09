@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -42,7 +43,8 @@ public class ConstantSaslFilter implements RequestFilter {
         if (!finished && apiKey == config.api()) {
             if (config.exceptionClassName() == null) {
                 if (config.principalType() == null) {
-                    context.clientSaslAuthenticationSuccess(Objects.requireNonNull(config.mechanism()), Objects.requireNonNull(config.authorizedId()));
+                    context.clientSaslAuthenticationSuccess(Objects.requireNonNull(config.mechanism()),
+                            new Subject(new User(Objects.requireNonNull(config.authorizedId()))));
                 }
                 else {
                     try {
