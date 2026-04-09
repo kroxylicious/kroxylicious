@@ -512,7 +512,7 @@ public class KrpcGenerator {
 
                 var predicate = context.eval("js", inputSpecFilter);
                 return predicate.execute(set.stream()).as(new TypeLiteral<Stream<Named>>() {
-                        })
+                })
                         .sorted(Comparator.comparing(Named::name))
                         .collect(Collectors.toCollection(LinkedHashSet::new));
             }
