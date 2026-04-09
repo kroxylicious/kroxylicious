@@ -91,4 +91,4 @@ jobs:
     uses: ./.github/workflows/run-system-tests.yaml
     with:
       kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}
-      testFortanixKMS: "${{ needs.set_variables.outputs.fortanix }}"
+      testFortanixKMS: ${{ needs.set_variables.outputs.fortanix }}
