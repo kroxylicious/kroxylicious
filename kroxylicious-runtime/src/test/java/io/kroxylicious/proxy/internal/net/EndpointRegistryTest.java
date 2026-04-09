@@ -816,7 +816,7 @@ class EndpointRegistryTest {
             queue.add(o);
         }
 
-        public void verifyAndProcessNetworkEvents(NetworkBindingOperation... expectedEvents) {
+        private void verifyAndProcessNetworkEvents(NetworkBindingOperation... expectedEvents) {
             assertThat(queue).as("unexpected number of events").hasSize(expectedEvents.length);
             var expectedEventIterator = Arrays.stream(expectedEvents).iterator();
             while (expectedEventIterator.hasNext()) {

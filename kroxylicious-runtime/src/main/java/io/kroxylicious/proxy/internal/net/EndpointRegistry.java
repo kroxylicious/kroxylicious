@@ -119,7 +119,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
             Objects.requireNonNull(reconciliationStage);
         }
 
-        public static ReconciliationRecord createEmptyReconcileRecord() {
+        private static ReconciliationRecord createEmptyReconcileRecord() {
             return ReconciliationRecord.createReconcileRecord(Map.of(), CompletableFuture.completedStage(null));
         }
 
@@ -151,7 +151,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
             Objects.requireNonNull(unbindingStage);
         }
 
-        public static ListeningChannelRecord create(CompletionStage<Channel> stage) {
+        private static ListeningChannelRecord create(CompletionStage<Channel> stage) {
             return new ListeningChannelRecord(stage, new AtomicReference<>());
         }
     }

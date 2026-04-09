@@ -72,7 +72,7 @@ public class FilterChainFactory implements AutoCloseable {
             }
         }
 
-        public Filter create(FilterFactoryContext context) {
+        private Filter create(FilterFactoryContext context) {
             if (closed.get()) {
                 throw new IllegalStateException("Filter factory " + filterDefinition.name() + " is closed");
             }
@@ -131,7 +131,7 @@ public class FilterChainFactory implements AutoCloseable {
                     .log("FilterDefinition created a Filter instance which implements a deprecated method. This Filter implementation must be updated as the method will be removed in a future release");
         }
 
-        public void close() {
+        private void close() {
             if (!this.closed.getAndSet(true)) {
                 filterFactory.close(initResult);
             }
