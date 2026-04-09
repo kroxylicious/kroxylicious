@@ -19,7 +19,7 @@ Configuration:
       - name: STDOUT-JSON
         target: SYSTEM_OUT
         JsonTemplateLayout:
-          eventTemplateUri: "classpath:LogstashJsonEventLayoutV1.json"
+          eventTemplateUri: "${env:KROXYLICIOUS_LOG_JSON_TEMPLATE:-classpath:LogstashJsonEventLayoutV1.json}"
     # Routing appender - selects between Pattern and JSON based on env var
     Routing:
       name: STDOUT
