@@ -51,8 +51,7 @@ public final class MessageSpec implements Named {
         this.latestVersionUnstable = Optional.ofNullable(latestVersionUnstable);
         this.type = Objects.requireNonNull(type);
         this.commonStructs = commonStructs == null ? Collections.emptyList() : List.copyOf(commonStructs);
-
-        // If the struct has no valid versions (the typical use case is to completely remove support for
+	// If the struct has no valid versions (the typical use case is to completely remove support for
         // an existing protocol api while ensuring the api key id is not reused), we configure the spec
         // to effectively be empty
         if (struct.versions().empty()) {
@@ -60,26 +59,24 @@ public final class MessageSpec implements Named {
             this.listeners = Collections.emptyList();
         }
         else {
-            if (flexibleVersions == null) {
-                throw new RuntimeException("You must specify a value for flexibleVersions. " +
-                        "Please use 0+ for all new messages.");
-            }
+            Objects.requireNonNull(flexibleVersions, "You must specify a value for flexibleVersions. " +
+                    "Please use 0+ for all new messages.");
             this.flexibleVersions = Versions.parse(flexibleVersions, Versions.NONE);
             if ((!this.flexibleVersions().empty()) &&
                     (this.flexibleVersions.highest() < Short.MAX_VALUE)) {
-                throw new RuntimeException("Field " + name + " specifies flexibleVersions " +
+                throw new IllegalArgumentException("Field " + name + " specifies flexibleVersions " +
                         this.flexibleVersions + ", which is not open-ended.  flexibleVersions must " +
                         "be either none, or an open-ended range (that ends with a plus sign).");
             }
 
             if (listeners != null && !listeners.isEmpty() && type != MessageSpecType.REQUEST) {
-                throw new RuntimeException("The `requestScope` property is only valid for " +
+                throw new IllegalArgumentException("The `requestScope` property is only valid for " +
                         "messages with type `request`");
             }
             this.listeners = listeners;
 
             if (Boolean.TRUE.equals(latestVersionUnstable) && type != MessageSpecType.REQUEST) {
-                throw new RuntimeException("The `latestVersionUnstable` property is only valid for " +
+                throw new IllegalArgumentException("The `latestVersionUnstable` property is only valid for " +
                         "messages with type `request`");
             }
         }
