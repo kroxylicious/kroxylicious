@@ -91,12 +91,15 @@ class KafkaServiceBootstrapReconcilerIT {
         var kafkaService = testActor.create(
                 new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().withNewSpec().withBootstrapServers(FOO_BOOTSTRAP_9090).endSpec().build());
 
+        assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090, false);
+
         // When
-        final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(BAR_BOOTSTRAP_9090).endSpec().build();
-        testActor.replace(updated);
+        testActor.resources(KafkaService.class)
+                .withName(SERVICE_A)
+                .edit(current -> new KafkaServiceBuilder(current).withNewSpec().withBootstrapServers(BAR_BOOTSTRAP_9090).endSpec().build());
 
         // Then
-        assertResolvedRefsTrue(updated, BAR_BOOTSTRAP_9090, false);
+        assertResolvedRefsTrue(kafkaService, BAR_BOOTSTRAP_9090, false);
     }
 
     @Test
