@@ -18,44 +18,69 @@
 
 The Kroxylicious {github-release}[binary distribution^] includes https://logging.apache.org/log4j/2.x[log4j2] as the default logging backend.
 
-When using the `bin/kroxylicious-start.sh` script from the binary distribution, you can set an environment variable to load a custom `log4j2` configuration file or change the root logging level.
+When using the `bin/kroxylicious-start.sh` script from the binary distribution, you can configure logging behaviour using the following environment variables.
 
-.Environment variable to load a custom `log4j2` file
+.Logging environment variables
+[cols="2,1,3",options="header"]
+|===
+|Environment variable |Default |Description
+
+|`KROXYLICIOUS_ROOT_LOG_LEVEL`
+|`WARN`
+|Log level for all loggers not otherwise configured.
+
+|`KROXYLICIOUS_APP_LOG_LEVEL`
+|`INFO`
+|Log level for Kroxylicious loggers (`io.kroxylicious.*`). Takes precedence over `KROXYLICIOUS_ROOT_LOG_LEVEL` for application code.
+
+|`KROXYLICIOUS_LOG_FORMAT`
+|`text`
+|Output format for log messages. Set to `json` to enable structured JSON output.
+
+|`KROXYLICIOUS_LOGGING_OPTIONS`
+|(built-in defaults)
+|Overrides the entire set of log4j2 JVM system properties. When set, the default `-Dlog4j2.configurationFile` and `-Dlog4j2.contextSelector` options are replaced, so you must include all required options explicitly.
+|===
+
+.Setting the application log level to DEBUG
 [source,properties]
 ----
-KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=/path/to/custom/log4j2.yaml"
+KROXYLICIOUS_APP_LOG_LEVEL="DEBUG"
 ----
 
-.Environment variable to change the root logging level
-[source,properties]
+NOTE: Setting the log level to `DEBUG` or `TRACE` will produce very verbose logs.
+
+.Loading a custom log4j2 configuration file
+[source,bash]
 ----
-KROXYLICIOUS_ROOT_LOG_LEVEL="DEBUG"
+export KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=/path/to/custom/log4j2.yaml \
+  -Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector"
 ----
 
-NOTE: Setting the root log level to `DEBUG` or `TRACE` will produce very verbose logs.
+WARNING: Setting `KROXYLICIOUS_LOGGING_OPTIONS` replaces the built-in defaults entirely.
+Always include `-Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector`
+to preserve asynchronous logging.
 
 [id='proc-proxy-json-log-format-{context}']
 == Switching to JSON log format
 
-By default, Kroxylicious outputs logs in human-readable text format. You can switch to structured JSON output for integration with log aggregation systems.
+By default, Kroxylicious outputs logs in human-readable text format.
+You can switch to structured JSON output for integration with log aggregation systems such as the Elastic Stack (ELK) or Splunk.
+
+The JSON format follows the https://www.elastic.co/guide/en/ecs/current/index.html[Logstash JSON Event Layout V1] schema.
+Structured context fields emitted by Kroxylicious appear as top-level fields alongside the standard log metadata.
 
 .Procedure
 
-. Set the `KROXYLICIOUS_LOG_FORMAT` environment variable:
+. Set the `KROXYLICIOUS_LOG_FORMAT` environment variable before starting the proxy:
 +
 [source,bash]
 ----
 export KROXYLICIOUS_LOG_FORMAT=json
-----
-
-. Start Kroxylicious:
-+
-[source,bash]
-----
 bin/kroxylicious-start.sh
 ----
 
-.Expected output (JSON format)
+.Example JSON log output
 
 [source,json]
 ----
@@ -67,17 +92,17 @@ bin/kroxylicious-start.sh
   "thread_name": "kafka-request-handler-1",
   "level": "INFO",
   "level_value": 20000,
-  "stack_trace": null,
   "sessionId": "abc-123",
-  "clientId": "producer-1"
+  "clientId": "producer-1",
+  "apiKey": "Produce"
 }
 ----
 
-NOTE: Structured logging parameters like `sessionId` and `clientId` appear as top-level fields in JSON output.
+When an exception is logged, a `stack_trace` field is also included in the output.
 
 .Switching back to text format
 
-Remove the environment variable or set it to `text`:
+Remove the environment variable or set it explicitly to `text`:
 
 [source,bash]
 ----
@@ -85,3 +110,35 @@ unset KROXYLICIOUS_LOG_FORMAT
 # or
 export KROXYLICIOUS_LOG_FORMAT=text
 ----
+
+[id='con-proxy-structured-log-fields-{context}']
+== Structured log fields
+
+Kroxylicious uses structured logging throughout, attaching context as key-value pairs that are visible in both text and JSON output.
+In text format they appear at the end of each log line; in JSON format they appear as top-level fields.
+
+The following table lists the commonly emitted fields.
+
+.Structured log fields
+[cols="1,3",options="header"]
+|===
+|Field |Description
+
+|`sessionId`
+|Unique identifier for the client-to-proxy connection. Use this to correlate all log messages for a single client session.
+
+|`clientId`
+|The Kafka `client.id` value supplied by the connecting Kafka client.
+
+|`apiKey`
+|The Kafka API key identifying the request type (for example, `Produce`, `Fetch`, `Metadata`).
+
+|`apiVersion`
+|The version of the Kafka API used in the request.
+
+|`kekRef`
+|Key Encryption Key reference used by the record-encryption filter.
+
+|`error`
+|Error message associated with a failure condition.
+|===
