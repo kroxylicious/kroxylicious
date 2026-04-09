@@ -89,11 +89,11 @@ deployment, connectivity, and workload execution.
 
 ### Measuring overhead across a rate range
 
-`measure-overhead.sh` deploys each scenario once and sweeps through a sequence of producer rates,
+`rate-sweep.sh` deploys each scenario once and sweeps through a sequence of producer rates,
 collecting one OMB result per step:
 
 ```bash
-./scripts/measure-overhead.sh \
+./scripts/rate-sweep.sh \
   --workload 10topics-1kb \
   --min-rate 30000 \
   --max-rate 80000 \
