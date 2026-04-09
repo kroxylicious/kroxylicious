@@ -34,7 +34,7 @@ public class DurationSerde {
 
     private record Unit(ChronoUnit unit, String groupName, String serializedUnit) {
 
-        public Duration duration(long amount) {
+        private Duration duration(long amount) {
             try {
                 return Duration.of(amount, unit);
             }

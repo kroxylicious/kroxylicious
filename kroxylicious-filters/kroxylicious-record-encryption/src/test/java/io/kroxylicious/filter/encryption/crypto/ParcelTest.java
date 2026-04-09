@@ -112,11 +112,11 @@ class ParcelTest {
     private record NamedExemplar(ParcelContents originalRecordContents, ParcelContents deserializedParcelContents, ParcelVersion version, Exemplar exemplar, String name,
                                  SerializationOptions options) {
 
-        public ByteBuffer serialized() {
+        private ByteBuffer serialized() {
             return exemplar.serializedBase64();
         }
 
-        public String serializedBase64() {
+        private String serializedBase64() {
             return toBase64(serialized());
         }
     }

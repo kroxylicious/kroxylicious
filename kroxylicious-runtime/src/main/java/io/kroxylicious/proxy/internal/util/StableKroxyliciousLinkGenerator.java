@@ -60,7 +60,7 @@ public class StableKroxyliciousLinkGenerator {
             this(properties.entrySet().stream().collect(Collectors.toMap(e -> e.getKey().toString(), e -> e.getValue().toString())));
         }
 
-        public String generateLink(String namespace, String slug) {
+        private String generateLink(String namespace, String slug) {
             String lookupKey = "%s.%s".formatted(namespace, slug);
             if (properties.containsKey(lookupKey)) {
                 return properties.get(lookupKey);
