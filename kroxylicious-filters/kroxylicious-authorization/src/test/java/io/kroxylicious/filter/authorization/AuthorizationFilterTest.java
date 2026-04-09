@@ -330,7 +330,7 @@ class AuthorizationFilterTest {
                 ApiKeys.DESCRIBE_TRANSACTIONS,
                 ApiKeys.HEARTBEAT,
                 ApiKeys.LIST_TRANSACTIONS);
-        EnumSet<ApiKeys> someVersionsSupported = of(ApiKeys.ADD_PARTITIONS_TO_TXN,
+        EnumSet<ApiKeys> someVersionsSupported = EnumSet.of(ApiKeys.ADD_PARTITIONS_TO_TXN,
                 ApiKeys.CONSUMER_GROUP_HEARTBEAT,
                 ApiKeys.INIT_PRODUCER_ID);
         EnumSet<ApiKeys> noVersionsSupported = EnumSet.complementOf(unionOf(allVersionsSupported, someVersionsSupported));
