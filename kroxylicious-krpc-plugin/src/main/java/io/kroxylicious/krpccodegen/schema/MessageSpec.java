@@ -51,7 +51,7 @@ public final class MessageSpec implements Named {
         this.latestVersionUnstable = Optional.ofNullable(latestVersionUnstable);
         this.type = Objects.requireNonNull(type);
         this.commonStructs = commonStructs == null ? Collections.emptyList() : List.copyOf(commonStructs);
-        // If the struct has no valid versions (the typical use case is to completely remove support for
+	    // If the struct has no valid versions (the typical use case is to completely remove support for
         // an existing protocol api while ensuring the api key id is not reused), we configure the spec
         // to effectively be empty
         if (struct.versions().empty()) {
