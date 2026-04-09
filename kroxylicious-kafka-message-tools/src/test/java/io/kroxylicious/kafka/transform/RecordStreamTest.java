@@ -124,8 +124,8 @@ class RecordStreamTest {
                 .firstRecord()
                 .hasKeyEqualTo("prefixhello")
                 .hasValueEqualTo("prefixworld")
-                .hasOffsetEqualTo(Math.abs("prefix".hashCode()) + baseOffset)
-                .hasTimestampEqualTo(Math.abs("prefix".hashCode()) + 42L);
+                .hasOffsetEqualTo(positiveHash("prefix".hashCode()) + baseOffset)
+                .hasTimestampEqualTo(positiveHash("prefix".hashCode()) + 42L);
     }
 
     @Test
@@ -147,14 +147,14 @@ class RecordStreamTest {
         batch.firstRecord()
                 .hasKeyEqualTo(index + "hello")
                 .hasValueEqualTo(index + "world")
-                .hasOffsetEqualTo(Math.abs(Integer.hashCode(index)) + baseOffset)
-                .hasTimestampEqualTo(Math.abs(Integer.hashCode(index)) + 42L);
+                .hasOffsetEqualTo(positiveHash(Integer.hashCode(index)) + baseOffset)
+                .hasTimestampEqualTo(positiveHash(Integer.hashCode(index)) + 42L);
         index++;
         batch.lastRecord()
                 .hasKeyEqualTo(index + "HELLO")
                 .hasValueEqualTo(index + "WORLD")
-                .hasOffsetEqualTo(Math.abs(Integer.hashCode(index)) + baseOffset + 1)
-                .hasTimestampEqualTo(Math.abs(Integer.hashCode(index)) + 65L);
+                .hasOffsetEqualTo(positiveHash(Integer.hashCode(index)) + baseOffset + 1)
+                .hasTimestampEqualTo(positiveHash(Integer.hashCode(index)) + 65L);
     }
 
     @Test
@@ -176,18 +176,22 @@ class RecordStreamTest {
         batch.firstRecord()
                 .hasKeyEqualTo(index + "hello")
                 .hasValueEqualTo(index + "world")
-                .hasOffsetEqualTo(Math.abs(Integer.hashCode(index)) + baseOffset)
-                .hasTimestampEqualTo(Math.abs(Integer.hashCode(index)) + 42L);
+                .hasOffsetEqualTo(positiveHash(Integer.hashCode(index)) + baseOffset)
+                .hasTimestampEqualTo(positiveHash(Integer.hashCode(index)) + 42L);
         index++;
         batch.lastRecord()
                 .hasKeyEqualTo(index + "HELLO")
                 .hasValueEqualTo(index + "WORLD")
-                .hasOffsetEqualTo(Math.abs(Integer.hashCode(index)) + baseOffset + 1)
-                .hasTimestampEqualTo(Math.abs(Integer.hashCode(index)) + 65L);
+                .hasOffsetEqualTo(positiveHash(Integer.hashCode(index)) + baseOffset + 1)
+                .hasTimestampEqualTo(positiveHash(Integer.hashCode(index)) + 65L);
     }
 
     private static ByteBuffer prefix(String prefix, ByteBuffer buffer) {
         return StandardCharsets.UTF_8.encode(CharBuffer.wrap(prefix + StandardCharsets.UTF_8.decode(buffer)));
+    }
+
+    private static int positiveHash(int hashCode) {
+        return Math.floorMod(hashCode, Integer.MAX_VALUE);
     }
 
     private static class Prefixer<T> implements RecordTransform<T> {
@@ -214,12 +218,12 @@ class RecordStreamTest {
 
         @Override
         public long transformOffset(Record record) {
-            return Math.abs(state.hashCode()) + record.offset();
+            return positiveHash(state.hashCode()) + record.offset();
         }
 
         @Override
         public long transformTimestamp(Record record) {
-            return Math.abs(state.hashCode()) + record.timestamp();
+            return positiveHash(state.hashCode()) + record.timestamp();
         }
 
         @Nullable

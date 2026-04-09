@@ -220,12 +220,12 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             return unquote(unwrapDelims(string));
         }
 
-        public void maybeThrow() {
+        private void maybeThrow() {
             maybeThrow("Found %d errors");
         }
 
         record Prefix(String prefix, boolean eq) {
-            public boolean isEmpty() {
+            private boolean isEmpty() {
                 return prefix.isEmpty();
             }
         }
