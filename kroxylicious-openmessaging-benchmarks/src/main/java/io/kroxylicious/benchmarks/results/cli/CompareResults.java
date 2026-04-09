@@ -4,25 +4,29 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.benchmarks.results;
+package io.kroxylicious.benchmarks.results.cli;
 
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 21+
 //DEPS com.fasterxml.jackson.core:jackson-core:${jackson.version}
 //DEPS com.fasterxml.jackson.core:jackson-databind:${jackson.version}
 //DEPS info.picocli:picocli:${picocli.version}
-//SOURCES AggregationMethod.java
-//SOURCES OmbResult.java
-//SOURCES ResultComparator.java
+//DEPS org.apache.commons:commons-math3:3.6.1
+//SOURCES ../OmbResult.java
+//SOURCES ../LatencyComparison.java
+//SOURCES ../ResultComparator.java
+//SOURCES ../SignificanceTester.java
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.benchmarks.results.OmbResult;
+import io.kroxylicious.benchmarks.results.ResultComparator;
+
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 /**
@@ -32,7 +36,7 @@ import picocli.CommandLine.Parameters;
  * dependency versions from the parent pom.
  */
 @Command(name = "compare-results", mixinStandardHelpOptions = true, description = "Compare two OpenMessaging Benchmark result files and display a table showing latency and throughput metrics side-by-side with deltas.")
-@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106" }) // CLI tool that intentionally writes to System.out
+@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106", "java:S7476", "java:S125" }) // CLI tool that intentionally writes to System.out
 public class CompareResults implements Callable<Integer> {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -42,9 +46,6 @@ public class CompareResults implements Callable<Integer> {
 
     @Parameters(index = "1", description = "Path to the candidate OMB result JSON file")
     private File candidateFile;
-
-    @Option(names = "--aggregation", defaultValue = "MEAN", description = "Aggregation method for array metrics: ${COMPLETION-CANDIDATES} (default: ${DEFAULT-VALUE})")
-    private AggregationMethod aggregationMethod;
 
     public static void main(String... args) {
         int exitCode = execute(args);
@@ -59,7 +60,7 @@ public class CompareResults implements Callable<Integer> {
     public Integer call() throws IOException {
         OmbResult baseline = MAPPER.readValue(baselineFile, OmbResult.class);
         OmbResult candidate = MAPPER.readValue(candidateFile, OmbResult.class);
-        new ResultComparator(baseline, candidate, aggregationMethod).compare(System.out);
+        new ResultComparator(baseline, candidate).compare(System.out);
         return 0;
     }
 }
