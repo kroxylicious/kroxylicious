@@ -7,6 +7,8 @@
 package io.kroxylicious.benchmarks.results;
 
 import java.io.PrintStream;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Compares two {@link OmbResult} instances and outputs a formatted table
@@ -15,15 +17,20 @@ import java.io.PrintStream;
 public class ResultComparator {
 
     private static final String SEPARATOR = "------------";
+    private static final String SEPARATOR_NARROW = "----------";
 
     private final OmbResult baseline;
     private final OmbResult candidate;
-    private final AggregationMethod aggregationMethod;
+    private final SignificanceTester significanceTester;
 
-    public ResultComparator(OmbResult baseline, OmbResult candidate, AggregationMethod aggregationMethod) {
+    public ResultComparator(OmbResult baseline, OmbResult candidate) {
+        this(baseline, candidate, new SignificanceTester());
+    }
+
+    ResultComparator(OmbResult baseline, OmbResult candidate, SignificanceTester significanceTester) {
         this.baseline = baseline;
         this.candidate = candidate;
-        this.aggregationMethod = aggregationMethod;
+        this.significanceTester = significanceTester;
     }
 
     /**
@@ -32,50 +39,80 @@ public class ResultComparator {
      * @param out the stream to write to
      */
     public void compare(PrintStream out) {
-        printPublishLatency(out);
-        printEndToEndLatency(out);
-        printThroughput(out);
+        boolean anyNotSignificant = printPublishLatency(out);
+        anyNotSignificant |= printEndToEndLatency(out);
+        anyNotSignificant |= printThroughput(out);
+        out.println();
+        if (anyNotSignificant) {
+            out.println(
+                    "  [1] Caution: difference is not statistically significant (MWU p >= 0.05) — measurement noise or other environmental factors may have affected the result.");
+        }
     }
 
-    private void printPublishLatency(PrintStream out) {
-        printSectionHeader(out, "Publish Latency (ms)");
-        printRow(out, "Avg", baseline.getPublishLatencyAvg(), candidate.getPublishLatencyAvg());
-        printRow(out, "p50", baseline.getPublishLatency50pct(), candidate.getPublishLatency50pct());
-        printRow(out, "p95", baseline.getPublishLatency95pct(), candidate.getPublishLatency95pct());
-        printRow(out, "p99", baseline.getPublishLatency99pct(), candidate.getPublishLatency99pct());
-        printRow(out, "p99.9", baseline.getPublishLatency999pct(), candidate.getPublishLatency999pct());
+    private boolean printPublishLatency(PrintStream out) {
+        List<LatencyComparison> rows = List.of(
+                new LatencyComparison("Avg", baseline.getPublishLatencyAvg(), candidate.getPublishLatencyAvg(),
+                        baseline.getPublishLatencyAvgWindows(), candidate.getPublishLatencyAvgWindows()),
+                new LatencyComparison("p50", baseline.getPublishLatency50pct(), candidate.getPublishLatency50pct(),
+                        baseline.getPublishLatency50pctWindows(), candidate.getPublishLatency50pctWindows()),
+                new LatencyComparison("p95", baseline.getPublishLatency95pct(), candidate.getPublishLatency95pct(),
+                        baseline.getPublishLatency95pctWindows(), candidate.getPublishLatency95pctWindows()),
+                new LatencyComparison("p99", baseline.getPublishLatency99pct(), candidate.getPublishLatency99pct(),
+                        baseline.getPublishLatency99pctWindows(), candidate.getPublishLatency99pctWindows()),
+                new LatencyComparison("p99.9", baseline.getPublishLatency999pct(), candidate.getPublishLatency999pct(),
+                        baseline.getPublishLatency999pctWindows(), candidate.getPublishLatency999pctWindows()));
+        return printLatencySection(out, "Publish Latency (ms)", rows);
     }
 
-    private void printEndToEndLatency(PrintStream out) {
-        String label = aggregationMethod.name().toLowerCase();
-        printSectionHeader(out, "End-to-End Latency (ms, " + label + ")");
-        printRow(out, "Avg", baseline.getEndToEndLatencyAvg(aggregationMethod), candidate.getEndToEndLatencyAvg(aggregationMethod));
-        printRow(out, "p50", baseline.getEndToEndLatency50pct(aggregationMethod), candidate.getEndToEndLatency50pct(aggregationMethod));
-        printRow(out, "p95", baseline.getEndToEndLatency95pct(aggregationMethod), candidate.getEndToEndLatency95pct(aggregationMethod));
-        printRow(out, "p99", baseline.getEndToEndLatency99pct(aggregationMethod), candidate.getEndToEndLatency99pct(aggregationMethod));
-        printRow(out, "p99.9", baseline.getEndToEndLatency999pct(aggregationMethod), candidate.getEndToEndLatency999pct(aggregationMethod));
+    private boolean printEndToEndLatency(PrintStream out) {
+        List<LatencyComparison> rows = List.of(
+                new LatencyComparison("Avg", baseline.getAggregatedEndToEndLatencyAvg(), candidate.getAggregatedEndToEndLatencyAvg(),
+                        baseline.getEndToEndLatencyAvgWindows(), candidate.getEndToEndLatencyAvgWindows()),
+                new LatencyComparison("p50", baseline.getAggregatedEndToEndLatency50pct(), candidate.getAggregatedEndToEndLatency50pct(),
+                        baseline.getEndToEndLatency50pctWindows(), candidate.getEndToEndLatency50pctWindows()),
+                new LatencyComparison("p95", baseline.getAggregatedEndToEndLatency95pct(), candidate.getAggregatedEndToEndLatency95pct(),
+                        baseline.getEndToEndLatency95pctWindows(), candidate.getEndToEndLatency95pctWindows()),
+                new LatencyComparison("p99", baseline.getAggregatedEndToEndLatency99pct(), candidate.getAggregatedEndToEndLatency99pct(),
+                        baseline.getEndToEndLatency99pctWindows(), candidate.getEndToEndLatency99pctWindows()),
+                new LatencyComparison("p99.9", baseline.getAggregatedEndToEndLatency999pct(), candidate.getAggregatedEndToEndLatency999pct(),
+                        baseline.getEndToEndLatency999pctWindows(), candidate.getEndToEndLatency999pctWindows()));
+        return printLatencySection(out, "End-to-End Latency (ms)", rows);
     }
 
-    private void printThroughput(PrintStream out) {
-        String label = aggregationMethod.name().toLowerCase();
-        printSectionHeader(out, "Throughput (msg/s, " + label + ")");
-        printRow(out, "Publish Rate", baseline.getPublishRate(aggregationMethod), candidate.getPublishRate(aggregationMethod));
-        printRow(out, "Consume Rate", baseline.getConsumeRate(aggregationMethod), candidate.getConsumeRate(aggregationMethod));
+    private boolean printThroughput(PrintStream out) {
+        List<LatencyComparison> rows = List.of(
+                new LatencyComparison("Publish Rate", baseline.getPublishRate(), candidate.getPublishRate(),
+                        baseline.getPublishRateWindows(), candidate.getPublishRateWindows()),
+                new LatencyComparison("Consume Rate", baseline.getConsumeRate(), candidate.getConsumeRate(),
+                        baseline.getConsumeRateWindows(), candidate.getConsumeRateWindows()));
+        return printLatencySection(out, "Total Throughput (msg/s)", rows);
     }
 
-    private static void printSectionHeader(PrintStream out, String title) {
+    private boolean printLatencySection(PrintStream out, String title, List<LatencyComparison> rows) {
         out.println();
         out.println(title);
-        out.printf("  %-25s %12s %12s %12s%n", "Metric", "Baseline", "Candidate", "Delta");
-        out.printf("  %-25s %12s %12s %12s%n",
-                "-------------------------", SEPARATOR, SEPARATOR, SEPARATOR);
+        out.printf("  %-25s %12s %12s %12s %10s %12s%n", "Metric", "Baseline", "Candidate", "Delta", "%Change", "MWU p");
+        out.printf("  %-25s %12s %12s %12s %10s %12s%n",
+                "-------------------------", SEPARATOR, SEPARATOR, SEPARATOR, SEPARATOR_NARROW, SEPARATOR);
+        boolean anyNotSignificant = false;
+        for (LatencyComparison row : rows) {
+            Optional<SignificanceTester.Result> sig = row.assess(significanceTester);
+            if (printLatencyRow(out, row, sig.orElse(null))) {
+                anyNotSignificant = true;
+            }
+        }
+        return anyNotSignificant;
     }
 
-    private static void printRow(PrintStream out, String label, double baselineVal, double candidateVal) {
-        double delta = candidateVal - baselineVal;
-        double pct = baselineVal != 0 ? delta / baselineVal * 100.0 : 0.0;
-        String pctSign = pct > 0 ? "+" : "";
-        out.printf("  %-25s %12.2f %12.2f %12.2f (%s%.1f%%)%n",
-                label, baselineVal, candidateVal, delta, pctSign, pct);
+    // Returns true if the row is not statistically significant.
+    private static boolean printLatencyRow(PrintStream out, LatencyComparison c, SignificanceTester.Result sig) {
+        boolean notSignificant = sig != null && !sig.significant();
+        String pctChange = String.format("%+.1f%%", c.pct());
+        String noiseMarker = notSignificant ? "[1]" : "   ";
+        String pValue = sig == null ? "            " : String.format("%9.4f%s", sig.pValue(), noiseMarker);
+        out.printf("  %-25s %12.2f %12.2f %12.2f %10s %12s%n",
+                c.label(), c.baseline(), c.candidate(), c.delta(), pctChange, pValue);
+        return notSignificant;
     }
+
 }

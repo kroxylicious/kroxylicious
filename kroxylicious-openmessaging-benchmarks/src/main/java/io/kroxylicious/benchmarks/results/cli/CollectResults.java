@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.benchmarks.results;
+package io.kroxylicious.benchmarks.results.cli;
 
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 21+
@@ -13,9 +13,11 @@ package io.kroxylicious.benchmarks.results;
 //DEPS com.fasterxml.jackson.core:jackson-databind:${jackson.version}
 //DEPS info.picocli:picocli:${picocli.version}
 //DEPS com.github.spotbugs:spotbugs-annotations:${spotbugs-annotations.version}
-//SOURCES RunMetadata.java
+//SOURCES ../RunMetadata.java
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
+
+import io.kroxylicious.benchmarks.results.RunMetadata;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -28,11 +30,20 @@ import picocli.CommandLine.Option;
  * dependency versions from the parent pom.
  */
 @Command(name = "collect-results", mixinStandardHelpOptions = true, description = "Collect OpenMessaging Benchmark results and metadata.")
-@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106" }) // CLI tool that intentionally writes to System.out/err
+@SuppressWarnings({ "checkstyle:RegexpSinglelineJava", "java:S106", "java:S7476", "java:S125" }) // CLI tool that intentionally writes to System.out/err
 public class CollectResults implements Callable<Integer> {
 
     @Option(names = "--generate-run-metadata", description = "Generate run-metadata.json in the given directory")
     private Path metadataDir;
+
+    @Option(names = "--scenario", description = "Benchmark scenario name (e.g. baseline, proxy-no-filters)")
+    private String scenario;
+
+    @Option(names = "--workload", description = "OMB workload name (e.g. 1topic-1kb)")
+    private String workload;
+
+    @Option(names = "--target-rate", description = "Target producer rate in msg/sec for this probe")
+    private Integer targetRate;
 
     public static void main(String... args) {
         int exitCode = execute(args);
@@ -46,7 +57,7 @@ public class CollectResults implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         if (metadataDir != null) {
-            RunMetadata.generate(metadataDir);
+            RunMetadata.generate(metadataDir, new RunMetadata.ProbeContext(scenario, workload, targetRate));
             System.out.println("Generated " + metadataDir.resolve("run-metadata.json"));
             return 0;
         }
