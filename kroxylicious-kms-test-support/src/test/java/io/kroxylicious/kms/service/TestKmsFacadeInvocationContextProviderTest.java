@@ -184,7 +184,9 @@ class TestKmsFacadeInvocationContextProviderTest {
             return Optional.empty();
         }
 
-        @SuppressWarnings({ "FieldCanBeLocal", "unused", "EffectivelyPrivate" })
+        @SuppressWarnings({ "FieldCanBeLocal", "unused",
+                "EffectivelyPrivate" // accessed reflectively, so effectively public
+        })
         public static class Victim {
 
             private String stringField = "";
