@@ -81,6 +81,27 @@ class CredentialsProviderFactoryTest {
         cp.close();
     }
 
+    @Test
+    void webIdentityCredentials() {
+        // Given
+        var config = buildConfig("""
+                endpointUrl: https://unused.invalid
+                region: us-east-1
+                webIdentityCredentials:
+                    roleArn: arn:aws:iam::123456789012:role/r
+                    webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+                """);
+
+        // When
+        var cp = FACTORY.createCredentialsProvider(config);
+
+        // Then
+        assertThat(cp)
+                .isInstanceOf(WebIdentityCredentialsProvider.class)
+                .isNotNull();
+        cp.close();
+    }
+
     public static Stream<Arguments> invalidConfig() {
         return Stream.of(
                 Arguments.argumentSet("no credential provider", """
@@ -97,6 +118,27 @@ class CredentialsProviderFactoryTest {
                                     password: accessKeyId
                                 secretAccessKey:
                                     password: secretAccessKey
+                        """),
+                Arguments.argumentSet("webIdentity and longTerm disallowed", """
+                            endpointUrl: https://unused.invalid
+                            region: us-east-1
+                            longTermCredentials:
+                                accessKeyId:
+                                    password: accessKeyId
+                                secretAccessKey:
+                                    password: secretAccessKey
+                            webIdentityCredentials:
+                                roleArn: arn:aws:iam::123456789012:role/r
+                                webIdentityTokenFile: /tmp/token
+                        """),
+                Arguments.argumentSet("webIdentity and ec2Metadata disallowed", """
+                            endpointUrl: https://unused.invalid
+                            region: us-east-1
+                            ec2MetadataCredentials:
+                                iamRole: foo
+                            webIdentityCredentials:
+                                roleArn: arn:aws:iam::123456789012:role/r
+                                webIdentityTokenFile: /tmp/token
                         """));
     }
 

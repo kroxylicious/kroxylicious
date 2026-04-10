@@ -21,12 +21,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param endpointUrl URL of the AWS KMS e.g. {@code https://kms.us-east-1.amazonaws.com}
  * @param longTermCredentialsProviderConfig config for long-term credentials (i.e. access key id and secret access key).
  * @param ec2MetadataCredentialsProviderConfig config obtaining credentials from EC2 metadata
+ * @param webIdentityCredentialsProviderConfig config obtaining credentials from a Kubernetes service-account
+ *                                             OIDC token via STS AssumeRoleWithWebIdentity (IRSA on EKS).
  * @param region AWS region
  * @param tls TLS settings
  */
 public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
                      @JsonProperty(value = "longTermCredentials", required = false) @Nullable LongTermCredentialsProviderConfig longTermCredentialsProviderConfig,
                      @JsonProperty(value = "ec2MetadataCredentials", required = false) @Nullable Ec2MetadataCredentialsProviderConfig ec2MetadataCredentialsProviderConfig,
+                     @JsonProperty(value = "webIdentityCredentials", required = false) @Nullable WebIdentityCredentialsProviderConfig webIdentityCredentialsProviderConfig,
                      @JsonProperty(value = "region", required = true) String region,
                      @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
 
