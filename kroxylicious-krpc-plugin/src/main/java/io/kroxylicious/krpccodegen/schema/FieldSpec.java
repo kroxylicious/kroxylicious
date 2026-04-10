@@ -42,8 +42,10 @@ public final class FieldSpec {
 
     private final Versions taggedVersions;
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<Versions> flexibleVersions;
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<Integer> tag;
 
     private final boolean zeroCopy;
@@ -124,7 +126,7 @@ public final class FieldSpec {
 
     private void validateNullableVersions() {
         if (!this.nullableVersions.empty() && !this.type.canBeNullable()) {
-            throw new RuntimeException("Type " + this.type + " cannot be nullable.");
+            throw new IllegalStateException("Type " + this.type + " cannot be nullable.");
         }
     }
 
@@ -255,7 +257,7 @@ public final class FieldSpec {
 
     @JsonProperty("flexibleVersions")
     public String flexibleVersionsString() {
-        return flexibleVersions.isPresent() ? flexibleVersions.get().toString() : null;
+        return flexibleVersions.map(Versions::toString).orElse(null);
     }
 
     public Optional<Versions> flexibleVersions() {
