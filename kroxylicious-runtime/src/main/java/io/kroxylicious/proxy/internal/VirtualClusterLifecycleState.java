@@ -40,6 +40,14 @@ public sealed interface VirtualClusterLifecycleState {
         public Failed toFailed(Throwable cause) {
             return new Failed(cause);
         }
+
+        /**
+         * Cluster removed before initialization completed (e.g. proxy shutdown during startup).
+         * @return the new stopped state
+         */
+        public Stopped toStopped() {
+            return new Stopped(null);
+        }
     }
 
     /** The proxy has completed setup and is serving traffic for this cluster. */

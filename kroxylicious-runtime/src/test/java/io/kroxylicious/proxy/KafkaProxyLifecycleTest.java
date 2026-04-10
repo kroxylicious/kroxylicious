@@ -142,7 +142,10 @@ class KafkaProxyLifecycleTest {
             // then
             var manager = proxy.lifecycleManagerFor("demo1");
             assertThat(manager).isNotNull();
-            assertThat(manager.getState()).isInstanceOf(Stopped.class);
+            assertThat(manager.getState())
+                    .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(Stopped.class))
+                    .extracting(Stopped::priorFailureCause)
+                    .isInstanceOf(PluginConfigurationException.class);
         }
     }
 }
