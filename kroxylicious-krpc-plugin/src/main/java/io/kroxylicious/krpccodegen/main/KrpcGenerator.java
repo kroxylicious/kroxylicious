@@ -591,12 +591,12 @@ public class KrpcGenerator {
 
     private String outputFile(String pattern, String messageSpecName, String templateName) {
         if (messageSpecName != null) {
-            pattern = pattern.replaceAll("\\$\\{messageSpecName\\}", messageSpecName);
+            pattern = pattern.replace("${messageSpecName}", messageSpecName);
         }
 
         if (templateName != null) {
             templateName = templateName.substring(Math.max(0, templateName.lastIndexOf(File.separator) + 1), templateName.indexOf(".ftl"));
-            pattern = pattern.replaceAll("\\$\\{templateName\\}", templateName);
+            pattern = pattern.replace("${templateName}", templateName);
         }
 
         return pattern;
