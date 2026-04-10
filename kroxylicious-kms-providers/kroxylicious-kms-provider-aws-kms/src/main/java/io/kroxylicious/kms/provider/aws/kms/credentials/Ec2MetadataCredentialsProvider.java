@@ -19,18 +19,9 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.kafka.common.utils.ExponentialBackoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,23 +35,12 @@ import io.kroxylicious.kms.provider.aws.kms.config.Ec2MetadataCredentialsProvide
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 /**
  * Provider that obtains {@link Credentials} from the metadata server of the EC2 instance.
- * <p>
- * The provider will keep returning the same credential until the credential reaches
- * a configured factor of the credential's lifespan.  At which point, a preemptive
- * background refresh of the credential will be performed.  Until the refresh is complete
- * the caller will continue to receive the existing credential.  Once the refresh is complete
- * subsequent calls will see the updated credential.
- * </p>
- * <p>
- * If an error occurs whilst retrieving the credential, the next call will cause the
- * provider to try again.  A progress backoff is applied to retry attempts.
- * </p>
+ *
+ * @see AbstractRefreshingCredentialsProvider for the shared async-refresh state machine.
  */
-public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
+public class Ec2MetadataCredentialsProvider extends AbstractRefreshingCredentialsProvider<Ec2MetadataCredentialsProvider.SecurityCredentials> {
     private static final Logger LOGGER = LoggerFactory.getLogger(Ec2MetadataCredentialsProvider.class);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -74,7 +54,6 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     private static final String AWS_METADATA_TOKEN_TTL_SECONDS_HEADER = "X-aws-ec2-metadata-token-ttl-seconds";
     private static final String AWS_METADATA_TOKEN_HEADER = "X-aws-ec2-metadata-token";
     private static final String AWS_TOKEN_EXPIRATION_SECONDS = "60";
-    private static final double DEFAULT_CREDENTIALS_LIFETIME_FACTOR = 0.80;
 
     /**
      * EC2 Token Retrieval Endpoint.
@@ -89,16 +68,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
      */
     private static final String META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT = "/latest/meta-data/iam/security-credentials/";
 
-    private final Clock systemClock;
-    private final AtomicReference<CompletableFuture<SecurityCredentials>> current = new AtomicReference<>();
-
-    private final AtomicLong tokenRefreshErrorCount = new AtomicLong();
     private final Ec2MetadataCredentialsProviderConfig config;
     private final HttpClient client;
-
-    private final ScheduledExecutorService executorService;
-    private final ExponentialBackoff backoff;
-    private final Double lifetimeFactor;
     private final URI uri;
 
     /**
@@ -111,22 +82,14 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     @VisibleForTesting
-    @SuppressWarnings("java:S2245") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
-    @SuppressFBWarnings("PREDICTABLE_RANDOM") // Pseudorandomness sufficient for generating backoff jitter; not security relevant
     Ec2MetadataCredentialsProvider(Ec2MetadataCredentialsProviderConfig config,
                                    Clock systemClock) {
-        Objects.requireNonNull(config);
-        Objects.requireNonNull(systemClock);
+        super(Ec2MetadataCredentialsProvider.class.getName() + "thread",
+                LOGGER,
+                Objects.requireNonNull(systemClock),
+                Optional.ofNullable(Objects.requireNonNull(config).credentialLifetimeFactor()).orElse(DEFAULT_CREDENTIALS_LIFETIME_FACTOR));
         this.config = config;
-        this.systemClock = systemClock;
-        this.lifetimeFactor = Optional.ofNullable(config.credentialLifetimeFactor()).orElse(DEFAULT_CREDENTIALS_LIFETIME_FACTOR);
         this.uri = Optional.ofNullable(config.metadataEndpoint()).orElse(DEFAULT_IP4_METADATA_ENDPOINT);
-        this.executorService = Executors.newSingleThreadScheduledExecutor(r -> {
-            var thread = new Thread(r, Ec2MetadataCredentialsProvider.class.getName() + "thread");
-            thread.setDaemon(true);
-            return thread;
-        });
-        this.backoff = new ExponentialBackoff(500, 2, 60000, ThreadLocalRandom.current().nextDouble());
         this.client = createClient();
     }
 
@@ -139,95 +102,37 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     @Override
-    public CompletionStage<SecurityCredentials> getCredentials() {
-        var newCredFuture = new CompletableFuture<SecurityCredentials>();
-        var witness = current.compareAndExchange(null, newCredFuture);
-        if (witness == null) {
-            // there's no current credential, let's create one
-            executorService.execute(() -> refreshCredential(newCredFuture));
-            return newCredFuture.minimalCompletionStage();
-        }
-        else if (isExpired(witness) || witness.isCompletedExceptionally()) {
-            // current credential is expired, or it has been completed exceptionally.
-            // throw it away and generate a new one.
-            // we don't normally expect to follow the expired path as the preemptive refresh ought to have
-            // caused its refresh before its expiration.
-            current.compareAndSet(witness, null);
-            return getCredentials();
-        }
-
-        return witness.minimalCompletionStage();
-    }
-
-    private void scheduleCredentialRefresh(long delay) {
-        LOGGER.atDebug()
-                .addKeyValue("delayMs", delay)
-                .log("Scheduling refresh of AWS credentials");
-
-        var refreshedCredFuture = new CompletableFuture<SecurityCredentials>();
-        executorService.schedule(() -> {
-            refreshCredential(refreshedCredFuture);
-            refreshedCredFuture.thenApply(sc -> {
-                var previous = current.getAndSet(refreshedCredFuture);
-                // the previous future have been already complete, but for safety, complete it anyway.
-                Optional.ofNullable(previous).ifPresent(f -> f.complete(sc));
-                return null;
-            });
-        }, delay, TimeUnit.MILLISECONDS);
-    }
-
-    private boolean isExpired(CompletableFuture<SecurityCredentials> witness) {
-        if (witness.isDone() && !witness.isCompletedExceptionally()) {
-            try {
-                return Optional.ofNullable(witness.getNow(null))
-                        .map(SecurityCredentials::expiration)
-                        .map(exp -> systemClock.instant().isAfter(exp))
-                        .orElse(false);
-            }
-            catch (CancellationException | CompletionException e) {
-                return false;
-            }
-        }
-        return false;
-    }
-
-    private void refreshCredential(CompletableFuture<SecurityCredentials> future) {
-        getToken()
+    protected CompletionStage<SecurityCredentials> fetchCredentials() {
+        return getToken()
                 .thenCompose(tokenResponse -> client.sendAsync(createSecurityCredentialsRequest(tokenResponse.body()), HttpResponse.BodyHandlers.ofByteArray()))
                 .thenApply(Ec2MetadataCredentialsProvider::checkResponseStatus)
                 .thenApply(HttpResponse::body)
                 .thenApply(this::toSecurityCredentials)
-                .thenApply(this::checkSuccessfulState)
-                .whenComplete((credentials, t) -> propagateResultToFuture(credentials, t, future));
+                .thenApply(this::checkSuccessfulState);
     }
 
-    private void propagateResultToFuture(SecurityCredentials credentials, Throwable t, CompletableFuture<SecurityCredentials> target) {
-        final long refreshDelay;
-        if (t != null) {
-            LOGGER.atWarn()
-                    .setCause(LOGGER.isDebugEnabled() ? t : null)
-                    .addKeyValue("iamRole", config.iamRole())
-                    .addKeyValue("error", t.getMessage())
-                    .log(LOGGER.isDebugEnabled()
-                            ? "refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance?"
-                            : "refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance? Increase log level to DEBUG for stacktrace");
-            tokenRefreshErrorCount.incrementAndGet();
-            target.completeExceptionally(t);
+    @Override
+    protected Instant expirationOf(SecurityCredentials credentials) {
+        return credentials.expiration();
+    }
 
-            refreshDelay = backoff.backoff(tokenRefreshErrorCount.get());
-        }
-        else {
-            var expiration = credentials.expiration();
-            LOGGER.atDebug()
-                    .addKeyValue("iamRole", config.iamRole())
-                    .addKeyValue("expiration", expiration)
-                    .log("Obtained AWS credentials from EC2 metadata");
-            tokenRefreshErrorCount.set(0);
-            target.complete(credentials);
+    @Override
+    protected void onRefreshFailure(Throwable t) {
+        LOGGER.atWarn()
+                .setCause(LOGGER.isDebugEnabled() ? t : null)
+                .addKeyValue("iamRole", config.iamRole())
+                .addKeyValue("error", t.getMessage())
+                .log(LOGGER.isDebugEnabled()
+                        ? "refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance?"
+                        : "refresh of EC2 credentials failed, is IAM role assigned to this EC2 instance? Increase log level to DEBUG for stacktrace");
+    }
 
-            refreshDelay = (long) Math.max(0, this.lifetimeFactor * (expiration.toEpochMilli() - systemClock.instant().toEpochMilli()));
-        }
-        scheduleCredentialRefresh(refreshDelay);
+    @Override
+    protected void onRefreshSuccess(SecurityCredentials credentials) {
+        LOGGER.atDebug()
+                .addKeyValue("iamRole", config.iamRole())
+                .addKeyValue("expiration", credentials.expiration())
+                .log("Obtained AWS credentials from EC2 metadata");
     }
 
     private CompletableFuture<HttpResponse<String>> getToken() {
@@ -286,11 +191,6 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
             throw new KmsException("Operation failed, request uri: %s, HTTP status code %d, response: %s".formatted(uri, statusCode, body));
         }
         return response;
-    }
-
-    @Override
-    public void close() {
-        executorService.shutdownNow();
     }
 
     private static <B> String bodyToString(B body) {
