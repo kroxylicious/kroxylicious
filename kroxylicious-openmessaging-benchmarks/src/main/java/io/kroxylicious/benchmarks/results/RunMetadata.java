@@ -17,6 +17,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.StreamSupport;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +37,20 @@ public class RunMetadata {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RunMetadata.class);
 
     /**
+     * Probe-specific context written alongside the standard git/system metadata.
+     *
+     * @param scenario   the benchmark scenario name (e.g. {@code baseline}, {@code proxy-no-filters})
+     * @param workload   the OMB workload name (e.g. {@code 1topic-1kb})
+     * @param targetRate the target producer rate in msg/sec for this probe
+     */
+    public record ProbeContext(String scenario, String workload, Integer targetRate) {
+        /** An empty context that writes no probe-specific fields. */
+        public static ProbeContext empty() {
+            return new ProbeContext(null, null, null);
+        }
+    }
+
+    /**
      * Abstraction over external command execution, allowing tests to inject fixed responses.
      */
     @FunctionalInterface
@@ -47,16 +62,29 @@ public class RunMetadata {
     }
 
     /**
+     * Generates a run-metadata.json file in the given directory with no probe-specific fields.
+     * Package-private: used only by tests that do not inject a {@link CommandRunner}.
+     */
+    static void generate(Path outputDir) throws IOException {
+        generate(outputDir, ProbeContext.empty(), RunMetadata::execCommand);
+    }
+
+    /**
      * Generates a run-metadata.json file in the given directory.
      *
-     * @param outputDir the directory to write the metadata file to
+     * @param outputDir    the directory to write the metadata file to
+     * @param probeContext probe-specific fields to include alongside the standard metadata
      * @throws IOException if writing fails or git commands fail
      */
-    public static void generate(Path outputDir) throws IOException {
-        generate(outputDir, RunMetadata::execCommand);
+    public static void generate(Path outputDir, ProbeContext probeContext) throws IOException {
+        generate(outputDir, probeContext, RunMetadata::execCommand);
     }
 
     static void generate(Path outputDir, CommandRunner runner) throws IOException {
+        generate(outputDir, ProbeContext.empty(), runner);
+    }
+
+    static void generate(Path outputDir, ProbeContext probeContext, CommandRunner runner) throws IOException {
         Files.createDirectories(outputDir);
 
         String gitCommit = runner.run("git", "rev-parse", "HEAD");
@@ -67,12 +95,25 @@ public class RunMetadata {
         metadata.put("gitCommit", gitCommit);
         metadata.put("gitBranch", gitBranch);
         metadata.put("timestamp", timestamp);
+        if (probeContext.scenario() != null) {
+            metadata.put("scenario", probeContext.scenario());
+        }
+        if (probeContext.workload() != null) {
+            metadata.put("workload", probeContext.workload());
+        }
+        if (probeContext.targetRate() != null) {
+            metadata.put("targetRate", probeContext.targetRate());
+        }
 
         Map<String, Object> minikubeProfile = minikubeProfileConfig(runner);
         if (!minikubeProfile.isEmpty()) {
             metadata.put("minikubeProfile", minikubeProfile);
         }
-        metadata.put("hostSystem", hostSystemInfo());
+        Map<String, Object> clusterNodes = clusterNodesInfo(runner);
+        if (!clusterNodes.isEmpty()) {
+            metadata.put("clusterNodes", clusterNodes);
+        }
+        metadata.put("orchestratorSystem", orchestratorSystemInfo());
 
         Path metadataFile = outputDir.resolve("run-metadata.json");
         MAPPER.writerWithDefaultPrettyPrinter().writeValue(metadataFile.toFile(), metadata);
@@ -104,7 +145,39 @@ public class RunMetadata {
         return config;
     }
 
-    private static Map<String, Object> hostSystemInfo() {
+    private static Map<String, Object> clusterNodesInfo(CommandRunner runner) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        try {
+            String json = runner.run("kubectl", "get", "nodes", "-o", "json");
+            JsonNode root = MAPPER.readTree(json);
+            JsonNode items = root.path("items");
+            if (!items.isArray() || items.isEmpty()) {
+                return info;
+            }
+            long nodeCount = StreamSupport.stream(items.spliterator(), false).count();
+            info.put("nodeCount", nodeCount);
+            // Assume homogeneous nodes — take specs from first node
+            JsonNode first = items.get(0);
+            JsonNode nodeInfo = first.path("status").path("nodeInfo");
+            info.put("arch", nodeInfo.path("architecture").asText(DEFAULT_UNKNOWN_VALUE));
+            info.put("osImage", nodeInfo.path("osImage").asText(DEFAULT_UNKNOWN_VALUE));
+            info.put("kernelVersion", nodeInfo.path("kernelVersion").asText(DEFAULT_UNKNOWN_VALUE));
+            info.put("kubeletVersion", nodeInfo.path("kubeletVersion").asText(DEFAULT_UNKNOWN_VALUE));
+            JsonNode capacity = first.path("status").path("capacity");
+            info.put("cpuPerNode", capacity.path("cpu").asText(DEFAULT_UNKNOWN_VALUE));
+            String memKi = capacity.path("memory").asText("");
+            if (memKi.endsWith("Ki")) {
+                long memGb = Long.parseLong(memKi.substring(0, memKi.length() - 2)) / (1024 * 1024);
+                info.put("memoryPerNodeGb", memGb);
+            }
+        }
+        catch (Exception e) {
+            log.debug("kubectl not available or not pointed at a cluster — cluster node info will be omitted", e);
+        }
+        return info;
+    }
+
+    private static Map<String, Object> orchestratorSystemInfo() {
         Map<String, Object> info = new LinkedHashMap<>();
         info.put("os", System.getProperty("os.name"));
         info.put("osVersion", System.getProperty("os.version"));

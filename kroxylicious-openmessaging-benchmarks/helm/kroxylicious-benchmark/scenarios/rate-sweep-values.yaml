@@ -1,0 +1,17 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Rate-sweep profile: shorter durations to keep per-probe time manageable when
+# running many probes across a rate range.
+#
+# 5 min warmup allows JIT to stabilise before measurement begins.
+# 5 min test gives enough samples for stable p99 latency at typical rates.
+#
+# Applied automatically by rate-sweep.sh unless overridden with --profile.
+
+benchmark:
+  testDurationMinutes: 5
+  warmupDurationMinutes: 5

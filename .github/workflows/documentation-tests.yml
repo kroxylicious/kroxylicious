@@ -71,7 +71,7 @@ jobs:
         run: |
           mvn -Djapicmp.skip=true -DskipUTs=true -DskipITs=true -DskipKTs=true -DskipDTs=false --batch-mode verify --activate-profiles dist --projects ':kroxylicious-docs-tests' --also-make
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true'
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
         uses: ./.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}

@@ -9,11 +9,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MODULE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-FILTERED="${MODULE_DIR}/target/jbang/generated-sources/io/kroxylicious/benchmarks/results/cli/CompareResults.java"
+FILTERED="${MODULE_DIR}/target/jbang/generated-sources/io/kroxylicious/benchmarks/results/cli/CheckBackPressure.java"
 
 if [[ ! -f "$FILTERED" ]]; then
     echo "Error: run 'mvn process-sources -pl kroxylicious-openmessaging-benchmarks' first to generate filtered sources" >&2
     exit 1
 fi
 
-exec jbang "$FILTERED" "$@"
+exec jbang "$FILTERED" --scripts-dir "${SCRIPT_DIR}" "$@"

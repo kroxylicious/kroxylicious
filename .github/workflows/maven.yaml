@@ -97,7 +97,7 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
         run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar  -pl ''!:kroxylicious-operator''
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true'
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
         uses: ./.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
