@@ -21,24 +21,33 @@ The Kroxylicious {github-release}[binary distribution^] includes https://logging
 When using the `bin/kroxylicious-start.sh` script from the binary distribution, you can configure logging behaviour using the following environment variables.
 
 .Logging environment variables
-[cols="2,1,3",options="header"]
+[cols="2,1,2,3",options="header"]
 |===
-|Environment variable |Default |Description
+|Environment variable |Default |Valid values |Description
 
 |`KROXYLICIOUS_ROOT_LOG_LEVEL`
 |`WARN`
+|`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`
 |Log level for all loggers not otherwise configured.
 
 |`KROXYLICIOUS_APP_LOG_LEVEL`
 |`INFO`
+|`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`
 |Log level for Kroxylicious loggers (`io.kroxylicious.*`). Takes precedence over `KROXYLICIOUS_ROOT_LOG_LEVEL` for application code.
 
 |`KROXYLICIOUS_LOG_FORMAT`
 |`text`
-|Output format for log messages. Set to `json` to enable structured JSON output.
+|`text`, `json`
+|Output format for log messages. Use `json` to enable structured JSON output.
+
+|`KROXYLICIOUS_LOG_JSON_TEMPLATE`
+|`classpath:LogstashJsonEventLayoutV1.json`
+|Any valid https://logging.apache.org/log4j/2.x/manual/json-template-layout.html[Log4j2 JsonTemplateLayout] event template URI
+|JSON layout template used when `KROXYLICIOUS_LOG_FORMAT=json`. For example, use `classpath:EcsLayout.json` for Elastic Common Schema or `classpath:GelfLayout.json` for GELF format.
 
 |`KROXYLICIOUS_LOGGING_OPTIONS`
 |(built-in defaults)
+|Any valid log4j2 JVM system properties
 |Overrides the entire set of log4j2 JVM system properties. When set, the default `-Dlog4j2.configurationFile` and `-Dlog4j2.contextSelector` options are replaced, so you must include all required options explicitly.
 |===
 
@@ -67,7 +76,7 @@ to preserve asynchronous logging.
 By default, Kroxylicious outputs logs in human-readable text format.
 You can switch to structured JSON output for integration with log aggregation systems such as the Elastic Stack (ELK) or Splunk.
 
-The JSON format follows the https://www.elastic.co/guide/en/ecs/current/index.html[Logstash JSON Event Layout V1] schema.
+The JSON format uses https://logging.apache.org/log4j/2.x/manual/json-template-layout.html[Log4j2's JsonTemplateLayout] with the Logstash JSON Event V1 format.
 Structured context fields emitted by Kroxylicious appear as top-level fields alongside the standard log metadata.
 
 .Procedure
@@ -110,35 +119,3 @@ unset KROXYLICIOUS_LOG_FORMAT
 # or
 export KROXYLICIOUS_LOG_FORMAT=text
 ----
-
-[id='con-proxy-structured-log-fields-{context}']
-== Structured log fields
-
-Kroxylicious uses structured logging throughout, attaching context as key-value pairs that are visible in both text and JSON output.
-In text format they appear at the end of each log line; in JSON format they appear as top-level fields.
-
-The following table lists the commonly emitted fields.
-
-.Structured log fields
-[cols="1,3",options="header"]
-|===
-|Field |Description
-
-|`sessionId`
-|Unique identifier for the client-to-proxy connection. Use this to correlate all log messages for a single client session.
-
-|`clientId`
-|The Kafka `client.id` value supplied by the connecting Kafka client.
-
-|`apiKey`
-|The Kafka API key identifying the request type (for example, `Produce`, `Fetch`, `Metadata`).
-
-|`apiVersion`
-|The version of the Kafka API used in the request.
-
-|`kekRef`
-|Key Encryption Key reference used by the record-encryption filter.
-
-|`error`
-|Error message associated with a failure condition.
-|===
