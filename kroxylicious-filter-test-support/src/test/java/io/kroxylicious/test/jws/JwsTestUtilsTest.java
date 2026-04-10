@@ -33,8 +33,9 @@ class JwsTestUtilsTest {
     void generateJwsGeneratesValidEcdsaJws() {
         String jws = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, false, false);
 
-        assertThat(jws).isNotEmpty();
-        assertThat(isJsonObject(jws)).isTrue();
+        assertThat(jws)
+                .isNotEmpty()
+                .matches(this::isJsonObject);
     }
 
     @Test
@@ -43,9 +44,10 @@ class JwsTestUtilsTest {
                 true,
                 false);
 
-        assertThat(jws).isNotEmpty();
-        assertThat(isJsonObject(jws)).isTrue();
-        assertThat(isJwsWithDetachedContent(jws)).isTrue();
+        assertThat(jws)
+                .isNotEmpty()
+                .matches(this::isJsonObject)
+                .matches(this::isJwsWithDetachedContent);
     }
 
     @Test
@@ -53,9 +55,10 @@ class JwsTestUtilsTest {
         String jws = generateJws(ECDSA_SIGN_JWKS,
                 VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD, true, true);
 
-        assertThat(jws).isNotEmpty();
-        assertThat(isJsonObject(jws)).isTrue();
-        assertThat(isJwsWithDetachedContent(jws)).isTrue();
+        assertThat(jws)
+                .isNotEmpty()
+                .matches(this::isJsonObject)
+                .matches(this::isJwsWithDetachedContent);
     }
 
     @Test
@@ -82,8 +85,9 @@ class JwsTestUtilsTest {
         first[0] = (byte) 0xFF;
 
         byte[] second = validJwsUsingEcdsaJwk();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     @Test
@@ -96,8 +100,9 @@ class JwsTestUtilsTest {
         first[0] = (byte) 0xFF;
 
         byte[] second = validJwsUsingMissingEcdsaJwk();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     @Test
@@ -110,8 +115,9 @@ class JwsTestUtilsTest {
         first[0] = (byte) 0xFF;
 
         byte[] second = validJwsUsingRsaJwk();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     @Test
@@ -120,15 +126,17 @@ class JwsTestUtilsTest {
         assertThat(first).isNotNull();
 
         String jwsString = new String(first, StandardCharsets.UTF_8);
-        assertThat(isJwsWithDetachedContent(jwsString)).isTrue();
-        assertThat(startsWithBase64JsonObject(jwsString)).isTrue();
+        assertThat(jwsString)
+                .matches(this::isJwsWithDetachedContent)
+                .matches(this::startsWithBase64JsonObject);
 
         byte[] originalCopy = first.clone();
         first[0] = (byte) 0xFF;
 
         byte[] second = validJwsUsingEcdsaJwkAndContentDetached();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     @Test
@@ -137,15 +145,17 @@ class JwsTestUtilsTest {
         assertThat(first).isNotNull();
 
         String jwsString = new String(first, StandardCharsets.UTF_8);
-        assertThat(isJwsWithDetachedContent(jwsString)).isTrue();
-        assertThat(startsWithBase64JsonObject(jwsString)).isTrue();
+        assertThat(jwsString)
+                .matches(this::isJwsWithDetachedContent)
+                .matches(this::startsWithBase64JsonObject);
 
         byte[] originalCopy = first.clone();
         first[0] = (byte) 0xFF;
 
         byte[] second = validJwsUsingEcdsaJwkAndUnencodedContentDetached();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     @Test
@@ -160,8 +170,9 @@ class JwsTestUtilsTest {
         first[0] = (byte) 0xFF;
 
         byte[] second = invalidJws();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     private boolean isJwsWithDetachedContent(String jws) {
