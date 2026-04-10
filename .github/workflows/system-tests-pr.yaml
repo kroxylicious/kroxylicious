@@ -18,7 +18,7 @@ name: System Tests for Pull-Requests
 
 on:
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [ opened, synchronize, reopened, labeled ]
     paths-ignore:
       - '**/**.md'
       - '**/**.txt'
@@ -47,7 +47,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}
-      fortanix: ${{ steps.fortanixKMS.outputs.fortanix }}
     steps:
       - name: 'Check out repository'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -64,31 +63,21 @@ jobs:
             | paste -sd ',')
           TEST_CLIENTS="[$(echo "$client_types" | sed 's/[^,]*/"&"/g')]"
           echo "test_clients=$TEST_CLIENTS" >> $GITHUB_OUTPUT
-      - name: 'Get PR labels'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PR_LABELS=[$(echo $(gh api --jq '.labels.[].name' /repos/{owner}/{repo}/pulls/${{ github.event.pull_request.number }}) | sed 's/ /,/g')]
-          echo "LABELS=$PR_LABELS" >> "$GITHUB_ENV"
       - name: 'Set kafka client'
         id: kafkaClient
         env:
           KAFKA_CLIENTS: ${{ steps.discover.outputs.test_clients }}
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
         run: |
-          KAFKA_CLIENT=$(echo "${LABELS},${KAFKA_CLIENTS}" | sed 's/,/\n/g; s/\[//g; s/\]//g; s/test\/system-test\///g' | sort | uniq -d)
+          PR_LABELS=$(echo ${LABELS[@]} | sed 's/\n//g; s/ //g')
+          KAFKA_CLIENT=$(echo "${PR_LABELS},${KAFKA_CLIENTS}" | sed 's/,/\n/g; s/\[//g; s/\]//g; s/test\/system-test\///g' | sort | uniq -d | tr -d '"')
           KAFKA_CLIENT=$([[ -z $KAFKA_CLIENT ]] && echo 'strimzi_test_client' || echo $KAFKA_CLIENT)
           echo "kafka_client=$KAFKA_CLIENT" >> "$GITHUB_OUTPUT"
           echo "$KAFKA_CLIENT"
-      - name: 'Set Fortanix KMS'
-        id: fortanixKMS
-        run: |
-          FORTANIX=$([[ "$LABELS" =~ fortanix ]] && echo 'true' || echo 'false')
-          echo "fortanix=$FORTANIX" >> "$GITHUB_OUTPUT"
-          echo "$FORTANIX"
 
   run_system_tests:
     needs: [build_images,set_variables]
     uses: ./.github/workflows/run-system-tests.yaml
     with:
       kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}
-      testFortanixKMS: ${{ needs.set_variables.outputs.fortanix }}
+      testFortanixKMS: ${{ contains(github.event.pull_request.labels.*.name, 'kms/fortanix') }}
