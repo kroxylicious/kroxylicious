@@ -196,8 +196,10 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
             @Override
             public void onNext(ByteBuffer item) {
-                digest.update(item.array());
-                items.add(HttpRequest.BodyPublishers.ofByteArray(item.array()));
+                byte[] bytes = new byte[item.remaining()];
+                item.get(bytes);
+                digest.update(bytes);
+                items.add(HttpRequest.BodyPublishers.ofByteArray(bytes));
             }
 
             @Override
