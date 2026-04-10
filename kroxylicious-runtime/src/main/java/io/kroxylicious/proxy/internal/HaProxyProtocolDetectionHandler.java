@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -17,6 +15,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Uses {@link HAProxyMessageDecoder#detectProtocol(ByteBuf)} on the first bytes
