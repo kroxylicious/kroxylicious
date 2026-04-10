@@ -110,6 +110,7 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(proxy)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(cluster)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference();
+        applyInfrastructureAnnotations(builder);
         Annotations.annotateWithBootstrapServers(builder, clientFacingBootstrap);
         return builder.build();
     }

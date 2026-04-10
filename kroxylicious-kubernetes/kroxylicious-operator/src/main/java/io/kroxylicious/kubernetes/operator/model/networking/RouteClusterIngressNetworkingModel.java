@@ -124,12 +124,14 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     private ObjectMetaBuilder baseMetadataBuilder() {
-        return new ObjectMetaBuilder()
+        ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withNamespace(namespace(cluster))
                 .addToLabels(standardLabels(proxy))
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(proxy)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(cluster)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference();
+        applyInfrastructureAnnotations(builder);
+        return builder;
     }
 
     @Override

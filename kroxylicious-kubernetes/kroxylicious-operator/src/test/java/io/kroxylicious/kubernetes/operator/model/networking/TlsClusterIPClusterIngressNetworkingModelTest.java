@@ -315,4 +315,64 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         return new NodeIdRangesBuilder().withName(name).withStart(start).withEnd(endInclusive).build();
     }
 
+    @Test
+    void serviceIncludesInfrastructureAnnotations() {
+        // given
+        KafkaProxyIngress ingressWithAnnotations = new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                .withName(INGRESS_NAME)
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .withNewInfrastructure()
+                .addToAnnotations("example.com/custom", "test-value")
+                .addToAnnotations("service.beta.kubernetes.io/aws-load-balancer-type", "nlb")
+                .endInfrastructure()
+                .withNewClusterIP()
+                .withProtocol(Protocol.TLS)
+                .endClusterIP()
+                .endSpec()
+                .build();
+
+        // when
+        ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, ingressWithAnnotations,
+                List.of(createNodeIdRange("a", 1, 2)), TLS, 5);
+        List<ServiceBuilder> serviceBuilders = instance.services().toList();
+
+        // then - all services should have infrastructure annotations
+        assertThat(serviceBuilders).hasSize(3).allSatisfy(serviceBuild -> {
+            Service service = serviceBuild.build();
+            assertThat(service.getMetadata().getAnnotations())
+                    .containsEntry("example.com/custom", "test-value")
+                    .containsEntry("service.beta.kubernetes.io/aws-load-balancer-type", "nlb");
+        });
+
+        // bootstrap service should also have operator annotation
+        assertThat(serviceBuilders.get(0).build().getMetadata().getAnnotations())
+                .containsKey("kroxylicious.io/bootstrap-servers");
+    }
+
+    @Test
+    void serviceWithoutInfrastructureAnnotations() {
+        // given - using INGRESS without infrastructure annotations
+        ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
+                List.of(createNodeIdRange("a", 1, 2)), TLS, 5);
+
+        // when
+        List<ServiceBuilder> serviceBuilders = instance.services().toList();
+
+        // then - should have 3 services (bootstrap + 2 nodes)
+        assertThat(serviceBuilders).hasSize(3);
+
+        // bootstrap service has only operator-managed annotation
+        assertThat(serviceBuilders.get(0).build().getMetadata().getAnnotations())
+                .containsOnlyKeys("kroxylicious.io/bootstrap-servers");
+
+        // per-node services have no annotations
+        assertThat(serviceBuilders.get(1).build().getMetadata().getAnnotations())
+                .isNullOrEmpty();
+        assertThat(serviceBuilders.get(2).build().getMetadata().getAnnotations())
+                .isNullOrEmpty();
+    }
+
 }

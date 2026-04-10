@@ -1,0 +1,20 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: myopenshiftroute
+  namespace: proxy-ns
+spec:
+  proxyRef:
+    name: minimal
+  infrastructure:
+    annotations:
+      haproxy.router.openshift.io/timeout: "60s"
+      example.com/team: "platform-team"
+  openShiftRoute: {}
