@@ -112,6 +112,7 @@ public final class FieldSpec {
             return Optional.empty();
         }
         if (!(this.type.isString() || this.type.isBytes())) {
+            // For now, only allow flexibleVersions overrides for the string and bytes
             // types. Overrides are only needed to keep compatibility with some old formats,
             // so there isn't any need to support them for all types.
             throw new IllegalArgumentException("Invalid flexibleVersions override for " + name +
