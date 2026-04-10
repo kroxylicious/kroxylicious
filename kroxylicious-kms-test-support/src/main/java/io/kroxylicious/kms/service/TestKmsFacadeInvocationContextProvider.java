@@ -38,7 +38,7 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
     private static final ExtensionContext.Namespace STORE_NAMESPACE = ExtensionContext.Namespace.create("TEST_KMS");
     private static final String FACADE_FACTORIES = "KMS_FACADE_FACTORIES";
 
-    private static final Pattern FACADE_CLASS_NAME_FILTER = Optional.ofNullable(System.getenv("KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER")).map(Pattern::compile)
+    public static final Pattern FACADE_CLASS_NAME_FILTER = Optional.ofNullable(System.getenv("KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER")).map(Pattern::compile)
             .orElse(Pattern.compile(".*"));
 
     @Override
