@@ -427,6 +427,9 @@ public final class KafkaProxy implements AutoCloseable {
             else if (m.getState() instanceof VirtualClusterLifecycleState.Failed) {
                 m.stop();
             }
+            else if (m.getState() instanceof VirtualClusterLifecycleState.Initializing) {
+                m.stop();
+            }
         });
     }
 

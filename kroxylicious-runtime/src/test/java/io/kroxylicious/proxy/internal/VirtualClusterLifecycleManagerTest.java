@@ -117,6 +117,16 @@ class VirtualClusterLifecycleManagerTest {
     }
 
     @Test
+    void shouldTransitionFromInitializingToStoppedOnShutdown() {
+        // when
+        manager.stop();
+
+        // then
+        assertThat(manager.getState())
+                .isInstanceOfSatisfying(Stopped.class, stopped -> assertThat(stopped.priorFailureCause()).isNull());
+    }
+
+    @Test
     void shouldHaveNoPriorFailureCauseWhenStoppedFromDraining() {
         // given
         manager.initializationSucceeded();

@@ -86,11 +86,14 @@ public class VirtualClusterLifecycleManager {
     }
 
     /**
-     * Transitions from {@link Failed} to {@link Stopped}.
+     * Transitions to {@link Stopped} from {@link Failed} or {@link Initializing}.
      */
     public void stop() {
         transition(current -> {
             if (current instanceof Failed s) {
+                return s.toStopped();
+            }
+            if (current instanceof Initializing s) {
                 return s.toStopped();
             }
             throw unexpectedState(current, "stop");
@@ -106,9 +109,11 @@ public class VirtualClusterLifecycleManager {
     }
 
     private void transition(UnaryOperator<VirtualClusterLifecycleState> transitionFn) {
-        VirtualClusterLifecycleState previous = state.getAndUpdate(transitionFn);
-        VirtualClusterLifecycleState current = transitionFn.apply(previous);
-        var logBuilder = (current instanceof Initializing || current instanceof Stopped) ? LOGGER.atInfo() : LOGGER.atDebug();
+        // Use get() then updateAndGet() rather than getAndUpdate() so we capture
+        // both the previous and new state without re-applying the transition function.
+        VirtualClusterLifecycleState previous = state.get();
+        VirtualClusterLifecycleState current = state.updateAndGet(transitionFn);
+        var logBuilder = (current instanceof Failed) ? LOGGER.atWarn() : LOGGER.atInfo();
         logBuilder
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("from", previous.getClass().getSimpleName())
