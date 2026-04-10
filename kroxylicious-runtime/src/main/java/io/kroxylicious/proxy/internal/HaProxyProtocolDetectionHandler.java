@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -40,6 +42,7 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
 
     private final ProxyProtocolMode mode;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
+    @Nullable
     private ByteBuf cumulation;
 
     public HaProxyProtocolDetectionHandler(ProxyProtocolMode mode, ProxyChannelStateMachine proxyChannelStateMachine) {
