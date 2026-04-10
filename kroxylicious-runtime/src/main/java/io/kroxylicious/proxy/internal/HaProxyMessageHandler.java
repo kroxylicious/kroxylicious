@@ -12,6 +12,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
+
 /**
  * A channel handler that intercepts {@link HAProxyMessage} objects emitted by
  * Netty's {@link io.netty.handler.codec.haproxy.HAProxyMessageDecoder} and
@@ -46,7 +48,7 @@ public class HaProxyMessageHandler extends ChannelInboundHandlerAdapter {
                     .addKeyValue("destinationPort", haProxyMessage.destinationPort())
                     .log("Received HAProxy message");
             // Forward to state machine for processing - do not propagate to filters
-            proxyChannelStateMachine.onClientRequest(haProxyMessage);
+            proxyChannelStateMachine.onHaProxyMessageReceived(HaProxyContext.from(haProxyMessage));
         }
         else {
             // Pass all other messages (Kafka frames) to the next handler

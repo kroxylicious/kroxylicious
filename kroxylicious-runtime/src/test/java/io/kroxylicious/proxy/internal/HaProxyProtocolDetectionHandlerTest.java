@@ -10,10 +10,10 @@ import org.junit.jupiter.api.Test;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,7 +45,7 @@ class HaProxyProtocolDetectionHandlerTest {
         assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
         // HaProxyMessageHandler consumes the message and forwards to state machine
-        verify(pcsm).onClientRequest(any(HAProxyMessage.class));
+        verify(pcsm).onHaProxyMessageReceived(any(HaProxyContext.class));
     }
 
     @Test
@@ -63,7 +63,7 @@ class HaProxyProtocolDetectionHandlerTest {
         assertThat((Object) channel.readInbound()).isNull();
 
         // State machine should not have been called
-        verify(pcsm, never()).onClientRequest(any());
+        verify(pcsm, never()).onHaProxyMessageReceived(any());
     }
 
     // ---- ALLOWED mode ----
@@ -80,7 +80,7 @@ class HaProxyProtocolDetectionHandlerTest {
         assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
         // HaProxyMessageHandler consumes the message and forwards to state machine
-        verify(pcsm).onClientRequest(any(HAProxyMessage.class));
+        verify(pcsm).onHaProxyMessageReceived(any(HaProxyContext.class));
     }
 
     @Test
@@ -118,7 +118,7 @@ class HaProxyProtocolDetectionHandlerTest {
 
         channel.writeInbound(Unpooled.wrappedBuffer("kafka bytes here".getBytes()));
 
-        verify(pcsm, never()).onClientRequest(any());
+        verify(pcsm, never()).onHaProxyMessageReceived(any());
     }
 
     @Test
@@ -151,7 +151,7 @@ class HaProxyProtocolDetectionHandlerTest {
         assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
         // HaProxyMessageHandler consumes the message and forwards to state machine
-        verify(pcsm).onClientRequest(any(HAProxyMessage.class));
+        verify(pcsm).onHaProxyMessageReceived(any(HaProxyContext.class));
     }
 
     // ---- NEEDS_MORE_DATA handling ----
@@ -177,7 +177,7 @@ class HaProxyProtocolDetectionHandlerTest {
         assertThat((Object) channel.readInbound()).isNull();
 
         // State machine should not have been called
-        verify(pcsm, never()).onClientRequest(any());
+        verify(pcsm, never()).onHaProxyMessageReceived(any());
     }
 
     @Test
@@ -201,7 +201,7 @@ class HaProxyProtocolDetectionHandlerTest {
         assertThat((Object) channel.readInbound()).isNull();
 
         // State machine should not have been called
-        verify(pcsm, never()).onClientRequest(any());
+        verify(pcsm, never()).onHaProxyMessageReceived(any());
     }
 
     @Test
@@ -227,7 +227,7 @@ class HaProxyProtocolDetectionHandlerTest {
         assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
 
         // HaProxyMessageHandler consumes the message and forwards to state machine
-        verify(pcsm).onClientRequest(any(HAProxyMessage.class));
+        verify(pcsm).onHaProxyMessageReceived(any(HaProxyContext.class));
     }
 
     @Test
