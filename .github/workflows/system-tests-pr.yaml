@@ -1,4 +1,3 @@
-
 #
 #  Licensed to the Apache Software Foundation (ASF) under one or more
 #  contributor license agreements. See the NOTICE file distributed with
@@ -19,7 +18,7 @@ name: System Tests for Pull-Requests
 
 on:
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [ opened, synchronize, reopened, labeled ]
     paths-ignore:
       - '**/**.md'
       - '**/**.txt'
@@ -44,8 +43,41 @@ jobs:
   build_images:
     uses: ./.github/workflows/build-kroxylicious-container-images.yaml
 
+  set_variables:
+    runs-on: ubuntu-latest
+    outputs:
+      kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: 'Discover test clients'
+        working-directory: kroxylicious-systemtests
+        id: discover
+        run: |
+          # WARNING: possible coupling between java class and shell script
+          client_types=$(grep -oE '^\s+[A-Z][A-Z0-9_]+' ./src/main/java/io/kroxylicious/systemtests/enums/KafkaClientType.java \
+            | tr -d ' ' \
+            | tr '[:upper:]' '[:lower:]' \
+            | paste -sd ',')
+          TEST_CLIENTS="[$(echo "$client_types" | sed 's/[^,]*/"&"/g')]"
+          echo "test_clients=$TEST_CLIENTS" >> $GITHUB_OUTPUT
+      - name: 'Set kafka client'
+        id: kafkaClient
+        env:
+          KAFKA_CLIENTS: ${{ steps.discover.outputs.test_clients }}
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          PR_LABELS=$(echo ${LABELS[@]} | sed 's/\n//g; s/ //g')
+          KAFKA_CLIENT=$(echo "${PR_LABELS},${KAFKA_CLIENTS}" | sed 's/,/\n/g; s/\[//g; s/\]//g; s/test\/system-test\///g' | sort | uniq -d | tr -d '"')
+          KAFKA_CLIENT=$([[ -z $KAFKA_CLIENT ]] && echo 'strimzi_test_client' || echo $KAFKA_CLIENT)
+          echo "kafka_client=$KAFKA_CLIENT" >> "$GITHUB_OUTPUT"
+          echo "$KAFKA_CLIENT"
+
   run_system_tests:
-    needs: build_images
+    needs: [build_images,set_variables]
     uses: ./.github/workflows/run-system-tests.yaml
     with:
-      kafkaClient: 'strimzi_test_client'
+      kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}
+      testFortanixKMS: ${{ contains(github.event.pull_request.labels.*.name, 'kms/fortanix') }}
