@@ -101,7 +101,7 @@ jobs:
           echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
           exit 1
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true'
+        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
         uses: ./.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
