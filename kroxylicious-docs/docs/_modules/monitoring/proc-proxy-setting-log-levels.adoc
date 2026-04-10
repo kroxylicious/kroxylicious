@@ -18,44 +18,78 @@
 
 The Kroxylicious {github-release}[binary distribution^] includes https://logging.apache.org/log4j/2.x[log4j2] as the default logging backend.
 
-When using the `bin/kroxylicious-start.sh` script from the binary distribution, you can set an environment variable to load a custom `log4j2` configuration file or change the root logging level.
+When using the `bin/kroxylicious-start.sh` script from the binary distribution, you can configure logging behaviour using the following environment variables.
 
-.Environment variable to load a custom `log4j2` file
+.Logging environment variables
+[cols="2,1,2,3",options="header"]
+|===
+|Environment variable |Default |Valid values |Description
+
+|`KROXYLICIOUS_ROOT_LOG_LEVEL`
+|`WARN`
+|`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`
+|Log level for all loggers not otherwise configured.
+
+|`KROXYLICIOUS_APP_LOG_LEVEL`
+|`INFO`
+|`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`
+|Log level for Kroxylicious loggers (`io.kroxylicious.*`). Takes precedence over `KROXYLICIOUS_ROOT_LOG_LEVEL` for application code.
+
+|`KROXYLICIOUS_LOG_FORMAT`
+|`text`
+|`text`, `json`
+|Output format for log messages. Use `json` to enable structured JSON output.
+
+|`KROXYLICIOUS_LOG_JSON_TEMPLATE`
+|`classpath:LogstashJsonEventLayoutV1.json`
+|Any valid https://logging.apache.org/log4j/2.x/manual/json-template-layout.html[Log4j2 JsonTemplateLayout] event template URI
+|JSON layout template used when `KROXYLICIOUS_LOG_FORMAT=json`. For example, use `classpath:EcsLayout.json` for Elastic Common Schema or `classpath:GelfLayout.json` for GELF format.
+
+|`KROXYLICIOUS_LOGGING_OPTIONS`
+|(built-in defaults)
+|Any valid log4j2 JVM system properties
+|Overrides the entire set of log4j2 JVM system properties. When set, the default `-Dlog4j2.configurationFile` and `-Dlog4j2.contextSelector` options are replaced, so you must include all required options explicitly.
+|===
+
+.Setting the application log level to DEBUG
 [source,properties]
 ----
-KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=/path/to/custom/log4j2.yaml"
+KROXYLICIOUS_APP_LOG_LEVEL="DEBUG"
 ----
 
-.Environment variable to change the root logging level
-[source,properties]
+NOTE: Setting the log level to `DEBUG` or `TRACE` will produce very verbose logs.
+
+.Loading a custom log4j2 configuration file
+[source,bash]
 ----
-KROXYLICIOUS_ROOT_LOG_LEVEL="DEBUG"
+export KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=/path/to/custom/log4j2.yaml \
+  -Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector"
 ----
 
-NOTE: Setting the root log level to `DEBUG` or `TRACE` will produce very verbose logs.
+WARNING: Setting `KROXYLICIOUS_LOGGING_OPTIONS` replaces the built-in defaults entirely.
+Always include `-Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector`
+to preserve asynchronous logging.
 
 [id='proc-proxy-json-log-format-{context}']
 == Switching to JSON log format
 
-By default, Kroxylicious outputs logs in human-readable text format. You can switch to structured JSON output for integration with log aggregation systems.
+By default, Kroxylicious outputs logs in human-readable text format.
+You can switch to structured JSON output for integration with log aggregation systems such as the Elastic Stack (ELK) or Splunk.
+
+The JSON format uses https://logging.apache.org/log4j/2.x/manual/json-template-layout.html[Log4j2's JsonTemplateLayout] with the Logstash JSON Event V1 format.
+Structured context fields emitted by Kroxylicious appear as top-level fields alongside the standard log metadata.
 
 .Procedure
 
-. Set the `KROXYLICIOUS_LOG_FORMAT` environment variable:
+. Set the `KROXYLICIOUS_LOG_FORMAT` environment variable before starting the proxy:
 +
 [source,bash]
 ----
 export KROXYLICIOUS_LOG_FORMAT=json
-----
-
-. Start Kroxylicious:
-+
-[source,bash]
-----
 bin/kroxylicious-start.sh
 ----
 
-.Expected output (JSON format)
+.Example JSON log output
 
 [source,json]
 ----
@@ -67,17 +101,17 @@ bin/kroxylicious-start.sh
   "thread_name": "kafka-request-handler-1",
   "level": "INFO",
   "level_value": 20000,
-  "stack_trace": null,
   "sessionId": "abc-123",
-  "clientId": "producer-1"
+  "clientId": "producer-1",
+  "apiKey": "Produce"
 }
 ----
 
-NOTE: Structured logging parameters like `sessionId` and `clientId` appear as top-level fields in JSON output.
+When an exception is logged, a `stack_trace` field is also included in the output.
 
 .Switching back to text format
 
-Remove the environment variable or set it to `text`:
+Remove the environment variable or set it explicitly to `text`:
 
 [source,bash]
 ----
