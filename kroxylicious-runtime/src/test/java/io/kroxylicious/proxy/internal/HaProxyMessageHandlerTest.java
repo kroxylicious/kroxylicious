@@ -18,9 +18,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.internal.net.HaProxyContext;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -56,11 +54,9 @@ class HaProxyMessageHandlerTest {
         // When
         handler.channelRead(ctx, HA_PROXY_MESSAGE);
 
-        // Then - state machine is signalled with immutable context
-        verify(proxyChannelStateMachine).onHaProxyMessageReceived(any(HaProxyContext.class));
+        // Then - state machine is signalled with the HAProxy message
+        verify(proxyChannelStateMachine).onClientRequest(HA_PROXY_MESSAGE);
         verifyNoMoreInteractions(proxyChannelStateMachine);
-        // Should trigger another read for the Kafka layer
-        verify(ctx).read();
     }
 
     @Test
