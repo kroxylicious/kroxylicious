@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
@@ -39,6 +40,7 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
 
     private final ProxyProtocolMode mode;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
+    private ByteBuf cumulation;
 
     public HaProxyProtocolDetectionHandler(ProxyProtocolMode mode, ProxyChannelStateMachine proxyChannelStateMachine) {
         this.mode = mode;
@@ -52,35 +54,55 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
             return;
         }
 
-        var result = HAProxyMessageDecoder.detectProtocol(buf);
-        boolean proxyDetected = switch (result.state()) {
-            case DETECTED -> true;
-            case INVALID -> false;
-            case NEEDS_MORE_DATA -> false;
-        };
-
-        if (proxyDetected) {
-            LOGGER.debug("{}: PROXY protocol detected, adding decoder", ctx.channel());
-            String thisName = ctx.name();
-            ctx.pipeline().addAfter(thisName, HAPROXY_MESSAGE_DECODER_HANDLER_NAME, new HAProxyMessageDecoder());
-            ctx.pipeline().addAfter(HAPROXY_MESSAGE_DECODER_HANDLER_NAME, HAPROXY_MESSAGE_HANDLER_NAME,
-                    new HaProxyMessageHandler(proxyChannelStateMachine));
-            ctx.pipeline().remove(this);
-            ctx.fireChannelRead(buf);
-        }
-        else if (mode == ProxyProtocolMode.REQUIRED) {
-            LOGGER.warn("{}: Connection rejected — expected PROXY protocol header but received non-PROXY data. "
-                    + "Ensure the upstream load balancer is configured to send PROXY protocol headers, "
-                    + "or set proxyProtocol mode to 'allowed' or 'disabled'.",
-                    ctx.channel());
-            buf.release();
-            ctx.close();
+        if (cumulation == null) {
+            cumulation = buf;
         }
         else {
-            // ALLOWED mode — no PROXY header, pass through to Kafka decoder
-            LOGGER.debug("{}: No PROXY protocol header detected, passing through", ctx.channel());
-            ctx.pipeline().remove(this);
-            ctx.fireChannelRead(buf);
+            cumulation = Unpooled.wrappedBuffer(cumulation, buf);
         }
+
+        var result = HAProxyMessageDecoder.detectProtocol(cumulation);
+        switch (result.state()) {
+            case DETECTED -> {
+                LOGGER.debug("{}: PROXY protocol detected, adding decoder", ctx.channel());
+                String thisName = ctx.name();
+                ctx.pipeline().addAfter(thisName, HAPROXY_MESSAGE_DECODER_HANDLER_NAME, new HAProxyMessageDecoder());
+                ctx.pipeline().addAfter(HAPROXY_MESSAGE_DECODER_HANDLER_NAME, HAPROXY_MESSAGE_HANDLER_NAME,
+                        new HaProxyMessageHandler(proxyChannelStateMachine));
+                ctx.pipeline().remove(this);
+                ctx.fireChannelRead(cumulation);
+                cumulation = null;
+            }
+            case INVALID -> {
+                if (mode == ProxyProtocolMode.REQUIRED) {
+                    LOGGER.warn("{}: Connection rejected — expected PROXY protocol header but received non-PROXY data. "
+                            + "Ensure the upstream load balancer is configured to send PROXY protocol headers, "
+                            + "or set proxyProtocol mode to 'allowed' or 'disabled'.",
+                            ctx.channel());
+                    cumulation.release();
+                    cumulation = null;
+                    ctx.close();
+                }
+                else {
+                    // ALLOWED mode — no PROXY header, pass through to Kafka decoder
+                    LOGGER.debug("{}: No PROXY protocol header detected, passing through", ctx.channel());
+                    ctx.pipeline().remove(this);
+                    ctx.fireChannelRead(cumulation);
+                    cumulation = null;
+                }
+            }
+            case NEEDS_MORE_DATA -> {
+                LOGGER.debug("{}: PROXY protocol detection needs more data, waiting for next read", ctx.channel());
+            }
+        }
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        if (cumulation != null) {
+            cumulation.release();
+            cumulation = null;
+        }
+        super.channelInactive(ctx);
     }
 }

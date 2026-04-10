@@ -154,6 +154,102 @@ class HaProxyProtocolDetectionHandlerTest {
         verify(pcsm).onHaProxyMessageReceived(any(HaProxyContext.class));
     }
 
+    // ---- NEEDS_MORE_DATA handling ----
+
+    @Test
+    void requiredModeShouldWaitForMoreDataWhenNotEnoughBytesReceived() {
+        var pcsm = mock(ProxyChannelStateMachine.class);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, pcsm);
+        var channel = new EmbeddedChannel(handler);
+
+        // Send only first few bytes of the PROXY v2 signature (not enough to detect)
+        byte[] partialSignature = new byte[4];
+        System.arraycopy(PROXY_V2_SIGNATURE, 0, partialSignature, 0, 4);
+        channel.writeInbound(Unpooled.wrappedBuffer(partialSignature));
+
+        // Handler should still be in the pipeline
+        assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNotNull();
+
+        // Channel should still be open
+        assertThat(channel.isOpen()).isTrue();
+
+        // No inbound messages should have been forwarded
+        assertThat((Object) channel.readInbound()).isNull();
+
+        // State machine should not have been called
+        verify(pcsm, never()).onHaProxyMessageReceived(any());
+    }
+
+    @Test
+    void allowedModeShouldWaitForMoreDataWhenNotEnoughBytesReceived() {
+        var pcsm = mock(ProxyChannelStateMachine.class);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.ALLOWED, pcsm);
+        var channel = new EmbeddedChannel(handler);
+
+        // Send only first few bytes of the PROXY v2 signature (not enough to detect)
+        byte[] partialSignature = new byte[4];
+        System.arraycopy(PROXY_V2_SIGNATURE, 0, partialSignature, 0, 4);
+        channel.writeInbound(Unpooled.wrappedBuffer(partialSignature));
+
+        // Handler should still be in the pipeline
+        assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNotNull();
+
+        // Channel should still be open
+        assertThat(channel.isOpen()).isTrue();
+
+        // No inbound messages should have been forwarded
+        assertThat((Object) channel.readInbound()).isNull();
+
+        // State machine should not have been called
+        verify(pcsm, never()).onHaProxyMessageReceived(any());
+    }
+
+    @Test
+    void shouldDetectProxyAfterReceivingRemainingBytes() {
+        var pcsm = mock(ProxyChannelStateMachine.class);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, pcsm);
+        var channel = new EmbeddedChannel(handler);
+
+        // First send a partial PROXY v2 signature
+        byte[] firstChunk = new byte[4];
+        System.arraycopy(PROXY_V2_SIGNATURE, 0, firstChunk, 0, 4);
+        channel.writeInbound(Unpooled.wrappedBuffer(firstChunk));
+
+        // Handler should still be waiting
+        assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNotNull();
+
+        // Now send the rest of the PROXY v2 header
+        byte[] remainingBytes = new byte[PROXY_V2_TCP4_HEADER.length - 4];
+        System.arraycopy(PROXY_V2_TCP4_HEADER, 4, remainingBytes, 0, remainingBytes.length);
+        channel.writeInbound(Unpooled.wrappedBuffer(remainingBytes));
+
+        // Detection handler should have removed itself
+        assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();
+
+        // HaProxyMessageHandler consumes the message and forwards to state machine
+        verify(pcsm).onHaProxyMessageReceived(any(HaProxyContext.class));
+    }
+
+    @Test
+    void shouldReleaseCumulationWhenChannelBecomesInactive() {
+        var pcsm = mock(ProxyChannelStateMachine.class);
+        var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, pcsm);
+        var channel = new EmbeddedChannel(handler);
+
+        // Send partial data to trigger cumulation
+        byte[] partialSignature = new byte[4];
+        System.arraycopy(PROXY_V2_SIGNATURE, 0, partialSignature, 0, 4);
+        ByteBuf partial = Unpooled.buffer(4);
+        partial.writeBytes(partialSignature);
+        channel.writeInbound(partial);
+
+        // Close the channel — cumulation should be released
+        channel.close();
+
+        // Verify no leak (partial buf should have been released)
+        assertThat(partial.refCnt()).isZero();
+    }
+
     // ---- Helper to build a minimal valid PROXY v2 TCP4 header ----
 
     private static byte[] buildProxyV2Tcp4Header(String srcAddr, int srcPort, String dstAddr, int dstPort) {
