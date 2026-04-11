@@ -30,6 +30,6 @@ runs:
       uses: manusa/actions-setup-minikube@96202dee4ae1c2f46a62fe197273aaf22b83f42d
       with:
         "minikube version": "v1.38.1"
-        "kubernetes version": "v1.35.1"
+        "kubernetes version": "v1.35.3"
         "github token": ${{ inputs.githubToken }}
         driver: docker
