@@ -12,8 +12,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -96,8 +94,7 @@ class InitProducerIdAuthzIT extends AuthzIT {
     void prepClusters(
                       @Name("kafkaClusterWithAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = TXN_COORDINATOR_OBSERVER) @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterWithAuthzProducer,
 
-                      @Name("kafkaClusterNoAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = TXN_COORDINATOR_OBSERVER) @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterNoAuthzProducer)
-            throws InterruptedException, ExecutionException {
+                      @Name("kafkaClusterNoAuthz") @ClientConfig(name = ProducerConfig.TRANSACTIONAL_ID_CONFIG, value = TXN_COORDINATOR_OBSERVER) @ClientConfig(name = ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") @ClientConfig(name = ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, value = "org.apache.kafka.common.serialization.StringSerializer") Producer kafkaClusterNoAuthzProducer) {
         prepCluster(kafkaClusterWithAuthz, ALL_TOPICS_IN_TEST, aclBindings);
         prepCluster(kafkaClusterNoAuthz, ALL_TOPICS_IN_TEST, List.of());
         ensureCoordinators(kafkaClusterWithAuthzProducer, TXN_COORDINATOR_OBSERVER, kafkaClusterWithAuthzAdmin);
