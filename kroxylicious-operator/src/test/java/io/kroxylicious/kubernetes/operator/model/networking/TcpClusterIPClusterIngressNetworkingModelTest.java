@@ -200,6 +200,60 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
     }
 
     @Test
+    void serviceIncludesInfrastructureAnnotations() {
+        // given
+        // @formatter:off
+        KafkaProxyIngress ingressWithAnnotations = new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                    .withName(INGRESS_NAME)
+                    .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewInfrastructure()
+                        .addToAnnotations("example.com/custom", "test-value")
+                        .addToAnnotations("haproxy.router.openshift.io/timeout", "60s")
+                    .endInfrastructure()
+                    .withNewClusterIP()
+                        .withProtocol(Protocol.TCP)
+                    .endClusterIP()
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        ClusterIngressNetworkingModel instance = new TcpClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, ingressWithAnnotations,
+                List.of(createNodeIdRange("a", 1, 3)), 1, 4);
+
+        // when
+        List<ServiceBuilder> serviceBuilders = instance.services().toList();
+
+        // then
+        assertThat(serviceBuilders).singleElement().satisfies(serviceBuild -> {
+            Service service = serviceBuild.build();
+            assertThat(service.getMetadata().getAnnotations())
+                    .containsEntry("example.com/custom", "test-value")
+                    .containsEntry("haproxy.router.openshift.io/timeout", "60s")
+                    .containsKey("kroxylicious.io/bootstrap-servers"); // operator annotation still present
+        });
+    }
+
+    @Test
+    void serviceWithoutInfrastructureAnnotations() {
+        // given - INGRESS has no infrastructure annotations
+        ClusterIngressNetworkingModel instance = new TcpClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
+                List.of(createNodeIdRange("a", 1, 3)), 1, 4);
+
+        // when
+        List<ServiceBuilder> serviceBuilders = instance.services().toList();
+
+        // then - only operator-managed annotation present
+        assertThat(serviceBuilders).singleElement().satisfies(serviceBuild -> {
+            Service service = serviceBuild.build();
+            assertThat(service.getMetadata().getAnnotations())
+                    .containsOnlyKeys("kroxylicious.io/bootstrap-servers");
+        });
+    }
+
+    @Test
     void serviceCommonSpec() {
         // given
         ClusterIngressNetworkingModel instance = new TcpClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
