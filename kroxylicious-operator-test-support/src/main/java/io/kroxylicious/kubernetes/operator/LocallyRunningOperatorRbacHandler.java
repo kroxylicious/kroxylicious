@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.FileSystems;
@@ -180,7 +179,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     private @NonNull Stream<ClusterRole> loadClusterRoles(Stream<Path> files, KubernetesClient adminClient, List<PathMatcher> clusterRolePathMatchers) {
         return files.filter(Files::isRegularFile).filter(path -> clusterRolePathMatchers.stream().anyMatch(matcher -> matcher.matches(path))).sorted()
                 .flatMap(resourceFile -> {
-                    try (var resourceInputStream = new FileInputStream(resourceFile.toString())) {
+                    try (var resourceInputStream = Files.newInputStream(resourceFile)) {
                         var resources = adminClient.load(resourceInputStream).items();
                         List<ClusterRole> roles = resources.stream().filter(ClusterRole.class::isInstance).map(ClusterRole.class::cast).toList();
                         return roles.stream();
