@@ -133,7 +133,9 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
         return resolved;
     }
 
-    private static @Nullable String firstNonBlankOrNull(@Nullable String... values) {
+    private static @Nullable String firstNonBlankOrNull(String... values) {
+        // Individual elements may be null; the varargs array itself is never null
+        // because all callers pass two or three explicit string arguments.
         for (var v : values) {
             if (v != null && !v.isBlank()) {
                 return v;
@@ -142,7 +144,7 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
         return null;
     }
 
-    private static String firstNonBlank(@Nullable String... values) {
+    private static String firstNonBlank(String... values) {
         var v = firstNonBlankOrNull(values);
         if (v == null) {
             throw new KmsException("required value not provided");
