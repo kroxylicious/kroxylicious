@@ -82,8 +82,9 @@ class JwsTestUtilsTest {
         first[0] = (byte) 0xFF;
 
         byte[] second = validJwsUsingEcdsaJwk();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     @Test
@@ -96,8 +97,9 @@ class JwsTestUtilsTest {
         first[0] = (byte) 0xFF;
 
         byte[] second = validJwsUsingMissingEcdsaJwk();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     @Test
@@ -110,8 +112,9 @@ class JwsTestUtilsTest {
         first[0] = (byte) 0xFF;
 
         byte[] second = validJwsUsingRsaJwk();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     @Test
@@ -127,8 +130,9 @@ class JwsTestUtilsTest {
         first[0] = (byte) 0xFF;
 
         byte[] second = validJwsUsingEcdsaJwkAndContentDetached();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     @Test
@@ -144,8 +148,9 @@ class JwsTestUtilsTest {
         first[0] = (byte) 0xFF;
 
         byte[] second = validJwsUsingEcdsaJwkAndUnencodedContentDetached();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     @Test
@@ -160,8 +165,9 @@ class JwsTestUtilsTest {
         first[0] = (byte) 0xFF;
 
         byte[] second = invalidJws();
-        assertThat(second).isEqualTo(originalCopy);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second)
+                .isEqualTo(originalCopy)
+                .isNotSameAs(first);
     }
 
     private boolean isJwsWithDetachedContent(String jws) {
