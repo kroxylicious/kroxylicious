@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -920,8 +919,7 @@ class RecordEncryptionFilterIT {
 
     @TestTemplate
     void shareGroupConsumeFailsAfterKekDeleted(@TopicNameMethodSource Topic topic,
-                                               TestKmsFacade<?, ?, ?> testKmsFacade)
-            throws ExecutionException, InterruptedException {
+                                               TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
