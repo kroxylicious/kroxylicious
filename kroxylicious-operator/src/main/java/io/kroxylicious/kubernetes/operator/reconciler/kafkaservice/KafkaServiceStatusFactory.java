@@ -31,7 +31,8 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
     private KafkaService serviceStatusPatch(KafkaService observedIngress,
                                             Condition condition,
                                             String checksum,
-                                            @Nullable String bootstrapServers) {
+                                            @Nullable String bootstrapServers,
+                                            @Nullable TrustAnchorInfo trustAnchorInfo) {
         // @formatter:off
         var metadataBuilder = new KafkaServiceBuilder()
                 .withNewMetadata()
@@ -50,16 +51,30 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                     .withBootstrapServers(bootstrapServers)
                 .endStatus();
 
+        if (trustAnchorInfo != null) {
+            service.editStatus()
+                    .withNewTls()
+                        .withNewTrustAnchor()
+                            .withName(trustAnchorInfo.name())
+                            .withStoreType(trustAnchorInfo.storeType())
+                            .withKey(trustAnchorInfo.key())
+                        .endTrustAnchor()
+                    .endTls()
+                    .endStatus();
+        }
+
         return service.build();
         // @formatter:on
     }
+
+    record TrustAnchorInfo(String name, String key, String storeType) {}
 
     @Override
     public KafkaService newUnknownConditionStatusPatch(KafkaService observedFilter,
                                                        Condition.Type type,
                                                        Exception e) {
         Condition unknownCondition = newUnknownCondition(observedFilter, type, e);
-        return serviceStatusPatch(observedFilter, unknownCondition, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED, null);
+        return serviceStatusPatch(observedFilter, unknownCondition, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED, null, null);
     }
 
     @Override
@@ -68,7 +83,7 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                                                      String reason,
                                                      String message) {
         Condition falseCondition = newFalseCondition(observedProxy, type, reason, message);
-        return serviceStatusPatch(observedProxy, falseCondition, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED, null);
+        return serviceStatusPatch(observedProxy, falseCondition, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED, null, null);
     }
 
     @Override
@@ -76,7 +91,7 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                                                     Condition.Type type,
                                                     String checksum) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
-        return serviceStatusPatch(observedProxy, trueCondition, checksum, null);
+        return serviceStatusPatch(observedProxy, trueCondition, checksum, null, null);
     }
 
     KafkaService newTrueConditionStatusPatch(KafkaService observedProxy,
@@ -84,7 +99,16 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                                              String checksum,
                                              String bootstrapServers) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
-        return serviceStatusPatch(observedProxy, trueCondition, checksum, bootstrapServers);
+        return serviceStatusPatch(observedProxy, trueCondition, checksum, bootstrapServers, null);
+    }
+
+    KafkaService newTrueConditionStatusPatch(KafkaService observedProxy,
+                                             Condition.Type type,
+                                             String checksum,
+                                             String bootstrapServers,
+                                             TrustAnchorInfo trustAnchorInfo) {
+        Condition trueCondition = newTrueCondition(observedProxy, type);
+        return serviceStatusPatch(observedProxy, trueCondition, checksum, bootstrapServers, trustAnchorInfo);
     }
 
     @Override
