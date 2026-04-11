@@ -52,10 +52,8 @@ import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.coordinator.group.GroupConfig;
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowingConsumer;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.Parameter;
@@ -73,7 +71,6 @@ import io.kroxylicious.filter.encryption.config.UnresolvedKeyPolicy;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
-import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryTestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
@@ -98,7 +95,6 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
-import static org.assertj.core.api.Assumptions.assumeThatCode;
 import static org.assertj.core.api.InstanceOfAssertFactories.BYTE_ARRAY;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.contains;
@@ -794,56 +790,6 @@ class RecordEncryptionFilterIT {
         finally {
             consumer.assign(List.of());
         }
-    }
-
-    // TODO express this test as a unit test and consider doing away with the test as the IT level.
-    // yeah that ^^^^^
-    @Test
-    @Disabled
-    void shouldGenerateOneDek(@TopicNameMethodSource Topic topic)
-            throws Exception {
-        assumeThatCode(testKmsFacade::getKms).doesNotThrowAnyException();
-        assertThat(testKmsFacade.getKms()).isInstanceOf(InMemoryKms.class);
-
-        var testKekManager = testKmsFacade.getTestKekManager();
-        testKekManager.generateKek(topic.name());
-
-        var builder = proxy(cluster);
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
-        builder.addToFilterDefinitions(namedFilterDefinition);
-        builder.addToDefaultFilters(namedFilterDefinition.name());
-
-        try (var tester = kroxyliciousTester(builder);
-                var producer = tester.producer(Map.of(ProducerConfig.LINGER_MS_CONFIG, 0));
-                var consumer = tester.consumer()) {
-
-            producer.send(new ProducerRecord<>(topic.name(), HELLO_WORLD)).get(5, TimeUnit.SECONDS);
-
-            consumer.subscribe(List.of(topic.name()));
-            var records = consumer.poll(Duration.ofSeconds(2));
-            assertThat(records.iterator())
-                    .toIterable()
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(HELLO_WORLD);
-
-            // Send two batches to the same topic
-            var message = "hello world #2";
-            producer.send(new ProducerRecord<>(topic.name(), message)).get(5, TimeUnit.SECONDS);
-
-            consumer.subscribe(List.of(topic.name()));
-            records = consumer.poll(Duration.ofSeconds(2));
-            assertThat(records.iterator())
-                    .toIterable()
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(message);
-        }
-
-        assertThat(testKmsFacade.getKms())
-                .asInstanceOf(InstanceOfAssertFactories.type(InMemoryKms.class))
-                .extracting(InMemoryKms::numDeksGenerated).isEqualTo(1);
-
     }
 
     @Test
