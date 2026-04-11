@@ -37,6 +37,7 @@ spec:
     # ...
 ----
 where:
+
 * `trustAnchorRef`  references a separate Kubernetes resource containing the CA certificates to trust.
 * `name` is the name of the `ConfigMap` providing the CA certificates. The resource must exist in the same namespace as the `KafkaService`
 * `kind` is optional and defaults to `ConfigMap`.
@@ -57,6 +58,8 @@ spec:
       key: trusted-cas.pem
     # ...
 ----
+where:
+
 * `name` is the name of the `Secret` providing the CA certificates. The resource must exist in the same namespace as the `KafkaService`
 * `kind` must be `Secret`.
 * `key` identifies the entry in the resource. The value must be a PEM-encoded set of CA certificates.
