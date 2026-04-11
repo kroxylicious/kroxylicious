@@ -89,7 +89,6 @@ import io.kroxylicious.testing.kafka.junit5ext.TopicNameMethodSource;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.filter.encryption.RecordEncryptionMetrics.TOPIC_NAME;
-import static io.kroxylicious.kms.service.TestKmsFacadeInvocationContextProvider.FACADE_CLASS_NAME_FILTER;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -113,11 +112,7 @@ class RecordEncryptionFilterIT {
     static Stream<? extends TestKmsFacade<?, ?, ?>> facadesSource() {
         // We rely on the fact that streams are lazy so the facade isn't built
         // or started until the first test needs it.
-        return TestKmsFacadeFactory.getTestKmsFacadeFactories()
-                // filter based on env var
-                .map(TestKmsFacadeFactory::build)
-                .filter(f -> FACADE_CLASS_NAME_FILTER.matcher(f.getClass().getName()).matches())
-                .filter(TestKmsFacade::isAvailable)
+        return TestKmsFacadeFactory.getAvailableTestKmsFacades()
                 .peek(TestKmsFacade::start);
     }
 
@@ -865,14 +860,8 @@ class RecordEncryptionFilterIT {
         }
     }
 
-<<<<<<< HEAD
-    @TestTemplate
-    void shareGroupConsumeFailsAfterKekDeleted(@TopicNameMethodSource Topic topic,
-                                               TestKmsFacade<?, ?, ?> testKmsFacade) {
-=======
     @Test
     void shareGroupConsumeFailsAfterKekDeleted(@TopicNameMethodSource Topic topic) {
->>>>>>> a7dc8dcb4 (refactor(ITs): Have RecordEncryptionIT share a single KMS instance)
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 

@@ -8,9 +8,7 @@ package io.kroxylicious.kms.service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -29,17 +27,11 @@ import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 
 /**
  * Junit Context Provider providing available {@link TestKmsFacade}s to integration tests.
- * <br/>
- * The variable {@code KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER} is a regular expression that limits the facades available
- * to the test.  It matches against the facade class name.
  */
 public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider, ParameterResolver {
 
     private static final ExtensionContext.Namespace STORE_NAMESPACE = ExtensionContext.Namespace.create("TEST_KMS");
     private static final String FACADE_FACTORIES = "KMS_FACADE_FACTORIES";
-
-    public static final Pattern FACADE_CLASS_NAME_FILTER = Optional.ofNullable(System.getenv("KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER")).map(Pattern::compile)
-            .orElse(Pattern.compile(".*"));
 
     @Override
     public boolean supportsTestTemplate(ExtensionContext context) {
@@ -51,7 +43,6 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
         return getTestKmsFacadeStream(context)
                 .values()
                 .stream()
-                .filter(f -> FACADE_CLASS_NAME_FILTER.matcher(f.getClass().getName()).matches())
                 .map(TemplateInvocationContext::new);
     }
 
@@ -77,14 +68,12 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
     @SuppressWarnings("unchecked")
     private static Map<Class<TestKmsFacade<?, ?, ?>>, TestKmsFacade<?, ?, ?>> getTestKmsFacadeStream(ExtensionContext extensionContext) {
         final ExtensionContext.Store store = extensionContext.getStore(STORE_NAMESPACE);
-        return store.getOrComputeIfAbsent(FACADE_FACTORIES, key -> TestKmsFacadeFactory.getTestKmsFacadeFactories()
-                .map(TestKmsFacadeFactory::build)
+        return store.getOrComputeIfAbsent(FACADE_FACTORIES, key -> TestKmsFacadeFactory.getAvailableTestKmsFacades()
                 .collect(
                         Collectors.toMap(
                                 Object::getClass,
-                                Function.identity()
-
-                        )), Map.class);
+                                Function.identity())),
+                Map.class);
     }
 
     private record TemplateInvocationContext(TestKmsFacade<?, ?, ?> kmsFacade) implements TestTemplateInvocationContext {
