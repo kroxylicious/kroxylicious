@@ -312,12 +312,12 @@ public interface FieldType {
                 if (string.startsWith(ARRAY_PREFIX)) {
                     String elementTypeString = string.substring(ARRAY_PREFIX.length());
                     if (elementTypeString.isEmpty()) {
-                        throw new RuntimeException("Can't parse array type " + string +
+                        throw new IllegalArgumentException("Can't parse array type " + string +
                                 ".  No element type found.");
                     }
                     FieldType elementType = parse(elementTypeString);
                     if (elementType.isArray()) {
-                        throw new RuntimeException("Can't have an array of arrays.  " +
+                        throw new IllegalArgumentException("Can't have an array of arrays.  " +
                                 "Use an array of structs containing an array instead.");
                     }
                     return new ArrayType(elementType);
@@ -326,7 +326,7 @@ public interface FieldType {
                     return new StructType(string);
                 }
                 else {
-                    throw new RuntimeException("Can't parse type " + string);
+                    throw new IllegalArgumentException("Can't parse type " + string);
                 }
         }
     }
