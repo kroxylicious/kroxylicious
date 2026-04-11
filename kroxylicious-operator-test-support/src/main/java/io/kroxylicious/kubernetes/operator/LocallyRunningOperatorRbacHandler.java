@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.FileSystems;
@@ -17,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -41,10 +41,12 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.junit.AbstractOperatorExtension;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.KubernetesResourceUtil.name;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -77,7 +79,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             .endRule()
             .addNewRule()
             .addToApiGroups("apiextensions.k8s.io")
-            .addToVerbs("get", "list", "watch", "create", "delete", "patch", "delete")
+            .addToVerbs("get", "list", "watch", "create", "delete", "patch")
             .addToResources("customresourcedefinitions")
             .endRule()
             .build();
@@ -85,26 +87,36 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     private final String impersonatedUser = UUID.randomUUID().toString();
 
-    private final KubernetesClient testActorClient = OperatorTestUtils.kubeClient();
+    private final Supplier<KubernetesClient> adminClientFactory;
 
     private final List<ClusterRole> clusterRoles;
     private final List<ClusterRoleBinding> roleBindings;
 
+    // Lazily set when testActor() is called; closed in afterAll.
+    @Nullable
+    private KubernetesClient testActorClient;
+
     public LocallyRunningOperatorRbacHandler(String resourceDirectory, String... clusterRoleFileGlobs) {
-        this(Path.of(resourceDirectory), clusterRoleFileGlobs);
+        this(Path.of(resourceDirectory), OperatorTestUtils::kubeClient, clusterRoleFileGlobs);
     }
 
-    private LocallyRunningOperatorRbacHandler(Path resourceDirectory, String... clusterRoleFileGlobs) {
+    public LocallyRunningOperatorRbacHandler(Path resourceDirectory, String... clusterRoleFileGlobs) {
+        this(resourceDirectory, OperatorTestUtils::kubeClient, clusterRoleFileGlobs);
+    }
+
+    @VisibleForTesting
+    LocallyRunningOperatorRbacHandler(Path resourceDirectory, Supplier<KubernetesClient> adminClientFactory, String... clusterRoleFileGlobs) {
         requireNonNull(resourceDirectory);
         verifyClusterGlobs(clusterRoleFileGlobs);
         verifyDirectoryExists(resourceDirectory);
+        this.adminClientFactory = adminClientFactory;
         clusterRoles = loadClusterRoles(resourceDirectory, clusterRoleFileGlobs);
         roleBindings = this.clusterRoles.stream().map(this::bindingForRole).toList();
     }
 
     private List<ClusterRole> loadClusterRoles(Path resourceDirectory, String[] clusterRoleFileGlobs) {
         var clusterRolePathMatchers = Arrays.stream(clusterRoleFileGlobs).map(g -> FileSystems.getDefault().getPathMatcher("glob:**/" + g)).toList();
-        try (var adminClient = OperatorTestUtils.kubeClient();
+        try (var adminClient = adminClientFactory.get();
                 var files = Files.list(resourceDirectory)) {
             // The test framework itself needs these roles.
             Stream<ClusterRole> frameworkClusterRoles = Stream.of(FRAMEWORK_CLUSTER_ROLE);
@@ -136,7 +148,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     @Override
     public void beforeEach(ExtensionContext context) {
-        try (var adminClient = OperatorTestUtils.kubeClient()) {
+        try (var adminClient = adminClientFactory.get()) {
             // The test framework itself needs these roles.
             clusterRoles.forEach(r -> {
                 LOGGER.atTrace()
@@ -167,7 +179,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     private @NonNull Stream<ClusterRole> loadClusterRoles(Stream<Path> files, KubernetesClient adminClient, List<PathMatcher> clusterRolePathMatchers) {
         return files.filter(Files::isRegularFile).filter(path -> clusterRolePathMatchers.stream().anyMatch(matcher -> matcher.matches(path))).sorted()
                 .flatMap(resourceFile -> {
-                    try (var resourceInputStream = new FileInputStream(resourceFile.toString())) {
+                    try (var resourceInputStream = Files.newInputStream(resourceFile)) {
                         var resources = adminClient.load(resourceInputStream).items();
                         List<ClusterRole> roles = resources.stream().filter(ClusterRole.class::isInstance).map(ClusterRole.class::cast).toList();
                         return roles.stream();
@@ -180,7 +192,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     @Override
     public void afterEach(ExtensionContext context) {
-        try (var adminClient = OperatorTestUtils.kubeClient()) {
+        try (var adminClient = adminClientFactory.get()) {
             this.roleBindings.forEach(roleBinding -> {
                 LOGGER.trace("Deleting ClusterRoleBinding: {}", name(roleBinding));
                 adminClient.resource(roleBinding).delete();
@@ -197,53 +209,75 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     @NonNull
     public KubernetesClient operatorClient() {
         return OperatorTestUtils.kubeClient(
-                new KubernetesClientBuilder().editOrNewConfig().withImpersonateUsername(impersonatedUser).endConfig());
+                new KubernetesClientBuilder().editOrNewConfig()
+                        .withImpersonateUsername(impersonatedUser)
+                        .withUserAgent("kroxylicious-operator/test")
+                        .endConfig());
+    }
+
+    /**
+     * Returns the Kubernetes client used for user-level interactions.
+     * <p>
+     * This client has the RBAC rights of a cluster user (via the admin client), not the operator.
+     * The client is created lazily on first call and closed in {@link #afterAll}.
+     */
+    @NonNull
+    public KubernetesClient userClient() {
+        if (testActorClient == null) {
+            testActorClient = adminClientFactory.get();
+        }
+        return testActorClient;
     }
 
     @NonNull
     public TestActor testActor(@NonNull AbstractOperatorExtension operatorExtension) {
+        var client = userClient();
         return new TestActor() {
 
             @NonNull
             @Override
             public <T extends HasMetadata> T create(@NonNull T resource) {
-                return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).create();
+                return client.resource(resource).inNamespace(operatorExtension.getNamespace()).create();
             }
 
             @Nullable
             @Override
             public <T extends HasMetadata> T get(@NonNull Class<T> type, @NonNull String name) {
-                return testActorClient.resources(type).inNamespace(operatorExtension.getNamespace()).withName(name).get();
+                return client.resources(type).inNamespace(operatorExtension.getNamespace()).withName(name).get();
             }
 
             @NonNull
+            @Override
             public <T extends HasMetadata> T getInNamespace(@NonNull Class<T> type, @NonNull String name, @NonNull String namespace) {
                 return testActorClient.resources(type).inNamespace(namespace).withName(name).get();
             }
 
             @NonNull
+            @Override
             public <T extends HasMetadata> T replace(@NonNull T resource) {
-                return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).update();
+                return client.resource(resource).inNamespace(operatorExtension.getNamespace()).update();
             }
 
             @NonNull
+            @Override
             public <T extends HasMetadata> T patchStatus(@NonNull T resource) {
-                return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).patchStatus();
+                return client.resource(resource).inNamespace(operatorExtension.getNamespace()).patchStatus();
             }
 
             @Override
             public <T extends HasMetadata> boolean delete(@NonNull T resource) {
-                var res = testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).delete();
+                var res = client.resource(resource).inNamespace(operatorExtension.getNamespace()).delete();
                 return res.size() == 1 && res.get(0).getCauses().isEmpty();
             }
 
             @NonNull
             @Override
             public <T extends HasMetadata> NonNamespaceOperation<T, KubernetesResourceList<T>, Resource<T>> resources(
-                                                                                                                      Class<T> type) {
-                return testActorClient.resources(type).inNamespace(operatorExtension.getNamespace());
+                                                                                                                      @NonNull Class<T> type) {
+                return client.resources(type).inNamespace(operatorExtension.getNamespace());
             }
 
+            @Override
             public <T extends KubernetesResource> boolean supports(Class<T> type) {
                 return testActorClient.supports(type);
             }
@@ -253,7 +287,9 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     @Override
     public void afterAll(ExtensionContext context) {
-        testActorClient.close();
+        if (testActorClient != null) {
+            testActorClient.close();
+        }
     }
 
     public interface TestActor {

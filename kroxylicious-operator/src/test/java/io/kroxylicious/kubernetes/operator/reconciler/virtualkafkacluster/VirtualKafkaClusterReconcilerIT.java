@@ -13,18 +13,14 @@ import java.util.Map;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.Protocol;
@@ -44,11 +40,10 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
-import io.kroxylicious.kubernetes.operator.LocallyRunningOperatorRbacHandler;
-import io.kroxylicious.kubernetes.operator.OperatorTestUtils;
+import io.kroxylicious.kubernetes.operator.ClusterUser;
+import io.kroxylicious.kubernetes.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
-import io.kroxylicious.kubernetes.operator.TestFiles;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
@@ -60,13 +55,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
 import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class VirtualKafkaClusterReconcilerIT {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconcilerIT.class);
 
     private static final String PROXY_A = "proxy-a";
     private static final String PROXY_B = "proxy-b";
@@ -82,44 +76,29 @@ class VirtualKafkaClusterReconcilerIT {
     public static final String SECRET_TRUST_ANCHOR_REF_NAME = "my-secret";
 
     @RegisterExtension
-    static LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler(TestFiles.INSTALL_MANIFESTS_DIR, "*.ClusterRole*.yaml");
-
-    @RegisterExtension
-    LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
+    static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
             .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create()))
             .withReconciler(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
-            .withKubernetesClient(rbacHandler.operatorClient())
-            .withAdditionalCustomResourceDefinition(KafkaProxyIngress.class)
-            .withAdditionalCustomResourceDefinition(KafkaService.class)
-            .withAdditionalCustomResourceDefinition(KafkaProtocolFilter.class)
-            .waitForNamespaceDeletion(false)
-            .withConfigurationService(x -> x.withCloseClientOnStop(false))
+            .replaceClusterRoleGlobs("*.ClusterRole*.yaml")
             .build();
 
-    private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
+    private ClusterUser clusterUser;
 
-    // the initial operator image pull can take a long time and interfere with the tests
-    @BeforeAll
-    static void preloadOperandImage() {
-        OperatorTestUtils.preloadOperandImage();
-    }
-
-    @AfterEach
-    void stopOperator() {
-        extension.getOperator().stop();
-        LOGGER.atInfo().log("Test finished");
+    @BeforeEach
+    void setUp() {
+        clusterUser = operator.clusterUser();
     }
 
     @Test
     void shouldResolveWhenClusterCreatedAfterReferents() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
-        updateStatusObservedGeneration(testActor.create(filter(FILTER_K)));
+        clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        updateStatusObservedGeneration(clusterUser.create(filter(FILTER_K)));
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
 
         // Then
         assertAllConditionsTrue(clusterBar);
@@ -128,17 +107,17 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileProxyInitiallyAbsent() {
         // Given
-        updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
 
         // Then
         assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
 
         // And When
-        testActor.create(kafkaProxy(PROXY_A));
+        clusterUser.create(kafkaProxy(PROXY_A));
 
         // Then
         assertAllConditionsTrue(clusterBar);
@@ -147,17 +126,17 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileServiceInitiallyAbsent() {
         // Given
-        updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
-        testActor.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
+        clusterUser.create(kafkaProxy(PROXY_A));
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
 
         // Then
         assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
 
         // And When
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
 
         // Then
         assertAllConditionsTrue(clusterBar);
@@ -166,18 +145,18 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileIngressInitiallyAbsent() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
 
         // When
         VirtualKafkaCluster resource = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
-        VirtualKafkaCluster clusterBar = testActor.create(resource);
+        VirtualKafkaCluster clusterBar = clusterUser.create(resource);
 
         // Then
         assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
 
         // And When
-        updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
+        updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
 
         // Then
         assertAllConditionsTrue(clusterBar);
@@ -186,18 +165,18 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileFilterInitiallyAbsent() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
 
         // Then
         assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
 
         // And When
-        updateStatusObservedGeneration(testActor.create(filter(FILTER_K)));
+        updateStatusObservedGeneration(clusterUser.create(filter(FILTER_K)));
 
         // Then
         assertAllConditionsTrue(clusterBar);
@@ -206,15 +185,15 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhenProxyDeleted() {
         // Given
-        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
-        updateStatusObservedGeneration(testActor.create(filter(FILTER_K)));
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        KafkaProxy proxy = clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        updateStatusObservedGeneration(clusterUser.create(filter(FILTER_K)));
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
         assertAllConditionsTrue(clusterBar);
 
         // When
-        testActor.delete((HasMetadata) proxy);
+        clusterUser.delete((HasMetadata) proxy);
 
         // Then
         assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
@@ -223,15 +202,15 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhenFilterDeleted() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
-        var filter = updateStatusObservedGeneration(testActor.create(filter(FILTER_K)));
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        var filter = updateStatusObservedGeneration(clusterUser.create(filter(FILTER_K)));
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
         assertAllConditionsTrue(clusterBar);
 
         // When
-        testActor.delete(filter);
+        clusterUser.delete(filter);
 
         // Then
         assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
@@ -240,20 +219,20 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileIngressRefersToOtherProxy() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        testActor.create(kafkaProxy(PROXY_B));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
-        updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_D, PROXY_B, TCP))); // not A, which is what the VKC references
+        clusterUser.create(kafkaProxy(PROXY_A));
+        clusterUser.create(kafkaProxy(PROXY_B));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_D, PROXY_B, TCP))); // not A, which is what the VKC references
 
         // When
         VirtualKafkaCluster resource = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
-        VirtualKafkaCluster clusterBar = testActor.create(resource);
+        VirtualKafkaCluster clusterBar = clusterUser.create(resource);
 
         // Then
         assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_TRANSITIVE_REFS_NOT_FOUND);
 
         // And when
-        updateStatusObservedGeneration(testActor.replace(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
+        updateStatusObservedGeneration(clusterUser.replace(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
 
         // Then
         assertAllConditionsTrue(clusterBar);
@@ -262,20 +241,20 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileTwoIpIngresses() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
-        updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
-        updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_E, PROXY_A, TCP)));
+        clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));
+        updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_E, PROXY_A, TCP)));
 
         // When
         VirtualKafkaCluster resource = cluster(CLUSTER_BAR, PROXY_A, List.of(INGRESS_D, INGRESS_E), SERVICE_H, null);
-        VirtualKafkaCluster clusterBar = testActor.create(resource);
+        VirtualKafkaCluster clusterBar = clusterUser.create(resource);
 
         // Then
         assertClusterAcceptedFalse(clusterBar, ProxyConfigDependentResource.REASON_INVALID);
 
         // And when
-        testActor.replace(cluster(CLUSTER_BAR, PROXY_A, List.of(INGRESS_D), SERVICE_H, null));
+        clusterUser.replace(cluster(CLUSTER_BAR, PROXY_A, List.of(INGRESS_D), SERVICE_H, null));
 
         // Then
         assertAllConditionsTrue(clusterBar);
@@ -284,14 +263,14 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldReportIngressClusterIpBootstrap() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
         var cluster = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
         var ingress = clusterIpIngress(INGRESS_D, PROXY_A, TCP);
-        updateStatusObservedGeneration(testActor.create(ingress));
+        updateStatusObservedGeneration(clusterUser.create(ingress));
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster);
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster);
 
         // Then
         assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d-bootstrap.%s.svc.cluster.local:9292", Protocol.TCP);
@@ -300,8 +279,8 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldResolveWithSecretTrustAnchorRef() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
         // @formatter:off
         var ingresses = List.of(new IngressesBuilder()
                 .withNewIngressRef()
@@ -336,13 +315,13 @@ class VirtualKafkaClusterReconcilerIT {
         // @formatter:on
         var cluster = specBuilder.endSpec().build();
         var ingress = clusterIpIngress(INGRESS_D, PROXY_A, TLS);
-        testActor.create(tlsKeyAndCertSecret(SECRET_NAME));
-        testActor.create(secretTrustAnchorRef(SECRET_TRUST_ANCHOR_REF_NAME));
+        clusterUser.create(tlsKeyAndCertSecret(SECRET_NAME));
+        clusterUser.create(secretTrustAnchorRef(SECRET_TRUST_ANCHOR_REF_NAME));
 
-        updateStatusObservedGeneration(testActor.create(ingress));
+        updateStatusObservedGeneration(clusterUser.create(ingress));
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster);
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster);
 
         // Then
         assertAllConditionsTrue(clusterBar);
@@ -352,8 +331,8 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldReportIngressTlsClusterIpBootstrap() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
         // @formatter:off
         var ingresses = List.of(new IngressesBuilder()
                         .withNewIngressRef()
@@ -380,11 +359,11 @@ class VirtualKafkaClusterReconcilerIT {
         // @formatter:on
         var cluster = specBuilder.endSpec().build();
         var ingress = clusterIpIngress(INGRESS_D, PROXY_A, TLS);
-        testActor.create(tlsKeyAndCertSecret(SECRET_NAME));
-        updateStatusObservedGeneration(testActor.create(ingress));
+        clusterUser.create(tlsKeyAndCertSecret(SECRET_NAME));
+        updateStatusObservedGeneration(clusterUser.create(ingress));
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster);
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster);
 
         // Then
         assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d-bootstrap.%s.svc.cluster.local:9292", Protocol.TLS);
@@ -393,9 +372,9 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldReportIngressLoadBalancerBootstrap() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
-        testActor.create(tlsKeyAndCertSecret(SECRET_NAME));
+        clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        clusterUser.create(tlsKeyAndCertSecret(SECRET_NAME));
         // @formatter:off
         var ingresses = new IngressesBuilder()
                 .withNewIngressRef()
@@ -422,10 +401,10 @@ class VirtualKafkaClusterReconcilerIT {
         // @formatter:on
         var cluster = specBuilder.endSpec().build();
         var ingress = loadBalancerIngress(INGRESS_D, PROXY_A);
-        updateStatusObservedGeneration(testActor.create(ingress));
+        updateStatusObservedGeneration(clusterUser.create(ingress));
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster);
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster);
 
         // Then
         assertClusterIngressStatusPopulated(clusterBar, ingress, "bootstrap.kafka:9083", Protocol.TLS);
@@ -434,15 +413,15 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldReportIngressClusterIpBootstrapWhenIngressInitiallyAbsent() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
+        clusterUser.create(kafkaProxy(PROXY_A));
+        updateStatusObservedGeneration(clusterUser.create(kafkaService(SERVICE_H)), BOOTSTRAP_SERVERS);
         var cluster = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
         var ingress = clusterIpIngress(INGRESS_D, PROXY_A, TCP);
 
-        VirtualKafkaCluster clusterBar = testActor.create(cluster);
+        VirtualKafkaCluster clusterBar = clusterUser.create(cluster);
 
         AWAIT.alias("ClusterStatusBootstrapNotPresent").untilAsserted(() -> {
-            var vkc = testActor.resources(VirtualKafkaCluster.class)
+            var vkc = clusterUser.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(clusterBar)).get();
             VirtualKafkaClusterStatus status = vkc.getStatus();
             assertThat(status)
@@ -452,7 +431,7 @@ class VirtualKafkaClusterReconcilerIT {
         });
 
         // When
-        updateStatusObservedGeneration(testActor.create(ingress));
+        updateStatusObservedGeneration(clusterUser.create(ingress));
 
         // Then
         assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d-bootstrap.%s.svc.cluster.local:9292", Protocol.TCP);
@@ -489,7 +468,7 @@ class VirtualKafkaClusterReconcilerIT {
 
     private void assertClusterResolvedRefsFalse(VirtualKafkaCluster cr, String expectedReason) {
         AWAIT.alias("ClusterStatusResolvedRefs").untilAsserted(() -> {
-            var vkc = testActor.resources(VirtualKafkaCluster.class)
+            var vkc = clusterUser.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(cr)).get();
             assertThat(vkc.getStatus()).isNotNull();
             VirtualKafkaClusterStatusAssert
@@ -505,7 +484,7 @@ class VirtualKafkaClusterReconcilerIT {
 
     private void assertAllConditionsTrue(VirtualKafkaCluster cr) {
         AWAIT.alias("ClusterStatusResolvedRefs").untilAsserted(() -> {
-            var vkc = testActor.resources(VirtualKafkaCluster.class)
+            var vkc = clusterUser.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(cr)).get();
             assertThat(vkc.getStatus()).isNotNull();
             ConditionListAssert conditionListAssert = VirtualKafkaClusterStatusAssert
@@ -524,7 +503,7 @@ class VirtualKafkaClusterReconcilerIT {
     private void assertClusterAcceptedFalse(VirtualKafkaCluster cr,
                                             String expectedReason) {
         AWAIT.alias("ClusterStatusResolvedRefs").untilAsserted(() -> {
-            var vkc = testActor.resources(VirtualKafkaCluster.class)
+            var vkc = clusterUser.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(cr)).get();
             assertThat(vkc.getStatus()).isNotNull();
             VirtualKafkaClusterStatusAssert
@@ -540,7 +519,7 @@ class VirtualKafkaClusterReconcilerIT {
 
     private void assertClusterIngressStatusPopulated(VirtualKafkaCluster clusterBar, KafkaProxyIngress ingress, String expectedBootstrapServer, Protocol protocol) {
         AWAIT.alias("ClusterIngressStatus").untilAsserted(() -> {
-            var vkc = testActor.resources(VirtualKafkaCluster.class)
+            var vkc = clusterUser.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(clusterBar)).get();
             var status = vkc.getStatus();
             assertThat(status)
@@ -549,7 +528,7 @@ class VirtualKafkaClusterReconcilerIT {
                     .singleElement()
                     .satisfies(i -> {
                         assertThat(i.getName()).isEqualTo(ResourcesUtil.name(ingress));
-                        assertThat(i.getBootstrapServer()).isEqualTo(expectedBootstrapServer.formatted(extension.getNamespace()));
+                        assertThat(i.getBootstrapServer()).isEqualTo(expectedBootstrapServer.formatted(operator.getNamespace()));
                         assertThat(i.getProtocol()).isEqualTo(protocol);
                     });
         });
@@ -649,30 +628,27 @@ class VirtualKafkaClusterReconcilerIT {
         // @formatter:on
     }
 
-    // the KafkaProxyReconciler only operates on KafkaProtocolFilters that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaProtocolFilter updateStatusObservedGeneration(KafkaProtocolFilter filter) {
-        // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
-        KafkaProtocolFilter fresh = testActor.get(KafkaProtocolFilter.class, ResourcesUtil.name(filter));
-        fresh.setStatus(new KafkaProtocolFilterStatusBuilder().withObservedGeneration(generation(fresh)).build());
-        return testActor.patchStatus(fresh);
+        return operator.updateStatus(KafkaProtocolFilter.class, name(filter), fresh -> {
+            fresh.setStatus(new KafkaProtocolFilterStatusBuilder().withObservedGeneration(generation(fresh)).build());
+            return fresh;
+        });
     }
 
-    // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaService updateStatusObservedGeneration(KafkaService service, String bootstrapServers) {
-        // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
-        KafkaService fresh = testActor.get(KafkaService.class, ResourcesUtil.name(service));
-        fresh.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
-                .withBootstrapServers(bootstrapServers)
-                .build());
-        return testActor.patchStatus(fresh);
+        return operator.updateStatus(KafkaService.class, name(service), fresh -> {
+            fresh.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
+                    .withBootstrapServers(bootstrapServers)
+                    .build());
+            return fresh;
+        });
     }
 
-    // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaProxyIngress updateStatusObservedGeneration(KafkaProxyIngress ingress) {
-        // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
-        KafkaProxyIngress fresh = testActor.get(KafkaProxyIngress.class, ResourcesUtil.name(ingress));
-        fresh.setStatus(new KafkaProxyIngressStatusBuilder().withObservedGeneration(generation(fresh)).build());
-        return testActor.patchStatus(fresh);
+        return operator.updateStatus(KafkaProxyIngress.class, name(ingress), fresh -> {
+            fresh.setStatus(new KafkaProxyIngressStatusBuilder().withObservedGeneration(generation(fresh)).build());
+            return fresh;
+        });
     }
 
 }
