@@ -15,10 +15,11 @@
 
 [role="_abstract"]
 
-Kroxylicious uses structured logging throughout, attaching context as key-value pairs that are visible in both text and JSON output.
-In text format they appear at the end of each log line; in JSON format they appear as top-level fields.
+Kroxylicious uses structured logging, attaching context as key-value pairs that are visible in both text and JSON output.
+In text format, they appear at the end of each log line.
+In JSON format, they appear as top-level fields.
 
-The following table lists the commonly emitted fields.
+The following table lists commonly emitted fields.
 
 .Structured log fields
 [cols="1,3",options="header"]
@@ -26,20 +27,20 @@ The following table lists the commonly emitted fields.
 |Field |Description
 
 |`sessionId`
-|Unique identifier for the client-to-proxy connection. Use this to correlate all log messages for a single client session.
+|Unique identifier for the client-to-proxy connection. Use this field to correlate all log messages for a single client session.
 
 |`clientId`
 |The Kafka `client.id` value supplied by the connecting Kafka client.
 
 |`apiKey`
-|The Kafka API key identifying the request type (for example, `Produce`, `Fetch`, `Metadata`).
+|The Kafka API key that identifies the request type (for example, `Produce`, `Fetch`, `Metadata`).
 
 |`apiVersion`
-|The version of the Kafka API used in the request.
+|The Kafka API version used in the request.
 
 |`kekRef`
-|Key Encryption Key reference used by the record-encryption filter.
+|Reference to the Key Encryption Key (KEK) used by the Record Encryption filter. This field is emitted only when the Record Encryption filter is configured with the HashiCorp Vault KMS provider.
 
 |`error`
-|Error message associated with a failure condition.
+|Error message associated with a failure condition. This field is emitted across the proxy runtime, filters, and KMS providers when an error is encountered.
 |===

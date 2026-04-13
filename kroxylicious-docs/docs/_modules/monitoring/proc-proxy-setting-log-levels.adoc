@@ -18,7 +18,7 @@
 
 The Kroxylicious {github-release}[binary distribution^] includes https://logging.apache.org/log4j/2.x[log4j2] as the default logging backend.
 
-When using the `bin/kroxylicious-start.sh` script from the binary distribution, you can configure logging behaviour using the following environment variables.
+When you use the `bin/kroxylicious-start.sh` script from the binary distribution, you can configure logging behavior using the following environment variables.
 
 .Logging environment variables
 [cols="2,1,2,3",options="header"]
@@ -28,17 +28,17 @@ When using the `bin/kroxylicious-start.sh` script from the binary distribution, 
 |`KROXYLICIOUS_ROOT_LOG_LEVEL`
 |`WARN`
 |`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`
-|Log level for all loggers not otherwise configured.
+|Log level for all loggers that are not otherwise configured.
 
 |`KROXYLICIOUS_APP_LOG_LEVEL`
 |`INFO`
 |`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`
-|Log level for Kroxylicious loggers (`io.kroxylicious.*`). Takes precedence over `KROXYLICIOUS_ROOT_LOG_LEVEL` for application code.
+|Log level for Kroxylicious loggers (`io.kroxylicious.*`). This setting takes precedence over `KROXYLICIOUS_ROOT_LOG_LEVEL` for application code.
 
 |`KROXYLICIOUS_LOG_FORMAT`
 |`text`
 |`text`, `json`
-|Output format for log messages. Use `json` to enable structured JSON output.
+|Output format for log messages. Set to `json` to enable structured JSON output.
 
 |`KROXYLICIOUS_LOG_JSON_TEMPLATE`
 |`classpath:LogstashJsonEventLayoutV1.json`
@@ -47,9 +47,11 @@ When using the `bin/kroxylicious-start.sh` script from the binary distribution, 
 
 |`KROXYLICIOUS_LOGGING_OPTIONS`
 |(built-in defaults)
-|Any valid log4j2 JVM system properties
-|Overrides the entire set of log4j2 JVM system properties. When set, the default `-Dlog4j2.configurationFile` and `-Dlog4j2.contextSelector` options are replaced, so you must include all required options explicitly.
+|Any valid log4j2 JVM system properties.
+|Overrides the entire set of log4j2 JVM system properties. When set, the default `-Dlog4j2.configurationFile` and `-Dlog4j2.contextSelector` options are replaced. You must include all required options explicitly.
 |===
+
+The following examples show how to set the application log level and configure a custom Log4j2 configuration.
 
 .Setting the application log level to DEBUG
 [source,properties]
@@ -57,7 +59,7 @@ When using the `bin/kroxylicious-start.sh` script from the binary distribution, 
 KROXYLICIOUS_APP_LOG_LEVEL="DEBUG"
 ----
 
-NOTE: Setting the log level to `DEBUG` or `TRACE` will produce very verbose logs.
+NOTE: Setting the log level to `DEBUG` or `TRACE` produces very verbose logs.
 
 .Loading a custom log4j2 configuration file
 [source,bash]
@@ -66,18 +68,17 @@ export KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=/path/to/custom/
   -Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector"
 ----
 
-WARNING: Setting `KROXYLICIOUS_LOGGING_OPTIONS` replaces the built-in defaults entirely.
-Always include `-Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector`
-to preserve asynchronous logging.
+WARNING: Setting `KROXYLICIOUS_LOGGING_OPTIONS` replaces the built-in defaults.
+Always include `-Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector` to preserve asynchronous logging.
 
 [id='proc-proxy-json-log-format-{context}']
 == Switching to JSON log format
 
 By default, Kroxylicious outputs logs in human-readable text format.
-You can switch to structured JSON output for integration with log aggregation systems such as the Elastic Stack (ELK) or Splunk.
+You can switch to structured JSON output to integrate with log aggregation systems such as the Elastic Stack (ELK) or Splunk.
 
 The JSON format uses https://logging.apache.org/log4j/2.x/manual/json-template-layout.html[Log4j2's JsonTemplateLayout] with the Logstash JSON Event V1 format.
-Structured context fields emitted by Kroxylicious appear as top-level fields alongside the standard log metadata.
+Structured context fields emitted by Kroxylicious appear as top-level fields alongside standard log metadata.
 
 .Procedure
 
@@ -89,7 +90,7 @@ export KROXYLICIOUS_LOG_FORMAT=json
 bin/kroxylicious-start.sh
 ----
 
-.Example JSON log output
+Example JSON log output:
 
 [source,json]
 ----
@@ -107,11 +108,9 @@ bin/kroxylicious-start.sh
 }
 ----
 
-When an exception is logged, a `stack_trace` field is also included in the output.
+When an exception is logged, a `stack_trace` field is included in the output.
 
-.Switching back to text format
-
-Remove the environment variable or set it explicitly to `text`:
+. To switch back to text format, remove the environment variable or set it to `text`:
 
 [source,bash]
 ----
