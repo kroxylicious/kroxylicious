@@ -66,7 +66,7 @@ public final class Versions {
 
     public Versions(short lowest, short highest) {
         if ((lowest < 0) || (highest < 0)) {
-            throw new RuntimeException("Invalid version range " +
+            throw new IllegalArgumentException("Invalid version range " +
                     lowest + " to " + highest);
         }
         this.lowest = lowest;

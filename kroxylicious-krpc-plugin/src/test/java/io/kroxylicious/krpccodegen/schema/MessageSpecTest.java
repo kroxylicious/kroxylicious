@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MessageSpecTest {
 
@@ -435,5 +436,56 @@ class MessageSpecTest {
     void shouldFindRequestResourceList(MessageSpec ms, boolean hasResourceList) {
         // When/Then
         assertThat(ms.hasResourceList()).isEqualTo(hasResourceList);
+    }
+
+    @Test
+    void shouldRejectNonOpenEndedFlexibleVersions() {
+        assertThatThrownBy(() -> definitionToMessageSpec("""
+                {
+                  "apiKey": 99,
+                  "type": "request",
+                  "name": "TestRequest",
+                  "validVersions": "0-1",
+                  "flexibleVersions": "0-1",
+                  "fields": []
+                }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("flexibleVersions must be either none, or an open-ended range");
+    }
+
+    @Test
+    void shouldRejectListenersOnNonRequestMessage() {
+        assertThatThrownBy(() -> definitionToMessageSpec("""
+                {
+                  "type": "response",
+                  "name": "TestResponse",
+                  "validVersions": "0-1",
+                  "flexibleVersions": "0+",
+                  "listeners": ["broker"],
+                  "fields": []
+                }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("`requestScope` property is only valid for messages with type `request`");
+    }
+
+    @Test
+    void shouldRejectLatestVersionUnstableOnNonRequestMessage() {
+        assertThatThrownBy(() -> definitionToMessageSpec("""
+                {
+                  "type": "response",
+                  "name": "TestResponse",
+                  "validVersions": "0-1",
+                  "flexibleVersions": "0+",
+                  "latestVersionUnstable": true,
+                  "fields": []
+                }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("`latestVersionUnstable` property is only valid for messages with type `request`");
     }
 }

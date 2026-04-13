@@ -251,7 +251,9 @@ class SerializedFormTest {
 
         @Override
         public byte[] deserialize(@NonNull ByteBuffer buffer) {
-            return buffer.array();
+            byte[] bytes = new byte[buffer.remaining()];
+            buffer.get(bytes);
+            return bytes;
         }
     }
 

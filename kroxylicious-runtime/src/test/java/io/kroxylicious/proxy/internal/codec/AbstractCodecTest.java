@@ -158,9 +158,13 @@ public abstract class AbstractCodecTest {
         assertEquals(ourBuffer.limit(), ourBuffer.capacity());
 
         // Compare the buffers byte-for-byte
+        byte[] expectedBytes = new byte[expected.remaining()];
+        expected.get(expectedBytes);
+        byte[] actualBytes = new byte[ourBuffer.remaining()];
+        ourBuffer.get(actualBytes);
         assertArrayEquals(
-                expected.array(), ourBuffer.array(),
-                String.format("Expected: %s%nBut was: %s", Arrays.toString(expected.array()), Arrays.toString(ourBuffer.array())));
+                expectedBytes, actualBytes,
+                String.format("Expected: %s%nBut was: %s", Arrays.toString(expectedBytes), Arrays.toString(actualBytes)));
     }
 
     public static void assertSameBytes(ByteBuf expect, ByteBuf actual) {

@@ -1346,7 +1346,7 @@
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
                                 <!-- The following <arg> cannot be split over multiple lines :-( -->
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-sources/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:UnnecessaryMethodReference:ERROR</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-sources/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

@@ -17,8 +17,6 @@
 name: "Lint Pull Request"
 
 on:
-  push:
-    branches: [ main, 'release/**' ]
   pull_request:
     types: [ opened, synchronize, reopened ]
 
@@ -49,18 +47,9 @@ jobs:
         run: |
           mvn -B -Pci -T1.5C verify -DskipTests -Djapicmp.skip=true
       - name: Save PR number to file
-        if: github.event_name == 'pull_request'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number
-        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: PR_NUMBER
           path: PR_NUMBER.txt
-      - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./.github/actions/common/slack-notification
-        with:
-          slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
-          slackTitle: 'Failure Alert: ${{ github.repository }}'
-          slackMessage: 'The lint workflow failed on branch ${{ github.ref_name }}.'
