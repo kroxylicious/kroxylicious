@@ -259,7 +259,7 @@ class ProduceAuthzIT extends AuthzIT {
 
     @ParameterizedTest
     @MethodSource
-    void shouldEnforceAccessToTopics(VersionSpecificVerification<ProduceRequestData, ProduceResponseData> test) throws IOException {
+    void shouldEnforceAccessToTopics(VersionSpecificVerification<ProduceRequestData, ProduceResponseData> test) {
 
         try (var referenceCluster = new ReferenceCluster(kafkaClusterWithAuthz, this.topicIdsInUnproxiedCluster);
                 var proxiedCluster = new ProxiedCluster(kafkaClusterNoAuthz, this.topicIdsInProxiedCluster, rulesFile)) {
