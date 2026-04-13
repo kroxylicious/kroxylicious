@@ -19,6 +19,18 @@ name: "Run Kroxylicious Proxy Integration Tests"
 on:
   pull_request:
     types: [ opened, synchronize, reopened ]
+    paths-ignore:
+      - '**/**.md'
+      - '**/**.txt'
+      - '.github/**'
+      - '!.github/workflows/integration-tests.yaml'
+      - '!.github/actions/**'
+      - 'kroxylicious-docs/**'
+      - 'kroxylicious-operator/**'
+      - 'kroxylicious-operator-dist/**'
+      - 'kroxylicious-operator-test-support/**'
+      - 'kroxylicious-systemtests/**'
+      - 'kroxylicious-*benchmarks/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
