@@ -25,6 +25,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build_artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
+      - name: 'Cache Maven packages'
+        uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Build Kroxylicious proxy integration tests'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mvn -B install -DskipTests -Dmaven.javadoc.skip=true -DskipDocs=true -Dcheckstyle.skip=true -Dspotbugs.skip=true -Djapicmp.skip=true -pl :kroxylicious-bom,:kroxylicious-integration-tests,:kroxylicious-filter-archetype -am
+      - name: 'Package Kroxylicious Maven artifacts'
+        run: |
+          mkdir -p /tmp/kroxylicious-artifacts
+          cd "$HOME/.m2/repository"
+          tar czf /tmp/kroxylicious-artifacts/maven-repo.tar.gz io/kroxylicious
+      - name: 'Upload Kroxylicious Maven artifacts'
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        with:
+          name: kroxylicious-maven-artifacts
+          path: /tmp/kroxylicious-artifacts/maven-repo.tar.gz
+          retention-days: 1
   discover_integration_test_chunks:
     runs-on: ubuntu-latest
     outputs:
@@ -38,11 +65,11 @@ jobs:
         working-directory: kroxylicious-integration-tests
         id: discover
         run: |
-          TESTS_PER_CHUNK=5
-          TEST_CHUNKS="[$(find . -type f -name "*IT.java" -exec basename {} .java \; | xargs -L ${TESTS_PER_CHUNK} | tr ' ' , | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
+          TESTS_PER_CHUNK=15
+          TEST_CHUNKS="[$(find . -type f -name "*IT.java" -exec basename {} .java \; | shuf | xargs -L ${TESTS_PER_CHUNK} | tr ' ' , | sed 's/.*/"&"/' | sed -z 's/\n/,/g;s/,$/\n/')]"
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
   run_integration_tests:
-    needs: discover_integration_test_chunks
+    needs: [build_artifacts, discover_integration_test_chunks]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -59,11 +86,16 @@ jobs:
         uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
-      - name: 'Build Kroxylicious proxy integration tests'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 'Download Kroxylicious Maven artifacts'
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: kroxylicious-maven-artifacts
+          path: /tmp/kroxylicious-artifacts
+      - name: 'Extract Kroxylicious Maven artifacts'
         run: |
-          mvn -B install -DskipTests -Dmaven.javadoc.skip=true -DskipDocs=true -Dcheckstyle.skip=true -Dspotbugs.skip=true -Djapicmp.skip=true -pl :kroxylicious-bom,:kroxylicious-integration-tests,:kroxylicious-filter-archetype -am
+          mkdir -p "$HOME/.m2/repository"
+          cd "$HOME/.m2/repository"
+          tar xzf /tmp/kroxylicious-artifacts/maven-repo.tar.gz
       - name: 'Run proxy Kroxylicious integration tests'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -98,6 +130,7 @@ jobs:
         echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
         exit 1
   integration_test_filter_archetype:
+    needs: build_artifacts
     runs-on: ubuntu-latest
     steps:
       - name: 'Check out repository'
@@ -108,11 +141,16 @@ jobs:
         uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
-      - name: 'Build Kroxylicious archetype'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 'Download Kroxylicious Maven artifacts'
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: kroxylicious-maven-artifacts
+          path: /tmp/kroxylicious-artifacts
+      - name: 'Extract Kroxylicious Maven artifacts'
         run: |
-          mvn -B install -DskipTests -Dmaven.javadoc.skip=true -DskipDocs=true -Dcheckstyle.skip=true -Dspotbugs.skip=true -Djapicmp.skip=true -pl :kroxylicious-bom,:kroxylicious-filter-archetype -am
+          mkdir -p "$HOME/.m2/repository"
+          cd "$HOME/.m2/repository"
+          tar xzf /tmp/kroxylicious-artifacts/maven-repo.tar.gz
       - name: 'run filter archetype integration tests'
         working-directory: kroxylicious-filter-archetype
         run: mvn -B verify

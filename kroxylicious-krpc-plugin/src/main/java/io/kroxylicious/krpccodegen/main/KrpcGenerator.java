@@ -40,6 +40,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.TypeLiteral;
 
+import io.kroxylicious.krpccodegen.KrpcCodeGenerationException;
 import io.kroxylicious.krpccodegen.model.EntityTypeSetFactory;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
@@ -388,7 +389,7 @@ public class KrpcGenerator {
                 throw new UncheckedIOException(e);
             }
             catch (TemplateException e) {
-                throw new RuntimeException(e);
+                throw new KrpcCodeGenerationException(e);
             }
         }).sum();
     }
@@ -477,7 +478,7 @@ public class KrpcGenerator {
                 throw new UncheckedIOException(e);
             }
             catch (TemplateException e) {
-                throw new RuntimeException(e);
+                throw new KrpcCodeGenerationException(e);
             }
         }).sum();
     }
@@ -544,7 +545,7 @@ public class KrpcGenerator {
                         return messageSpec;
                     }
                     catch (Exception e) {
-                        throw new RuntimeException("Exception while processing " + inputPath.toString(), e);
+                        throw new KrpcCodeGenerationException("Exception while processing " + inputPath.toString(), e);
                     }
                 })
                 .filter(Predicate.not(v -> v.validVersions().equals(Versions.NONE)))
@@ -591,12 +592,12 @@ public class KrpcGenerator {
 
     private String outputFile(String pattern, String messageSpecName, String templateName) {
         if (messageSpecName != null) {
-            pattern = pattern.replaceAll("\\$\\{messageSpecName\\}", messageSpecName);
+            pattern = pattern.replace("${messageSpecName}", messageSpecName);
         }
 
         if (templateName != null) {
             templateName = templateName.substring(Math.max(0, templateName.lastIndexOf(File.separator) + 1), templateName.indexOf(".ftl"));
-            pattern = pattern.replaceAll("\\$\\{templateName\\}", templateName);
+            pattern = pattern.replace("${templateName}", templateName);
         }
 
         return pattern;
@@ -613,7 +614,7 @@ public class KrpcGenerator {
                         Function.identity()));
 
         if (allRequests.size() != allResponses.size()) {
-            throw new RuntimeException("Can't pair up requests to responses");
+            throw new IllegalStateException("Can't pair up requests to responses");
         }
 
         return allRequests.keySet().stream()

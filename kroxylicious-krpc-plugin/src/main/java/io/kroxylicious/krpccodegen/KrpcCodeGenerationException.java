@@ -17,4 +17,21 @@ public class KrpcCodeGenerationException extends RuntimeException {
     public KrpcCodeGenerationException(String message) {
         super(message);
     }
+
+    /**
+     * Create KrpcCodeGenerationException
+     * @param cause cause
+     */
+    public KrpcCodeGenerationException(Throwable cause) {
+        super(cause);
+    }
+
+    /**
+     * Create KrpcCodeGenerationException
+     * @param message message
+     * @param cause cause
+     */
+    public KrpcCodeGenerationException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

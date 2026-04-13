@@ -14,17 +14,18 @@ set -euo pipefail
 # The header line format is:
 #   # SNAPSHOT timestamp=<unix_epoch_seconds> datetime=<ISO8601>
 #
-# Usage: poll-proxy-metrics.sh <proxy-pod> <namespace> <output-dir> [interval-seconds]
+# Usage: poll-proxy-metrics.sh <target> <namespace> <output-dir> [interval-seconds]
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") <proxy-pod> <namespace> <output-dir> [interval-seconds]
+Usage: $(basename "$0") <target> <namespace> <output-dir> [interval-seconds]
 
 Polls the Kroxylicious proxy management endpoint (/metrics) via kubectl port-forward
 and appends timestamped Prometheus snapshots to <output-dir>/proxy-metrics.txt.
 
 Arguments:
-  proxy-pod        Name of the proxy pod to port-forward to
+  target           Kubernetes resource reference for the proxy pod
+                   (e.g. pod/benchmark-proxy-xxxx)
   namespace        Kubernetes namespace containing the pod
   output-dir       Directory to write proxy-metrics.txt into
   interval-seconds Polling interval in seconds (default: 30)
@@ -36,7 +37,7 @@ if [[ $# -lt 3 ]]; then
     usage
 fi
 
-PROXY_POD="$1"
+TARGET="$1"
 NAMESPACE="$2"
 OUTPUT_DIR="$3"
 INTERVAL="${4:-30}"
@@ -54,8 +55,8 @@ trap cleanup EXIT
 
 mkdir -p "${OUTPUT_DIR}"
 
-echo "Starting port-forward to ${PROXY_POD}:9190 on localhost:${LOCAL_PORT}..."
-kubectl port-forward "pod/${PROXY_POD}" "${LOCAL_PORT}:9190" \
+echo "Starting port-forward to ${TARGET}:9190 on localhost:${LOCAL_PORT}..."
+kubectl port-forward "${TARGET}" "${LOCAL_PORT}:9190" \
     -n "${NAMESPACE}" &>/dev/null &
 PF_PID=$!
 
@@ -65,7 +66,7 @@ echo "Waiting for management endpoint to be ready..."
 PF_DEADLINE=$((SECONDS + 15))
 until curl -sf "http://localhost:${LOCAL_PORT}/metrics" >/dev/null 2>&1; do
     if [[ $SECONDS -ge $PF_DEADLINE ]]; then
-        echo "ERROR: timed out waiting for port-forward to ${PROXY_POD}:9190" >&2
+        echo "ERROR: timed out waiting for port-forward to ${TARGET}:9190" >&2
         exit 1
     fi
     if ! kill -0 "${PF_PID}" 2>/dev/null; then
@@ -78,7 +79,7 @@ echo "Management endpoint ready."
 
 {
     echo "# proxy-metrics polling started"
-    echo "# pod=${PROXY_POD} namespace=${NAMESPACE} interval=${INTERVAL}s"
+    echo "# target=${TARGET} namespace=${NAMESPACE} interval=${INTERVAL}s"
     echo "# started=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "${METRICS_FILE}"
 

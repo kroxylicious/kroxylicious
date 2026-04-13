@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FieldSpecTest {
 
@@ -183,6 +184,138 @@ class FieldSpecTest {
     void shouldDetectResourceListInFieldHierarchy(FieldSpec fs, boolean hasResourceList) {
         // When/Then
         assertThat(fs.isResourceList()).isEqualTo(hasResourceList);
+    }
+
+    @Test
+    void shouldRejectInvalidFieldName() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "123invalid", "type": "string", "versions": "0+" }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid field name");
+    }
+
+    @Test
+    void shouldRequireVersions() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "string" }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("You must specify the version");
+    }
+
+    @Test
+    void shouldRejectFlexibleVersionsOnNonStringOrBytesField() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "int32", "versions": "0+", "flexibleVersions": "0+" }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid flexibleVersions override");
+    }
+
+    @Test
+    void shouldRejectNullableVersionsOnNonNullableType() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "int32", "versions": "0+", "nullableVersions": "0+" }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cannot be nullable");
+    }
+
+    @Test
+    void shouldRejectSubFieldsOnNonArrayOrStructField() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "string", "versions": "0+", "fields": [
+                    { "name": "Sub", "type": "string", "versions": "0+" }
+                ]}
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot have fields");
+    }
+
+    @Test
+    void shouldRejectTaggedFieldUsedAsMapKey() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "string", "versions": "0+", "mapKey": true, "tag": 0, "taggedVersions": "0+" }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Tagged fields cannot be used as keys");
+    }
+
+    @Test
+    void shouldRejectZeroCopyOnNonBytesField() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "string", "versions": "0+", "zeroCopy": true }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only fields of type bytes can use zeroCopy");
+    }
+
+    @Test
+    void shouldRejectNegativeTag() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "string", "versions": "0+", "tag": -1, "taggedVersions": "0+" }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Tags cannot be negative");
+    }
+
+    @Test
+    void shouldRequireTaggedVersionsWhenTagIsSpecified() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "string", "versions": "0+", "tag": 0 }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("taggedVersions must be specified");
+    }
+
+    @Test
+    void shouldRejectNonOpenEndedTaggedVersions() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "string", "versions": "0+", "tag": 0, "taggedVersions": "0-5" }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("taggedVersions must be either none, or an open-ended range");
+    }
+
+    @Test
+    void shouldRejectTaggedVersionsOutsideVersions() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "string", "versions": "0-3", "tag": 0, "taggedVersions": "4+" }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("taggedVersions must be a subset of versions");
+    }
+
+    @Test
+    void shouldRejectPartialNullableTaggedVersionsOverlap() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "string", "versions": "0+", "nullableVersions": "0-5", "tag": 0, "taggedVersions": "0+" }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Either all tagged versions must be nullable, or none must be");
+    }
+
+    @Test
+    void shouldRejectTaggedVersionsWithoutTag() {
+        assertThatThrownBy(() -> definitionToFieldSpec("""
+                { "name": "Name", "type": "string", "versions": "0+", "taggedVersions": "0+" }
+                """))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("does not specify a tag");
     }
 
 }

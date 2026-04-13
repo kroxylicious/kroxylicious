@@ -33,6 +33,11 @@ on:
         description: "Groups to be excluded from test run"
         required: false
         type: string
+      testFortanixKMS:
+        description: "Run Fortanix KMS tests"
+        default: 'false'
+        required: false
+        type: string
   workflow_call:
     inputs: *workflow-inputs
 
@@ -81,13 +86,13 @@ jobs:
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
       - name: Download kroxylicious proxy artifact
-        uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927
+        uses: dawidd6/action-download-artifact@8305c0f1062bb0d184d09ef4493ecb9288447732
         with:
           workflow: build_kroxylicious_images
           name: kroxylicious-proxy
           run_id: ${{github.run_id}}
       - name: Download kroxylicious proxy artifact
-        uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927
+        uses: dawidd6/action-download-artifact@8305c0f1062bb0d184d09ef4493ecb9288447732
         with:
           workflow: build_kroxylicious_images
           name: kroxylicious-operator
@@ -109,6 +114,9 @@ jobs:
         id: run_system_tests
         timeout-minutes: 90
         env:
+          KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ format('{0}', inputs.testFortanixKMS) == 'true' && vars.KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT || '' }}
+          KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ format('{0}', inputs.testFortanixKMS) == 'true' && secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY || '' }}
+          KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ format('{0}', inputs.testFortanixKMS) == 'true' && secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY || '' }}
           KAFKA_CLIENT: ${{ inputs.kafkaClient }}
           GROUPS_OPT: ${{ inputs.groups != '' && format('-Dgroups={0}', inputs.groups) || '' }}
           TESTS_OPT: ${{ matrix.tests != '' && format('-Dtest={0}',  matrix.tests)  || '' }}
