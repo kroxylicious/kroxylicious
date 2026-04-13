@@ -10,11 +10,14 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.Parameter;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
@@ -23,7 +26,7 @@ import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.SecretKeyUtils;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kms.service.TestKmsFacadeInvocationContextProvider;
+import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
@@ -36,8 +39,21 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @param <K> The key reference
  * @param <E> The type of encrypted DEK
  */
-@ExtendWith(TestKmsFacadeInvocationContextProvider.class)
+@ParameterizedClass(autoCloseArguments = true)
+@MethodSource("facadesSource")
 class KmsIT<C, K, E> {
+
+    static Stream<? extends TestKmsFacade<?, ?, ?>> facadesSource() {
+        // We rely on the fact that streams are lazy so the facade isn't built
+        // or started until the first test needs it.
+        return TestKmsFacadeFactory.getTestKmsFacadeFactories()
+                .map(TestKmsFacadeFactory::build)
+                .filter(TestKmsFacade::isAvailable)
+                .peek(TestKmsFacade::start);
+    }
+
+    @Parameter
+    TestKmsFacade<?, ?, ?> facade;
 
     private Kms<K, E> kms;
 
@@ -48,7 +64,7 @@ class KmsIT<C, K, E> {
 
     @BeforeEach
     @SuppressWarnings("unchecked")
-    void beforeEach(TestKmsFacade<?, ?, ?> facade) throws Exception {
+    void beforeEach() throws Exception {
         service = (KmsService<C, K, E>) facade.getKmsServiceClass().getDeclaredConstructor(new Class[]{}).newInstance();
         C kmsServiceConfig = (C) facade.getKmsServiceConfig();
         service.initialize(kmsServiceConfig);
@@ -61,20 +77,38 @@ class KmsIT<C, K, E> {
 
     @AfterEach
     void afterEach() {
+        // Clean up keys to keep the shared KMS environment clean
+        idempotentDeleteKek(alias);
         Optional.ofNullable(service).ifPresent(KmsService::close);
     }
 
-    @TestTemplate
-    void resolveKeyByName() {
-        String namedAlias = "my-key";
-        manager.generateKek(namedAlias);
-        var resolved = kms.resolveAlias(alias);
-        assertThat(resolved)
-                .succeedsWithin(Duration.ofSeconds(5))
-                .isNotNull();
+    private void idempotentDeleteKek(String kekAlias) {
+        if (manager != null && kekAlias != null) {
+            try {
+                manager.deleteKek(kekAlias);
+            }
+            catch (Exception e) {
+                // Ignore cleanup failures as key might already be deleted by the test or not exist
+            }
+        }
     }
 
-    @TestTemplate
+    @Test
+    void resolveKeyByName() {
+        String namedAlias = "my-key" + UUID.randomUUID();
+        try {
+            manager.generateKek(namedAlias);
+            var resolved = kms.resolveAlias(alias);
+            assertThat(resolved)
+                    .succeedsWithin(Duration.ofSeconds(5))
+                    .isNotNull();
+        }
+        finally {
+            idempotentDeleteKek(namedAlias);
+        }
+    }
+
+    @Test
     void resolveWithUnknownAlias() {
         var unknownAlias = "unknown";
         var resolved = kms.resolveAlias(unknownAlias);
@@ -84,7 +118,7 @@ class KmsIT<C, K, E> {
                 .withCauseInstanceOf(UnknownAliasException.class);
     }
 
-    @TestTemplate
+    @Test
     void generatedEncryptedDekDecryptsBackToPlain() {
         var pairStage = kms.generateDekPair(resolvedKekId);
         var pair = pairStage.toCompletableFuture().join();
@@ -95,7 +129,7 @@ class KmsIT<C, K, E> {
                 .matches(sk -> SecretKeyUtils.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
     }
 
-    @TestTemplate
+    @Test
     void generatedDekPairWithUnknownKeyId() {
         manager.deleteKek(alias);
 
@@ -106,7 +140,7 @@ class KmsIT<C, K, E> {
                 .withCauseInstanceOf(UnknownKeyException.class);
     }
 
-    @TestTemplate
+    @Test
     void decryptDekAfterRotate() {
 
         var pairStage = kms.generateDekPair(resolvedKekId);
@@ -121,7 +155,7 @@ class KmsIT<C, K, E> {
                 .matches(sk -> SecretKeyUtils.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
     }
 
-    @TestTemplate
+    @Test
     void failToDecryptEdekWithUnknownKeyId() {
 
         var dekPairStage = kms.generateDekPair(resolvedKekId);
@@ -138,7 +172,7 @@ class KmsIT<C, K, E> {
                 .withCauseInstanceOf(UnknownKeyException.class);
     }
 
-    @TestTemplate
+    @Test
     void edekSerdeRoundTrip() {
 
         var pairStage = kms.generateDekPair(resolvedKekId);
