@@ -60,7 +60,9 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 Collectors.partitioningBy(e -> e.getValue().size() == 1));
         var ambiguousEntries = partitioned.get(false);
         var unambiguousEntries = partitioned.get(true);
-        ambiguousEntries.forEach(ambiguousEntry -> handleAmbiguousEntry(ambiguousEntry, pluginInterface));
+        if (LOGGER.isWarnEnabled()) {
+            ambiguousEntries.forEach(ambiguousEntry -> handleAmbiguousEntry(ambiguousEntry, pluginInterface));
+        }
         return unambiguousEntries.stream().collect(Collectors.toMap(
                 Map.Entry::getKey,
                 e -> e.getValue().iterator().next()));
