@@ -26,10 +26,10 @@ public enum EntityType {
     @JsonProperty("brokerId")
     BROKER_ID(FieldType.Int32FieldType.INSTANCE);
 
-    private final FieldType baseType;
+    private final String baseTypeName;
 
     EntityType(FieldType baseType) {
-        this.baseType = baseType;
+        this.baseTypeName = baseType == null ? null : baseType.toString();
     }
 
     public void verifyTypeMatches(String fieldName, FieldType type) {
@@ -40,7 +40,7 @@ public enum EntityType {
             verifyTypeMatches(fieldName, arrayType.elementType());
         }
         else {
-            if (!type.toString().equals(baseType.toString())) {
+            if (!type.toString().equals(baseTypeName)) {
                 throw new IllegalArgumentException("Field " + fieldName + " has field type " +
                         name() + ", but field type " + type.toString() + ", which does " +
                         "not match.");
