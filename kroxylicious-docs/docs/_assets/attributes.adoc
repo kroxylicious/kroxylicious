@@ -123,6 +123,7 @@
 :include-fortanix-dsm-kms: 1
 :include-aws-kms-service-config-identity-ec2-metadata: 1
 :include-aws-kms-service-config-identity-irsa: 1
+:include-aws-kms-service-config-identity-pod-identity: 1
 :include-azure-key-vault-service-config-microsoft-entra-managed-identity: 1
 :include-platform-bare-metal: 1
 :include-platform-kubernetes: 1

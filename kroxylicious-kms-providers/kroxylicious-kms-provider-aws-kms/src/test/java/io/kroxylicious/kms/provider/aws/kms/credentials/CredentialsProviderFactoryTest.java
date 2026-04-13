@@ -31,23 +31,23 @@ class CredentialsProviderFactoryTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(YAMLFactory.builder().build());
     private static final CredentialsProviderFactory FACTORY = CredentialsProviderFactory.DEFAULT;
 
+    // --- New-style credentials node ---
+
     @Test
-    void longTermCredentials() {
-        // Given
+    void longTermCredentialsNewStyle() {
         var config = buildConfig("""
                 endpointUrl: https://unused.invalid
                 region: unused
-                longTermCredentials:
-                    accessKeyId:
-                        password: accessKeyId
-                    secretAccessKey:
-                        password: secretAccessKey
+                credentials:
+                    longTerm:
+                        accessKeyId:
+                            password: accessKeyId
+                        secretAccessKey:
+                            password: secretAccessKey
                 """);
 
-        // When
         var cp = FACTORY.createCredentialsProvider(config);
 
-        // Then
         assertThat(cp)
                 .asInstanceOf(InstanceOfAssertFactories.type(LongTermCredentialsProvider.class))
                 .satisfies(ltcp -> {
@@ -62,19 +62,17 @@ class CredentialsProviderFactoryTest {
     }
 
     @Test
-    void ec2MetadataCredentials() {
-        // Given
+    void ec2MetadataCredentialsNewStyle() {
         var config = buildConfig("""
                 endpointUrl: https://unused.invalid
                 region: unused
-                ec2MetadataCredentials:
-                    iamRole: foo
+                credentials:
+                    ec2Metadata:
+                        iamRole: foo
                 """);
 
-        // When
         var cp = FACTORY.createCredentialsProvider(config);
 
-        // Then
         assertThat(cp)
                 .isInstanceOf(Ec2MetadataCredentialsProvider.class)
                 .isNotNull();
@@ -83,24 +81,89 @@ class CredentialsProviderFactoryTest {
 
     @Test
     void webIdentityCredentials() {
-        // Given
         var config = buildConfig("""
                 endpointUrl: https://unused.invalid
                 region: us-east-1
-                webIdentityCredentials:
-                    roleArn: arn:aws:iam::123456789012:role/r
-                    webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+                credentials:
+                    webIdentity:
+                        roleArn: arn:aws:iam::123456789012:role/r
+                        webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
                 """);
 
-        // When
         var cp = FACTORY.createCredentialsProvider(config);
 
-        // Then
         assertThat(cp)
                 .isInstanceOf(WebIdentityCredentialsProvider.class)
                 .isNotNull();
         cp.close();
     }
+
+    @Test
+    void podIdentityCredentials() {
+        var config = buildConfig("""
+                endpointUrl: https://unused.invalid
+                region: us-east-1
+                credentials:
+                    podIdentity:
+                        credentialsFullUri: http://169.254.170.23/v1/credentials
+                        authorizationTokenFile: /var/run/secrets/pods.eks.amazonaws.com/serviceaccount/eks-pod-identity-token
+                """);
+
+        var cp = FACTORY.createCredentialsProvider(config);
+
+        assertThat(cp)
+                .isInstanceOf(PodIdentityCredentialsProvider.class)
+                .isNotNull();
+        cp.close();
+    }
+
+    // --- Backward-compat: deprecated flat fields ---
+
+    @Test
+    void longTermCredentialsBackwardCompat() {
+        var config = buildConfig("""
+                endpointUrl: https://unused.invalid
+                region: unused
+                longTermCredentials:
+                    accessKeyId:
+                        password: accessKeyId
+                    secretAccessKey:
+                        password: secretAccessKey
+                """);
+
+        var cp = FACTORY.createCredentialsProvider(config);
+
+        assertThat(cp)
+                .asInstanceOf(InstanceOfAssertFactories.type(LongTermCredentialsProvider.class))
+                .satisfies(ltcp -> {
+                    assertThat(ltcp.getCredentials())
+                            .succeedsWithin(Duration.ofSeconds(1))
+                            .satisfies(c -> {
+                                assertThat(c.accessKeyId()).isEqualTo("accessKeyId");
+                                assertThat(c.secretAccessKey()).isEqualTo("secretAccessKey");
+                            });
+                });
+        cp.close();
+    }
+
+    @Test
+    void ec2MetadataCredentialsBackwardCompat() {
+        var config = buildConfig("""
+                endpointUrl: https://unused.invalid
+                region: unused
+                ec2MetadataCredentials:
+                    iamRole: foo
+                """);
+
+        var cp = FACTORY.createCredentialsProvider(config);
+
+        assertThat(cp)
+                .isInstanceOf(Ec2MetadataCredentialsProvider.class)
+                .isNotNull();
+        cp.close();
+    }
+
+    // --- Invalid configs ---
 
     public static Stream<Arguments> invalidConfig() {
         return Stream.of(
@@ -108,18 +171,41 @@ class CredentialsProviderFactoryTest {
                             endpointUrl: https://unused.invalid
                             region: unused
                         """),
-                Arguments.argumentSet("ec2Metadata and longTerm disallowed", """
+                Arguments.argumentSet("multiple providers in credentials node", """
+                            endpointUrl: https://unused.invalid
+                            region: us-east-1
+                            credentials:
+                                ec2Metadata:
+                                    iamRole: foo
+                                longTerm:
+                                    accessKeyId:
+                                        password: accessKeyId
+                                    secretAccessKey:
+                                        password: secretAccessKey
+                        """),
+                Arguments.argumentSet("webIdentity and podIdentity conflict", """
+                            endpointUrl: https://unused.invalid
+                            region: us-east-1
+                            credentials:
+                                webIdentity:
+                                    roleArn: arn:aws:iam::123456789012:role/r
+                                    webIdentityTokenFile: /tmp/token
+                                podIdentity:
+                                    credentialsFullUri: http://169.254.170.23/v1/credentials
+                                    authorizationTokenFile: /tmp/agent-token
+                        """),
+                Arguments.argumentSet("deprecated longTerm and ec2Metadata conflict", """
                             endpointUrl: https://unused.invalid
                             region: unused
-                            ec2MetadataCredentials:
-                                iamRole: foo
                             longTermCredentials:
                                 accessKeyId:
                                     password: accessKeyId
                                 secretAccessKey:
                                     password: secretAccessKey
+                            ec2MetadataCredentials:
+                                iamRole: foo
                         """),
-                Arguments.argumentSet("webIdentity and longTerm disallowed", """
+                Arguments.argumentSet("deprecated flat field with credentials node conflict", """
                             endpointUrl: https://unused.invalid
                             region: us-east-1
                             longTermCredentials:
@@ -127,18 +213,10 @@ class CredentialsProviderFactoryTest {
                                     password: accessKeyId
                                 secretAccessKey:
                                     password: secretAccessKey
-                            webIdentityCredentials:
-                                roleArn: arn:aws:iam::123456789012:role/r
-                                webIdentityTokenFile: /tmp/token
-                        """),
-                Arguments.argumentSet("webIdentity and ec2Metadata disallowed", """
-                            endpointUrl: https://unused.invalid
-                            region: us-east-1
-                            ec2MetadataCredentials:
-                                iamRole: foo
-                            webIdentityCredentials:
-                                roleArn: arn:aws:iam::123456789012:role/r
-                                webIdentityTokenFile: /tmp/token
+                            credentials:
+                                webIdentity:
+                                    roleArn: arn:aws:iam::123456789012:role/r
+                                    webIdentityTokenFile: /tmp/token
                         """));
     }
 
@@ -146,13 +224,15 @@ class CredentialsProviderFactoryTest {
     @MethodSource("invalidConfig")
     @SuppressWarnings("resource")
     void rejectsInvalidConfig(String yaml) {
-        // Given
-        var config = buildConfig(yaml);
-
-        // When/Then
-        assertThatThrownBy(() -> FACTORY.createCredentialsProvider(config))
-                .isInstanceOf(KmsException.class);
-
+        // KmsException may be thrown directly (factory-time) or wrapped in
+        // ValueInstantiationException (deserialization-time, e.g. when the
+        // compact constructor rejects conflicting deprecated + new-style fields).
+        assertThatThrownBy(() -> {
+            var config = buildConfig(yaml);
+            FACTORY.createCredentialsProvider(config);
+        }).satisfiesAnyOf(
+                t -> assertThat(t).isInstanceOf(KmsException.class),
+                t -> assertThat(t).rootCause().isInstanceOf(KmsException.class));
     }
 
     private Config buildConfig(String content) {

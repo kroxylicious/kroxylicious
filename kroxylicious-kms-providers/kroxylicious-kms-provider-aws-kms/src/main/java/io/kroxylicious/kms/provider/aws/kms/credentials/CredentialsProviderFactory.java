@@ -21,24 +21,32 @@ public interface CredentialsProviderFactory {
     CredentialsProvider createCredentialsProvider(Config config);
 
     CredentialsProviderFactory DEFAULT = config -> {
+        var creds = config.credentials();
+        if (creds == null) {
+            throw new KmsException("Config %s must define a credential provider via the 'credentials' node".formatted(config));
+        }
         var configured = new ArrayList<String>();
-        if (config.longTermCredentialsProviderConfig() != null) {
-            configured.add("longTermCredentials");
+        if (creds.longTerm() != null) {
+            configured.add("longTerm");
         }
-        if (config.ec2MetadataCredentialsProviderConfig() != null) {
-            configured.add("ec2MetadataCredentials");
+        if (creds.ec2Metadata() != null) {
+            configured.add("ec2Metadata");
         }
-        if (config.webIdentityCredentialsProviderConfig() != null) {
-            configured.add("webIdentityCredentials");
+        if (creds.webIdentity() != null) {
+            configured.add("webIdentity");
+        }
+        if (creds.podIdentity() != null) {
+            configured.add("podIdentity");
         }
         if (configured.size() != 1) {
             throw new KmsException(
-                    "Config %s must define exactly one credential provider, found %s".formatted(config, List.copyOf(configured)));
+                    "Config must define exactly one credential provider, found %s".formatted(List.copyOf(configured)));
         }
         return switch (configured.get(0)) {
-            case "longTermCredentials" -> new LongTermCredentialsProvider(config.longTermCredentialsProviderConfig());
-            case "ec2MetadataCredentials" -> new Ec2MetadataCredentialsProvider(config.ec2MetadataCredentialsProviderConfig());
-            case "webIdentityCredentials" -> new WebIdentityCredentialsProvider(config.webIdentityCredentialsProviderConfig(), config.region());
+            case "longTerm" -> new LongTermCredentialsProvider(creds.longTerm());
+            case "ec2Metadata" -> new Ec2MetadataCredentialsProvider(creds.ec2Metadata());
+            case "webIdentity" -> new WebIdentityCredentialsProvider(creds.webIdentity(), config.region());
+            case "podIdentity" -> new PodIdentityCredentialsProvider(creds.podIdentity());
             default -> throw new IllegalStateException("unreachable");
         };
     };

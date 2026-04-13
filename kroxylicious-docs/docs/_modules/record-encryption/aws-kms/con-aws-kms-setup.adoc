@@ -94,6 +94,9 @@ endif::[]
 ifdef::include-aws-kms-service-config-identity-irsa[]
 include::proc-aws-kms-setup-application-identity-irsa.adoc[leveloffset=+1]
 endif::[]
+ifdef::include-aws-kms-service-config-identity-pod-identity[]
+include::proc-aws-kms-setup-application-identity-pod-identity.adoc[leveloffset=+1]
+endif::[]
 
 
 
