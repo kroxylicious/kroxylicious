@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
@@ -22,7 +21,9 @@ import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Stopped;
 /**
  * Manages the lifecycle state of a single virtual cluster.
  * <p>
- * Thread-safe: state transitions are performed atomically via {@link AtomicReference}.
+ * Thread-safe: state transitions are performed under synchronization so that the
+ * read-transition-log sequence is atomic. This is sufficient for the single-shot
+ * proxy lifecycle where contention is not a concern.
  * </p>
  */
 public class VirtualClusterLifecycleManager {
@@ -30,7 +31,7 @@ public class VirtualClusterLifecycleManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterLifecycleManager.class);
 
     private final String clusterName;
-    private final AtomicReference<VirtualClusterLifecycleState> state = new AtomicReference<>(new Initializing());
+    private VirtualClusterLifecycleState state = new Initializing();
 
     public VirtualClusterLifecycleManager(String clusterName) {
         this.clusterName = Objects.requireNonNull(clusterName);
@@ -100,24 +101,22 @@ public class VirtualClusterLifecycleManager {
         });
     }
 
-    public VirtualClusterLifecycleState getState() {
-        return state.get();
+    public synchronized VirtualClusterLifecycleState getState() {
+        return state;
     }
 
     public String getClusterName() {
         return clusterName;
     }
 
-    private void transition(UnaryOperator<VirtualClusterLifecycleState> transitionFn) {
-        // Use get() then updateAndGet() rather than getAndUpdate() so we capture
-        // both the previous and new state without re-applying the transition function.
-        VirtualClusterLifecycleState previous = state.get();
-        VirtualClusterLifecycleState current = state.updateAndGet(transitionFn);
-        var logBuilder = (current instanceof Failed) ? LOGGER.atWarn() : LOGGER.atInfo();
+    private synchronized void transition(UnaryOperator<VirtualClusterLifecycleState> transitionFn) {
+        VirtualClusterLifecycleState previous = state;
+        state = transitionFn.apply(state);
+        var logBuilder = (state instanceof Serving || state instanceof Failed || state instanceof Stopped) ? LOGGER.atInfo() : LOGGER.atDebug();
         logBuilder
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("from", previous.getClass().getSimpleName())
-                .addKeyValue("to", current.getClass().getSimpleName())
+                .addKeyValue("to", state.getClass().getSimpleName())
                 .log("Virtual cluster lifecycle transition");
     }
 
