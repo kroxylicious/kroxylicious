@@ -42,7 +42,7 @@ When you use the `bin/kroxylicious-start.sh` script from the binary distribution
 
 |`KROXYLICIOUS_LOG_JSON_TEMPLATE`
 |`classpath:LogstashJsonEventLayoutV1.json`
-|Any valid https://logging.apache.org/log4j/2.x/manual/json-template-layout.html[Log4j2 JsonTemplateLayout] event template URI
+|Any valid https://logging.apache.org/log4j/2.x/manual/json-template-layout.html[Log4j2 JsonTemplateLayout] event template URI.
 |JSON layout template used when `KROXYLICIOUS_LOG_FORMAT=json`. For example, use `classpath:EcsLayout.json` for Elastic Common Schema or `classpath:GelfLayout.json` for GELF format.
 
 |`KROXYLICIOUS_LOGGING_OPTIONS`
