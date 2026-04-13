@@ -14,8 +14,8 @@ import java.util.stream.Stream;
 /**
  * Factory for {@link TestKmsFacade}s.
  * <br/>
- * The {@code KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER} environment variable is a regular expression
- * that limits the facades available to tests. It matches against the facade class name.
+ * The {@code KROXYLICIOUS_KMS_FACADE_FACTORY_CLASS_NAME_FILTER} environment variable is a regular expression
+ * that limits the facades available to tests. It matches against the facade factory class name.
  * If not set, all available facades are used.
  *
  * @param <C> The config type
@@ -24,11 +24,13 @@ import java.util.stream.Stream;
  */
 public interface TestKmsFacadeFactory<C, K, E> {
 
+    /** Name of the environment variable used for facade factory filtering. */
+    String FACADE_FACTORY_CLASS_NAME_FILTER_ENV_VAR = "KROXYLICIOUS_KMS_FACADE_FACTORY_CLASS_NAME_FILTER";
     /**
-     * Pattern used to filter facades based on the {@code KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER} environment variable.
+     * Pattern used to filter facade factories based on the {@code KROXYLICIOUS_KMS_FACADE_FACTORY_CLASS_NAME_FILTER} environment variable.
      * Defaults to matching all class names if the environment variable is not set.
      */
-    Pattern FACADE_CLASS_NAME_FILTER = Optional.ofNullable(System.getenv("KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER"))
+    Pattern FACADE_FACTORY_CLASS_NAME_FILTER = Optional.ofNullable(System.getenv(FACADE_FACTORY_CLASS_NAME_FILTER_ENV_VAR))
             .map(Pattern::compile)
             .orElse(Pattern.compile(".*"));
 
@@ -46,20 +48,9 @@ public interface TestKmsFacadeFactory<C, K, E> {
      */
     @SuppressWarnings("unchecked")
     static <C, K, E> Stream<TestKmsFacadeFactory<C, K, E>> getTestKmsFacadeFactories() {
-        return ServiceLoader.load(TestKmsFacadeFactory.class).stream()
-                .map(ServiceLoader.Provider::get);
+        return (Stream<TestKmsFacadeFactory<C, K, E>>) (Stream<?>) ServiceLoader.load(TestKmsFacadeFactory.class).stream()
+                .map(ServiceLoader.Provider::get)
+                .filter(f -> FACADE_FACTORY_CLASS_NAME_FILTER.matcher(f.getClass().getName()).matches());
     }
 
-    /**
-     * Discovers and builds available {@link TestKmsFacade}s, filtered by the
-     * {@code KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER} environment variable and availability.
-     *
-     * @return stream of available test KMS facades
-     */
-    static Stream<? extends TestKmsFacade<?, ?, ?>> getAvailableTestKmsFacades() {
-        return getTestKmsFacadeFactories()
-                .map(TestKmsFacadeFactory::build)
-                .filter(f -> FACADE_CLASS_NAME_FILTER.matcher(f.getClass().getName()).matches())
-                .filter(TestKmsFacade::isAvailable);
-    }
 }

@@ -112,7 +112,9 @@ class RecordEncryptionFilterIT {
     static Stream<? extends TestKmsFacade<?, ?, ?>> facadesSource() {
         // We rely on the fact that streams are lazy so the facade isn't built
         // or started until the first test needs it.
-        return TestKmsFacadeFactory.getAvailableTestKmsFacades()
+        return TestKmsFacadeFactory.getTestKmsFacadeFactories()
+                .map(TestKmsFacadeFactory::build)
+                .filter(TestKmsFacade::isAvailable)
                 .peek(TestKmsFacade::start);
     }
 

@@ -68,7 +68,9 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
     @SuppressWarnings("unchecked")
     private static Map<Class<TestKmsFacade<?, ?, ?>>, TestKmsFacade<?, ?, ?>> getTestKmsFacadeStream(ExtensionContext extensionContext) {
         final ExtensionContext.Store store = extensionContext.getStore(STORE_NAMESPACE);
-        return store.getOrComputeIfAbsent(FACADE_FACTORIES, key -> TestKmsFacadeFactory.getAvailableTestKmsFacades()
+        return store.getOrComputeIfAbsent(FACADE_FACTORIES, key -> ((Stream<? extends TestKmsFacade<?, ?, ?>>) TestKmsFacadeFactory.getTestKmsFacadeFactories()
+                .map(TestKmsFacadeFactory::build)
+                .filter(TestKmsFacade::isAvailable))
                 .collect(
                         Collectors.toMap(
                                 Object::getClass,
