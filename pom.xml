@@ -1540,6 +1540,7 @@
                 <spotbugs.skip>true</spotbugs.skip>
                 <maven.javadoc.skip>true</maven.javadoc.skip>
                 <archetype.test.skip>true</archetype.test.skip>
+                <errorprone.skip>true</errorprone.skip>
                 <skipSTs>false</skipSTs>
             </properties>
         </profile>
