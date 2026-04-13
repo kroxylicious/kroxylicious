@@ -9,14 +9,19 @@ package io.kroxylicious.systemtests.filters;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.record.CompressionType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.Parameter;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,12 +29,11 @@ import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
-import io.kroxylicious.systemtests.extensions.CompressionTypeInvocationContextProvider;
-import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -44,6 +48,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
+@ParameterizedClass(autoCloseArguments = true)
+@MethodSource("facadesSource")
 class RecordEncryptionST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryptionST.class);
     private static final String MESSAGE = "Hello-world";
@@ -52,6 +58,19 @@ class RecordEncryptionST extends AbstractSystemTests {
     private String bootstrap;
     private TestKekManager testKekManager;
     private KroxyliciousOperator kroxyliciousOperator;
+
+    static Stream<? extends TestKmsFacade<?, ?, ?>> facadesSource() {
+        // We rely on the fact that streams are lazy so the facade isn't built
+        // or started until the first test needs it.
+        return TestKmsFacadeFactory.getTestKmsFacadeFactories()
+                .filter(f -> f.getClass().getName().contains("systemtests"))
+                .map(TestKmsFacadeFactory::build)
+                .filter(TestKmsFacade::isAvailable)
+                .peek(TestKmsFacade::start);
+    }
+
+    @Parameter
+    TestKmsFacade<?, ?, ?> testKmsFacade;
 
     @BeforeAll
     void setUp() {
@@ -103,9 +122,8 @@ class RecordEncryptionST extends AbstractSystemTests {
         }
     }
 
-    @TestTemplate
-    @ExtendWith(TestKubeKmsFacadeInvocationContextProvider.class)
-    void ensureClusterHasEncryptedMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    @Test
+    void ensureClusterHasEncryptedMessage(String namespace) {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(KEK_PREFIX + topicName);
         int numberOfMessages = 1;
@@ -140,16 +158,11 @@ class RecordEncryptionST extends AbstractSystemTests {
      * Produce and consume compressed message.
      *
      * @param namespace the namespace
-     * @param testKmsFacade the test kms facade
      * @param compressionType the compression type
      */
-    @TestTemplate
-    @ExtendWith(CompressionTypeInvocationContextProvider.class)
-    void produceAndConsumeCompressedMessages(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade, CompressionType compressionType) {
-        produceAndConsumeMessage(namespace, compressionType, testKmsFacade);
-    }
-
-    private void produceAndConsumeMessage(String namespace, CompressionType compressionType, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    @ParameterizedTest
+    @EnumSource(CompressionType.class)
+    void produceAndConsumeMessage(String namespace, CompressionType compressionType) {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(KEK_PREFIX + topicName);
         int numberOfMessages = 1;
@@ -177,9 +190,8 @@ class RecordEncryptionST extends AbstractSystemTests {
     }
 
     @SuppressWarnings("java:S2925")
-    @TestTemplate
-    @ExtendWith(TestKubeKmsFacadeInvocationContextProvider.class)
-    void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    @Test
+    void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace) {
         // Skip AWS test execution because the ciphertext blob metadata to read the version of the KEK is not available anywhere
         assumeThat(isVaultKms(testKmsFacade)).isTrue();
         String kekAlias = KEK_PREFIX + topicName;
@@ -244,9 +256,8 @@ class RecordEncryptionST extends AbstractSystemTests {
     }
 
     @SuppressWarnings("java:S2925")
-    @TestTemplate
-    @ExtendWith(TestKubeKmsFacadeInvocationContextProvider.class)
-    void produceAndConsumeMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    @Test
+    void produceAndConsumeMessageWithRotatedKEK(String namespace) {
         String kekAlias = KEK_PREFIX + topicName;
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(kekAlias);
