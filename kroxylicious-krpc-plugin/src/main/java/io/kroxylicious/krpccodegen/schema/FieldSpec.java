@@ -42,8 +42,10 @@ public final class FieldSpec {
 
     private final Versions taggedVersions;
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<Versions> flexibleVersions;
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<Integer> tag;
 
     private final boolean zeroCopy;
@@ -63,57 +65,86 @@ public final class FieldSpec {
                      @JsonProperty("flexibleVersions") String flexibleVersions,
                      @JsonProperty("tag") Integer tag,
                      @JsonProperty("zeroCopy") boolean zeroCopy) {
-        this.name = Objects.requireNonNull(name);
-        if (!VALID_FIELD_NAMES.matcher(this.name).matches()) {
-            throw new RuntimeException("Invalid field name " + this.name);
-        }
+        this.name = requireValidName(name);
         this.taggedVersions = Versions.parse(taggedVersions, Versions.NONE);
-        // If versions is not set, but taggedVersions is, default to taggedVersions.
-        this.versions = Versions.parse(versions, this.taggedVersions.empty() ? null : this.taggedVersions);
-        if (this.versions == null) {
-            throw new RuntimeException("You must specify the version of the " +
-                    name + " structure.");
-        }
-        this.fields = Collections.unmodifiableList(fields == null ? Collections.emptyList() : new ArrayList<>(fields));
+        this.versions = requireVersions(versions);
+        this.fields = parseFields(fields);
         this.type = FieldType.parse(Objects.requireNonNull(type));
         this.mapKey = mapKey;
         this.nullableVersions = Versions.parse(nullableVersions, Versions.NONE);
-        if (!this.nullableVersions.empty() && !this.type.canBeNullable()) {
-            throw new RuntimeException("Type " + this.type + " cannot be nullable.");
-        }
         this.fieldDefault = fieldDefault == null ? "" : fieldDefault;
         this.ignorable = ignorable;
         this.entityType = entityType == null ? EntityType.UNKNOWN : entityType;
-        this.entityType.verifyTypeMatches(name, this.type);
-
         this.about = about == null ? "" : about;
-        if (!this.fields().isEmpty() && !this.type.isArray() && !this.type.isStruct()) {
-            throw new RuntimeException("Non-array or Struct field " + name + " cannot have fields");
-        }
-
-        if (flexibleVersions == null || flexibleVersions.isEmpty()) {
-            this.flexibleVersions = Optional.empty();
-        }
-        else {
-            this.flexibleVersions = Optional.of(Versions.parse(flexibleVersions, null));
-            if (!(this.type.isString() || this.type.isBytes())) {
-                // For now, only allow flexibleVersions overrides for the string and bytes
-                // types. Overrides are only needed to keep compatibility with some old formats,
-                // so there isn't any need to support them for all types.
-                throw new RuntimeException("Invalid flexibleVersions override for " + name +
-                        ".  Only fields of type string or bytes can specify a flexibleVersions " +
-                        "override.");
-            }
-        }
+        this.flexibleVersions = parseFlexibleVersions(flexibleVersions);
         this.tag = Optional.ofNullable(tag);
-        if (this.tag.isPresent() && mapKey) {
-            throw new RuntimeException("Tagged fields cannot be used as keys.");
-        }
-        checkTagInvariants();
-
         this.zeroCopy = zeroCopy;
+
+        validateNullableVersions();
+        this.entityType.verifyTypeMatches(name, this.type);
+        validateSubFields();
+        validateTagNotMapKey();
+        checkTagInvariants();
+        validateZeroCopy();
+    }
+
+    private static String requireValidName(String name) {
+        Objects.requireNonNull(name);
+        if (!VALID_FIELD_NAMES.matcher(name).matches()) {
+            throw new IllegalArgumentException("Invalid field name " + name);
+        }
+        return name;
+    }
+
+    // If versions is not set, but taggedVersions is, default to taggedVersions.
+    private Versions requireVersions(String versions) {
+        Versions v = Versions.parse(versions, this.taggedVersions.empty() ? null : this.taggedVersions);
+        if (v == null) {
+            throw new IllegalArgumentException("You must specify the version of the " + name + " structure.");
+        }
+        return v;
+    }
+
+    private static List<FieldSpec> parseFields(List<FieldSpec> fields) {
+        return Collections.unmodifiableList(fields == null ? Collections.emptyList() : new ArrayList<>(fields));
+    }
+
+    private Optional<Versions> parseFlexibleVersions(String flexibleVersions) {
+        if (flexibleVersions == null || flexibleVersions.isEmpty()) {
+            return Optional.empty();
+        }
+        if (!(this.type.isString() || this.type.isBytes())) {
+            // For now, only allow flexibleVersions overrides for the string and bytes
+            // types. Overrides are only needed to keep compatibility with some old formats,
+            // so there isn't any need to support them for all types.
+            throw new IllegalArgumentException("Invalid flexibleVersions override for " + name +
+                    ".  Only fields of type string or bytes can specify a flexibleVersions " +
+                    "override.");
+        }
+        return Optional.of(Versions.parse(flexibleVersions, null));
+    }
+
+    private void validateNullableVersions() {
+        if (!this.nullableVersions.empty() && !this.type.canBeNullable()) {
+            throw new IllegalStateException("Type " + this.type + " cannot be nullable.");
+        }
+    }
+
+    private void validateSubFields() {
+        if (!this.fields().isEmpty() && !this.type.isArray() && !this.type.isStruct()) {
+            throw new IllegalArgumentException("Non-array or Struct field " + name + " cannot have fields");
+        }
+    }
+
+    private void validateTagNotMapKey() {
+        if (this.tag.isPresent() && mapKey) {
+            throw new IllegalArgumentException("Tagged fields cannot be used as keys.");
+        }
+    }
+
+    private void validateZeroCopy() {
         if (this.zeroCopy && !this.type.isBytes()) {
-            throw new RuntimeException("Invalid zeroCopy value for " + name +
+            throw new IllegalArgumentException("Invalid zeroCopy value for " + name +
                     ". Only fields of type bytes can use zeroCopy flag.");
         }
     }
@@ -121,33 +152,33 @@ public final class FieldSpec {
     private void checkTagInvariants() {
         if (this.tag.isPresent()) {
             if (this.tag.get() < 0) {
-                throw new RuntimeException("Field " + name + " specifies a tag of " + this.tag.get() +
+                throw new IllegalArgumentException("Field " + name + " specifies a tag of " + this.tag.get() +
                         ".  Tags cannot be negative.");
             }
             if (this.taggedVersions.empty()) {
-                throw new RuntimeException("Field " + name + " specifies a tag of " + this.tag.get() +
+                throw new IllegalArgumentException("Field " + name + " specifies a tag of " + this.tag.get() +
                         ", but has no tagged versions.  If a tag is specified, taggedVersions must " +
                         "be specified as well.");
             }
             Versions nullableTaggedVersions = this.nullableVersions.intersect(this.taggedVersions);
             if (!(nullableTaggedVersions.empty() || nullableTaggedVersions.equals(this.taggedVersions))) {
-                throw new RuntimeException("Field " + name + " specifies nullableVersions " +
+                throw new IllegalArgumentException("Field " + name + " specifies nullableVersions " +
                         this.nullableVersions + " and taggedVersions " + this.taggedVersions + ".  " +
                         "Either all tagged versions must be nullable, or none must be.");
             }
             if (this.taggedVersions.highest() < Short.MAX_VALUE) {
-                throw new RuntimeException("Field " + name + " specifies taggedVersions " +
+                throw new IllegalArgumentException("Field " + name + " specifies taggedVersions " +
                         this.taggedVersions + ", which is not open-ended.  taggedVersions must " +
                         "be either none, or an open-ended range (that ends with a plus sign).");
             }
             if (!this.taggedVersions.intersect(this.versions).equals(this.taggedVersions)) {
-                throw new RuntimeException("Field " + name + " specifies taggedVersions " +
+                throw new IllegalArgumentException("Field " + name + " specifies taggedVersions " +
                         this.taggedVersions + ", and versions " + this.versions + ".  " +
                         "taggedVersions must be a subset of versions.");
             }
         }
         else if (!this.taggedVersions.empty()) {
-            throw new RuntimeException("Field " + name + " does not specify a tag, " +
+            throw new IllegalArgumentException("Field " + name + " does not specify a tag, " +
                     "but specifies tagged versions of " + this.taggedVersions + ".  " +
                     "Please specify a tag, or remove the taggedVersions.");
         }
@@ -226,7 +257,7 @@ public final class FieldSpec {
 
     @JsonProperty("flexibleVersions")
     public String flexibleVersionsString() {
-        return flexibleVersions.isPresent() ? flexibleVersions.get().toString() : null;
+        return flexibleVersions.map(Versions::toString).orElse(null);
     }
 
     public Optional<Versions> flexibleVersions() {

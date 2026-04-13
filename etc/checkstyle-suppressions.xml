@@ -23,4 +23,26 @@
 
     <suppress checks=".*"
               files="generated-sources/antlr4/.*"/>
+
+    <!-- Exclude structured logging checks from test code (src/test) -->
+    <suppress checks="RegexpSinglelineJava"
+              message="Use fluent API with addKeyValue"
+              files=".*[/\\]src[/\\]test[/\\].*"/>
+    <suppress checks="RegexpSinglelineJava"
+              message="Logger should be named LOGGER"
+              files=".*[/\\]src[/\\]test[/\\].*"/>
+
+    <!-- Exclude structured logging checks from test infrastructure modules (src/main) -->
+    <suppress checks="RegexpSinglelineJava"
+              message="Use fluent API with addKeyValue"
+              files=".*systemtests[/\\]src[/\\]main[/\\].*"/>
+    <suppress checks="RegexpSinglelineJava"
+              message="Use fluent API with addKeyValue"
+              files=".*test-support[/\\]src[/\\]main[/\\].*"/>
+    <suppress checks="RegexpSinglelineJava"
+              message="Logger should be named LOGGER"
+              files=".*systemtests[/\\]src[/\\]main[/\\].*"/>
+    <suppress checks="RegexpSinglelineJava"
+              message="Logger should be named LOGGER"
+              files=".*test-support[/\\]src[/\\]main[/\\].*"/>
 </suppressions>

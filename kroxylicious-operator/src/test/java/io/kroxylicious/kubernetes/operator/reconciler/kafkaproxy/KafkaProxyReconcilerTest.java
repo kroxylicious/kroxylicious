@@ -25,6 +25,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
+import org.slf4j.spi.LoggingEventBuilder;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -49,8 +50,7 @@ import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -556,14 +556,18 @@ class KafkaProxyReconcilerTest {
         // Given
         KafkaProxyReconciler kafkaProxyReconciler = newKafkaProxyReconciler(TEST_CLOCK);
         var logger = mock(Logger.class);
+        var eventBuilder = mock(LoggingEventBuilder.class);
+        when(eventBuilder.addKeyValue(anyString(), anyString())).thenReturn(eventBuilder);
+        when(logger.atWarn()).thenReturn(eventBuilder);
 
         // When
         kafkaProxyReconciler.reportAbsentSpecIfNecessary(proxy, logger);
         // Then
 
         if (warnExpected) {
-            verify(logger).warn(contains("has no spec, please add an empty one"),
-                    eq("kafkaproxy.kroxylicious.io/proxy in namespace 'ns'"));
+            verify(logger).atWarn();
+            verify(eventBuilder).log("No spec, please add an empty one. "
+                    + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
         }
         else {
             verifyNoInteractions(logger);

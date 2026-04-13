@@ -457,13 +457,13 @@ class ResourcesUtilTest {
     @Test
     void slugResourceWithNamespaceEmptyGroup() {
         Secret secret = new SecretBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
-        assertThat(ResourcesUtil.namespacedSlug(secret)).isEqualTo("secret/secreto in namespace 'my-ns'");
+        assertThat(ResourcesUtil.slug(secret)).isEqualTo("secret/secreto");
     }
 
     @Test
     void slugResourceWithNamespaceNonEmptyGroup() {
         KafkaProxy secret = new KafkaProxyBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
-        assertThat(ResourcesUtil.namespacedSlug(secret)).isEqualTo("kafkaproxy.kroxylicious.io/secreto in namespace 'my-ns'");
+        assertThat(ResourcesUtil.slug(secret)).isEqualTo("kafkaproxy.kroxylicious.io/secreto");
     }
 
     @Test

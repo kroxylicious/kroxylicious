@@ -54,9 +54,11 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         if (correlation == null) {
             throw new AssertionError("Missing correlation id " + upstreamCorrelationId);
         }
-        else if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Recovered correlation {} for upstream correlation id {}", ctx, correlation, upstreamCorrelationId);
-        }
+        LOGGER.atDebug()
+                .addKeyValue("context", ctx)
+                .addKeyValue("correlation", correlation)
+                .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
+                .log("Recovered correlation");
         int correlationId = correlation.downstreamCorrelationId();
         in.writerIndex(ri);
         in.writeInt(correlationId);
@@ -68,11 +70,20 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             short apiVersion = correlation.apiVersion();
             var accessor = new ByteBufAccessorImpl(in);
             short headerVersion = apiKey.responseHeaderVersion(apiVersion);
-            log().trace("{}: Header version: {}", ctx, headerVersion);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("headerVersion", headerVersion)
+                    .log("Read");
             ResponseHeaderData header = readHeader(headerVersion, accessor);
-            log().trace("{}: Header: {}", ctx, header);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("header", header)
+                    .log("Read");
             ApiMessageVersion body = decodeBody(apiKey, apiVersion, accessor);
-            log().trace("{}: Body: {}", ctx, body);
+            log().atTrace()
+                    .addKeyValue("ctx", ctx)
+                    .addKeyValue("body", body)
+                    .log("Read");
             Filter recipient = correlation.recipient();
             if (recipient == null) {
                 frame = new DecodedResponseFrame<>(body.apiVersion(), correlationId, header, body.apiMessage());
@@ -84,7 +95,9 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         else {
             frame = opaqueFrame(correlation.apiKey(), correlation.apiVersion(), in, correlationId, length);
         }
-        log().trace("{}: Frame: {}", ctx, frame);
+        log().atTrace()
+                .addKeyValue("ctx", ctx)
+                .log("Result frame");
         return frame;
     }
 

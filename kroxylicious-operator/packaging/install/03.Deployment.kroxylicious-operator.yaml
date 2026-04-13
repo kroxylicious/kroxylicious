@@ -39,6 +39,9 @@ spec:
               drop: ["ALL"]
             readOnlyRootFilesystem: true
           terminationMessagePolicy: FallbackToLogsOnError
+          env:
+            - name: KUBERNETES_USER_AGENT
+              value: "kroxylicious-operator/$[project.version]"
           args: [ ]
           resources:
             requests:

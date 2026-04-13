@@ -61,7 +61,9 @@ public class ResponseOrderer extends ChannelDuplexHandler {
         if (msg instanceof Frame responseFrame) {
             Integer oldestCorrelationId = inflightCorrelationIds.peekFirst();
             if (oldestCorrelationId == null) {
-                logger.warn("Handling a Frame {}, but we have no inflight correlation ids, continuing to write", msg);
+                logger.atWarn()
+                        .addKeyValue("frame", msg)
+                        .log("Handling a Frame, but we have no inflight correlation ids, continuing to write");
                 super.write(ctx, msg, promise);
             }
             else if (oldestCorrelationId == responseFrame.correlationId()) {

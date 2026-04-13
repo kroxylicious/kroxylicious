@@ -142,7 +142,11 @@ public class NetworkingPlanner {
                     definition);
         }
         catch (NetworkPlanningException e) {
-            LOGGER.warn("skipping ingress {} for cluster {} due to planning exception", name(ingress), name(cluster), e);
+            LOGGER.atWarn()
+                    .addKeyValue("ingress", name(ingress))
+                    .addKeyValue("cluster", name(cluster))
+                    .setCause(e)
+                    .log("Skipping ingress for cluster due to planning exception");
             return Stream.empty();
         }
     }

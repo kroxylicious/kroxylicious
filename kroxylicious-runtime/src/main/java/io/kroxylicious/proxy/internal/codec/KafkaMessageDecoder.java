@@ -44,7 +44,11 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 }
                 int readable = in.readableBytes();
                 if (log().isTraceEnabled()) { // avoid boxing
-                    log().trace("{}: Frame of {} bytes ({} readable)", ctx, frameSize, readable);
+                    log().atTrace()
+                            .addKeyValue("ctx", ctx)
+                            .addKeyValue("frameSize", frameSize)
+                            .addKeyValue("readable", readable)
+                            .log("Read frame size");
                 }
                 // TODO handle too-large frames
                 if (readable >= frameSize) { // We can read the whole frame
@@ -57,9 +61,10 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
             }
             catch (Exception e) {
                 log().atError()
-                        .setMessage("{}: Error in decoder: " + e.getMessage())
-                        .addArgument(ctx)
-                        .setCause(log().isDebugEnabled() ? e : null).log();
+                        .addKeyValue("ctx", ctx)
+                        .addKeyValue("error", e.getMessage())
+                        .setCause(log().isDebugEnabled() ? e : null)
+                        .log("Error in decoder");
                 throw e;
             }
         }
@@ -79,7 +84,11 @@ abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
     private void validateRead(ChannelHandlerContext ctx, ByteBuf in, List<Object> out, int frameSize) {
         var idx = readSingleFrame(ctx, in, out, frameSize);
-        log().trace("{}: readable: {}, having read {}", ctx, in.readableBytes(), in.readerIndex() - idx);
+        log().atTrace()
+                .addKeyValue("ctx", ctx)
+                .addKeyValue("readable", in.readableBytes())
+                .addKeyValue("alreadyRead", in.readerIndex() - idx)
+                .log("Validate read");
         if (in.readerIndex() - idx != frameSize) {
             throw new IllegalStateException("decodeHeaderAndBody did not read all of the buffer " + in);
         }

@@ -920,7 +920,7 @@ class MetricsIT {
 
     @NonNull
     private String getRandomCounterName() {
-        return "test_metric_" + Math.abs(new Random().nextLong()) + "_total";
+        return "test_metric_" + Long.toUnsignedString(new Random().nextLong()) + "_total";
     }
 
     private ConfigurationBuilder configWithMetrics(KafkaCluster cluster) {

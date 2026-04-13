@@ -29,7 +29,7 @@ public record Oauth2ClientCredentialsConfig(@JsonProperty(required = true) URI o
                                             @JsonProperty(required = true) URI scope,
                                             @JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty(value = "tls") @Nullable Tls tls) {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Oauth2ClientCredentialsConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Oauth2ClientCredentialsConfig.class);
 
     public Oauth2ClientCredentialsConfig {
         Objects.requireNonNull(oauthEndpoint, "oauthEndpoint cannot be null");
@@ -38,7 +38,9 @@ public record Oauth2ClientCredentialsConfig(@JsonProperty(required = true) URI o
         Objects.requireNonNull(clientSecret, "clientSecret cannot be null");
         Objects.requireNonNull(scope, "scope cannot be null");
         if (!oauthEndpoint.getScheme().equalsIgnoreCase("https")) {
-            LOG.warn("oauthEndpoint {} does not begin with https://, production installations should use a secure endpoint", oauthEndpoint);
+            LOGGER.atWarn()
+                    .addKeyValue("endpoint", oauthEndpoint)
+                    .log("OAuth endpoint does not begin with https://, production installations should use a secure endpoint");
         }
         // check that getting password doesn't throw
         clientSecret.getProvidedPassword();

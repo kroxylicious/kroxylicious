@@ -25,11 +25,12 @@ filterDefinitions:
   - name: my-multi-tenant-filter
     type: MultiTenant
     config:
-      prefixResourceNameSeparator: "." # <1>
+      prefixResourceNameSeparator: "."
 ----
-<1> The separator used for the prefix.
-If a separator is not specified, `-` is the default.
-+
+where:
+
+* `prefixResourceNameSeparator` defines the separator used for the prefix. If a separator is not specified, `-` is the default.
+
 NOTE: Currently, only the prefix with separator is validated.
 
 Refer to the {ProxyGuide} for more information about configuring the proxy.

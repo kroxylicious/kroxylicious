@@ -70,7 +70,9 @@ public class StandardBindersHook implements MicrometerConfigurationHookService<S
                 if (binder instanceof AutoCloseable closeable) {
                     this.closeableBinders.add(closeable);
                 }
-                log.info("bound {} to micrometer registry", binderName);
+                log.atInfo()
+                        .addKeyValue("binder", binderName)
+                        .log("bound to micrometer registry");
             }
 
         }
@@ -82,7 +84,10 @@ public class StandardBindersHook implements MicrometerConfigurationHookService<S
                     closeable.close();
                 }
                 catch (Exception e) {
-                    log.warn("Ignoring exception whilst closing standard binder {}", closeable.getClass(), e);
+                    log.atWarn()
+                            .addKeyValue("closeable", closeable.getClass())
+                            .setCause(e)
+                            .log("Ignoring exception whilst closing standard binder", e);
                 }
             });
         }

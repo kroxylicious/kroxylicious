@@ -79,10 +79,13 @@ public abstract class OpaqueFrame implements Frame {
 
     @Override
     public void encode(ByteBufAccessor out) {
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Writing {} with 4 byte length ({}) plus {} bytes from buffer {} to {}",
-                    getClass().getSimpleName(), length, buf.readableBytes(), buf, out);
-        }
+        LOGGER.atTrace()
+                .addKeyValue("frameType", getClass().getSimpleName())
+                .addKeyValue("length", length)
+                .addKeyValue("bufferReadableBytes", buf.readableBytes())
+                .addKeyValue("buffer", buf)
+                .addKeyValue("output", out)
+                .log("Writing frame");
         out.ensureWritable(estimateEncodedSize());
         out.writeInt(length);
         out.writeBytes(buf, length);

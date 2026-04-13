@@ -61,12 +61,17 @@ public class CorrelationManager {
                                 boolean decodeResponse) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
-        LOGGER.trace("Allocated upstream id {} for downstream id {}", upstreamCorrelationId, downstreamCorrelationId);
+        LOGGER.atTrace()
+                .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
+                .addKeyValue("downstreamCorrelationId", downstreamCorrelationId)
+                .log("Allocated upstream id for downstream id");
         if (hasResponse) {
             Correlation existing = this.brokerRequests.put(upstreamCorrelationId,
                     new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise));
             if (existing != null) {
-                LOGGER.error("Duplicate upstream correlation id {}", upstreamCorrelationId);
+                LOGGER.atError()
+                        .addKeyValue("upstreamCorrelationId", upstreamCorrelationId)
+                        .log("Duplicate upstream correlation id");
             }
         }
         return upstreamCorrelationId;

@@ -35,7 +35,6 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 import io.kroxylicious.test.assertj.MockFilterContextAssert;
 import io.kroxylicious.test.context.MockFilterContext.ClientSaslGestureInvocation.AuthenticationFailure;
 import io.kroxylicious.test.context.MockFilterContext.ClientSaslGestureInvocation.AuthenticationSuccess;
-import io.kroxylicious.test.context.MockFilterContext.ClientSaslGestureInvocation.DeprecatedAuthenticationSuccess;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -759,15 +758,6 @@ class MockFilterContextTest {
         RequestHeaderData other = new RequestHeaderData().setClientId("other");
         assertThatThrownBy(() -> context.sendRequest(other, MESSAGE)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("header being passed to sendRequest did not equal expected header");
-    }
-
-    @Test
-    void recordsDeprecatedSaslSuccess() {
-        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE).build();
-        context.clientSaslAuthenticationSuccess("mechanism", "authorizedId");
-
-        assertThat(context.clientSaslGestureInvocations()).hasSize(1)
-                .containsExactly(new DeprecatedAuthenticationSuccess("mechanism", "authorizedId"));
     }
 
     @Test

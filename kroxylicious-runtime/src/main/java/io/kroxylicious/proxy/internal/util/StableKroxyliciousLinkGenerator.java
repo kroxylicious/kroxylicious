@@ -27,7 +27,8 @@ public class StableKroxyliciousLinkGenerator {
 
     StableKroxyliciousLinkGenerator() {
         this(() -> {
-            LOGGER.info("loading links from: classpath:META-INF/stablelinks.properties");
+            LOGGER.atInfo()
+                    .log("Loading links from: classpath:META-INF/stablelinks.properties");
             return StableKroxyliciousLinkGenerator.class.getClassLoader().getResourceAsStream("META-INF/stablelinks.properties");
         });
     }
@@ -59,7 +60,7 @@ public class StableKroxyliciousLinkGenerator {
             this(properties.entrySet().stream().collect(Collectors.toMap(e -> e.getKey().toString(), e -> e.getValue().toString())));
         }
 
-        public String generateLink(String namespace, String slug) {
+        private String generateLink(String namespace, String slug) {
             String lookupKey = "%s.%s".formatted(namespace, slug);
             if (properties.containsKey(lookupKey)) {
                 return properties.get(lookupKey);

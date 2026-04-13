@@ -55,6 +55,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.ingresses.LoadBalancerIngressPointsBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
@@ -136,14 +137,17 @@ public final class VirtualKafkaClusterReconciler implements
             reconciliationResult = UpdateControl.patchStatus(handleResolutionProblems(cluster, clusterResolutionResult));
         }
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{}", namespace(cluster), name(cluster));
+            LOGGER.atInfo()
+                    .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(cluster))
+                    .addKeyValue(OperatorLoggingKeys.NAME, name(cluster))
+                    .log("Completed reconciliation");
         }
         return reconciliationResult;
     }
 
     private static void appendSecretsFromCertificateRefs(Context<VirtualKafkaCluster> context, VirtualKafkaCluster updatedCluster,
                                                          @NonNull MetadataChecksumGenerator checksumGenerator) {
-        LOGGER.debug("Including secrets from ingress TLS in checksum");
+        LOGGER.atDebug().log("Including secrets from ingress TLS in checksum");
         updatedCluster.getSpec()
                 .getIngresses()
                 .stream()
@@ -154,7 +158,7 @@ public final class VirtualKafkaClusterReconciler implements
                         .filter(secret -> KubernetesResourceUtil.getName(secret).equals(certificateRef.getName())))
                 .forEach(checksumGenerator::appendMetadata);
 
-        LOGGER.debug("Including TrustAnchors from ingress TLS in checksum");
+        LOGGER.atDebug().log("Including TrustAnchors from ingress TLS in checksum");
         updatedCluster.getSpec()
                 .getIngresses()
                 .stream()
@@ -476,7 +480,10 @@ public final class VirtualKafkaClusterReconciler implements
 
     static void logIgnoredEvent(HasMetadata hasMetadata) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Ignoring event from {} with stale status: {}", HasMetadata.getKind(hasMetadata.getClass()), ResourcesUtil.toLocalRef(hasMetadata));
+            LOGGER.atDebug()
+                    .addKeyValue("kind", HasMetadata.getKind(hasMetadata.getClass()))
+                    .addKeyValue("resource", ResourcesUtil.toLocalRef(hasMetadata))
+                    .log("Ignoring event from resource with stale status");
         }
     }
 
@@ -486,7 +493,11 @@ public final class VirtualKafkaClusterReconciler implements
         ErrorStatusUpdateControl<VirtualKafkaCluster> uc = ErrorStatusUpdateControl
                 .patchStatus(statusFactory.newUnknownConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(cluster), name(cluster), e.toString());
+            LOGGER.atInfo()
+                    .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(cluster))
+                    .addKeyValue(OperatorLoggingKeys.NAME, name(cluster))
+                    .addKeyValue(OperatorLoggingKeys.ERROR, e.toString())
+                    .log("Completed reconciliation with error");
         }
         return uc;
     }

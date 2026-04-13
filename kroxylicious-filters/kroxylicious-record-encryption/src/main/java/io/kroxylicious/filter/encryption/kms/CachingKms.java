@@ -109,7 +109,9 @@ public class CachingKms<K, E> implements Kms<K, E> {
         CompletableFuture<K> resolved = resolveAliasCache.get(alias);
         resolved.whenComplete((k, throwable) -> {
             if (throwable instanceof UnknownAliasException || (throwable instanceof CompletionException && throwable.getCause() instanceof UnknownAliasException)) {
-                LOGGER.debug("caching unknown alias {}", alias);
+                LOGGER.atDebug()
+                        .addKeyValue("kekId", alias)
+                        .log("Caching unknown alias");
                 notFoundAliasCache.put(alias, CompletableFuture.failedFuture(new UnknownAliasException("alias " + alias + " not found (cached result)")));
             }
         });

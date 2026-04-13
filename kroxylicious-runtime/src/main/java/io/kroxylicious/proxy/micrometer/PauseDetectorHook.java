@@ -70,8 +70,10 @@ public class PauseDetectorHook implements MicrometerConfigurationHookService<Pau
         public void configure(MeterRegistry targetRegistry) {
             final PauseDetector pauseDetector = new ClockDriftPauseDetector(config.getSleepInterval(), config.getPauseThreshold());
             targetRegistry.config().pauseDetector(pauseDetector);
-            log.info("Configured pause detector on micrometer registry with sleep interval: {}ms and pause threshold: {}ms", config.getSleepInterval().toMillis(),
-                    config.getPauseThreshold().toMillis());
+            log.atInfo()
+                    .addKeyValue("sleepIntervalMs", config.getSleepInterval().toMillis())
+                    .addKeyValue("pauseThresholdMs", config.getPauseThreshold().toMillis())
+                    .log("Configured pause detector on micrometer registry");
         }
     }
 

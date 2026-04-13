@@ -254,7 +254,7 @@ public class DeploymentUtils {
         }
 
         if (Environment.TEST_CLIENTS_PULL_SECRET != null && !Environment.TEST_CLIENTS_PULL_SECRET.isEmpty()) {
-            LOGGER.atInfo().setMessage("Creating '{}' secret").addArgument(Environment.TEST_CLIENTS_PULL_SECRET).log();
+            LOGGER.atInfo().addKeyValue("secret", Environment.TEST_CLIENTS_PULL_SECRET).setMessage("Creating '{}' secret").log();
             copySecretInToNamespace(namespace, Environment.TEST_CLIENTS_PULL_SECRET);
         }
     }

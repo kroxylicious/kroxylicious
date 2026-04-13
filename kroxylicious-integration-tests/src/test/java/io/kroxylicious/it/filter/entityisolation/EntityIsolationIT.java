@@ -892,7 +892,7 @@ class EntityIsolationIT {
             assigned.set(true);
         }
 
-        public void awaitAssignment(Duration timeout) {
+        private void awaitAssignment(Duration timeout) {
             await().atMost(timeout).until(() -> {
                 consumer.poll(Duration.ofMillis(50));
                 return assigned.get();

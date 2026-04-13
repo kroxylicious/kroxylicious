@@ -155,7 +155,9 @@ public record Configuration(
                 virtualClusterModel.addGateway(gateway.name(), nodeIdentificationStrategy, tls);
             }
             catch (SniHostIdentifiesNodeIdentificationStrategy.UnresolvedHostException e) {
-                LOGGER.warn("Not adding gateway {} because of unresolved host (associated OpenShift Route may not be ready yet).", gateway.name());
+                LOGGER.atWarn()
+                        .addKeyValue("gateway", gateway.name())
+                        .log("Not adding gateway due to unresolved host (associated OpenShift Route may not be ready yet)");
             }
         });
     }

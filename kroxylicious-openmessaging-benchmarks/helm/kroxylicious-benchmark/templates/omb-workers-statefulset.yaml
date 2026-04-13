@@ -44,18 +44,24 @@ spec:
         env:
         - name: JAVA_OPTS
           value: "{{ .Values.omb.workerJavaOpts }} -Dorg.slf4j.simpleLogger.defaultLogLevel={{ .Values.omb.logLevel }}"
+        workingDir: /tmp
         command:
         - /bin/bash
         - -c
         - |
-          # Start OMB worker
-          bin/benchmark-worker
+          # Symlink /opt/benchmark/lib into /tmp so benchmark-worker's `if [ -d "./lib" ]`
+          # check succeeds from workingDir=/tmp. workingDir=/tmp keeps log files in the
+          # writable emptyDir volume, which is needed on OpenShift read-only root filesystems.
+          ln -sf /opt/benchmark/lib /tmp/lib
+          exec /opt/benchmark/bin/benchmark-worker
         ports:
         - containerPort: 8080
           name: http
         volumeMounts:
         - name: driver-config
           mountPath: /etc/omb/driver
+        - name: tmp
+          mountPath: /tmp
         resources:
           {{- toYaml .Values.omb.resources | nindent 10 }}
         livenessProbe:
@@ -72,3 +78,5 @@ spec:
       - name: driver-config
         configMap:
           name: omb-driver-{{ .Values.omb.driver }}
+      - name: tmp
+        emptyDir: {}

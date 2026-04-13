@@ -80,7 +80,9 @@ public class Kroxylicious implements Callable<Integer> {
             }
         }
         catch (Exception e) {
-            LOGGER.error("Exception on startup", e);
+            LOGGER.atError()
+                    .setCause(e)
+                    .log("Exception on startup");
             throw e;
         }
 
@@ -107,17 +109,18 @@ public class Kroxylicious implements Callable<Integer> {
         new BannerLogger().log();
         String[] versions = new VersionProvider().getVersion();
         for (String version : versions) {
-            LOGGER.info("{}", version);
+            LOGGER.atInfo()
+                    .addKeyValue("version", version)
+                    .log("Kroxylicious version");
         }
         features.warnings().forEach(LOGGER::warn);
         LOGGER.atInfo()
-                .setMessage("Platform: Java {}({}) running on {} {}/{}")
-                .addArgument(Runtime::version)
-                .addArgument(() -> System.getProperty("java.vendor"))
-                .addArgument(() -> System.getProperty("os.name"))
-                .addArgument(() -> System.getProperty("os.version"))
-                .addArgument(() -> System.getProperty("os.arch"))
-                .log();
+                .addKeyValue("javaVersion", Runtime::version)
+                .addKeyValue("javaVendor", () -> System.getProperty("java.vendor"))
+                .addKeyValue("osName", () -> System.getProperty("os.name"))
+                .addKeyValue("osVersion", () -> System.getProperty("os.version"))
+                .addKeyValue("osArch", () -> System.getProperty("os.arch"))
+                .log("Java Platform");
     }
 
     /**

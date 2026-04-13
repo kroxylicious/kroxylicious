@@ -34,12 +34,14 @@ spec:
       kind: ConfigMap
       name: trusted-cas
       key: trusted-cas.pem
-    certificateRef: # <1>
-      kind: Secret # <2>
-      name: tls-cert-for-kafka.example.com # <3>
+    certificateRef:
+      kind: Secret
+      name: tls-cert-for-kafka.example.com
     # ...
 ----
-<1> The `certificateRef` property identifies the TLS client certificate to use.
-<2> The `kind` is optional and defaults to `Secret`. The `Secret` should have `type: kubernetes.io/tls`.
-<3> The `name` is the name of the resource of the given `kind`. This resource must exist in the same namespace as the `KafkaService`
+where:
+
+* `certificateRef` identifies the TLS client certificate to use.
+** `kind` is optional and defaults to `Secret`. The `Secret` should have `type: kubernetes.io/tls`.
+** `name` is the name of the resource of the given `kind`. This resource must exist in the same namespace as the `KafkaService`
 
