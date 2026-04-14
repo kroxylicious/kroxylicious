@@ -23,6 +23,10 @@
     <properties>
         <!-- Error Prone disabled - fabric8 builders not compatible with -XDcompilePolicy=simple -->
         <errorprone.skip>true</errorprone.skip>
+        <io.kroxylicious.webhook.image.name>quay.io/kroxylicious/webhook:${project.version}</io.kroxylicious.webhook.image.name>
+        <io.kroxylicious.webhook.image.archive>target/kroxylicious-webhook.img.tar.gz</io.kroxylicious.webhook.image.archive>
+        <!-- Used in packaging/install/03.Deployment manifest for the KROXYLICIOUS_IMAGE env var -->
+        <io.kroxylicious.proxy.image.name>quay.io/kroxylicious/proxy:${project.version}</io.kroxylicious.proxy.image.name>
     </properties>
 
     <dependencyManagement>
@@ -187,9 +191,29 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-integration-test-support</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+            <testResource>
+                <directory>src/test/resources-filtered</directory>
+                <filtering>true</filtering>
+            </testResource>
+        </testResources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -202,12 +226,14 @@
                         </goals>
                         <configuration>
                             <ignoredUnusedDeclaredDependencies>
-                                <!-- Used in integration tests (not yet written) -->
                                 <ignoredUnusedDeclaredDependency>io.fabric8:kubernetes-server-mock
                                 </ignoredUnusedDeclaredDependency>
                                 <!-- dependency analyzer seems not to grok that a dependency on a
                                 @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
                                 <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
+                                </ignoredUnusedDeclaredDependency>
+                                <!-- Used in KT integration tests, only compiled with dist profile -->
+                                <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-integration-test-support
                                 </ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
@@ -237,4 +263,127 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>dist</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>app</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <descriptors>
+                                        <descriptor>src/assembly/app.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>save</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress MavenModelInspection -->
+                                    <skip>${skipContainerImageBuild}</skip>
+                                    <images>
+                                        <image>
+                                            <name>${io.kroxylicious.webhook.image.name}</name>
+                                            <alias>webhook</alias>
+                                            <build>
+                                                <dockerFile>src/main/docker/webhook.dockerfile</dockerFile>
+                                                <contextDir>${project.basedir}</contextDir>
+                                                <args>
+                                                    <KROXYLICIOUS_VERSION>${project.version}</KROXYLICIOUS_VERSION>
+                                                </args>
+                                            </build>
+                                        </image>
+                                    </images>
+                                    <saveFile>${io.kroxylicious.webhook.image.archive}</saveFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-webhook-install</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <delimiters>
+                                        <delimiter>$[*]</delimiter>
+                                    </delimiters>
+                                    <resources>
+                                        <resource>
+                                            <directory>packaging</directory>
+                                            <filtering>true</filtering>
+                                        </resource>
+                                    </resources>
+                                    <outputDirectory>target/packaged</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>kube-integration-test</id>
+                                <phase>integration-test</phase>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                </goals>
+                                <configuration>
+                                    <includes>
+                                        <include>**/KT*.java</include>
+                                        <include>**/*KT.java</include>
+                                        <include>**/*KTCase.java</include>
+                                    </includes>
+                                    <!--suppress MavenModelInspection -->
+                                    <skipITs>${skipKTs}</skipITs>
+                                    <!--suppress MavenModelInspection -->
+                                    <skip>${skipKTs}</skip>
+                                    <!--suppress MavenModelInspection -->
+                                    <skipTests>${skipKTs}</skipTests>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>kube-verify</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>verify</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress MavenModelInspection -->
+                                    <skipITs>${skipKTs}</skipITs>
+                                    <!--suppress MavenModelInspection -->
+                                    <skip>${skipKTs}</skip>
+                                    <!--suppress MavenModelInspection -->
+                                    <skipTests>${skipKTs}</skipTests>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
