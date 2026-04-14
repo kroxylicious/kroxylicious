@@ -74,6 +74,35 @@ class InBandEncryptionManagerTest {
     }
 
     @Test
+    void shouldGenerateOneDekForMultipleBatchesToSameTopic() {
+        // Given
+        InMemoryKms kms = getInMemoryKms();
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        final DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(new AsyncKms<>(kms, executor), 10000);
+        EncryptionDekCache<UUID, InMemoryEdek> cache = new EncryptionDekCache<>(dekManager, executor, EncryptionDekCache.NO_MAX_CACHE_SIZE, Duration.ofHours(1),
+                Duration.ofHours(1));
+        var encryptionManager = createEncryptionManager(dekManager, cache, executor);
+        var kekId = kms.generateKey();
+
+        var value = new byte[]{ 1, 2, 3 };
+        Record record = RecordTestUtils.record(value);
+        List<Record> batch = List.of(record);
+
+        // When - send two batches to the same topic
+        CompletionStage<Void> firstBatch = doEncrypt(encryptionManager, "topic", 0, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), batch,
+                new ArrayList<>());
+        CompletionStage<Void> secondBatch = doEncrypt(encryptionManager, "topic", 0, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), batch,
+                new ArrayList<>());
+
+        // Then - both succeed
+        assertThat(firstBatch).succeedsWithin(10, TimeUnit.SECONDS);
+        assertThat(secondBatch).succeedsWithin(10, TimeUnit.SECONDS);
+
+        // And only one DEK was generated (reused for both batches)
+        assertThat(kms.numDeksGenerated()).isEqualTo(1);
+    }
+
+    @Test
     void testGrowBufferCannotGrowBeyondMaximum() {
         ByteBuffer priorBuffer = ByteBuffer.allocate(2);
         assertThatThrownBy(() -> InBandEncryptionManager.growBuffer(priorBuffer, 2)).isInstanceOf(EncryptionException.class)

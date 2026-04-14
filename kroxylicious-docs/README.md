@@ -4,8 +4,6 @@
 <!-- omit from toc -->
 # Kroxylicious documentation
 
-Welcome to the Kroxylicious documentation! 
-
 This folder contains the source files for managing the Kroxylicious documentation. 
 The documentation is written in [AsciiDoc][AsciiDoc] and provides content to help you understand and set up Kroxylicious.
 US (global) English is used throughout.
@@ -92,3 +90,28 @@ If there's something that you want to add or change in the documentation, do the
 The pull request will be reviewed and the changes merged when the review is complete.
 The guide is then rebuilt and the updated content is published on the Kroxylicious website.
 Published documentation for the current _main_ branch as well as all releases can be found on our [website][KroxyliciousDoc].
+
+## Documentation Standards
+
+### What Each Guide Should Contain
+
+We aim to have a separate "Guide" for each of the Filters the project provides. If a new plugin gets added, it should come with its own Guide. Such guides are aimed at the end user persona and should explain, at a minimum:
+
+- What the plugin does (what end-user problem does it solve?)
+- When the plugin should be used (and when it should not be used, if there are such circumstances)
+- How it should be configured, including examples which cover both:
+  - Configuring the proxy when run directly on Linux
+  - Configuring the filter when run on Kubernetes and its derivatives, using the operator
+- Any gotchas/sharp edges in using the plugin
+- Any security aspects of using the plugin. For example, if the plugin makes network connections to other systems, the guide must cover configuring TLS for those connections. It should also include appropriate best-practices around op-sec. For example, if a password is used, the example should demonstrate generating a random password of suitable complexity, rather than show a hard-coded dummy value.
+- Operational aspects of using the plugin. For example, if the plugin emits any metrics, these should be documented along with a description of what they represent, and their operational interpretation.
+
+### When Documentation Needs Updates
+
+- User-visible changes to the "core" of the proxy (e.g., the configuration of anything that is not a plugin) require changes in the "Proxy guide" and/or the "Kroxylicious Operator for Kubernetes"
+- User-visible changes to Kubernetes-specific functionality (like changes to the CRDs) should be documented in "Kroxylicious Operator for Kubernetes"
+- The documentation should be comprehensive
+
+### Style Guide
+
+The documentation is structured according to [Red Hat's modular documentation](https://redhat-documentation.github.io/modular-docs/) system. The documentation should follow the IBM documentation style guide.
