@@ -164,7 +164,13 @@ public class KafClient implements KafkaClient {
                     }, m -> getNumberOfJsonMessages(m) >= numOfMessages);
         }
         catch (ConditionTimeoutException e) {
-            LOGGER.atError().setMessage("Timeout! Received: {}").addArgument(log).log();
+            List<Pod> pods = kubeClient().listPods(deployNamespace, "app", jobName);
+            pods.forEach(pod -> {
+                String podName = pod.getMetadata().getName();
+                String currentLog = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                LOGGER.atError().setMessage("Timeout! Pod '{}', received: {}").addArgument(podName).addArgument(currentLog).log();
+            });
+
         }
         catch (KubeClusterException e) {
             List<Pod> pods = kubeClient().listPods(deployNamespace, "app", jobName);
