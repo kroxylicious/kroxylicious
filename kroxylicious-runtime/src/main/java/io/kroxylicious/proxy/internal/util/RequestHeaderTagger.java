@@ -20,33 +20,42 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  */
 public class RequestHeaderTagger {
     public enum Tag {
-        LEARN_TOPIC_NAMES(new RawTaggedField(14343085, "kroxylicious.io/learn-topic-names".getBytes(StandardCharsets.UTF_8)));
+        LEARN_TOPIC_NAMES(14343085, "kroxylicious.io/learn-topic-names");
 
-        private final RawTaggedField rawTaggedField;
+        private final int tagId;
+        private final String tagData;
 
-        Tag(RawTaggedField rawTaggedField) {
-            this.rawTaggedField = rawTaggedField;
+        Tag(int tagId, String tagData) {
+            this.tagId = tagId;
+            this.tagData = tagData;
+        }
+
+        private RawTaggedField rawTaggedField() {
+            return new RawTaggedField(tagId, tagData.getBytes(StandardCharsets.UTF_8));
+        }
+
+        private boolean matches(RawTaggedField rawTaggedField) {
+            return rawTaggedField.tag() == tagId && tagData.equals(new String(rawTaggedField.data(), StandardCharsets.UTF_8));
         }
 
         @VisibleForTesting
         RawTaggedField getRawTaggedField() {
-            return rawTaggedField;
+            return rawTaggedField();
         }
     }
 
     public static void removeTags(RequestHeaderData header) {
         List<RawTaggedField> rawTaggedFields = header.unknownTaggedFields();
         for (Tag value : Tag.values()) {
-            rawTaggedFields.remove(value.getRawTaggedField());
+            rawTaggedFields.removeIf(value::matches);
         }
     }
 
     public static void tag(RequestHeaderData headerData, Tag tag) {
-        // clone the data, we don't want to hand out a reference that Filters can mutate
-        headerData.unknownTaggedFields().add(new RawTaggedField(tag.rawTaggedField.tag(), tag.rawTaggedField.data().clone()));
+        headerData.unknownTaggedFields().add(tag.rawTaggedField());
     }
 
     public static boolean containsTag(RequestHeaderData headerData, Tag tag) {
-        return headerData.unknownTaggedFields().contains(tag.rawTaggedField);
+        return headerData.unknownTaggedFields().stream().anyMatch(tag::matches);
     }
 }
