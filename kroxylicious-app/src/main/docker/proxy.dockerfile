@@ -53,6 +53,8 @@ ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
 COPY target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ .
 
+RUN mkdir -p /opt/kroxylicious/plugins && chown ${CONTAINER_USER_UID}:${CONTAINER_USER_UID} /opt/kroxylicious/plugins
+
 USER ${CONTAINER_USER_UID}
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]

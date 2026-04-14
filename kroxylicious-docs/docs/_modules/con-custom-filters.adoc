@@ -469,3 +469,37 @@ Filters are packaged as standard `.jar` files. A typical Custom Filter jar conta
 
 1. Filter implementation classes
 2. A FilterFactory implementation per Filter and service metadata (see <<Filter Construction and Configuration>>)
+
+=== Deploying filters
+
+Third-party filter JARs can be deployed using the `plugins/` directory under the Kroxylicious installation directory.
+Each plugin should be placed in its own subdirectory:
+
+[source]
+----
+kroxylicious/
+  libs/          <1>
+  plugins/       <2>
+    my-filter/
+      my-filter-1.0.jar
+      my-dependency.jar
+    another-filter/
+      another-filter-2.1.jar
+----
+<1> Built-in Kroxylicious JARs (do not modify).
+<2> Third-party plugin JARs, organised by plugin name.
+
+The proxy startup script automatically scans `plugins/` subdirectories and adds their contents to the Java classpath.
+Plugins are then discovered via `ServiceLoader` alongside the built-in filters.
+
+If the `plugins/` directory does not exist, no plugin scanning is performed and the proxy starts normally.
+
+=== Dependency shading
+
+There is currently no classloader isolation between plugins.
+All plugins share a single classpath with the proxy itself.
+If a plugin bundles a library that is also used by the proxy or by another plugin (for example Jackson or Guava), the classpath ordering determines which version is used at runtime.
+This can cause subtle failures.
+
+To avoid dependency conflicts, plugin authors should shade (relocate) their transitive dependencies using the Maven Shade Plugin or an equivalent tool.
+Shading rewrites the package names of bundled libraries so they cannot collide with other versions on the classpath.

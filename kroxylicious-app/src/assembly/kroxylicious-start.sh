@@ -21,6 +21,15 @@ script_dir() {
 classpath() {
   local class_path
   class_path="$(script_dir)/../libs/*"
+  # Scan plugins directory for subdirectories containing JARs
+  local plugins_dir="$(script_dir)/../plugins"
+  if [ -d "${plugins_dir}" ]; then
+    for dir in "${plugins_dir}"/*/; do
+      if [ -d "$dir" ]; then
+        class_path="$class_path:${dir}*"
+      fi
+    done
+  fi
   if [ -n "${KROXYLICIOUS_CLASSPATH:-}" ]; then
     class_path="$class_path:${KROXYLICIOUS_CLASSPATH}"
   fi
