@@ -157,12 +157,12 @@ class RecordEncryptionST extends AbstractSystemTests {
     /**
      * Produce and consume compressed message.
      *
-     * @param namespace the namespace
      * @param compressionType the compression type
+     * @param namespace the namespace
      */
     @ParameterizedTest
     @EnumSource(CompressionType.class)
-    void produceAndConsumeMessage(String namespace, CompressionType compressionType) {
+    void produceAndConsumeMessage(CompressionType compressionType, String namespace) {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(KEK_PREFIX + topicName);
         int numberOfMessages = 1;
