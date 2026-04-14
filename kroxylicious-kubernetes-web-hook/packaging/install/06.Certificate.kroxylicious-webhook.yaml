@@ -1,0 +1,39 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Requires cert-manager to be installed in the cluster.
+# See https://cert-manager.io/docs/installation/
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: kroxylicious-webhook-selfsigned
+  namespace: kroxylicious-webhook
+  labels:
+    app.kubernetes.io/name: kroxylicious
+    app.kubernetes.io/component: webhook
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kroxylicious-webhook-cert
+  namespace: kroxylicious-webhook
+  labels:
+    app.kubernetes.io/name: kroxylicious
+    app.kubernetes.io/component: webhook
+spec:
+  secretName: kroxylicious-webhook-cert
+  issuerRef:
+    name: kroxylicious-webhook-selfsigned
+    kind: Issuer
+  dnsNames:
+    - kroxylicious-webhook
+    - kroxylicious-webhook.kroxylicious-webhook
+    - kroxylicious-webhook.kroxylicious-webhook.svc
+    - kroxylicious-webhook.kroxylicious-webhook.svc.cluster.local
+  duration: 8760h   # 1 year
+  renewBefore: 720h  # 30 days

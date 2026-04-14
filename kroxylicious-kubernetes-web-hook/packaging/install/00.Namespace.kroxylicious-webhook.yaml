@@ -1,0 +1,15 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kroxylicious-webhook
+  labels:
+    app.kubernetes.io/name: kroxylicious
+    app.kubernetes.io/component: webhook
+    # Enforce restricted pod security
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
