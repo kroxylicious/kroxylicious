@@ -1,0 +1,89 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kroxylicious-webhook
+  namespace: kroxylicious-webhook
+  labels:
+    app.kubernetes.io/name: kroxylicious
+    app.kubernetes.io/component: webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kroxylicious-webhook
+  template:
+    metadata:
+      labels:
+        app: kroxylicious-webhook
+        app.kubernetes.io/name: kroxylicious
+        app.kubernetes.io/component: webhook
+    spec:
+      serviceAccountName: kroxylicious-webhook
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: webhook
+          image: $[io.kroxylicious.webhook.image.name]
+          ports:
+            - containerPort: 8443
+              name: webhook
+              protocol: TCP
+          env:
+            - name: KROXYLICIOUS_IMAGE
+              value: $[io.kroxylicious.proxy.image.name]
+            - name: TLS_CERT_PATH
+              value: /etc/webhook/tls/tls.crt
+            - name: TLS_KEY_PATH
+              value: /etc/webhook/tls/tls.key
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/webhook/tls
+              readOnly: true
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 500m
+            limits:
+              memory: 512Mi
+              cpu: "1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: webhook
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: webhook
+              scheme: HTTPS
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /livez
+              port: webhook
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: tls
+          secret:
+            secretName: kroxylicious-webhook-cert

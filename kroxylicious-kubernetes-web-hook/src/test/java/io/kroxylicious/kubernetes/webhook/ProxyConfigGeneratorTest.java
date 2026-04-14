@@ -1,0 +1,142 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.kubernetes.webhook;
+
+import org.junit.jupiter.api.Test;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
+import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class ProxyConfigGeneratorTest {
+
+    private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
+
+    @Test
+    void generatesValidYamlWithDefaults() throws Exception {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka.example.com:9092");
+
+        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        JsonNode root = YAML_MAPPER.readTree(yaml);
+
+        // Management
+        assertThat(root.path("management").path("port").asInt()).isEqualTo(9190);
+        assertThat(root.path("management").path("bindAddress").asText()).isEqualTo("0.0.0.0");
+
+        // Virtual cluster
+        JsonNode vc = root.path("virtualClusters").get(0);
+        assertThat(vc.path("name").asText()).isEqualTo("sidecar");
+        assertThat(vc.path("targetCluster").path("bootstrapServers").asText())
+                .isEqualTo("kafka.example.com:9092");
+
+        // Gateway
+        JsonNode gw = vc.path("gateways").get(0);
+        assertThat(gw.path("name").asText()).isEqualTo("local");
+        JsonNode portStrategy = gw.path("portIdentifiesNode");
+        assertThat(portStrategy.path("bootstrapAddress").asText()).isEqualTo("localhost:19092");
+        assertThat(portStrategy.path("advertisedBrokerAddressPattern").asText()).isEqualTo("localhost");
+    }
+
+    @Test
+    void usesCustomBootstrapPort() throws Exception {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+        spec.setBootstrapPort(29092L);
+
+        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        JsonNode root = YAML_MAPPER.readTree(yaml);
+
+        JsonNode portStrategy = root.path("virtualClusters").get(0)
+                .path("gateways").get(0)
+                .path("portIdentifiesNode");
+        assertThat(portStrategy.path("bootstrapAddress").asText()).isEqualTo("localhost:29092");
+        assertThat(portStrategy.path("nodeStartPort").asInt()).isEqualTo(29093);
+    }
+
+    @Test
+    void usesCustomManagementPort() throws Exception {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+        spec.setManagementPort(8080L);
+
+        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        JsonNode root = YAML_MAPPER.readTree(yaml);
+
+        assertThat(root.path("management").path("port").asInt()).isEqualTo(8080);
+    }
+
+    @Test
+    void usesCustomNodeIdRange() throws Exception {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+        NodeIdRange nodeIdRange = new NodeIdRange();
+        nodeIdRange.setStartInclusive(0L);
+        nodeIdRange.setEndInclusive(9L);
+        spec.setNodeIdRange(nodeIdRange);
+
+        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        JsonNode root = YAML_MAPPER.readTree(yaml);
+
+        JsonNode namedRange = root.path("virtualClusters").get(0)
+                .path("gateways").get(0)
+                .path("portIdentifiesNode")
+                .path("nodeIdRanges").get(0);
+        assertThat(namedRange.path("start").asInt()).isEqualTo(0);
+        assertThat(namedRange.path("end").asInt()).isEqualTo(9);
+    }
+
+    @Test
+    void resolveBootstrapPortUsesDefault() {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+        assertThat(ProxyConfigGenerator.resolveBootstrapPort(spec)).isEqualTo(19092);
+    }
+
+    @Test
+    void resolveBootstrapPortUsesSpecified() {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+        spec.setBootstrapPort(29092L);
+        assertThat(ProxyConfigGenerator.resolveBootstrapPort(spec)).isEqualTo(29092);
+    }
+
+    @Test
+    void resolveManagementPortUsesDefault() {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+        assertThat(ProxyConfigGenerator.resolveManagementPort(spec)).isEqualTo(9190);
+    }
+
+    @Test
+    void resolveManagementPortUsesSpecified() {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+        spec.setManagementPort(8080L);
+        assertThat(ProxyConfigGenerator.resolveManagementPort(spec)).isEqualTo(8080);
+    }
+
+    @Test
+    void generatedConfigIsParseable() throws Exception {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("my-kafka.ns.svc.cluster.local:9092");
+
+        String yaml = ProxyConfigGenerator.generateConfig(spec);
+
+        // Verify it's valid YAML with expected structure
+        JsonNode root = YAML_MAPPER.readTree(yaml);
+        assertThat(root.has("management")).isTrue();
+        assertThat(root.has("virtualClusters")).isTrue();
+        assertThat(root.path("virtualClusters").isArray()).isTrue();
+        assertThat(root.path("virtualClusters")).hasSize(1);
+    }
+}

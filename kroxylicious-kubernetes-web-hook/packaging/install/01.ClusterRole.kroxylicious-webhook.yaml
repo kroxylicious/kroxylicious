@@ -1,0 +1,21 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kroxylicious-webhook
+  labels:
+    app.kubernetes.io/name: kroxylicious
+    app.kubernetes.io/component: webhook
+rules:
+  # Read sidecar configs across all namespaces
+  - apiGroups: ["kroxylicious.io"]
+    resources: ["kroxylicioussidecarconfigs"]
+    verbs: ["get", "list", "watch"]
+  # Update sidecar config status
+  - apiGroups: ["kroxylicious.io"]
+    resources: ["kroxylicioussidecarconfigs/status"]
+    verbs: ["get", "patch", "update"]
