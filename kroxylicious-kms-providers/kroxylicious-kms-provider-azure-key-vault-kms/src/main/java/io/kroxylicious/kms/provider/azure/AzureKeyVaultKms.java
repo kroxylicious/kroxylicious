@@ -115,8 +115,8 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
         return client.unwrap(new WrappingKey(edek.keyName(), edek.keyVersion(), edek.supportedKeyType(), edek.vaultName()), edek.edek())
                 .handle((bytes, throwable) -> {
                     if (throwable != null) {
-                        if (throwable instanceof UnexpectedHttpStatusCodeException e && e.getStatusCode() == 404
-                                || throwable.getCause() instanceof UnexpectedHttpStatusCodeException ex && ex.getStatusCode() == 404) {
+                        if ((throwable instanceof UnexpectedHttpStatusCodeException e && e.getStatusCode() == 404)
+                                || (throwable.getCause() instanceof UnexpectedHttpStatusCodeException ex && ex.getStatusCode() == 404)) {
                             throw new UnknownKeyException("key not found, key name: '" + edek.keyName() + "' version '" + edek.keyVersion() + "'");
                         }
                         else {
