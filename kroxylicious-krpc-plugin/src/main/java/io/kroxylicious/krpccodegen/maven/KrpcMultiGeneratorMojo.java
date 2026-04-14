@@ -9,7 +9,6 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
 import io.kroxylicious.krpccodegen.main.KrpcGenerator;
-import io.kroxylicious.krpccodegen.main.KrpcGenerator.Builder;
 
 /**
  * A Maven plugin capable of generating java source from Apache Kafka message
@@ -28,7 +27,7 @@ public class KrpcMultiGeneratorMojo extends AbstractKrpcGeneratorMojo {
     }
 
     @Override
-    protected Builder builder() {
+    protected KrpcGenerator.Builder builder() {
         return KrpcGenerator.multi();
     }
 }

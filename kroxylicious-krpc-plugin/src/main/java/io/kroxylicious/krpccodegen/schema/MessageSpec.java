@@ -62,8 +62,8 @@ public final class MessageSpec implements Named {
             Objects.requireNonNull(flexibleVersions, "You must specify a value for flexibleVersions. " +
                     "Please use 0+ for all new messages.");
             this.flexibleVersions = Versions.parse(flexibleVersions, Versions.NONE);
-            if ((!this.flexibleVersions().empty()) &&
-                    (this.flexibleVersions.highest() < Short.MAX_VALUE)) {
+            if (!this.flexibleVersions().empty() &&
+                    this.flexibleVersions.highest() < Short.MAX_VALUE) {
                 throw new IllegalArgumentException("Field " + name + " specifies flexibleVersions " +
                         this.flexibleVersions + ", which is not open-ended.  flexibleVersions must " +
                         "be either none, or an open-ended range (that ends with a plus sign).");
