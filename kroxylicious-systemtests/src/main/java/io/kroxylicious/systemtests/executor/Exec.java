@@ -256,14 +256,10 @@ public class Exec {
 
         if (matcher.find()) {
             switch (matcher.group(1)) {
-                case "NotFound":
-                    kubeClusterException = new KubeClusterException.NotFound(execResult, msg);
-                    break;
-                case "AlreadyExists":
-                    kubeClusterException = new KubeClusterException.AlreadyExists(execResult, msg);
-                    break;
-                default:
-                    break;
+                case "NotFound" -> kubeClusterException = new KubeClusterException.NotFound(execResult, msg);
+                case "AlreadyExists" -> kubeClusterException = new KubeClusterException.AlreadyExists(execResult, msg);
+                default -> {
+                }
             }
         }
         matcher = INVALID_PATTERN.matcher(err);
