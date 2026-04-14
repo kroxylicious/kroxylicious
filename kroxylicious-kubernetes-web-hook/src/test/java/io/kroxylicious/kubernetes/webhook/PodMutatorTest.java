@@ -25,6 +25,8 @@ import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Volume;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.UpstreamTls;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.upstreamtls.TrustAnchorSecretRef;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -233,6 +235,111 @@ class PodMutatorTest {
         assertThat(patch).isNotEmpty();
     }
 
+    // --- Phase 2: Upstream TLS ---
+
+    @Test
+    void patchAddsUpstreamTlsVolume() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        // Give the pod existing volumes so both config and TLS use the append path
+        pod.getSpec().setVolumes(new ArrayList<>(List.of(new Volume())));
+        KroxyliciousSidecarConfigSpec spec = specWithUpstreamTls();
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> volumeOps = patchOps(patch, "add", "/spec/volumes/-");
+        assertThat(volumeOps).hasSizeGreaterThanOrEqualTo(2);
+
+        boolean hasTlsVolume = volumeOps.stream()
+                .anyMatch(op -> "upstream-tls".equals(op.path("value").path("name").asText()));
+        assertThat(hasTlsVolume).as("patch should add upstream-tls volume").isTrue();
+    }
+
+    @Test
+    void patchAddsUpstreamTlsVolumeMount() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = specWithUpstreamTls();
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
+        JsonNode mounts = containerOps.get(0).path("value").path("volumeMounts");
+        assertThat(mounts).hasSize(2);
+
+        JsonNode tlsMount = mounts.get(1);
+        assertThat(tlsMount.path("name").asText()).isEqualTo("upstream-tls");
+        assertThat(tlsMount.path("mountPath").asText()).isEqualTo("/opt/kroxylicious/tls/upstream");
+        assertThat(tlsMount.path("readOnly").asBoolean()).isTrue();
+    }
+
+    @Test
+    void noTlsVolumeWhenNotConfigured() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        JsonNode patch = createPatchJson(pod);
+
+        // Only config volume, not TLS
+        boolean hasTlsVolume = false;
+        for (JsonNode op : patch) {
+            if ("add".equals(op.path("op").asText())) {
+                JsonNode value = op.path("value");
+                if (value.isObject() && "upstream-tls".equals(value.path("name").asText())) {
+                    hasTlsVolume = true;
+                }
+                if (value.isArray()) {
+                    for (JsonNode item : value) {
+                        if ("upstream-tls".equals(item.path("name").asText())) {
+                            hasTlsVolume = true;
+                        }
+                    }
+                }
+            }
+        }
+        assertThat(hasTlsVolume).as("no TLS volume expected without upstream TLS config").isFalse();
+    }
+
+    @Test
+    void resolveUpstreamTrustStorePathWithTls() {
+        KroxyliciousSidecarConfigSpec spec = specWithUpstreamTls();
+        String path = PodMutator.resolveUpstreamTrustStorePath(spec);
+        assertThat(path).isEqualTo("/opt/kroxylicious/tls/upstream/ca.crt");
+    }
+
+    @Test
+    void resolveUpstreamTrustStorePathWithoutTls() {
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
+        String path = PodMutator.resolveUpstreamTrustStorePath(spec);
+        assertThat(path).isNull();
+    }
+
+    // --- Phase 2: Native sidecar ---
+
+    @Test
+    void nativeSidecarInjectsAsInitContainer() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, true);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        // Should add to initContainers, not containers
+        List<JsonNode> initOps = patchOps(patch, "add", "/spec/initContainers");
+        assertThat(initOps).isNotEmpty();
+
+        JsonNode container = initOps.get(0).path("value").get(0);
+        assertThat(container.path("name").asText()).isEqualTo(InjectionDecision.SIDECAR_CONTAINER_NAME);
+        assertThat(container.path("restartPolicy").asText()).isEqualTo("Always");
+    }
+
+    @Test
+    void regularSidecarDoesNotSetRestartPolicy() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, false);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
+        assertThat(containerOps).isNotEmpty();
+        assertThat(containerOps.get(0).path("value").has("restartPolicy")).isFalse();
+    }
+
     /**
      * Creates a pod with one application container already present.
      * This ensures PodMutator uses the append ({@code /-}) path for adding the sidecar.
@@ -259,6 +366,17 @@ class PodMutatorTest {
     private static KroxyliciousSidecarConfigSpec defaultSpec() {
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
         spec.setUpstreamBootstrapServers("kafka.example.com:9092");
+        return spec;
+    }
+
+    private static KroxyliciousSidecarConfigSpec specWithUpstreamTls() {
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
+        UpstreamTls tls = new UpstreamTls();
+        TrustAnchorSecretRef ref = new TrustAnchorSecretRef();
+        ref.setName("kafka-ca");
+        ref.setKey("ca.crt");
+        tls.setTrustAnchorSecretRef(ref);
+        spec.setUpstreamTls(tls);
         return spec;
     }
 

@@ -12,16 +12,21 @@ import java.util.List;
 import java.util.Optional;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.FilterDefinitions;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.config.NamedRange;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.service.HostPort;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Generates proxy configuration YAML for the sidecar container from a
@@ -44,9 +49,12 @@ class ProxyConfigGenerator {
      * Generates proxy configuration YAML for a sidecar.
      *
      * @param spec the sidecar config spec from the CRD
+     * @param upstreamTrustStorePath path to the mounted CA cert file for upstream TLS, or null if no TLS
      * @return YAML string suitable for passing to the proxy via {@code --config}
      */
-    static String generateConfig(KroxyliciousSidecarConfigSpec spec) {
+    static String generateConfig(
+                                 KroxyliciousSidecarConfigSpec spec,
+                                 @Nullable String upstreamTrustStorePath) {
         int bootstrapPort = resolveBootstrapPort(spec);
         int managementPort = resolveManagementPort(spec);
         int nodeIdStart = DEFAULT_NODE_ID_START;
@@ -66,7 +74,7 @@ class ProxyConfigGenerator {
                 new HostPort(LOCALHOST, bootstrapPort),
                 LOCALHOST,
                 bootstrapPort + 1,
-                List.of(new NamedRange("default", nodeIdStart, nodeIdEnd)));
+                List.of(new io.kroxylicious.proxy.config.NamedRange("default", nodeIdStart, nodeIdEnd)));
 
         var gateway = new VirtualClusterGateway(
                 GATEWAY_NAME,
@@ -74,9 +82,18 @@ class ProxyConfigGenerator {
                 null,
                 Optional.empty());
 
+        Optional<Tls> upstreamTls = Optional.empty();
+        if (upstreamTrustStorePath != null) {
+            upstreamTls = Optional.of(new Tls(
+                    null,
+                    new TrustStore(upstreamTrustStorePath, null, "PEM"),
+                    null,
+                    null));
+        }
+
         var targetCluster = new TargetCluster(
                 spec.getUpstreamBootstrapServers(),
-                Optional.empty());
+                upstreamTls);
 
         var virtualCluster = new VirtualCluster(
                 VIRTUAL_CLUSTER_NAME,
@@ -91,10 +108,16 @@ class ProxyConfigGenerator {
                 managementPort,
                 null);
 
+        // Convert CRD filter definitions to proxy config model
+        List<NamedFilterDefinition> filterDefs = toNamedFilterDefinitions(spec);
+        List<String> defaultFilters = filterDefs != null
+                ? filterDefs.stream().map(NamedFilterDefinition::name).toList()
+                : null;
+
         var configuration = new Configuration(
                 management,
-                null,
-                null,
+                filterDefs,
+                defaultFilters,
                 List.of(virtualCluster),
                 null,
                 false,
@@ -103,6 +126,24 @@ class ProxyConfigGenerator {
                 null);
 
         return toYaml(configuration);
+    }
+
+    /**
+     * Overload for backwards compatibility (no upstream TLS).
+     */
+    static String generateConfig(KroxyliciousSidecarConfigSpec spec) {
+        return generateConfig(spec, null);
+    }
+
+    @Nullable
+    private static List<NamedFilterDefinition> toNamedFilterDefinitions(KroxyliciousSidecarConfigSpec spec) {
+        List<FilterDefinitions> crdFilters = spec.getFilterDefinitions();
+        if (crdFilters == null || crdFilters.isEmpty()) {
+            return null;
+        }
+        return crdFilters.stream()
+                .map(f -> new NamedFilterDefinition(f.getName(), f.getType(), f.getConfig()))
+                .toList();
     }
 
     static int resolveBootstrapPort(KroxyliciousSidecarConfigSpec spec) {

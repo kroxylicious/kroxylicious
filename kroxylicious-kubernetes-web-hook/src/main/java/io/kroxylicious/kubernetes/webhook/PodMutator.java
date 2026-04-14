@@ -17,8 +17,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.UpstreamTls;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.upstreamtls.TrustAnchorSecretRef;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Generates a JSON Patch (RFC 6902) to inject a Kroxylicious sidecar into a pod.
@@ -27,6 +30,9 @@ class PodMutator {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String SIDECAR_VOLUME_NAME = "kroxylicious-config";
+    private static final String UPSTREAM_TLS_VOLUME_NAME = "upstream-tls";
+    @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
+    private static final String UPSTREAM_TLS_MOUNT_PATH = "/opt/kroxylicious/tls/upstream";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String CONFIG_MOUNT_PATH = "/opt/kroxylicious/config/proxy-config.yaml";
     private static final String CONFIG_FILE_NAME = "proxy-config.yaml";
@@ -42,23 +48,26 @@ class PodMutator {
      * @param pod the original pod
      * @param spec the sidecar configuration
      * @param proxyImage the container image to use for the proxy
+     * @param useNativeSidecar if true, inject as an init container with restartPolicy: Always (K8s 1.28+)
      * @return JSON Patch string (RFC 6902)
      */
     @NonNull
     static String createPatch(
                               @NonNull Pod pod,
                               @NonNull KroxyliciousSidecarConfigSpec spec,
-                              @NonNull String proxyImage) {
+                              @NonNull String proxyImage,
+                              boolean useNativeSidecar) {
         try {
             ArrayNode patch = MAPPER.createArrayNode();
 
-            String proxyConfig = ProxyConfigGenerator.generateConfig(spec);
+            String upstreamTrustStorePath = resolveUpstreamTrustStorePath(spec);
+            String proxyConfig = ProxyConfigGenerator.generateConfig(spec, upstreamTrustStorePath);
             int bootstrapPort = ProxyConfigGenerator.resolveBootstrapPort(spec);
             int managementPort = ProxyConfigGenerator.resolveManagementPort(spec);
 
             addAnnotationOps(patch, pod, proxyConfig);
-            addVolumeOps(patch, pod);
-            addSidecarContainerOp(patch, pod, proxyImage, managementPort, spec);
+            addVolumeOps(patch, pod, spec);
+            addSidecarContainerOp(patch, pod, proxyImage, managementPort, spec, useNativeSidecar);
             addBootstrapEnvVarOps(patch, pod, spec, bootstrapPort);
             addSecurityContextOps(patch, pod);
 
@@ -69,6 +78,30 @@ class PodMutator {
         }
     }
 
+    /**
+     * Overload for backwards compatibility (no native sidecar).
+     */
+    @NonNull
+    static String createPatch(
+                              @NonNull Pod pod,
+                              @NonNull KroxyliciousSidecarConfigSpec spec,
+                              @NonNull String proxyImage) {
+        return createPatch(pod, spec, proxyImage, false);
+    }
+
+    /**
+     * Computes the path where the upstream CA cert will be mounted inside the sidecar,
+     * or null if upstream TLS is not configured.
+     */
+    @Nullable
+    static String resolveUpstreamTrustStorePath(KroxyliciousSidecarConfigSpec spec) {
+        UpstreamTls tls = spec.getUpstreamTls();
+        if (tls == null || tls.getTrustAnchorSecretRef() == null) {
+            return null;
+        }
+        return UPSTREAM_TLS_MOUNT_PATH + "/" + tls.getTrustAnchorSecretRef().getKey();
+    }
+
     private static void addAnnotationOps(
                                          ArrayNode patch,
                                          Pod pod,
@@ -76,7 +109,6 @@ class PodMutator {
 
         Map<String, String> existing = pod.getMetadata() != null ? pod.getMetadata().getAnnotations() : null;
         if (existing == null) {
-            // annotations map doesn't exist yet — add it
             ObjectNode annotations = MAPPER.createObjectNode();
             annotations.put(Annotations.PROXY_CONFIG, proxyConfig);
             annotations.put(Annotations.SIDECAR_STATUS, "injected");
@@ -88,15 +120,19 @@ class PodMutator {
         }
     }
 
-    private static void addVolumeOps(ArrayNode patch, Pod pod) {
+    private static void addVolumeOps(
+                                     ArrayNode patch,
+                                     Pod pod,
+                                     KroxyliciousSidecarConfigSpec spec) {
         boolean hasVolumes = pod.getSpec() != null
                 && pod.getSpec().getVolumes() != null
                 && !pod.getSpec().getVolumes().isEmpty();
 
         // TODO Add a comment explaining what this is doing in Kube terms.
-        ObjectNode volume = MAPPER.createObjectNode();
-        volume.put("name", SIDECAR_VOLUME_NAME);
-        ObjectNode downwardAPI = volume.putObject("downwardAPI");
+        // Config volume (downwardAPI)
+        ObjectNode configVolume = MAPPER.createObjectNode();
+        configVolume.put("name", SIDECAR_VOLUME_NAME);
+        ObjectNode downwardAPI = configVolume.putObject("downwardAPI");
         ArrayNode items = downwardAPI.putArray("items");
         ObjectNode item = items.addObject();
         item.put("path", CONFIG_FILE_NAME);
@@ -104,12 +140,32 @@ class PodMutator {
         fieldRef.put("fieldPath", "metadata.annotations['" + Annotations.PROXY_CONFIG + "']");
 
         if (hasVolumes) {
-            addOp(patch, "add", "/spec/volumes/-", volume);
+            addOp(patch, "add", "/spec/volumes/-", configVolume);
         }
         else {
             ArrayNode volumes = MAPPER.createArrayNode();
-            volumes.add(volume);
+            volumes.add(configVolume);
             addOp(patch, "add", "/spec/volumes", volumes);
+            hasVolumes = true;
+        }
+
+        // Upstream TLS volume (Secret)
+        UpstreamTls tls = spec.getUpstreamTls();
+        if (tls != null && tls.getTrustAnchorSecretRef() != null) {
+            TrustAnchorSecretRef secretRef = tls.getTrustAnchorSecretRef();
+            ObjectNode tlsVolume = MAPPER.createObjectNode();
+            tlsVolume.put("name", UPSTREAM_TLS_VOLUME_NAME);
+            ObjectNode secret = tlsVolume.putObject("secret");
+            secret.put("secretName", secretRef.getName());
+
+            if (hasVolumes) {
+                addOp(patch, "add", "/spec/volumes/-", tlsVolume);
+            }
+            else {
+                ArrayNode volumes = MAPPER.createArrayNode();
+                volumes.add(tlsVolume);
+                addOp(patch, "add", "/spec/volumes", volumes);
+            }
         }
     }
 
@@ -118,11 +174,16 @@ class PodMutator {
                                               Pod pod,
                                               String proxyImage,
                                               int managementPort,
-                                              KroxyliciousSidecarConfigSpec spec) {
+                                              KroxyliciousSidecarConfigSpec spec,
+                                              boolean useNativeSidecar) {
 
         ObjectNode container = MAPPER.createObjectNode();
         container.put("name", InjectionDecision.SIDECAR_CONTAINER_NAME);
         container.put("image", proxyImage);
+
+        if (useNativeSidecar) {
+            container.put("restartPolicy", "Always");
+        }
 
         ArrayNode args = container.putArray("args");
         args.add("--config");
@@ -148,13 +209,21 @@ class PodMutator {
         addProbe(container, "livenessProbe", 30, 10, 3);
         addProbe(container, "readinessProbe", 5, 2, 5);
 
-        // Volume mount
+        // Volume mounts
         ArrayNode volumeMounts = container.putArray("volumeMounts");
-        ObjectNode mount = volumeMounts.addObject();
-        mount.put("name", SIDECAR_VOLUME_NAME);
-        mount.put("mountPath", CONFIG_MOUNT_PATH);
-        mount.put("subPath", CONFIG_FILE_NAME);
-        mount.put("readOnly", true);
+        ObjectNode configMount = volumeMounts.addObject();
+        configMount.put("name", SIDECAR_VOLUME_NAME);
+        configMount.put("mountPath", CONFIG_MOUNT_PATH);
+        configMount.put("subPath", CONFIG_FILE_NAME);
+        configMount.put("readOnly", true);
+
+        // Upstream TLS volume mount
+        if (spec.getUpstreamTls() != null && spec.getUpstreamTls().getTrustAnchorSecretRef() != null) {
+            ObjectNode tlsMount = volumeMounts.addObject();
+            tlsMount.put("name", UPSTREAM_TLS_VOLUME_NAME);
+            tlsMount.put("mountPath", UPSTREAM_TLS_MOUNT_PATH);
+            tlsMount.put("readOnly", true);
+        }
 
         // Resources
         if (spec.getResources() != null) {
@@ -169,6 +238,15 @@ class PodMutator {
 
         container.put("terminationMessagePolicy", "FallbackToLogsOnError");
 
+        if (useNativeSidecar) {
+            addInitContainer(patch, pod, container);
+        }
+        else {
+            addRegularContainer(patch, pod, container);
+        }
+    }
+
+    private static void addRegularContainer(ArrayNode patch, Pod pod, ObjectNode container) {
         boolean hasContainers = pod.getSpec() != null
                 && pod.getSpec().getContainers() != null
                 && !pod.getSpec().getContainers().isEmpty();
@@ -180,6 +258,21 @@ class PodMutator {
             ArrayNode containers = MAPPER.createArrayNode();
             containers.add(container);
             addOp(patch, "add", "/spec/containers", containers);
+        }
+    }
+
+    private static void addInitContainer(ArrayNode patch, Pod pod, ObjectNode container) {
+        boolean hasInitContainers = pod.getSpec() != null
+                && pod.getSpec().getInitContainers() != null
+                && !pod.getSpec().getInitContainers().isEmpty();
+
+        if (hasInitContainers) {
+            addOp(patch, "add", "/spec/initContainers/-", container);
+        }
+        else {
+            ArrayNode initContainers = MAPPER.createArrayNode();
+            initContainers.add(container);
+            addOp(patch, "add", "/spec/initContainers", initContainers);
         }
     }
 
@@ -223,7 +316,6 @@ class PodMutator {
 
         for (int i = 0; i < containers.size(); i++) {
             io.fabric8.kubernetes.api.model.Container c = containers.get(i);
-            // Don't set on the sidecar itself
             if (InjectionDecision.SIDECAR_CONTAINER_NAME.equals(c.getName())) {
                 continue;
             }
@@ -234,7 +326,6 @@ class PodMutator {
             envVar.put("value", bootstrapValue);
 
             if (hasEnv) {
-                // Check if KAFKA_BOOTSTRAP_SERVERS is already set; if so, replace it
                 int existingIdx = findEnvVarIndex(c.getEnv(), KAFKA_BOOTSTRAP_SERVERS_ENV);
                 if (existingIdx >= 0) {
                     addOp(patch, "replace",

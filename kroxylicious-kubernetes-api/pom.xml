@@ -236,6 +236,9 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Resources>
                             io.fabric8.kubernetes.api.model.ResourceRequirements
                         </io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Resources>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.filterdefinitions.Config>
+                            java.lang.Object
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.filterdefinitions.Config>
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.clusterip.Protocol>
                             io.kroxylicious.kubernetes.api.common.Protocol
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.clusterip.Protocol>
