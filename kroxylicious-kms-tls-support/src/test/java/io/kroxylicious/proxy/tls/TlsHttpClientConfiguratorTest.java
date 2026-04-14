@@ -249,7 +249,7 @@ class TlsHttpClientConfiguratorTest {
         var tls = new TlsHttpClientConfigurator(new Tls(null, null, null, allowedDenied));
         tls.apply(builder);
 
-        assertThat(builder.build().sslParameters()).satisfies(assertSatisfies::accept);
+        assertThat(builder.build().sslParameters()).satisfies(assertSatisfies);
     }
 
     @Test
@@ -282,7 +282,7 @@ class TlsHttpClientConfiguratorTest {
         var tls = new TlsHttpClientConfigurator(new Tls(null, null, allowedDenied, null));
         tls.apply(builder);
 
-        assertThat(builder.build().sslParameters()).satisfies(assertSatisfies::accept);
+        assertThat(builder.build().sslParameters()).satisfies(assertSatisfies);
     }
 
     @Test
