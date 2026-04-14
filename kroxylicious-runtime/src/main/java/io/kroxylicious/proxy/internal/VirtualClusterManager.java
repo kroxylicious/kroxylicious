@@ -67,7 +67,7 @@ public class VirtualClusterManager {
      * Returns the virtual cluster models this manager was constructed with.
      * @return unmodifiable list of virtual cluster models
      */
-    public List<VirtualClusterModel> getVirtualClusterModels() {
+    public List<VirtualClusterModel> virtualClusterModels() {
         return virtualClusterModels;
     }
 
@@ -103,12 +103,13 @@ public class VirtualClusterManager {
      * <ul>
      *   <li>Serving → Draining</li>
      *   <li>Initializing → Stopped (fires callback with empty cause)</li>
-     *   <li>Failed → Stopped (already handled by initializationFailed)</li>
      * </ul>
+     * Clusters already in Failed or Stopped state are skipped — these were already
+     * handled by prior {@link #initializationFailed} calls.
      */
     public void transitionAllToDraining() {
         lifecycleManagers.forEach((name, manager) -> {
-            var state = manager.getState();
+            var state = manager.state();
             if (state instanceof VirtualClusterLifecycleState.Serving) {
                 manager.startDraining();
             }
@@ -126,14 +127,14 @@ public class VirtualClusterManager {
      */
     public boolean transitionAllToStopped() {
         lifecycleManagers.forEach((name, manager) -> {
-            var state = manager.getState();
+            var state = manager.state();
             if (state instanceof VirtualClusterLifecycleState.Draining) {
                 manager.drainComplete();
                 onVirtualClusterStopped.accept(name, Optional.empty());
             }
         });
         return lifecycleManagers.values().stream()
-                .allMatch(m -> m.getState() instanceof VirtualClusterLifecycleState.Stopped);
+                .allMatch(m -> m.state() instanceof VirtualClusterLifecycleState.Stopped);
     }
 
     /**

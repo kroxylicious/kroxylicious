@@ -48,7 +48,7 @@ class KafkaProxyLifecycleTest {
             // then
             assertThat(proxy.lifecycleManagerFor("demo1"))
                     .isNotNull()
-                    .satisfies(m -> assertThat(m.getState()).isInstanceOf(Serving.class));
+                    .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
         }
     }
 
@@ -80,10 +80,10 @@ class KafkaProxyLifecycleTest {
             // then
             assertThat(proxy.lifecycleManagerFor("cluster-a"))
                     .isNotNull()
-                    .satisfies(m -> assertThat(m.getState()).isInstanceOf(Serving.class));
+                    .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
             assertThat(proxy.lifecycleManagerFor("cluster-b"))
                     .isNotNull()
-                    .satisfies(m -> assertThat(m.getState()).isInstanceOf(Serving.class));
+                    .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
         }
     }
 
@@ -110,7 +110,7 @@ class KafkaProxyLifecycleTest {
 
         // then
         assertThat(manager).isNotNull();
-        assertThat(manager.getState()).isInstanceOf(Stopped.class);
+        assertThat(manager.state()).isInstanceOf(Stopped.class);
     }
 
     @Test
@@ -142,7 +142,7 @@ class KafkaProxyLifecycleTest {
             // then
             var manager = proxy.lifecycleManagerFor("demo1");
             assertThat(manager).isNotNull();
-            assertThat(manager.getState())
+            assertThat(manager.state())
                     .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(Stopped.class))
                     .extracting(Stopped::priorFailureCause)
                     .isInstanceOf(PluginConfigurationException.class);

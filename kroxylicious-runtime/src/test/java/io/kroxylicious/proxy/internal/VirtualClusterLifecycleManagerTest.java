@@ -35,12 +35,12 @@ class VirtualClusterLifecycleManagerTest {
 
     @Test
     void shouldStartInInitializingState() {
-        assertThat(manager.getState()).isInstanceOf(Initializing.class);
+        assertThat(manager.state()).isInstanceOf(Initializing.class);
     }
 
     @Test
     void shouldExposeClusterName() {
-        assertThat(manager.getClusterName()).isEqualTo(CLUSTER_NAME);
+        assertThat(manager.clusterName()).isEqualTo(CLUSTER_NAME);
     }
 
     @Test
@@ -49,7 +49,7 @@ class VirtualClusterLifecycleManagerTest {
         manager.initializationSucceeded();
 
         // then
-        assertThat(manager.getState()).isInstanceOf(Serving.class);
+        assertThat(manager.state()).isInstanceOf(Serving.class);
     }
 
     @Test
@@ -61,7 +61,7 @@ class VirtualClusterLifecycleManagerTest {
         manager.initializationFailed(cause);
 
         // then
-        assertThat(manager.getState())
+        assertThat(manager.state())
                 .isInstanceOfSatisfying(Failed.class, failed -> assertThat(failed.cause()).isSameAs(cause));
     }
 
@@ -74,7 +74,7 @@ class VirtualClusterLifecycleManagerTest {
         manager.startDraining();
 
         // then
-        assertThat(manager.getState()).isInstanceOf(Draining.class);
+        assertThat(manager.state()).isInstanceOf(Draining.class);
     }
 
     @Test
@@ -87,7 +87,7 @@ class VirtualClusterLifecycleManagerTest {
         manager.drainComplete();
 
         // then
-        assertThat(manager.getState()).isInstanceOf(Stopped.class);
+        assertThat(manager.state()).isInstanceOf(Stopped.class);
     }
 
     @Test
@@ -99,7 +99,7 @@ class VirtualClusterLifecycleManagerTest {
         manager.stop();
 
         // then
-        assertThat(manager.getState()).isInstanceOf(Stopped.class);
+        assertThat(manager.state()).isInstanceOf(Stopped.class);
     }
 
     @Test
@@ -112,7 +112,7 @@ class VirtualClusterLifecycleManagerTest {
         manager.stop();
 
         // then
-        assertThat(manager.getState())
+        assertThat(manager.state())
                 .isInstanceOfSatisfying(Stopped.class, stopped -> assertThat(stopped.priorFailureCause()).isSameAs(cause));
     }
 
@@ -122,7 +122,7 @@ class VirtualClusterLifecycleManagerTest {
         manager.stop();
 
         // then
-        assertThat(manager.getState())
+        assertThat(manager.state())
                 .isInstanceOfSatisfying(Stopped.class, stopped -> assertThat(stopped.priorFailureCause()).isNull());
     }
 
@@ -136,7 +136,7 @@ class VirtualClusterLifecycleManagerTest {
         manager.drainComplete();
 
         // then
-        assertThat(manager.getState())
+        assertThat(manager.state())
                 .isInstanceOfSatisfying(Stopped.class, stopped -> assertThat(stopped.priorFailureCause()).isNull());
     }
 

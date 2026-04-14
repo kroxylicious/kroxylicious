@@ -49,7 +49,7 @@ class VirtualClusterManagerTest {
 
         // then
         assertThat(manager).isNotNull()
-                .extracting(VirtualClusterLifecycleManager::getState)
+                .extracting(VirtualClusterLifecycleManager::state)
                 .isInstanceOf(VirtualClusterLifecycleState.Initializing.class);
     }
 
@@ -82,7 +82,7 @@ class VirtualClusterManagerTest {
         var multiVcm = new VirtualClusterManager(List.of(modelA, modelB), noOpCallback);
 
         // when
-        var models = multiVcm.getVirtualClusterModels();
+        var models = multiVcm.virtualClusterModels();
 
         // then
         assertThat(models).containsExactly(modelA, modelB);
@@ -122,7 +122,7 @@ class VirtualClusterManagerTest {
 
         // then
         assertThat(vcm.lifecycleManagerFor(CLUSTER_A)).isNotNull()
-                .extracting(VirtualClusterLifecycleManager::getState)
+                .extracting(VirtualClusterLifecycleManager::state)
                 .isInstanceOf(VirtualClusterLifecycleState.Serving.class);
     }
 
@@ -145,7 +145,7 @@ class VirtualClusterManagerTest {
 
         // then
         assertThat(vcm.lifecycleManagerFor(CLUSTER_A)).isNotNull()
-                .extracting(VirtualClusterLifecycleManager::getState)
+                .extracting(VirtualClusterLifecycleManager::state)
                 .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
     }
 
@@ -171,7 +171,7 @@ class VirtualClusterManagerTest {
 
         // then
         assertThat(vcm.lifecycleManagerFor(CLUSTER_A)).isNotNull()
-                .extracting(VirtualClusterLifecycleManager::getState)
+                .extracting(VirtualClusterLifecycleManager::state)
                 .isInstanceOfSatisfying(VirtualClusterLifecycleState.Stopped.class,
                         stopped -> assertThat(stopped.priorFailureCause()).isSameAs(cause));
     }
@@ -203,7 +203,7 @@ class VirtualClusterManagerTest {
 
         // then
         assertThat(vcm.lifecycleManagerFor(CLUSTER_A)).isNotNull()
-                .extracting(VirtualClusterLifecycleManager::getState)
+                .extracting(VirtualClusterLifecycleManager::state)
                 .isInstanceOf(VirtualClusterLifecycleState.Draining.class);
     }
 
@@ -214,7 +214,7 @@ class VirtualClusterManagerTest {
 
         // then
         assertThat(vcm.lifecycleManagerFor(CLUSTER_A)).isNotNull()
-                .extracting(VirtualClusterLifecycleManager::getState)
+                .extracting(VirtualClusterLifecycleManager::state)
                 .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
     }
 
@@ -250,7 +250,7 @@ class VirtualClusterManagerTest {
 
         // then
         assertThat(vcm.lifecycleManagerFor(CLUSTER_A)).isNotNull()
-                .extracting(VirtualClusterLifecycleManager::getState)
+                .extracting(VirtualClusterLifecycleManager::state)
                 .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
     }
 

@@ -101,11 +101,11 @@ public class VirtualClusterLifecycleManager {
         });
     }
 
-    public synchronized VirtualClusterLifecycleState getState() {
+    public synchronized VirtualClusterLifecycleState state() {
         return state;
     }
 
-    public String getClusterName() {
+    public String clusterName() {
         return clusterName;
     }
 
