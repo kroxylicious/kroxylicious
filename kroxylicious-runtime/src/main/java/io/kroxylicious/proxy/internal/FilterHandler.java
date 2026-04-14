@@ -146,7 +146,6 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     @SuppressWarnings("FutureReturnValueIgnored")
-
     private void handleInternalResponseWrite(ChannelPromise promise, InternalResponseFrame<?> decodedFrame) {
         // jump the queue, let responses to asynchronous requests flow back to their sender
         if (decodedFrame.isRecipient(filterAndInvoker.filter())) {
