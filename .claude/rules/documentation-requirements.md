@@ -84,4 +84,4 @@ Each filter guide must cover:
 ## Compiling the documentation
 
 If you change the documentation you should always check that the documentation sources can still be 
-converted to HTML and PDF, using `mvn -P dist package --pl kroxylicious-docs`.
+converted to HTML and PDF, using `mvn -P dist package --pl kroxylicious-docs,kroxylicious-docs-tests`.

@@ -111,5 +111,5 @@ The following list applies to all logging except at `TRACE` level:
 * You must assume that all Kafka records and Kafka protocol messages contain sensitive data. 
   Therefore they should not be logged.
   Instead, extract fields known not to be sensitive and log those. 
-* When declaring classes or records proactively override `toString()` to redact sensitive data. When you do so, annotate the class with `@SanitizedToString`.
+* When declaring classes or records proactively override `toString()` to redact sensitive data. 
 
