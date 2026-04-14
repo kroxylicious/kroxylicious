@@ -7,6 +7,9 @@ package io.kroxylicious.krpccodegen.schema;
 
 import java.util.Optional;
 
+import com.google.errorprone.annotations.Immutable;
+
+@Immutable
 public interface FieldType {
     String ARRAY_PREFIX = "[]";
 
@@ -285,30 +288,19 @@ public interface FieldType {
 
     static FieldType parse(String string) {
         string = string.trim();
-        switch (string) {
-            case BoolFieldType.NAME:
-                return BoolFieldType.INSTANCE;
-            case Int8FieldType.NAME:
-                return Int8FieldType.INSTANCE;
-            case Int16FieldType.NAME:
-                return Int16FieldType.INSTANCE;
-            case Uint16FieldType.NAME:
-                return Uint16FieldType.INSTANCE;
-            case Int32FieldType.NAME:
-                return Int32FieldType.INSTANCE;
-            case Int64FieldType.NAME:
-                return Int64FieldType.INSTANCE;
-            case UUIDFieldType.NAME:
-                return UUIDFieldType.INSTANCE;
-            case Float64FieldType.NAME:
-                return Float64FieldType.INSTANCE;
-            case StringFieldType.NAME:
-                return StringFieldType.INSTANCE;
-            case BytesFieldType.NAME:
-                return BytesFieldType.INSTANCE;
-            case RecordsFieldType.NAME:
-                return RecordsFieldType.INSTANCE;
-            default:
+        return switch (string) {
+            case BoolFieldType.NAME -> BoolFieldType.INSTANCE;
+            case Int8FieldType.NAME -> Int8FieldType.INSTANCE;
+            case Int16FieldType.NAME -> Int16FieldType.INSTANCE;
+            case Uint16FieldType.NAME -> Uint16FieldType.INSTANCE;
+            case Int32FieldType.NAME -> Int32FieldType.INSTANCE;
+            case Int64FieldType.NAME -> Int64FieldType.INSTANCE;
+            case UUIDFieldType.NAME -> UUIDFieldType.INSTANCE;
+            case Float64FieldType.NAME -> Float64FieldType.INSTANCE;
+            case StringFieldType.NAME -> StringFieldType.INSTANCE;
+            case BytesFieldType.NAME -> BytesFieldType.INSTANCE;
+            case RecordsFieldType.NAME -> RecordsFieldType.INSTANCE;
+            default -> {
                 if (string.startsWith(ARRAY_PREFIX)) {
                     String elementTypeString = string.substring(ARRAY_PREFIX.length());
                     if (elementTypeString.isEmpty()) {
@@ -320,15 +312,16 @@ public interface FieldType {
                         throw new IllegalArgumentException("Can't have an array of arrays.  " +
                                 "Use an array of structs containing an array instead.");
                     }
-                    return new ArrayType(elementType);
+                    yield new ArrayType(elementType);
                 }
                 else if (StructRegistry.firstIsCapitalized(string)) {
-                    return new StructType(string);
+                    yield new StructType(string);
                 }
                 else {
                     throw new IllegalArgumentException("Can't parse type " + string);
                 }
-        }
+            }
+        };
     }
 
     /**

@@ -6,18 +6,18 @@
 
 package io.kroxylicious.test.tester;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.UncheckedIOException;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import org.antlr.v4.runtime.BaseErrorListener;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.RecognitionException;
+import org.antlr.v4.runtime.Recognizer;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
 /**
  * Simple representation of a Prometheus metric
@@ -27,54 +27,72 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public record SimpleMetric(String name, Map<String, String> labels, double value) {
 
-    // https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md
-    // note: RE doesn't handle escaping within label values
-    @SuppressWarnings("java:S5852") //
-    private static final Pattern PROM_TEXT_EXPOSITION_PATTERN = Pattern
-            .compile("^(?<metric>[a-zA-Z_:][a-zA-Z0-9_:]*)(\\{(?<labels>.*)})?[\\t ]*(?<value>[0-9E.]*)[\\t ]*(?<timestamp>\\d+)?$");
-    private static final Pattern NAME_WITH_QUOTED_VALUE = Pattern.compile("^(?<name>[a-zA-Z_:][a-zA-Z0-9_:]*)=\"(?<value>.*)\"$");
+    public static List<SimpleMetric> parse(String input) {
+        CharStream chars = CharStreams.fromString(input);
 
-    private record LineMatcher(String line, Matcher matcher) {}
+        ErrorListener errorListener = new ErrorListener(input);
+        PrometheusMetricLexer lexer = new PrometheusMetricLexer(chars);
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(errorListener);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
 
-    public static List<SimpleMetric> parse(String output) {
-        try (var reader = new BufferedReader(new StringReader(output))) {
-            return reader.lines()
-                    .filter(line -> !(line.startsWith("#") || line.isEmpty()))
-                    .map(line -> new LineMatcher(line, PROM_TEXT_EXPOSITION_PATTERN.matcher(line)))
-                    .map(SimpleMetric::parseMetric)
-                    .toList();
+        PrometheusMetricParser parser = new PrometheusMetricParser(tokens);
+        parser.removeErrorListeners();
+        parser.addErrorListener(errorListener);
+        var listener = new MetricListener();
+        ParseTreeWalker.DEFAULT.walk(listener, parser.file());
+        return listener.getResult();
+    }
+
+    private static class MetricListener extends PrometheusMetricBaseListener {
+
+        private final List<SimpleMetric> metrics = new ArrayList<>();
+
+        List<SimpleMetric> getResult() {
+            return List.copyOf(metrics);
         }
-        catch (IOException e) {
-            throw new UncheckedIOException("Failed to parse metrics", e);
+
+        @Override
+        public void exitMetric(PrometheusMetricParser.MetricContext ctx) {
+            var labels = new HashMap<String, String>();
+            if (ctx.labelSet() != null && ctx.labelSet().labelList() != null) {
+                ctx.labelSet().labelList().label().forEach(label -> {
+                    String labelValue = label.QUOTED_STRING().getText();
+                    String unquoted = labelValue.substring(1, labelValue.length() - 1);
+                    labels.put(label.IDENTIFIER().getText(), unquoted);
+                });
+            }
+
+            metrics.add(new SimpleMetric(
+                    ctx.metricName().getText(),
+                    Map.copyOf(labels),
+                    parseValue(ctx.value().getText())));
+        }
+
+        private static double parseValue(String value) {
+            return switch (value) {
+                case "+Inf" -> Double.POSITIVE_INFINITY;
+                case "-Inf" -> Double.NEGATIVE_INFINITY;
+                case "NaN" -> Double.NaN;
+                default -> Double.parseDouble(value);
+            };
         }
     }
 
-    private static SimpleMetric parseMetric(LineMatcher lineMatcher) {
-        var matcher = lineMatcher.matcher;
-        if (!matcher.matches()) {
-            throw new IllegalArgumentException("Failed to parse metric %s".formatted(lineMatcher.line));
-        }
-        try {
-            var metricName = matcher.group("metric");
-            var metricValue = Double.parseDouble(matcher.group("value"));
-            var metricLabels = matcher.group("labels");
-            var labels = labelsToMap(metricLabels);
-            return new SimpleMetric(metricName, labels, metricValue);
-        }
-        catch (IllegalArgumentException iae) {
-            throw new IllegalArgumentException("Failed to parse metric %s".formatted(lineMatcher.line), iae);
-        }
-    }
+    private static class ErrorListener extends BaseErrorListener {
+        private final String input;
 
-    @NonNull
-    private static Map<String, String> labelsToMap(String metricLabels) {
-        if (metricLabels == null || metricLabels.isEmpty()) {
-            return Map.of();
+        ErrorListener(String input) {
+            this.input = input;
         }
-        var splitLabels = metricLabels.split(",");
-        return Arrays.stream(splitLabels)
-                .map(NAME_WITH_QUOTED_VALUE::matcher)
-                .filter(Matcher::matches)
-                .collect(Collectors.toMap(nv -> nv.group("name"), nv -> nv.group("value")));
+
+        @Override
+        public void syntaxError(Recognizer<?, ?> recognizer,
+                                Object offendingSymbol,
+                                int line, int charPositionInLine,
+                                String msg, RecognitionException e) {
+            String errorMessage = String.format("Failed to parse metric at line %d, position %d in [ %s ]: %s", line, charPositionInLine, input, msg);
+            throw new IllegalArgumentException(errorMessage);
+        }
     }
 }
