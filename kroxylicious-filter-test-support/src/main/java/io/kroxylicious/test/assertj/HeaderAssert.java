@@ -77,7 +77,7 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
                 .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
                 .asString(StandardCharsets.UTF_8)
                 .as(DESCRIBED_AS_PATTERN, existingDescription, VALUE_SUFFIX)
-                .satisfies(assertion::accept);
+                .satisfies(assertion);
 
         return this;
     }
@@ -87,7 +87,7 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
         isNotNull().value()
                 .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
                 .as(DESCRIBED_AS_PATTERN, existingDescription, VALUE_SUFFIX)
-                .satisfies(assertion::accept);
+                .satisfies(assertion);
 
         return this;
     }

@@ -61,9 +61,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         var ambiguousEntries = partitioned.get(false);
         var unambiguousEntries = partitioned.get(true);
         if (LOGGER.isWarnEnabled()) {
-            for (Map.Entry<String, Set<ProviderAndConfigType>> ambiguousEntry : ambiguousEntries) {
-                handleAmbiguousEntry(ambiguousEntry, pluginInterface);
-            }
+            ambiguousEntries.forEach(ambiguousEntry -> handleAmbiguousEntry(ambiguousEntry, pluginInterface));
         }
         return unambiguousEntries.stream().collect(Collectors.toMap(
                 Map.Entry::getKey,
