@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.UpstreamTls;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.upstreamtls.TrustAnchorSecretRef;
 
@@ -34,6 +35,9 @@ class PodMutator {
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String UPSTREAM_TLS_MOUNT_PATH = "/opt/kroxylicious/tls/upstream";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
+    private static final String PLUGINS_BASE_PATH = "/opt/kroxylicious/classpath-plugins";
+    private static final String PLUGIN_VOLUME_PREFIX = "plugin-";
+    @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String CONFIG_MOUNT_PATH = "/opt/kroxylicious/config/proxy-config.yaml";
     private static final String CONFIG_FILE_NAME = "proxy-config.yaml";
     private static final String MANAGEMENT_PORT_NAME = "management";
@@ -49,6 +53,8 @@ class PodMutator {
      * @param spec the sidecar configuration
      * @param proxyImage the container image to use for the proxy
      * @param useNativeSidecar if true, inject as an init container with restartPolicy: Always (K8s 1.28+)
+     * @param useOciImageVolumes if true, mount plugin images as OCI image volumes (K8s 1.31+);
+     *                          otherwise use init-container + emptyDir fallback
      * @return JSON Patch string (RFC 6902)
      */
     @NonNull
@@ -56,7 +62,8 @@ class PodMutator {
                               @NonNull Pod pod,
                               @NonNull KroxyliciousSidecarConfigSpec spec,
                               @NonNull String proxyImage,
-                              boolean useNativeSidecar) {
+                              boolean useNativeSidecar,
+                              boolean useOciImageVolumes) {
         try {
             ArrayNode patch = MAPPER.createArrayNode();
 
@@ -66,8 +73,10 @@ class PodMutator {
             int managementPort = ProxyConfigGenerator.resolveManagementPort(spec);
 
             addAnnotationOps(patch, pod, proxyConfig);
-            addVolumeOps(patch, pod, spec);
-            addSidecarContainerOp(patch, pod, proxyImage, managementPort, spec, useNativeSidecar);
+            addVolumeOps(patch, pod, spec, useOciImageVolumes);
+            addPluginCopyInitContainers(patch, pod, spec, useOciImageVolumes);
+            addSidecarContainerOp(patch, pod, proxyImage, managementPort, spec,
+                    useNativeSidecar, useOciImageVolumes);
             addBootstrapEnvVarOps(patch, pod, spec, bootstrapPort);
             addSecurityContextOps(patch, pod);
 
@@ -79,14 +88,14 @@ class PodMutator {
     }
 
     /**
-     * Overload for backwards compatibility (no native sidecar).
+     * Overload for backwards compatibility (no plugins).
      */
     @NonNull
     static String createPatch(
                               @NonNull Pod pod,
                               @NonNull KroxyliciousSidecarConfigSpec spec,
                               @NonNull String proxyImage) {
-        return createPatch(pod, spec, proxyImage, false);
+        return createPatch(pod, spec, proxyImage, false, false);
     }
 
     /**
@@ -123,7 +132,8 @@ class PodMutator {
     private static void addVolumeOps(
                                      ArrayNode patch,
                                      Pod pod,
-                                     KroxyliciousSidecarConfigSpec spec) {
+                                     KroxyliciousSidecarConfigSpec spec,
+                                     boolean useOciImageVolumes) {
         boolean hasVolumes = pod.getSpec() != null
                 && pod.getSpec().getVolumes() != null
                 && !pod.getSpec().getVolumes().isEmpty();
@@ -146,8 +156,9 @@ class PodMutator {
             ArrayNode volumes = MAPPER.createArrayNode();
             volumes.add(configVolume);
             addOp(patch, "add", "/spec/volumes", volumes);
-            hasVolumes = true;
         }
+        // From this point, volumes array exists
+        hasVolumes = true;
 
         // Upstream TLS volume (Secret)
         UpstreamTls tls = spec.getUpstreamTls();
@@ -157,15 +168,71 @@ class PodMutator {
             tlsVolume.put("name", UPSTREAM_TLS_VOLUME_NAME);
             ObjectNode secret = tlsVolume.putObject("secret");
             secret.put("secretName", secretRef.getName());
+            addOp(patch, "add", "/spec/volumes/-", tlsVolume);
+        }
 
-            if (hasVolumes) {
-                addOp(patch, "add", "/spec/volumes/-", tlsVolume);
+        // Plugin volumes
+        List<Plugins> plugins = spec.getPlugins();
+        if (plugins != null) {
+            for (Plugins plugin : plugins) {
+                ObjectNode pluginVolume = MAPPER.createObjectNode();
+                pluginVolume.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName());
+
+                if (useOciImageVolumes) {
+                    ObjectNode image = pluginVolume.putObject("image");
+                    image.put("reference", plugin.getImage().getReference());
+                    if (plugin.getImage().getPullPolicy() != null) {
+                        image.put("pullPolicy", plugin.getImage().getPullPolicy().getValue());
+                    }
+                }
+                else {
+                    // Fallback: emptyDir volume, populated by an init container
+                    pluginVolume.putObject("emptyDir");
+                }
+
+                addOp(patch, "add", "/spec/volumes/-", pluginVolume);
             }
-            else {
-                ArrayNode volumes = MAPPER.createArrayNode();
-                volumes.add(tlsVolume);
-                addOp(patch, "add", "/spec/volumes", volumes);
-            }
+        }
+    }
+
+    /**
+     * Adds init containers that copy plugin JARs from OCI images to emptyDir volumes.
+     * Only used when OCI image volumes are not available.
+     */
+    private static void addPluginCopyInitContainers(
+                                                    ArrayNode patch,
+                                                    Pod pod,
+                                                    KroxyliciousSidecarConfigSpec spec,
+                                                    boolean useOciImageVolumes) {
+
+        List<Plugins> plugins = spec.getPlugins();
+        if (plugins == null || plugins.isEmpty() || useOciImageVolumes) {
+            return;
+        }
+
+        for (Plugins plugin : plugins) {
+            ObjectNode initContainer = MAPPER.createObjectNode();
+            initContainer.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName() + "-copy");
+            initContainer.put("image", plugin.getImage().getReference());
+
+            ArrayNode command = initContainer.putArray("command");
+            command.add("sh");
+            command.add("-c");
+            command.add("cp -r /. /plugins/");
+
+            ArrayNode mounts = initContainer.putArray("volumeMounts");
+            ObjectNode mount = mounts.addObject();
+            mount.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName());
+            mount.put("mountPath", "/plugins");
+
+            // Security context for init container
+            ObjectNode secCtx = initContainer.putObject("securityContext");
+            secCtx.put("allowPrivilegeEscalation", false);
+            secCtx.put("readOnlyRootFilesystem", true);
+            ObjectNode capabilities = secCtx.putObject("capabilities");
+            capabilities.putArray("drop").add("ALL");
+
+            addInitContainer(patch, pod, initContainer);
         }
     }
 
@@ -175,7 +242,8 @@ class PodMutator {
                                               String proxyImage,
                                               int managementPort,
                                               KroxyliciousSidecarConfigSpec spec,
-                                              boolean useNativeSidecar) {
+                                              boolean useNativeSidecar,
+                                              boolean useOciImageVolumes) {
 
         ObjectNode container = MAPPER.createObjectNode();
         container.put("name", InjectionDecision.SIDECAR_CONTAINER_NAME);
@@ -223,6 +291,17 @@ class PodMutator {
             tlsMount.put("name", UPSTREAM_TLS_VOLUME_NAME);
             tlsMount.put("mountPath", UPSTREAM_TLS_MOUNT_PATH);
             tlsMount.put("readOnly", true);
+        }
+
+        // Plugin volume mounts
+        List<Plugins> plugins = spec.getPlugins();
+        if (plugins != null) {
+            for (Plugins plugin : plugins) {
+                ObjectNode pluginMount = volumeMounts.addObject();
+                pluginMount.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName());
+                pluginMount.put("mountPath", PLUGINS_BASE_PATH + "/" + plugin.getName());
+                pluginMount.put("readOnly", true);
+            }
         }
 
         // Resources

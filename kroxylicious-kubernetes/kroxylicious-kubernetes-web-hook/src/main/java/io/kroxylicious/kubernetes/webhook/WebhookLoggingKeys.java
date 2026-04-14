@@ -6,6 +6,9 @@
 
 package io.kroxylicious.kubernetes.webhook;
 
+/**
+ * Constants used for logging
+ */
 public class WebhookLoggingKeys {
 
     static final String NAMESPACE = "namespace";
