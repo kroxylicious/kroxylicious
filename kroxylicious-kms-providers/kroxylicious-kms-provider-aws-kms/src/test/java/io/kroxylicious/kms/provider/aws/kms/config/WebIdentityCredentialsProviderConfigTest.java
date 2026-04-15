@@ -29,7 +29,6 @@ class WebIdentityCredentialsProviderConfigTest {
                 webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
                 roleSessionName: my-session
                 stsEndpointUrl: https://sts.us-east-1.amazonaws.com
-                stsRegion: us-east-1
                 durationSeconds: 3600
                 credentialLifetimeFactor: 0.5
                 """;
@@ -40,7 +39,6 @@ class WebIdentityCredentialsProviderConfigTest {
         assertThat(config.webIdentityTokenFile()).isEqualTo(Path.of("/var/run/secrets/eks.amazonaws.com/serviceaccount/token"));
         assertThat(config.roleSessionName()).isEqualTo("my-session");
         assertThat(config.stsEndpointUrl()).isEqualTo(URI.create("https://sts.us-east-1.amazonaws.com"));
-        assertThat(config.stsRegion()).isEqualTo("us-east-1");
         assertThat(config.durationSeconds()).isEqualTo(3600);
         assertThat(config.credentialLifetimeFactor()).isEqualTo(0.5);
     }
@@ -53,7 +51,6 @@ class WebIdentityCredentialsProviderConfigTest {
         assertThat(config.webIdentityTokenFile()).isNull();
         assertThat(config.roleSessionName()).isNull();
         assertThat(config.stsEndpointUrl()).isNull();
-        assertThat(config.stsRegion()).isNull();
         assertThat(config.durationSeconds()).isNull();
         assertThat(config.credentialLifetimeFactor()).isNull();
     }

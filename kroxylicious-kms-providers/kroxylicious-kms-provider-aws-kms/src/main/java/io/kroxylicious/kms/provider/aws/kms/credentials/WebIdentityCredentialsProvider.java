@@ -71,7 +71,6 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
     static final String ENV_ROLE_ARN = "AWS_ROLE_ARN";
     static final String ENV_WEB_IDENTITY_TOKEN_FILE = "AWS_WEB_IDENTITY_TOKEN_FILE";
     static final String ENV_ROLE_SESSION_NAME = "AWS_ROLE_SESSION_NAME";
-    static final String ENV_AWS_REGION = "AWS_REGION";
 
     private final HttpClient client;
     private final URI stsEndpointUrl;
@@ -84,8 +83,8 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
      * Creates the IRSA web-identity credentials provider.
      *
      * @param config provider config.
-     * @param defaultRegion AWS region inherited from the surrounding {@code Config} (used as a
-     *                      fallback for the STS region/endpoint).
+     * @param defaultRegion AWS region from the surrounding {@code Config.region()} (used to derive
+     *                      the STS endpoint when {@code stsEndpointUrl} is not set).
      */
     public WebIdentityCredentialsProvider(WebIdentityCredentialsProviderConfig config, String defaultRegion) {
         this(config, defaultRegion, System::getenv, Clock.systemUTC());
@@ -112,10 +111,9 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
         }
         this.webIdentityTokenFile = Path.of(tokenFileString);
 
-        var resolvedRegion = firstNonBlank(config.stsRegion(), env.apply(ENV_AWS_REGION), defaultRegion);
         this.stsEndpointUrl = config.stsEndpointUrl() != null
                 ? config.stsEndpointUrl()
-                : URI.create("https://sts." + resolvedRegion + ".amazonaws.com");
+                : URI.create("https://sts." + defaultRegion + ".amazonaws.com");
 
         this.roleSessionName = sanitiseSessionName(
                 firstNonBlank(config.roleSessionName(), env.apply(ENV_ROLE_SESSION_NAME), generatedSessionName()));

@@ -126,15 +126,6 @@ class WebIdentityCredentialsProviderTest {
     }
 
     @Test
-    void stsRegionEnvOverridesDefault() {
-        var cfg = config(ROLE_ARN, tokenFile, null, null);
-        var env = envOf(Map.of(WebIdentityCredentialsProvider.ENV_AWS_REGION, "ap-southeast-1"));
-        try (var provider = new WebIdentityCredentialsProvider(cfg, "us-east-1", env, Clock.systemUTC())) {
-            assertThat(provider.stsEndpointUrl()).isEqualTo(URI.create("https://sts.ap-southeast-1.amazonaws.com"));
-        }
-    }
-
-    @Test
     void generatesSessionNameWhenAbsent() {
         var cfg = config(ROLE_ARN, tokenFile, null, null);
         try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC())) {
@@ -275,7 +266,7 @@ class WebIdentityCredentialsProviderTest {
         stubStsSuccess("ASIA", "s", "t", Instant.parse("2099-01-01T00:00:00Z"));
 
         var cfg = new WebIdentityCredentialsProviderConfig(ROLE_ARN, tokenFile, "s",
-                URI.create(stsServer.baseUrl() + STS_PATH), null, 1800, null);
+                URI.create(stsServer.baseUrl() + STS_PATH), 1800, null);
         try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC())) {
             assertThat(provider.getCredentials()).succeedsWithin(Duration.ofSeconds(5));
         }
@@ -285,7 +276,7 @@ class WebIdentityCredentialsProviderTest {
     }
 
     private WebIdentityCredentialsProviderConfig config(String roleArn, Path tokenFile, String sessionName, URI stsEndpoint) {
-        return new WebIdentityCredentialsProviderConfig(roleArn, tokenFile, sessionName, stsEndpoint, null, null, null);
+        return new WebIdentityCredentialsProviderConfig(roleArn, tokenFile, sessionName, stsEndpoint, null, null);
     }
 
     private static Function<String, String> envOf(Map<String, String> values) {

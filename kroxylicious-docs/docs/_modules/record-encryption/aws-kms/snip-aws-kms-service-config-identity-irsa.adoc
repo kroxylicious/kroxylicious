@@ -23,7 +23,6 @@ kmsConfig:
       webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
       roleSessionName: <session_name>
       stsEndpointUrl: https://sts.<region>.amazonaws.com
-      stsRegion: <region>
       durationSeconds: 3600
       credentialLifetimeFactor: 0.8
   region: <region>
@@ -38,8 +37,7 @@ where:
 **** `roleArn` (Optional) ARN of the IAM role to assume. Defaults to the `AWS_ROLE_ARN` environment variable.
 **** `webIdentityTokenFile` (Optional) path to the projected service-account OIDC token. Defaults to the `AWS_WEB_IDENTITY_TOKEN_FILE` environment variable.
 **** `roleSessionName` (Optional) the session name reported to AWS CloudTrail. Defaults to the `AWS_ROLE_SESSION_NAME` environment variable, falling back to a generated `kroxylicious-<uuid>` value.
-**** `stsEndpointUrl` (Optional) the STS endpoint URL to call. Defaults to the regional endpoint `\https://sts.<stsRegion>.amazonaws.com`.
-**** `stsRegion` (Optional) the AWS region for STS. Defaults to the `AWS_REGION` environment variable, then falls back to the surrounding `region` value.
+**** `stsEndpointUrl` (Optional) the STS endpoint URL to call. Defaults to `\https://sts.<region>.amazonaws.com` derived from the surrounding `region` value. Override for non-standard partitions (e.g. China: `sts.<region>.amazonaws.com.cn`).
 **** `durationSeconds` (Optional) requested duration of the assumed-role session. When omitted, STS uses the role's configured maximum session duration.
 **** `credentialLifetimeFactor` (Optional) defines the factor used to determine when to refresh a credential before it expires. Defaults to `0.8`, which means the credential is refreshed once it reaches 80% of its lifetime.
 ** `region` defines the AWS region identifier where KMS resources are located, such as `us-east-1`. This must match the region of the KMS endpoint you're using.

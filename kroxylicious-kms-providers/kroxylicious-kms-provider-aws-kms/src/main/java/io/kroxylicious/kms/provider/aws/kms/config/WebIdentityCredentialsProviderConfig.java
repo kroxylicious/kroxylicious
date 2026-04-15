@@ -35,16 +35,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param roleArn IAM role to assume.
  * @param webIdentityTokenFile path to the projected service-account OIDC token file.
  * @param roleSessionName session name reported to AWS CloudTrail (must match {@code [\w+=,.@-]*}, max 64 chars).
- * @param stsEndpointUrl override of the STS endpoint URL.  Defaults to the regional endpoint.
- * @param stsRegion override of the STS region.  Defaults to the parent {@link Config#region()}.
- * @param durationSeconds requested duration of the assumed-role session.  When {@code null}, STS picks the role's max session duration.
+ * @param stsEndpointUrl override of the STS endpoint URL.  Defaults to {@code https://sts.<Config.region>.amazonaws.com}.
+ *                        Override for non-standard partitions (e.g. China: {@code sts.<region>.amazonaws.com.cn}).
+ * @param durationSeconds requested duration of the assumed-role session (900–43200s).  When {@code null}, STS picks the role's max session duration.
  * @param credentialLifetimeFactor the factor applied to determine how long until a credential is preemptively refreshed.
  */
 public record WebIdentityCredentialsProviderConfig(@JsonProperty(value = "roleArn", required = false) @Nullable String roleArn,
                                                    @JsonProperty(value = "webIdentityTokenFile", required = false) @Nullable Path webIdentityTokenFile,
                                                    @JsonProperty(value = "roleSessionName", required = false) @Nullable String roleSessionName,
                                                    @JsonProperty(value = "stsEndpointUrl", required = false) @Nullable URI stsEndpointUrl,
-                                                   @JsonProperty(value = "stsRegion", required = false) @Nullable String stsRegion,
                                                    @JsonProperty(value = "durationSeconds", required = false) @Nullable Integer durationSeconds,
                                                    @JsonProperty(value = "credentialLifetimeFactor", required = false) @Nullable Double credentialLifetimeFactor) {
 
