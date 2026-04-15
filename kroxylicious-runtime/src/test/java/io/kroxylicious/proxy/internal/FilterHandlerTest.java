@@ -1302,10 +1302,8 @@ class FilterHandlerTest extends FilterHarness {
 
     @Test
     void internalResponsePassedThroughNonRecipientFilterThatFailsClosesChannel() {
-        ApiVersionsRequestFilter recipientFilter = (apiVersion, header, request, context) ->
-                context.requestFilterResultBuilder().forward(header, request).completed();
-        ApiVersionsResponseFilter failingFilter = (apiVersion, header, response, context) ->
-                CompletableFuture.failedStage(new RuntimeException("deliberate failure"));
+        ApiVersionsRequestFilter recipientFilter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().forward(header, request).completed();
+        ApiVersionsResponseFilter failingFilter = (apiVersion, header, response, context) -> CompletableFuture.failedStage(new RuntimeException("deliberate failure"));
 
         buildChannel(recipientFilter, failingFilter);
 
@@ -1314,7 +1312,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.readInbound(); // consume the InternalRequestFrame forwarded through the pipeline to the broker
 
         int correlationId = req.header().correlationId();
-        
+
         writeInternalResponse(correlationId, new ApiVersionsResponseData());
         channel.runPendingTasks();
 
@@ -1323,12 +1321,10 @@ class FilterHandlerTest extends FilterHarness {
 
     @Test
     void internalRequestFrameThroughFailingFilterClosesChannel() {
-        ApiVersionsRequestFilter failingFilter = (apiVersion, header, request, context) ->
-                CompletableFuture.failedStage(new RuntimeException("deliberate failure"));
+        ApiVersionsRequestFilter failingFilter = (apiVersion, header, request, context) -> CompletableFuture.failedStage(new RuntimeException("deliberate failure"));
         buildChannel(failingFilter);
 
-        ApiVersionsRequestFilter dummyRecipient = (a, h, r, ctx) ->
-                ctx.requestFilterResultBuilder().forward(h, r).completed();
+        ApiVersionsRequestFilter dummyRecipient = (a, h, r, ctx) -> ctx.requestFilterResultBuilder().forward(h, r).completed();
         writeInternalRequest(new ApiVersionsRequestData(), dummyRecipient);
         channel.runPendingTasks();
 
