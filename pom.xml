@@ -1334,6 +1334,10 @@
                 <!-- Activate Error Prone on JDK 17+ -->
                 <!-- JDK 25+ requires the should-stop compiler flag due to javac policy change -->
                 <jdk>[17,)</jdk>
+                <!-- allow errorprone to be disabled from system property (not maven property) -->
+                <property>
+                    <name>!errorprone.skip</name>
+                </property>
             </activation>
             <build>
                 <plugins>
@@ -1346,7 +1350,7 @@
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
                                 <!-- The following <arg> cannot be split over multiple lines :-( -->
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-sources/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-sources/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
@@ -1522,10 +1526,13 @@
                 <skipTests>true</skipTests>
                 <maven.javadoc.skip>true</maven.javadoc.skip>
                 <archetype.test.skip>true</archetype.test.skip>
+                <mdep.analyze.skip>true</mdep.analyze.skip>
                 <skipDocs>true</skipDocs>
                 <checkstyle.skip>true</checkstyle.skip>
                 <spotbugs.skip>true</spotbugs.skip>
-                <errorprone.skip>true</errorprone.skip>
+                <enforcer.skip>true</enforcer.skip>
+                <formatter.skip>true</formatter.skip>
+                <impsort.skip>true</impsort.skip>
             </properties>
         </profile>
         <profile>

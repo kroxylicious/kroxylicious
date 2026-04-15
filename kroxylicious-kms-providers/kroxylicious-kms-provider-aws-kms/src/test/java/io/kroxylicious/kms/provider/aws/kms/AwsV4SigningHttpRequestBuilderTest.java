@@ -182,18 +182,10 @@ class AwsV4SigningHttpRequestBuilderTest {
         var builder = createBuilder(TEST_URI);
 
         switch (method) {
-            case "GET":
-                builder.GET();
-                break;
-            case "DELETE":
-                builder.DELETE();
-                break;
-            case "POST":
-                builder.POST(HttpRequest.BodyPublishers.noBody());
-                break;
-            case "PUT":
-                builder.PUT(HttpRequest.BodyPublishers.noBody());
-                break;
+            case "GET" -> builder.GET();
+            case "DELETE" -> builder.DELETE();
+            case "POST" -> builder.POST(HttpRequest.BodyPublishers.noBody());
+            case "PUT" -> builder.PUT(HttpRequest.BodyPublishers.noBody());
         }
         assertThat(builder.build().method()).isEqualTo(method);
     }
@@ -232,14 +224,9 @@ class AwsV4SigningHttpRequestBuilderTest {
                 headers.forEach((name, valueList) -> valueList.forEach(value -> builder.header(name, value)));
             }
             switch (method()) {
-                case "POST":
-                    builder.POST(data == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(data()));
-                    break;
-                case "GET":
-                    builder.GET();
-                    break;
-                default:
-                    throw new UnsupportedOperationException(method() + " is not supported.");
+                case "POST" -> builder.POST(data == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(data()));
+                case "GET" -> builder.GET();
+                default -> throw new UnsupportedOperationException(method() + " is not supported.");
             }
         }
 
