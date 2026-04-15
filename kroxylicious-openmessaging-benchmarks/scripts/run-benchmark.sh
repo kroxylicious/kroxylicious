@@ -535,7 +535,7 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
         JFR_PVC_NAME="${JFR_PVC_NAME}" JFR_MAX_SIZE="${JFR_MAX_SIZE}" \
         envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE} ${JFR_PVC_NAME} ${JFR_MAX_SIZE}' \
         < "${HELM_CHART}/patches/proxy-jfr-tmp.yaml" \
-        | kubectl apply --server-side --field-manager=benchmark-jfr -f -
+        | kubectl apply --server-side --field-manager=benchmark-jfr -f - >/dev/null
 
     # Dry-run the async-profiler patch first — it sets seccompProfile: Unconfined which is
     # forbidden on clusters with restricted SCCs (e.g. OpenShift). If the dry-run reports
@@ -550,7 +550,7 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
         echo "         JFR recording will still be collected." >&2
     else
         echo "${async_profiler_patch}" \
-            | kubectl apply --server-side --field-manager=benchmark-async-profiler -f -
+            | kubectl apply --server-side --field-manager=benchmark-async-profiler -f - >/dev/null
     fi
 
     echo "Waiting for proxy deployment rollout after patch..."
@@ -650,8 +650,17 @@ if [[ -n "${PROXY_POD}" ]]; then
     if [[ -z "${JVM_PID}" ]]; then
         echo "Warning: could not find JVM PID — skipping JFR and flamegraph dump" >&2
     else
-        kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-            sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.stop name=benchmark filename=/tmp/benchmark.jfr"
+        # Stop JFR recording.  jcmd prints "Picked up JAVA_TOOL_OPTIONS:" on stderr
+        # and a PID header + "return code: N" on stdout — suppress both and report our own summary.
+        JFR_OUTPUT=$(kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+            sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.stop name=benchmark filename=/tmp/benchmark.jfr" 2>/dev/null) || true
+        # Extract the meaningful line (e.g. 'Stopped recording "benchmark", 1.8 MB written to:')
+        JFR_SUMMARY=$(echo "${JFR_OUTPUT}" | grep -i 'stopped recording' || true)
+        if [[ -n "${JFR_SUMMARY}" ]]; then
+            echo "${JFR_SUMMARY}"
+        else
+            echo "Warning: JFR stop did not report success" >&2
+        fi
 
         # Stop async-profiler and write the flamegraph to /tmp/flamegraph.html.
         # kroxylicious-start.sh exports ASYNC_PROFILER_LIB so the agent path is cleanly
@@ -672,18 +681,20 @@ if [[ -n "${PROXY_POD}" ]]; then
             # value, causing ARGUMENTS_ERROR (return code 100).
             kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
                 sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
-                       '\"stop,flamegraph,file=/tmp/flamegraph.html,title=${SCENARIO}/${WORKLOAD}_$(date -u +%Y-%m-%dT%H:%M:%SZ)\"'"
+                       '\"stop,flamegraph,file=/tmp/flamegraph.html,title=${SCENARIO}/${WORKLOAD}_$(date -u +%Y-%m-%dT%H:%M:%SZ)\"'" \
+                       >/dev/null 2>&1
             if kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- test -s /tmp/flamegraph.html 2>/dev/null; then
                 echo "Flamegraph written to /tmp/flamegraph.html"
             else
-                echo "Warning: async-profiler stop failed (see return code above) — flamegraph absent" >&2
+                echo "Warning: async-profiler stop failed — flamegraph absent" >&2
             fi
         fi
 
         # If more probes follow, restart a fresh recording for the next rate.
         if [[ "${SKIP_TEARDOWN}" == "true" ]]; then
             kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.start name=benchmark settings=default maxsize=${JFR_MAX_SIZE}"
+                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.start name=benchmark settings=default maxsize=${JFR_MAX_SIZE}" \
+                >/dev/null 2>&1
             echo "JFR recording restarted for next probe."
         fi
     fi
