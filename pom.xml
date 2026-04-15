@@ -1526,6 +1526,7 @@
                 <skipTests>true</skipTests>
                 <maven.javadoc.skip>true</maven.javadoc.skip>
                 <archetype.test.skip>true</archetype.test.skip>
+                <mdep.analyze.skip>true</mdep.analyze.skip>
                 <skipDocs>true</skipDocs>
                 <checkstyle.skip>true</checkstyle.skip>
                 <spotbugs.skip>true</spotbugs.skip>
