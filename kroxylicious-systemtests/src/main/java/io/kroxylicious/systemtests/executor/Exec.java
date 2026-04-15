@@ -250,20 +250,15 @@ public class Exec {
         }
     }
 
+    @SuppressWarnings("java:S131")
     private static void throwExceptionForErrorPattern(String msg, String err, ExecResult execResult) {
         Matcher matcher = ERROR_PATTERN.matcher(err);
         KubeClusterException kubeClusterException = new KubeClusterException(execResult, msg);
 
         if (matcher.find()) {
             switch (matcher.group(1)) {
-                case "NotFound":
-                    kubeClusterException = new KubeClusterException.NotFound(execResult, msg);
-                    break;
-                case "AlreadyExists":
-                    kubeClusterException = new KubeClusterException.AlreadyExists(execResult, msg);
-                    break;
-                default:
-                    break;
+                case "NotFound" -> kubeClusterException = new KubeClusterException.NotFound(execResult, msg);
+                case "AlreadyExists" -> kubeClusterException = new KubeClusterException.AlreadyExists(execResult, msg);
             }
         }
         matcher = INVALID_PATTERN.matcher(err);
