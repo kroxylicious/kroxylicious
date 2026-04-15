@@ -246,7 +246,7 @@ class VirtualClusterManagerTest {
         vcm.transitionAllToDraining();
 
         // when
-        vcm.transitionAllToStopped();
+        vcm.completeDraining();
 
         // then
         assertThat(vcm.lifecycleManagerFor(CLUSTER_A)).isNotNull()
@@ -261,7 +261,7 @@ class VirtualClusterManagerTest {
         vcm.transitionAllToDraining();
 
         // when
-        vcm.transitionAllToStopped();
+        vcm.completeDraining();
 
         // then
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
@@ -274,7 +274,7 @@ class VirtualClusterManagerTest {
         vcm.transitionAllToDraining();
 
         // when
-        var allStopped = vcm.transitionAllToStopped();
+        var allStopped = vcm.completeDraining();
 
         // then
         assertThat(allStopped).isTrue();
@@ -286,7 +286,7 @@ class VirtualClusterManagerTest {
         vcm.initializationSucceeded(CLUSTER_A);
 
         // when
-        var allStopped = vcm.transitionAllToStopped();
+        var allStopped = vcm.completeDraining();
 
         // then
         assertThat(allStopped).isFalse();

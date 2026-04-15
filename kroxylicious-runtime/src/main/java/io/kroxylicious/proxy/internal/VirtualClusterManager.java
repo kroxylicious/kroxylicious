@@ -127,7 +127,7 @@ public class VirtualClusterManager {
      *
      * @return true if all virtual clusters are now in the Stopped state
      */
-    public boolean transitionAllToStopped() {
+    public boolean completeDraining() {
         lifecycleManagers.forEach((name, manager) -> {
             var state = manager.state();
             if (state instanceof VirtualClusterLifecycleState.Draining) {

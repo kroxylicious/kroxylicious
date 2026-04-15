@@ -394,7 +394,7 @@ public final class KafkaProxy implements AutoCloseable {
                 }
                 return null;
             }).toCompletableFuture().join();
-            virtualClusterManager.transitionAllToStopped();
+            virtualClusterManager.completeDraining();
             if (meterRegistries != null) {
                 meterRegistries.close();
             }
