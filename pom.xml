@@ -1334,6 +1334,10 @@
                 <!-- Activate Error Prone on JDK 17+ -->
                 <!-- JDK 25+ requires the should-stop compiler flag due to javac policy change -->
                 <jdk>[17,)</jdk>
+                <!-- allow errorprone to be disabled from system property (not maven property) -->
+                <property>
+                    <name>!errorprone.skip</name>
+                </property>
             </activation>
             <build>
                 <plugins>
@@ -1525,7 +1529,9 @@
                 <skipDocs>true</skipDocs>
                 <checkstyle.skip>true</checkstyle.skip>
                 <spotbugs.skip>true</spotbugs.skip>
-                <errorprone.skip>true</errorprone.skip>
+                <enforcer.skip>true</enforcer.skip>
+                <formatter.skip>true</formatter.skip>
+                <impsort.skip>true</impsort.skip>
             </properties>
         </profile>
         <profile>
