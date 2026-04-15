@@ -295,8 +295,10 @@ class KafkaServiceBootstrapReconcilerIT {
         AWAIT.untilAsserted(() -> {
             final KafkaService kafkaService = testActor.get(KafkaService.class, ResourcesUtil.name(cr));
             Assertions.assertThat(kafkaService).isNotNull();
-            Assertions.assertThat(kafkaService.getStatus().getBootstrapServers()).isEqualTo(expectedBootstrap);
-            assertThat(kafkaService.getStatus())
+            var status = kafkaService.getStatus();
+            Assertions.assertThat(status).isNotNull();
+            Assertions.assertThat(status.getBootstrapServers()).isEqualTo(expectedBootstrap);
+            assertThat(status)
                     .isNotNull()
                     .conditionList()
                     .singleElement()
