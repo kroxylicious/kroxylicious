@@ -90,6 +90,7 @@ export KROXYLICIOUS_LOG_FORMAT=json
 bin/kroxylicious-start.sh
 ----
 
+
 Example JSON log output:
 
 [source,json]
@@ -108,9 +109,11 @@ Example JSON log output:
 }
 ----
 
+
 When an exception is logged, a `stack_trace` field is included in the output.
 
 . To switch back to text format, remove the environment variable or set it to `text`:
+
 
 [source,bash]
 ----
