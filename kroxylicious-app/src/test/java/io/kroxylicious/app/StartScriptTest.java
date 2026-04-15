@@ -9,6 +9,7 @@ package io.kroxylicious.app;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
@@ -22,20 +23,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StartScriptTest {
 
     private static final Path START_SCRIPT = Path.of("src/assembly/kroxylicious-start.sh");
+    public static final String CLASSPATH_PLUGINS_WARNING = "WARNING: Loading Kroxylicious plugins from the 'classpath-plugins' directory is an Alpha feature: This feature may change, or be removed entirely, without warning in any future Kroxylicious release.";
 
     @Test
     void classpathIncludesPluginSubdirectories(@TempDir Path tempDir) throws Exception {
         Files.createDirectories(tempDir.resolve("bin"));
         Files.createDirectories(tempDir.resolve("libs"));
-        Files.createDirectories(tempDir.resolve("plugins/plugin-a"));
-        Files.createDirectories(tempDir.resolve("plugins/plugin-b"));
+        Files.createDirectories(tempDir.resolve("classpath-plugins/plugin-a"));
+        Files.createDirectories(tempDir.resolve("classpath-plugins/plugin-b"));
 
-        String output = runClasspathFunction(tempDir);
+        var stdStreams = runClasspathFunction(tempDir);
 
-        assertThat(output)
+        assertThat(stdStreams.standardError())
+                .isEqualTo(CLASSPATH_PLUGINS_WARNING);
+
+        assertThat(stdStreams.standardOutput())
                 .contains("/libs/*")
-                .contains("/plugins/plugin-a/")
-                .contains("/plugins/plugin-b/");
+                .contains("/classpath-plugins/plugin-a/")
+                .contains("/classpath-plugins/plugin-b/");
     }
 
     @Test
@@ -43,56 +48,74 @@ class StartScriptTest {
         Files.createDirectories(tempDir.resolve("bin"));
         Files.createDirectories(tempDir.resolve("libs"));
 
-        String output = runClasspathFunction(tempDir);
+        var stdStreams = runClasspathFunction(tempDir);
 
-        assertThat(output)
+        assertThat(stdStreams.standardError())
+                .as("No warning logged when directory is absent")
+                .isEmpty();
+
+        assertThat(stdStreams.standardOutput())
                 .contains("/libs/*")
-                .doesNotContain("plugins");
+                .doesNotContain("classpath-plugins");
+
     }
 
     @Test
     void classpathWorksWithEmptyPluginsDirectory(@TempDir Path tempDir) throws Exception {
         Files.createDirectories(tempDir.resolve("bin"));
         Files.createDirectories(tempDir.resolve("libs"));
-        Files.createDirectories(tempDir.resolve("plugins"));
+        Files.createDirectories(tempDir.resolve("classpath-plugins"));
 
-        String output = runClasspathFunction(tempDir);
+        var stdStreams = runClasspathFunction(tempDir);
 
-        assertThat(output)
+        assertThat(stdStreams.standardError())
+                .as("No warning logged when directory is present but empty")
+                .isEmpty();
+
+        assertThat(stdStreams.standardOutput())
                 .contains("/libs/*")
-                .doesNotContain("plugins");
+                .doesNotContain("classpath-plugins");
     }
 
     @Test
     void classpathPreservesKroxyliciousClasspathEnvVar(@TempDir Path tempDir) throws Exception {
         Files.createDirectories(tempDir.resolve("bin"));
         Files.createDirectories(tempDir.resolve("libs"));
-        Files.createDirectories(tempDir.resolve("plugins/my-plugin"));
+        Files.createDirectories(tempDir.resolve("classpath-plugins/my-plugin"));
 
-        String command = classpathTestCommand(tempDir);
-        var pb = new ProcessBuilder("bash", "-c", command);
-        pb.environment().put("KROXYLICIOUS_CLASSPATH", "/extra/jars/*");
-        pb.redirectErrorStream(true);
-        Process p = pb.start();
-        String output = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
-        assertThat(p.waitFor(5, TimeUnit.SECONDS)).isTrue();
-        assertThat(p.exitValue()).isZero();
+        var stdStreams = runClasspathFunction(tempDir, Map.of("KROXYLICIOUS_CLASSPATH", "/extra/jars/*"));
 
-        assertThat(output)
+        assertThat(stdStreams.standardError())
+                .isEqualTo(CLASSPATH_PLUGINS_WARNING);
+
+        assertThat(stdStreams.standardOutput())
                 .contains("/libs/*")
-                .contains("/plugins/my-plugin/")
+                .contains("/classpath-plugins/my-plugin/")
                 .contains("/extra/jars/*");
     }
 
-    private String runClasspathFunction(Path baseDir) throws Exception {
+    record StdStreams(String standardOutput, String standardError) {}
+
+    private StdStreams runClasspathFunction(Path baseDir) throws Exception {
+        return runClasspathFunction(baseDir, Map.of());
+    }
+
+    private StdStreams runClasspathFunction(Path baseDir, Map<String, String> env) throws Exception {
         String command = classpathTestCommand(baseDir);
-        Process p = new ProcessBuilder("bash", "-c", command)
-                .redirectErrorStream(true)
-                .start();
-        String output = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+        Path err = baseDir.resolve("err");
+        Path out = baseDir.resolve("out");
+
+        ProcessBuilder pb = new ProcessBuilder("bash", "-c", command)
+                .redirectError(err.toFile())
+                .redirectOutput(out.toFile());
+        pb.environment().putAll(env);
+        Process p = pb.start();
         assertThat(p.waitFor(5, TimeUnit.SECONDS)).isTrue();
         assertThat(p.exitValue()).isZero();
-        return output;
+        var error = Files.readString(err, StandardCharsets.UTF_8).trim();
+        var output = Files.readString(out, StandardCharsets.UTF_8).trim();
+        Files.delete(err);
+        return new StdStreams(output, error);
     }
 
     private static String classpathTestCommand(Path baseDir) {

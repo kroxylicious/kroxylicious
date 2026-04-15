@@ -53,7 +53,7 @@ ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
 COPY target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ .
 
-RUN mkdir -p /opt/kroxylicious/plugins && chown ${CONTAINER_USER_UID}:${CONTAINER_USER_UID} /opt/kroxylicious/plugins
+RUN mkdir -p /opt/kroxylicious/classpath-plugins && chown ${CONTAINER_USER_UID}:${CONTAINER_USER_UID} /opt/kroxylicious/classpath-plugins
 
 USER ${CONTAINER_USER_UID}
 

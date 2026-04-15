@@ -470,16 +470,19 @@ Filters are packaged as standard `.jar` files. A typical Custom Filter jar conta
 1. Filter implementation classes
 2. A FilterFactory implementation per Filter and service metadata (see <<Filter Construction and Configuration>>)
 
-=== Deploying filters
+== Deploying filters
 
-Third-party filter JARs can be deployed using the `plugins/` directory under the Kroxylicious installation directory.
+Third-party filter JARs can be deployed using the `classpath-plugins/` directory under the Kroxylicious installation directory.
+
+WARNING: Loading Kroxylicious plugins from the `classpath-plugins/` directory is an Alpha feature: This feature may change, or be removed entirely, without warning in any future Kroxylicious release.
+
 Each plugin should be placed in its own subdirectory:
 
 [source]
 ----
 kroxylicious/
   libs/          <1>
-  plugins/       <2>
+  classpath-plugins/       <2>
     my-filter/
       my-filter-1.0.jar
       my-dependency.jar
@@ -489,14 +492,15 @@ kroxylicious/
 <1> Built-in Kroxylicious JARs (do not modify).
 <2> Third-party plugin JARs, organised by plugin name.
 
-The proxy startup script automatically scans `plugins/` subdirectories and adds their contents to the Java classpath.
+The proxy startup script automatically scans `classpath-plugins/` subdirectories and adds their contents to the Java classpath.
 Plugins are then discovered via `ServiceLoader` alongside the built-in filters.
 
-If the `plugins/` directory does not exist, no plugin scanning is performed and the proxy starts normally.
+If the `classpath-plugins/` directory does not exist, no plugin scanning is performed and the proxy starts normally.
 
 === Dependency shading
 
-There is currently no classloader isolation between plugins.
+CAUTION: There is currently no classloader isolation between plugins.
+
 All plugins share a single classpath with the proxy itself.
 If a plugin bundles a library that is also used by the proxy or by another plugin (for example Jackson or Guava), the classpath ordering determines which version is used at runtime.
 This can cause subtle failures.
