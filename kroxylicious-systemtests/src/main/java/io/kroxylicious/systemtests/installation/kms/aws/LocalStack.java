@@ -11,6 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -78,7 +79,9 @@ public class LocalStack implements AwsKmsClient {
     // Experimental workaround for https://github.com/kroxylicious/kroxylicious/issues/3362
     @SuppressWarnings("java:S2095") // try-with-resources for "HttpClient" is not available until we adopt JDK21
     private void pingLocalStackEndpoint() {
-        var client = HttpClient.newHttpClient();
+        var client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
         Awaitility.await()
                 .atMost(30, TimeUnit.SECONDS)
                 .ignoreExceptions()
