@@ -115,8 +115,8 @@ public class VirtualClusterLifecycleManager {
         var logBuilder = (state instanceof Serving || state instanceof Failed || state instanceof Stopped) ? LOGGER.atInfo() : LOGGER.atDebug();
         logBuilder
                 .addKeyValue("virtualCluster", clusterName)
-                .addKeyValue("from", previous.getClass().getSimpleName())
-                .addKeyValue("to", state.getClass().getSimpleName())
+                .addKeyValue("from", () -> previous.getClass().getSimpleName())
+                .addKeyValue("to", () -> state.getClass().getSimpleName())
                 .log("Virtual cluster lifecycle transition");
     }
 

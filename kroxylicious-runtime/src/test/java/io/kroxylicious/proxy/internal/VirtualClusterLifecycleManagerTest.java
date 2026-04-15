@@ -142,26 +142,26 @@ class VirtualClusterLifecycleManagerTest {
 
     static Stream<Arguments> invalidTransitions() {
         return Stream.of(
-                Arguments.of("initializationSucceeded from SERVING", (Runnable) () -> {
+                Arguments.argumentSet("initializationSucceeded from SERVING", (Runnable) () -> {
                     var m = new VirtualClusterLifecycleManager("c");
                     m.initializationSucceeded();
                     m.initializationSucceeded();
                 }),
-                Arguments.of("startDraining from INITIALIZING", (Runnable) () -> {
+                Arguments.argumentSet("startDraining from INITIALIZING", (Runnable) () -> {
                     var m = new VirtualClusterLifecycleManager("c");
                     m.startDraining();
                 }),
-                Arguments.of("drainComplete from SERVING", (Runnable) () -> {
+                Arguments.argumentSet("drainComplete from SERVING", (Runnable) () -> {
                     var m = new VirtualClusterLifecycleManager("c");
                     m.initializationSucceeded();
                     m.drainComplete();
                 }),
-                Arguments.of("stop from SERVING", (Runnable) () -> {
+                Arguments.argumentSet("stop from SERVING", (Runnable) () -> {
                     var m = new VirtualClusterLifecycleManager("c");
                     m.initializationSucceeded();
                     m.stop();
                 }),
-                Arguments.of("initializationSucceeded from STOPPED", (Runnable) () -> {
+                Arguments.argumentSet("initializationSucceeded from STOPPED", (Runnable) () -> {
                     var m = new VirtualClusterLifecycleManager("c");
                     m.initializationFailed(new RuntimeException("x"));
                     m.stop();
@@ -171,7 +171,7 @@ class VirtualClusterLifecycleManagerTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidTransitions")
-    void shouldRejectInvalidTransition(String description, Runnable action) {
+    void shouldRejectInvalidTransition(Runnable action) {
         assertThatThrownBy(action::run)
                 .isInstanceOf(IllegalStateException.class);
     }

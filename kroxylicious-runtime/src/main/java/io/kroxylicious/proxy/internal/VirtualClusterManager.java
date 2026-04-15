@@ -45,6 +45,7 @@ public class VirtualClusterManager {
      * @param onVirtualClusterStopped callback invoked with {@code (clusterName, priorFailureCause)}
      *        whenever a virtual cluster reaches the terminal Stopped state. The cause is empty
      *        for clean stops (e.g. drain completed during shutdown) and present for failure-driven stops.
+     *        The callback must not throw exceptions.
      * @throws NullPointerException if either argument is null
      * @throws IllegalArgumentException if the list contains duplicate cluster names
      */
@@ -121,7 +122,8 @@ public class VirtualClusterManager {
     }
 
     /**
-     * Transitions all draining virtual clusters to stopped, firing the callback for each.
+     * Completes the shutdown by transitioning all draining virtual clusters to stopped,
+     * firing the callback for each.
      *
      * @return true if all virtual clusters are now in the Stopped state
      */
