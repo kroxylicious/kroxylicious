@@ -35,7 +35,8 @@ class KafkaProxyExceptionMapperTest {
     void shouldGenerateErrorResponseApiKey(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponse(request, new BrokerNotAvailableException("handshake failure", new SSLHandshakeException("it went wrong")));
+        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponse(request,
+                new BrokerNotAvailableException("handshake failure", new SSLHandshakeException("it went wrong")));
 
         // Then
         assertThat(response)
