@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
@@ -61,7 +61,12 @@ public class HaProxyProtocolDetectionHandler extends ChannelInboundHandlerAdapte
             cumulation = buf;
         }
         else {
-            cumulation = Unpooled.wrappedBuffer(cumulation, buf);
+            if (cumulation instanceof CompositeByteBuf composite) {
+                composite.addComponent(true, buf);
+            }
+            else {
+                cumulation = ctx.alloc().compositeBuffer().addComponents(true, cumulation, buf);
+            }
         }
 
         var result = HAProxyMessageDecoder.detectProtocol(cumulation);

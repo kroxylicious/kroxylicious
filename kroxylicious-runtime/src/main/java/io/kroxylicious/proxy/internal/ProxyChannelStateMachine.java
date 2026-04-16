@@ -429,10 +429,7 @@ public class ProxyChannelStateMachine {
      */
     void onClientRequest(
                          Object msg) {
-        if (frontendHandler == null) {
-            illegalState("Message received before client active: " + (msg == null ? "null" : msg.getClass()));
-            return;
-        }
+        Objects.requireNonNull(frontendHandler);
         if (state() instanceof Forwarding) { // post-backend connection
             messageFromClient(msg);
         }
@@ -722,23 +719,18 @@ public class ProxyChannelStateMachine {
         // Close the server connection
         if (backendHandler != null) {
             backendHandler.inClosed();
-            // token is guaranteed non-null: backendHandler is set in toConnecting(), which
-            // can only be reached after onClientActive(), which requires onBindingResolution()
-            Objects.requireNonNull(proxyToServerConnectionToken).release();
+            proxyToServerConnectionToken.release();
         }
 
         // Close the client connection with any error code
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
             frontendHandler.inClosed(errorCodeEx);
-            // token is guaranteed non-null: frontendHandler is set in onClientActive(), which
-            // requires onBindingResolution() to have been called first
-            Objects.requireNonNull(clientToProxyConnectionToken).release();
+            clientToProxyConnectionToken.release();
         }
     }
 
     private void incrementAppropriateDisconnectsMetric(@Nullable DisconnectCause disconnectCause) {
-        // Increment disconnect counter based on cause (if not an error).
-        // Counters may be null if binding was never resolved (connection dropped before addHandlers).
+        // Increment disconnect counter based on cause (if not an error)
         if (disconnectCause != null) {
             switch (disconnectCause) {
                 case IDLE_TIMEOUT -> clientToProxyDisconnectsIdleCounter.increment();

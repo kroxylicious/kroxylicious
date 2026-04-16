@@ -34,6 +34,29 @@ public record HaProxyContext(
                              Map<String, byte[]> tlvs) {
 
     /**
+     * Compact constructor that deep-copies and wraps the TLV map to ensure immutability.
+     */
+    public HaProxyContext {
+        tlvs = tlvs.entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().clone()));
+    }
+
+    /**
+     * Returns a defensive copy of the TLV map to prevent mutation of internal state.
+     *
+     * @return a new map with cloned byte array values
+     */
+    @Override
+    public Map<String, byte[]> tlvs() {
+        return tlvs.entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().clone()));
+    }
+
+    /**
      * Creates an {@link HaProxyContext} from a Netty {@link HAProxyMessage}.
      * <p>
      * TLV content is deep-copied so the returned context is safe to use
