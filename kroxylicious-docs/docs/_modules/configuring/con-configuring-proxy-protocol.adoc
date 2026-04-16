@@ -53,3 +53,10 @@ If a client connects directly without going through a PROXY protocol-capable loa
 Ensure the upstream load balancer is configured to send PROXY protocol headers,
 or set proxyProtocol mode to 'allowed' or 'disabled'.`
 ====
+
+[IMPORTANT]
+====
+When `mode` is set to `allowed`, any client that can connect directly to Kroxylicious (bypassing the load balancer) can send a PROXY protocol header with a spoofed source address.
+Only use `allowed` mode when your network topology guarantees that untrusted clients cannot reach the proxy port directly, or when source address spoofing is an acceptable risk.
+If all connections come through a PROXY protocol-capable load balancer, prefer `required` mode instead.
+====
