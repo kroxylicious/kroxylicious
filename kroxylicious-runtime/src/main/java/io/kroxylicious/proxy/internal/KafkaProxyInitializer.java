@@ -67,6 +67,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Counter clientToProxyErrorCounter;
     @Nullable
     private final Long unauthenticatedIdleMillis;
+    @Nullable
+    private final ConnectionTracker connectionTracker;
+    @Nullable
+    private final InFlightRequestTracker inFlightRequestTracker;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
@@ -76,7 +80,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
                                  ApiVersionsServiceImpl apiVersionsService,
-                                 Optional<NettySettings> proxyNettySettings) {
+                                 Optional<NettySettings> proxyNettySettings,
+                                 @Nullable ConnectionTracker connectionTracker,
+                                 @Nullable InFlightRequestTracker inFlightRequestTracker) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
@@ -87,6 +93,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
         unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
+        this.connectionTracker = connectionTracker;
+        this.inFlightRequestTracker = inFlightRequestTracker;
     }
 
     @Override
@@ -204,7 +212,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         }
 
         TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder);
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, connectionTracker, inFlightRequestTracker);
 
         // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {

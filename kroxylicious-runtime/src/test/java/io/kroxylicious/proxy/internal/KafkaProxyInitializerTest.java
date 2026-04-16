@@ -347,7 +347,9 @@ class KafkaProxyInitializerTest {
                 (virtualCluster, upstreamNodes) -> null,
                 false,
                 new ApiVersionsServiceImpl(),
-                Optional.ofNullable(proxyNettySettings));
+                Optional.ofNullable(proxyNettySettings),
+                null,
+                null);
     }
 
     private void assertErrorHandlerAdded() {

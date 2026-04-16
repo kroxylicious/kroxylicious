@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
@@ -185,10 +186,24 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
+    @Nullable
+    private final ConnectionTracker connectionTracker;
+    @Nullable
+    private final InFlightRequestTracker inFlightRequestTracker;
+
     public ProxyChannelStateMachine(EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder) {
+        this(endpointBinding, transportSubjectBuilder, null, null);
+    }
+
+    public ProxyChannelStateMachine(EndpointBinding endpointBinding,
+                                    TransportSubjectBuilder transportSubjectBuilder,
+                                    @Nullable ConnectionTracker connectionTracker,
+                                    @Nullable InFlightRequestTracker inFlightRequestTracker) {
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
+        this.connectionTracker = connectionTracker;
+        this.inFlightRequestTracker = inFlightRequestTracker;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
         kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
 
@@ -389,6 +404,12 @@ public class ProxyChannelStateMachine {
      * @param msg the object received from the upstream
      */
     void messageFromServer(Object msg) {
+        if (inFlightRequestTracker != null && frontendHandler != null) {
+            Channel ch = frontendHandler.clientChannel();
+            if (ch != null) {
+                inFlightRequestTracker.onResponseReceived(clusterName(), ch);
+            }
+        }
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
     }
 
@@ -404,6 +425,12 @@ public class ProxyChannelStateMachine {
      * @param msg the RPC received from the upstream
      */
     void messageFromClient(Object msg) {
+        if (inFlightRequestTracker != null && frontendHandler != null && msg instanceof RequestFrame) {
+            Channel ch = frontendHandler.clientChannel();
+            if (ch != null) {
+                inFlightRequestTracker.onRequestSent(clusterName(), ch);
+            }
+        }
         Objects.requireNonNull(backendHandler).forwardToServer(msg);
     }
 
@@ -596,6 +623,13 @@ public class ProxyChannelStateMachine {
 
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
+
+        if (connectionTracker != null) {
+            Channel ch = frontendHandler.clientChannel();
+            if (ch != null) {
+                connectionTracker.onDownstreamConnectionEstablished(clusterName(), ch);
+            }
+        }
     }
 
     void onTransportSubjectBuilt() {
@@ -638,6 +672,13 @@ public class ProxyChannelStateMachine {
         // once buffered message has been forwarded we enable auto-read to start accepting further messages
         maybeUnblock();
         proxyToServerConnectionToken.acquire();
+
+        if (connectionTracker != null && backendHandler != null) {
+            Channel serverCh = backendHandler.serverChannel();
+            if (serverCh != null) {
+                connectionTracker.onUpstreamConnectionEstablished(clusterName(), serverCh);
+            }
+        }
     }
 
     /**
@@ -715,14 +756,29 @@ public class ProxyChannelStateMachine {
         incrementAppropriateDisconnectsMetric(disconnectCause);
 
         kafkaSession.transitionTo(KafkaSessionState.TERMINATING);
-        // Close the server connection
+        // Close the server connection and track upstream closure
         if (backendHandler != null) {
+            if (connectionTracker != null) {
+                Channel serverCh = backendHandler.serverChannel();
+                if (serverCh != null) {
+                    connectionTracker.onUpstreamConnectionClosed(clusterName(), serverCh);
+                }
+            }
             backendHandler.inClosed();
             proxyToServerConnectionToken.release();
         }
 
-        // Close the client connection with any error code
+        // Close the client connection and track downstream closure
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
+            Channel ch = frontendHandler.clientChannel();
+            if (ch != null) {
+                if (connectionTracker != null) {
+                    connectionTracker.onDownstreamConnectionClosed(clusterName(), ch);
+                }
+                if (inFlightRequestTracker != null) {
+                    inFlightRequestTracker.onChannelClosed(clusterName(), ch);
+                }
+            }
             frontendHandler.inClosed(errorCodeEx);
             clientToProxyConnectionToken.release();
         }

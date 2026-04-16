@@ -41,7 +41,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param development Development options
  * @param network Controls aspects of network configuration for the proxy.
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network", "proxy" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
@@ -50,7 +50,8 @@ public record Configuration(
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
-                            @Nullable NetworkDefinition network) {
+                            @Nullable NetworkDefinition network,
+                            @Nullable ProxyConfig proxy) {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
@@ -204,6 +205,10 @@ public record Configuration(
                 // Note: filterDefinitionsByName.get() returns non-null because of constructor post condition
                 .map(filterDefinitionsByName::get)
                 .toList();
+    }
+
+    public ProxyConfig effectiveProxyConfig() {
+        return proxy != null ? proxy : ProxyConfig.DEFAULT;
     }
 
 }

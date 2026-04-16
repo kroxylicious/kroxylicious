@@ -54,6 +54,9 @@ import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
+import io.kroxylicious.proxy.internal.ConnectionDrainManager;
+import io.kroxylicious.proxy.internal.ConnectionTracker;
+import io.kroxylicious.proxy.internal.InFlightRequestTracker;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
@@ -156,6 +159,9 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
+    private @Nullable ConnectionTracker connectionTracker;
+    private @Nullable InFlightRequestTracker inFlightRequestTracker;
+    private @Nullable ConnectionDrainManager connectionDrainManager;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
         this.pfr = requireNonNull(pfr);
@@ -243,11 +249,17 @@ public final class KafkaProxy implements AutoCloseable {
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
+            this.connectionTracker = new ConnectionTracker();
+            this.inFlightRequestTracker = new InFlightRequestTracker();
+            this.connectionDrainManager = new ConnectionDrainManager(connectionTracker, inFlightRequestTracker);
+
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings,
+                            connectionTracker, inFlightRequestTracker));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, apiVersionsService, proxyNettySettings,
+                            connectionTracker, inFlightRequestTracker));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -363,7 +375,8 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     /**
-     * Shuts down a running proxy.
+     * Shuts down a running proxy using the hybrid approach: starts the Netty shutdown
+     * timer (non-blocking safety net), then runs custom per-channel drain within that window.
      */
     public void shutdown() {
         if (!running.getAndSet(false)) {
@@ -375,6 +388,8 @@ public final class KafkaProxy implements AutoCloseable {
             virtualClusterManager.transitionAllToDraining();
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
+
+                // Start Netty shutdown timer (non-blocking — event loops keep running)
                 var closeFutures = new ArrayList<Future<?>>();
                 if (proxyEventGroup != null) {
                     closeFutures.addAll(proxyEventGroup.shutdownGracefully());
@@ -382,7 +397,13 @@ public final class KafkaProxy implements AutoCloseable {
                 if (managementEventGroup != null) {
                     closeFutures.addAll(managementEventGroup.shutdownGracefully());
                 }
+
+                // Run custom drain within Netty's window
+                drainAllClusters();
+
+                // Wait for Netty event loops to terminate
                 closeFutures.forEach(Future::syncUninterruptibly);
+
                 if (filterChainFactory != null) {
                     filterChainFactory.close();
                 }
@@ -400,6 +421,12 @@ public final class KafkaProxy implements AutoCloseable {
             }
         }
         finally {
+            if (connectionDrainManager != null) {
+                connectionDrainManager.close();
+            }
+            connectionTracker = null;
+            inFlightRequestTracker = null;
+            connectionDrainManager = null;
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;
@@ -407,7 +434,34 @@ public final class KafkaProxy implements AutoCloseable {
             shutdown.complete(null);
             LOGGER.atInfo()
                     .log("Shut down completed");
+        }
+    }
 
+    private void drainAllClusters() {
+        if (connectionDrainManager == null) {
+            return;
+        }
+        Duration drainTimeout = config.effectiveProxyConfig().effectiveDrainTimeout();
+        var drainFutures = virtualClusterModels.stream()
+                .map(VirtualClusterModel::getClusterName)
+                .map(name -> connectionDrainManager.gracefullyDrainConnections(name, drainTimeout)
+                        .whenComplete((v, ex) -> {
+                            if (ex != null) {
+                                STARTUP_SHUTDOWN_LOGGER.atWarn()
+                                        .addKeyValue("virtualCluster", name)
+                                        .addKeyValue("error", ex.getMessage())
+                                        .log("Error draining connections");
+                            }
+                        }))
+                .toArray(CompletableFuture[]::new);
+        try {
+            CompletableFuture.allOf(drainFutures).join();
+            STARTUP_SHUTDOWN_LOGGER.atInfo().log("All connections drained successfully");
+        }
+        catch (Exception e) {
+            STARTUP_SHUTDOWN_LOGGER.atWarn()
+                    .addKeyValue("error", e.getMessage())
+                    .log("Connection drain completed with errors");
         }
     }
 
