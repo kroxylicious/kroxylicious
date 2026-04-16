@@ -21,6 +21,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
+import io.kroxylicious.proxy.plugin.ResolvedPluginRegistry;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -29,7 +30,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * The FilterFactory (service) for the {@link AuthorizationFilter}.
  */
 @Plugin(configType = AuthorizationConfig.class)
-public class Authorization implements FilterFactory<AuthorizationConfig, Authorizer> {
+@Plugin(configVersion = "v1alpha1", configType = AuthorizationConfigV1.class)
+public class Authorization implements FilterFactory<Object, Authorizer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Authorization.class);
 
@@ -38,13 +40,40 @@ public class Authorization implements FilterFactory<AuthorizationConfig, Authori
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public Authorizer initialize(FilterFactoryContext context,
-                                 AuthorizationConfig authorizationConfig)
+                                 Object config)
             throws PluginConfigurationException {
         LOGGER.atWarn().log("Authorization is an experimental Filter not yet recommended for production environments");
-        var configuration = Plugins.requireConfig(this, authorizationConfig);
+        var configuration = Plugins.requireConfig(this, config);
+        if (configuration instanceof AuthorizationConfig legacy) {
+            return initializeLegacy(context, legacy);
+        }
+        else if (configuration instanceof AuthorizationConfigV1 v1) {
+            return initializeV1(context, v1);
+        }
+        throw new PluginConfigurationException("Unsupported config type: " + configuration.getClass().getName());
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private Authorizer initializeLegacy(FilterFactoryContext context,
+                                        AuthorizationConfig configuration) {
         this.authorizerService = context.pluginInstance(AuthorizerService.class, configuration.authorizer());
         ((AuthorizerService) authorizerService).initialize(configuration.authorizerConfig());
+        return validateAndBuild(configuration.authorizer());
+    }
 
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private Authorizer initializeV1(FilterFactoryContext context,
+                                    AuthorizationConfigV1 configuration) {
+        ResolvedPluginRegistry registry = context.resolvedPluginRegistry()
+                .orElseThrow(() -> new PluginConfigurationException(
+                        "v1alpha1 config requires a ResolvedPluginRegistry but none is available"));
+        this.authorizerService = registry.pluginInstance(AuthorizerService.class, configuration.authorizer());
+        Object authorizerConfig = registry.pluginConfig(AuthorizerService.class.getName(), configuration.authorizer());
+        ((AuthorizerService) authorizerService).initialize(authorizerConfig);
+        return validateAndBuild(configuration.authorizer());
+    }
+
+    private Authorizer validateAndBuild(String authorizerName) {
         Authorizer authorizer = authorizerService.build();
         authorizer.supportedResourceTypes().ifPresent(usedTypes -> {
             var unsupportedResourceTypes = new HashSet<>(usedTypes);
@@ -54,7 +83,7 @@ public class Authorization implements FilterFactory<AuthorizationConfig, Authori
             if (!unsupportedResourceTypes.isEmpty()) {
                 throw new PluginConfigurationException(("%s specifies access controls for resource types which cannot be enforced by this filter. "
                         + "The unsupported types are: %s.").formatted(
-                                configuration.authorizer(),
+                                authorizerName,
                                 unsupportedResourceTypes.stream().map(Class::getName).collect(Collectors.joining(", "))));
             }
         });

@@ -1,0 +1,27 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: ConnectionExpiration Filter Configuration
+description: >-
+  Configuration for the connection expiration filter, which closes connections
+  after a configurable maximum age with optional jitter.
+
+type: object
+properties:
+  maxAge:
+    type: string
+    description: >-
+      The maximum age of a connection before it will be closed.
+      Must be a positive duration (e.g. "1h", "5m", "30s").
+      Units: d (days), h (hours), m (minutes), s (seconds), ms (milliseconds).
+  jitter:
+    type: string
+    description: >-
+      Optional jitter to apply to the max age, randomizing the effective deadline
+      within [maxAge - jitter, maxAge + jitter] per connection.
+      Must be a non-negative duration not greater than maxAge (e.g. "5m", "30s").
+required:
+  - maxAge
+additionalProperties: false

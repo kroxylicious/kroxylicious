@@ -1,0 +1,136 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: RecordValidation Filter Configuration
+description: >-
+  Configuration for the record validation filter, which validates Kafka record
+  keys and values against configurable rules.
+
+type: object
+properties:
+  rules:
+    type: array
+    description: >-
+      Rules associating topic names with validation to apply to produce data
+      for those topics.
+    items:
+      $ref: "#/$defs/topicMatchingRecordValidationRule"
+  defaultRule:
+    $ref: "#/$defs/recordValidationRule"
+    description: >-
+      Default validation rule applied when no topic-specific rule matches.
+additionalProperties: false
+
+$defs:
+  topicMatchingRecordValidationRule:
+    type: object
+    properties:
+      topicNames:
+        type: array
+        items:
+          type: string
+        description: Topic names eligible for this rule.
+      keyRule:
+        $ref: "#/$defs/bytebufValidation"
+      valueRule:
+        $ref: "#/$defs/bytebufValidation"
+    additionalProperties: false
+
+  recordValidationRule:
+    type: object
+    properties:
+      keyRule:
+        $ref: "#/$defs/bytebufValidation"
+      valueRule:
+        $ref: "#/$defs/bytebufValidation"
+    additionalProperties: false
+
+  bytebufValidation:
+    type: object
+    properties:
+      syntacticallyCorrectJson:
+        $ref: "#/$defs/syntacticallyCorrectJsonConfig"
+      schemaValidationConfig:
+        $ref: "#/$defs/schemaValidationConfig"
+      jwsSignatureValidation:
+        $ref: "#/$defs/jwsSignatureValidationConfig"
+      allowNulls:
+        type: boolean
+        description: Whether a null buffer is considered valid. Defaults to true.
+      allowEmpty:
+        type: boolean
+        description: Whether an empty buffer is considered valid. Defaults to false.
+    additionalProperties: false
+
+  syntacticallyCorrectJsonConfig:
+    type: object
+    properties:
+      validateObjectKeysUnique:
+        type: boolean
+        description: Whether to reject JSON objects with duplicate keys.
+    additionalProperties: false
+
+  schemaValidationConfig:
+    type: object
+    properties:
+      apicurioRegistryUrl:
+        type: string
+        format: uri
+        description: URL of the Apicurio Schema Registry.
+      apicurioId:
+        type: integer
+        description: Content ID (V3) or global ID (V2) of the schema in the registry.
+      wireFormatVersion:
+        type: string
+        enum:
+          - V2
+          - V3
+        description: Wire format version for schema registry lookups. Defaults to V3.
+      tls:
+        type: object
+        description: TLS configuration for connecting to the schema registry.
+    required:
+      - apicurioRegistryUrl
+      - apicurioId
+    additionalProperties: false
+
+  jwsSignatureValidationConfig:
+    type: object
+    properties:
+      trustedJsonWebKeySet:
+        type: string
+        description: JSON Web Key Set used to verify signatures.
+      algorithms:
+        type: object
+        properties:
+          allowed:
+            type: array
+            items:
+              type: string
+          denied:
+            type: array
+            items:
+              type: string
+        additionalProperties: false
+      recordHeader:
+        type: object
+        properties:
+          key:
+            type: string
+            description: Kafka record header key containing the JWS. Defaults to "kroxylicious.io/jws".
+          required:
+            type: boolean
+            description: Whether the JWS record header is required. Defaults to true.
+        additionalProperties: false
+      content:
+        type: object
+        properties:
+          detached:
+            type: boolean
+            description: Whether the JWS payload is detached. Defaults to false.
+        additionalProperties: false
+    required:
+      - trustedJsonWebKeySet
+    additionalProperties: false

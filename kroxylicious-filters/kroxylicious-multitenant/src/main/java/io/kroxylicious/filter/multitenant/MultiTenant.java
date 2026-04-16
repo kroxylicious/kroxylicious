@@ -21,6 +21,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A {@link FilterFactory} for {@link MultiTenantFilter}.
  */
 @Plugin(configType = MultiTenantConfig.class)
+@Plugin(configVersion = "v1alpha1", configType = MultiTenantConfig.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.multitenant.MultiTenant", since = "0.19.0")
 public class MultiTenant implements FilterFactory<MultiTenantConfig, MultiTenantConfig> {
 

@@ -7,7 +7,9 @@
 package io.kroxylicious.filter.oauthbearer;
 
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -32,9 +34,12 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.kroxylicious.filter.oauthbearer.OauthBearerValidation.Config;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.test.schema.SchemaValidationAssert;
 
 import static io.kroxylicious.filter.oauthbearer.OauthBearerValidation.ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
@@ -53,6 +58,49 @@ class OauthBearerValidationTest {
 
     @Mock
     private FilterDispatchExecutor executor;
+
+    @Test
+    void shouldHaveLegacyAndConfig2PluginAnnotations() {
+        Plugin[] annotations = OauthBearerValidation.class.getAnnotationsByType(Plugin.class);
+
+        assertThat(annotations).hasSize(2);
+
+        var versionToConfigType = java.util.Arrays.stream(annotations)
+                .collect(java.util.stream.Collectors.toMap(Plugin::configVersion, Plugin::configType));
+
+        assertThat(versionToConfigType).containsOnly(
+                entry("", Config.class),
+                entry("v1alpha1", Config.class));
+    }
+
+    @Test
+    void fullConfigShouldPassSchemaValidation() {
+        // Config with all fields populated that Java accepts
+        new Config(
+                URI.create("https://jwks.endpoint"),
+                10000L, 20000L, 30000L,
+                "otherScope", "otherClaim",
+                10000L, 500L,
+                "https://first.audience,https://second.audience",
+                "https://issuer.endpoint",
+                DefaultJwtValidator.class.getName());
+
+        // Same config in raw YAML form
+        Map<String, Object> rawConfig = new LinkedHashMap<>();
+        rawConfig.put("jwksEndpointUrl", "https://jwks.endpoint");
+        rawConfig.put("jwksEndpointRefreshMs", 10000);
+        rawConfig.put("jwksEndpointRetryBackoffMs", 20000);
+        rawConfig.put("jwksEndpointRetryBackoffMaxMs", 30000);
+        rawConfig.put("scopeClaimName", "otherScope");
+        rawConfig.put("subClaimName", "otherClaim");
+        rawConfig.put("authenticateBackOffMaxMs", 10000);
+        rawConfig.put("authenticateCacheMaxSize", 500);
+        rawConfig.put("expectedAudience", "https://first.audience,https://second.audience");
+        rawConfig.put("expectedIssuer", "https://issuer.endpoint");
+        rawConfig.put("jwtValidatorClass", DefaultJwtValidator.class.getName());
+
+        SchemaValidationAssert.assertSchemaAccepts("OauthBearerValidation", "v1alpha1", rawConfig);
+    }
 
     @Test
     void noArgsConstructor() {
