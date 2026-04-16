@@ -352,9 +352,9 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inHAProxyShouldBufferWhenOnClientApiVersionsRequest() {
+    void inHaProxyShouldBufferWhenOnClientApiVersionsRequest() {
         // Given
-        stateMachineInHAProxy();
+        stateMachineInHaProxy();
         var msg = apiVersionsRequest();
 
         // When
@@ -369,9 +369,9 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inHAProxyShouldCloseOnUnexpectedMessage() {
+    void inHaProxyShouldCloseOnUnexpectedMessage() {
         // Given
-        stateMachineInHAProxy();
+        stateMachineInHaProxy();
 
         // When - an unexpected (non-Kafka) message arrives
         proxyChannelStateMachine.onClientRequest(new Object());
@@ -383,9 +383,9 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inHAProxyShouldBufferWhenOnClientMetadataRequest() {
+    void inHaProxyShouldBufferWhenOnClientMetadataRequest() {
         // Given
-        stateMachineInHAProxy();
+        stateMachineInHaProxy();
         var msg = metadataRequest();
 
         // When
@@ -757,8 +757,8 @@ class ProxyChannelStateMachineTest {
                 argumentSet("STARTING TLS off ", (Runnable) () -> {
                     // no Op
                 }, false),
-                argumentSet("HA Proxy TLS on", (Runnable) this::stateMachineInHAProxy, true),
-                argumentSet("HA Proxy TLS off ", (Runnable) this::stateMachineInHAProxy, false),
+                argumentSet("Ha Proxy TLS on", (Runnable) this::stateMachineInHaProxy, true),
+                argumentSet("Ha Proxy TLS off ", (Runnable) this::stateMachineInHaProxy, false),
                 argumentSet("Selecting Server TLS on", (Runnable) this::stateMachineInSelectingServer, true),
                 argumentSet("Selecting Server TLS off ", (Runnable) this::stateMachineInSelectingServer, false),
                 argumentSet("Connecting TLS on", (Runnable) this::stateMachineInConnecting, true),
@@ -773,7 +773,7 @@ class ProxyChannelStateMachineTest {
 
     public Stream<Arguments> givenStates() {
         return Stream.of(
-                argumentSet("HA Proxy", (Runnable) this::stateMachineInHAProxy),
+                argumentSet("Ha Proxy", (Runnable) this::stateMachineInHaProxy),
                 argumentSet("Connecting", (Runnable) this::stateMachineInConnecting),
                 argumentSet("ClientActive ", (Runnable) this::stateMachineInClientActive),
                 argumentSet("Forwarding", (Runnable) this::stateMachineInForwarding),
@@ -795,7 +795,7 @@ class ProxyChannelStateMachineTest {
                 TEST_KAFKA_SESSION);
     }
 
-    private void stateMachineInHAProxy() {
+    private void stateMachineInHaProxy() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.HaProxy(),
                 frontendHandler,

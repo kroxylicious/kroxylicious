@@ -52,7 +52,7 @@ class HaProxyMessageHandlerTest {
     }
 
     @Test
-    void shouldStoreHAProxyContextInSession() throws Exception {
+    void shouldStoreHaProxyContextInSession() throws Exception {
         // When
         handler.channelRead(ctx, HA_PROXY_MESSAGE);
 

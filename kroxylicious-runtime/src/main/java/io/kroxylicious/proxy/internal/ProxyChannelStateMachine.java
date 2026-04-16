@@ -337,7 +337,7 @@ public class ProxyChannelStateMachine {
             // handlers before PCSM was created), transition ClientActive → HaProxy.
             if (kafkaSession.haProxyContext() != null) {
                 if (state instanceof ProxyChannelState.ClientActive clientActive) {
-                    toHAProxy(clientActive.toHaProxy());
+                    toHaProxy(clientActive.toHaProxy());
                 }
             }
         }
@@ -658,7 +658,7 @@ public class ProxyChannelStateMachine {
             return onClientRequestInClientActiveState(msg, clientActive);
         }
         else if (state() instanceof ProxyChannelState.HaProxy haProxy) {
-            return onClientRequestInHAProxyState(msg, haProxy);
+            return onClientRequestInHaProxyState(msg, haProxy);
         }
         else if (state() instanceof ProxyChannelState.SelectingServer) {
             return msg instanceof RequestFrame;
@@ -668,7 +668,7 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    private boolean onClientRequestInHAProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
+    private boolean onClientRequestInHaProxyState(Object msg, ProxyChannelState.HaProxy haProxy) {
         return transitionClientRequest(msg, haProxy::toSelectingServer);
     }
 
@@ -693,7 +693,7 @@ public class ProxyChannelStateMachine {
         return transitionClientRequest(msg, clientActive::toSelectingServer);
     }
 
-    private void toHAProxy(ProxyChannelState.HaProxy haProxy) {
+    private void toHaProxy(ProxyChannelState.HaProxy haProxy) {
         setState(haProxy);
     }
 
