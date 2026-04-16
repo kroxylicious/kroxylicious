@@ -1058,72 +1058,6 @@
                             </rules>
                         </configuration>
                     </execution>
-                    <execution>
-                        <id>enforce-recommended-java</id>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <requireJavaVersion>
-                                    <version>[${java.recommended.version},)</version>
-                                    <message>
-                                        Use of JDK ${java.version} has been deprecated and will be removed in a future release. Please upgrade to JDK ${java.recommended.version} or later.
-                                    </message>
-                                </requireJavaVersion>
-                            </rules>
-                            <fail>false</fail>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>ban-build-time-dependencies-from-runtime</id>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <bannedDependencies>
-                                    <excludes>
-                                        <exclude>com.github.spotbugs:spotbugs-annotations:*:*:compile</exclude>
-                                        <exclude>com.github.spotbugs:spotbugs-annotations:*:*:runtime</exclude>
-                                    </excludes>
-                                </bannedDependencies>
-                            </rules>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <!--AssertJ will throw different exceptions than expected when JUnit 4 is on the classpath -->
-                        <!-- See: https://github.com/kroxylicious/kroxylicious/issues/2801-->
-                        <id>ban-junit-4</id>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <bannedDependencies>
-                                    <excludes>
-                                        <exclude>junit:junit</exclude>
-                                    </excludes>
-                                </bannedDependencies>
-                            </rules>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>project-metadata</id>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <requireProperty>
-                                    <!-- note Maven defaults project.name from project.artifactId if it is not specified -->
-                                    <property>project.name</property>
-                                    <regex>^((?!${project.artifactId}).)*$</regex>
-                                    <regexMessage>Module must define a explict project.name property</regexMessage>
-                                </requireProperty>
-                            </rules>
-                        </configuration>
-                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -1134,10 +1068,6 @@
                     <publishingServerId>central</publishingServerId>
                     <waitMaxTime>3600</waitMaxTime>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
@@ -1324,7 +1254,77 @@
                                     </rules>
                                 </configuration>
                             </execution>
+                            <execution>
+                                <id>enforce-recommended-java</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireJavaVersion>
+                                            <version>[${java.recommended.version},)</version>
+                                            <message>
+                                                Use of JDK ${java.version} has been deprecated and will be removed in a future release. Please upgrade to JDK ${java.recommended.version} or later.
+                                            </message>
+                                        </requireJavaVersion>
+                                    </rules>
+                                    <fail>false</fail>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>ban-build-time-dependencies-from-runtime</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <excludes>
+                                                <exclude>com.github.spotbugs:spotbugs-annotations:*:*:compile</exclude>
+                                                <exclude>com.github.spotbugs:spotbugs-annotations:*:*:runtime</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <!--AssertJ will throw different exceptions than expected when JUnit 4 is on the classpath -->
+                                <!-- See: https://github.com/kroxylicious/kroxylicious/issues/2801-->
+                                <id>ban-junit-4</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <excludes>
+                                                <exclude>junit:junit</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>project-metadata</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireProperty>
+                                            <!-- note Maven defaults project.name from project.artifactId if it is not specified -->
+                                            <property>project.name</property>
+                                            <regex>^((?!${project.artifactId}).)*$</regex>
+                                            <regexMessage>Module must define a explict project.name property</regexMessage>
+                                        </requireProperty>
+                                    </rules>
+                                </configuration>
+                            </execution>
                         </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.github.spotbugs</groupId>
+                        <artifactId>spotbugs-maven-plugin</artifactId>
                     </plugin>
                 </plugins>
             </build>
@@ -1527,13 +1527,7 @@
                 <skipTests>true</skipTests>
                 <maven.javadoc.skip>true</maven.javadoc.skip>
                 <archetype.test.skip>true</archetype.test.skip>
-                <mdep.analyze.skip>true</mdep.analyze.skip>
                 <skipDocs>true</skipDocs>
-                <checkstyle.skip>true</checkstyle.skip>
-                <spotbugs.skip>true</spotbugs.skip>
-                <enforcer.skip>true</enforcer.skip>
-                <formatter.skip>true</formatter.skip>
-                <impsort.skip>true</impsort.skip>
             </properties>
         </profile>
         <profile>
