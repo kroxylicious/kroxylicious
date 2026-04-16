@@ -21,6 +21,21 @@ script_dir() {
 classpath() {
   local class_path
   class_path="$(script_dir)/../libs/*"
+  # Scan classpath-plugins directory for subdirectories containing JARs
+  local plugins_dir="$(script_dir)/../classpath-plugins"
+  if [ -d "${plugins_dir}" ]; then
+    local found
+    found=""
+    for dir in "${plugins_dir}"/*/; do
+      if [ -d "$dir" ]; then
+        found="true"
+        class_path="$class_path:${dir}*"
+      fi
+    done
+    if [ -n "${found}" ]; then
+      echo "WARNING: Loading Kroxylicious plugins from the 'classpath-plugins' directory is an Alpha feature: This feature may change, or be removed entirely, without warning in any future Kroxylicious release." >&2
+    fi
+  fi
   if [ -n "${KROXYLICIOUS_CLASSPATH:-}" ]; then
     class_path="$class_path:${KROXYLICIOUS_CLASSPATH}"
   fi
