@@ -63,6 +63,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.operator.DeploymentReadyCondition;
@@ -353,11 +354,37 @@ public class KafkaProxyReconciler implements
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTargetClusterTls(KafkaService kafkaServiceRef) {
-        return Optional.ofNullable(kafkaServiceRef.getSpec())
-                .map(KafkaServiceSpec::getTls)
+        return Optional.of(kafkaServiceRef)
+                .map(ksr -> {
+                    var builder = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder();
+                    Optional.ofNullable(kafkaServiceRef.getSpec())
+                            .map(KafkaServiceSpec::getTls)
+                            .map(io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls::getCipherSuites)
+                            .ifPresent(builder::withCipherSuites);
+                    Optional.ofNullable(kafkaServiceRef.getSpec())
+                            .map(KafkaServiceSpec::getTls)
+                            .map(io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls::getProtocols)
+                            .ifPresent(builder::withProtocols);
+                    Optional.ofNullable(kafkaServiceRef.getSpec())
+                            .map(KafkaServiceSpec::getTls)
+                            .map(io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls::getCertificateRef)
+                            .ifPresent(builder::withCertificateRef);
+                    Optional.ofNullable(kafkaServiceRef.getStatus())
+                            .map(KafkaServiceStatus::getTls)
+                            .map(io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls::getTrustAnchorRef)
+                            .ifPresent(x -> builder.withNewTrustAnchorRef()
+                                    .withNewRef()
+                                    .withName(x.getRef().getName())
+                                    .endRef()
+                                    .withStoreType(x.getStoreType())
+                                    .endTrustAnchorRef());
+
+                    return builder.build();
+                })
+                .filter(tls -> tls.getCertificateRef() != null || tls.getTrustAnchorRef() != null)
                 .map(serviceTls -> ConfigurationFragment.combine(
                         buildKeyProvider(serviceTls.getCertificateRef(), CLIENT_CERTS_BASE_DIR),
-                        buildTrustProvider(false, serviceTls.getTrustAnchorRef(), null, CLIENT_TRUSTED_CERTS_BASE_DIR),
+                        buildTrustProvider(false, kafkaServiceRef, null, CLIENT_TRUSTED_CERTS_BASE_DIR),
                         (keyProviderOpt, trustProvider) -> Optional.of(
                                 new Tls(keyProviderOpt.orElse(null),
                                         trustProvider.orElse(null),
@@ -392,50 +419,58 @@ public class KafkaProxyReconciler implements
     }
 
     private static ConfigurationFragment<Optional<TrustProvider>> buildTrustProvider(boolean forServer,
-                                                                                     @Nullable TrustAnchorRef trustAnchorRef,
+                                                                                     @Nullable Object refObj,
                                                                                      @Nullable TlsClientAuthentication clientAuthentication,
                                                                                      Path parent) {
-        return Optional.ofNullable(trustAnchorRef)
-                .filter(tar -> ResourcesUtil.isConfigMap(tar.getRef()) || ResourcesUtil.isSecret(tar.getRef()))
-                .map(tar -> {
-                    var ref = tar.getRef();
 
-                    // VirtualKafkaCluster and KafkaService CRD both default their trustAnchorRef.kind fields to `ConfigMap`
+        if (refObj == null) {
+            return ConfigurationFragment.empty();
+        }
 
-                    // if ref.getKind is null(), we assume that the resource is a ConfigMap
-                    boolean isSecret = ref.getKind() != null && ResourcesUtil.isSecret(ref);
+        record TrustResource(String name, String key, String type, boolean isSecret) {}
 
-                    // Ensure volume name matches the resource type used
-                    String volType = isSecret ? SECRET_PLURAL : CONFIGMAP_PLURAL;
-                    String volName = ResourcesUtil.volumeName("", volType, ref.getName());
+        TrustResource trustResource = null;
+        if (refObj instanceof KafkaService serviceRef) {
+            boolean secret = serviceRef.getStatus().getTls().getTrustAnchorRef().getRef().getKind() != null
+                    && ResourcesUtil.isSecret(serviceRef.getStatus().getTls().getTrustAnchorRef().getRef());
+            TrustAnchorRef ref = serviceRef.getStatus().getTls().getTrustAnchorRef();
+            trustResource = new TrustResource(serviceRef.getStatus().getTls().getTrustAnchorRef().getRef().getName(), ref.getKey(), ref.getStoreType(), secret);
+        }
+        else if (refObj instanceof TrustAnchorRef trustAnchorRef) {
+            boolean secret = trustAnchorRef.getRef().getKind() != null && ResourcesUtil.isSecret(trustAnchorRef.getRef());
+            String store = (trustAnchorRef.getStoreType() != null) ? trustAnchorRef.getStoreType() : ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef);
+            trustResource = new TrustResource(trustAnchorRef.getRef().getName(), trustAnchorRef.getKey(), store, secret);
+        }
 
-                    var volumeBuilder = new VolumeBuilder()
-                            .withName(volName);
+        if (trustResource == null) {
+            return ConfigurationFragment.empty();
+        }
 
-                    if (isSecret) {
-                        volumeBuilder.withNewSecret().withSecretName(ref.getName()).endSecret();
-                    }
-                    else {
-                        volumeBuilder.withNewConfigMap().withName(ref.getName()).endConfigMap();
-                    }
+        String volType = trustResource.isSecret() ? SECRET_PLURAL : CONFIGMAP_PLURAL;
+        String volName = ResourcesUtil.volumeName("", volType, trustResource.name());
 
-                    Path mountPath = parent.resolve(ref.getName());
+        var vol = new VolumeBuilder().withName(volName);
+        if (trustResource.isSecret()) {
+            vol.withNewSecret().withSecretName(trustResource.name()).endSecret();
+        }
+        else {
+            vol.withNewConfigMap().withName(trustResource.name()).endConfigMap();
+        }
 
-                    var mount = new VolumeMountBuilder()
-                            .withName(volName)
-                            .withMountPath(mountPath.toString())
-                            .withReadOnly(true)
-                            .build();
-                    TrustProvider trustProvider = new TrustStore(
-                            mountPath.resolve(tar.getKey()).toString(),
-                            null,
-                            tar.getStoreType() != null ? tar.getStoreType() : ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef),
-                            forServer ? buildTlsServerOptions(clientAuthentication) : null);
+        Path mountPath = parent.resolve(trustResource.name());
+        var mount = new VolumeMountBuilder()
+                .withName(volName)
+                .withMountPath(mountPath.toString())
+                .withReadOnly(true)
+                .build();
 
-                    return new ConfigurationFragment<>(Optional.of(trustProvider),
-                            Set.of(volumeBuilder.build()),
-                            Set.of(mount));
-                }).orElse(ConfigurationFragment.empty());
+        TrustProvider trust = new TrustStore(
+                mountPath.resolve(trustResource.key()).toString(),
+                null,
+                trustResource.type(),
+                forServer ? buildTlsServerOptions(clientAuthentication) : null);
+
+        return new ConfigurationFragment<>(Optional.of(trust), Set.of(vol.build()), Set.of(mount));
     }
 
     /**

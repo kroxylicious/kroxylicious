@@ -28,3 +28,8 @@ spec:
 status:
   bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
   observedGeneration: 3
+  tls:
+    trustAnchorRef:
+      name: upstream-ca
+      key: cas.pem
+      storeType: PEM
