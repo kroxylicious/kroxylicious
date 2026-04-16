@@ -577,4 +577,34 @@ class KafkaProxyReconcilerTest {
     private static KafkaProxyBuilder proxyBuilder(String name) {
         return new KafkaProxyBuilder().withNewMetadata().withName(name).endMetadata();
     }
+
+    @Test
+    void shouldHandleKafkaServiceWithTlsTrustAnchorInStatus() {
+        // Given
+        long generation = 42L;
+        // @formatter:off
+        var proxy = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withGeneration(generation)
+                    .withUid(UUID.randomUUID().toString())
+                    .withName("my-proxy")
+                .endMetadata()
+                .build();
+        // @formatter:on
+
+        // When - reconcile with a KafkaService that has TLS trust anchor in status
+        var updateControl = newKafkaProxyReconciler(TEST_CLOCK).reconcile(proxy, reconcilerContext);
+
+        // Then - should complete successfully without errors
+        assertThat(updateControl).isNotNull();
+        assertThat(updateControl.isPatchStatus()).isTrue();
+        var statusAssert = assertThat(updateControl.getResource())
+                .isNotEmpty().get()
+                .extracting(KafkaProxy::getStatus, AssertFactory.status());
+        statusAssert.hasObservedGeneration(generation)
+                .conditionList()
+                .containsOnlyTypes(Condition.Type.Ready)
+                .singleOfType(Condition.Type.Ready)
+                .isReadyTrue();
+    }
 }
