@@ -740,6 +740,17 @@ else
             echo "  ${SCENARIO}-${WORKLOAD}-flamegraph.html ($(du -h "${local_fg}" | cut -f1))"
         fi
     fi
+
+    # Generate run metadata for --skip-deploy probes (rate sweeps).
+    # Full deploys get metadata from collect-results.sh above.
+    FILTERED="${SCRIPT_DIR}/../target/jbang/generated-sources/io/kroxylicious/benchmarks/results/cli/CollectResults.java"
+    if [[ -f "${FILTERED}" ]]; then
+        JBANG_ARGS=(--generate-run-metadata "${OUTPUT_DIR}")
+        [[ -n "${SCENARIO}" ]]        && JBANG_ARGS+=(--scenario "${SCENARIO}")
+        [[ -n "${WORKLOAD}" ]]        && JBANG_ARGS+=(--workload "${WORKLOAD}")
+        [[ -n "${PRODUCER_RATE:-}" ]] && JBANG_ARGS+=(--target-rate "${PRODUCER_RATE}")
+        jbang "${FILTERED}" "${JBANG_ARGS[@]}"
+    fi
 fi
 
 echo ""
