@@ -147,8 +147,7 @@ public class KafkaProxyReconcilerIT {
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
     public static final String UPSTREAM_TLS_CERTIFICATE_SECRET_NAME = "upstream-tls-certificate";
-    public static final String CA_BUNDLE_CONFIG_MAP_NAME = "ca-bundle";
-    public static final String CA_CERT_SECRET_NAME = "ca-secret";
+    public static final String CA_BUNDLE = "ca-bundle";
     public static final String TRUSTED_CAS_PEM = "trusted-cas.pem";
     public static final String PROTOCOL_TLS_V1_3 = "TLSv1.3";
     public static final String TLS_CIPHER_SUITE_AES256GCM_SHA384 = "TLS_AES_256_GCM_SHA384";
@@ -443,7 +442,7 @@ public class KafkaProxyReconcilerIT {
     void testCreateWithKafkaServiceTls() {
         // given
         testActor.create(tlsKeyAndCertSecret(UPSTREAM_TLS_CERTIFICATE_SECRET_NAME));
-        testActor.create(trustAnchorConfigMap(CA_BUNDLE_CONFIG_MAP_NAME));
+        testActor.create(trustAnchorConfigMap(CA_BUNDLE));
         KafkaService kafkaService = kafkaServiceWithTls();
 
         // when
@@ -457,7 +456,7 @@ public class KafkaProxyReconcilerIT {
                         PROTOCOL_TLS_V1_3,
                         TLS_CIPHER_SUITE_AES256GCM_SHA384),
                 Set.of());
-        assertDeploymentMountsConfigMap(created.proxy(), CA_BUNDLE_CONFIG_MAP_NAME);
+        assertDeploymentMountsConfigMap(created.proxy(), CA_BUNDLE);
         assertDeploymentMountsSecret(created.proxy(), UPSTREAM_TLS_CERTIFICATE_SECRET_NAME);
     }
 
@@ -465,7 +464,7 @@ public class KafkaProxyReconcilerIT {
     void testCreateWithKafkaServiceTlsUsingTrustAnchorFromSecret() {
         // given
         testActor.create(tlsKeyAndCertSecret(UPSTREAM_TLS_CERTIFICATE_SECRET_NAME));
-        testActor.create(trustAnchorSecret(CA_CERT_SECRET_NAME));
+        testActor.create(trustAnchorSecret(CA_BUNDLE));
         KafkaService kafkaService = kafkaServiceWithTlsWithTrustAnchorRefAsSecret();
 
         // when
@@ -477,7 +476,7 @@ public class KafkaProxyReconcilerIT {
                         UPSTREAM_TLS_CERTIFICATE_SECRET_NAME,
                         TRUSTED_CAS_PEM),
                 Set.of());
-        assertDeploymentMountsSecret(created.proxy(), CA_CERT_SECRET_NAME);
+        assertDeploymentMountsSecret(created.proxy(), CA_BUNDLE);
         assertDeploymentMountsSecret(created.proxy(), UPSTREAM_TLS_CERTIFICATE_SECRET_NAME);
     }
 
@@ -1082,7 +1081,12 @@ public class KafkaProxyReconcilerIT {
         KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
         filter = updateStatusObservedGeneration(filter);
         KafkaService barService = testActor.create(kafkaService);
-        barService = updateStatusObservedGeneration(barService, CLUSTER_BAR_BOOTSTRAP);
+        if (barService.getSpec().getTls() != null) {
+            barService = updateStatusObservedGenerationUpstreamTls(barService, CLUSTER_BAR_BOOTSTRAP);
+        }
+        else {
+            barService = updateStatusObservedGeneration(barService, CLUSTER_BAR_BOOTSTRAP);
+        }
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TCP));
         ingressBar = updateStatusObservedGeneration(ingressBar);
         Set<KafkaService> kafkaServices = Set.of(barService);
@@ -1506,6 +1510,35 @@ public class KafkaProxyReconcilerIT {
     }
 
     // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
+    private KafkaService updateStatusObservedGenerationUpstreamTls(KafkaService service, String bootstrapServers) {
+        // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
+        KafkaService fresh = testActor.get(KafkaService.class, name(service));
+
+        // Infer the kind from the service spec, defaulting to ConfigMap if not specified
+        String kind = Optional.ofNullable(fresh.getSpec())
+                .flatMap(spec -> Optional.ofNullable(spec.getTls()))
+                .flatMap(tls -> Optional.ofNullable(tls.getTrustAnchorRef()))
+                .flatMap(ref -> Optional.ofNullable(ref.getRef()))
+                .flatMap(anyLocalRef -> Optional.ofNullable(anyLocalRef.getKind()))
+                .orElse("ConfigMap");
+
+        fresh.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
+                .withBootstrapServers(bootstrapServers)
+                .withNewTls()
+                .withNewTrustAnchorRef()
+                .withNewRef()
+                .withKind(kind)
+                .withName(CA_BUNDLE)
+                .endRef()
+                .withKey(TRUSTED_CAS_PEM)
+                .withStoreType("PEM")
+                .endTrustAnchorRef()
+                .endTls()
+                .build());
+        return testActor.patchStatus(fresh);
+    }
+
+    // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
     private KafkaProxyIngress updateStatusObservedGeneration(KafkaProxyIngress ingress) {
         // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
         KafkaProxyIngress fresh = testActor.get(KafkaProxyIngress.class, name(ingress));
@@ -1561,7 +1594,7 @@ public class KafkaProxyReconcilerIT {
                         .endCertificateRef()
                         .withNewTrustAnchorRef()
                             .withNewRef()
-                                .withName(CA_BUNDLE_CONFIG_MAP_NAME)
+                                .withName(CA_BUNDLE)
                             .endRef()
                             .withKey(TRUSTED_CAS_PEM)
                         .endTrustAnchorRef()
@@ -1587,7 +1620,7 @@ public class KafkaProxyReconcilerIT {
                         .endCertificateRef()
                         .withNewTrustAnchorRef()
                             .withNewRef()
-                                .withName(CA_CERT_SECRET_NAME)
+                                .withName(CA_BUNDLE)
                                 .withKind("Secret")
                             .endRef()
                             .withKey(TRUSTED_CAS_PEM)
